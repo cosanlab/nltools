@@ -172,7 +172,7 @@ class TestBrainDataCore:
 
     def test_concatenate(self, minimal_brain_data):
         """Test concatenating BrainData objects from list."""
-        out = BrainData([x for x in minimal_brain_data])
+        out = BrainData(list(minimal_brain_data))
         assert isinstance(out, BrainData)
         assert len(out) == len(minimal_brain_data)
 

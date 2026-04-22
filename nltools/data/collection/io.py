@@ -16,7 +16,7 @@ def _resolve_save_path(
     template: str,
     metadata_row: dict,
     idx: int,
-) -> "Path":
+) -> Path:
     """Resolve a template path using metadata values.
 
     Replaces {column_name} placeholders with values from metadata.
@@ -67,11 +67,11 @@ def _resolve_save_path(
 
 
 def write(
-    bc: "BrainCollection",
-    directory: "str | Path",
+    bc: BrainCollection,
+    directory: str | Path,
     pattern: str = "image_{i:04d}.nii.gz",
     metadata_file: str | None = "metadata.csv",
-) -> list["Path"]:
+) -> list[Path]:
     """Write all images in collection to files.
 
     Args:

@@ -18,12 +18,11 @@ Usage:
         >>> # Use seeds in parallel workers for deterministic results
 """
 
-from typing import Optional
 import numpy as np
 from sklearn.utils import check_random_state
 
 
-def get_random_state(random_state: Optional[int] = None):
+def get_random_state(random_state: int | None = None):
     """Get RandomState instance from seed.
 
     Args:
@@ -38,7 +37,7 @@ def get_random_state(random_state: Optional[int] = None):
     return check_random_state(random_state)
 
 
-def generate_seeds(n_permute: int, random_state: Optional[int] = None) -> np.ndarray:
+def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray:
     """Generate random seeds for deterministic parallelization.
 
     Pre-generates unique seeds for each permutation/bootstrap iteration
@@ -67,7 +66,7 @@ def generate_seeds(n_permute: int, random_state: Optional[int] = None) -> np.nda
 def generate_sign_flips(
     n_permute: int,
     n_samples: int,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> np.ndarray:
     """Generate random sign-flip matrix for one-sample permutation tests.
 
@@ -118,7 +117,7 @@ def generate_sign_flips(
 def generate_bootstrap_indices(
     n_samples: int,
     n_bootstrap: int,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> np.ndarray:
     """Generate bootstrap indices deterministically for resampling.
 

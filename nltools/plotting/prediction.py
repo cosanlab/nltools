@@ -2,9 +2,9 @@
 
 __all__ = [
     "plot_dist_from_hyperplane",
-    "plot_scatter",
     "plot_probability",
     "plot_roc",
+    "plot_scatter",
 ]
 
 import matplotlib.pyplot as plt

@@ -22,7 +22,7 @@ References:
 """
 
 import numpy as np
-from typing import Optional, Literal, TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING
 
 from nltools.algorithms.backends import Backend
 from .utils import EPSILON
@@ -36,10 +36,10 @@ def compute_icc_voxelwise(
     n_subjects: int,
     n_sessions: int,
     icc_type: Literal["icc1", "icc2", "icc3"] = "icc2",
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    backend: Optional[Backend] = None,
+    backend: Backend | None = None,
 ) -> np.ndarray:
     """
     Compute voxel-wise ICC across many voxels.
@@ -115,15 +115,13 @@ def compute_icc_voxelwise(
         # Use GPU if available, otherwise fallback to CPU
         if backend is not None and backend.is_gpu:
             return _compute_icc_gpu(Y, icc_type, max_gpu_memory_gb, backend)
-        else:
-            # GPU requested but not available, gracefully fallback to CPU
-            return _compute_icc_cpu(Y, icc_type, n_jobs, False, max_gpu_memory_gb)
-    elif parallel == "cpu" or parallel is None:
+        # GPU requested but not available, gracefully fallback to CPU
+        return _compute_icc_cpu(Y, icc_type, n_jobs, False, max_gpu_memory_gb)
+    if parallel == "cpu" or parallel is None:
         return _compute_icc_cpu(
             Y, icc_type, n_jobs, parallel == "cpu", max_gpu_memory_gb
         )
-    else:
-        raise ValueError(f"parallel must be 'cpu', 'gpu', or None, got '{parallel}'")
+    raise ValueError(f"parallel must be 'cpu', 'gpu', or None, got '{parallel}'")
 
 
 def _compute_icc_cpu(
@@ -190,13 +188,12 @@ def _compute_icc_cpu(
             for i in tqdm(range(n_voxels), desc="Computing ICC", unit="voxel")
         )
         return np.array(icc_values)
-    else:
-        # Use vectorized computation (memory efficient, fast for large voxel counts)
-        # This is always faster than parallelization for large problems due to:
-        # - No task creation overhead
-        # - Efficient NumPy broadcasting
-        # - Better cache locality
-        return _compute_icc_vectorized(Y, icc_type)
+    # Use vectorized computation (memory efficient, fast for large voxel counts)
+    # This is always faster than parallelization for large problems due to:
+    # - No task creation overhead
+    # - Efficient NumPy broadcasting
+    # - Better cache locality
+    return _compute_icc_vectorized(Y, icc_type)
 
 
 def _compute_icc_vectorized(Y: np.ndarray, icc_type: str) -> np.ndarray:

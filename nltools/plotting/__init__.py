@@ -34,20 +34,20 @@ from .prediction import (
 from .decomposition import component_viewer
 
 __all__ = [
-    # brain
-    "plot_interactive_brain",
-    "plot_surface",
-    "plot_flatmap",
-    # adjacency
-    "plot_stacked_adjacency",
-    "plot_mean_label_distance",
-    "plot_between_label_distance",
-    "plot_silhouette",
-    # prediction
-    "plot_dist_from_hyperplane",
-    "plot_scatter",
-    "plot_probability",
-    "plot_roc",
     # decomposition
     "component_viewer",
+    "plot_between_label_distance",
+    # prediction
+    "plot_dist_from_hyperplane",
+    "plot_flatmap",
+    # brain
+    "plot_interactive_brain",
+    "plot_mean_label_distance",
+    "plot_probability",
+    "plot_roc",
+    "plot_scatter",
+    "plot_silhouette",
+    # adjacency
+    "plot_stacked_adjacency",
+    "plot_surface",
 ]

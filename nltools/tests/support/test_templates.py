@@ -129,9 +129,11 @@ class TestWithBrainspace:
         assert get_brainspace().resolution == 2
 
     def test_restores_on_exception(self):
-        with pytest.raises(RuntimeError):
-            with with_brainspace(template="fmriprep", resolution=1):
-                raise RuntimeError("boom")
+        with (
+            pytest.raises(RuntimeError),
+            with_brainspace(template="fmriprep", resolution=1),
+        ):
+            raise RuntimeError("boom")
         assert get_brainspace().template == "default"
         assert get_brainspace().resolution == 2
 

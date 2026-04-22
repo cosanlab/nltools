@@ -1,9 +1,9 @@
 """Brain visualization — surface plots, flatmaps, and interactive viewers."""
 
 __all__ = [
+    "plot_flatmap",
     "plot_interactive_brain",
     "plot_surface",
-    "plot_flatmap",
 ]
 
 import os
@@ -120,10 +120,7 @@ def _viewer(brain, thresh, idx, percentile_threshold, surface, anatomical, **kwa
 
     if surface:
         return view_img_on_surf(b, threshold=thresh, **kwargs)
-    else:
-        return view_img(
-            b, bg_img=bg_img, threshold=thresh, cut_coords=cut_coords, **kwargs
-        )
+    return view_img(b, bg_img=bg_img, threshold=thresh, cut_coords=cut_coords, **kwargs)
 
 
 def _get_surface_paths():
@@ -191,16 +188,15 @@ def _resolve_brain_input(brain):
         if len(brain.shape) == 2 and brain.shape[0] > 1:
             brain = brain[0]
         return brain.to_nifti()
-    elif isinstance(brain, nib.Nifti1Image):
+    if isinstance(brain, nib.Nifti1Image):
         return brain
-    elif isinstance(brain, (str, Path)):
+    if isinstance(brain, (str, Path)):
         if not os.path.exists(brain):
             raise ValueError(f"File not found: {brain}")
         return nib.load(brain)
-    else:
-        raise TypeError(
-            f"Input must be BrainData, nibabel Nifti1Image, or file path, got {type(brain)}"
-        )
+    raise TypeError(
+        f"Input must be BrainData, nibabel Nifti1Image, or file path, got {type(brain)}"
+    )
 
 
 def _get_background_map(bg_map, hemi):

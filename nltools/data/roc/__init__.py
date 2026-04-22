@@ -14,7 +14,7 @@ from sklearn.metrics import auc
 from copy import deepcopy
 
 
-class Roc(object):
+class Roc:
     """Roc Class
 
     The Roc class is based on Tor Wager's Matlab roc_plot.m function and
@@ -309,14 +309,11 @@ class Roc(object):
         print("------------------------")
         print(".:ROC Analysis Summary:.")
         print("------------------------")
-        print("{:20s}".format("Accuracy:") + "{:.2f}".format(self.accuracy))
-        print("{:20s}".format("Accuracy SE:") + "{:.2f}".format(self.accuracy_se))
-        print(
-            "{:20s}".format("Accuracy p-value:")
-            + "{:.2f}".format(self.accuracy_p.pvalue)
-        )
-        print("{:20s}".format("Sensitivity:") + "{:.2f}".format(self.sensitivity))
-        print("{:20s}".format("Specificity:") + "{:.2f}".format(self.specificity))
-        print("{:20s}".format("AUC:") + "{:.2f}".format(self.auc))
-        print("{:20s}".format("PPV:") + "{:.2f}".format(self.ppv))
+        print("{:20s}".format("Accuracy:") + f"{self.accuracy:.2f}")
+        print("{:20s}".format("Accuracy SE:") + f"{self.accuracy_se:.2f}")
+        print("{:20s}".format("Accuracy p-value:") + f"{self.accuracy_p.pvalue:.2f}")
+        print("{:20s}".format("Sensitivity:") + f"{self.sensitivity:.2f}")
+        print("{:20s}".format("Specificity:") + f"{self.specificity:.2f}")
+        print("{:20s}".format("AUC:") + f"{self.auc:.2f}")
+        print("{:20s}".format("PPV:") + f"{self.ppv:.2f}")
         print("------------------------")

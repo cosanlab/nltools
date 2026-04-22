@@ -279,8 +279,7 @@ def fit(
             bd.design_matrix = target.design_matrix
         # Return Fit dataclass with results
         return to_fit_dataclass(target, model=model)
-    else:
-        return bd
+    return bd
 
 
 def fit_ridge(bd, X, cv=None, **kwargs):
@@ -594,7 +593,7 @@ def to_fit_dataclass(bd, model):
             cv_alpha_scores=cv_alpha_scores,
         )
 
-    elif model == "glm":
+    if model == "glm":
         # Extract GLM results
         fitted_values = bd.glm_predicted.data  # (n_samples, n_voxels)
         betas = bd.glm_betas.data  # (n_regressors, n_voxels)
@@ -619,8 +618,7 @@ def to_fit_dataclass(bd, model):
             r2=r2,
         )
 
-    else:
-        raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
+    raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
 
 
 def ttest(
@@ -856,8 +854,7 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
     # Return single contrast or dict of contrasts
     if single_contrast:
         return results["contrast"]
-    else:
-        return results
+    return results
 
 
 def parse_contrast_string(bd, contrast_str):

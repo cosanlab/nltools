@@ -24,7 +24,8 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
+from collections.abc import Iterator
 
 import numpy as np
 from scipy import sparse
@@ -135,7 +136,7 @@ class SphereNeighborhoods:
 
 
 def compute_searchlight_neighborhoods(
-    mask_img: "Nifti1Image",
+    mask_img: Nifti1Image,
     radius_mm: float = 10.0,
     use_cache: bool = True,
 ) -> SphereNeighborhoods:

@@ -7,7 +7,8 @@ following himalaya's implementation patterns.
 from __future__ import annotations
 
 import numpy as np
-from typing import TYPE_CHECKING, Optional, List, Iterator, Tuple
+from typing import TYPE_CHECKING
+from collections.abc import Iterator
 from sklearn.utils import check_random_state
 
 if TYPE_CHECKING:
@@ -17,8 +18,8 @@ if TYPE_CHECKING:
 def generate_dirichlet_samples(
     n_samples: int,
     n_kernels: int,
-    concentration: float | List[float] = [0.1, 1.0],
-    random_state: Optional[int] = None,
+    concentration: float | list[float] = [0.1, 1.0],
+    random_state: int | None = None,
 ) -> np.ndarray:
     """Generate samples from a Dirichlet distribution.
 
@@ -115,19 +116,18 @@ def _batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
     # Otherwise apply batch
     if axis == 0:
         return array[batch]
-    elif axis == 1:
+    if axis == 1:
         return array[:, batch]
-    else:
-        raise NotImplementedError(f"Batching not implemented for axis={axis}")
+    raise NotImplementedError(f"Batching not implemented for axis={axis}")
 
 
 def _decompose_ridge(
     Xtrain: np.ndarray,
     alphas: np.ndarray,
-    n_alphas_batch: Optional[int] = None,
+    n_alphas_batch: int | None = None,
     method: str = "svd",
     backend: Backend | None = None,
-) -> Iterator[Tuple[np.ndarray, slice]]:
+) -> Iterator[tuple[np.ndarray, slice]]:
     """Generator that yields resolution matrices for ridge predictions.
 
     This computes the resolution matrices needed for ridge predictions:
@@ -209,7 +209,7 @@ def _select_best_alphas(
     local_alpha: bool,
     backend: Backend | None = None,
     conservative: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Select best alphas from cross-validation scores.
 
     Args:

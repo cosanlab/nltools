@@ -111,8 +111,7 @@ def predict(
             n_jobs=n_jobs,
             progress_bar=progress_bar,
         )
-    else:
-        return predict_timeseries(bd, X=X)
+    return predict_timeseries(bd, X=X)
 
 
 def predict_timeseries(bd, X=None):

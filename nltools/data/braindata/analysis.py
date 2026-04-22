@@ -715,29 +715,28 @@ def threshold_data(
 
         return out
 
-    else:
-        # Use current efficient implementation (fast path)
-        b = bd.copy()
+    # Use current efficient implementation (fast path)
+    b = bd.copy()
 
-        if coerce_nan:
-            b.data = np.nan_to_num(b.data)
+    if coerce_nan:
+        b.data = np.nan_to_num(b.data)
 
-        if isinstance(upper, str) and upper[-1] == "%":
-            upper = np.percentile(b.data, float(upper[:-1]))
+    if isinstance(upper, str) and upper[-1] == "%":
+        upper = np.percentile(b.data, float(upper[:-1]))
 
-        if isinstance(lower, str) and lower[-1] == "%":
-            lower = np.percentile(b.data, float(lower[:-1]))
+    if isinstance(lower, str) and lower[-1] == "%":
+        lower = np.percentile(b.data, float(lower[:-1]))
 
-        if upper is not None and lower is not None:
-            b.data[(b.data < upper) & (b.data > lower)] = 0
-        elif upper is not None:
-            b.data[b.data < upper] = 0
-        elif lower is not None:
-            b.data[b.data > lower] = 0
+    if upper is not None and lower is not None:
+        b.data[(b.data < upper) & (b.data > lower)] = 0
+    elif upper is not None:
+        b.data[b.data < upper] = 0
+    elif lower is not None:
+        b.data[b.data > lower] = 0
 
-        if binarize:
-            b.data[b.data != 0] = 1
-        return b
+    if binarize:
+        b.data[b.data != 0] = 1
+    return b
 
 
 def regions(

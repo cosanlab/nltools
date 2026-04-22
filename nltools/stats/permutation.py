@@ -18,20 +18,20 @@ Functions:
 """
 
 __all__ = [
-    "one_sample_permutation_test",
-    "two_sample_permutation_test",
-    "correlation_permutation_test",
-    "timeseries_correlation_permutation_test",
     "circle_shift",
-    "phase_randomize",
-    "matrix_permutation_test",
-    "double_center",
-    "u_center",
+    "correlation_permutation_test",
     "distance_correlation",
+    "double_center",
+    "matrix_permutation_test",
+    "one_sample_permutation_test",
+    "phase_randomize",
+    "timeseries_correlation_permutation_test",
+    "two_sample_permutation_test",
+    "u_center",
 ]
 
 import numpy as np
-from typing import Literal, Optional, Union
+from typing import Literal
 
 
 def one_sample_permutation_test(
@@ -39,10 +39,10 @@ def one_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """One-sample permutation test using sign-flipping.
 
@@ -94,10 +94,10 @@ def two_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """Two-sample permutation test using group label shuffling.
 
@@ -143,10 +143,10 @@ def correlation_permutation_test(
     metric: str = "pearson",
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """Correlation permutation test.
 
@@ -194,11 +194,11 @@ def timeseries_correlation_permutation_test(
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
     tail: int = 2,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
-    random_state: Union[int, np.random.RandomState, None] = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> dict:
     """Time-series correlation permutation test.
 
@@ -251,8 +251,8 @@ def timeseries_correlation_permutation_test(
 
 def circle_shift(
     data: np.ndarray,
-    shift_amount: Union[int, np.ndarray, None] = None,
-    random_state: Union[int, np.random.RandomState, None] = None,
+    shift_amount: int | np.ndarray | None = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Circular shift for time-series data.
 
@@ -278,8 +278,8 @@ def circle_shift(
 
 def phase_randomize(
     data: np.ndarray,
-    backend: Optional[str] = None,
-    random_state: Union[int, np.random.RandomState, None] = None,
+    backend: str | None = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """FFT-based phase randomization for time-series data.
 
@@ -311,10 +311,10 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int | str = 2,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """Matrix permutation test (Mantel test).
 

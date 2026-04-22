@@ -7,7 +7,6 @@ functions for distance correlation and matrix centering operations.
 """
 
 import numpy as np
-from typing import Optional
 from scipy.stats import pearsonr, spearmanr, kendalltau
 from scipy.spatial.distance import squareform, pdist
 from scipy.stats import t as t_dist
@@ -147,7 +146,7 @@ def _matrix_permutation_cpu_parallel(
     tail: int,
     return_null: bool,
     n_jobs: int,
-    random_state: Optional[int],
+    random_state: int | None,
 ) -> dict:
     """
     Matrix permutation test using CPU parallelization with joblib.
@@ -237,10 +236,10 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int | str = 2,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """Matrix permutation test (Mantel test) for correlating two square matrices.
 
@@ -340,48 +339,47 @@ def matrix_permutation_test(
             n_jobs=n_jobs,
             random_state=random_state,
         )
-    else:
-        # Single-threaded NumPy mode
-        rng = np.random.RandomState(random_state)
-        seeds = rng.randint(MAX_INT, size=n_permute)
+    # Single-threaded NumPy mode
+    rng = np.random.RandomState(random_state)
+    seeds = rng.randint(MAX_INT, size=n_permute)
 
-        # Compute observed correlation
-        obs_corr = _compute_matrix_correlation(
-            data1, data2, how=how, include_diag=include_diag, metric=metric
+    # Compute observed correlation
+    obs_corr = _compute_matrix_correlation(
+        data1, data2, how=how, include_diag=include_diag, metric=metric
+    )
+
+    # Generate null distribution
+    null_dist = []
+    for seed in seeds:
+        perm_rng = np.random.RandomState(seed)
+        perm = perm_rng.permutation(data1.shape[0])
+        permuted_matrix = _permute_matrix_symmetric(data1, perm)
+        corr = _compute_matrix_correlation(
+            permuted_matrix,
+            data2,
+            how=how,
+            include_diag=include_diag,
+            metric=metric,
         )
+        null_dist.append(corr)
 
-        # Generate null distribution
-        null_dist = []
-        for seed in seeds:
-            perm_rng = np.random.RandomState(seed)
-            perm = perm_rng.permutation(data1.shape[0])
-            permuted_matrix = _permute_matrix_symmetric(data1, perm)
-            corr = _compute_matrix_correlation(
-                permuted_matrix,
-                data2,
-                how=how,
-                include_diag=include_diag,
-                metric=metric,
-            )
-            null_dist.append(corr)
+    null_dist = np.array(null_dist)
 
-        null_dist = np.array(null_dist)
+    # Compute p-value
+    p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
+    if isinstance(p_value, np.ndarray):
+        p_value = float(p_value[0])
 
-        # Compute p-value
-        p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
-        if isinstance(p_value, np.ndarray):
-            p_value = float(p_value[0])
+    result = {
+        "correlation": obs_corr,
+        "p": p_value,
+        "parallel": None,
+    }
 
-        result = {
-            "correlation": obs_corr,
-            "p": p_value,
-            "parallel": None,
-        }
+    if return_null:
+        result["null_dist"] = null_dist
 
-        if return_null:
-            result["null_dist"] = null_dist
-
-        return result
+    return result
 
 
 # ============================================================================

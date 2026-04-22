@@ -12,7 +12,7 @@ Each step follows the fit/transform pattern:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -52,7 +52,7 @@ class FittedNormalize:
             # Avoid division by zero
             safe_std = np.where(self.std == 0, 1, self.std)
             return (data - self.mean) / safe_std
-        elif self.method == "minmax":
+        if self.method == "minmax":
             # For minmax, mean stores min, std stores range
             safe_range = np.where(self.std == 0, 1, self.std)
             return (data - self.mean) / safe_range
@@ -69,7 +69,7 @@ class FittedNormalize:
         """
         if self.method == "zscore":
             return data * self.std + self.mean
-        elif self.method == "minmax":
+        if self.method == "minmax":
             return data * self.std + self.mean
         return data
 
@@ -121,15 +121,14 @@ class NormalizeStep:
             return FittedNormalize(
                 mean=mean.squeeze(), std=std.squeeze(), method=self.method
             )
-        elif self.method == "minmax":
+        if self.method == "minmax":
             min_val = np.min(data, axis=self.axis, keepdims=True)
             max_val = np.max(data, axis=self.axis, keepdims=True)
             range_val = max_val - min_val
             return FittedNormalize(
                 mean=min_val.squeeze(), std=range_val.squeeze(), method=self.method
             )
-        else:
-            raise ValueError(f"Unknown normalization method: {self.method}")
+        raise ValueError(f"Unknown normalization method: {self.method}")
 
 
 # =============================================================================
@@ -204,8 +203,8 @@ class ReduceStep:
     """
 
     method: str = "pca"
-    n_components: Optional[int] = None
-    random_state: Optional[int] = None
+    n_components: int | None = None
+    random_state: int | None = None
 
     @property
     def invertible(self) -> bool:
@@ -560,12 +559,12 @@ class AlignStep:
 
 
 __all__ = [
-    "FittedNormalize",
-    "NormalizeStep",
-    "FittedReduce",
-    "ReduceStep",
-    "FittedPipe",
-    "PipeStep",
-    "FittedAlign",
     "AlignStep",
+    "FittedAlign",
+    "FittedNormalize",
+    "FittedPipe",
+    "FittedReduce",
+    "NormalizeStep",
+    "PipeStep",
+    "ReduceStep",
 ]

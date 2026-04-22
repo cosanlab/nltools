@@ -34,14 +34,14 @@ from .core import (
 )
 
 __all__ = [
-    # New solvers (GPU-enabled)
-    "solve_ridge_cv",
-    "solve_banded_ridge_cv",
-    # Legacy solvers (backward compatible)
-    "ridge_svd",
-    "ridge_cv",
     # Utilities (advanced usage)
     "_decompose_ridge",
     "_r2_score",
     "generate_dirichlet_samples",
+    "ridge_cv",
+    # Legacy solvers (backward compatible)
+    "ridge_svd",
+    "solve_banded_ridge_cv",
+    # New solvers (GPU-enabled)
+    "solve_ridge_cv",
 ]

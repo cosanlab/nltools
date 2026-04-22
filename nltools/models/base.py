@@ -54,7 +54,6 @@ class BaseModel(ABC):
         Returns:
             ndarray: Predicted values
         """
-        pass
 
     @abstractmethod
     def score(self, X, y):
@@ -68,7 +67,6 @@ class BaseModel(ABC):
         Returns:
             float: Model performance metric
         """
-        pass
 
     def _check_is_fitted(self):
         """

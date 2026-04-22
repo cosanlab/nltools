@@ -82,8 +82,23 @@ exclude = [
   "nltools/tests/data/**",
 ]
 
+[tool.ruff]
+exclude = ["*.ipynb"]
+
 [tool.ruff.lint]
-ignore = ["W292","E501", "E731", "E741"]
+extend-select = ["UP", "C4", "PIE", "RUF022", "RET", "SIM"]
+ignore = [
+    "W292", "E501", "E731", "E741",
+    "RET504",  # named intermediate vars document math intent
+    # SIM judgment calls — readability tradeoffs, not style wins:
+    "SIM102",  # nested-if collapse can erase step-by-step validation
+    "SIM103",  # `return bool(x)` sometimes less explicit than if/return
+    "SIM105",  # contextlib.suppress conflicts with NaN-sentinel patterns
+    "SIM108",  # ternary forcing (multi-line init often clearer)
+    "SIM114",  # if-with-same-arms may be intentional parallel structure
+    "SIM116",  # dict-lookup dispatch can hurt readability
+    "SIM910",  # bikeshed (explicit None default is fine)
+]
 
 [tool.pytest.ini_options]
 markers = [

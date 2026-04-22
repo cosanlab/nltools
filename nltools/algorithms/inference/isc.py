@@ -27,7 +27,7 @@ Notes:
 """
 
 import numpy as np
-from typing import Optional, Literal, Dict, Any
+from typing import Literal, Any
 from scipy.spatial.distance import squareform
 from scipy.stats import rankdata
 from sklearn.utils import check_random_state
@@ -78,10 +78,9 @@ def _compute_loo_isc(data, backend="numpy"):
     """
     if backend == "numpy":
         return _compute_loo_isc_numpy(data)
-    elif backend == "torch":
+    if backend == "torch":
         return _compute_loo_isc_gpu(data)
-    else:
-        raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
+    raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
 def _compute_loo_isc_numpy(data):
@@ -99,7 +98,7 @@ def _compute_loo_isc_numpy(data):
 
         return loo_values
 
-    elif data.ndim == 3:
+    if data.ndim == 3:
         # Voxel-wise: (n_observations, n_subjects, n_voxels)
         n_obs, n_subjects, n_voxels = data.shape
         loo_values = np.zeros((n_subjects, n_voxels))
@@ -112,8 +111,7 @@ def _compute_loo_isc_numpy(data):
 
         return loo_values
 
-    else:
-        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+    raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
 def _batch_correlation_gpu(x, y):
@@ -224,14 +222,13 @@ def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
     """
     if backend == "numpy":
         return _compute_pairwise_isc_numpy(data, sim_metric=sim_metric)
-    elif backend == "torch":
+    if backend == "torch":
         if sim_metric != "correlation":
             raise ValueError(
                 f"GPU backend only supports sim_metric='correlation', got {sim_metric}"
             )
         return _compute_pairwise_isc_gpu(data)
-    else:
-        raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
+    raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
 def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
@@ -242,7 +239,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
             # Single feature: (n_observations, n_subjects)
             corr_matrix = np.corrcoef(data.T)
             return squareform(corr_matrix, checks=False)
-        elif data.ndim == 3:
+        if data.ndim == 3:
             # Voxel-wise: (n_observations, n_subjects, n_voxels)
             n_obs, n_subjects, n_voxels = data.shape
             n_pairs = n_subjects * (n_subjects - 1) // 2
@@ -251,9 +248,8 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 corr_matrix = np.corrcoef(data[:, :, v].T)
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
-        else:
-            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    elif sim_metric == "spearman":
+        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+    if sim_metric == "spearman":
         # Spearman correlation: rank-transform then use fast np.corrcoef path
         # Spearman = Pearson correlation of rank-transformed data
         if data.ndim == 2:
@@ -264,7 +260,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
             ).T
             corr_matrix = np.corrcoef(data_ranked.T)
             return squareform(corr_matrix, checks=False)
-        elif data.ndim == 3:
+        if data.ndim == 3:
             # Voxel-wise: (n_observations, n_subjects, n_voxels)
             n_obs, n_subjects, n_voxels = data.shape
             n_pairs = n_subjects * (n_subjects - 1) // 2
@@ -282,9 +278,8 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 corr_matrix = np.corrcoef(data_ranked.T)
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
-        else:
-            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    elif sim_metric == "cosine":
+        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+    if sim_metric == "cosine":
         # Cosine similarity: normalized dot products
         # Cosine similarity = dot(a, b) / (||a|| * ||b||)
         # Optimized: normalize vectors, then compute dot product matrix
@@ -297,7 +292,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
             # Compute cosine similarity matrix: data_norm.T @ data_norm
             sim_matrix = data_norm.T @ data_norm
             return squareform(sim_matrix, checks=False)
-        elif data.ndim == 3:
+        if data.ndim == 3:
             # Voxel-wise: (n_observations, n_subjects, n_voxels)
             n_obs, n_subjects, n_voxels = data.shape
             n_pairs = n_subjects * (n_subjects - 1) // 2
@@ -313,9 +308,8 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 sim_matrix = data_norm.T @ data_norm
                 pairwise_all[:, v] = squareform(sim_matrix, checks=False)
             return pairwise_all
-        else:
-            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    elif sim_metric == "euclidean":
+        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+    if sim_metric == "euclidean":
         # Euclidean distance: optimized using squared-distance formula
         # ||a - b||^2 = ||a||^2 + ||b||^2 - 2*<a, b>
         # Then: distance = sqrt(squared_distance), similarity = 1 - distance
@@ -337,7 +331,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
             # Convert to similarity: similarity = 1 - distance
             sim_matrix = 1 - distances
             return squareform(sim_matrix, checks=False)
-        elif data.ndim == 3:
+        if data.ndim == 3:
             # Voxel-wise: (n_observations, n_subjects, n_voxels)
             n_obs, n_subjects, n_voxels = data.shape
             n_pairs = n_subjects * (n_subjects - 1) // 2
@@ -363,28 +357,25 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 sim_matrix = 1 - distances
                 pairwise_all[:, v] = squareform(sim_matrix, checks=False)
             return pairwise_all
-        else:
-            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    else:
-        # General path: use pairwise_distances for other metrics
-        # Convert distance to similarity: similarity = 1 - distance
-        if data.ndim == 2:
-            # Single feature: (n_observations, n_subjects)
-            dist_matrix = pairwise_distances(data.T, metric=sim_metric)
+        raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+    # General path: use pairwise_distances for other metrics
+    # Convert distance to similarity: similarity = 1 - distance
+    if data.ndim == 2:
+        # Single feature: (n_observations, n_subjects)
+        dist_matrix = pairwise_distances(data.T, metric=sim_metric)
+        sim_matrix = 1 - dist_matrix
+        return squareform(sim_matrix, checks=False)
+    if data.ndim == 3:
+        # Voxel-wise: (n_observations, n_subjects, n_voxels)
+        n_obs, n_subjects, n_voxels = data.shape
+        n_pairs = n_subjects * (n_subjects - 1) // 2
+        pairwise_all = np.zeros((n_pairs, n_voxels))
+        for v in range(n_voxels):
+            dist_matrix = pairwise_distances(data[:, :, v].T, metric=sim_metric)
             sim_matrix = 1 - dist_matrix
-            return squareform(sim_matrix, checks=False)
-        elif data.ndim == 3:
-            # Voxel-wise: (n_observations, n_subjects, n_voxels)
-            n_obs, n_subjects, n_voxels = data.shape
-            n_pairs = n_subjects * (n_subjects - 1) // 2
-            pairwise_all = np.zeros((n_pairs, n_voxels))
-            for v in range(n_voxels):
-                dist_matrix = pairwise_distances(data[:, :, v].T, metric=sim_metric)
-                sim_matrix = 1 - dist_matrix
-                pairwise_all[:, v] = squareform(sim_matrix, checks=False)
-            return pairwise_all
-        else:
-            raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
+            pairwise_all[:, v] = squareform(sim_matrix, checks=False)
+        return pairwise_all
+    raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
 
 
 def _batch_corrcoef_gpu(data_gpu):
@@ -947,14 +938,14 @@ def isc_group_permutation_test(
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     ci_percentile: float = 95,
     tail: Literal[1, 2] = 2,
-    parallel: Optional[Literal["cpu", "gpu"]] = "cpu",
+    parallel: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
     return_null: bool = False,
     progress_bar: bool = True,
     exclude_self_corr: bool = True,
     sim_metric: str = "correlation",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute ISC difference between groups with permutation testing.
 
     Supports both subject-wise permutation and bootstrap methods with efficient
@@ -1261,12 +1252,11 @@ def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
     # Compute summary statistic
     if metric == "median":
         return np.median(boot_values, axis=0)
-    elif metric == "mean":
+    if metric == "mean":
         # Fisher z-transform for unbiased mean
         z = np.arctanh(np.clip(boot_values, -0.9999, 0.9999))
         return np.tanh(np.mean(z, axis=0))
-    else:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
 
 
 def _bootstrap_loo_cpu_parallel(
@@ -1433,12 +1423,11 @@ def _bootstrap_pairwise_numpy(
 
     if metric == "median":
         return np.nanmedian(boot_condensed, axis=axis)
-    elif metric == "mean":
+    if metric == "mean":
         # Fisher z-transform
         z = np.arctanh(np.clip(boot_condensed, -0.9999, 0.9999))
         return np.tanh(np.nanmean(z, axis=axis))
-    else:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
 
 
 def _bootstrap_pairwise_cpu_parallel(
@@ -1533,12 +1522,12 @@ def isc_permutation_test(
     exclude_self_corr: bool = True,
     sim_metric: str = "correlation",
     # Backend parameters (grouped)
-    parallel: Optional[Literal["cpu", "gpu"]] = "cpu",
+    parallel: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Compute intersubject correlation with permutation testing.
 
     Supports both leave-one-out and pairwise ISC computation modes with

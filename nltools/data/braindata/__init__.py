@@ -28,7 +28,7 @@ MAX_INT = np.iinfo(np.int32).max
 __all__ = ["BrainData"]
 
 
-class BrainData(object):
+class BrainData:
     """BrainData is a class to represent neuroimaging data in python as a vector
     rather than a 3-dimensional matrix. This makes it easier to perform data
     manipulation and analyses.
@@ -164,7 +164,7 @@ class BrainData(object):
                 setattr(new, key, value)
             elif key in ("model_", "X_"):
                 setattr(new, key, value)
-            elif key.startswith("glm_") or key.startswith("ridge_"):
+            elif key.startswith(("glm_", "ridge_")):
                 setattr(new, key, value)
             else:
                 setattr(new, key, deepcopy(value, memo))
@@ -271,14 +271,7 @@ class BrainData(object):
 
         space_str = getattr(self, "_space", "unknown")
 
-        return "%s.%s(data=%s, resolution=%s, space=%s, mask=%s)" % (
-            self.__class__.__module__,
-            self.__class__.__name__,
-            self.shape,
-            resolution_str,
-            space_str,
-            mask_display,
-        )
+        return f"{self.__class__.__module__}.{self.__class__.__name__}(data={self.shape}, resolution={resolution_str}, space={space_str}, mask={mask_display})"
 
     def __rmul__(self, y):
         """Right multiply BrainData."""

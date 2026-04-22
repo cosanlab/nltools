@@ -11,12 +11,12 @@ from .simulator import Simulator, SimulateGrid
 from .roc import Roc
 
 __all__ = [
-    "BrainData",
-    "BrainCollection",
     "Adjacency",
+    "BrainCollection",
+    "BrainData",
     "DesignMatrix",
     "Fit",
-    "Simulator",
-    "SimulateGrid",
     "Roc",
+    "SimulateGrid",
+    "Simulator",
 ]

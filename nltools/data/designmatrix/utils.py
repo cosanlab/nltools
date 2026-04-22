@@ -6,7 +6,7 @@ public API.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -71,7 +71,7 @@ def get_metadata(dm: DesignMatrix) -> dict:
     }
 
 
-def get_data_columns(dm: DesignMatrix, exclude_polys: bool = True) -> List[str]:
+def get_data_columns(dm: DesignMatrix, exclude_polys: bool = True) -> list[str]:
     """
     Get column names, optionally excluding polynomials.
 

@@ -6,7 +6,6 @@ of the one-sample permutation test (sign-flipping test).
 """
 
 import numpy as np
-from typing import Optional
 from sklearn.utils import check_random_state
 
 from nltools.algorithms.backends import Backend
@@ -24,7 +23,7 @@ def _one_sample_permutation_cpu_parallel(
     tail: int,
     return_null: bool,
     n_jobs: int,
-    random_state: Optional[int],
+    random_state: int | None,
     single_feature: bool = False,
 ) -> dict:
     """
@@ -223,10 +222,10 @@ def one_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """
     One-sample permutation test using sign-flipping.
@@ -334,22 +333,20 @@ def one_sample_permutation_test(
                 result["null_dist"] = null_dist
 
             return result
-        else:
-            # CPU parallelization mode
-            return _one_sample_permutation_cpu_parallel(
-                data, n_permute, tail, return_null, n_jobs, random_state, single_feature
-            )
-    else:
-        # GPU mode
-        backend_obj = Backend("torch")
-        rng = check_random_state(random_state)
-        return _one_sample_permutation_gpu_batched(
-            data,
-            n_permute,
-            tail,
-            return_null,
-            backend_obj,
-            max_gpu_memory_gb,
-            rng,
-            single_feature,
+        # CPU parallelization mode
+        return _one_sample_permutation_cpu_parallel(
+            data, n_permute, tail, return_null, n_jobs, random_state, single_feature
         )
+    # GPU mode
+    backend_obj = Backend("torch")
+    rng = check_random_state(random_state)
+    return _one_sample_permutation_gpu_batched(
+        data,
+        n_permute,
+        tail,
+        return_null,
+        backend_obj,
+        max_gpu_memory_gb,
+        rng,
+        single_feature,
+    )

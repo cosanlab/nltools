@@ -970,7 +970,7 @@ def haxby_all_betas():
     betas_file = data_dir / "vtc_betas.h5"
 
     with h5py.File(betas_file, "r") as f:
-        betas = {k: f[k][:] for k in f.keys()}
+        betas = {k: f[k][:] for k in f}
         categories = list(f.attrs["categories"])
         n_subjects = f.attrs["n_subjects"]
         n_runs = f.attrs["n_runs"]

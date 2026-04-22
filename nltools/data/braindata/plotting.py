@@ -356,11 +356,10 @@ def auto_select_colormap(data):
     if positive_ratio > 0.9:
         return "hot"
     # If mostly negative (> 90% negative), use cool/blues
-    elif (1 - positive_ratio) > 0.9:
+    if (1 - positive_ratio) > 0.9:
         return "cool"
     # Otherwise use bipolar
-    else:
-        return "RdBu_r"
+    return "RdBu_r"
 
 
 def prepare_save_paths(save):

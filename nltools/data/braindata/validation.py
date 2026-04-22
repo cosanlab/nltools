@@ -135,18 +135,17 @@ def validate_arithmetic_operand(other, operation_name):
 
     if isinstance(other, (int, np.integer, float, np.floating)):
         return "scalar"
-    elif isinstance(other, BrainData):
+    if isinstance(other, BrainData):
         return "brain_data"
-    elif isinstance(other, (list, np.ndarray)) and operation_name == "multiply":
+    if isinstance(other, (list, np.ndarray)) and operation_name == "multiply":
         return "array"
-    else:
-        valid_types = "int, float, or BrainData"
-        if operation_name == "multiply":
-            valid_types = "int, float, list, np.ndarray, or BrainData"
-        raise ValueError(
-            f"Cannot {operation_name} with type {type(other).__name__}. "
-            f"Operand must be {valid_types}."
-        )
+    valid_types = "int, float, or BrainData"
+    if operation_name == "multiply":
+        valid_types = "int, float, list, np.ndarray, or BrainData"
+    raise ValueError(
+        f"Cannot {operation_name} with type {type(other).__name__}. "
+        f"Operand must be {valid_types}."
+    )
 
 
 def validate_data_type(data):
@@ -166,27 +165,25 @@ def validate_data_type(data):
 
     if data is None:
         return "none"
-    elif isinstance(data, BrainData):
+    if isinstance(data, BrainData):
         return "brain_data"
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return "list"
-    elif isinstance(data, (str, Path)):
+    if isinstance(data, (str, Path)):
         from nltools.io import is_h5_path
 
         data_str = str(data)
         if is_h5_path(data_str):
             return "h5"
-        elif "://" in data_str:
+        if "://" in data_str:
             return "url"
-        else:
-            return "file"
-    elif isinstance(data, nib.Nifti1Image):
+        return "file"
+    if isinstance(data, nib.Nifti1Image):
         return "nibabel"
-    else:
-        raise TypeError(
-            f"Data must be a BrainData, filepath (str/Path), nibabel image, "
-            f"or list of these types. Received {type(data).__name__}"
-        )
+    raise TypeError(
+        f"Data must be a BrainData, filepath (str/Path), nibabel image, "
+        f"or list of these types. Received {type(data).__name__}"
+    )
 
 
 def validate_list_data(data_list):
@@ -219,13 +216,12 @@ def validate_list_data(data_list):
     # Determine what type we're dealing with
     if isinstance(data_list[0], BrainData):
         return "brain_data"
-    elif isinstance(data_list[0], (str, Path, nib.Nifti1Image)):
+    if isinstance(data_list[0], (str, Path, nib.Nifti1Image)):
         return "file"
-    else:
-        raise ValueError(
-            f"List items must be BrainData objects, file paths, or nibabel images. "
-            f"Found {first_type.__name__}"
-        )
+    raise ValueError(
+        f"List items must be BrainData objects, file paths, or nibabel images. "
+        f"Found {first_type.__name__}"
+    )
 
 
 def validate_index_operations(data_shape, index):
@@ -249,22 +245,20 @@ def validate_index_operations(data_shape, index):
                 f"Index {index} is out of bounds for data with {n_images} images"
             )
         return "single"
-    elif isinstance(index, slice):
+    if isinstance(index, slice):
         return "slice"
-    else:
-        # Convert to array for validation
-        try:
-            index_array = np.array(index).flatten()
-            if np.any((index_array < -n_images) | (index_array >= n_images)):
-                raise IndexError(
-                    f"Some indices are out of bounds for data with {n_images} images"
-                )
-            return "array"
-        except (ValueError, TypeError):
-            raise TypeError(
-                f"Index must be int, slice, or array-like. "
-                f"Received {type(index).__name__}"
+    # Convert to array for validation
+    try:
+        index_array = np.array(index).flatten()
+        if np.any((index_array < -n_images) | (index_array >= n_images)):
+            raise IndexError(
+                f"Some indices are out of bounds for data with {n_images} images"
             )
+        return "array"
+    except (ValueError, TypeError):
+        raise TypeError(
+            f"Index must be int, slice, or array-like. Received {type(index).__name__}"
+        )
 
 
 def validate_append_shapes(data1_shape, data2_shape):

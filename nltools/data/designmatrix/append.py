@@ -7,7 +7,7 @@ DesignMatrix methods, following the "functional core" pattern.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import polars as pl
 
@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 
 def append(
     dm: DesignMatrix,
-    other: Union[DesignMatrix, List[DesignMatrix]],
+    other: DesignMatrix | list[DesignMatrix],
     axis: int = 0,
     keep_separate: bool = True,
-    unique_cols: Optional[List[str]] = None,
-    fill_na: Union[int, float] = 0,
+    unique_cols: list[str] | None = None,
+    fill_na: int | float = 0,
     verbose: bool = False,
 ) -> DesignMatrix:
     """
@@ -59,18 +59,17 @@ def append(
 
     if axis == 1:
         return append_horizontal(dm, to_append, fill_na)
-    elif axis == 0:
+    if axis == 0:
         return append_vertical(
             dm, to_append, keep_separate, unique_cols, fill_na, verbose
         )
-    else:
-        raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
+    raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
 
 
 def append_horizontal(
     dm: DesignMatrix,
-    to_append: List[DesignMatrix],
-    fill_na: Union[int, float],
+    to_append: list[DesignMatrix],
+    fill_na: int | float,
 ) -> DesignMatrix:
     """
     Horizontal concatenation (axis=1) - add columns from other matrices.
@@ -116,10 +115,10 @@ def append_horizontal(
 
 def append_vertical(
     dm: DesignMatrix,
-    to_append: List[DesignMatrix],
+    to_append: list[DesignMatrix],
     keep_separate: bool,
-    unique_cols: Optional[List[str]],
-    fill_na: Union[int, float],
+    unique_cols: list[str] | None,
+    fill_na: int | float,
     verbose: bool,
 ) -> DesignMatrix:
     """
@@ -161,7 +160,7 @@ def append_vertical(
     return append_vertical_with_separation(dm, to_append, unique_cols, fill_na, verbose)
 
 
-def match_column_pattern(columns: List[str], pattern: str) -> List[str]:
+def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
     """
     Match columns against pattern with wildcard support.
 
@@ -178,11 +177,10 @@ def match_column_pattern(columns: List[str], pattern: str) -> List[str]:
     if pattern.endswith("*"):
         prefix = pattern[:-1]
         return [c for c in columns if c.startswith(prefix)]
-    elif pattern.startswith("*"):
+    if pattern.startswith("*"):
         suffix = pattern[1:]
         return [c for c in columns if c.endswith(suffix)]
-    else:
-        return [c for c in columns if c == pattern]
+    return [c for c in columns if c == pattern]
 
 
 def get_starting_run_idx(dm: DesignMatrix) -> int:
@@ -212,8 +210,8 @@ def get_starting_run_idx(dm: DesignMatrix) -> int:
 
 def identify_columns_to_separate(
     dm: DesignMatrix,
-    all_dms: List[DesignMatrix],
-    unique_cols: Optional[List[str]],
+    all_dms: list[DesignMatrix],
+    unique_cols: list[str] | None,
 ) -> set:
     """
     Identify which columns need run-specific separation.
@@ -251,9 +249,9 @@ def identify_columns_to_separate(
 
 def append_vertical_with_separation(
     dm: DesignMatrix,
-    to_append: List[DesignMatrix],
-    unique_cols: Optional[List[str]],
-    fill_na: Union[int, float],
+    to_append: list[DesignMatrix],
+    unique_cols: list[str] | None,
+    fill_na: int | float,
     verbose: bool,
 ) -> DesignMatrix:
     """

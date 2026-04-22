@@ -141,8 +141,7 @@ def similarity(
                 raise TypeError(
                     f"data must be symmetric to do {permutation_method} permutation"
                 )
-            else:
-                data = data.squareform()
+            data = data.squareform()
         else:
             raise ValueError("permutation_method must be ['1d','2d', or None']")
         return data
@@ -163,33 +162,30 @@ def similarity(
             n_jobs=n_jobs,
             random_state=random_state,
         )
-    else:
-        if plot:
-            import matplotlib.pyplot as plt
+    if plot:
+        import matplotlib.pyplot as plt
 
-            _, a = plt.subplots(len(adj))
-            for i in a:
-                plot_stacked_adjacency(adj, data, ax=i)
-        results = []
-        arr2_base = _convert_data_similarity(
-            data2, permutation_method=permutation_method
-        )
-        for x in adj:
-            arr1 = _convert_data_similarity(x, permutation_method=permutation_method)
-            arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
-            results.append(
-                similarity_func(
-                    arr1_clean,
-                    arr2_clean,
-                    metric=metric,
-                    n_permute=n_permute,
-                    tail=tail,
-                    return_null=return_null,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                )
+        _, a = plt.subplots(len(adj))
+        for i in a:
+            plot_stacked_adjacency(adj, data, ax=i)
+    results = []
+    arr2_base = _convert_data_similarity(data2, permutation_method=permutation_method)
+    for x in adj:
+        arr1 = _convert_data_similarity(x, permutation_method=permutation_method)
+        arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
+        results.append(
+            similarity_func(
+                arr1_clean,
+                arr2_clean,
+                metric=metric,
+                n_permute=n_permute,
+                tail=tail,
+                return_null=return_null,
+                n_jobs=n_jobs,
+                random_state=random_state,
             )
-        return results
+        )
+    return results
 
 
 def r_to_z(adj):

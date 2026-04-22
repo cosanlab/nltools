@@ -76,7 +76,7 @@ def shallow_copy(bd):
                     setattr(new, key, deepcopy(value))
             else:
                 setattr(new, key, None)
-        elif key.startswith("glm_") or key.startswith("ridge_"):
+        elif key.startswith(("glm_", "ridge_")):
             setattr(new, key, value)
         elif key in ("model_", "X_", "cv_results_"):
             pass  # fitted model state — don't propagate
@@ -150,7 +150,7 @@ def apply_func(bd, stat_func, axis=0):
 
     if axis == 1:
         return stat_func(bd.data, axis=1)
-    elif axis == 0:
+    if axis == 0:
         import polars as pl
 
         out = shallow_copy(bd)
@@ -158,8 +158,7 @@ def apply_func(bd, stat_func, axis=0):
         out.X = pl.DataFrame()
         out.Y = pl.DataFrame()
         return out
-    else:
-        raise ValueError("axis must be 0 or 1")
+    raise ValueError("axis must be 0 or 1")
 
 
 def _polars_row_select(df, index):

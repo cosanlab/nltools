@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -54,13 +54,13 @@ class PooledData:
 
     data: NDArray
     param: str
-    condition_names: Optional[list[str]] = None
-    subject_ids: Optional[list[str]] = None
-    mask: Optional[Any] = field(
+    condition_names: list[str] | None = None
+    subject_ids: list[str] | None = None
+    mask: Any | None = field(
         default=None, repr=False
     )  # nibabel image for reconstruction
-    fitted_state: Optional[Any] = field(default=None, repr=False)
-    save_path: Optional[str] = None
+    fitted_state: Any | None = field(default=None, repr=False)
+    save_path: str | None = None
 
     @property
     def n_subjects(self) -> int:
@@ -68,7 +68,7 @@ class PooledData:
         return self.data.shape[0]
 
     @property
-    def n_conditions(self) -> Optional[int]:
+    def n_conditions(self) -> int | None:
         """Number of conditions (None if single-condition)."""
         if self.data.ndim == 3:
             return self.data.shape[1]
@@ -87,11 +87,11 @@ class PooledData:
     def fit(
         self,
         model: str,
-        contrast: Optional[str] = None,
-        contrasts: Optional[list[str]] = None,
-        X: Optional[NDArray] = None,
+        contrast: str | None = None,
+        contrasts: list[str] | None = None,
+        X: NDArray | None = None,
         **kwargs,
-    ) -> Union["StatResult", "ResultDict"]:
+    ) -> StatResult | ResultDict:
         """Fit second-level statistical model.
 
         This is a terminal method - executes immediately (eager).
@@ -124,10 +124,10 @@ class PooledData:
     def _fit_one(
         self,
         model: str,
-        contrast: Optional[str],
-        X: Optional[NDArray],
+        contrast: str | None,
+        X: NDArray | None,
         **kwargs,
-    ) -> "StatResult":
+    ) -> StatResult:
         """Fit single contrast/model."""
         from scipy import stats
 
@@ -150,8 +150,8 @@ class PooledData:
                 # Two-sample based on design
                 groups = np.unique(X)
                 if len(groups) == 2:
-                    mask1 = X == groups[0]
-                    mask2 = X == groups[1]
+                    mask1 = groups[0] == X
+                    mask2 = groups[1] == X
                     t_vals, p_vals = stats.ttest_ind(
                         data[mask1.flatten()], data[mask2.flatten()], axis=0
                     )
@@ -233,8 +233,8 @@ class PooledData:
         return weights
 
     def cv(
-        self, k: Optional[int] = None, scheme: CVSchemeType = "kfold", **kwargs
-    ) -> "Pipeline":
+        self, k: int | None = None, scheme: CVSchemeType = "kfold", **kwargs
+    ) -> Pipeline:
         """Create CV pipeline on pooled data.
 
         Useful for classification on pooled betas.
@@ -259,7 +259,7 @@ class PooledData:
         cv_scheme = CVScheme(k=k, scheme=scheme, **kwargs)
         return Pipeline(data, cv=cv_scheme)
 
-    def repool(self, param: str) -> "PooledData":
+    def repool(self, param: str) -> PooledData:
         """Re-extract different parameter from saved fitted state.
 
         Args:
@@ -334,7 +334,7 @@ class PooledData:
                 json.dump(meta, f)
 
     @classmethod
-    def load(cls, path: str) -> "PooledData":
+    def load(cls, path: str) -> PooledData:
         """Load pooled data from disk.
 
         Args:
@@ -360,17 +360,16 @@ class PooledData:
                 subject_ids=meta.get("subject_ids"),
                 save_path=str(path_obj),
             )
-        else:
-            data = np.load(path_obj / "pooled_data.npy")
-            with open(path_obj / "metadata.json") as f:
-                meta = json.load(f)
-            return cls(
-                data=data,
-                param=meta["param"],
-                condition_names=meta.get("condition_names"),
-                subject_ids=meta.get("subject_ids"),
-                save_path=str(path_obj),
-            )
+        data = np.load(path_obj / "pooled_data.npy")
+        with open(path_obj / "metadata.json") as f:
+            meta = json.load(f)
+        return cls(
+            data=data,
+            param=meta["param"],
+            condition_names=meta.get("condition_names"),
+            subject_ids=meta.get("subject_ids"),
+            save_path=str(path_obj),
+        )
 
     def __repr__(self) -> str:
         shape_str = f"({self.n_subjects}"
@@ -387,13 +386,13 @@ class StatResult:
     Holds statistical maps and provides thresholding utilities.
     """
 
-    t_map: Optional[NDArray] = None
-    f_map: Optional[NDArray] = None
-    p_map: Optional[NDArray] = None
-    contrast: Optional[str] = None
-    df: Optional[int] = None
+    t_map: NDArray | None = None
+    f_map: NDArray | None = None
+    p_map: NDArray | None = None
+    contrast: str | None = None
+    df: int | None = None
 
-    def threshold(self, method: str = "fdr", alpha: float = 0.05) -> "StatResult":
+    def threshold(self, method: str = "fdr", alpha: float = 0.05) -> StatResult:
         """Apply multiple comparison correction.
 
         Args:
@@ -468,7 +467,7 @@ class ResultDict(dict):
     Provides convenience methods for batch operations.
     """
 
-    def threshold_all(self, method: str = "fdr", alpha: float = 0.05) -> "ResultDict":
+    def threshold_all(self, method: str = "fdr", alpha: float = 0.05) -> ResultDict:
         """Apply thresholding to all results.
 
         Args:
@@ -487,4 +486,4 @@ class ResultDict(dict):
         return f"ResultDict({contrasts})"
 
 
-__all__ = ["PooledData", "StatResult", "ResultDict"]
+__all__ = ["PooledData", "ResultDict", "StatResult"]

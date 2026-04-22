@@ -18,7 +18,7 @@ References:
 """
 
 import numpy as np
-from typing import Union, Optional, Literal, TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING
 from sklearn.utils import check_random_state
 
 from .utils import _compute_pvalue, _auto_batch_size
@@ -35,8 +35,8 @@ if TYPE_CHECKING:
 
 def circle_shift(
     data: np.ndarray,
-    shift_amount: Optional[Union[int, np.ndarray]] = None,
-    random_state: Optional[Union[int, np.random.RandomState]] = None,
+    shift_amount: int | np.ndarray | None = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """
     Circular shift for time-series data.
@@ -79,7 +79,7 @@ def circle_shift(
         return np.concatenate([data[-shift_amount:], data[:-shift_amount]])
 
     # 2D case
-    elif data.ndim == 2:
+    if data.ndim == 2:
         n_samples, n_features = data.shape
         if shift_amount is None:
             # Each feature gets an independent random shift (with replacement)
@@ -99,14 +99,13 @@ def circle_shift(
             shifted[:, i] = np.concatenate([data[-shift:, i], data[:-shift, i]])
         return shifted
 
-    else:
-        raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
+    raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
 
 
 def phase_randomize(
     data: np.ndarray,
-    backend: Optional[str] = None,
-    random_state: Optional[Union[int, np.random.RandomState]] = None,
+    backend: str | None = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """
     FFT-based phase randomization for time-series data.
@@ -245,7 +244,7 @@ def _circle_shift_gpu_batched(
 
 def _circle_shift_gpu(
     data: np.ndarray,
-    shift_amount: Union[int, np.ndarray],
+    shift_amount: int | np.ndarray,
     backend: Backend,
 ) -> "np.ndarray | torch.Tensor":
     """
@@ -276,7 +275,7 @@ def _circle_shift_gpu(
         return data[indices]
 
     # Handle 2D case
-    elif data.ndim == 2:
+    if data.ndim == 2:
         n_samples, n_features = data.shape
         shift_amount = torch.as_tensor(
             shift_amount, device=data.device, dtype=torch.long
@@ -294,8 +293,7 @@ def _circle_shift_gpu(
             shifted[:, i] = torch.roll(data[:, i], int(shift.item()))
         return shifted
 
-    else:
-        raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
+    raise ValueError(f"data must be 1D or 2D, got shape {data.shape}")
 
 
 def _phase_randomize_gpu(
@@ -603,11 +601,11 @@ def timeseries_correlation_permutation_test(
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
     tail: int = 2,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
-    random_state: Optional[Union[int, np.random.RandomState]] = None,
+    random_state: int | np.random.RandomState | None = None,
 ) -> dict:
     """
     Time-series correlation permutation test.
@@ -747,73 +745,71 @@ def timeseries_correlation_permutation_test(
                 results["null_dist"] = null_dist
 
             return results
-        else:
-            # CPU parallelization mode (existing implementation)
-            # Setup random state and generate seeds for workers
-            rng = check_random_state(random_state)
-            MAX_INT = 2**31 - 1
-            seeds = rng.randint(MAX_INT, size=n_permute)
-
-            # Define worker function
-            from joblib import Parallel, delayed
-            from tqdm import tqdm
-
-            if method == "circle_shift":
-
-                def _compute_one_perm(seed):
-                    """Compute correlation for one circle_shift permutation."""
-                    perm_data1 = circle_shift(data1, random_state=seed)
-                    corr = corr_func(perm_data1, data2)
-                    return corr[0] if isinstance(corr, np.ndarray) else corr
-
-            else:  # phase_randomize
-
-                def _compute_one_perm(seed):
-                    """Compute correlation for one phase_randomize permutation.
-
-                    Note: Only data1 is phase-randomized to test correlation significance.
-                    Randomizing both variables reduces power and is conceptually incorrect
-                    for testing H0: correlation = 0.
-                    """
-                    perm_data1 = phase_randomize(data1, random_state=seed)
-                    # data2 unchanged - this destroys correlation under H0
-                    corr = corr_func(perm_data1, data2)
-                    return corr[0] if isinstance(corr, np.ndarray) else corr
-
-            # Execute in parallel with progress bar
-            null_dist = Parallel(n_jobs=n_jobs)(
-                delayed(_compute_one_perm)(seeds[i])
-                for i in tqdm(range(n_permute), desc=f"{method} perms", unit="perm")
-            )
-            null_dist = np.array(null_dist)
-
-            # Compute p-value
-            p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
-
-            # Prepare results (convert to Python scalars for consistency with stats.py)
-            results = {
-                "correlation": float(obs_corr),
-                "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-                "parallel": "cpu",
-            }
-
-            if return_null:
-                results["null_dist"] = null_dist
-
-            return results
-    else:
-        # GPU mode
-        backend_obj = Backend("torch")
+        # CPU parallelization mode (existing implementation)
+        # Setup random state and generate seeds for workers
         rng = check_random_state(random_state)
-        return _timeseries_correlation_permutation_gpu_batched(
-            data1,
-            data2,
-            method,
-            n_permute,
-            metric,
-            tail,
-            return_null,
-            backend_obj,
-            max_gpu_memory_gb,
-            rng,
+        MAX_INT = 2**31 - 1
+        seeds = rng.randint(MAX_INT, size=n_permute)
+
+        # Define worker function
+        from joblib import Parallel, delayed
+        from tqdm import tqdm
+
+        if method == "circle_shift":
+
+            def _compute_one_perm(seed):
+                """Compute correlation for one circle_shift permutation."""
+                perm_data1 = circle_shift(data1, random_state=seed)
+                corr = corr_func(perm_data1, data2)
+                return corr[0] if isinstance(corr, np.ndarray) else corr
+
+        else:  # phase_randomize
+
+            def _compute_one_perm(seed):
+                """Compute correlation for one phase_randomize permutation.
+
+                Note: Only data1 is phase-randomized to test correlation significance.
+                Randomizing both variables reduces power and is conceptually incorrect
+                for testing H0: correlation = 0.
+                """
+                perm_data1 = phase_randomize(data1, random_state=seed)
+                # data2 unchanged - this destroys correlation under H0
+                corr = corr_func(perm_data1, data2)
+                return corr[0] if isinstance(corr, np.ndarray) else corr
+
+        # Execute in parallel with progress bar
+        null_dist = Parallel(n_jobs=n_jobs)(
+            delayed(_compute_one_perm)(seeds[i])
+            for i in tqdm(range(n_permute), desc=f"{method} perms", unit="perm")
         )
+        null_dist = np.array(null_dist)
+
+        # Compute p-value
+        p_value = _compute_pvalue(obs_corr, null_dist, tail=tail)
+
+        # Prepare results (convert to Python scalars for consistency with stats.py)
+        results = {
+            "correlation": float(obs_corr),
+            "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
+            "parallel": "cpu",
+        }
+
+        if return_null:
+            results["null_dist"] = null_dist
+
+        return results
+    # GPU mode
+    backend_obj = Backend("torch")
+    rng = check_random_state(random_state)
+    return _timeseries_correlation_permutation_gpu_batched(
+        data1,
+        data2,
+        method,
+        n_permute,
+        metric,
+        tail,
+        return_null,
+        backend_obj,
+        max_gpu_memory_gb,
+        rng,
+    )

@@ -8,7 +8,7 @@ of correlations.
 
 import warnings
 import numpy as np
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
@@ -140,14 +140,13 @@ def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
         # Single correlation
         tau, _ = kendalltau(x, y)
         return float(tau) if not np.isnan(tau) else 0.0
-    else:
-        # Vectorized: compute each permutation separately
-        n_permute = x.shape[0]
-        correlations = np.empty(n_permute)
-        for i in range(n_permute):
-            tau, _ = kendalltau(x[i], y)
-            correlations[i] = tau if not np.isnan(tau) else 0.0
-        return correlations
+    # Vectorized: compute each permutation separately
+    n_permute = x.shape[0]
+    correlations = np.empty(n_permute)
+    for i in range(n_permute):
+        tau, _ = kendalltau(x[i], y)
+        correlations[i] = tau if not np.isnan(tau) else 0.0
+    return correlations
 
 
 def _correlation_permutation_cpu_parallel(
@@ -158,7 +157,7 @@ def _correlation_permutation_cpu_parallel(
     tail: int,
     return_null: bool,
     n_jobs: int,
-    random_state: Optional[int],
+    random_state: int | None,
     single_feature: bool = False,
 ) -> dict:
     """
@@ -222,10 +221,9 @@ def _correlation_permutation_cpu_parallel(
         # Compute correlation for each feature
         if n_features == 1:
             return corr_func(perm_data1[:, 0], data2[:, 0])
-        else:
-            return np.array(
-                [corr_func(perm_data1[:, i], data2[:, i]) for i in range(n_features)]
-            )
+        return np.array(
+            [corr_func(perm_data1[:, i], data2[:, i]) for i in range(n_features)]
+        )
 
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
@@ -633,10 +631,10 @@ def correlation_permutation_test(
     metric: str = "pearson",
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """
     Correlation permutation test.
@@ -834,32 +832,30 @@ def correlation_permutation_test(
                 result["null_dist"] = null_dist
 
             return result
-        else:
-            # CPU parallelization mode
-            return _correlation_permutation_cpu_parallel(
-                data1,
-                data2,
-                n_permute,
-                metric,
-                tail,
-                return_null,
-                n_jobs,
-                random_state,
-                single_feature,
-            )
-    else:
-        # GPU mode
-        backend_obj = Backend("torch")
-        rng = check_random_state(random_state)
-        return _correlation_permutation_gpu_batched(
+        # CPU parallelization mode
+        return _correlation_permutation_cpu_parallel(
             data1,
             data2,
             n_permute,
             metric,
             tail,
             return_null,
-            backend_obj,
-            max_gpu_memory_gb,
-            rng,
+            n_jobs,
+            random_state,
             single_feature,
         )
+    # GPU mode
+    backend_obj = Backend("torch")
+    rng = check_random_state(random_state)
+    return _correlation_permutation_gpu_batched(
+        data1,
+        data2,
+        n_permute,
+        metric,
+        tail,
+        return_null,
+        backend_obj,
+        max_gpu_memory_gb,
+        rng,
+        single_feature,
+    )

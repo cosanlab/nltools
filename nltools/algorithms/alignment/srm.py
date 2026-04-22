@@ -72,7 +72,7 @@ import logging
 
 import numpy as np
 import scipy
-from typing import List, Optional, Any, Tuple
+from typing import Any
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
@@ -84,8 +84,8 @@ logger = logging.getLogger(__name__)
 
 
 def _init_w_transforms(
-    data: List[np.ndarray], features: int, random_states: List[Any]
-) -> Tuple[List[Optional[np.ndarray]], np.ndarray]:
+    data: list[np.ndarray], features: int, random_states: list[Any]
+) -> tuple[list[np.ndarray | None], np.ndarray]:
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Initialization strategy:
@@ -207,9 +207,9 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def fit(
         self,
-        X: List[np.ndarray],
-        y: Optional[Any] = None,
-        parallel: Optional[str] = "cpu",
+        X: list[np.ndarray],
+        y: Any | None = None,
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
         pad_samples: bool = True,
@@ -250,16 +250,14 @@ class SRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) <= 1:
             raise ValueError(
-                "There are not enough subjects ({0:d}) to train the model.".format(
-                    len(X)
-                )
+                f"There are not enough subjects ({len(X):d}) to train the model."
             )
 
         # Check for input data sizes
         if X[0].shape[1] < self.features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                "{0:d} features.".format(self.features)
+                f"{self.features:d} features."
             )
 
         # Handle unequal sample counts via padding
@@ -301,11 +299,11 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def transform(
         self,
-        X: List[np.ndarray],
-        y: Optional[Any] = None,
-        parallel: Optional[str] = "cpu",
+        X: list[np.ndarray],
+        y: Any | None = None,
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
-    ) -> List[Optional[np.ndarray]]:
+    ) -> list[np.ndarray | None]:
         """Use the model to transform matrix to Shared Response space
 
         Args:
@@ -534,7 +532,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         return w
 
-    def _srm(self, data, parallel: Optional[str] = None, n_jobs: int = -1):
+    def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
         """Expectation-Maximization algorithm for fitting the probabilistic SRM.
 
         Args:
@@ -577,7 +575,7 @@ class SRM(BaseEstimator, TransformerMixin):
         # E-step: Update shared response S given current transforms W_i
         # M-step: Update transforms W_i and noise variances rho_i^2 given S
         for iteration in range(self.n_iter):
-            logger.info("Iteration %d" % (iteration + 1))
+            logger.info("Iteration %d", iteration + 1)
 
             # E-step: Update shared response S
 
@@ -652,8 +650,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         rho2_new += trace_sigma_s
                         rho2_new /= samples * voxels[subj_idx]
                         return w_new, rho2_new
-                    else:
-                        return None, 0.0
+                    return None, 0.0
 
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = n_jobs
@@ -714,7 +711,7 @@ class SRM(BaseEstimator, TransformerMixin):
                     wt_invpsi_x,
                     samples,
                 )
-                logger.info("Objective function %f" % loglike)
+                logger.info(f"Objective function {loglike:f}")
 
         return sigma_s, w, mu, rho2, shared_response
 
@@ -785,9 +782,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def fit(
         self,
-        X: List[np.ndarray],
-        y: Optional[Any] = None,
-        parallel: Optional[str] = "cpu",
+        X: list[np.ndarray],
+        y: Any | None = None,
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
     ) -> "DetSRM":
@@ -823,16 +820,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # Check the number of subjects
         if len(X) <= 1:
             raise ValueError(
-                "There are not enough subjects ({0:d}) to train the model.".format(
-                    len(X)
-                )
+                f"There are not enough subjects ({len(X):d}) to train the model."
             )
 
         # Check for input data sizes
         if X[0].shape[1] < self.features:
             raise ValueError(
                 "There are not enough samples to train the model with "
-                "{0:d} features.".format(self.features)
+                f"{self.features:d} features."
             )
 
         # Check if all subjects have same number of TRs
@@ -850,11 +845,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def transform(
         self,
-        X: List[np.ndarray],
-        y: Optional[Any] = None,
-        parallel: Optional[str] = "cpu",
+        X: list[np.ndarray],
+        y: Any | None = None,
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Use the model to transform data to the Shared Response subspace
 
         Args:
@@ -1021,7 +1016,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         return w
 
-    def _srm(self, data, parallel: Optional[str] = None, n_jobs: int = -1):
+    def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
         """Block Coordinate Descent algorithm for fitting the deterministic SRM.
 
         Args:
@@ -1052,11 +1047,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
             objective = self._objective_function(data, w, shared_response)
-            logger.info("Objective function %f" % objective)
+            logger.info(f"Objective function {objective:f}")
 
         # Main loop of the algorithm
         for iteration in range(self.n_iter):
-            logger.info("Iteration %d" % (iteration + 1))
+            logger.info("Iteration %d", iteration + 1)
 
             # Update each subject's mapping transform W_i:
             # Use CPU parallelization for multi-subject updates if requested
@@ -1116,6 +1111,6 @@ class DetSRM(BaseEstimator, TransformerMixin):
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
                 objective = self._objective_function(data, w, shared_response)
-                logger.info("Objective function %f" % objective)
+                logger.info(f"Objective function {objective:f}")
 
         return w, shared_response

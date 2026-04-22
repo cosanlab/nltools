@@ -1,10 +1,10 @@
 """Temporal signal processing — resampling, filtering, and basis functions."""
 
 __all__ = [
-    "downsample",
-    "upsample",
     "calc_bpm",
+    "downsample",
     "make_cosine_basis",
+    "upsample",
 ]
 
 import numpy as np
@@ -316,5 +316,4 @@ def _phase_rayleigh_p(phase_angles):
             + (2 * Z - Z**2) / (4 * n)
             - (24 * Z - 132 * Z**2 + 76 * Z**3 - 9 * Z**4) / (288 * n**2)
         )
-    else:
-        return np.exp(-1 * Z)
+    return np.exp(-1 * Z)

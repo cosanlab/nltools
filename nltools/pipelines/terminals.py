@@ -8,7 +8,7 @@ within cross-validation folds.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -60,7 +60,7 @@ class PredictTerminal:
 
     y: NDArray
     algorithm: str = "ridge"
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Convert y to numpy array if needed."""
@@ -79,42 +79,40 @@ class PredictTerminal:
             from sklearn.linear_model import Ridge
 
             return Ridge(**self.kwargs)
-        elif self.algorithm == "lasso":
+        if self.algorithm == "lasso":
             from sklearn.linear_model import Lasso
 
             return Lasso(**self.kwargs)
-        elif self.algorithm == "elastic":
+        if self.algorithm == "elastic":
             from sklearn.linear_model import ElasticNet
 
             return ElasticNet(**self.kwargs)
-        elif self.algorithm == "svr":
+        if self.algorithm == "svr":
             from sklearn.svm import SVR
 
             return SVR(**self.kwargs)
-        elif self.algorithm == "svm":
+        if self.algorithm == "svm":
             from sklearn.svm import SVC
 
             return SVC(**self.kwargs)
-        elif self.algorithm == "logistic":
+        if self.algorithm == "logistic":
             from sklearn.linear_model import LogisticRegression
 
             return LogisticRegression(**self.kwargs)
-        elif self.algorithm == "rf":
+        if self.algorithm == "rf":
             # Auto-detect classification vs regression
             unique_y = np.unique(self.y)
             if len(unique_y) <= 20 and np.all(unique_y == unique_y.astype(int)):
                 from sklearn.ensemble import RandomForestClassifier
 
                 return RandomForestClassifier(**self.kwargs)
-            else:
-                from sklearn.ensemble import RandomForestRegressor
+            from sklearn.ensemble import RandomForestRegressor
 
-                return RandomForestRegressor(**self.kwargs)
-        else:
-            raise ValueError(
-                f"Unknown algorithm: {self.algorithm}. "
-                f"Options: ridge, lasso, elastic, svr, svm, logistic, rf"
-            )
+            return RandomForestRegressor(**self.kwargs)
+        raise ValueError(
+            f"Unknown algorithm: {self.algorithm}. "
+            f"Options: ridge, lasso, elastic, svr, svm, logistic, rf"
+        )
 
     def fit_evaluate(
         self,
@@ -123,7 +121,7 @@ class PredictTerminal:
         train_idx: NDArray[np.intp],
         test_idx: NDArray[np.intp],
         fitted_stack: Any,
-    ) -> "FoldResult":
+    ) -> FoldResult:
         """Fit model on training data and evaluate on test data.
 
         Args:
@@ -158,7 +156,7 @@ class PredictTerminal:
             fitted_stack=fitted_stack,
         )
 
-    def with_y(self, new_y: NDArray) -> "PredictTerminal":
+    def with_y(self, new_y: NDArray) -> PredictTerminal:
         """Create copy with different target variable.
 
         Useful for permutation testing.
@@ -199,7 +197,7 @@ class ISCTerminal:
     metric: str = "median"
     n_permute: int = 5000
     parallel: str = "cpu"
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate parameters."""
@@ -218,7 +216,7 @@ class ISCTerminal:
         self,
         data: list,
         **kwargs,
-    ) -> "ISCResult":
+    ) -> ISCResult:
         """Compute ISC across subjects.
 
         Args:
@@ -307,7 +305,7 @@ class RSATerminal:
     model_rdm: NDArray
     method: str = "spearman"
     n_permute: int = 5000
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    kwargs: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate and prepare model RDM."""
@@ -333,7 +331,7 @@ class RSATerminal:
         self,
         data: NDArray,
         **kwargs,
-    ) -> "RSAResult":
+    ) -> RSAResult:
         """Compute RSA correlation between neural and model RDMs.
 
         Args:
@@ -428,4 +426,4 @@ class RSATerminal:
         )
 
 
-__all__ = ["PredictTerminal", "ISCTerminal", "RSATerminal"]
+__all__ = ["ISCTerminal", "PredictTerminal", "RSATerminal"]

@@ -326,8 +326,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
             return (
                 2 * np.nansum((((x1 + x2) / 2) - np.nanmean((x1 + x2) / 2)) ** 2) / df
             )
-        else:
-            return np.nansum((x1 - np.nanmean(x1)) ** 2) / df
+        return np.nansum((x1 - np.nanmean(x1)) ** 2) / df
 
     def mean_square_within(x1, x2, df="standard"):
         """Calculate within dyad variance"""

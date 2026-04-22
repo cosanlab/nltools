@@ -30,9 +30,11 @@ class TestDownloadNifti:
 
     def test_missing_requests_raises_error(self):
         """Should raise ImportError when requests is not available"""
-        with patch("nltools.datasets.requests", None):
-            with pytest.raises(ImportError, match="requests package is required"):
-                download_nifti("http://example.com/test.nii.gz")
+        with (
+            patch("nltools.datasets.requests", None),
+            pytest.raises(ImportError, match="requests package is required"),
+        ):
+            download_nifti("http://example.com/test.nii.gz")
 
     @patch("nltools.datasets.requests")
     def test_successful_download(self, mock_requests):
@@ -155,16 +157,20 @@ class TestFetchHaxby:
             )
         )
 
-        with patch("nltools.datasets.nilearn_fetch_haxby", return_value=mock_bunch):
-            with patch("nltools.data.BrainData", return_value=mock_brain_data):
-                with patch("builtins.open", create=True) as mock_open:
-                    mock_open.return_value.__enter__.return_value.read.return_value = (
-                        labels_content
-                    )
-                    mock_open.return_value.__enter__.return_value.readlines.return_value = labels_content.splitlines()
-                    result = fetch_haxby(n_subjects=1)
-                    assert isinstance(result, tuple)
-                    assert len(result) == 2
+        with (
+            patch("nltools.datasets.nilearn_fetch_haxby", return_value=mock_bunch),
+            patch("nltools.data.BrainData", return_value=mock_brain_data),
+            patch("builtins.open", create=True) as mock_open,
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                labels_content
+            )
+            mock_open.return_value.__enter__.return_value.readlines.return_value = (
+                labels_content.splitlines()
+            )
+            result = fetch_haxby(n_subjects=1)
+            assert isinstance(result, tuple)
+            assert len(result) == 2
 
     @pytest.mark.slow
     def test_fetch_haxby_real_data(self):
@@ -339,9 +345,11 @@ class TestFetchHaxby:
         """Should raise ImportError if nilearn not available"""
         from nltools.datasets import fetch_haxby
 
-        with patch("nltools.datasets.nilearn_fetch_haxby", None):
-            with pytest.raises(ImportError):
-                fetch_haxby(n_subjects=1)
+        with (
+            patch("nltools.datasets.nilearn_fetch_haxby", None),
+            pytest.raises(ImportError),
+        ):
+            fetch_haxby(n_subjects=1)
 
 
 class TestLoadHaxbyExample:

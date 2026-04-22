@@ -18,19 +18,19 @@ if TYPE_CHECKING:
 
 def predict(
     bc,
-    X: "np.ndarray | str | list | None" = None,
-    y: "np.ndarray | None" = None,
+    X: np.ndarray | str | list | None = None,
+    y: np.ndarray | None = None,
     method: str = "whole_brain",
     estimator="svm",
     cv=5,
-    groups: "np.ndarray | None" = None,
+    groups: np.ndarray | None = None,
     roi_mask=None,
     radius_mm: float = 10.0,
     scoring: str = "accuracy",
     standardize: bool = True,
     n_jobs: int = -1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Generate predictions for each subject in collection.
 
@@ -189,8 +189,8 @@ def predict(
 
 def compute_contrasts(
     bc,
-    contrasts: "str | dict | np.ndarray | list",
-) -> "BrainCollection | dict[str, BrainCollection]":
+    contrasts: str | dict | np.ndarray | list,
+) -> BrainCollection | dict[str, BrainCollection]:
     """
     Compute contrasts from fitted GLM beta coefficients.
 
@@ -252,9 +252,9 @@ def compute_contrasts(
 
 def compute_single_contrast(
     bc,
-    contrast: "str | np.ndarray | list",
+    contrast: str | np.ndarray | list,
     design_columns: list[str],
-) -> "BrainCollection":
+) -> BrainCollection:
     """Compute a single contrast across all subjects.
 
     Args:
@@ -367,8 +367,8 @@ def parse_contrast_string(
 
 def select_feature(
     bc,
-    feature: "int | str",
-) -> "BrainCollection":
+    feature: int | str,
+) -> BrainCollection:
     """
     Select a single feature's weights across all subjects.
 

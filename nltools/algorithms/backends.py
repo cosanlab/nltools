@@ -8,7 +8,7 @@ maintaining NumPy-first development.
 
 import warnings
 import numpy as np
-from typing import Tuple, Dict, Any
+from typing import Any
 
 # Track if we've warned about MPS initialization to avoid spam
 _already_warned_mps_init = [False]
@@ -120,24 +120,23 @@ class Backend:
         if self.name == "numpy":
             # NumPy backend: ensure float32
             return arr.astype(np.float32)
-        else:
-            # PyTorch backend: convert to tensor and move to device
-            import torch
+        # PyTorch backend: convert to tensor and move to device
+        import torch
 
-            # Check for float64 conversion and warn if needed
-            if arr.dtype == np.float64 and self.device == "mps":
-                if not _already_warned_float64[0]:
-                    warnings.warn(
-                        f"GPU backend {self.name} requires single precision floats (float32), "
-                        f"got input in float64. Data will be automatically cast to float32. "
-                        "This may result in reduced numerical precision.",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                    _already_warned_float64[0] = True
+        # Check for float64 conversion and warn if needed
+        if arr.dtype == np.float64 and self.device == "mps":
+            if not _already_warned_float64[0]:
+                warnings.warn(
+                    f"GPU backend {self.name} requires single precision floats (float32), "
+                    f"got input in float64. Data will be automatically cast to float32. "
+                    "This may result in reduced numerical precision.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                _already_warned_float64[0] = True
 
-            tensor = torch.from_numpy(arr.astype(np.float32))
-            return tensor.to(self._torch_device)
+        tensor = torch.from_numpy(arr.astype(np.float32))
+        return tensor.to(self._torch_device)
 
     def to_numpy(self, arr):
         """
@@ -152,14 +151,12 @@ class Backend:
         if self.name == "numpy":
             # NumPy backend: identity operation
             return arr
-        else:
-            # PyTorch backend: move to CPU and convert
-            import torch
+        # PyTorch backend: move to CPU and convert
+        import torch
 
-            if isinstance(arr, torch.Tensor):
-                return arr.cpu().numpy()
-            else:
-                return arr
+        if isinstance(arr, torch.Tensor):
+            return arr.cpu().numpy()
+        return arr
 
     def svd(self, X, full_matrices=False):
         """
@@ -186,12 +183,11 @@ class Backend:
 
             if X.ndim == 2 or not use_scipy:
                 return linalg.svd(X, full_matrices=full_matrices)
-            elif X.ndim == 3:
+            if X.ndim == 3:
                 UsV = [linalg.svd(Xi, full_matrices=full_matrices) for Xi in X]
                 return tuple(map(np.stack, zip(*UsV)))
-            else:
-                raise NotImplementedError("SVD only supports 2D and 3D arrays")
-        elif self.device == "mps":
+            raise NotImplementedError("SVD only supports 2D and 3D arrays")
+        if self.device == "mps":
             import torch
 
             X_device = X.device
@@ -201,10 +197,9 @@ class Backend:
             s = s.to(dtype=torch.float32, device=X_device)
             Vt = Vt.to(dtype=torch.float32, device=X_device)
             return U, s, Vt
-        else:
-            import torch
+        import torch
 
-            return torch.linalg.svd(X, full_matrices=full_matrices)
+        return torch.linalg.svd(X, full_matrices=full_matrices)
 
     def matmul(self, A, B):
         """
@@ -219,10 +214,9 @@ class Backend:
         """
         if self.name == "numpy":
             return A @ B
-        else:
-            import torch
+        import torch
 
-            return torch.matmul(A, B)
+        return torch.matmul(A, B)
 
     # ------------------------------------------------------------------
     # Static utilities
@@ -289,33 +283,32 @@ class Backend:
             except Exception:
                 pass
             return np.asarray(x, dtype=dtype)
-        else:
-            import torch
+        import torch
 
-            if dtype is None:
-                if isinstance(x, torch.Tensor):
-                    dtype = x.dtype
-                elif hasattr(x, "dtype") and hasattr(x.dtype, "name"):
-                    dtype = x.dtype.name
-            if dtype is not None:
-                dtype_s = self.dtype_to_str(dtype)
-                dtype = getattr(torch, dtype_s)
-            if device is None:
-                device = self._torch_device
-                if isinstance(x, torch.Tensor) and device is None:
-                    device = x.device
-            # MPS doesn't support float64 — enforce float32
-            if (
-                self.device == "mps"
-                and dtype is not None
-                and self.dtype_to_str(dtype) == "float64"
-            ):
-                dtype = torch.float32
-            try:
-                return torch.as_tensor(x, dtype=dtype, device=device)
-            except Exception:
-                arr = np.asarray(x, dtype=self.dtype_to_str(dtype))
-                return torch.as_tensor(arr, dtype=dtype, device=device)
+        if dtype is None:
+            if isinstance(x, torch.Tensor):
+                dtype = x.dtype
+            elif hasattr(x, "dtype") and hasattr(x.dtype, "name"):
+                dtype = x.dtype.name
+        if dtype is not None:
+            dtype_s = self.dtype_to_str(dtype)
+            dtype = getattr(torch, dtype_s)
+        if device is None:
+            device = self._torch_device
+            if isinstance(x, torch.Tensor) and device is None:
+                device = x.device
+        # MPS doesn't support float64 — enforce float32
+        if (
+            self.device == "mps"
+            and dtype is not None
+            and self.dtype_to_str(dtype) == "float64"
+        ):
+            dtype = torch.float32
+        try:
+            return torch.as_tensor(x, dtype=dtype, device=device)
+        except Exception:
+            arr = np.asarray(x, dtype=self.dtype_to_str(dtype))
+            return torch.as_tensor(arr, dtype=dtype, device=device)
 
     def asarray_like(self, x, ref):
         """Convert *x* to an array matching *ref*'s dtype (and device for torch).
@@ -329,10 +322,9 @@ class Backend:
         """
         if self.name == "numpy":
             return np.asarray(x, dtype=ref.dtype)
-        else:
-            import torch
+        import torch
 
-            return torch.as_tensor(x, dtype=ref.dtype, device=ref.device)
+        return torch.as_tensor(x, dtype=ref.dtype, device=ref.device)
 
     def check_arrays(self, *inputs):
         """Coerce all inputs to the same dtype (and device) as the first.
@@ -386,16 +378,15 @@ class Backend:
             dtype = array.dtype
         if self.name == "numpy":
             return np.zeros(shape, dtype=dtype)
-        else:
-            import torch
+        import torch
 
-            if isinstance(shape, int):
-                shape = (shape,)
-            if isinstance(dtype, str):
-                dtype = getattr(torch, dtype)
-            return torch.zeros(
-                shape, dtype=dtype, device=self._resolve_torch_device(array, device)
-            )
+        if isinstance(shape, int):
+            shape = (shape,)
+        if isinstance(dtype, str):
+            dtype = getattr(torch, dtype)
+        return torch.zeros(
+            shape, dtype=dtype, device=self._resolve_torch_device(array, device)
+        )
 
     def ones_like(self, array, shape=None, dtype=None, device=None):
         """Create ones array, optionally with a different shape.
@@ -412,16 +403,15 @@ class Backend:
             dtype = array.dtype
         if self.name == "numpy":
             return np.ones(shape, dtype=dtype)
-        else:
-            import torch
+        import torch
 
-            if isinstance(shape, int):
-                shape = (shape,)
-            if isinstance(dtype, str):
-                dtype = getattr(torch, dtype)
-            return torch.ones(
-                shape, dtype=dtype, device=self._resolve_torch_device(array, device)
-            )
+        if isinstance(shape, int):
+            shape = (shape,)
+        if isinstance(dtype, str):
+            dtype = getattr(torch, dtype)
+        return torch.ones(
+            shape, dtype=dtype, device=self._resolve_torch_device(array, device)
+        )
 
     def full_like(self, array, fill_value, shape=None, dtype=None, device=None):
         """Create array filled with *fill_value*, optionally with a different shape.
@@ -439,19 +429,18 @@ class Backend:
             dtype = array.dtype
         if self.name == "numpy":
             return np.full(shape, fill_value, dtype=dtype)
-        else:
-            import torch
+        import torch
 
-            if isinstance(shape, int):
-                shape = (shape,)
-            if isinstance(dtype, str):
-                dtype = getattr(torch, dtype)
-            return torch.full(
-                shape,
-                fill_value,
-                dtype=dtype,
-                device=self._resolve_torch_device(array, device),
-            )
+        if isinstance(shape, int):
+            shape = (shape,)
+        if isinstance(dtype, str):
+            dtype = getattr(torch, dtype)
+        return torch.full(
+            shape,
+            fill_value,
+            dtype=dtype,
+            device=self._resolve_torch_device(array, device),
+        )
 
     def full(self, shape, fill_value, dtype=None):
         """Create array filled with *fill_value*.
@@ -463,14 +452,13 @@ class Backend:
         """
         if self.name == "numpy":
             return np.full(shape, fill_value, dtype=dtype)
-        else:
-            import torch
+        import torch
 
-            if isinstance(shape, int):
-                shape = (shape,)
-            if isinstance(dtype, str):
-                dtype = getattr(torch, dtype)
-            return torch.full(shape, fill_value, dtype=dtype, device=self._torch_device)
+        if isinstance(shape, int):
+            shape = (shape,)
+        if isinstance(dtype, str):
+            dtype = getattr(torch, dtype)
+        return torch.full(shape, fill_value, dtype=dtype, device=self._torch_device)
 
     # ------------------------------------------------------------------
     # Device transfer
@@ -487,8 +475,7 @@ class Backend:
         """
         if self.name == "numpy":
             return array
-        else:
-            return array.cpu()
+        return array.cpu()
 
     def to_gpu(self, array, device=None):
         """Transfer array to GPU. No-op for numpy.
@@ -502,13 +489,12 @@ class Backend:
         """
         if self.name == "numpy":
             return array
-        else:
-            target = device or self._torch_device
-            return (
-                self.asarray(array, dtype=None).to(target)
-                if not hasattr(array, "to")
-                else array.to(target)
-            )
+        target = device or self._torch_device
+        return (
+            self.asarray(array, dtype=None).to(target)
+            if not hasattr(array, "to")
+            else array.to(target)
+        )
 
     # ------------------------------------------------------------------
     # Compat ops (differ between numpy and torch)
@@ -523,10 +509,9 @@ class Backend:
         """
         if self.name == "numpy":
             return np.concatenate(arrays, axis=axis)
-        else:
-            import torch
+        import torch
 
-            return torch.cat(arrays, dim=axis)
+        return torch.cat(arrays, dim=axis)
 
     def expand_dims(self, array, axis):
         """Insert a new axis.
@@ -537,10 +522,9 @@ class Backend:
         """
         if self.name == "numpy":
             return np.expand_dims(array, axis=axis)
-        else:
-            import torch
+        import torch
 
-            return torch.unsqueeze(array, dim=axis)
+        return torch.unsqueeze(array, dim=axis)
 
     def copy(self, array):
         """Return an independent copy of the array.
@@ -550,8 +534,7 @@ class Backend:
         """
         if self.name == "numpy":
             return np.copy(array)
-        else:
-            return array.clone()
+        return array.clone()
 
     def flatnonzero(self, array):
         """Return indices of non-zero elements in the flattened array.
@@ -561,10 +544,9 @@ class Backend:
         """
         if self.name == "numpy":
             return np.flatnonzero(array)
-        else:
-            import torch
+        import torch
 
-            return torch.nonzero(torch.flatten(array), as_tuple=True)[0]
+        return torch.nonzero(torch.flatten(array), as_tuple=True)[0]
 
     def sort(self, array, axis=-1):
         """Sort along an axis, returning values only.
@@ -575,10 +557,9 @@ class Backend:
         """
         if self.name == "numpy":
             return np.sort(array, axis=axis)
-        else:
-            import torch
+        import torch
 
-            return torch.sort(array, dim=axis).values
+        return torch.sort(array, dim=axis).values
 
 
 def resolve_backend(parallel):
@@ -687,7 +668,7 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
     )
 
 
-def check_gpu_available() -> Tuple[bool, Dict[str, Any]]:
+def check_gpu_available() -> tuple[bool, dict[str, Any]]:
     """
     Check if GPU acceleration is available.
 
@@ -708,18 +689,17 @@ def check_gpu_available() -> Tuple[bool, Dict[str, Any]]:
                 "device": "cuda",
                 "device_name": torch.cuda.get_device_name(0),
             }
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             return True, {
                 "backend": "torch",
                 "device": "mps",
                 "device_name": "Apple Metal Performance Shaders",
             }
-        else:
-            return False, {
-                "backend": "torch",
-                "device": "cpu",
-                "device_name": "CPU (PyTorch available)",
-            }
+        return False, {
+            "backend": "torch",
+            "device": "cpu",
+            "device_name": "CPU (PyTorch available)",
+        }
     except ImportError:
         return False, {
             "backend": "numpy",
@@ -765,12 +745,11 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
     if problem_size < SMALL_THRESHOLD:
         # Small problem: NumPy is efficient enough
         return Backend("numpy")
-    elif problem_size > LARGE_THRESHOLD and gpu_available:
+    if problem_size > LARGE_THRESHOLD and gpu_available:
         # Large problem with GPU: Use PyTorch
         return Backend("torch")
-    elif cv > 1 and gpu_available:
+    if cv > 1 and gpu_available:
         # Cross-validation with GPU: Prefer PyTorch
         return Backend("torch")
-    else:
-        # Default: Try auto-selection (falls back to NumPy if no GPU)
-        return Backend("auto")
+    # Default: Try auto-selection (falls back to NumPy if no GPU)
+    return Backend("auto")

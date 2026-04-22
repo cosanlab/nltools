@@ -11,7 +11,7 @@ from __future__ import annotations
 
 __all__ = ["DesignMatrix"]
 
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
@@ -79,12 +79,12 @@ class DesignMatrix:
 
     def __init__(
         self,
-        data: Union[pl.DataFrame, pd.DataFrame, np.ndarray, dict, None] = None,
+        data: pl.DataFrame | pd.DataFrame | np.ndarray | dict | None = None,
         *,
-        sampling_freq: Optional[float] = None,
-        columns: Optional[List[str]] = None,
-        convolved: Optional[List[str]] = None,
-        polys: Optional[List[str]] = None,
+        sampling_freq: float | None = None,
+        columns: list[str] | None = None,
+        convolved: list[str] | None = None,
+        polys: list[str] | None = None,
     ):
         """Initialize DesignMatrix from various input types."""
         # Initialize metadata
@@ -163,9 +163,7 @@ class DesignMatrix:
             return NotImplemented
         return self._df.equals(other._df)
 
-    def __getitem__(
-        self, key: Union[str, List[str]]
-    ) -> Union[pl.Series, "DesignMatrix"]:
+    def __getitem__(self, key: str | list[str]) -> pl.Series | DesignMatrix:
         """
         Access columns.
 
@@ -175,20 +173,17 @@ class DesignMatrix:
         if isinstance(key, str):
             # Single column - return Series
             return self._df[key]
-        elif isinstance(key, list):
+        if isinstance(key, list):
             # Multiple columns - return DesignMatrix with metadata
             subset_df = self._df.select(key)
             return copy_with(self, subset_df)
-        else:
-            raise TypeError(f"Column key must be str or list of str, got {type(key)}")
+        raise TypeError(f"Column key must be str or list of str, got {type(key)}")
 
     def __len__(self) -> int:
         """Return number of rows."""
         return len(self._df)
 
-    def __setitem__(
-        self, key: str, value: Union[int, float, list, np.ndarray, pl.Series]
-    ):
+    def __setitem__(self, key: str, value: int | float | list | np.ndarray | pl.Series):
         """
         Set column values.
 
@@ -207,12 +202,12 @@ class DesignMatrix:
     # ── Properties (alphabetical) ───────────────────────────────────────
 
     @property
-    def columns(self) -> List[str]:
+    def columns(self) -> list[str]:
         """Column names of the design matrix as a list of strings."""
         return self._df.columns
 
     @columns.setter
-    def columns(self, new_names: List[str]):
+    def columns(self, new_names: list[str]):
         """Set column names."""
         str_names = [str(name) for name in new_names]
         self._df = self._df.rename(dict(zip(self._df.columns, str_names)))
@@ -233,7 +228,7 @@ class DesignMatrix:
 
     # ── Public methods (alphabetical) ───────────────────────────────────
 
-    def add_dct_basis(self, duration: float = 180, drop: int = 0) -> "DesignMatrix":
+    def add_dct_basis(self, duration: float = 180, drop: int = 0) -> DesignMatrix:
         """
         Add discrete cosine transform basis functions (high-pass filter).
 
@@ -248,7 +243,7 @@ class DesignMatrix:
 
         return add_dct_basis(self, duration, drop)
 
-    def add_poly(self, order: int = 0, include_lower: bool = True) -> "DesignMatrix":
+    def add_poly(self, order: int = 0, include_lower: bool = True) -> DesignMatrix:
         """
         Add Legendre polynomial drift terms.
 
@@ -267,14 +262,14 @@ class DesignMatrix:
 
     def append(
         self,
-        dm: Union["DesignMatrix", List["DesignMatrix"]],
+        dm: DesignMatrix | list[DesignMatrix],
         *,
         axis: int = 0,
         keep_separate: bool = True,
-        unique_cols: Optional[List[str]] = None,
-        fill_na: Union[int, float] = 0,
+        unique_cols: list[str] | None = None,
+        fill_na: int | float = 0,
         verbose: bool = False,
-    ) -> "DesignMatrix":
+    ) -> DesignMatrix:
         """
         Concatenate design matrices.
 
@@ -299,11 +294,11 @@ class DesignMatrix:
 
     def clean(
         self,
-        fill_na: Union[int, float, None] = 0,
+        fill_na: int | float | None = 0,
         exclude_polys: bool = False,
         thresh: float = 0.95,
         verbose: bool = True,
-    ) -> "DesignMatrix":
+    ) -> DesignMatrix:
         """
         Remove highly correlated columns.
 
@@ -322,9 +317,9 @@ class DesignMatrix:
 
     def convolve(
         self,
-        conv_func: Union[str, np.ndarray] = "hrf",
-        columns: Optional[List[str]] = None,
-    ) -> "DesignMatrix":
+        conv_func: str | np.ndarray = "hrf",
+        columns: list[str] | None = None,
+    ) -> DesignMatrix:
         """
         Convolve columns with HRF or custom kernel.
 
@@ -340,7 +335,7 @@ class DesignMatrix:
 
         return convolve(self, conv_func, columns)
 
-    def copy(self) -> "DesignMatrix":
+    def copy(self) -> DesignMatrix:
         """
         Create a deep copy of the DesignMatrix.
 
@@ -362,9 +357,7 @@ class DesignMatrix:
 
         return details(self)
 
-    def downsample(
-        self, target: float, method: str = "mean", **kwargs
-    ) -> "DesignMatrix":
+    def downsample(self, target: float, method: str = "mean", **kwargs) -> DesignMatrix:
         """
         Reduce temporal resolution to target frequency using Polars-native operations.
 
@@ -379,7 +372,7 @@ class DesignMatrix:
 
         return downsample(self, target, method=method, **kwargs)
 
-    def drop(self, columns: List[str]) -> "DesignMatrix":
+    def drop(self, columns: list[str]) -> DesignMatrix:
         """Drop specified columns.
 
         Args:
@@ -391,7 +384,7 @@ class DesignMatrix:
         dropped_df = self._df.drop(columns)
         return copy_with(self, dropped_df)
 
-    def fillna(self, value: Union[int, float]) -> "DesignMatrix":
+    def fillna(self, value: int | float) -> DesignMatrix:
         """Fill NaN/null values with specified value.
 
         Args:
@@ -421,8 +414,8 @@ class DesignMatrix:
     def replace_data(
         self,
         data: np.ndarray,
-        column_names: Optional[List[str]] = None,
-    ) -> "DesignMatrix":
+        column_names: list[str] | None = None,
+    ) -> DesignMatrix:
         """
         Replace data columns while preserving polynomials and metadata.
 
@@ -460,8 +453,8 @@ class DesignMatrix:
         return copy_with(self, combined_df)
 
     def standardize(
-        self, method: str = "zscore", columns: Optional[List[str]] = None
-    ) -> "DesignMatrix":
+        self, method: str = "zscore", columns: list[str] | None = None
+    ) -> DesignMatrix:
         """Standardize columns using the specified method.
 
         Args:
@@ -489,10 +482,9 @@ class DesignMatrix:
         if axis == 0:
             sums = [self._df[col].sum() for col in self._df.columns]
             return pl.Series(values=sums, name="")
-        elif axis == 1:
+        if axis == 1:
             return self._df.select(pl.sum_horizontal(pl.all())).to_series()
-        else:
-            raise ValueError(f"axis must be 0 or 1, got {axis}")
+        raise ValueError(f"axis must be 0 or 1, got {axis}")
 
     def to_numpy(self) -> np.ndarray:
         """
@@ -515,9 +507,7 @@ class DesignMatrix:
 
         return to_pandas(self)
 
-    def upsample(
-        self, target: float, method: str = "linear", **kwargs
-    ) -> "DesignMatrix":
+    def upsample(self, target: float, method: str = "linear", **kwargs) -> DesignMatrix:
         """
         Increase temporal resolution to target frequency.
 
@@ -561,7 +551,7 @@ class DesignMatrix:
 
         return write(self, file_name, sep)
 
-    def zscore(self, columns: Optional[List[str]] = None) -> "DesignMatrix":
+    def zscore(self, columns: list[str] | None = None) -> DesignMatrix:
         """
         Z-score standardize columns (mean=0, std=1).
 

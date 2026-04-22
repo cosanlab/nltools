@@ -49,7 +49,7 @@ class TestComputeICCVoxelwise:
         )
 
         assert icc_map.shape == (n_voxels,)
-        assert np.all((-1 <= icc_map) & (icc_map <= 1))
+        assert np.all((icc_map >= -1) & (icc_map <= 1))
 
     def test_all_icc_types(self):
         """Test that all ICC types work."""
@@ -66,7 +66,7 @@ class TestComputeICCVoxelwise:
             )
             assert icc_map.shape == (n_voxels,)
             assert np.all(np.isfinite(icc_map))
-            assert np.all((-1 <= icc_map) & (icc_map <= 1))
+            assert np.all((icc_map >= -1) & (icc_map <= 1))
 
     def test_correctness_vs_single_icc(self):
         """Test that voxel-wise ICC matches single-voxel compute_icc."""
@@ -431,7 +431,7 @@ class TestICCEdgeCases:
 
         assert icc_map.shape == (n_voxels,)
         assert np.all(np.isfinite(icc_map))
-        assert np.all((-1 <= icc_map) & (icc_map <= 1))
+        assert np.all((icc_map >= -1) & (icc_map <= 1))
 
 
 class TestICSingleVoxel:
@@ -507,4 +507,4 @@ class TestICCVectorized:
             icc_map = _compute_icc_vectorized(Y, icc_type)
             assert icc_map.shape == (n_voxels,)
             assert np.all(np.isfinite(icc_map))
-            assert np.all((-1 <= icc_map) & (icc_map <= 1))
+            assert np.all((icc_map >= -1) & (icc_map <= 1))

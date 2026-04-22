@@ -6,7 +6,7 @@ and returns a new DesignMatrix via `copy_with(dm,...)`.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatrix:
+def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
     """
     Z-score standardize columns (mean=0, std=1).
 
@@ -52,7 +52,7 @@ def zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatri
 
 def standardize(
     dm: DesignMatrix,
-    columns: Optional[List[str]] = None,
+    columns: list[str] | None = None,
     method: str = "zscore",
 ) -> DesignMatrix:
     """Standardize columns using the specified method.
@@ -81,7 +81,7 @@ def standardize(
     """
     if method == "zscore":
         return zscore(dm, columns=columns)
-    elif method == "center":
+    if method == "center":
         # Determine which columns to center
         if columns is None:
             columns_to_center = get_data_columns(dm, exclude_polys=True)
@@ -95,8 +95,7 @@ def standardize(
 
         centered_df = dm._df.with_columns(center_exprs)
         return copy_with(dm, centered_df)
-    else:
-        raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
+    raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
 
 
 def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:

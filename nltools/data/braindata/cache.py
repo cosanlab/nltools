@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
 
-__all__ = ["CacheManager", "hash_mask", "get_cache_dir", "clear_cache"]
+__all__ = ["CacheManager", "clear_cache", "get_cache_dir", "hash_mask"]
 
 
 def get_cache_dir() -> Path:
@@ -50,7 +50,7 @@ def get_cache_dir() -> Path:
     return cache_dir
 
 
-def hash_mask(mask_img: "Nifti1Image") -> str:
+def hash_mask(mask_img: Nifti1Image) -> str:
     """Compute a stable hash for a NIfTI mask image.
 
     The hash is based on the mask's shape, affine transformation, and the

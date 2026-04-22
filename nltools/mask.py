@@ -6,7 +6,7 @@ Classes to represent masks
 
 """
 
-__all__ = ["create_sphere", "expand_mask", "collapse_mask", "roi_to_brain"]
+__all__ = ["collapse_mask", "create_sphere", "expand_mask", "roi_to_brain"]
 
 import os
 import nibabel as nib
@@ -177,6 +177,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
             return out
     else:
         warnings.warn("Doesn't need to be collapased")
+    return None
 
 
 def roi_to_brain(data, mask_x):

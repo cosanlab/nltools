@@ -652,43 +652,43 @@ def resample_to(bd, img=None, resolution=None, interpolation=None):
 
         return BrainData(resampled_nifti, mask=target_img, resample=False)
 
-    else:  # resolution is not None
-        # Resample to specified resolution
-        resolution = float(resolution)
-        if resolution <= 0:
-            raise ValueError(f"resolution must be positive. Got {resolution}")
+    # resolution is not None
+    # Resample to specified resolution
+    resolution = float(resolution)
+    if resolution <= 0:
+        raise ValueError(f"resolution must be positive. Got {resolution}")
 
-        # Create target affine with specified resolution (diagonal matrix)
-        # resample_img automatically calculates output shape and origin
-        target_affine = np.eye(4)
-        target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
+    # Create target affine with specified resolution (diagonal matrix)
+    # resample_img automatically calculates output shape and origin
+    target_affine = np.eye(4)
+    target_affine[:3, :3] = np.diag([resolution, resolution, resolution])
 
-        # Resample data
-        resampled_nifti = resample_img(
-            source_nifti,
-            target_affine=target_affine,
-            interpolation=interpolation,
-        )
+    # Resample data
+    resampled_nifti = resample_img(
+        source_nifti,
+        target_affine=target_affine,
+        interpolation=interpolation,
+    )
 
-        # Resample mask with nearest interpolation (preserves binary nature).
-        # Copy-on-write via _ensure_sform avoids mutating bd.mask's header.
-        resampled_mask = resample_img(
-            _ensure_sform(bd.mask),
-            target_affine=target_affine,
-            interpolation="nearest",
-        )
+    # Resample mask with nearest interpolation (preserves binary nature).
+    # Copy-on-write via _ensure_sform avoids mutating bd.mask's header.
+    resampled_mask = resample_img(
+        _ensure_sform(bd.mask),
+        target_affine=target_affine,
+        interpolation="nearest",
+    )
 
-        # Preserve X and Y metadata if present
-        kwargs = {"mask": resampled_mask, "resample": False}
-        if hasattr(bd, "X") and bd.X is not None:
-            kwargs["X"] = bd.X
-        if hasattr(bd, "Y") and bd.Y is not None:
-            kwargs["Y"] = bd.Y
+    # Preserve X and Y metadata if present
+    kwargs = {"mask": resampled_mask, "resample": False}
+    if hasattr(bd, "X") and bd.X is not None:
+        kwargs["X"] = bd.X
+    if hasattr(bd, "Y") and bd.Y is not None:
+        kwargs["Y"] = bd.Y
 
-        # Lazy import to avoid circular dependency
-        from nltools.data.braindata import BrainData
+    # Lazy import to avoid circular dependency
+    from nltools.data.braindata import BrainData
 
-        return BrainData(resampled_nifti, **kwargs)
+    return BrainData(resampled_nifti, **kwargs)
 
 
 def write_brain_data(bd, file_name):

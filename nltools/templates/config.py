@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
-from typing import Iterator
+from collections.abc import Iterator
 
 from .paths import resolve_paths
 from .registry import SUPPORTED_RESOLUTIONS, TemplateName, Resolution

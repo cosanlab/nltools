@@ -6,7 +6,6 @@ permutation test implementations.
 """
 
 import numpy as np
-from typing import Optional
 from ..random import generate_sign_flips as _generate_sign_flips_from_random
 from .validation import validate_tail_parameter
 
@@ -176,7 +175,7 @@ def _auto_n_jobs_cpu(
     n_permute: int,
     max_memory_gb: float = 8.0,
     min_jobs: int = 1,
-    max_jobs: Optional[int] = None,
+    max_jobs: int | None = None,
 ) -> int:
     """
     Automatically determine optimal number of CPU workers to avoid memory exhaustion.

@@ -31,7 +31,7 @@ def _device_to_parallel(device: str, n_jobs: int) -> str | None:
 
 
 def ttest(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     popmean: float = 0.0,
     axis: int | str = 0,
 ) -> tuple:
@@ -88,8 +88,8 @@ def ttest(
 
 
 def ttest2(
-    bc: "BrainCollection",
-    other: "BrainCollection",
+    bc: BrainCollection,
+    other: BrainCollection,
     equal_var: bool = True,
 ) -> tuple:
     """
@@ -151,7 +151,7 @@ def ttest2(
 
 
 def permutation_test(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     n_permute: int = 5000,
     tail: int = 2,
     device: str = "cpu",
@@ -261,8 +261,8 @@ def permutation_test(
 
 
 def permutation_test2(
-    bc: "BrainCollection",
-    other: "BrainCollection",
+    bc: BrainCollection,
+    other: BrainCollection,
     n_permute: int = 5000,
     tail: int = 2,
     device: str = "cpu",
@@ -377,7 +377,7 @@ def permutation_test2(
 
 
 def anova(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     groups: str | list | np.ndarray,
 ) -> tuple:
     """
@@ -466,9 +466,9 @@ def anova(
 
 
 def isc(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     method: str = "loo",
-    roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+    roi_mask: nib.Nifti1Image | Path | str | None = None,
     radius_mm: float | None = 6.0,
     metric: str = "median",
     device: str = "cpu",
@@ -581,9 +581,9 @@ def isc(
 
 
 def isc_test(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     method: str = "loo",
-    roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+    roi_mask: nib.Nifti1Image | Path | str | None = None,
     radius_mm: float | None = 6.0,
     n_permute: int = 5000,
     permutation_method: str = "bootstrap",
@@ -732,8 +732,8 @@ def isc_test(
 
 
 def extract_for_isc(
-    bc: "BrainCollection",
-    roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+    bc: BrainCollection,
+    roi_mask: nib.Nifti1Image | Path | str | None = None,
     radius_mm: float | None = 6.0,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
@@ -771,15 +771,14 @@ def extract_for_isc(
     # Determine extraction mode
     if roi_mask is not None:
         return extract_roi(bc, roi_mask, progress_bar)
-    elif radius_mm is not None:
+    if radius_mm is not None:
         return extract_searchlight(bc, radius_mm, progress_bar)
-    else:
-        return extract_voxelwise(bc, progress_bar)
+    return extract_voxelwise(bc, progress_bar)
 
 
 def extract_roi(
-    bc: "BrainCollection",
-    roi_mask: "nib.Nifti1Image | Path | str",
+    bc: BrainCollection,
+    roi_mask: nib.Nifti1Image | Path | str,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract mean signal per ROI."""
@@ -833,7 +832,7 @@ def extract_roi(
 
 
 def extract_searchlight(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     radius_mm: float,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
@@ -879,7 +878,7 @@ def extract_searchlight(
 
 
 def extract_voxelwise(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     progress_bar: bool = False,
 ) -> tuple[np.ndarray, dict]:
     """Extract raw voxel data."""
@@ -912,7 +911,7 @@ def extract_voxelwise(
 
 
 def project_to_brain(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     values: np.ndarray,
     extraction_info: dict,
 ):
@@ -940,11 +939,10 @@ def project_to_brain(
         result.data = values
         return result
 
-    elif mode in ("searchlight", "voxelwise"):
+    if mode in ("searchlight", "voxelwise"):
         # Direct assignment
         result = BrainData(mask=bc._mask)
         result.data = values
         return result
 
-    else:
-        raise ValueError(f"Unknown extraction mode: {mode}")
+    raise ValueError(f"Unknown extraction mode: {mode}")

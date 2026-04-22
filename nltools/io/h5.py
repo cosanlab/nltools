@@ -4,7 +4,7 @@ HDF5 I/O utilities for nltools data types.
 Shared serialization logic for BrainData and Adjacency objects.
 """
 
-__all__ = ["is_h5_path", "to_h5", "load_brain_data_h5"]
+__all__ = ["is_h5_path", "load_brain_data_h5", "to_h5"]
 
 import warnings
 

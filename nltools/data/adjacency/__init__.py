@@ -32,7 +32,7 @@ nx = attempt_to_import("networkx", "nx")
 MAX_INT = np.iinfo(np.int32).max
 
 
-class Adjacency(object):
+class Adjacency:
     """
     Adjacency is a class to represent Adjacency matrices as a vector rather
     than a 2-dimensional matrix. This makes it easier to perform data
@@ -152,13 +152,12 @@ class Adjacency(object):
                 return
 
             # CSV or array/dataframe
-            else:
-                (
-                    self.data,
-                    self.issymmetric,
-                    self.matrix_type,
-                    self.is_single_matrix,
-                ) = import_single_data(data, matrix_type=matrix_type)
+            (
+                self.data,
+                self.issymmetric,
+                self.matrix_type,
+                self.is_single_matrix,
+            ) = import_single_data(data, matrix_type=matrix_type)
 
         # CSV or array/dataframe
         else:
@@ -201,8 +200,7 @@ class Adjacency(object):
                             "matrices or the size of a single "
                             "matrix."
                         )
-                    else:
-                        self.labels = list(labels) * len(self)
+                    self.labels = list(labels) * len(self)
                 else:
                     if np.all(np.array([len(x) for x in labels]) != self.n_nodes):
                         raise ValueError(
@@ -236,8 +234,7 @@ class Adjacency(object):
     def __len__(self):
         if self.is_single_matrix:
             return 1
-        else:
-            return self.data.shape[0]
+        return self.data.shape[0]
 
     def __mul__(self, y):
         return perform_arithmetic(self, y, np.multiply, "multiply")
@@ -246,14 +243,7 @@ class Adjacency(object):
         return perform_arithmetic(self, y, np.add, "add", reverse=True)
 
     def __repr__(self):
-        return "%s.%s(shape=%s, Y=%s, is_symmetric=%s, matrix_type=%s)" % (
-            self.__class__.__module__,
-            self.__class__.__name__,
-            self.shape,
-            self.Y.shape,
-            self.issymmetric,
-            self.matrix_type,
-        )
+        return f"{self.__class__.__module__}.{self.__class__.__name__}(shape={self.shape}, Y={self.Y.shape}, is_symmetric={self.issymmetric}, matrix_type={self.matrix_type})"
 
     def __rmul__(self, y):
         return perform_arithmetic(self, y, np.multiply, "multiply", reverse=True)
@@ -326,8 +316,7 @@ class Adjacency(object):
 
         if self.is_single_matrix:
             return (n_nodes, n_nodes)
-        else:
-            return (len(self), n_nodes, n_nodes)
+        return (len(self), n_nodes, n_nodes)
 
     @property
     def vector_shape(self):
@@ -488,16 +477,14 @@ class Adjacency(object):
         if self.matrix_type == "distance":
             if metric == "correlation":
                 return Adjacency(1 - self.squareform(), matrix_type="similarity")
-            elif metric == "euclidean":
+            if metric == "euclidean":
                 return Adjacency(
                     np.exp(-beta * self.squareform() / self.squareform().std()),
                     labels=self.labels,
                     matrix_type="similarity",
                 )
-            else:
-                raise ValueError('metric can only be ["correlation","euclidean"]')
-        else:
-            raise ValueError("Matrix is not a distance matrix.")
+            raise ValueError('metric can only be ["correlation","euclidean"]')
+        raise ValueError("Matrix is not a distance matrix.")
 
     def generate_permutations(self, n_permute, random_state=None):
         """
@@ -739,20 +726,15 @@ class Adjacency(object):
         if self.issymmetric:
             if self.is_single_matrix:
                 return squareform(self.data)
-            else:
-                return [squareform(x.data) for x in self]
-        else:
-            if self.is_single_matrix:
-                return self.data.reshape(
-                    int(np.sqrt(self.data.shape[0])), int(np.sqrt(self.data.shape[0]))
-                )
-            else:
-                return [
-                    x.data.reshape(
-                        int(np.sqrt(x.data.shape[0])), int(np.sqrt(x.data.shape[0]))
-                    )
-                    for x in self
-                ]
+            return [squareform(x.data) for x in self]
+        if self.is_single_matrix:
+            return self.data.reshape(
+                int(np.sqrt(self.data.shape[0])), int(np.sqrt(self.data.shape[0]))
+            )
+        return [
+            x.data.reshape(int(np.sqrt(x.data.shape[0])), int(np.sqrt(x.data.shape[0])))
+            for x in self
+        ]
 
     def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
         """Calculate permutation tests on within and between label distance.

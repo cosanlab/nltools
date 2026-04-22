@@ -19,11 +19,10 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
-    Iterator,
     TypeVar,
-    Generator,
     Any,
 )
+from collections.abc import Iterator, Generator
 
 from nltools.utils import attempt_to_import
 
@@ -43,7 +42,7 @@ if TYPE_CHECKING:
 
 
 def _coerce_metadata(
-    metadata: "pl.DataFrame | pd.DataFrame | dict | None",
+    metadata: pl.DataFrame | pd.DataFrame | dict | None,
     n_items: int,
 ) -> pl.DataFrame:
     """Coerce metadata input to a polars DataFrame.
@@ -156,10 +155,10 @@ class BrainCollection:
 
     def __init__(
         self,
-        items: list[Path | str | "BrainData"],
+        items: list[Path | str | BrainData],
         mask: nib.Nifti1Image | Path | str,
         *,
-        metadata: "pl.DataFrame | pd.DataFrame | dict | None" = None,
+        metadata: pl.DataFrame | pd.DataFrame | dict | None = None,
         lazy: bool = True,
     ):
         """Initialize BrainCollection.
@@ -217,7 +216,7 @@ class BrainCollection:
         """Resolve mask to nibabel image."""
         if isinstance(mask, nib.Nifti1Image):
             return mask
-        elif isinstance(mask, (str, Path)):
+        if isinstance(mask, (str, Path)):
             path = Path(mask)
             if path.exists():
                 return nib.Nifti1Image.from_filename(str(path))
@@ -238,7 +237,7 @@ class BrainCollection:
                 f"Got: {type(mask).__name__}"
             )
 
-    def _validate_mask_compatibility(self, bd: "BrainData") -> None:
+    def _validate_mask_compatibility(self, bd: BrainData) -> None:
         """Validate that BrainData is compatible with collection mask."""
         if bd.mask is None:
             return  # Will be set on access
@@ -253,7 +252,7 @@ class BrainCollection:
                 "All images must share the same mask/space."
             )
 
-    def _get_n_obs(self, bd: "BrainData") -> int:
+    def _get_n_obs(self, bd: BrainData) -> int:
         """Get number of observations from BrainData."""
         if bd.data.ndim == 1:
             return 1
@@ -351,17 +350,16 @@ class BrainCollection:
             """
             if b >= 1e9:
                 return f"{b / 1e9:.1f} GB"
-            elif b >= 1e6:
+            if b >= 1e6:
                 return f"{b / 1e6:.1f} MB"
-            else:
-                return f"{b / 1e3:.1f} KB"
+            return f"{b / 1e3:.1f} KB"
 
         return (
             f"{format_bytes(total_bytes)} total "
             f"({format_bytes(bytes_per_image)} per image avg)"
         )
 
-    def load(self, indices: list[int] | None = None) -> "BrainCollection":
+    def load(self, indices: list[int] | None = None) -> BrainCollection:
         """
         Load specified images into memory.
 
@@ -378,7 +376,7 @@ class BrainCollection:
 
         return self
 
-    def unload(self, indices: list[int] | None = None) -> "BrainCollection":
+    def unload(self, indices: list[int] | None = None) -> BrainCollection:
         """
         Free memory for specified images (keep paths for reloading).
 
@@ -411,7 +409,7 @@ class BrainCollection:
         """Number of images."""
         return self.n_images
 
-    def __iter__(self) -> Iterator["BrainData"]:
+    def __iter__(self) -> Iterator[BrainData]:
         """Iterate over images with progress bar."""
         if tqdm is not None:
             iterator = tqdm.tqdm(range(len(self)), desc="Iterating images")
@@ -431,7 +429,7 @@ class BrainCollection:
             f"mask_shape={self._mask.shape})"
         )
 
-    def __getitem__(self, key) -> "BrainData | BrainCollection":
+    def __getitem__(self, key) -> BrainData | BrainCollection:
         """
         NumPy-style 3D indexing.
 
@@ -471,7 +469,7 @@ class BrainCollection:
 
         raise TypeError(f"Invalid index type: {type(key).__name__}")
 
-    def _getitem_by_metadata(self, key: str) -> "BrainData":
+    def _getitem_by_metadata(self, key: str) -> BrainData:
         """Get item by metadata value (e.g., subject ID)."""
         for col in ["subject", "subject_id", "sub", "id"]:
             if col in self._metadata.columns:
@@ -479,7 +477,7 @@ class BrainCollection:
                 match_idx = np.flatnonzero(mask)
                 if len(match_idx) == 1:
                     return self._load_item(int(match_idx[0]))
-                elif len(match_idx) > 1:
+                if len(match_idx) > 1:
                     raise KeyError(
                         f"Multiple images match '{key}' in column '{col}'. "
                         "Use integer indexing or more specific key."
@@ -489,7 +487,7 @@ class BrainCollection:
             "Ensure metadata has 'subject' column or use integer indexing."
         )
 
-    def _getitem_multidim(self, key: tuple) -> "BrainData | BrainCollection":
+    def _getitem_multidim(self, key: tuple) -> BrainData | BrainCollection:
         """Handle multi-dimensional indexing: bc[i, j] or bc[i, j, k]."""
         if len(key) == 0:
             raise IndexError("Empty index")
@@ -524,7 +522,7 @@ class BrainCollection:
                 result.data = sliced_data
                 return result
 
-            elif isinstance(obs_key, slice):
+            if isinstance(obs_key, slice):
                 # Slice observations
                 from ..braindata import BrainData
 
@@ -537,8 +535,7 @@ class BrainCollection:
                 result.data = sliced_data
                 return result
 
-            else:
-                raise TypeError(f"Invalid observation index type: {type(obs_key)}")
+            raise TypeError(f"Invalid observation index type: {type(obs_key)}")
 
         # Multiple images case
         if isinstance(img_key, slice):
@@ -558,7 +555,7 @@ class BrainCollection:
         obs_key = key[1]
         if isinstance(obs_key, (int, slice)):
             # Apply obs indexing via apply
-            def slice_obs(bd: "BrainData") -> "BrainData":
+            def slice_obs(bd: BrainData) -> BrainData:
                 """Slice observations from a BrainData object using the captured obs_key.
 
                 Handles 1-D data by temporarily expanding to 2-D before indexing.
@@ -593,7 +590,7 @@ class BrainCollection:
 
         raise TypeError(f"Invalid observation index type: {type(obs_key)}")
 
-    def _subset(self, indices: list[int]) -> "BrainCollection":
+    def _subset(self, indices: list[int]) -> BrainCollection:
         """Create a new BrainCollection with subset of items."""
         new_items = [self._items[i] for i in indices]
         if self._metadata.is_empty():
@@ -630,7 +627,7 @@ class BrainCollection:
         suffix: str = "bold",
         extension: str = "nii.gz",
         **bids_filters,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Create BrainCollection from a BIDS dataset.
 
@@ -682,7 +679,7 @@ class BrainCollection:
         *,
         pattern_groups: dict[str, int] | str | None = None,
         sort: bool = True,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Create BrainCollection from glob pattern.
 
@@ -710,10 +707,10 @@ class BrainCollection:
     @classmethod
     def from_stacked(
         cls,
-        brain_data: "BrainData",
+        brain_data: BrainData,
         splits: list[int] | None = None,
         n_images: int | None = None,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Create BrainCollection by splitting a stacked BrainData.
 
@@ -765,7 +762,7 @@ class BrainCollection:
         self,
         func: str,
         batch_size: int | None = None,
-    ) -> "BrainData":
+    ) -> BrainData:
         """Aggregate across images (axis=0) using streaming algorithm."""
         from ..braindata import BrainData
 
@@ -787,16 +784,14 @@ class BrainCollection:
         if func == "mean":
             # Welford's online mean algorithm
             running_mean = np.zeros((n_obs, self.n_voxels))
-            count = 0
 
             iterator = range(self.n_images)
             if tqdm is not None:
                 iterator = tqdm.tqdm(iterator, desc="Computing mean (axis=0)")
 
-            for i in iterator:
+            for count, i in enumerate(iterator, start=1):
                 bd = self._load_item(i)
                 data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-                count += 1
                 delta = data - running_mean
                 running_mean += delta / count
 
@@ -804,7 +799,7 @@ class BrainCollection:
             result.data = running_mean
             return result
 
-        elif func == "sum":
+        if func == "sum":
             running_sum = np.zeros((n_obs, self.n_voxels))
             for i in range(self.n_images):
                 bd = self._load_item(i)
@@ -814,7 +809,7 @@ class BrainCollection:
             result.data = running_sum
             return result
 
-        elif func in ("std", "var"):
+        if func in ("std", "var"):
             # Welford's online variance algorithm
             running_mean = np.zeros((n_obs, self.n_voxels))
             running_m2 = np.zeros((n_obs, self.n_voxels))
@@ -834,7 +829,7 @@ class BrainCollection:
             result.data = np.sqrt(variance) if func == "std" else variance
             return result
 
-        elif func in ("min", "max"):
+        if func in ("min", "max"):
             agg_func = np.minimum if func == "min" else np.maximum
             running = None
             for i in range(self.n_images):
@@ -848,7 +843,7 @@ class BrainCollection:
             result.data = running
             return result
 
-        elif func == "median":
+        if func == "median":
             # Median requires all data in memory
             tensor = self.to_tensor()
             median_data = np.median(tensor, axis=0)
@@ -856,10 +851,9 @@ class BrainCollection:
             result.data = median_data
             return result
 
-        else:
-            raise ValueError(f"Unknown aggregation function: {func}")
+        raise ValueError(f"Unknown aggregation function: {func}")
 
-    def _aggregate_axis1(self, func: str) -> "BrainCollection":
+    def _aggregate_axis1(self, func: str) -> BrainCollection:
         """Aggregate across observations (axis=1) per image."""
         from ..braindata import BrainData
 
@@ -897,7 +891,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """
         Compute mean along axis.
 
@@ -925,7 +919,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute standard deviation along axis. See mean() for details."""
         return self._aggregate("std", axis, batch_size)
 
@@ -933,7 +927,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute variance along axis. See mean() for details."""
         return self._aggregate("var", axis, batch_size)
 
@@ -941,7 +935,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute sum along axis. See mean() for details."""
         return self._aggregate("sum", axis, batch_size)
 
@@ -949,7 +943,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute minimum along axis. See mean() for details."""
         return self._aggregate("min", axis, batch_size)
 
@@ -957,7 +951,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute maximum along axis. See mean() for details."""
         return self._aggregate("max", axis, batch_size)
 
@@ -965,7 +959,7 @@ class BrainCollection:
         self,
         axis: int | str | tuple[int, ...] = 0,
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Compute median along axis. See mean() for details."""
         return self._aggregate("median", axis, batch_size)
 
@@ -974,7 +968,7 @@ class BrainCollection:
         func: str,
         axis: int | str | tuple[int, ...],
         batch_size: int | None = None,
-    ) -> "BrainData | BrainCollection | np.ndarray":
+    ) -> BrainData | BrainCollection | np.ndarray:
         """Dispatch aggregation to appropriate axis handler."""
 
         axis = self._normalize_axis(axis)
@@ -991,12 +985,11 @@ class BrainCollection:
 
         if axis == 0:
             return self._aggregate_axis0(func, batch_size)
-        elif axis == 1:
+        if axis == 1:
             return self._aggregate_axis1(func)
-        elif axis == 2:
+        if axis == 2:
             return self._aggregate_axis2(func)
-        else:
-            raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, 2, or tuple.")
+        raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, 2, or tuple.")
 
     # =========================================================================
     # Conversion Methods
@@ -1071,7 +1064,7 @@ class BrainCollection:
                 batch_tensor[i] = data
             yield batch_tensor
 
-    def to_list(self) -> list["BrainData"]:
+    def to_list(self) -> list[BrainData]:
         """
         Return list of BrainData objects.
 
@@ -1082,7 +1075,7 @@ class BrainCollection:
         """
         return [self._load_item(i) for i in range(len(self))]
 
-    def to_stacked(self) -> "BrainData":
+    def to_stacked(self) -> BrainData:
         """
         Stack all into single BrainData (n_total_obs, n_voxels).
 
@@ -1153,7 +1146,7 @@ class BrainCollection:
         batch_size: int,
         axis: int = 0,
         progress_bar: bool = False,
-    ) -> Generator["BrainCollection", None, None]:
+    ) -> Generator[BrainCollection, None, None]:
         """
         Iterate in batches along axis.
 
@@ -1232,7 +1225,7 @@ class BrainCollection:
         self,
         popmean: float = 0.0,
         axis: int | str = 0,
-    ) -> tuple["BrainData", "BrainData"]:
+    ) -> tuple[BrainData, BrainData]:
         """
         One-sample t-test across images.
 
@@ -1264,9 +1257,9 @@ class BrainCollection:
 
     def ttest2(
         self,
-        other: "BrainCollection",
+        other: BrainCollection,
         equal_var: bool = True,
-    ) -> tuple["BrainData", "BrainData"]:
+    ) -> tuple[BrainData, BrainData]:
         """
         Two-sample t-test between collections.
 
@@ -1353,7 +1346,7 @@ class BrainCollection:
 
     def permutation_test2(
         self,
-        other: "BrainCollection",
+        other: BrainCollection,
         n_permute: int = 5000,
         tail: int = 2,
         device: str = "cpu",
@@ -1406,7 +1399,7 @@ class BrainCollection:
     def anova(
         self,
         groups: str | list | np.ndarray,
-    ) -> tuple["BrainData", "BrainData"]:
+    ) -> tuple[BrainData, BrainData]:
         """
         One-way ANOVA across groups defined by metadata.
 
@@ -1447,7 +1440,7 @@ class BrainCollection:
         axis: int | str = 0,
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Apply function across specified axis.
 
@@ -1489,7 +1482,7 @@ class BrainCollection:
         fn: Callable,
         n_jobs: int,
         progress_bar: bool,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """Map function over images (axis=0)."""
         from .transforms import map_axis0
 
@@ -1500,7 +1493,7 @@ class BrainCollection:
         fn: Callable,
         n_jobs: int,
         progress_bar: bool,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """Map function over timepoints (axis=1)."""
         from .transforms import map_axis1
 
@@ -1511,7 +1504,7 @@ class BrainCollection:
         fn: Callable,
         n_jobs: int,
         progress_bar: bool,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """Map function over voxels (axis=2) per image."""
         from .transforms import map_axis2
 
@@ -1519,8 +1512,8 @@ class BrainCollection:
 
     def filter(
         self,
-        predicate: "Callable | list | np.ndarray | pl.Series | pd.Series",
-    ) -> "BrainCollection":
+        predicate: Callable | list | np.ndarray | pl.Series | pd.Series,
+    ) -> BrainCollection:
         """
         Filter collection by predicate.
 
@@ -1553,14 +1546,14 @@ class BrainCollection:
         method: str = "procrustes",
         scheme: str = "searchlight",
         radius_mm: float = 10.0,
-        parcellation: "nib.Nifti1Image | None" = None,
+        parcellation: nib.Nifti1Image | None = None,
         n_features: int | None = None,
         n_iter: int = 3,
         device: str = "cpu",
         return_model: bool = False,
         n_jobs: int = -1,
         progress_bar: bool = False,
-    ) -> "BrainCollection | tuple[BrainCollection, object]":
+    ) -> BrainCollection | tuple[BrainCollection, object]:
         """
         Align subjects using local functional alignment.
 
@@ -1645,7 +1638,7 @@ class BrainCollection:
         verbose: bool = True,
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Standardize each image.
 
@@ -1678,7 +1671,7 @@ class BrainCollection:
         fwhm: float,
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Spatially smooth each image.
 
@@ -1707,7 +1700,7 @@ class BrainCollection:
         coerce_nan: bool = True,
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Threshold each image.
 
@@ -1738,7 +1731,7 @@ class BrainCollection:
         method: str = "linear",
         n_jobs: int = 1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Remove trend from each image.
 
@@ -1766,7 +1759,7 @@ class BrainCollection:
 
     def _extract_for_isc(
         self,
-        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        roi_mask: nib.Nifti1Image | Path | str | None = None,
         radius_mm: float | None = 6.0,
         progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
@@ -1799,7 +1792,7 @@ class BrainCollection:
 
     def _extract_roi(
         self,
-        roi_mask: "nib.Nifti1Image | Path | str",
+        roi_mask: nib.Nifti1Image | Path | str,
         progress_bar: bool = False,
     ) -> tuple[np.ndarray, dict]:
         """Extract mean signal per ROI."""
@@ -1830,7 +1823,7 @@ class BrainCollection:
         self,
         values: np.ndarray,
         extraction_info: dict,
-    ) -> "BrainData":
+    ) -> BrainData:
         """
         Project ISC values back to brain space.
 
@@ -1850,7 +1843,7 @@ class BrainCollection:
     def isc(
         self,
         method: str = "loo",
-        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        roi_mask: nib.Nifti1Image | Path | str | None = None,
         radius_mm: float | None = 6.0,
         metric: str = "median",
         device: str = "cpu",
@@ -1911,7 +1904,7 @@ class BrainCollection:
     def isc_test(
         self,
         method: str = "loo",
-        roi_mask: "nib.Nifti1Image | Path | str | None" = None,
+        roi_mask: nib.Nifti1Image | Path | str | None = None,
         radius_mm: float | None = 6.0,
         n_permute: int = 5000,
         permutation_method: str = "bootstrap",
@@ -2032,7 +2025,7 @@ class BrainCollection:
         groups: np.ndarray | None = None,
         n: int = 1000,
         random_state: int | None = None,
-    ) -> "BrainCollectionPipeline":
+    ) -> BrainCollectionPipeline:
         """Create a cross-validation pipeline for multi-subject analysis.
 
         Returns a pipeline object that enables fluent, chainable transforms
@@ -2081,14 +2074,14 @@ class BrainCollection:
     def fit(
         self,
         model: str,
-        X: "pd.DataFrame | np.ndarray | str | list",
+        X: pd.DataFrame | np.ndarray | str | list,
         *,
         cv: int | None = None,
         scale: bool = True,
         scale_value: float = 100.0,
         progress_bar: bool = False,
         **kwargs,
-    ) -> "FittedBrainCollection":
+    ) -> FittedBrainCollection:
         """
         Fit a model to each subject in the collection.
 
@@ -2169,7 +2162,7 @@ class BrainCollection:
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
-    ) -> "BrainCollection | dict[str, BrainCollection]":
+    ) -> BrainCollection | dict[str, BrainCollection]:
         """
         Fit GLM to each subject in collection.
 
@@ -2281,7 +2274,7 @@ class BrainCollection:
         by_run: bool = False,
         run_column: str = "run",
         run_lengths: int | list[int] | None = None,
-    ) -> "BrainCollection | dict[str, BrainCollection]":
+    ) -> BrainCollection | dict[str, BrainCollection]:
         """
         Build design matrices from events and fit GLM to each subject.
 
@@ -2386,13 +2379,13 @@ class BrainCollection:
 
     def _fit_glm(
         self,
-        X: "pd.DataFrame | np.ndarray | str | list",
+        X: pd.DataFrame | np.ndarray | str | list,
         scale: bool = True,
         scale_value: float = 100.0,
         return_stats: list[str] | None = None,
         save: dict[str, str] | None = None,
         progress_bar: bool = False,
-    ) -> "BrainCollection | dict[str, BrainCollection]":
+    ) -> BrainCollection | dict[str, BrainCollection]:
         """Internal GLM fitting with design matrix input.
 
         Core implementation that accepts DesignMatrix/DataFrame directly.
@@ -2431,7 +2424,7 @@ class BrainCollection:
 
     def fit_ridge(
         self,
-        X: "np.ndarray | str | list",
+        X: np.ndarray | str | list,
         alpha: float | str = 1.0,
         cv: int | None = 5,
         scale: bool = True,
@@ -2440,7 +2433,7 @@ class BrainCollection:
         save: dict[str, str] | None = None,
         progress_bar: bool = False,
         **ridge_kwargs,
-    ) -> "BrainCollection | dict[str, BrainCollection]":
+    ) -> BrainCollection | dict[str, BrainCollection]:
         """
         Fit ridge regression to each subject in collection.
 
@@ -2510,7 +2503,7 @@ class BrainCollection:
 
     def _resolve_X(
         self,
-        X: "np.ndarray | pd.DataFrame | str | list | None",
+        X: np.ndarray | pd.DataFrame | str | list | None,
     ) -> list | None:
         """Resolve design/feature matrix X to per-subject list.
 
@@ -2547,20 +2540,20 @@ class BrainCollection:
 
     def predict(
         self,
-        X: "np.ndarray | str | list | None" = None,
-        y: "np.ndarray | None" = None,
+        X: np.ndarray | str | list | None = None,
+        y: np.ndarray | None = None,
         *,
         method: str = "whole_brain",
         estimator="svm",
         cv=5,
-        groups: "np.ndarray | None" = None,
+        groups: np.ndarray | None = None,
         roi_mask=None,
         radius_mm: float = 10.0,
         scoring: str = "accuracy",
         standardize: bool = True,
         n_jobs: int = -1,
         progress_bar: bool = False,
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """
         Generate predictions for each subject in collection.
 
@@ -2636,8 +2629,8 @@ class BrainCollection:
 
     def compute_contrasts(
         self,
-        contrasts: "str | dict | np.ndarray | list",
-    ) -> "BrainCollection | dict[str, BrainCollection]":
+        contrasts: str | dict | np.ndarray | list,
+    ) -> BrainCollection | dict[str, BrainCollection]:
         """
         Compute contrasts from fitted GLM beta coefficients.
 
@@ -2682,9 +2675,9 @@ class BrainCollection:
 
     def _compute_single_contrast(
         self,
-        contrast: "str | np.ndarray | list",
+        contrast: str | np.ndarray | list,
         design_columns: list[str],
-    ) -> "BrainCollection":
+    ) -> BrainCollection:
         """Compute a single contrast across all subjects.
 
         Args:
@@ -2721,8 +2714,8 @@ class BrainCollection:
 
     def select_feature(
         self,
-        feature: "int | str",
-    ) -> "BrainCollection":
+        feature: int | str,
+    ) -> BrainCollection:
         """
         Select a single feature's weights across all subjects.
 

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 def from_bids(
     layout: Any,  # BIDSLayout or path
-    mask: "nib.Nifti1Image | Path | str",
+    mask: nib.Nifti1Image | Path | str,
     *,
     task: str | None = None,
     subject: str | list[str] | None = None,
@@ -30,7 +30,7 @@ def from_bids(
     suffix: str = "bold",
     extension: str = "nii.gz",
     **bids_filters,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Create BrainCollection from a BIDS dataset.
 
@@ -119,11 +119,11 @@ def from_bids(
 
 def from_glob(
     pattern: str,
-    mask: "nib.Nifti1Image | Path | str",
+    mask: nib.Nifti1Image | Path | str,
     *,
-    pattern_groups: "dict[str, int] | str | None" = None,
+    pattern_groups: dict[str, int] | str | None = None,
     sort: bool = True,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Create BrainCollection from glob pattern.
 
@@ -182,10 +182,10 @@ def from_glob(
 
 
 def from_stacked(
-    brain_data: "BrainData",
+    brain_data: BrainData,
     splits: list[int] | None = None,
     n_images: int | None = None,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Create BrainCollection by splitting a stacked BrainData.
 

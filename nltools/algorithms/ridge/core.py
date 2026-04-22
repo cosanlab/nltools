@@ -31,7 +31,6 @@ References:
 """
 
 import numpy as np
-from typing import Optional
 from nltools.algorithms.backends import resolve_backend
 
 
@@ -42,10 +41,10 @@ def ridge_svd(
     # Optional algorithm parameters
     alpha: float = 1.0,
     # Backend parameters (grouped)
-    parallel: Optional[str] = None,
+    parallel: str | None = None,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last) - not used but kept for consistency
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> np.ndarray:
     """
     Solve ridge regression using Singular Value Decomposition.
@@ -181,13 +180,13 @@ def ridge_cv(
     X: np.ndarray,
     y: np.ndarray,
     # Optional algorithm parameters
-    alphas: Optional[np.ndarray] = None,
+    alphas: np.ndarray | None = None,
     cv: int = 5,
     # Backend parameters (grouped)
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
-    random_state: Optional[int] = None,
+    random_state: int | None = None,
 ) -> dict:
     """
     Ridge regression with cross-validation for hyperparameter selection.

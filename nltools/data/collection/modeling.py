@@ -132,7 +132,7 @@ def _build_subject_design_matrix(
 
 
 def _fit_glm_by_run(
-    bd: "BrainData",
+    bd: BrainData,
     events: pd.DataFrame,
     runs: list,
     run_column: str,
@@ -145,7 +145,7 @@ def _fit_glm_by_run(
     high_pass: float,
     scale: bool,
     scale_value: float,
-) -> tuple["BrainData", list[str], list[str], list]:
+) -> tuple[BrainData, list[str], list[str], list]:
     """Fit GLM separately for each run and stack betas.
 
     Args:
@@ -276,7 +276,7 @@ def cv(
     groups: np.ndarray | None = None,
     n: int = 1000,
     random_state: int | None = None,
-) -> "BrainCollectionPipeline":
+) -> BrainCollectionPipeline:
     """Create a cross-validation pipeline for multi-subject analysis.
 
     Returns a pipeline object that enables fluent, chainable transforms
@@ -340,13 +340,13 @@ def cv(
 def fit(
     bc,
     model: str,
-    X: "pd.DataFrame | np.ndarray | str | list",
+    X: pd.DataFrame | np.ndarray | str | list,
     cv: int | None = None,
     scale: bool = True,
     scale_value: float = 100.0,
     progress_bar: bool = False,
     **kwargs,
-) -> "FittedBrainCollection":
+) -> FittedBrainCollection:
     """
     Fit a model to each subject in the collection.
 
@@ -432,7 +432,7 @@ def fit(
             model=model,
             condition_names=condition_names,
         )
-    elif model == "ridge":
+    if model == "ridge":
         # Handle cv default for Ridge
         if cv is None:
             output = kwargs.get("output", "scores")
@@ -453,8 +453,7 @@ def fit(
             model=model,
             condition_names=None,  # Ridge doesn't have condition names
         )
-    else:
-        raise ValueError(f"Unknown model: '{model}'. Supported: 'glm', 'ridge'")
+    raise ValueError(f"Unknown model: '{model}'. Supported: 'glm', 'ridge'")
 
 
 def fit_glm(
@@ -475,7 +474,7 @@ def fit_glm(
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
-) -> "BrainCollection | dict[str, BrainCollection]":
+) -> BrainCollection | dict[str, BrainCollection]:
     """
     Fit GLM to each subject in collection.
 
@@ -768,7 +767,7 @@ def fit_from_events(
     by_run: bool = False,
     run_column: str = "run",
     run_lengths: int | list[int] | None = None,
-) -> "BrainCollection | dict[str, BrainCollection]":
+) -> BrainCollection | dict[str, BrainCollection]:
     """
     Build design matrices from events and fit GLM to each subject.
 
@@ -854,13 +853,13 @@ def fit_from_events(
 
 def fit_glm_internal(
     bc,
-    X: "pd.DataFrame | np.ndarray | str | list",
+    X: pd.DataFrame | np.ndarray | str | list,
     scale: bool = True,
     scale_value: float = 100.0,
     return_stats: list[str] | None = None,
     save: dict[str, str] | None = None,
     progress_bar: bool = False,
-) -> "BrainCollection | dict[str, BrainCollection]":
+) -> BrainCollection | dict[str, BrainCollection]:
     """Internal GLM fitting with design matrix input.
 
     Core implementation that accepts DesignMatrix/DataFrame directly.
@@ -1082,7 +1081,7 @@ def load_design_matrix(bc, path: str | Path) -> pd.DataFrame:
 
 def fit_ridge(
     bc,
-    X: "np.ndarray | str | list",
+    X: np.ndarray | str | list,
     alpha: float | str = 1.0,
     cv: int | None = 5,
     scale: bool = True,
@@ -1091,7 +1090,7 @@ def fit_ridge(
     save: dict[str, str] | None = None,
     progress_bar: bool = False,
     **ridge_kwargs,
-) -> "BrainCollection | dict[str, BrainCollection]":
+) -> BrainCollection | dict[str, BrainCollection]:
     """
     Fit ridge regression to each subject in collection.
 
@@ -1268,7 +1267,7 @@ def fit_ridge(
             weight_collection.cv_results_ = cv_results_list
         return weight_collection
 
-    elif output == "scores":
+    if output == "scores":
         score_collection = BrainCollection(
             score_data_list,
             mask=bc.mask,
@@ -1278,31 +1277,31 @@ def fit_ridge(
             score_collection.cv_results_ = cv_results_list
         return score_collection
 
-    else:  # output == "both"
-        weight_collection = BrainCollection(
-            weight_data_list,
-            mask=bc.mask,
-            metadata=result_meta_df,
-        )
-        if feature_names:
-            weight_collection._feature_names = feature_names
-        if cv_results_list:
-            weight_collection.cv_results_ = cv_results_list
+    # output == "both"
+    weight_collection = BrainCollection(
+        weight_data_list,
+        mask=bc.mask,
+        metadata=result_meta_df,
+    )
+    if feature_names:
+        weight_collection._feature_names = feature_names
+    if cv_results_list:
+        weight_collection.cv_results_ = cv_results_list
 
-        score_collection = BrainCollection(
-            score_data_list,
-            mask=bc.mask,
-            metadata=result_meta_df,
-        )
-        if cv_results_list:
-            score_collection.cv_results_ = cv_results_list
+    score_collection = BrainCollection(
+        score_data_list,
+        mask=bc.mask,
+        metadata=result_meta_df,
+    )
+    if cv_results_list:
+        score_collection.cv_results_ = cv_results_list
 
-        return {"weights": weight_collection, "scores": score_collection}
+    return {"weights": weight_collection, "scores": score_collection}
 
 
 def resolve_X(
     bc,
-    X: "np.ndarray | pd.DataFrame | str | list | None",
+    X: np.ndarray | pd.DataFrame | str | list | None,
 ) -> list | None:
     """Resolve design/feature matrix X to per-subject list.
 
@@ -1388,8 +1387,7 @@ def load_features(bc, path: str | Path) -> np.ndarray:
     suffix = path.suffix.lower()
     if suffix == ".npy":
         return np.load(path)
-    elif suffix in [".csv", ".tsv", ".txt"]:
+    if suffix in [".csv", ".tsv", ".txt"]:
         sep = "\t" if suffix in [".tsv", ".txt"] else ","
         return pd.read_csv(path, sep=sep).values
-    else:
-        raise ValueError(f"Unsupported feature file format: {suffix}")
+    raise ValueError(f"Unsupported feature file format: {suffix}")

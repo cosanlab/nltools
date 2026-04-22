@@ -146,116 +146,111 @@ def bootstrap(
             bd, result, save_boots=save_boots, return_dict=False
         )
 
-    elif stat in FITTED_STATS:
-        # Check if model is fitted
-        if not hasattr(bd, "model_") or bd.model_ is None:
-            raise ValueError(
-                f"Must call .fit(model='ridge', X=design_matrix) before bootstrap(stat='{stat}')"
-            )
-
-        # Check if Ridge model
-        if not hasattr(bd.model_, "coef_") or not hasattr(bd.model_, "alpha_"):
-            raise ValueError(
-                f"Bootstrap stat='{stat}' only supports Ridge models. "
-                f"Got model type: {type(bd.model_)}"
-            )
-
-        # Get design matrix from stored X_
-        if not hasattr(bd, "X_") or bd.X_ is None:
-            raise ValueError(
-                "Design matrix not found. Must call .fit(model='ridge', X=design_matrix) "
-                "with X parameter."
-            )
-
-        # Convert DesignMatrix to numpy if needed
-        if isinstance(bd.X_, DesignMatrix):
-            X = bd.X_.to_numpy()
-        else:
-            X = np.asarray(bd.X_)
-
-        # Get alpha from model
-        alpha = bd.model_.alpha_ if hasattr(bd.model_, "alpha_") else bd.model_.alpha
-
-        if stat == "weights":
-            # Ridge weights bootstrap
-            if use_gpu:
-                result = _bootstrap_ridge_weights_gpu_batched(
-                    X,
-                    data,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    backend=backend,
-                    max_gpu_memory_gb=max_gpu_memory_gb,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
-            else:
-                result = _bootstrap_ridge_weights_cpu_parallel(
-                    X,
-                    data,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
-
-            # Convert results to BrainData format
-            return convert_bootstrap_results_to_brain_data(
-                bd, result, save_boots=save_boots, return_dict=True
-            )
-
-        elif stat == "predict":
-            # Ridge predict bootstrap
-            if X_test is None:
-                raise ValueError(
-                    "X_test parameter required for bootstrap(stat='predict'). "
-                    "Provide test features: bootstrap(stat='predict', X_test=...)"
-                )
-
-            X_test = np.asarray(X_test)
-
-            if use_gpu:
-                result = _bootstrap_ridge_predict_gpu_batched(
-                    X,
-                    data,
-                    X_test,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    backend=backend,
-                    max_gpu_memory_gb=max_gpu_memory_gb,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
-            else:
-                result = _bootstrap_ridge_predict_cpu_parallel(
-                    X,
-                    data,
-                    X_test,
-                    alpha=alpha,
-                    n_samples=n_samples,
-                    save_boots=save_boots,
-                    n_jobs=n_jobs,
-                    random_state=random_state,
-                    percentiles=percentiles,
-                )
-
-            # Convert results to BrainData format
-            return convert_bootstrap_results_to_brain_data(
-                bd, result, save_boots=save_boots, return_dict=True
-            )
-
-    else:
-        # Invalid stat
+    if stat not in FITTED_STATS:
         raise ValueError(
             f"Unsupported stat '{stat}'. "
             f"Supported simple stats: {SIMPLE_STATS}. "
             f"Supported fitted model stats: {FITTED_STATS}. "
             f"For fitted stats, you must call .fit() first."
         )
+
+    # Check if model is fitted
+    if not hasattr(bd, "model_") or bd.model_ is None:
+        raise ValueError(
+            f"Must call .fit(model='ridge', X=design_matrix) before bootstrap(stat='{stat}')"
+        )
+
+    # Check if Ridge model
+    if not hasattr(bd.model_, "coef_") or not hasattr(bd.model_, "alpha_"):
+        raise ValueError(
+            f"Bootstrap stat='{stat}' only supports Ridge models. "
+            f"Got model type: {type(bd.model_)}"
+        )
+
+    # Get design matrix from stored X_
+    if not hasattr(bd, "X_") or bd.X_ is None:
+        raise ValueError(
+            "Design matrix not found. Must call .fit(model='ridge', X=design_matrix) "
+            "with X parameter."
+        )
+
+    # Convert DesignMatrix to numpy if needed
+    if isinstance(bd.X_, DesignMatrix):
+        X = bd.X_.to_numpy()
+    else:
+        X = np.asarray(bd.X_)
+
+    # Get alpha from model
+    alpha = bd.model_.alpha_ if hasattr(bd.model_, "alpha_") else bd.model_.alpha
+
+    if stat == "weights":
+        # Ridge weights bootstrap
+        if use_gpu:
+            result = _bootstrap_ridge_weights_gpu_batched(
+                X,
+                data,
+                alpha=alpha,
+                n_samples=n_samples,
+                save_boots=save_boots,
+                backend=backend,
+                max_gpu_memory_gb=max_gpu_memory_gb,
+                random_state=random_state,
+                percentiles=percentiles,
+            )
+        else:
+            result = _bootstrap_ridge_weights_cpu_parallel(
+                X,
+                data,
+                alpha=alpha,
+                n_samples=n_samples,
+                save_boots=save_boots,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                percentiles=percentiles,
+            )
+
+        return convert_bootstrap_results_to_brain_data(
+            bd, result, save_boots=save_boots, return_dict=True
+        )
+
+    # stat == "predict"
+    if X_test is None:
+        raise ValueError(
+            "X_test parameter required for bootstrap(stat='predict'). "
+            "Provide test features: bootstrap(stat='predict', X_test=...)"
+        )
+
+    X_test = np.asarray(X_test)
+
+    if use_gpu:
+        result = _bootstrap_ridge_predict_gpu_batched(
+            X,
+            data,
+            X_test,
+            alpha=alpha,
+            n_samples=n_samples,
+            save_boots=save_boots,
+            backend=backend,
+            max_gpu_memory_gb=max_gpu_memory_gb,
+            random_state=random_state,
+            percentiles=percentiles,
+        )
+    else:
+        result = _bootstrap_ridge_predict_cpu_parallel(
+            X,
+            data,
+            X_test,
+            alpha=alpha,
+            n_samples=n_samples,
+            save_boots=save_boots,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            percentiles=percentiles,
+        )
+
+    return convert_bootstrap_results_to_brain_data(
+        bd, result, save_boots=save_boots, return_dict=True
+    )
 
 
 def convert_bootstrap_results_to_brain_data(
@@ -293,7 +288,7 @@ def convert_bootstrap_results_to_brain_data(
         if "samples" in result:
             out["samples"] = result["samples"]
         return out
-    elif return_dict:
+    if return_dict:
         # Return dict format (for model stats)
         out = {}
         for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
@@ -301,14 +296,11 @@ def convert_bootstrap_results_to_brain_data(
                 out[key] = shallow_copy(bd)
                 out[key].data = result[key]
         return out
-    else:
-        # Return BrainData with mean (for simple stats)
-        boot_mean = shallow_copy(bd)
-        # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
-        mean_2d = (
-            result["mean"]
-            if result["mean"].ndim == 2
-            else result["mean"].reshape(1, -1)
-        )
-        boot_mean.data = mean_2d
-        return boot_mean
+    # Return BrainData with mean (for simple stats)
+    boot_mean = shallow_copy(bd)
+    # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
+    mean_2d = (
+        result["mean"] if result["mean"].ndim == 2 else result["mean"].reshape(1, -1)
+    )
+    boot_mean.data = mean_2d
+    return boot_mean

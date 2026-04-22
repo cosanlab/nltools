@@ -47,7 +47,7 @@ class TestBrainDataICC:
         assert icc_map.shape == (1, minimal_brain_data.shape[1])
         assert icc_map.mask is not None
         assert np.all(np.isfinite(icc_map.data))
-        assert np.all((-1 <= icc_map.data) & (icc_map.data <= 1))
+        assert np.all((icc_map.data >= -1) & (icc_map.data <= 1))
 
     @pytest.mark.parametrize("icc_type", ["icc1", "icc2", "icc3"])
     def test_icc_types(self, minimal_brain_data, icc_type):

@@ -11,7 +11,7 @@ class TestDownsample:
 
     def test_downsample_mean(self):
         """Downsample with mean aggregation."""
-        x = pl.Series("x", list(range(0, 100)))
+        x = pl.Series("x", list(range(100)))
         y = np.repeat(range(1, 11), 10)
 
         result = downsample(
@@ -28,7 +28,7 @@ class TestDownsample:
 
     def test_downsample_median(self):
         """Downsample with median aggregation."""
-        x = pl.Series("x", list(range(0, 100)))
+        x = pl.Series("x", list(range(100)))
         y = np.repeat(range(1, 11), 10)
 
         result = downsample(
@@ -49,14 +49,14 @@ class TestUpsample:
 
     def test_upsample_2x(self):
         """Upsample by factor of 2."""
-        dat = pl.DataFrame({"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)})
+        dat = pl.DataFrame({"x": list(range(100)), "y": np.repeat(range(1, 11), 10)})
         fs = 2
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]
 
     def test_upsample_3x(self):
         """Upsample by factor of 3."""
-        dat = pl.DataFrame({"x": list(range(0, 100)), "y": np.repeat(range(1, 11), 10)})
+        dat = pl.DataFrame({"x": list(range(100)), "y": np.repeat(range(1, 11), 10)})
         fs = 3
         us = upsample(dat, sampling_freq=1, target=fs, target_type="hz")
         assert dat.shape[0] * fs - fs == us.shape[0]

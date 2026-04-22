@@ -13,11 +13,10 @@ Usage:
         >>> validate_parallel_parameter("invalid")  # Raises ValueError
 """
 
-from typing import Optional, Tuple
 import numpy as np
 
 
-def validate_parallel_parameter(parallel: Optional[str]) -> None:
+def validate_parallel_parameter(parallel: str | None) -> None:
     """Validate parallel parameter.
 
     Args:
@@ -30,7 +29,7 @@ def validate_parallel_parameter(parallel: Optional[str]) -> None:
         raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
 
 
-def validate_parallel_parameter_matrix(parallel: Optional[str]) -> None:
+def validate_parallel_parameter_matrix(parallel: str | None) -> None:
     """Validate parallel parameter for matrix operations.
 
     Args:
@@ -70,14 +69,11 @@ def validate_tail_parameter(tail: int | str) -> str:
     # Normalize to string
     if tail == 2 or tail == "two":
         return "two"
-    elif tail == 1 or tail == "upper":
+    if tail == 1 or tail == "upper":
         return "upper"
-    elif tail == -1 or tail == "lower":
+    if tail == -1 or tail == "lower":
         return "lower"
-    else:
-        raise ValueError(
-            f"tail must be 'two', 'upper', 'lower' (or 2, 1, -1), got {tail}"
-        )
+    raise ValueError(f"tail must be 'two', 'upper', 'lower' (or 2, 1, -1), got {tail}")
 
 
 def validate_array_shape(
@@ -237,7 +233,7 @@ def validate_n_samples(
         raise ValueError(f"{name} must be at least {min_samples}, got {n_samples}")
 
 
-def validate_percentiles(percentiles: Tuple[float, float]) -> None:
+def validate_percentiles(percentiles: tuple[float, float]) -> None:
     """Validate percentile values for confidence intervals.
 
     Args:
@@ -353,7 +349,7 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
 def validate_isc_parameters(
     metric: str,
     summary_statistic: str,
-    method: Optional[str] = None,
+    method: str | None = None,
 ) -> None:
     """Validate ISC parameter values.
 

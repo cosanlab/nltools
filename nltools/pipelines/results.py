@@ -7,7 +7,7 @@ including cross-validation results and per-fold information.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -59,7 +59,7 @@ class CVResult:
     >>> all_predictions = result.predictions  # In original sample order
     """
 
-    fold_results: List[FoldResult]
+    fold_results: list[FoldResult]
     pipeline: Any  # Pipeline type, avoid circular import
 
     @property
@@ -106,7 +106,7 @@ class CVResult:
 
         return preds
 
-    def inverse_transform(self, data: Optional[NDArray] = None) -> NDArray:
+    def inverse_transform(self, data: NDArray | None = None) -> NDArray:
         """Map predictions back through inverse transforms.
 
         Uses the fitted transforms from each fold to inverse transform
@@ -276,7 +276,7 @@ class PermutationResult:
         cls,
         observed: CVResult,
         null_scores: NDArray[np.floating],
-    ) -> "PermutationResult":
+    ) -> PermutationResult:
         """Create PermutationResult from observed result and null scores.
 
         Automatically computes the p-value from the null distribution.
@@ -340,4 +340,4 @@ class PermutationResult:
         )
 
 
-__all__ = ["FoldResult", "CVResult", "ISCResult", "RSAResult", "PermutationResult"]
+__all__ = ["CVResult", "FoldResult", "ISCResult", "PermutationResult", "RSAResult"]

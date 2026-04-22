@@ -34,7 +34,6 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 """
 
 import numpy as np
-from typing import List, Tuple, Optional
 from sklearn.base import BaseEstimator, TransformerMixin
 from scipy.linalg import orthogonal_procrustes
 
@@ -43,7 +42,7 @@ __all__ = ["HyperAlignment"]
 
 def _procrustes_pairwise(
     data1: np.ndarray, data2: np.ndarray
-) -> Tuple[np.ndarray, np.ndarray, float, np.ndarray, float]:
+) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, float]:
     """Pairwise Procrustes alignment between two matrices.
 
     Procrustes alignment finds the optimal orthogonal transformation (rotation + reflection)
@@ -219,8 +218,8 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
     def fit(
         self,
-        data: List[np.ndarray],
-        parallel: Optional[str] = "cpu",
+        data: list[np.ndarray],
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> "HyperAlignment":
         """Fit hyperalignment model to data.
@@ -389,10 +388,10 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
     def transform(
         self,
-        data: List[np.ndarray],
-        parallel: Optional[str] = "cpu",
+        data: list[np.ndarray],
+        parallel: str | None = "cpu",
         n_jobs: int = -1,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """Transform data to common space using fitted transformations.
 
         Args:
@@ -486,7 +485,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
     def transform_subject(
         self, subject_data: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    ) -> tuple[np.ndarray, np.ndarray, float, float]:
         """Align a new subject to the common space.
 
         Args:

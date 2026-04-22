@@ -36,9 +36,7 @@ class KFoldStratified(_BaseKFold):
     """
 
     def __init__(self, n_splits=3, shuffle=False, random_state=None):
-        super(KFoldStratified, self).__init__(
-            n_splits=n_splits, shuffle=shuffle, random_state=random_state
-        )
+        super().__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
 
     def _make_test_folds(self, X, y=None, groups=None):
         y_arr = np.asarray(y).ravel()
@@ -74,4 +72,4 @@ class KFoldStratified(_BaseKFold):
 
         """
         y = check_array(y, ensure_2d=False, dtype=None)
-        return super(KFoldStratified, self).split(X, y, groups)
+        return super().split(X, y, groups)

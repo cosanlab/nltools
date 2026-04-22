@@ -4,7 +4,7 @@ import numpy as np
 import polars as pl
 import nibabel as nib
 
-__all__ = ["zscore", "winsorize", "trim", "find_spikes"]
+__all__ = ["find_spikes", "trim", "winsorize", "zscore"]
 
 
 def zscore(data):
@@ -180,8 +180,7 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
         if return_series:
             return result_df.to_series(0)
         return result_df
-    else:
-        raise ValueError("Data must be a Polars or pandas DataFrame or Series")
+    raise ValueError("Data must be a Polars or pandas DataFrame or Series")
 
 
 def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):

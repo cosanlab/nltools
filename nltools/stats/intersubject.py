@@ -83,8 +83,9 @@ def _bootstrap_isc(
 
     if metric == "mean":
         return np.tanh(bootstrap_sample.r_to_z().mean())
-    elif metric == "median":
+    if metric == "median":
         return bootstrap_sample.median()
+    raise ValueError(f"metric must be 'mean' or 'median', got {metric!r}")
 
 
 def isc(

@@ -11,4 +11,4 @@ from .local import LocalAlignment
 from .hyperalignment import HyperAlignment
 from .srm import SRM, DetSRM
 
-__all__ = ["LocalAlignment", "HyperAlignment", "SRM", "DetSRM"]
+__all__ = ["SRM", "DetSRM", "HyperAlignment", "LocalAlignment"]

@@ -2,7 +2,6 @@
 
 import numpy as np
 import warnings
-from typing import Tuple, Dict, Optional
 from scipy.stats import norm
 
 from .validation import (
@@ -120,9 +119,9 @@ class OnlineBootstrapStats:
 
     def __init__(
         self,
-        shape: Tuple[int, ...],
+        shape: tuple[int, ...],
         save_samples: bool = False,
-        percentiles: Tuple[float, float] = (2.5, 97.5),
+        percentiles: tuple[float, float] = (2.5, 97.5),
     ):
         self.shape = shape
         self.save_samples = save_samples
@@ -164,7 +163,7 @@ class OnlineBootstrapStats:
         if self.save_samples:
             self.samples.append(sample.copy())
 
-    def get_results(self) -> Dict[str, np.ndarray]:
+    def get_results(self) -> dict[str, np.ndarray]:
         """Compute final bootstrap statistics.
 
         Returns:
@@ -298,18 +297,17 @@ def _bootstrap_simple_method_worker(
     # Apply aggregation method
     if method == "mean":
         return np.mean(data_boot, axis=0)
-    elif method == "median":
+    if method == "median":
         return np.median(data_boot, axis=0)
-    elif method == "std":
+    if method == "std":
         return np.std(data_boot, axis=0, ddof=1)
-    elif method == "sum":
+    if method == "sum":
         return np.sum(data_boot, axis=0)
-    elif method == "min":
+    if method == "min":
         return np.min(data_boot, axis=0)
-    elif method == "max":
+    if method == "max":
         return np.max(data_boot, axis=0)
-    else:
-        raise ValueError(f"Unsupported method: {method}")
+    raise ValueError(f"Unsupported method: {method}")
 
 
 def _bootstrap_simple_cpu_parallel(
@@ -318,9 +316,9 @@ def _bootstrap_simple_cpu_parallel(
     n_samples: int = 5000,
     save_boots: bool = False,
     n_jobs: int = -1,
-    random_state: Optional[int] = None,
-    percentiles: Tuple[float, float] = (2.5, 97.5),
-) -> Dict[str, np.ndarray]:
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
+) -> dict[str, np.ndarray]:
     """Bootstrap simple aggregation methods using CPU parallelization.
 
     Follows the same pattern as inference module: pre-generate indices,
@@ -459,10 +457,10 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_samples: int = 5000,
     save_boots: bool = False,
     n_jobs: int = -1,
-    random_state: Optional[int] = None,
-    percentiles: Tuple[float, float] = (2.5, 97.5),
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model weights using CPU parallelization.
 
     Performance optimization: Calls ridge_svd() directly instead of using
@@ -610,10 +608,10 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_samples: int = 5000,
     save_boots: bool = False,
     n_jobs: int = -1,
-    random_state: Optional[int] = None,
-    percentiles: Tuple[float, float] = (2.5, 97.5),
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model predictions using CPU parallelization.
 
     Resamples training data, fits Ridge models, and aggregates predictions
@@ -777,10 +775,10 @@ def _bootstrap_ridge_weights_gpu_batched(
     save_boots: bool = False,
     backend=None,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
-    percentiles: Tuple[float, float] = (2.5, 97.5),
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model weights using GPU with automatic batching.
 
     Processes bootstrap samples in batches to avoid GPU OOM. Transfers X, y
@@ -950,10 +948,10 @@ def _bootstrap_ridge_predict_gpu_batched(
     save_boots: bool = False,
     backend=None,
     max_gpu_memory_gb: float = 4.0,
-    random_state: Optional[int] = None,
-    percentiles: Tuple[float, float] = (2.5, 97.5),
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
     **ridge_kwargs,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model predictions using GPU with automatic batching.
 
     Resamples training data, fits Ridge models, and aggregates predictions

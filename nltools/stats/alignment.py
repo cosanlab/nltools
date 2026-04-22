@@ -1,6 +1,6 @@
 """Data alignment — SRM, Procrustes, and state alignment."""
 
-__all__ = ["align", "procrustes", "procrustes_distance", "align_states"]
+__all__ = ["align", "align_states", "procrustes", "procrustes_distance"]
 
 import numpy as np
 from copy import deepcopy
@@ -72,7 +72,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         data_type = "numpy"
         data = [x.T for x in data]
     else:
-        raise ValueError("Type %s is not implemented yet." % type(data[0]))
+        raise ValueError(f"Type {type(data[0])} is not implemented yet.")
 
     # Align over time or voxels
     if axis == 1:
@@ -89,7 +89,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
         elif method == "probabilistic_srm":
             srm = SRM(features=n_features, *args, **kwargs)
         srm.fit(data)
-        out["transformed"] = [x for x in srm.transform(data)]
+        out["transformed"] = list(srm.transform(data))
         out["common_model"] = srm.s_.T
         out["transformation_matrix"] = srm.w_
 
@@ -406,5 +406,4 @@ def align_states(
 
     if return_index:
         return remapping
-    else:
-        return target[:, remapping]
+    return target[:, remapping]

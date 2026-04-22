@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any
+from collections.abc import Iterator
 
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
@@ -66,10 +67,9 @@ def _orthogonal_procrustes_backend(
         )
         scale = s.sum().item()
         return backend.to_numpy(R).astype(np.float64), scale
-    else:
-        R = Vt.T @ U.T
-        scale = s.sum()
-        return R, scale
+    R = Vt.T @ U.T
+    scale = s.sum()
+    return R, scale
 
 
 @dataclass
@@ -86,7 +86,7 @@ class PiecewiseNeighborhoods:
         n_parcels: Number of parcels (excluding background)
     """
 
-    parcel_to_voxels: Dict[int, np.ndarray]
+    parcel_to_voxels: dict[int, np.ndarray]
     voxel_to_parcel: np.ndarray
     n_voxels: int
     n_parcels: int
@@ -106,8 +106,7 @@ class PiecewiseNeighborhoods:
 
             iterator = tqdm(list(iterator), desc="Piecewise", unit="parcels")
 
-        for parcel_id, voxel_indices in iterator:
-            yield parcel_id, voxel_indices
+        yield from iterator
 
     def __repr__(self) -> str:
         return (
@@ -117,8 +116,8 @@ class PiecewiseNeighborhoods:
 
 
 def _compute_piecewise_neighborhoods(
-    parcellation: "nib.Nifti1Image",
-    mask: "nib.Nifti1Image",
+    parcellation: nib.Nifti1Image,
+    mask: nib.Nifti1Image,
 ) -> PiecewiseNeighborhoods:
     """Compute piecewise neighborhoods from a parcellation image.
 
@@ -154,7 +153,7 @@ def _compute_piecewise_neighborhoods(
     unique_parcels = np.unique(parcel_labels)
     unique_parcels = unique_parcels[unique_parcels > 0]  # Exclude background
 
-    parcel_to_voxels: Dict[int, np.ndarray] = {}
+    parcel_to_voxels: dict[int, np.ndarray] = {}
     for parcel_id in unique_parcels:
         # Find which masked voxel indices belong to this parcel
         voxel_indices = np.where(parcel_labels == parcel_id)[0]
@@ -175,12 +174,12 @@ def _compute_piecewise_neighborhoods(
 def _fit_one_neighborhood(
     region_id: int,
     voxel_indices: np.ndarray,
-    data: List[np.ndarray],
+    data: list[np.ndarray],
     method: str,
     n_iter: int,
-    n_features: Optional[int],
-    backend: Optional[Backend] = None,
-) -> tuple[int, List[np.ndarray], np.ndarray]:
+    n_features: int | None,
+    backend: Backend | None = None,
+) -> tuple[int, list[np.ndarray], np.ndarray]:
     """Fit alignment for a single neighborhood.
 
     Helper function for parallel processing.
@@ -246,10 +245,10 @@ def _fit_one_neighborhood(
 
 
 def _fit_local_procrustes(
-    data: List[np.ndarray],
+    data: list[np.ndarray],
     n_iter: int = 3,
-    backend: Optional[Backend] = None,
-) -> tuple[List[np.ndarray], np.ndarray]:
+    backend: Backend | None = None,
+) -> tuple[list[np.ndarray], np.ndarray]:
     """Fit multi-subject Procrustes alignment on local data.
 
     Iteratively refines a template by aligning all subjects and averaging.
@@ -368,26 +367,26 @@ class LocalAlignment:
     scheme: str = "searchlight"
     method: str = "procrustes"
     radius_mm: float = 10.0
-    parcellation: Optional[Any] = None  # Nifti1Image
-    n_features: Optional[int] = None
+    parcellation: Any | None = None  # Nifti1Image
+    n_features: int | None = None
     n_iter: int = 3
     aggregation: str = "center"
-    parallel: Optional[str] = "cpu"
+    parallel: str | None = "cpu"
     n_jobs: int = -1
 
     # Batching parameters (Phase 2)
-    n_neighborhoods_batch: Optional[int] = None  # None = auto-calculate
+    n_neighborhoods_batch: int | None = None  # None = auto-calculate
     max_memory_gb: float = 4.0  # Memory budget for auto batch sizing
 
     # Fitted state (set by fit())
-    transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
-    template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
-    neighborhoods_: Optional[Union["SphereNeighborhoods", Dict[int, np.ndarray]]] = (
-        field(default=None, repr=False)
+    transforms_: dict[int, list[np.ndarray]] | None = field(default=None, repr=False)
+    template_: dict[int, np.ndarray] | None = field(default=None, repr=False)
+    neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = field(
+        default=None, repr=False
     )
-    n_voxels_: Optional[int] = field(default=None, repr=False)
-    mask_: Optional[Any] = field(default=None, repr=False)  # Nifti1Image
-    backend_: Optional[Backend] = field(default=None, repr=False)
+    n_voxels_: int | None = field(default=None, repr=False)
+    mask_: Any | None = field(default=None, repr=False)  # Nifti1Image
+    backend_: Backend | None = field(default=None, repr=False)
 
     def __post_init__(self):
         """Validate parameters."""
@@ -415,7 +414,7 @@ class LocalAlignment:
         """
         if self.parallel is None or self.parallel == "cpu":
             return Backend("numpy")
-        elif self.parallel == "gpu":
+        if self.parallel == "gpu":
             # Try GPU, gracefully fall back to CPU if unavailable
             try:
                 backend = Backend("torch")
@@ -465,10 +464,10 @@ class LocalAlignment:
 
     def _batch_neighborhoods(
         self,
-        neighborhoods: Union["SphereNeighborhoods", "PiecewiseNeighborhoods"],
+        neighborhoods: SphereNeighborhoods | PiecewiseNeighborhoods,
         n_subjects: int,
         n_samples: int,
-    ) -> Iterator[List[tuple[int, np.ndarray]]]:
+    ) -> Iterator[list[tuple[int, np.ndarray]]]:
         """Generator yielding batches of neighborhoods.
 
         Critical: Uses yield + del pattern for memory efficiency.
@@ -511,7 +510,7 @@ class LocalAlignment:
             yield batch
             # Caller should process and then del batch for memory efficiency
 
-    def fit(self, data: List[np.ndarray], mask: "nib.Nifti1Image") -> "LocalAlignment":
+    def fit(self, data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment:
         """Fit local alignment on multi-subject data.
 
         Parameters
@@ -567,8 +566,8 @@ class LocalAlignment:
             )
 
         # Initialize storage for transforms and templates
-        self.transforms_: Dict[int, List[np.ndarray]] = {}
-        self.template_: Dict[int, np.ndarray] = {}
+        self.transforms_: dict[int, list[np.ndarray]] = {}
+        self.template_: dict[int, np.ndarray] = {}
 
         # Fit local alignment for each neighborhood using batched processing
         if self.scheme == "searchlight":
@@ -644,7 +643,7 @@ class LocalAlignment:
         logger.info("LocalAlignment fitting complete")
         return self
 
-    def transform(self, data: List[np.ndarray]) -> List[np.ndarray]:
+    def transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Apply local transforms to data.
 
         For searchlight scheme with center-only aggregation: each voxel uses
@@ -745,8 +744,8 @@ class LocalAlignment:
         return aligned
 
     def fit_transform(
-        self, data: List[np.ndarray], mask: "nib.Nifti1Image"
-    ) -> List[np.ndarray]:
+        self, data: list[np.ndarray], mask: nib.Nifti1Image
+    ) -> list[np.ndarray]:
         """Fit alignment and transform data in one step.
 
         Parameters

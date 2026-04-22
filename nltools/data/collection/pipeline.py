@@ -42,7 +42,7 @@ class BrainCollectionPipeline:
 
     def __init__(
         self,
-        brain_collection: "BrainCollection",
+        brain_collection: BrainCollection,
         cv=None,
         groups: np.ndarray | None = None,
     ):
@@ -73,7 +73,7 @@ class BrainCollectionPipeline:
         """Number of transform steps."""
         return len(self._steps)
 
-    def _add_step(self, step) -> "BrainCollectionPipeline":
+    def _add_step(self, step) -> BrainCollectionPipeline:
         """Add step and return new pipeline (immutable).
 
         Args:
@@ -88,7 +88,7 @@ class BrainCollectionPipeline:
         new._steps = self._steps + [step]
         return new
 
-    def normalize(self, method: str = "zscore", **kwargs) -> "BrainCollectionPipeline":
+    def normalize(self, method: str = "zscore", **kwargs) -> BrainCollectionPipeline:
         """Add normalization step.
 
         Args:
@@ -104,7 +104,7 @@ class BrainCollectionPipeline:
 
     def reduce(
         self, method: str = "pca", n_components: int | None = None, **kwargs
-    ) -> "BrainCollectionPipeline":
+    ) -> BrainCollectionPipeline:
         """Add dimensionality reduction step.
 
         Args:
@@ -121,7 +121,7 @@ class BrainCollectionPipeline:
             ReduceStep(method=method, n_components=n_components, **kwargs)
         )
 
-    def pipe(self, transformer) -> "BrainCollectionPipeline":
+    def pipe(self, transformer) -> BrainCollectionPipeline:
         """Add custom sklearn transformer.
 
         Args:
@@ -134,9 +134,7 @@ class BrainCollectionPipeline:
 
         return self._add_step(PipeStep(transformer=transformer))
 
-    def predict(
-        self, y, algorithm: str = "ridge", **kwargs
-    ) -> "BrainCollectionCVResult":
+    def predict(self, y, algorithm: str = "ridge", **kwargs) -> BrainCollectionCVResult:
         """Execute pipeline with CV and return prediction results.
 
         Args:
@@ -162,12 +160,11 @@ class BrainCollectionPipeline:
 
         if self._cv.is_loso:
             return self._execute_loso(subject_data, y, algorithm, kwargs)
-        else:
-            return self._execute_pooled_cv(subject_data, y, algorithm, kwargs)
+        return self._execute_pooled_cv(subject_data, y, algorithm, kwargs)
 
     def _execute_loso(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> "BrainCollectionCVResult":
+    ) -> BrainCollectionCVResult:
         """Execute leave-one-subject-out CV.
 
         Args:
@@ -251,7 +248,7 @@ class BrainCollectionPipeline:
 
     def _execute_pooled_cv(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> "BrainCollectionCVResult":
+    ) -> BrainCollectionCVResult:
         """Execute CV on pooled data.
 
         Args:
@@ -327,24 +324,23 @@ class BrainCollectionPipeline:
             from sklearn.linear_model import Ridge
 
             return Ridge(**kwargs)
-        elif algorithm == "lasso":
+        if algorithm == "lasso":
             from sklearn.linear_model import Lasso
 
             return Lasso(**kwargs)
-        elif algorithm == "svm":
+        if algorithm == "svm":
             from sklearn.svm import SVC
 
             return SVC(**kwargs)
-        elif algorithm == "svr":
+        if algorithm == "svr":
             from sklearn.svm import SVR
 
             return SVR(**kwargs)
-        elif algorithm == "logistic":
+        if algorithm == "logistic":
             from sklearn.linear_model import LogisticRegression
 
             return LogisticRegression(**kwargs)
-        else:
-            raise ValueError(f"Unknown algorithm: {algorithm}")
+        raise ValueError(f"Unknown algorithm: {algorithm}")
 
     def __repr__(self):
         """Return string representation."""
@@ -429,8 +425,8 @@ class FittedBrainCollection:
 
     def __init__(
         self,
-        brain_collection: "BrainCollection",
-        fitted_results: "BrainCollection | dict[str, BrainCollection]",
+        brain_collection: BrainCollection,
+        fitted_results: BrainCollection | dict[str, BrainCollection],
         model: str,
         condition_names: list[str] | None = None,
     ):
@@ -449,7 +445,7 @@ class FittedBrainCollection:
         return len(self._fitted)
 
     @property
-    def results(self) -> "BrainCollection | dict[str, BrainCollection]":
+    def results(self) -> BrainCollection | dict[str, BrainCollection]:
         """Access the fitted results directly.
 
         Returns the underlying BrainCollection or dict of BrainCollections.
@@ -458,7 +454,7 @@ class FittedBrainCollection:
         return self._fitted
 
     @property
-    def betas(self) -> "BrainCollection":
+    def betas(self) -> BrainCollection:
         """Convenience accessor for beta coefficients from a GLM fit.
 
         Returns:

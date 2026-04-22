@@ -99,7 +99,7 @@ def plot_mds(
     if not adj.is_single_matrix:
         raise ValueError("MDS only works on single matrices.")
     if n_components not in [2, 3]:
-        raise ValueError("Cannot plot {0}-d image".format(n_components))
+        raise ValueError(f"Cannot plot {n_components}-d image")
     if labels is not None:
         if len(labels) != adj.n_nodes:
             raise ValueError(
@@ -150,7 +150,7 @@ def plot_mds(
                 z,
                 label,
                 color="white",
-                bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"),
+                bbox={"facecolor": color, "alpha": 1, "boxstyle": "round,pad=0.3"},
             )
     else:
         for (x, y), label, color in zip(proj, labels, labels_color):
@@ -159,7 +159,7 @@ def plot_mds(
                 y,
                 label,
                 color="white",  # color,
-                bbox=dict(facecolor=color, alpha=1, boxstyle="round,pad=0.3"),
+                bbox={"facecolor": color, "alpha": 1, "boxstyle": "round,pad=0.3"},
             )
 
     ax.xaxis.set_visible(False)

@@ -17,12 +17,12 @@ if TYPE_CHECKING:
 
 
 def map_collection(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     fn: Callable,
     axis: int | str = 0,
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Apply function across specified axis.
 
@@ -60,20 +60,19 @@ def map_collection(
 
     if axis == 0:
         return map_axis0(bc, fn, n_jobs, progress_bar)
-    elif axis == 1:
+    if axis == 1:
         return map_axis1(bc, fn, n_jobs, progress_bar)
-    elif axis == 2:
+    if axis == 2:
         return map_axis2(bc, fn, n_jobs, progress_bar)
-    else:
-        raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, or 2.")
+    raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, or 2.")
 
 
 def map_axis0(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     fn: Callable,
     n_jobs: int,
     progress_bar: bool,
-) -> "BrainCollection":
+) -> BrainCollection:
     """Map function over images (axis=0)."""
     from joblib import Parallel, delayed
     from nltools.utils import attempt_to_import
@@ -107,11 +106,11 @@ def map_axis0(
 
 
 def map_axis1(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     fn: Callable,
     n_jobs: int,
     progress_bar: bool,
-) -> "BrainCollection":
+) -> BrainCollection:
     """Map function over timepoints (axis=1)."""
     from ..braindata import BrainData
     from nltools.utils import attempt_to_import
@@ -166,18 +165,17 @@ def map_axis1(
             new_bd.data = stacked
             new_items.append(new_bd)
         return BrainCollection(new_items, mask=bc._mask, metadata=bc._metadata)
-    else:
-        raise TypeError(
-            f"map(axis=1) function must return BrainData, got {type(results_per_t[0])}"
-        )
+    raise TypeError(
+        f"map(axis=1) function must return BrainData, got {type(results_per_t[0])}"
+    )
 
 
 def map_axis2(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     fn: Callable,
     n_jobs: int,
     progress_bar: bool,
-) -> "BrainCollection":
+) -> BrainCollection:
     """Map function over voxels (axis=2) per image."""
     from ..braindata import BrainData
     from nltools.utils import attempt_to_import
@@ -214,9 +212,9 @@ def map_axis2(
 
 
 def filter_collection(
-    bc: "BrainCollection",
-    predicate: "Callable | list | np.ndarray",
-) -> "BrainCollection":
+    bc: BrainCollection,
+    predicate: Callable | list | np.ndarray,
+) -> BrainCollection:
     """
     Filter collection by predicate.
 
@@ -273,18 +271,18 @@ def filter_collection(
 
 
 def align(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     method: str = "procrustes",
     scheme: str = "searchlight",
     radius_mm: float = 10.0,
-    parcellation: "nib.Nifti1Image | None" = None,
+    parcellation: nib.Nifti1Image | None = None,
     n_features: int | None = None,
     n_iter: int = 3,
     device: str = "cpu",
     return_model: bool = False,
     n_jobs: int = -1,
     progress_bar: bool = False,
-) -> "BrainCollection | tuple[BrainCollection, object]":
+) -> BrainCollection | tuple[BrainCollection, object]:
     """
     Align subjects using local functional alignment.
 
@@ -404,13 +402,13 @@ def align(
 
 
 def standardize(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     axis: int = 0,
     method: str = "center",
     verbose: bool = True,
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Standardize each image.
 
@@ -443,11 +441,11 @@ def standardize(
 
 
 def smooth(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     fwhm: float,
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Spatially smooth each image.
 
@@ -474,14 +472,14 @@ def smooth(
 
 
 def threshold(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     upper: float | str | None = None,
     lower: float | str | None = None,
     binarize: bool = False,
     coerce_nan: bool = True,
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Threshold each image.
 
@@ -515,11 +513,11 @@ def threshold(
 
 
 def detrend(
-    bc: "BrainCollection",
+    bc: BrainCollection,
     method: str = "linear",
     n_jobs: int = 1,
     progress_bar: bool = False,
-) -> "BrainCollection":
+) -> BrainCollection:
     """
     Remove trend from each image.
 

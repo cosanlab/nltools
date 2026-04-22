@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import numpy as np
 import warnings
-from typing import Optional, Union, List, Callable, Any, Dict
+from typing import Any
+from collections.abc import Callable
 from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
 
@@ -24,19 +25,19 @@ from ..backends import resolve_backend
 
 def solve_banded_ridge_cv(
     # Required
-    Xs: List[np.ndarray],
+    Xs: list[np.ndarray],
     Y: np.ndarray,
     # Optional algorithm parameters
-    n_iter: Union[int, np.ndarray] = 100,
-    concentration: Union[float, List[float]] = [0.1, 1.0],
-    alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0],
-    cv: Union[int, BaseCrossValidator] = 5,
+    n_iter: int | np.ndarray = 100,
+    concentration: float | list[float] = [0.1, 1.0],
+    alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0],
+    cv: int | BaseCrossValidator = 5,
     local_alpha: bool = True,
-    n_targets_batch: Optional[int] = None,
-    n_targets_batch_refit: Optional[int] = None,
-    n_alphas_batch: Optional[int] = None,
+    n_targets_batch: int | None = None,
+    n_targets_batch_refit: int | None = None,
+    n_alphas_batch: int | None = None,
     Y_in_cpu: bool = True,
-    score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None,
+    score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
     fit_intercept: bool = False,
     progress_bar: bool = False,
     conservative: bool = False,
@@ -45,12 +46,12 @@ def solve_banded_ridge_cv(
     diagonalize_method: str = "svd",
     warn: bool = True,
     # Backend parameters (grouped)
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Solve banded ridge regression with cross-validation using random search.
 
     This function implements true banded/group ridge regression (as in Himalaya).
@@ -523,8 +524,8 @@ def _refit_banded_ridge(
     Y: np.ndarray,
     best_alphas: np.ndarray,
     alphas: np.ndarray,
-    n_targets_batch: Optional[int],
-    n_alphas_batch: Optional[int],
+    n_targets_batch: int | None,
+    n_alphas_batch: int | None,
     Y_in_cpu: bool,
     backend: Any,
 ) -> np.ndarray:
@@ -618,24 +619,24 @@ def solve_ridge_cv(
     X: np.ndarray,
     Y: np.ndarray,
     # Optional algorithm parameters
-    alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0],
-    cv: Union[int, BaseCrossValidator] = 5,
+    alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0],
+    cv: int | BaseCrossValidator = 5,
     local_alpha: bool = True,
-    n_targets_batch: Optional[int] = None,
-    n_targets_batch_refit: Optional[int] = None,
-    n_alphas_batch: Optional[int] = None,
+    n_targets_batch: int | None = None,
+    n_targets_batch_refit: int | None = None,
+    n_alphas_batch: int | None = None,
     Y_in_cpu: bool = True,
-    score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None,
+    score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
     fit_intercept: bool = False,
     progress_bar: bool = False,
     conservative: bool = False,
     # Backend parameters (grouped)
-    parallel: Optional[str] = "cpu",
+    parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
-    random_state: Optional[int] = None,
-) -> Dict[str, Any]:
+    random_state: int | None = None,
+) -> dict[str, Any]:
     """Solve ridge regression with cross-validation.
 
     This function solves ridge regression for a single feature space with

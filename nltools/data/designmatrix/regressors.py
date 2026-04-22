@@ -8,7 +8,7 @@ a new DesignMatrix with the requested transformation applied.
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 
 def convolve(
     dm: DesignMatrix,
-    conv_func: Union[str, np.ndarray] = "hrf",
-    columns: Optional[List[str]] = None,
+    conv_func: str | np.ndarray = "hrf",
+    columns: list[str] | None = None,
 ) -> DesignMatrix:
     """
     Convolve columns with HRF or custom kernel.

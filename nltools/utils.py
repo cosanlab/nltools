@@ -7,10 +7,10 @@ Cross-cutting utilities used across the nltools package.
 """
 
 __all__ = [
-    "get_resource_path",
-    "attempt_to_import",
     "all_same",
+    "attempt_to_import",
     "concatenate",
+    "get_resource_path",
 ]
 
 import collections
@@ -89,7 +89,7 @@ def concatenate(data):
     if not isinstance(data, list):
         raise ValueError("Make sure you are passing a list of objects.")
 
-    if all([isinstance(x, data[0].__class__) for x in data]):
+    if all(isinstance(x, data[0].__class__) for x in data):
         out = data[0].__class__()
         for i in data:
             out = out.append(i)

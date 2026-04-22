@@ -6,7 +6,7 @@ Tools to simulate multivariate data.
 
 """
 
-__all__ = ["Simulator", "SimulateGrid"]
+__all__ = ["SimulateGrid", "Simulator"]
 
 
 import os
@@ -184,10 +184,9 @@ class Simulator:
             for i in range(len(radius)):
                 A = np.add(A, self.sphere(radius[i], center[i]))
             return A
-        else:
-            raise ValueError(
-                "Data type for sphere or radius(ii) or center(s) not recognized."
-            )
+        raise ValueError(
+            "Data type for sphere or radius(ii) or center(s) not recognized."
+        )
 
     def create_data(
         self, levels, sigma, radius=5, center=None, reps=1, output_dir=None
@@ -602,10 +601,10 @@ class SimulateGrid:
 
         mask = np.zeros((self.grid_width, self.grid_width))
         mask[
-            int((np.floor((self.grid_width / 2) - (signal_width / 2)))) : int(
+            int(np.floor((self.grid_width / 2) - (signal_width / 2))) : int(
                 np.ceil((self.grid_width / 2) + (signal_width / 2))
             ),
-            int((np.floor((self.grid_width / 2) - (signal_width / 2)))) : int(
+            int(np.floor((self.grid_width / 2) - (signal_width / 2))) : int(
                 np.ceil((self.grid_width / 2) + (signal_width / 2))
             ),
         ] = 1
@@ -778,7 +777,7 @@ class SimulateGrid:
         self.multiple_fp = np.array(
             [self._calc_false_positives(x) for x in self.multiple_thresholded]
         )
-        self.fpr = np.mean(np.array([x for x in self.multiple_fp]) > 0)
+        self.fpr = np.mean(np.array(list(self.multiple_fp)) > 0)
         if self.signal_mask is not None:
             self.multiple_tp = np.array(
                 [self._calc_true_positives(x) for x in self.multiple_thresholded]

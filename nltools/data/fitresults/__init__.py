@@ -56,7 +56,6 @@ Examples
 
 from dataclasses import asdict as dataclass_asdict
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -191,24 +190,24 @@ class Fit:
     fitted_values: np.ndarray
 
     # Ridge-specific
-    weights: Optional[np.ndarray] = None
-    scores: Optional[np.ndarray] = None
+    weights: np.ndarray | None = None
+    scores: np.ndarray | None = None
 
     # GLM-specific
-    betas: Optional[np.ndarray] = None
-    t_stats: Optional[np.ndarray] = None
-    p_values: Optional[np.ndarray] = None
-    se: Optional[np.ndarray] = None
-    residuals: Optional[np.ndarray] = None
-    r2: Optional[np.ndarray] = None
+    betas: np.ndarray | None = None
+    t_stats: np.ndarray | None = None
+    p_values: np.ndarray | None = None
+    se: np.ndarray | None = None
+    residuals: np.ndarray | None = None
+    r2: np.ndarray | None = None
 
     # CV-specific
-    cv_scores: Optional[np.ndarray] = None
-    cv_mean_score: Optional[np.ndarray] = None
-    cv_predictions: Optional[np.ndarray] = None
-    cv_folds: Optional[np.ndarray] = None
-    cv_best_alpha: Optional[float] = None
-    cv_alpha_scores: Optional[np.ndarray] = None
+    cv_scores: np.ndarray | None = None
+    cv_mean_score: np.ndarray | None = None
+    cv_predictions: np.ndarray | None = None
+    cv_folds: np.ndarray | None = None
+    cv_best_alpha: float | None = None
+    cv_alpha_scores: np.ndarray | None = None
 
     def available(self) -> list:
         """Return list of non-None attribute names.

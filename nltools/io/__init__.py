@@ -18,7 +18,7 @@ def __getattr__(name):
 
 __all__ = [
     "is_h5_path",
-    "to_h5",
     "load_brain_data_h5",
     "onsets_to_dm",
+    "to_h5",
 ]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -78,7 +78,7 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
 
 def clean(
     dm: DesignMatrix,
-    fill_na: Union[int, float, None] = 0,
+    fill_na: int | float | None = 0,
     exclude_polys: bool = False,
     thresh: float = 0.95,
     verbose: bool = True,
@@ -176,10 +176,9 @@ def clean(
 
         # Return cleaned matrix
         return copy_with(result, new_df, polys=new_polys)
-    else:
-        if verbose:
-            print("Dropping columns not needed...skipping")
-        return result
+    if verbose:
+        print("Dropping columns not needed...skipping")
+    return result
 
 
 def details(dm: DesignMatrix) -> str:

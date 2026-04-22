@@ -35,12 +35,12 @@ from .paths import resolve_paths, resolve_template_name
 __all__ = [
     "BrainSpaceConfig",
     "TemplateMatch",
-    "get_brainspace",
-    "set_brainspace",
-    "reset_brainspace",
-    "with_brainspace",
-    "match_resolution",
     "get_bg_image",
+    "get_brainspace",
+    "match_resolution",
+    "reset_brainspace",
     "resolve_paths",
     "resolve_template_name",
+    "set_brainspace",
+    "with_brainspace",
 ]

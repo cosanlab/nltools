@@ -5,7 +5,8 @@ strategies used across nltools analysis pipelines.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Literal, Optional
+from typing import Any, Literal
+from collections.abc import Iterator
 
 import numpy as np
 from numpy.typing import NDArray
@@ -52,11 +53,11 @@ class CVScheme:
         >>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
     """
 
-    k: Optional[int] = None
+    k: int | None = None
     scheme: CVSchemeType = "kfold"
-    split_by: Optional[str] = None
+    split_by: str | None = None
     n: int = 1000  # For bootstrap
-    random_state: Optional[int] = None
+    random_state: int | None = None
 
     # Internal RNG state - initialized in __post_init__, excluded from init/repr
     _rng: np.random.Generator = field(init=False, repr=False, compare=False)
@@ -91,7 +92,7 @@ class CVScheme:
         return self.scheme == "loro"
 
     def split(
-        self, data: Any, groups: Optional[NDArray[np.intp]] = None
+        self, data: Any, groups: NDArray[np.intp] | None = None
     ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
         """Generate train/test indices for each fold.
 
@@ -242,9 +243,7 @@ class CVScheme:
             perm_idx = self._rng.permutation(n_samples).astype(np.intp)
             yield indices.copy(), perm_idx
 
-    def n_splits(
-        self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
-    ) -> int:
+    def n_splits(self, data: Any = None, groups: NDArray[np.intp] | None = None) -> int:
         """Return number of splits.
 
         Args:
@@ -262,13 +261,13 @@ class CVScheme:
             if self.k is None:
                 raise ValueError("k must be set for kfold scheme")
             return self.k
-        elif self.scheme in ("loso", "loro"):
+        if self.scheme in ("loso", "loro"):
             if groups is None:
                 raise ValueError(f"{self.scheme} requires groups to count splits")
             return len(np.unique(groups))
-        elif self.scheme == "bootstrap":
+        if self.scheme == "bootstrap":
             return self.n
-        elif self.scheme == "permutation":
+        if self.scheme == "permutation":
             return self.n
         return 0
 
@@ -276,9 +275,9 @@ class CVScheme:
         """Return string representation of the CV scheme."""
         if self.scheme == "kfold":
             return f"CVScheme(scheme='kfold', k={self.k})"
-        elif self.scheme == "bootstrap":
+        if self.scheme == "bootstrap":
             return f"CVScheme(scheme='bootstrap', n={self.n})"
-        elif self.scheme == "permutation":
+        if self.scheme == "permutation":
             return f"CVScheme(scheme='permutation', n={self.n})"
         return f"CVScheme(scheme='{self.scheme}', split_by='{self.split_by}')"
 
@@ -328,8 +327,8 @@ class NestedCVScheme:
     def split(
         self,
         data: Any,
-        groups: Optional[NDArray[np.intp]] = None,
-        inner_groups: Optional[NDArray[np.intp]] = None,
+        groups: NDArray[np.intp] | None = None,
+        inner_groups: NDArray[np.intp] | None = None,
     ) -> Iterator[
         tuple[
             NDArray[np.intp],
@@ -378,7 +377,7 @@ class NestedCVScheme:
 
             # Create fresh inner iterator for each outer fold
             def make_inner_iterator(
-                n: int, grps: Optional[NDArray[np.intp]]
+                n: int, grps: NDArray[np.intp] | None
             ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
                 """Generate inner splits for this outer fold."""
                 yield from self.inner.split(np.arange(n), groups=grps)
@@ -386,7 +385,7 @@ class NestedCVScheme:
             yield outer_train, outer_test, make_inner_iterator(n_inner, inner_grps)
 
     def n_outer_splits(
-        self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
+        self, data: Any = None, groups: NDArray[np.intp] | None = None
     ) -> int:
         """Return number of outer splits.
 
@@ -400,7 +399,7 @@ class NestedCVScheme:
         return self.outer.n_splits(data, groups)
 
     def n_inner_splits(
-        self, data: Any = None, groups: Optional[NDArray[np.intp]] = None
+        self, data: Any = None, groups: NDArray[np.intp] | None = None
     ) -> int:
         """Return number of inner splits per outer fold.
 

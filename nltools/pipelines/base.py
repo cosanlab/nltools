@@ -24,10 +24,7 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
-    List,
-    Optional,
     Protocol,
-    Tuple,
     TypeVar,
     runtime_checkable,
 )
@@ -198,7 +195,7 @@ class FittedStack:
     >>> original_space = stack.inverse_transform(predictions)
     """
 
-    steps: List[FittedTransform] = field(default_factory=list)
+    steps: list[FittedTransform] = field(default_factory=list)
 
     def append(self, fitted_step: FittedTransform) -> None:
         """Add a fitted transform to the stack.
@@ -288,8 +285,8 @@ class Pipeline:
     """
 
     data: Any
-    cv: Optional[CVScheme] = None
-    steps: List[TransformStep] = field(default_factory=list)
+    cv: CVScheme | None = None
+    steps: list[TransformStep] = field(default_factory=list)
     _is_lazy: bool = field(default=False, repr=False)
 
     def _add_step(self, step: TransformStep) -> Pipeline:
@@ -333,7 +330,7 @@ class Pipeline:
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
     def reduce(
-        self, method: str = "pca", n_components: Optional[int] = None, **kwargs: Any
+        self, method: str = "pca", n_components: int | None = None, **kwargs: Any
     ) -> Pipeline:
         """Add a dimensionality reduction step to the pipeline.
 
@@ -450,7 +447,7 @@ class Pipeline:
 
     def _split_data(
         self, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp]
-    ) -> Tuple[Any, Any]:
+    ) -> tuple[Any, Any]:
         """Split data by indices.
 
         Args:
@@ -498,10 +495,10 @@ class Pipeline:
 # =============================================================================
 
 __all__ = [
-    "TransformStep",
-    "FittedTransform",
     "CVScheme",
-    "Terminal",
     "FittedStack",
+    "FittedTransform",
     "Pipeline",
+    "Terminal",
+    "TransformStep",
 ]

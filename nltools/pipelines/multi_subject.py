@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import copy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -43,10 +43,10 @@ class MultiSubjectPipeline:
     >>> result = pipeline.predict(y)
     """
 
-    data: List[NDArray]  # List of (n_obs, n_voxels) per subject
-    cv: Optional[Any] = None  # CVScheme
-    groups: Optional[NDArray[np.intp]] = None
-    steps: List[Any] = field(default_factory=list)
+    data: list[NDArray]  # List of (n_obs, n_voxels) per subject
+    cv: Any | None = None  # CVScheme
+    groups: NDArray[np.intp] | None = None
+    steps: list[Any] = field(default_factory=list)
     _is_lazy: bool = False
 
     @property
@@ -59,7 +59,7 @@ class MultiSubjectPipeline:
         """Number of transform steps."""
         return len(self.steps)
 
-    def _add_step(self, step) -> "MultiSubjectPipeline":
+    def _add_step(self, step) -> MultiSubjectPipeline:
         """Add step and return new pipeline (immutable)."""
         new = copy(self)
         new.steps = self.steps + [step]
@@ -69,15 +69,15 @@ class MultiSubjectPipeline:
     # Chainable transforms
     # =========================================================================
 
-    def normalize(self, method: str = "zscore", **kwargs) -> "MultiSubjectPipeline":
+    def normalize(self, method: str = "zscore", **kwargs) -> MultiSubjectPipeline:
         """Add normalization step (per-subject)."""
         from .steps import NormalizeStep
 
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
     def reduce(
-        self, method: str = "pca", n_components: Optional[int] = None, **kwargs
-    ) -> "MultiSubjectPipeline":
+        self, method: str = "pca", n_components: int | None = None, **kwargs
+    ) -> MultiSubjectPipeline:
         """Add dimensionality reduction step."""
         from .steps import ReduceStep
 
@@ -85,7 +85,7 @@ class MultiSubjectPipeline:
             ReduceStep(method=method, n_components=n_components, **kwargs)
         )
 
-    def pipe(self, transformer) -> "MultiSubjectPipeline":
+    def pipe(self, transformer) -> MultiSubjectPipeline:
         """Add custom sklearn transformer."""
         from .steps import PipeStep
 
@@ -98,7 +98,7 @@ class MultiSubjectPipeline:
         n_features: int | None = 50,
         new_subject: str = "procrustes",
         **kwargs,
-    ) -> "MultiSubjectPipeline":
+    ) -> MultiSubjectPipeline:
         """Add cross-subject alignment step to pipeline.
 
         Aligns multi-subject data using SRM or HyperAlignment before
@@ -299,8 +299,7 @@ class MultiSubjectPipeline:
 
         if self.cv.is_loso:
             return self._execute_loso(terminal)
-        else:
-            return self._execute_run_cv(terminal)
+        return self._execute_run_cv(terminal)
 
     def _execute_loso(self, terminal):
         """Execute leave-one-subject-out CV.
@@ -431,7 +430,7 @@ class MultiSubjectPipeline:
 
         return CVResult(fold_results=results, pipeline=self)
 
-    def _concat_subjects(self, subjects: List[NDArray]) -> NDArray:
+    def _concat_subjects(self, subjects: list[NDArray]) -> NDArray:
         """Concatenate subject data along observation axis."""
         return np.vstack(subjects)
 

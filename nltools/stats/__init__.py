@@ -44,49 +44,49 @@ from .permutation import (
 )
 
 __all__ = [
-    # corrections
-    "fdr",
-    "holm_bonf",
-    "threshold",
-    "multi_threshold",
-    # outliers
-    "zscore",
-    "winsorize",
-    "trim",
-    "find_spikes",
+    # alignment
+    "align",
+    "align_states",
+    "calc_bpm",
+    "circle_shift",
+    "compute_icc",
+    "compute_multivariate_similarity",
+    "compute_similarity",
+    "correlation_permutation_test",
+    "distance_correlation",
+    "double_center",
     # timeseries
     "downsample",
-    "upsample",
-    "calc_bpm",
-    "make_cosine_basis",
+    # corrections
+    "fdr",
+    "find_spikes",
     # correlation
     "fisher_r_to_z",
     "fisher_z_to_r",
-    "compute_similarity",
-    "compute_multivariate_similarity",
-    "compute_icc",
-    "transform_pairwise",
-    # alignment
-    "align",
-    "procrustes",
-    "procrustes_distance",
-    "align_states",
+    "holm_bonf",
     # intersubject
     "isc",
     "isc_group",
     "isfc",
     "isps",
-    # regression
-    "regress",
+    "make_cosine_basis",
+    "matrix_permutation_test",
+    "multi_threshold",
     # permutation
     "one_sample_permutation_test",
-    "two_sample_permutation_test",
-    "correlation_permutation_test",
-    "timeseries_correlation_permutation_test",
-    "circle_shift",
     "phase_randomize",
-    "matrix_permutation_test",
-    "double_center",
+    "procrustes",
+    "procrustes_distance",
+    # regression
+    "regress",
+    "threshold",
+    "timeseries_correlation_permutation_test",
+    "transform_pairwise",
+    "trim",
+    "two_sample_permutation_test",
     "u_center",
-    "distance_correlation",
+    "upsample",
+    "winsorize",
+    # outliers
+    "zscore",
 ]

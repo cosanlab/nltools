@@ -8,10 +8,10 @@ Functions to help download datasets from Neurovault and other sources.
 
 __all__ = [
     "download_nifti",
-    "fetch_neurovault_collection",
     "fetch_emotion_ratings",
-    "fetch_pain",
     "fetch_haxby",
+    "fetch_neurovault_collection",
+    "fetch_pain",
     "load_haxby_example",
 ]
 
@@ -256,8 +256,8 @@ def fetch_haxby(
 
         try:
             # Redirect both stdout and stderr to devnull
-            sys.stdout = open(os.devnull, "w")
-            sys.stderr = open(os.devnull, "w")
+            sys.stdout = open(os.devnull, "w")  # noqa: SIM115
+            sys.stderr = open(os.devnull, "w")  # noqa: SIM115
             # Suppress nilearn logging
             nilearn_logger.setLevel(logging.CRITICAL)
 
@@ -296,7 +296,7 @@ def fetch_haxby(
         labels_file = nilearn_data.session_target[0]
 
         # Read labels to determine number of chunks and TRs per chunk
-        with open(labels_file, "r") as f:
+        with open(labels_file) as f:
             lines = f.readlines()
 
         chunks = {}
@@ -375,9 +375,8 @@ def fetch_haxby(
     if len(subject_list) == 1:
         # Single subject: return flat lists
         return all_subjects_brain_data[0], all_subjects_design_matrix[0]
-    else:
-        # Multiple subjects: return nested lists
-        return all_subjects_brain_data, all_subjects_design_matrix
+    # Multiple subjects: return nested lists
+    return all_subjects_brain_data, all_subjects_design_matrix
 
 
 _HAXBY_CONDITIONS = (

@@ -72,10 +72,7 @@ def to_graph(adj):
         else:
             G = nx.Graph(adj.squareform())
         if adj.labels:
-            labels = {x: y for x, y in zip(G.nodes, adj.labels)}
+            labels = dict(zip(G.nodes, adj.labels))
             nx.relabel_nodes(G, labels, copy=False)
         return G
-    else:
-        raise NotImplementedError(
-            "This function currently only works on single matrices."
-        )
+    raise NotImplementedError("This function currently only works on single matrices.")

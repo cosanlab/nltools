@@ -15,10 +15,10 @@ from nilearn.glm.first_level import (
 )
 
 __all__ = [
-    "spm_hrf",
+    "glover_dispersion_derivative",
     "glover_hrf",
-    "spm_time_derivative",
     "glover_time_derivative",
     "spm_dispersion_derivative",
-    "glover_dispersion_derivative",
+    "spm_hrf",
+    "spm_time_derivative",
 ]

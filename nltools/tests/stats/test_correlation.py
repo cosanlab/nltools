@@ -38,7 +38,7 @@ class TestComputeSimilarity:
         data1, data2 = similarity_data
         result = compute_similarity(data1, data2, method="correlation")
         assert result.shape == (10, 5)
-        assert np.all(-1 <= result) and np.all(result <= 1)
+        assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_pearson_alias(self, similarity_data):
         data1, data2 = similarity_data
@@ -61,7 +61,7 @@ class TestComputeSimilarity:
         data1, data2 = similarity_data
         result = compute_similarity(data1, data2, method="spearman")
         assert result.shape == (10, 5)
-        assert np.all(-1 <= result) and np.all(result <= 1)
+        assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_rank_correlation_alias(self, similarity_data):
         data1, data2 = similarity_data
@@ -83,7 +83,7 @@ class TestComputeSimilarity:
         data1, data2 = similarity_data
         result = compute_similarity(data1, data2, method="cosine")
         assert result.shape == (10, 5)
-        assert np.all(-1 <= result) and np.all(result <= 1)
+        assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_cosine_self_similarity(self, similarity_data):
         data1, _ = similarity_data

@@ -49,37 +49,37 @@ from .multi_subject import MultiSubjectPipeline
 from .pool import PooledData, ResultDict, StatResult
 
 __all__ = [
-    # Core classes
-    "Pipeline",
-    "CVScheme",
-    "CVSchemeImpl",
-    "NestedCVScheme",
-    "FittedStack",
-    # Protocols
-    "TransformStep",
-    "FittedTransform",
-    "Terminal",
-    # Steps (Phase 2)
-    "NormalizeStep",
-    "ReduceStep",
-    "PipeStep",
     # Alignment (Phase 7)
     "AlignStep",
-    "FittedAlign",
-    # Terminals (Phase 3 + Phase 8)
-    "PredictTerminal",
-    "ISCTerminal",
-    "RSATerminal",
     # Results (Phase 3 + Phase 8)
     "CVResult",
+    "CVScheme",
+    "CVSchemeImpl",
+    "FittedAlign",
+    "FittedStack",
+    "FittedTransform",
     "FoldResult",
     "ISCResult",
-    "RSAResult",
-    "PermutationResult",
+    "ISCTerminal",
     # Multi-subject (Phase 4)
     "MultiSubjectPipeline",
+    "NestedCVScheme",
+    # Steps (Phase 2)
+    "NormalizeStep",
+    "PermutationResult",
+    "PipeStep",
+    # Core classes
+    "Pipeline",
     # Pool infrastructure (Phase 5)
     "PooledData",
-    "StatResult",
+    # Terminals (Phase 3 + Phase 8)
+    "PredictTerminal",
+    "RSAResult",
+    "RSATerminal",
+    "ReduceStep",
     "ResultDict",
+    "StatResult",
+    "Terminal",
+    # Protocols
+    "TransformStep",
 ]

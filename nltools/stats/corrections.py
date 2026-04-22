@@ -5,8 +5,8 @@ import numpy as np
 __all__ = [
     "fdr",
     "holm_bonf",
-    "threshold",
     "multi_threshold",
+    "threshold",
 ]
 
 
@@ -124,8 +124,7 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         mask = p.copy()
         mask.data = p_mask
         return out, mask
-    else:
-        return out
+    return out
 
 
 def multi_threshold(t_map, p_map, thresh):

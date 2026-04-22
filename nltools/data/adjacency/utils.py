@@ -187,14 +187,14 @@ def apply_stat(adj, func, axis=0):
     """
     if adj.is_single_matrix:
         return func(adj.data)
-    else:
-        # Import here to avoid circular import at module level
-        from . import Adjacency
+    # Import here to avoid circular import at module level
+    from . import Adjacency
 
-        if axis == 0:
-            return Adjacency(
-                data=func(adj.data, axis=axis),
-                matrix_type=adj.matrix_type + "_flat",
-            )
-        elif axis == 1:
-            return func(adj.data, axis=axis)
+    if axis == 0:
+        return Adjacency(
+            data=func(adj.data, axis=axis),
+            matrix_type=adj.matrix_type + "_flat",
+        )
+    if axis == 1:
+        return func(adj.data, axis=axis)
+    raise ValueError(f"axis must be 0 or 1, got {axis}")

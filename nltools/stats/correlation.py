@@ -7,12 +7,12 @@ from scipy.spatial.distance import cdist
 from scipy.stats import rankdata, t as t_dist
 
 __all__ = [
+    "compute_icc",
+    "compute_multivariate_similarity",
+    "compute_similarity",
     "fisher_r_to_z",
     "fisher_z_to_r",
     "transform_pairwise",
-    "compute_similarity",
-    "compute_multivariate_similarity",
-    "compute_icc",
 ]
 
 
@@ -100,14 +100,12 @@ def transform_pairwise(X, y):
     if len(X_new) == 0:
         if y_ndim == 1:
             return np.array([]).reshape(0, X.shape[1]), np.array([])
-        else:
-            return np.array([]).reshape(0, X.shape[1]), np.array([]).reshape(0, 2)
+        return np.array([]).reshape(0, X.shape[1]), np.array([]).reshape(0, 2)
 
     X_trans = np.array(X_new)
     if y_ndim == 1:
         return X_trans, np.array(y_new)
-    else:
-        return X_trans, np.column_stack([np.array(y_new), np.array(y_group)])
+    return X_trans, np.column_stack([np.array(y_new), np.array(y_group)])
 
 
 def compute_similarity(data1, data2, method="correlation"):

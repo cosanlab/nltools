@@ -199,8 +199,7 @@ class Glm(BaseModel):
         if not isinstance(design_matrices, list):
             if isinstance(design_matrices, DesignMatrix):
                 return design_matrices.to_pandas()
-            else:
-                return design_matrices
+            return design_matrices
 
         # Handle list of design matrices
         converted = []
@@ -239,13 +238,12 @@ class Glm(BaseModel):
         if X is None:
             # Return fitted values (predictions on training data)
             return self._glm.predicted
-        else:
-            # Future: Generate predictions with new design matrix
-            # Would compute: predicted_data = betas @ X.T at each voxel
-            raise NotImplementedError(
-                "Prediction with new design matrix not yet implemented. "
-                "Use predict() without arguments to get fitted values."
-            )
+        # Future: Generate predictions with new design matrix
+        # Would compute: predicted_data = betas @ X.T at each voxel
+        raise NotImplementedError(
+            "Prediction with new design matrix not yet implemented. "
+            "Use predict() without arguments to get fitted values."
+        )
 
     def score(self, X=None, y=None):
         """

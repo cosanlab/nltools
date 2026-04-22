@@ -9,7 +9,8 @@ from __future__ import annotations
 __all__ = ["onsets_to_dm"]
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
 
 import numpy as np
 from nilearn.glm.first_level import make_first_level_design_matrix as make_dm
