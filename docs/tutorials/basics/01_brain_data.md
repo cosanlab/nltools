@@ -9,49 +9,47 @@ kernelspec:
 
 ## Introduction
 
-The `BrainData` class is the core data structure in nltools for working with neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient computation, automatically handles resampling to standard MNI space, and supports standard Python operations like indexing, arithmetic, and iteration.
+The `BrainData` class is the core data structure in `nltools` for working with neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient computation, automatically handles resampling to standard MNI space (default), and supports standard Python operations like indexing, arithmetic, and iteration.
 
 ```{code-cell} python3
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from nltools import BrainData
 
-from nltools.data import BrainData
-from nltools.datasets import fetch_pain
-from nltools.utils import concatenate
+# Empty brain
+BrainData()
 ```
 
 ## Loading Data
 
-The simplest way to get started is with a built-in dataset. `fetch_pain()` downloads a pain perception study (Chang et al. 2015) with 28 subjects x 3 conditions = 84 images.
+You pass a file path, `nilearn/nibabel` nifti image, file URL, or lists of any those to `BrainData()` to load and automatically resample to MNI space if needed: `BrainData('myfile.nii.gz')`. 
+
+To keep things simple, we can use one of the included datasets. `fetch_pain()` downloads a pain perception study (Chang et al. 2015) with 28 subjects x 3 conditions = 84 images.
 
 ```{code-cell} python3
-data = fetch_pain()
+from nltools.datasets import fetch_pain
+brains = fetch_pain()
 ```
 
 The `BrainData` repr shows the shape (images x voxels), and whether metadata `polars` Dataframes (X, Y) are attached.
 
 ```{code-cell} python3
-data
+brains
 ```
 
-You can also create `BrainData` from NIfTI files, nibabel objects, numpy arrays, or lists of file paths. You can access the underlying numpy data with the `.data` attribute:
+And we can always access the underlying *data* as a numpy array using the `.data` attribute:
 
 ```{code-cell} python3
 # Access the underlying numpy array
-print(f"Raw data shape: {data.data.shape}")  # (images, voxels)
+brains.data.shape # (images, voxels)
 ```
 
-`BrainData` carries two DataFrame _attributes_:
+In addition, `BrainData` stores additional meta-data as `polars` DataFrames using `.X` and `.Y`:
 
 - **X**: Design matrix / covariates for modeling
 - **Y**: Outcome variables or labels
 
 ```{code-cell} python3
-# The pain dataset comes with metadata in X; show just the study-specific columns
-study_cols = ["SubjectID", "PainLevel", "Age", "Sex"]
-
-data.X[study_cols].head(10)
+# The pain dataset comes with metadata in X
+brains.X.head(10)
 ```
 
 ## Indexing and Slicing
@@ -78,21 +76,25 @@ print(f"Selected: {selected.shape}")
 Boolean indexing lets you filter images based on computed properties:
 
 ```{code-cell} python3
+# Create a boolean mask of extreme values
 global_mean = data.mean(axis=1)
 threshold = global_mean * 2
+mask = global_mean > threshold
 
-high_intensity = data[global_mean > threshold]
-
+# Apply it
+high_intensity = brains[mask]
 print(f"Images above threshold: {len(high_intensity)}")
 ```
 
-Combine `BrainData` objects with `append`:
+You can use `.append()` to concatenate `BrainData` objects:
 
 ```{code-cell} python3
 # Append one image to another
-combined = data[0].append(data[1])
+img1 = data[0]
+img2 = data[1]
 
-combined
+# Combined
+img1.append(img2).shape
 ```
 
 ## Arithmetic Operations
