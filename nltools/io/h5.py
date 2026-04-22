@@ -6,6 +6,7 @@ Shared serialization logic for BrainData and Adjacency objects.
 
 __all__ = ["is_h5_path", "load_brain_data_h5", "to_h5"]
 
+import io
 import warnings
 
 import nibabel as nib
@@ -58,33 +59,26 @@ def is_h5_path(file_name) -> bool:
 
 
 def _write_polars_frame(h5_file, name, df, compression):
-    """Write a polars DataFrame to an h5 group as columns + values datasets."""
-    group = h5_file.create_group(name)
-    columns = list(df.columns)
-    group.create_dataset(
-        "columns",
-        data=np.array(columns, dtype=object),
-        dtype=h5py.string_dtype(encoding="utf-8"),
+    """Write a polars DataFrame to an h5 dataset as raw IPC bytes.
+
+    Uses polars' Arrow IPC format so every dtype — strings, booleans, nulls,
+    and mixed-type frames — round-trips exactly. h5py handles the resulting
+    byte buffer directly.
+    """
+    buf = io.BytesIO()
+    df.write_ipc(buf)
+    h5_file.create_dataset(
+        name,
+        data=np.frombuffer(buf.getvalue(), dtype=np.uint8),
+        compression=compression,
     )
-    if df.is_empty() or len(columns) == 0:
-        group.create_dataset("values", data=np.zeros((0, len(columns))))
-    else:
-        group.create_dataset("values", data=df.to_numpy(), compression=compression)
 
 
 def _read_polars_frame(h5_file, name):
-    """Read a polars DataFrame from an h5 group written by _write_polars_frame."""
+    """Read a polars DataFrame from an h5 dataset written by _write_polars_frame."""
     if name not in h5_file:
         return pl.DataFrame()
-    group = h5_file[name]
-    columns = [
-        c.decode("utf-8") if isinstance(c, bytes) else str(c)
-        for c in np.array(group["columns"])
-    ]
-    values = np.array(group["values"])
-    if values.size == 0 or len(columns) == 0:
-        return pl.DataFrame({c: [] for c in columns}) if columns else pl.DataFrame()
-    return pl.DataFrame(values, schema=columns)
+    return pl.read_ipc(io.BytesIO(np.asarray(h5_file[name]).tobytes()))
 
 
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
