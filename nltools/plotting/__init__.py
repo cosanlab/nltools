@@ -11,12 +11,12 @@ focused submodules:
 
 All public functions are re-exported here for convenience::
 
-    from nltools.plotting import plot_surface, plot_roc, component_viewer  # all work
+    from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
 """
 
 from .brain import (
     plot_interactive_brain,
-    plot_surface,
+    plot_surf,
     plot_flatmap,
 )
 from .adjacency import (
@@ -49,5 +49,5 @@ __all__ = [
     "plot_silhouette",
     # adjacency
     "plot_stacked_adjacency",
-    "plot_surface",
+    "plot_surf",
 ]

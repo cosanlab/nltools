@@ -83,3 +83,4 @@ old-tutorials/
 dartbrains/
 scripts/sub-*
 nltools/tests/io_tests/legacy_fixtures/
+*.nii.gz

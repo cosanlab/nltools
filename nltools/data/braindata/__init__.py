@@ -1033,6 +1033,64 @@ class BrainData:
             save=save,
         )
 
+    def plot_surf(
+        self,
+        *,
+        hemi="both",
+        view="montage",
+        surface="pial",
+        template="fsaverage5",
+        threshold=None,
+        cmap="RdBu_r",
+        vmin=None,
+        vmax=None,
+        transparency="auto",
+        bg_on_data=False,
+        colorbar=True,
+        colorbar_orientation="horizontal",
+        figsize=(10, 8),
+        title=None,
+        radius_mm=3.0,
+        interpolation="linear",
+        zoom=1.2,
+        axes=None,
+        save=None,
+    ):
+        """Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
+
+        Facade over :func:`nltools.plotting.plot_surf`. See that function's
+        docstring for the full argument reference. Notable defaults:
+        ``surface="pial"``, ``zoom=1.2``, ``transparency="auto"`` (uses
+        this instance's ``.mask``).
+
+        Returns:
+            matplotlib.figure.Figure
+        """
+        from nltools.plotting import plot_surf
+
+        return plot_surf(
+            self,
+            hemi=hemi,
+            view=view,
+            surface=surface,
+            template=template,
+            threshold=threshold,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            transparency=transparency,
+            bg_on_data=bg_on_data,
+            colorbar=colorbar,
+            colorbar_orientation=colorbar_orientation,
+            figsize=figsize,
+            title=title,
+            radius_mm=radius_mm,
+            interpolation=interpolation,
+            zoom=zoom,
+            axes=axes,
+            save=save,
+        )
+
     def predict(
         self,
         X: "np.ndarray | None" = None,

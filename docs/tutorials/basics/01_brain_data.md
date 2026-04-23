@@ -49,7 +49,21 @@ In addition, `BrainData` stores additional meta-data as `polars` DataFrames usin
 
 ```{code-cell} python3
 # The pain dataset comes with metadata in X
-brains.X.head(10)
+brains.X.head()
+```
+
+## Saving Data
+
+`BrainData` can be saved as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata (X, Y), masks, and produces smaller file sizes:
+
+```{code-cell} python3
+# Save nifti
+# brains.write("data.nii.gz")
+```
+
+```{code-cell} python3
+# Save hdf5, with X, Y, mask, etc
+# brains.write("data.h5")
 ```
 
 ## Indexing and Slicing
@@ -58,18 +72,18 @@ brains.X.head(10)
 
 ```{code-cell} python3
 # Single image
-data[0]
+brains[0]
 ```
 
 ```{code-cell} python3
 # Slicing
-first_five = data[:5]
+first_five = brains[:5]
 print(f"Sliced: {first_five.shape}")
 ```
 
 ```{code-cell} python3
 # List indexing
-selected = data[[0, 10, 20, 30]]
+selected = brains[[0, 10, 20, 30]]
 print(f"Selected: {selected.shape}")
 ```
 
@@ -77,7 +91,7 @@ Boolean indexing lets you filter images based on computed properties:
 
 ```{code-cell} python3
 # Create a boolean mask of extreme values
-global_mean = data.mean(axis=1)
+global_mean = brains.mean(axis=1)
 threshold = global_mean * 2
 mask = global_mean > threshold
 
@@ -90,8 +104,8 @@ You can use `.append()` to concatenate `BrainData` objects:
 
 ```{code-cell} python3
 # Append one image to another
-img1 = data[0]
-img2 = data[1]
+img1 = brains[0]
+img2 = brains[1]
 
 # Combined
 img1.append(img2).shape
@@ -103,22 +117,22 @@ img1.append(img2).shape
 
 ```{code-cell} python3
 # Addition
-data + 100
+brains + 100
 ```
 
 ```{code-cell} python3
 # Multiplication
-data * 2
+brains * 2
 ```
 
 ```{code-cell} python3
 # Subtraction of first 2 time-points (images) → single brain map
-data[1] - data[0]
+brains[1] - brains[0]
 ```
 
 ```{code-cell} python3
 # Addition of all images and time-points
-data_doubled = data + data
+data_doubled = brains + brains
 data_doubled
 ```
 
@@ -128,17 +142,17 @@ data_doubled
 
 ```{code-cell} python3
 # Mean across all images → single brain map
-data.mean()
+brains.mean()
 ```
 
 ```{code-cell} python3
 # Standard deviation across images → single brain map
-data.std()
+brains.std()
 ```
 
 ```{code-cell} python3
 # Temporal signal-to-noise ratio → simple division
-tsnr = data.mean() / data.std()
+tsnr = brains.mean() / brains.std()
 
 # Visualize it
 tsnr.plot()
@@ -146,7 +160,7 @@ tsnr.plot()
 
 ```{code-cell} python3
 # Standardization/z-scoring
-z_scored = data.standardize(method="zscore", verbose=False)
+z_scored = brains.standardize(method="zscore", verbose=False)
 
 print(f"Z-scored mean: {z_scored.mean().data.mean():.6f}")
 
@@ -155,8 +169,8 @@ print(f"Z-scored std: {z_scored.std().data.mean():.4f}")
 
 ```{code-cell} python3
 # Apply a Gaussian spatial filter with a specified FWHM (in mm):
-smoothed = data[0].smooth(fwhm=6)
-print(f"Original range: [{data[0].data.min():.2f}, {data[0].data.max():.2f}]")
+smoothed = brains[0].smooth(fwhm=6)
+print(f"Original range: [{brains[0].data.min():.2f}, {brains[0].data.max():.2f}]")
 print(f"Smoothed range: [{smoothed.data.min():.2f}, {smoothed.data.max():.2f}]")
 ```
 
@@ -164,39 +178,13 @@ Threshold by absolute value or percentile. Optionally binarize for mask creation
 
 ```{code-cell} python3
 # Keep only voxels in the top 5%
-data.mean().threshold(upper="95%").plot()
+brains.mean().threshold(upper="95%").plot()
 ```
 
 ```{code-cell} python3
 # Binarize for use as a mask
-binary_mask = data.mean().threshold(upper="95%", binarize=True)
+binary_mask = brains.mean().threshold(upper="95%", binarize=True)
 print(f"Mask voxels: {binary_mask.data.sum():.0f}")
-```
-
-## Visualization
-
-`BrainData.plot()` supports several visualization types via the `method` parameter. Most are just convenience wrappers around [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html#module-nilearn.plotting), which means you can always use `BrainData.to_nifti()` to work directly with `nilearn`'s plotting functions:
-
-### Glass Brain (default)
-
-```{code-cell} python3
-mean_brain = data.mean()
-
-mean_brain.plot(title="Mean Activation")
-```
-
-### Timeseries
-
-For multi-image `BrainData`, plot the mean signal over time:
-
-```{code-cell} python3
-data.plot(method="timeseries", figsize=(6,4));
-```
-
-### Voxel Distribution
-
-```{code-cell} python3
-mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsize=(6,4));
 ```
 
 <!--TODO: Update this section with included ROI masks-->
@@ -207,6 +195,8 @@ Use `apply_mask` to restrict your data to a region of interest:
 
 ```{code-cell} python3
 # Original data
+mean_brain = brains.mean()
+
 # Get original data bounds to keep color bars consistent
 vmin, vmax = mean_brain.data.min(), mean_brain.data.max()
 
@@ -230,16 +220,57 @@ masked_data = mean_brain.apply_mask(roi_mask)
 masked_data.plot(vmin=vmin, vmax=vmax, cmap="RdBu_r")
 ```
 
-## File I/O
+## Visualization
 
-`BrainData` can be saved as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata (X, Y), masks, and produces smaller file sizes:
+`BrainData.plot()` supports several visualization types via the `method` parameter. Most are just convenience wrappers around [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html#module-nilearn.plotting), which means you can always use `BrainData.to_nifti()` to work directly with `nilearn`'s plotting functions:
+
+### Glass Brain (default)
 
 ```{code-cell} python3
-# Save nifti
-data.write("data.nii.gz")
+masked_data.plot(title="Mean Activation")
+```
+
+### Slices
+
+```{code-cell} python3
+# Default all views
+masked_data.plot(method="slices")
 ```
 
 ```{code-cell} python3
-# Save hdf5, with X, Y, mask, etc
-data.write("data.h5")
+# Only Z
+masked_data.plot(method="slices", view="z")
 ```
+
+```{code-cell} python3
+# Only X & Y
+masked_data.plot(method="slices", view="xy")
+```
+
+### Surface
+
+```{code-cell} python3
+masked_data.plot_surf(zoom=1.3);
+```
+
+### Flat-map
+
+```{code-cell} python3
+masked_data.plot_flatmap();
+```
+
+### Timeseries
+
+For multi-image `BrainData`, plot the mean signal over time:
+
+```{code-cell} python3
+brains.plot(method="timeseries", figsize=(6,4));
+```
+
+### Voxel Distribution
+
+```{code-cell} python3
+mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsize=(6,4));
+```
+
+
