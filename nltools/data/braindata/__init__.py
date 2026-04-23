@@ -903,6 +903,7 @@ class BrainData:
         upper=None,
         lower=None,
         threshold=None,
+        view="xyz",
         cut_coords=None,
         cmap=None,
         bg_img=None,
@@ -921,7 +922,13 @@ class BrainData:
             upper (str/float, optional): Upper threshold.
             lower (str/float, optional): Lower threshold.
             threshold (float, optional): Convenience parameter for thresholding.
-            cut_coords (list, optional): Cut coordinates for multi-slice views.
+            view (str): For ``method="slices"``, any non-empty combination of
+                ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
+                Default: ``"xyz"``.
+            cut_coords (list or dict, optional): Cut coordinates for
+                multi-slice views. Takes precedence over ``view``-based
+                defaults. Either a list matching ``len(view)`` or a dict
+                keyed by axis letter.
             cmap (str, optional): Colormap name.
             bg_img (str/nibabel image, optional): Background image.
             ax (matplotlib.axes.Axes, optional): Matplotlib axis.
@@ -943,6 +950,7 @@ class BrainData:
             upper=upper,
             lower=lower,
             threshold=threshold,
+            view=view,
             cut_coords=cut_coords,
             cmap=cmap,
             bg_img=bg_img,
@@ -965,6 +973,7 @@ class BrainData:
         with_curvature=True,
         curvature_contrast=0.5,
         curvature_brightness=0.5,
+        transparency="auto",
         colorbar=True,
         colorbar_orientation="horizontal",
         figsize=(12, 6),
@@ -985,6 +994,10 @@ class BrainData:
             with_curvature (bool): Show sulcal/gyral pattern. Default: True.
             curvature_contrast (float): Contrast of curvature overlay. Default: 0.5.
             curvature_brightness (float): Mean brightness of curvature overlay. Default: 0.5.
+            transparency (BrainData, Nifti1Image, str, or "auto"): Binary mask
+                used to render vertices outside the mask as transparent.
+                ``"auto"`` (default) uses the instance's ``.mask``; pass
+                ``None`` to disable masking.
             colorbar (bool): Show colorbar. Default: True.
             colorbar_orientation (str): 'horizontal' or 'vertical'. Default: 'horizontal'.
             figsize (tuple): Figure size as (width, height). Default: (12, 6).
@@ -1009,6 +1022,7 @@ class BrainData:
             with_curvature=with_curvature,
             curvature_contrast=curvature_contrast,
             curvature_brightness=curvature_brightness,
+            transparency=transparency,
             colorbar=colorbar,
             colorbar_orientation=colorbar_orientation,
             figsize=figsize,

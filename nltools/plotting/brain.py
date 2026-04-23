@@ -199,6 +199,41 @@ def _resolve_brain_input(brain):
     )
 
 
+def _resolve_transparency(transparency, brain):
+    """Resolve a transparency mask spec to a nibabel Nifti1Image (or None).
+
+    Args:
+        transparency: ``"auto"`` (use ``brain.mask`` if ``brain`` is a
+            BrainData, else ``None``), ``None`` (no masking), a
+            ``BrainData``, a ``nibabel.Nifti1Image``, or a file path.
+        brain: The primary ``brain`` argument passed to the plotting
+            function; used only to retrieve ``.mask`` when
+            ``transparency == "auto"``.
+
+    Returns:
+        nibabel.Nifti1Image or None.
+    """
+    import nibabel as nib
+    from nltools.data import BrainData
+
+    if transparency == "auto":
+        return brain.mask if isinstance(brain, BrainData) else None
+    if transparency is None:
+        return None
+    if isinstance(transparency, BrainData):
+        return transparency.to_nifti()
+    if isinstance(transparency, nib.Nifti1Image):
+        return transparency
+    if isinstance(transparency, (str, Path)):
+        if not os.path.exists(transparency):
+            raise ValueError(f"Transparency mask file not found: {transparency}")
+        return nib.load(transparency)
+    raise TypeError(
+        f"`transparency` must be BrainData, Nifti1Image, path, 'auto', or "
+        f"None; got {type(transparency)}"
+    )
+
+
 def _get_background_map(bg_map, hemi):
     """Resolve background map path.
 
@@ -490,6 +525,7 @@ def plot_flatmap(
     with_curvature=True,
     curvature_contrast=0.5,
     curvature_brightness=0.5,
+    transparency="auto",
     colorbar=True,
     colorbar_orientation="horizontal",
     figsize=(12, 6),
@@ -530,6 +566,12 @@ def plot_flatmap(
             (0=flat gray, 1=full contrast). Defaults to 0.5.
         curvature_brightness (float, optional): Mean brightness of
             curvature (0=dark, 1=bright). Defaults to 0.5.
+        transparency (BrainData, Nifti1Image, str, Path, or "auto", optional):
+            Binary mask used to render vertices outside the mask as
+            transparent (so the curvature shows through). ``"auto"`` (default)
+            uses the input ``BrainData``'s ``.mask`` when available, matching
+            the behavior of the volumetric ``.plot()``. Pass ``None`` to
+            disable masking entirely.
         colorbar (bool, optional): Show colorbar. Defaults to True.
         colorbar_orientation (str, optional): 'horizontal' or 'vertical'.
             Defaults to 'horizontal'.
@@ -582,6 +624,10 @@ def plot_flatmap(
     from matplotlib.colors import Normalize
     from matplotlib.cm import ScalarMappable
 
+    # Resolve transparency mask *before* converting input to nifti (we need
+    # access to BrainData.mask for the "auto" default).
+    mask_img = _resolve_transparency(transparency, brain)
+
     # Resolve input to nibabel image
     nifti_img = _resolve_brain_input(brain)
 
@@ -601,6 +647,18 @@ def plot_flatmap(
         radius=radius_mm,
         interpolation=interpolation,
     )
+
+    # Project the transparency mask to the surface and NaN-out vertices
+    # outside the mask so the curvature shows through cleanly.
+    if mask_img is not None:
+        mask_left = surface.vol_to_surf(
+            mask_img, fs["pial_left"], radius=radius_mm, interpolation="linear"
+        )
+        mask_right = surface.vol_to_surf(
+            mask_img, fs["pial_right"], radius=radius_mm, interpolation="linear"
+        )
+        texture_left = np.where(mask_left >= 0.5, texture_left, np.nan)
+        texture_right = np.where(mask_right >= 0.5, texture_right, np.nan)
 
     # Load flat surface meshes
     flat_left = nib.load(fs["flat_left"])

@@ -6,12 +6,20 @@ import warnings
 import numpy as np
 
 
+DEFAULT_SLICE_CUT_COORDS = {
+    "x": list(range(-50, 51, 8)),
+    "y": list(range(-80, 50, 10)),
+    "z": list(range(-40, 71, 9)),
+}
+
+
 def plot_brain(
     bd,
     method="glass",
     upper=None,
     lower=None,
     threshold=None,
+    view="xyz",
     cut_coords=None,
     cmap=None,
     bg_img=None,
@@ -36,7 +44,15 @@ def plot_brain(
             forwarded to the underlying nilearn plot function. Voxels with
             ``|value| < threshold`` are rendered transparent. Must be >= 0.
             Use ``upper``/``lower`` for one-sided data thresholding.
-        cut_coords (list, optional): Cut coordinates for multi-slice views.
+        view (str): For ``method="slices"``, any non-empty combination of
+            ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
+            Default: ``"xyz"``.
+        cut_coords (list or dict, optional): Cut coordinates for multi-slice
+            views. If provided, takes precedence over ``view``-based defaults.
+            Either a list of per-axis coordinate sequences whose length
+            matches ``view``, or a dict keyed by axis letter (``{"x": [...],
+            "z": [...]}``) from which entries for each axis in ``view`` are
+            looked up.
         cmap (str, optional): Colormap name.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
@@ -90,20 +106,40 @@ def plot_brain(
     if len(obj.shape) > 1 and obj.shape[0] > 1:
         obj = obj[0]
 
-    # Default cut coordinates
+    # Parse `view` into an ordered list of axis letters (only matters for
+    # method="slices"; cheap to compute so we always do it).
+    views = list(view.lower()) if isinstance(view, str) else []
+    if not views or not set(views).issubset({"x", "y", "z"}):
+        raise ValueError(
+            f"Invalid `view`: {view!r}. Must be a non-empty string containing "
+            "any combination of 'x', 'y', 'z' (e.g. 'xyz', 'xz', 'y')."
+        )
+
+    # Resolve cut_coords against `views`. User-supplied cut_coords take
+    # precedence; defaults are drawn from DEFAULT_SLICE_CUT_COORDS per-axis.
     if cut_coords is None:
+        cut_coords = [DEFAULT_SLICE_CUT_COORDS[v] for v in views]
+    elif isinstance(cut_coords, dict):
+        missing = [v for v in views if v not in cut_coords]
+        if missing:
+            raise ValueError(
+                f"`cut_coords` dict is missing entries for axes {missing} "
+                f"required by view={view!r}."
+            )
+        cut_coords = [cut_coords[v] for v in views]
+    else:
         cut_coords = [
-            range(-50, 51, 8),  # x coordinates
-            range(-80, 50, 10),  # y coordinates
-            range(-40, 71, 9),  # z coordinates
+            list(c) if isinstance(c, range) else c for c in cut_coords
         ]
+        if len(cut_coords) != len(views):
+            raise ValueError(
+                f"`cut_coords` has {len(cut_coords)} entries but view={view!r} "
+                f"requires {len(views)}."
+            )
 
     # Default colormap with auto-selection
     if cmap is None:
         cmap = auto_select_colormap(obj.data)
-
-    # Views for multi-slice plotting
-    views = ["x", "y", "z"]
 
     # Handle save paths
     save_paths = prepare_save_paths(save) if save else None
@@ -164,9 +200,8 @@ def plot_brain(
                 else:
                     # Re-raise if it's a different ValueError
                     raise
-        for v, c, savefile in zip(
-            views, cut_coords, save_paths["slices"] if save_paths else [None] * 3
-        ):
+        for v, c in zip(views, cut_coords):
+            savefile = save_paths["slices"][v] if save_paths else None
             display_slice = plot_stat_map(
                 nifti_img,
                 cut_coords=c,
@@ -194,6 +229,7 @@ def plot_flatmap_brain(
     with_curvature=True,
     curvature_contrast=0.5,
     curvature_brightness=0.5,
+    transparency="auto",
     colorbar=True,
     colorbar_orientation="horizontal",
     figsize=(12, 6),
@@ -247,6 +283,7 @@ def plot_flatmap_brain(
         with_curvature=with_curvature,
         curvature_contrast=curvature_contrast,
         curvature_brightness=curvature_brightness,
+        transparency=transparency,
         colorbar=colorbar,
         colorbar_orientation=colorbar_orientation,
         figsize=figsize,
@@ -397,9 +434,9 @@ def prepare_save_paths(save):
 
     return {
         "glass": f"{base_path}_glass.{extension}",
-        "slices": [
-            f"{base_path}_x.{extension}",
-            f"{base_path}_y.{extension}",
-            f"{base_path}_z.{extension}",
-        ],
+        "slices": {
+            "x": f"{base_path}_x.{extension}",
+            "y": f"{base_path}_y.{extension}",
+            "z": f"{base_path}_z.{extension}",
+        },
     }
