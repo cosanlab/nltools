@@ -160,11 +160,13 @@ class TestBrainDataPlotting:
         assert result is not None
 
     def test_plot_threshold_convenience(self, minimal_brain_data):
-        """Test convenience threshold parameter"""
+        """`threshold` is an absolute-value transparency cutoff (nilearn semantics)."""
         result = minimal_brain_data[0].plot(threshold=0.5)
         assert result is not None
-        result = minimal_brain_data[0].plot(threshold=-0.5)
+        result = minimal_brain_data[0].plot(threshold=0)
         assert result is not None
+        with pytest.raises(ValueError, match="absolute-value"):
+            minimal_brain_data[0].plot(threshold=-0.5)
 
     def test_plot_custom_title(self, minimal_brain_data):
         """Test custom title"""

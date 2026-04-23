@@ -226,8 +226,8 @@ roi_mask.plot(vmin=0, vmax=1, cmap='gray_r')
 # Apply it
 masked_data = mean_brain.apply_mask(roi_mask)
 
-# Plot it
-masked_data.plot(vmin=vmin, vmax=vmax, cmap="RdBu_r", threshold=0)
+# Plot it — voxels outside the mask render transparent
+masked_data.plot(vmin=vmin, vmax=vmax, cmap="RdBu_r")
 ```
 
 ## File I/O

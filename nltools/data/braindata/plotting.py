@@ -28,11 +28,14 @@ def plot_brain(
     Args:
         bd: BrainData instance.
         method (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
-        upper (str/float, optional): Upper threshold.
-        lower (str/float, optional): Lower threshold.
-        threshold (float, optional): Convenience parameter. If positive,
-            sets upper (shows values above threshold). If negative,
-            sets lower (shows values below threshold).
+        upper (str/float, optional): Upper threshold applied to the data
+            (nltools semantics; may be a percentile string like ``"95%"``).
+        lower (str/float, optional): Lower threshold applied to the data
+            (nltools semantics).
+        threshold (float, optional): Absolute-value transparency cutoff
+            forwarded to the underlying nilearn plot function. Voxels with
+            ``|value| < threshold`` are rendered transparent. Must be >= 0.
+            Use ``upper``/``lower`` for one-sided data thresholding.
         cut_coords (list, optional): Cut coordinates for multi-slice views.
         cmap (str, optional): Colormap name.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
@@ -57,12 +60,12 @@ def plot_brain(
     if bd.is_empty:
         raise ValueError("Cannot plot empty BrainData object")
 
-    # Handle convenience threshold parameter
-    if threshold is not None:
-        if threshold >= 0:
-            upper = threshold
-        else:
-            lower = threshold
+    if threshold is not None and threshold < 0:
+        raise ValueError(
+            f"`threshold` is an absolute-value cutoff and must be >= 0 "
+            f"(got {threshold}). Use `upper` / `lower` for one-sided data "
+            f"thresholding."
+        )
 
     # Validate 'method' parameter
     valid_methods = ["glass", "slices", "timeseries", "histogram"]
@@ -77,8 +80,8 @@ def plot_brain(
             bd, method=method, stat=stat, ax=ax, figsize=figsize, title=title, save=save
         )
 
-    # Handle thresholding
-    if upper or lower:
+    # Handle thresholding (nltools band-pass semantics on the data itself)
+    if upper is not None or lower is not None:
         obj = bd.threshold(upper=upper, lower=lower)
     else:
         obj = bd
@@ -120,6 +123,12 @@ def plot_brain(
     plot_kwargs.pop("how", None)  # Remove 'how' if accidentally passed
     if title:
         plot_kwargs["title"] = title
+    if threshold is not None:
+        plot_kwargs["threshold"] = threshold
+    # Use the BrainData mask as a transparency image so voxels outside the
+    # mask render transparent (nilearn >= 0.12). Users can override by passing
+    # their own `transparency=` kwarg.
+    plot_kwargs.setdefault("transparency", obj.mask)
 
     if method == "glass":
         display_glass = plot_glass_brain(
