@@ -123,6 +123,53 @@ class TestBrainDataModeling:
             minimal_brain_data.model_ = object()
             minimal_brain_data.compute_contrasts([1, -1, 0], contrast_type="F")
 
+    @pytest.mark.slow
+    def test_compute_contrasts_all_single_returns_bundle(self, minimal_brain_data):
+        """contrast_type='all' returns a flat dict with beta/t/z/p/se for one contrast."""
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", X=design_matrix)
+
+        res = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="all")
+        assert isinstance(res, dict)
+        assert set(res.keys()) == {"beta", "t", "z", "p", "se"}
+        for key in ("beta", "t", "z", "p", "se"):
+            assert isinstance(res[key], BrainData)
+            assert res[key].shape[-1] == minimal_brain_data.shape[1]
+
+        # Consistency: individual calls agree with the bundle.
+        t_only = minimal_brain_data.compute_contrasts(
+            "condA - condB", contrast_type="t"
+        )
+        np.testing.assert_allclose(np.asarray(t_only.data), np.asarray(res["t"].data))
+
+    @pytest.mark.slow
+    def test_compute_contrasts_all_dict_returns_nested(self, minimal_brain_data):
+        """contrast_type='all' + dict input returns nested {name: {beta,t,z,p,se}}."""
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", X=design_matrix)
+
+        res = minimal_brain_data.compute_contrasts(
+            {"A_vs_B": "condA - condB", "just_A": [0, 1, 0]},
+            contrast_type="all",
+        )
+        assert set(res.keys()) == {"A_vs_B", "just_A"}
+        for bundle in res.values():
+            assert set(bundle.keys()) == {"beta", "t", "z", "p", "se"}
+            for m in bundle.values():
+                assert isinstance(m, BrainData)
+
     # ==================== Unified fit/predict API ====================
 
     def test_fit_predict_ridge_workflow(self, minimal_brain_data):

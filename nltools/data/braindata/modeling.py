@@ -781,7 +781,39 @@ _CONTRAST_OUTPUT_TYPES = {
     "p": "p_value",
     "beta": "effect_size",
     "effect_size": "effect_size",
+    "all": "all",
 }
+
+# nilearn 'all' output → cleaner nltools keys. effect_variance is stored
+# as the standard error after a sqrt, for symmetry with bd.glm_se.
+_CONTRAST_ALL_KEY_MAP = {
+    "effect_size": "beta",
+    "stat": "t",
+    "z_score": "z",
+    "p_value": "p",
+    "effect_variance": "se",
+}
+
+
+def _contrast_all_to_bd(img_dict, mask):
+    """Convert nilearn's output_type='all' dict into a dict of BrainData.
+
+    ``effect_variance`` is stored as the (voxel-wise) standard error, i.e.
+    ``sqrt(|effect_variance|)`` — matches how ``bd.glm_se`` is computed in
+    :func:`fit_glm` and what a user thinks of as "SE of the contrast".
+    """
+    from . import BrainData
+
+    out = {}
+    for src_key, dst_key in _CONTRAST_ALL_KEY_MAP.items():
+        img = img_dict[src_key]
+        if dst_key == "se":
+            bd_map = BrainData(img, mask=mask, verbose=False)
+            bd_map.data = np.sqrt(np.abs(np.asarray(bd_map.data)))
+            out[dst_key] = bd_map
+        else:
+            out[dst_key] = BrainData(img, mask=mask, verbose=False)
+    return out
 
 
 def compute_contrasts(bd, contrasts, contrast_type="t"):
@@ -812,10 +844,22 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
             - ``"p"``: p-value map
             - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this
               when feeding into a second-level (group) analysis
+            - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``
+              of BrainData maps for this one contrast. One fit, one call,
+              every view — effect size *and* inferential maps together so
+              group-level code never has to recompute beta separately.
 
     Returns:
-        BrainData or dict: single BrainData for a single-contrast input, dict of
-        BrainData objects for a dict input.
+        Depends on inputs:
+
+            - single contrast (str or array) + scalar ``contrast_type``:
+              a single BrainData.
+            - single contrast + ``contrast_type="all"``: a flat dict of five
+              BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``.
+            - dict of contrasts + scalar ``contrast_type``: a dict
+              ``{name: BrainData}``.
+            - dict of contrasts + ``contrast_type="all"``: a nested dict
+              ``{name: {"beta", "t", "z", "p", "se"}}``.
 
     Raises:
         RuntimeError: if ``.fit(model='glm')`` has not been run.
@@ -830,11 +874,18 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
         >>> beta = data.compute_contrasts(
         ...     "conditionA - conditionB", contrast_type="beta"
         ... )
+        >>> # Everything at once: threshold on res["t"], feed group on res["beta"]
+        >>> res = data.compute_contrasts(
+        ...     "conditionA - conditionB", contrast_type="all"
+        ... )
+        >>> res["t"].plot(threshold=3.09)
+        >>> group_effects.append(res["beta"])
 
     Notes:
         - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
         - Column names must match design matrix columns exactly (case-sensitive).
-        - For group analysis, stack per-subject effect-size maps (``contrast_type="beta"``)
+        - For group analysis, stack per-subject effect-size maps
+          (``contrast_type="beta"`` or ``res["beta"]`` from ``contrast_type="all"``)
           and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
           t-maps into a group one-sample test conflates effect magnitude with precision.
     """
@@ -856,6 +907,7 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
             f"got {contrast_type!r}"
         )
     output_type = _CONTRAST_OUTPUT_TYPES[contrast_type]
+    want_all = contrast_type == "all"
 
     # Normalize contrasts → {name: contrast_def}
     if isinstance(contrasts, (str, list, np.ndarray)):
@@ -881,10 +933,13 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
                 f"number of regressors ({n_regressors})"
             )
 
-        contrast_img = bd.model_.compute_contrast(
+        contrast_out = bd.model_.compute_contrast(
             contrast_vector, output_type=output_type
         )
-        results[name] = BrainData(contrast_img, mask=bd.mask, verbose=False)
+        if want_all:
+            results[name] = _contrast_all_to_bd(contrast_out, bd.mask)
+        else:
+            results[name] = BrainData(contrast_out, mask=bd.mask, verbose=False)
 
     if single_contrast:
         return results["contrast"]

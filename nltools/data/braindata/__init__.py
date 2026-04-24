@@ -824,6 +824,25 @@ class BrainData:
             BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData).
                 If ``inplace=False``, returns Fit dataclass with results.
 
+        Notes:
+            After ``model="glm"``, the following per-regressor BrainData
+            attributes are populated — one map per design-matrix column:
+
+                - ``glm_betas``: effect-size (β) maps.
+                - ``glm_t``: marginal t-statistic for each regressor.
+                - ``glm_p``: marginal p-value.
+                - ``glm_se``: standard error of β.
+                - ``glm_r2``: voxel-wise R².
+
+            ``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
+            regressor ``i`` only. For contrasts across regressors
+            (``"A - B"``, ``[1, -1, 0, ...]``) use :meth:`compute_contrasts` —
+            you cannot correctly combine these per-regressor maps by hand
+            because t-statistic arithmetic requires the off-diagonal elements
+            of the parameter covariance matrix, which are not stored. Pass
+            ``contrast_type="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
+            one contrast in a single call.
+
         Examples:
             >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
             >>> fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
