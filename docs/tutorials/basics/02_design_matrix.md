@@ -13,7 +13,7 @@ The `DesignMatrix` class is the core data structure in for working with csv/tsv/
 
 ## Basics 
 
-Lets build a small toy design matrix to learn the basics. In the next section you can jump to [Loading from a file](#loading-from-a-file).
+Lets build a small toy design matrix to learn the basics.
 
 ```{code-cell} python3
 from nltools.data import DesignMatrix
@@ -64,7 +64,7 @@ dm.head()
 Or specific columns:
 
 ```{code-cell} python3
-dm.select('face_A', 'house_A').head()
+dm.select('face_A', 'face_B').tail()
 ```
 
 You can also visualize the design matrix as an SPM-style heatmap, where rows are time-points and columns are regressors:
@@ -91,7 +91,7 @@ sns.lineplot(dm.convolve().data['face_A'], label='convolved', ax=ax);
 
 `DesignMatrix` supports two equivalent approaches for creating "nuisance" regressors to capture low-frequency signals for use in GLM analysis: `.add_poly()` and `.add_dct_basis()`. 
 
-### Polynomial Drift
+### Polynomials
 
 Legendre polynomials capture low-frequency trends defined by order:
 
@@ -115,28 +115,59 @@ dm.add_dct_basis(duration=20).plot();
 
 ## Multicollinearity Diagnostics
 
-### Variance Inflation Factor (VIF)
 
-VIF measures how much each regressor's variance is inflated by correlation with other regressors
-
-```{code-cell} python3
-# vif = dm_full.vif()
-# print("Variance Inflation Factors:")
-# print(vif)
-```
 
 ### Cleaning Correlated Columns
 
-`.clean()` automatically removes columns with correlation above a threshold:
+It's **incredibly** important in classic GLM analysis to ensure don't have excessive multi-collinearity in your design matrix to ensure stable voxel beta-estimates. `DesignMatrix` offers a few tools to help: `.vif()` and `.clean()`
+
+### Variance Inflation Factor (VIF)
+
+VIF measures how much each regressor's variance is inflated by correlation with other regressors with values >= 5 classically cause for caution:
 
 ```{code-cell} python3
-# dm_cleaned = dm_full.clean(thresh=0.95)
-# print(f"Before: {dm_full.shape[1]} columns → After: {dm_cleaned.shape[1]} columns")
+dm.vif()
+```
+
+We can also visualize a correlation matrix of columns using regular `polars` and `seaborn` commands:
+
+```{code-cell} python
+sns.heatmap(dm.corr(), vmin=-1, vmax=1, cmap="RdBu_r", square=True, annot=True);
+```
+
+Let's see a degenerate design:
+
+```{code-cell} python
+# Just duplicate the design
+dm2 = dm.copy()
+dm2.columns = ['car_A', 'car_B', 'dog_A', 'dog_B']
+
+# And horizontally/column-wise append it (axis = 1)
+duplicated_dm = dm.append(dm2, axis=1)
+duplicated_dm.plot();
+```
+
+Columns are perfectly correlated:
+
+```{code-cell} python
+sns.heatmap(dm.corr(), vmin=-1, vmax=1, cmap="RdBu_r", square=True, annot=True);
+```
+
+And we can't even compute VIFs (they're essentially infinite):
+
+```{code-cell} python
+duplicated_dm.vif()
+```
+
+Instead we can use `.clean()` to automatically removes columns with correlations above a threshold:
+
+```{code-cell} python3
+duplicated_dm.clean(thresh=.99).plot();
 ```
 
 ## Combining Runs
 
-Use `.append(axis=0)` to stack design matrices across runs. Polynomial columns are automatically separated per run with `keep_separate=True` (default):
+We saw `.append()` above which can be used to combined multiple `DesignMatrix`. Use `.append(axis=0)` will combine vertically/row-wise for stacking design matrices across runs. Polynomial columns are automatically separated per run with `keep_separate=True` (default):
 
 ```{code-cell} python3
 # Create two "runs"

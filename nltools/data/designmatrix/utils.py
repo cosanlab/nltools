@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 WRAP_AS_DESIGNMATRIX = frozenset(
-    {"head", "tail", "sample", "slice", "filter", "select"}
+    {"slice", "filter", "select"}
 )
 
 
