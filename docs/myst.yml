@@ -122,4 +122,5 @@ site:
     logo: ''
     logo_text: nltools
     folders: true
+    output_matplotlib_strings: remove
   template: book-theme

@@ -4,9 +4,9 @@
 # First-level GLM workflow: load data, fit model, compute contrasts.
 
 # %%
-import matplotlib
+# import matplotlib
 
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ from nltools.datasets import fetch_haxby
 
 # %%
 # Load Haxby dataset (single subject)
-brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=1, resample=True)
+brain_data, design_matrices = fetch_haxby(n_subjects=1, verbose=True, mask=None, resample=True)
 
 data = brain_data[0]
 dm = design_matrices[0]
@@ -26,6 +26,10 @@ dm = design_matrices[0]
 print(f"Data shape: {data.shape}")
 print(f"Design matrix: {dm.shape}")
 print(f"Conditions: {list(dm.columns)}")
+
+# %%
+data.mean().plot()
+
 
 # %% [markdown]
 # ## Visualize Design Matrix
@@ -63,7 +67,7 @@ print(f"  glm_p: {data.glm_p.shape}")
 # %%
 # Method 1: String notation
 face_vs_house = data.compute_contrasts("face - house")
-face_vs_house.plot(title="Face > House (t-statistic)")
+face_vs_house.plot(title="Face > House", threshold="90%")
 
 # %%
 # Method 2: Numeric vector (for complex contrasts)
