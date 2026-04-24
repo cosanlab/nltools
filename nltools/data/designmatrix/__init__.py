@@ -260,20 +260,31 @@ class DesignMatrix:
 
     # ── Public methods (alphabetical) ───────────────────────────────────
 
-    def add_dct_basis(self, duration: float = 180, drop: int = 0) -> DesignMatrix:
+    def add_dct_basis(
+        self,
+        duration: float = 180,
+        drop: int = 0,
+        *,
+        include_constant: bool = True,
+    ) -> DesignMatrix:
         """
         Add discrete cosine transform basis functions (high-pass filter).
 
         Args:
             duration (float): Filter duration in seconds. Default: 180.
             drop (int): Number of low-frequency bases to drop. Default: 0.
+            include_constant (bool): If True, also add a constant/intercept
+                column named ``cosine_0`` (analogous to ``poly_0`` in
+                :meth:`add_poly`). The underlying DCT basis drops the constant
+                per SPM convention; set False to match SPM behavior.
+                Default: True.
 
         Returns:
             DesignMatrix: New DesignMatrix with DCT basis columns appended.
         """
         from .regressors import add_dct_basis
 
-        return add_dct_basis(self, duration, drop)
+        return add_dct_basis(self, duration, drop, include_constant=include_constant)
 
     def add_poly(self, order: int = 0, include_lower: bool = True) -> DesignMatrix:
         """
@@ -416,12 +427,16 @@ class DesignMatrix:
         filled_df = self.data.fill_null(value).fill_nan(value)
         return copy_with(self, filled_df)
 
-    def plot(self, figsize: tuple = (8, 6), **kwargs):
+    def plot(self, figsize: tuple = (4, 6), *, rescale: bool = True, **kwargs):
         """
         Visualize design matrix as heatmap (SPM-style).
 
         Args:
             figsize (tuple, default=(8, 6)): Figure size (width, height) in inches
+            rescale (bool, default=True): If True, rescale each column by its
+                L2 norm so columns with different native magnitudes are visually
+                comparable (matches SPM/nilearn convention). Set False to plot
+                raw values.
             **kwargs: Additional keyword arguments passed to seaborn.heatmap()
 
         Returns:
@@ -429,7 +444,7 @@ class DesignMatrix:
         """
         from .io import plot_designmatrix
 
-        return plot_designmatrix(self, figsize, **kwargs)
+        return plot_designmatrix(self, figsize, rescale=rescale, **kwargs)
 
     def replace_data(
         self,

@@ -272,5 +272,3 @@ brains.plot(method="timeseries", figsize=(6,4));
 ```{code-cell} python3
 mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsize=(6,4));
 ```
-
-

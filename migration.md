@@ -375,7 +375,7 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | `.upsample` | `.upsample` | unchanged |
 | `.zscore` | `.zscore` | unchanged |
 | `.add_poly` | `.add_poly` | unchanged |
-| `.add_dct_basis` | `.add_dct_basis` | unchanged |
+| `.add_dct_basis` | `.add_dct_basis(..., include_constant=True)` | signature-changed — new keyword-only `include_constant: bool = True` adds a `cosine_0` constant/intercept column (mirrors `poly_0` in `add_poly`). Old SPM-style behaviour (no constant): pass `include_constant=False`. |
 | `.replace_data` | `.replace_data` | unchanged |
 | `.clean` | `.clean` | unchanged |
 | — | `.shape` (property) | added |

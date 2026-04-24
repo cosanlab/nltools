@@ -218,6 +218,7 @@ def add_dct_basis(
     dm: DesignMatrix,
     duration: float = 180,
     drop: int = 0,
+    include_constant: bool = True,
 ) -> DesignMatrix:
     """
     Add discrete cosine transform basis functions (high-pass filter).
@@ -226,6 +227,10 @@ def add_dct_basis(
         dm: DesignMatrix to add DCT basis to.
         duration (float): Filter duration in seconds. Default: 180.
         drop (int): Number of low-frequency bases to drop. Default: 0.
+        include_constant (bool): If True, also add a constant/intercept column
+            named ``cosine_0`` (analogous to ``poly_0`` in :func:`add_poly`).
+            The underlying DCT basis drops the constant per SPM convention;
+            set False to match SPM behavior. Default: True.
 
     Returns:
         DesignMatrix: New DesignMatrix with DCT basis columns appended.
@@ -260,6 +265,26 @@ def add_dct_basis(
     # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
     # e.g., drop=2 -> cosine_3, cosine_4, ... (skipped cosine_1, cosine_2)
     basis_col_names = [f"cosine_{drop + i + 1}" for i in range(basis_mat.shape[1])]
+
+    # Optionally prepend cosine_0 (constant/intercept) — mirrors poly_0 in add_poly.
+    # make_cosine_basis drops the constant per SPM; we re-add it here when asked,
+    # and skip if an intercept-like polys column already exists.
+    if include_constant:
+        _has_intercept = False
+        if dm.polys:
+            for p in dm.polys:
+                col_vals = dm[p].to_numpy().flatten()
+                if np.allclose(col_vals, 1.0):
+                    _has_intercept = True
+                    break
+        if "cosine_0" in (dm.polys or []) or _has_intercept:
+            warnings.warn(
+                "Design Matrix already has an intercept column...skipping cosine_0",
+                stacklevel=3,
+            )
+        else:
+            basis_col_names.insert(0, "cosine_0")
+            basis_mat = np.column_stack([np.ones(dm.shape[0]), basis_mat])
 
     # Check which bases we don't already have (idempotent)
     if dm.polys:

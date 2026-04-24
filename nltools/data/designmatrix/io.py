@@ -15,7 +15,13 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
+def plot_designmatrix(
+    dm: DesignMatrix,
+    figsize: tuple = (8, 6),
+    *,
+    rescale: bool = True,
+    **kwargs,
+):
     """
     Visualize design matrix as heatmap (SPM-style).
 
@@ -25,6 +31,9 @@ def plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
     Args:
         dm: DesignMatrix instance.
         figsize (tuple): Figure size (width, height) in inches. Default: (8, 6).
+        rescale (bool): If True, rescale each column by its L2 norm so columns
+            with different native magnitudes are visually comparable (matches
+            SPM/nilearn convention). Default: True.
         **kwargs: Additional keyword arguments passed to seaborn.heatmap().
 
     Returns:
@@ -40,13 +49,20 @@ def plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs):
     # Convert to pandas for seaborn (which expects pandas DataFrames)
     df_for_plot = to_pandas(dm)
 
+    if rescale:
+        import pandas as pd
+
+        X = df_for_plot.to_numpy(dtype=float)
+        X = X / np.maximum(1.0e-12, np.sqrt(np.sum(X**2, 0)))
+        df_for_plot = pd.DataFrame(X, columns=df_for_plot.columns)
+
     # Create figure and axis
     fig, ax = plt.subplots(figsize=figsize)
 
     # Set default heatmap parameters
     heatmap_kwargs = {
-        "cmap": "RdBu_r",
-        "center": 0,
+        "cmap": "gray",
+        "cbar": False,
         "cbar_kws": {"label": "Value"},
         "yticklabels": False,  # Too many rows for labels typically
     }

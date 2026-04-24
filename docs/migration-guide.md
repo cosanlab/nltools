@@ -1452,6 +1452,7 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 - [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Remove any `DesignMatrix.reset_index()` calls (pandas-compat no-op; removed)
+- [ ] `DesignMatrix.add_dct_basis()` now adds a `cosine_0` constant column by default (parity with `add_poly(0)` → `poly_0`). If you were chaining `.add_poly(0)` after `.add_dct_basis()` and relied on no intercept from the DCT call, drop the now-redundant `add_poly(0)` or pass `include_constant=False` to restore the old SPM-style (no-constant) behaviour.
 
 ### Optional (new features to consider)
 

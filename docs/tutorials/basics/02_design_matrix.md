@@ -11,210 +11,106 @@ kernelspec:
 
 The `DesignMatrix` class is the core data structure in for working with csv/tsv/dataframes that capture your experimental design (e.g. GLM analysis) or voxel-wise model (e.g. encoding models, group-analysis). `DesignMatrix` is backed by `polars` internally for fast operations, but accepts pandas DataFrames, dicts, and numpy arrays as input.
 
-Lets load an included dataset to inspect a pre-built `DesignMatrix`:
+## Basics 
+
+Lets build a small toy design matrix to learn the basics. In the next section you can jump to [Loading from a file](#loading-from-a-file).
 
 ```{code-cell} python3
-import matplotlib.pyplot as plt
-from nltools.datasets import fetch_haxby
 from nltools.data import DesignMatrix
+import numpy as np
 
-# Get all subjects
-brains, designs = fetch_haxby()
-
-# Just a single subject
-s1_brain, s1_design = brains[0], designs[0]
-
-s1_design
+# Create a sample design matrix
+dm = DesignMatrix(np.array([
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [1,0,0,0],
+                            [1,0,0,0],
+                            [0,0,0,0],
+                            [0,1,0,0],
+                            [0,1,0,0],
+                            [0,0,0,0],
+                            [0,0,1,0],
+                            [0,0,1,0],
+                            [0,0,0,0],
+                            [0,0,0,1],
+                            [0,0,0,1],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0],
+                            [0,0,0,0]
+                            ]),
+                            columns=['face_A','face_B','house_A','house_B'],
+                            sampling_freq = 0.5, # 2s TR
+                            )
 ```
 
-`DesignMatrix` works just like a `polars` Dataframe so you can use familiar methods to inspect the data: `.head`, `.tail`, etc. 
+`DesignMatrix` works just like a `polars` Dataframe so you can use familiar methods to inspect the data: `.head()`, `.tail()`, etc. 
 
 ```{code-cell} python3
-s1_design.head()
+dm
+```
+
+Get the first few rows:
+
+```{code-cell} python3
+dm.head()
+```
+
+Or specific columns:
+
+```{code-cell} python3
+dm.select('face_A', 'house_A').head()
+```
+
+You can also visualize the design matrix as an SPM-style heatmap, where rows are time-points and columns are regressors:
+
+```{code-cell} python3
+dm.plot();
 ```
 
 ## HRF Convolution
 
-The hemodynamic response function (HRF) models the sluggish BOLD signal response to neural activity. In nltools, you create a boxcar stimulus timecourse and then convolve it with the canonical HRF.
+The hemodynamic response function (HRF) models the sluggish BOLD signal response to neural activity. You can use `.convolve()` to apply this function to all your columns of interest. Notice how the columns are delayed in time:
 
 ```{code-cell} python3
-# Define event timing
-onsets = [20, 40, 60, 80, 100, 120]  # seconds
-durations = [2] * len(onsets)         # seconds
-
-# Create stimulus boxcar at TR resolution
-stim = np.zeros(n_samples)
-for onset, dur in zip(onsets, durations):
-    start_idx = int(onset / TR)
-    end_idx = int((onset + dur) / TR)
-    if start_idx < n_samples:
-        stim[start_idx:min(end_idx, n_samples)] = 1
-
-# Convolve with canonical HRF
-dm_hrf = DesignMatrix({"task": stim}, sampling_freq=sampling_freq)
-dm_hrf = dm_hrf.convolve("hrf")
-print(f"HRF-convolved: {dm_hrf.shape}")
+dm.convolve().plot();
 ```
 
-```{code-cell} python3
-fig, axes = plt.subplots(2, 1, figsize=(12, 5), sharex=True)
-axes[0].plot(stim)
-axes[0].set_ylabel("Stimulus")
-axes[0].set_title("Original Boxcar")
-
-axes[1].plot(dm_hrf["task"].to_numpy())
-axes[1].set_ylabel("BOLD Signal")
-axes[1].set_xlabel("Volume Number")
-axes[1].set_title("HRF-Convolved Regressor")
-
-# Mark event onsets
-for onset in onsets:
-    for ax in axes:
-        ax.axvline(onset / TR, color="r", linestyle="--", alpha=0.3)
-
-plt.tight_layout()
-plt.show()
+```{code-cell} python
+import seaborn as sns
+ax = sns.lineplot(dm.data['face_A'], label='original')
+sns.lineplot(dm.convolve().data['face_A'], label='convolved', ax=ax);
 ```
 
-### Selective Convolution
+## Creating Drift Regressors
 
-When your design matrix has both task and nuisance columns, use the `columns` argument to convolve only task regressors:
-
-```{code-cell} python3
-dm_mixed = DesignMatrix(
-    {"task": stim, "motion_x": np.random.randn(n_samples) * 0.5},
-    sampling_freq=sampling_freq,
-)
-dm_mixed = dm_mixed.convolve("hrf", columns=["task"])
-print("Only 'task' was convolved, 'motion_x' left unchanged")
-```
-
-### Parametric Modulation
-
-Modulate a regressor by a trial-level variable (e.g., reaction time) to capture parametric effects:
-
-```{code-cell} python3
-param_onsets = [20, 40, 60, 80, 100]
-reaction_times = [0.5, 0.7, 0.6, 0.9, 0.55]
-
-# Create impulse regressors at event onsets
-stim_main = np.zeros(n_samples)
-stim_param = np.zeros(n_samples)
-
-for onset, rt in zip(param_onsets, reaction_times):
-    idx = int(onset / TR)
-    if idx < n_samples:
-        stim_main[idx] = 1
-        stim_param[idx] = rt
-
-dm_param = DesignMatrix(
-    {"task_main": stim_main, "task_x_rt": stim_param},
-    sampling_freq=sampling_freq,
-)
-dm_param = dm_param.convolve("hrf")
-
-corr = np.corrcoef(
-    dm_param["task_main"].to_numpy(), dm_param["task_x_rt"].to_numpy()
-)[0, 1]
-print(f"Correlation between main effect and parametric modulator: {corr:.3f}")
-```
-
-## Drift Regressors
-
-fMRI data contains low-frequency drift that must be modeled or filtered out.
+`DesignMatrix` supports two equivalent approaches for creating "nuisance" regressors to capture low-frequency signals for use in GLM analysis: `.add_poly()` and `.add_dct_basis()`. 
 
 ### Polynomial Drift
 
-Legendre polynomials capture low-frequency trends. Order 0 = intercept, 1 = linear, 2 = quadratic, etc.
+Legendre polynomials capture low-frequency trends defined by order:
+
+- 0 = intercept
+- 1 = linear trend
+- 2 = quadratic trend, etc.
 
 ```{code-cell} python3
-dm_drift = DesignMatrix({"placeholder": np.zeros(n_samples)}, sampling_freq=sampling_freq)
-dm_drift = dm_drift.add_poly(order=3, include_lower=True)
-dm_drift = dm_drift.drop("placeholder")
-print(f"Polynomial columns: {dm_drift.columns}")
-```
-
-```{code-cell} python3
-fig, ax = plt.subplots(figsize=(12, 4))
-for col in dm_drift.columns:
-    ax.plot(dm_drift[col].to_numpy(), label=col)
-ax.set_xlabel("Volume Number")
-ax.set_ylabel("Amplitude")
-ax.set_title("Legendre Polynomial Drift Regressors")
-ax.legend()
-plt.tight_layout()
-plt.show()
+# Add up to 4th-order polynomials
+dm.add_poly(order=4).plot();
 ```
 
 ### DCT High-Pass Filter
 
-An alternative to polynomials, commonly used in SPM. The `duration` parameter sets the high-pass cutoff (in seconds).
+An alternative to polynomials, commonly used in SPM is a set of discrete-cosine filters. The `duration` parameter sets the high-pass cutoff (in seconds).
 
 ```{code-cell} python3
-dm_dct = DesignMatrix({"placeholder": np.zeros(n_samples)}, sampling_freq=sampling_freq)
-dm_dct = dm_dct.add_dct_basis(duration=128)
-dm_dct = dm_dct.drop("placeholder")
-print(f"DCT basis functions: {dm_dct.shape[1]} columns (128s high-pass)")
-```
-
-## Building a Complete Design Matrix
-
-A real analysis combines task regressors, motion parameters, drift, and an intercept:
-
-```{code-cell} python3
-# Simulate motion parameters
-np.random.seed(42)
-motion_params = {
-    "trans_x": np.random.randn(n_samples) * 0.5,
-    "trans_y": np.random.randn(n_samples) * 0.3,
-    "trans_z": np.random.randn(n_samples) * 0.4,
-    "rot_x": np.random.randn(n_samples) * 0.01,
-    "rot_y": np.random.randn(n_samples) * 0.01,
-    "rot_z": np.random.randn(n_samples) * 0.01,
-}
-
-# Build the full design matrix
-task_onsets = [20, 40, 60, 80, 100, 120, 140]
-task_stim = np.zeros(n_samples)
-for onset in task_onsets:
-    start_idx = int(onset / TR)
-    end_idx = int((onset + 2) / TR)
-    if start_idx < n_samples:
-        task_stim[start_idx:min(end_idx, n_samples)] = 1
-
-dm_full = DesignMatrix(
-    {"task": task_stim, **motion_params},
-    sampling_freq=sampling_freq,
-)
-
-# Convolve only task column
-dm_full = dm_full.convolve("hrf", columns=["task"])
-
-# Add polynomial drift (order 2 includes intercept, linear, quadratic)
-dm_full = dm_full.add_poly(order=2, include_lower=True)
-
-print(f"Complete design matrix: {dm_full.shape}")
-print(f"Columns: {dm_full.columns}")
-```
-
-## Visualization
-
-### Heatmap
-
-The `plot()` method shows the design matrix in SPM-style format:
-
-```{code-cell} python3
-dm_full.plot(figsize=(8, 8))
-plt.title("Complete Design Matrix")
-plt.show()
-```
-
-### Details
-
-Printing (or `repr`-ing) a `DesignMatrix` shows a summary of its structure:
-
-```{code-cell} python3
-print(dm_full)
+# Using a 20s cut-off is equivalent to above for this design
+dm.add_dct_basis(duration=20).plot();
 ```
 
 ## Multicollinearity Diagnostics
@@ -224,35 +120,37 @@ print(dm_full)
 VIF measures how much each regressor's variance is inflated by correlation with other regressors
 
 ```{code-cell} python3
-vif = dm_full.vif()
-print("Variance Inflation Factors:")
-print(vif)
+# vif = dm_full.vif()
+# print("Variance Inflation Factors:")
+# print(vif)
 ```
 
 ### Cleaning Correlated Columns
 
-`clean()` automatically removes columns with correlation above a threshold:
+`.clean()` automatically removes columns with correlation above a threshold:
 
 ```{code-cell} python3
-dm_cleaned = dm_full.clean(thresh=0.95)
-print(f"Before: {dm_full.shape[1]} columns → After: {dm_cleaned.shape[1]} columns")
+# dm_cleaned = dm_full.clean(thresh=0.95)
+# print(f"Before: {dm_full.shape[1]} columns → After: {dm_cleaned.shape[1]} columns")
 ```
 
 ## Combining Runs
 
-Use `append(axis=0)` to stack design matrices across runs. Polynomial columns are automatically separated per run with `keep_separate=True` (default):
+Use `.append(axis=0)` to stack design matrices across runs. Polynomial columns are automatically separated per run with `keep_separate=True` (default):
 
 ```{code-cell} python3
 # Create two "runs"
-run1 = DesignMatrix({"task": np.random.randn(100)}, sampling_freq=sampling_freq)
-run1 = run1.add_poly(order=1, include_lower=True)
+run1 = dm.copy()
+run2 = dm.copy()
 
-run2 = DesignMatrix({"task": np.random.randn(100)}, sampling_freq=sampling_freq)
-run2 = run2.add_poly(order=1, include_lower=True)
+# Drift for run 1
+run1 = run1.add_poly(order=2)
+# Drift for run 2
+run2 = run2.add_poly(order=2)
 
+# Append
 combined = run1.append(run2, axis=0)
-print(f"Run 1: {run1.shape} → Combined: {combined.shape}")
-print(f"Columns: {combined.columns}")
+combined.plot();
 ```
 
-Notice how `poly_0` and `poly_1` are duplicated per run — this ensures each run gets its own intercept and drift terms.
+Notice how all `poly` columns are kept separated but `face` and `house` regressors have been stacked so that a single estimate is computed across runs.
