@@ -621,6 +621,21 @@ def to_fit_dataclass(bd, model):
     raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
 
 
+def _signed_z_from_p(t_like_arr, p_arr):
+    """Compute a signed two-tailed z-score map from a p-value map.
+
+    ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching nilearn's
+    ``output_type='z_score'`` convention. The sign is copied from the
+    accompanying statistic (t-stat or mean) so the returned map has both
+    direction and magnitude.
+    """
+    from scipy.stats import norm
+
+    p_clipped = np.clip(np.asarray(p_arr), np.finfo(float).tiny, 1.0)
+    z_abs = norm.isf(p_clipped / 2.0)
+    return np.sign(np.asarray(t_like_arr)) * z_abs
+
+
 def ttest(
     bd,
     popmean=0.0,
@@ -641,7 +656,9 @@ def ttest(
         bd: BrainData instance (must contain multiple images).
         popmean: Population mean to test against. Default 0.0.
         permutation: If True, use sign-flip permutation test via
-            ``nltools.stats.one_sample_permutation_test``.
+            ``nltools.stats.one_sample_permutation_test``; the p-values come
+            from the empirical null and the parametric t-statistic is still
+            reported alongside for reference.
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
         tail: Tail of the test (1 or 2). Default 2.
@@ -650,9 +667,18 @@ def ttest(
         random_state: Random seed for reproducibility.
 
     Returns:
-        dict: ``{"t": BrainData, "p": BrainData}`` for the parametric case, or
-        ``{"mean": BrainData, "p": BrainData}`` when ``permutation=True``
-        (mirrors ``Adjacency.ttest``).
+        dict with four BrainData keys:
+
+            - ``"mean"``: voxelwise mean across images (effect-size estimate).
+            - ``"t"``: parametric one-sample t-statistic.
+            - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching
+              nilearn's ``output_type='z_score'``. Useful for thresholding
+              on z at small df where t tails are heavier than normal.
+            - ``"p"``: p-value (parametric, or permutation-based when
+              ``permutation=True``).
+
+        The effect size is always returned alongside the inferential maps so
+        group-level code never has to compute the mean separately.
 
     Raises:
         ValueError: If ``bd`` contains fewer than 2 images.
@@ -667,10 +693,15 @@ def ttest(
             "Stack subject-level maps into a single BrainData first."
         )
 
+    # Parametric t / p are always computed — they're the cheap reference
+    # even on the permutation path.
+    t_arr, p_param = ttest_1samp(bd.data, popmean, axis=0)
+    mean_arr = np.asarray(bd.data).mean(axis=0) - popmean
+
     if permutation:
         from nltools.stats import one_sample_permutation_test
 
-        result = one_sample_permutation_test(
+        perm = one_sample_permutation_test(
             bd.data,
             n_permute=n_permute,
             tail=tail,
@@ -678,18 +709,21 @@ def ttest(
             n_jobs=n_jobs,
             random_state=random_state,
         )
-        mean_bd = BrainData(mask=bd.mask)
-        mean_bd.data = np.asarray(result["mean"])
-        p_bd = BrainData(mask=bd.mask)
-        p_bd.data = np.asarray(result["p"])
-        return {"mean": mean_bd, "p": p_bd}
+        p_arr = np.asarray(perm["p"])
+        # Permutation gave us its own mean — prefer it for numerical
+        # consistency with the reported p.
+        mean_arr = np.asarray(perm["mean"])
+    else:
+        p_arr = np.asarray(p_param)
 
-    t_arr, p_arr = ttest_1samp(bd.data, popmean, axis=0)
-    t_bd = BrainData(mask=bd.mask)
-    t_bd.data = np.asarray(t_arr)
-    p_bd = BrainData(mask=bd.mask)
-    p_bd.data = np.asarray(p_arr)
-    return {"t": t_bd, "p": p_bd}
+    z_arr = _signed_z_from_p(t_arr, p_arr)
+
+    return {
+        "mean": BrainData(np.asarray(mean_arr), mask=bd.mask),
+        "t": BrainData(np.asarray(t_arr), mask=bd.mask),
+        "z": BrainData(z_arr, mask=bd.mask),
+        "p": BrainData(p_arr, mask=bd.mask),
+    }
 
 
 def ttest2(bd, other, equal_var=True):

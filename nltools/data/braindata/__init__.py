@@ -1445,9 +1445,17 @@ class BrainData:
             random_state: Random seed for reproducibility.
 
         Returns:
-            dict: ``{"t": BrainData, "p": BrainData}`` for the parametric
-            case, or ``{"mean": BrainData, "p": BrainData}`` when
-            ``permutation=True``.
+            dict with four BrainData keys:
+
+                - ``"mean"``: voxelwise mean across images (effect size).
+                - ``"t"``: parametric one-sample t-statistic.
+                - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)`` —
+                  matches nilearn's ``output_type='z_score'``.
+                - ``"p"``: parametric p-value, or empirical p when
+                  ``permutation=True``.
+
+            The effect size is always returned alongside the inferential maps
+            so group-level code never has to recompute the mean.
 
         Raises:
             ValueError: If this BrainData contains fewer than 2 images.
@@ -1456,8 +1464,10 @@ class BrainData:
             >>> # Stack of subject-level contrast maps
             >>> result = contrast_maps.ttest()
             >>> sig = result["p"].data < 0.05
+            >>> effect = result["mean"]       # for reporting magnitude
+            >>> z_map = result["z"]           # for nilearn-style thresholding
 
-            >>> # Permutation-based inference
+            >>> # Permutation-based p-values; still reports t/z/mean
             >>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
         """
         from .modeling import ttest

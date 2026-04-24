@@ -578,28 +578,46 @@ class TestBrainDataModeling:
 
 class TestBrainDataTTest:
     def test_ttest_one_sample(self, minimal_brain_data):
-        """One-sample voxelwise t-test against zero returns dict of BrainData."""
+        """One-sample t-test returns mean + t + z + p (all as BrainData)."""
         from scipy.stats import ttest_1samp
 
         result = minimal_brain_data.ttest()
 
         assert isinstance(result, dict)
-        assert set(result.keys()) == {"t", "p"}
-        assert isinstance(result["t"], BrainData)
-        assert isinstance(result["p"], BrainData)
+        assert set(result.keys()) == {"mean", "t", "z", "p"}
+        for key in ("mean", "t", "z", "p"):
+            assert isinstance(result[key], BrainData)
 
         expected_t, expected_p = ttest_1samp(minimal_brain_data.data, 0.0, axis=0)
         np.testing.assert_allclose(result["t"].data, expected_t)
         np.testing.assert_allclose(result["p"].data, expected_p)
+        np.testing.assert_allclose(
+            result["mean"].data, minimal_brain_data.data.mean(axis=0)
+        )
         assert result["t"].data.shape == (minimal_brain_data.data.shape[1],)
 
+    def test_ttest_z_signed_and_monotonic(self, minimal_brain_data):
+        """z = sign(t) * norm.isf(p/2); sign(z) == sign(t); monotonic with t."""
+        result = minimal_brain_data.ttest()
+        t_arr = np.asarray(result["t"].data)
+        z_arr = np.asarray(result["z"].data)
+        # non-zero-t voxels must agree in sign
+        nz = t_arr != 0
+        assert np.all(np.sign(t_arr[nz]) == np.sign(z_arr[nz]))
+        # strong correlation (large-df t ≈ z; even at small df they stay
+        # monotonic since z is derived from the same p)
+        assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.99
+
     def test_ttest_popmean(self, minimal_brain_data):
-        """popmean kwarg tests against a non-zero null."""
+        """popmean kwarg shifts the null and the reported mean."""
         from scipy.stats import ttest_1samp
 
         result = minimal_brain_data.ttest(popmean=0.5)
         expected_t, _ = ttest_1samp(minimal_brain_data.data, 0.5, axis=0)
         np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(
+            result["mean"].data, minimal_brain_data.data.mean(axis=0) - 0.5
+        )
 
     def test_ttest_single_image_raises(self, minimal_brain_data):
         """t-test on a single image should raise."""
@@ -608,13 +626,13 @@ class TestBrainDataTTest:
             single.ttest()
 
     def test_ttest_permutation(self, minimal_brain_data):
-        """permutation=True uses sign-flip test and returns mean instead of t."""
+        """permutation=True reports empirical p but still returns mean/t/z/p."""
         result = minimal_brain_data.ttest(
             permutation=True, n_permute=50, random_state=0
         )
-        assert set(result.keys()) == {"mean", "p"}
-        assert isinstance(result["mean"], BrainData)
-        assert isinstance(result["p"], BrainData)
+        assert set(result.keys()) == {"mean", "t", "z", "p"}
+        for key in ("mean", "t", "z", "p"):
+            assert isinstance(result[key], BrainData)
         np.testing.assert_allclose(
             result["mean"].data, minimal_brain_data.data.mean(axis=0)
         )
