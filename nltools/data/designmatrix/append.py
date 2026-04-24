@@ -38,9 +38,42 @@ def _check_dtype_compatibility(dfs: list[pl.DataFrame]) -> None:
                 )
 
 
+def _coerce_horizontal_input(x, sampling_freq):
+    """Coerce a horizontal-append input into a DesignMatrix.
+
+    ``append(axis=1)`` accepts DesignMatrix, pandas DataFrame, or polars
+    DataFrame. Raw-frame inputs are wrapped into a DesignMatrix whose new
+    columns are tracked as nuisance (``.polys``) — that way a subsequent
+    multi-run vertical append keeps them separated per run, which matches the
+    usual use of this path (motion / physio / compcor confounds).
+
+    Args:
+        x: Input to coerce.
+        sampling_freq: Base DM's sampling frequency (inherited by the wrapped DM).
+
+    Returns:
+        DesignMatrix.
+
+    Raises:
+        TypeError: If ``x`` is not a DesignMatrix or supported DataFrame.
+    """
+    from nltools.data.designmatrix import DesignMatrix, _is_pandas_dataframe
+
+    if isinstance(x, DesignMatrix):
+        return x
+    if isinstance(x, pl.DataFrame) or _is_pandas_dataframe(x):
+        wrapped = DesignMatrix(x, sampling_freq=sampling_freq)
+        wrapped.polys = list(wrapped.columns)
+        return wrapped
+    raise TypeError(
+        "append(axis=1) expects DesignMatrix, pandas DataFrame, or polars "
+        f"DataFrame; got {type(x).__name__}"
+    )
+
+
 def append(
     dm: DesignMatrix,
-    other: DesignMatrix | list[DesignMatrix],
+    other,
     axis: int = 0,
     keep_separate: bool = True,
     unique_cols: list[str] | None = None,
@@ -52,7 +85,11 @@ def append(
 
     Args:
         dm (DesignMatrix): The base design matrix.
-        other (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
+        other (DesignMatrix, DataFrame, or list): Matrix/matrices to append.
+            For ``axis=1`` (horizontal), also accepts a pandas or polars
+            DataFrame (or list thereof); the new columns are treated as
+            nuisance regressors (tracked in ``.polys`` on the result).
+            For ``axis=0`` (vertical), all items must be ``DesignMatrix``.
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
         keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0).
         unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards).
@@ -64,7 +101,8 @@ def append(
         DesignMatrix: Concatenated design matrix.
 
     Raises:
-        TypeError: If items to append are not DesignMatrix instances.
+        TypeError: If items to append are not DesignMatrix (or, for ``axis=1``,
+            a DesignMatrix / pandas DataFrame / polars DataFrame).
         ValueError: If sampling frequencies do not match, axis is invalid,
             a non-multi base is combined with a multi-run DM, or shared
             columns have mismatched dtypes.
@@ -72,11 +110,20 @@ def append(
     from nltools.data.designmatrix import DesignMatrix
 
     # Normalize to list
-    to_append = [other] if not isinstance(other, list) else other
+    to_append = [other] if not isinstance(other, list) else list(other)
+
+    # Horizontal append additionally accepts raw DataFrames — convert them
+    # to DesignMatrix first so the rest of the validation and merge path is
+    # unchanged.
+    if axis == 1:
+        to_append = [_coerce_horizontal_input(e, dm.sampling_freq) for e in to_append]
 
     # Validate all are DesignMatrix with same sampling_freq
     if not all(isinstance(elem, DesignMatrix) for elem in to_append):
-        raise TypeError("All items to append must be DesignMatrix objects")
+        raise TypeError(
+            "All items to append must be DesignMatrix objects "
+            "(axis=1 also accepts pandas / polars DataFrames)"
+        )
     if not all(elem.sampling_freq == dm.sampling_freq for elem in to_append):
         raise ValueError("All Design Matrices must have the same sampling frequency!")
 
