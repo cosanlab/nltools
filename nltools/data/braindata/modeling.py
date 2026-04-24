@@ -741,117 +741,117 @@ def regress(bd, design_matrix=None, method="ols", mode=None):
     )
 
 
-def compute_contrasts(bd, contrasts, contrast_type="t"):
-    """Compute contrasts from fitted GLM results.
+_CONTRAST_OUTPUT_TYPES = {
+    "t": "stat",
+    "z": "z_score",
+    "p": "p_value",
+    "beta": "effect_size",
+    "effect_size": "effect_size",
+}
 
-    This method computes contrasts as linear combinations of the GLM beta coefficients.
-    Must be called after .fit(model='glm', X=design_matrix) has been run.
+
+def compute_contrasts(bd, contrasts, contrast_type="t"):
+    """Compute contrasts from a fitted GLM.
+
+    Delegates to the underlying ``nilearn.FirstLevelModel.compute_contrast`` so
+    t-statistics are computed with the full parameter covariance matrix —
+    linear-combination-of-stored-betas cannot do this correctly for multi-
+    regressor contrasts (it would ignore off-diagonal covariance and produce
+    an effect-size map, not a t-map).
+
+    Must be called after ``.fit(model='glm', X=design_matrix)`` has been run.
 
     Args:
         bd: BrainData instance.
         contrasts: Can be:
 
-            - str: A string specifying the contrast using column names
-              e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC"
-            - dict: Dictionary with contrast names as keys and contrast strings/vectors as values
-              e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}
-            - array: Numeric contrast vector matching the number of regressors
-              e.g., [1, -1, 0, 0] for a 4-regressor model
-        contrast_type (str): Type of contrast statistic ('t' or 'F'). Default: 't'
-            Note: Currently only 't' contrasts are supported.
+            - str: a contrast expressed in terms of column names, e.g.
+              ``"conditionA - conditionB"`` or ``"2*conditionA - conditionB - conditionC"``
+            - array-like: a numeric contrast vector, one weight per regressor
+              (e.g. ``[1, -1, 0, 0]``)
+            - dict: ``{name: contrast}`` for multiple contrasts at once
+        contrast_type (str): What to return per contrast. One of:
+
+            - ``"t"`` (default): t-statistic map (for thresholding /
+              single-subject inference)
+            - ``"z"``: z-score map
+            - ``"p"``: p-value map
+            - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this
+              when feeding into a second-level (group) analysis
 
     Returns:
-        BrainData or dict: If single contrast, returns BrainData object with contrast map.
-                           If multiple contrasts (dict input), returns dict of BrainData objects.
+        BrainData or dict: single BrainData for a single-contrast input, dict of
+        BrainData objects for a dict input.
 
     Raises:
-        RuntimeError: If .fit(model='glm') hasn't been called yet
-        ValueError: If contrast vector length doesn't match number of regressors
-        ValueError: If column name in string contrast not found in design matrix
+        RuntimeError: if ``.fit(model='glm')`` has not been run.
+        ValueError: if the contrast vector length or a column name is invalid,
+            or if ``contrast_type`` is not one of the supported values.
 
     Examples:
-        >>> # Fit GLM model
-        >>> design_matrix = pd.DataFrame({
-        ...     'intercept': np.ones(n_samples),
-        ...     'conditionA': signal_a,
-        ...     'conditionB': signal_b
-        ... })
-        >>> brain.fit(model='glm', X=design_matrix)
-        >>>
-        >>> # Simple numeric contrast: A - B
-        >>> contrast1 = brain.compute_contrasts([0, 1, -1])
-        >>>
-        >>> # String-based contrast (more readable)
-        >>> contrast2 = brain.compute_contrasts("conditionA - conditionB")
-        >>>
-        >>> # Multiple contrasts at once
-        >>> contrasts = {
-        ...     "A_vs_B": "conditionA - conditionB",
-        ...     "avg_effect": [0, 0.5, 0.5],
-        ...     "weighted": "2*conditionA - conditionB"
-        ... }
-        >>> results = brain.compute_contrasts(contrasts)
-        >>> # results is a dict: {"A_vs_B": BrainData, "avg_effect": BrainData, ...}
+        >>> data.fit(model="glm", X=dm)
+        >>> # Single-subject t-map, ready to threshold
+        >>> tmap = data.compute_contrasts("conditionA - conditionB")
+        >>> # Effect-size map for use as input to a group-level analysis
+        >>> beta = data.compute_contrasts(
+        ...     "conditionA - conditionB", contrast_type="beta"
+        ... )
 
     Notes:
-        - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
-        - Column names must match design matrix columns exactly (case-sensitive)
-        - Contrast weights should sum to zero for proper inference in most cases
+        - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
+        - Column names must match design matrix columns exactly (case-sensitive).
+        - For group analysis, stack per-subject effect-size maps (``contrast_type="beta"``)
+          and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
+          t-maps into a group one-sample test conflates effect magnitude with precision.
     """
-    # Check that regression has been run
+    from . import BrainData
+
     if not hasattr(bd, "glm_betas"):
         raise RuntimeError(
             "Must run .fit(model='glm', X=design_matrix) before computing contrasts"
         )
+    if not hasattr(bd, "model_") or bd.model_ is None:
+        raise RuntimeError(
+            "BrainData has glm_* results but no model_ attached; refit with "
+            ".fit(model='glm', X=design_matrix) to enable compute_contrasts."
+        )
 
-    # Parse contrasts
-    if isinstance(contrasts, str):
-        # Single string contrast
-        contrast_dict = {"contrast": contrasts}
-        single_contrast = True
-    elif isinstance(contrasts, (list, np.ndarray)):
-        # Single numeric contrast
+    if contrast_type not in _CONTRAST_OUTPUT_TYPES:
+        raise ValueError(
+            f"contrast_type must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; "
+            f"got {contrast_type!r}"
+        )
+    output_type = _CONTRAST_OUTPUT_TYPES[contrast_type]
+
+    # Normalize contrasts → {name: contrast_def}
+    if isinstance(contrasts, (str, list, np.ndarray)):
         contrast_dict = {"contrast": contrasts}
         single_contrast = True
     elif isinstance(contrasts, dict):
-        # Multiple contrasts
         contrast_dict = contrasts
         single_contrast = False
     else:
         raise TypeError("contrasts must be str, array, or dict")
 
-    # Process each contrast
+    n_regressors = bd.glm_betas.shape[0]
     results = {}
     for name, contrast_def in contrast_dict.items():
-        # Parse string contrasts to create contrast vector
         if isinstance(contrast_def, str):
-            # Parse string like "conditionA - conditionB"
             contrast_vector = parse_contrast_string(bd, contrast_def)
         else:
-            # Use numeric contrast directly
-            contrast_vector = np.array(contrast_def)
+            contrast_vector = np.asarray(contrast_def, dtype=float)
 
-        # Validate contrast vector length
-        if len(contrast_vector) != bd.glm_betas.shape[0]:
+        if len(contrast_vector) != n_regressors:
             raise ValueError(
                 f"Contrast vector length ({len(contrast_vector)}) must match "
-                f"number of regressors ({bd.glm_betas.shape[0]})"
+                f"number of regressors ({n_regressors})"
             )
 
-        # Compute contrast by linear combination of betas
-        contrast_data = np.zeros((1, bd.glm_betas.shape[1]))
-        for i, weight in enumerate(contrast_vector):
-            if weight != 0:
-                contrast_data += weight * bd.glm_betas[i].data
+        contrast_img = bd.model_.compute_contrast(
+            contrast_vector, output_type=output_type
+        )
+        results[name] = BrainData(contrast_img, mask=bd.mask, verbose=False)
 
-        # Create BrainData object for contrast
-        contrast_brain = bd[0].copy()
-        contrast_brain.data = contrast_data
-
-        # Store result
-        results[name] = contrast_brain
-
-    # Return single contrast or dict of contrasts
     if single_contrast:
         return results["contrast"]
     return results

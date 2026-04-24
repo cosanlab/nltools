@@ -42,15 +42,15 @@ class TestBrainDataModeling:
         )
         minimal_brain_data.fit(model="glm", X=design_matrix)
 
-        # Numeric vector
+        # Numeric vector — single-image BrainData has 1D shape (n_voxels,)
         contrast = minimal_brain_data.compute_contrasts([0, 1, -1])
         assert isinstance(contrast, BrainData)
-        assert contrast.shape == (1, minimal_brain_data.shape[1])
+        assert contrast.shape[-1] == minimal_brain_data.shape[1]
 
         # String parsing
         contrast = minimal_brain_data.compute_contrasts("condA - condB")
         assert isinstance(contrast, BrainData)
-        assert contrast.shape == (1, minimal_brain_data.shape[1])
+        assert contrast.shape[-1] == minimal_brain_data.shape[1]
 
         # Dict of contrasts
         contrasts = {"A_vs_B": "condA - condB", "avg_effect": [0, 0.5, 0.5]}
@@ -73,6 +73,55 @@ class TestBrainDataModeling:
 
         with pytest.raises(ValueError, match="Contrast vector length.*must match"):
             minimal_brain_data.compute_contrasts([1, -1])
+
+    @pytest.mark.slow
+    def test_compute_contrasts_type_distinguishes_t_and_beta(self, minimal_brain_data):
+        """contrast_type='t' returns t-stats; contrast_type='beta' returns effect sizes.
+
+        Regression guard: the earlier implementation always returned raw
+        linear-combinations-of-betas (effect sizes) while advertising 't',
+        which broke first-level thresholding.
+        """
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condA": np.random.randn(len(minimal_brain_data)),
+                "condB": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", X=design_matrix)
+
+        t_map = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="t")
+        beta_map = minimal_brain_data.compute_contrasts(
+            "condA - condB", contrast_type="beta"
+        )
+        z_map = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="z")
+
+        for m in (t_map, beta_map, z_map):
+            assert isinstance(m, BrainData)
+            assert m.shape[-1] == minimal_brain_data.shape[1]
+
+        t_arr = np.asarray(t_map.data).squeeze()
+        b_arr = np.asarray(beta_map.data).squeeze()
+        z_arr = np.asarray(z_map.data).squeeze()
+
+        # Beta is the effect size (linear combo of betas). t is effect / SE.
+        # They must not be the same array (they were, before the fix).
+        assert not np.allclose(t_arr, b_arr), (
+            "t-map and beta-map should differ; compute_contrasts is returning "
+            "raw effect sizes regardless of contrast_type"
+        )
+        # z and t are monotonically related (sign preserved, magnitude close)
+        assert np.all(np.sign(t_arr) == np.sign(z_arr))
+        assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.999
+
+    def test_compute_contrasts_invalid_type(self, minimal_brain_data):
+        """Unknown contrast_type raises ValueError with supported values listed."""
+        with pytest.raises(ValueError, match="contrast_type must be"):
+            # not fitted yet but validation happens before that path; set dummy attr
+            minimal_brain_data.glm_betas = minimal_brain_data[0]
+            minimal_brain_data.model_ = object()
+            minimal_brain_data.compute_contrasts([1, -1, 0], contrast_type="F")
 
     # ==================== Unified fit/predict API ====================
 
