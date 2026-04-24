@@ -123,18 +123,10 @@ class TestDesignMatrixPassthrough:
         dm.convolved = ["a"]
         return dm
 
-    @pytest.mark.parametrize(
-        "method,args",
-        [
-            ("head", (2,)),
-            ("tail", (2,)),
-            ("slice", (1, 3)),
-        ],
-    )
-    def test_row_preserving_methods_return_designmatrix(self, method, args):
-        """head/tail/slice return DesignMatrix with metadata preserved."""
+    def test_slice_returns_designmatrix(self):
+        """slice() is allowlisted and preserves DesignMatrix + metadata."""
         dm = self._dm()
-        result = getattr(dm, method)(*args)
+        result = dm.slice(1, 3)
         assert isinstance(result, DesignMatrix)
         assert result.sampling_freq == 2
         assert result.polys == ["poly_0"]
@@ -150,13 +142,28 @@ class TestDesignMatrixPassthrough:
         assert result.polys == ["poly_0"]
         assert len(result) == 3
 
-    def test_sample_returns_designmatrix(self):
-        """sample() returns DesignMatrix with metadata preserved."""
+    @pytest.mark.parametrize(
+        "method,args,kwargs",
+        [
+            ("head", (2,), {}),
+            ("tail", (2,), {}),
+            ("sample", (), {"n": 3, "seed": 0}),
+        ],
+    )
+    def test_unwrapping_row_methods_return_polars(self, method, args, kwargs):
+        """head/tail/sample unwrap to polars — they're not on the allowlist.
+
+        Keeping these unwrapped is the v0.6 design: only methods that clearly
+        preserve DesignMatrix semantics (row-aligned subsetting by the user's
+        own slice/filter/select predicate) are re-wrapped. Inspection helpers
+        like head/tail/sample hand back the raw polars DataFrame so users can
+        chain directly into polars idioms.
+        """
         dm = self._dm()
-        result = dm.sample(n=3, seed=0)
-        assert isinstance(result, DesignMatrix)
-        assert result.sampling_freq == 2
-        assert len(result) == 3
+        result = getattr(dm, method)(*args, **kwargs)
+        assert isinstance(result, pl.DataFrame)
+        assert not isinstance(result, DesignMatrix)
+        assert list(result.columns) == ["a", "b", "poly_0"]
 
     def test_raw_passthrough_for_informational_attrs(self):
         """Attrs that don't return DataFrames pass through raw (dtypes, schema)."""
