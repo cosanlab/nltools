@@ -17,13 +17,34 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
+def _check_dtype_compatibility(dfs: list[pl.DataFrame]) -> None:
+    """Raise a clear ValueError if shared columns across frames have mismatched dtypes.
+
+    Polars' native error (``SchemaError: type Float64 is incompatible with
+    expected type Int64``) doesn't name the offending column, so we check
+    ahead of time and produce an actionable message.
+    """
+    if len(dfs) < 2:
+        return
+    base_schema = dict(dfs[0].schema)
+    for idx, df in enumerate(dfs[1:], start=1):
+        for col, dtype in df.schema.items():
+            if col in base_schema and base_schema[col] != dtype:
+                raise ValueError(
+                    f"Column {col!r} has mismatched dtype {base_schema[col]} "
+                    f"in dm[0] vs {dtype} in dm[{idx}]. Cast one side with "
+                    f".with_columns(pl.col({col!r}).cast(...)) to align dtypes "
+                    f"before appending."
+                )
+
+
 def append(
     dm: DesignMatrix,
     other: DesignMatrix | list[DesignMatrix],
     axis: int = 0,
     keep_separate: bool = True,
     unique_cols: list[str] | None = None,
-    fill_na: int | float = 0,
+    fill_na: int | float | None = 0,
     verbose: bool = False,
 ) -> DesignMatrix:
     """
@@ -35,8 +56,8 @@ def append(
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
         keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0).
         unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards).
-        fill_na (int or float): Value to fill NaN values during vertical
-            concatenation. Default: 0.
+        fill_na (int, float, or None): Value to fill NaN/null entries introduced
+            by the concatenation. Pass ``None`` to preserve nulls. Default: 0.
         verbose (bool): Print messages about polynomial separation. Default: False.
 
     Returns:
@@ -44,7 +65,9 @@ def append(
 
     Raises:
         TypeError: If items to append are not DesignMatrix instances.
-        ValueError: If sampling frequencies do not match or axis is invalid.
+        ValueError: If sampling frequencies do not match, axis is invalid,
+            a non-multi base is combined with a multi-run DM, or shared
+            columns have mismatched dtypes.
     """
     from nltools.data.designmatrix import DesignMatrix
 
@@ -60,6 +83,18 @@ def append(
     if axis == 1:
         return append_horizontal(dm, to_append, fill_na)
     if axis == 0:
+        # Refuse the silent-collision case: a non-multi base with any multi
+        # DM in to_append would re-index the base as run 0 and collide with
+        # the appended DM's existing 0_* columns.
+        if not dm.multi and any(elem.multi for elem in to_append):
+            raise ValueError(
+                "Cannot append a multi-run DesignMatrix to a non-multi base: "
+                "the base would be re-indexed as run 0 and collide with the "
+                "appended matrix's existing run-prefixed columns. Either start "
+                "from the multi-run DM and append the single-run DM to it, or "
+                "rebuild the multi-run DM from its constituent single-run DMs "
+                "in the desired order."
+            )
         return append_vertical(
             dm, to_append, keep_separate, unique_cols, fill_na, verbose
         )
@@ -69,7 +104,7 @@ def append(
 def append_horizontal(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
-    fill_na: int | float,
+    fill_na: int | float | None,
 ) -> DesignMatrix:
     """
     Horizontal concatenation (axis=1) - add columns from other matrices.
@@ -77,7 +112,8 @@ def append_horizontal(
     Args:
         dm: Base DesignMatrix instance.
         to_append (list of DesignMatrix): Matrices whose columns to add.
-        fill_na (int or float): Value to fill NaN/null entries with.
+        fill_na (int, float, or None): Value to fill NaN/null entries with.
+            Pass ``None`` to preserve nulls.
 
     Returns:
         DesignMatrix: New DesignMatrix with columns from all matrices.
@@ -89,28 +125,43 @@ def append_horizontal(
     if not all(elem.shape[0] == dm.shape[0] for elem in to_append):
         raise ValueError("All Design Matrices must have the same number of rows!")
 
-    # Warn about duplicate column names
+    # Polars refuses duplicate column names on horizontal concat. Detect up
+    # front and surface an actionable error instead of the cryptic polars one.
     all_columns = set(dm.columns)
     for elem in to_append:
-        if not all_columns.isdisjoint(elem.columns):
-            print("Duplicate column names detected. Will be repeated.")
+        dupes = all_columns.intersection(elem.columns)
+        if dupes:
+            raise ValueError(
+                f"Duplicate column names on horizontal append: {sorted(dupes)}. "
+                f"Rename the conflicting columns on one side before appending."
+            )
         all_columns.update(elem.columns)
 
     # Use Polars hstack to concatenate DataFrames horizontally
-    dfs_to_stack = [dm._df] + [elem._df for elem in to_append]
+    dfs_to_stack = [dm.data] + [elem.data for elem in to_append]
     new_df = pl.concat(dfs_to_stack, how="horizontal")
 
     # Fill NaN if requested
     if fill_na is not None:
         new_df = new_df.fill_null(fill_na)
 
-    # Combine polys metadata from all matrices
-    all_polys = dm.polys.copy() if dm.polys else []
-    for elem in to_append:
-        if elem.polys:
-            all_polys.extend(elem.polys)
+    # Merge polys + convolved metadata across all matrices, dedup in order.
+    all_polys = _merge_ordered([dm.polys, *(e.polys for e in to_append)])
+    all_convolved = _merge_ordered([dm.convolved, *(e.convolved for e in to_append)])
 
-    return copy_with(dm, new_df, polys=all_polys)
+    return copy_with(dm, new_df, polys=all_polys, convolved=all_convolved)
+
+
+def _merge_ordered(lists: list[list[str]]) -> list[str]:
+    """Concatenate lists, preserving first-seen order, skipping duplicates."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for lst in lists:
+        for item in lst:
+            if item not in seen:
+                seen.add(item)
+                out.append(item)
+    return out
 
 
 def append_vertical(
@@ -118,7 +169,7 @@ def append_vertical(
     to_append: list[DesignMatrix],
     keep_separate: bool,
     unique_cols: list[str] | None,
-    fill_na: int | float,
+    fill_na: int | float | None,
     verbose: bool,
 ) -> DesignMatrix:
     """
@@ -130,31 +181,30 @@ def append_vertical(
         keep_separate (bool): Whether to separate polynomial columns across runs.
         unique_cols (list of str, optional): Additional columns to keep separated
             (supports wildcards).
-        fill_na (int or float): Value to fill NaN/null entries with.
+        fill_na (int, float, or None): Value to fill NaN/null entries with.
+            Pass ``None`` to preserve nulls.
         verbose (bool): Print messages about polynomial separation.
 
     Returns:
         DesignMatrix: New DesignMatrix with rows from all matrices.
     """
+    all_dms = [dm, *to_append]
+
     # Simple case: keep_separate=False - just stack rows
     if not keep_separate:
-        dfs_to_stack = [dm._df] + [elem._df for elem in to_append]
-        new_df = pl.concat(dfs_to_stack, how="vertical")
+        dfs_to_stack = [d.data for d in all_dms]
+        _check_dtype_compatibility(dfs_to_stack)
+        new_df = pl.concat(dfs_to_stack, how="diagonal")
 
         # Fill NaN if requested
         if fill_na is not None:
             new_df = new_df.fill_null(fill_na)
 
-        # Combine polys metadata (no separation)
-        all_polys = dm.polys.copy() if dm.polys else []
-        for elem in to_append:
-            if elem.polys:
-                # Add new polys we don't already have
-                for p in elem.polys:
-                    if p not in all_polys:
-                        all_polys.append(p)
+        # Merge polys + convolved across matrices
+        all_polys = _merge_ordered([d.polys for d in all_dms])
+        all_convolved = _merge_ordered([d.convolved for d in all_dms])
 
-        return copy_with(dm, new_df, polys=all_polys)
+        return copy_with(dm, new_df, polys=all_polys, convolved=all_convolved)
 
     # Complex case: keep_separate=True - separate polynomial columns across runs
     return append_vertical_with_separation(dm, to_append, unique_cols, fill_na, verbose)
@@ -251,7 +301,7 @@ def append_vertical_with_separation(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
     unique_cols: list[str] | None,
-    fill_na: int | float,
+    fill_na: int | float | None,
     verbose: bool,
 ) -> DesignMatrix:
     """
@@ -265,7 +315,8 @@ def append_vertical_with_separation(
         to_append (list of DesignMatrix): Matrices to stack below dm.
         unique_cols (list of str, optional): Additional columns to keep separated
             (supports wildcards).
-        fill_na (int or float): Value to fill NaN/null entries with.
+        fill_na (int, float, or None): Value to fill NaN/null entries with.
+            Pass ``None`` to preserve nulls.
         verbose (bool): Print messages about polynomial separation.
 
     Returns:
@@ -278,27 +329,27 @@ def append_vertical_with_separation(
 
     if not dm.multi:
         # Case 1: Standard multi-run creation
-        all_dms = [dm] + to_append
+        all_dms = [dm, *to_append]
         cols_to_sep = identify_columns_to_separate(dm, all_dms, unique_cols)
 
         if verbose and cols_to_sep:
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
         processed_dfs = []
-        all_new_polys = []
+        all_new_polys: list[str] = []
+        all_new_convolved: list[str] = []
 
         for i, d in enumerate(all_dms):
-            # Build rename mapping for separated columns
             rename_map = {col: f"{i}_{col}" for col in d.columns if col in cols_to_sep}
-
-            # Rename and collect
-            processed_df = d._df.rename(rename_map) if rename_map else d._df
+            processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)
 
-            # Track renamed polys
             for poly in d.polys:
-                if poly in rename_map:
-                    all_new_polys.append(rename_map[poly])
+                all_new_polys.append(rename_map.get(poly, poly))
+            for conv in d.convolved:
+                renamed = rename_map.get(conv, conv)
+                if renamed not in all_new_convolved:
+                    all_new_convolved.append(renamed)
 
     else:
         # Case 2: Appending to existing multi-run DM
@@ -308,33 +359,39 @@ def append_vertical_with_separation(
         if verbose and cols_to_sep:
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
-        # Keep self's DataFrame unchanged
-        processed_dfs = [dm._df]
-        all_new_polys = dm.polys.copy() if dm.polys else []
+        processed_dfs = [dm.data]
+        all_new_polys = list(dm.polys)
+        all_new_convolved = list(dm.convolved)
 
-        # Process only the DMs being appended
         for i, d in enumerate(to_append):
             run_idx = start_idx + i
-
-            # Build rename mapping for separated columns
             rename_map = {
                 col: f"{run_idx}_{col}" for col in d.columns if col in cols_to_sep
             }
-
-            # Rename and collect
-            processed_df = d._df.rename(rename_map) if rename_map else d._df
+            processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)
 
-            # Track renamed polys
             for poly in d.polys:
-                if poly in rename_map:
-                    all_new_polys.append(rename_map[poly])
+                all_new_polys.append(rename_map.get(poly, poly))
+            for conv in d.convolved:
+                renamed = rename_map.get(conv, conv)
+                if renamed not in all_new_convolved:
+                    all_new_convolved.append(renamed)
+
+    # Validate dtype compatibility for any overlapping column names after renames
+    _check_dtype_compatibility(processed_dfs)
 
     # Concatenate with diagonal (auto-fills missing columns with null)
     result_df = pl.concat(processed_dfs, how="diagonal")
 
-    # Fill nulls with fill_na value (creates sparse separation)
-    result_df = result_df.fill_null(fill_na)
+    # Fill nulls with fill_na value unless caller asked to preserve nulls
+    if fill_na is not None:
+        result_df = result_df.fill_null(fill_na)
 
-    # Return with updated metadata
-    return copy_with(dm, result_df, polys=all_new_polys, multi=True)
+    return copy_with(
+        dm,
+        result_df,
+        polys=all_new_polys,
+        convolved=all_new_convolved,
+        multi=True,
+    )

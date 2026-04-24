@@ -42,14 +42,14 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
     # Determine which columns to include (using polars selectors for declarative filtering)
     if exclude_polys and dm.polys:
         # Use polars selector: "select all columns except polynomial terms"
-        subset_df = dm._df.select(cs.exclude(dm.polys))
+        subset_df = dm.data.select(cs.exclude(dm.polys))
     elif exclude_polys:
         # No polys to exclude, use all columns
-        subset_df = dm._df
+        subset_df = dm.data
     else:
         # Always exclude intercept (poly_0) columns even when exclude_polys=False
         cols_to_use = [c for c in dm.columns if "poly_0" not in c]
-        subset_df = dm._df.select(cols_to_use)
+        subset_df = dm.data.select(cols_to_use)
 
     # Edge case: single column has VIF = 1 (no multicollinearity)
     if subset_df.shape[1] == 1:
@@ -133,7 +133,7 @@ def clean(
 
     # Convert to numpy for pairwise correlation computation
     # NECESSARY: More efficient than Polars for this operation
-    subset_df = result._df.select(cols_to_check)
+    subset_df = result.data.select(cols_to_check)
     data_array = subset_df.to_numpy()
 
     # Check each pair of columns
@@ -169,7 +169,7 @@ def clean(
     # Drop correlated columns
     if remove:
         # Drop from DataFrame
-        new_df = result._df.drop(remove)
+        new_df = result.data.drop(remove)
 
         # Update polys metadata
         new_polys = [p for p in result.polys if p not in remove]
@@ -179,27 +179,3 @@ def clean(
     if verbose:
         print("Dropping columns not needed...skipping")
     return result
-
-
-def details(dm: DesignMatrix) -> str:
-    """
-    Return human-readable metadata summary.
-
-    Args:
-        dm: DesignMatrix instance.
-
-    Returns:
-        str: Formatted string showing sampling_freq, shape, convolved columns,
-            and polynomial columns.
-    """
-    lines = [
-        f"DesignMatrix(sampling_freq={dm.sampling_freq}, shape={dm.shape})",
-    ]
-
-    if dm.convolved:
-        lines.append(f"  convolved: {dm.convolved}")
-
-    if dm.polys:
-        lines.append(f"  polys: {dm.polys}")
-
-    return "\n".join(lines)

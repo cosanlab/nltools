@@ -29,7 +29,7 @@ Name | Description
 #### `align`
 
 ```python
-align(bc: 'BrainCollection', method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: 'nib.Nifti1Image | None' = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection | tuple[BrainCollection, object]'
+align(bc: BrainCollection, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False) -> BrainCollection | tuple[BrainCollection, object]
 ```
 
 Align subjects using local functional alignment.
@@ -42,11 +42,11 @@ using local transforms learned within searchlight spheres or parcels.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to align. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to align. | *required*
 `method` | <code>[str](#str)</code> | Alignment method. Options: - 'procrustes': Orthogonal Procrustes (default, preserves dimensions) - 'srm': Shared Response Model (dimensionality reduction) - 'hyperalignment': Hyperalignment (iterative Procrustes) | <code>'procrustes'</code>
 `scheme` | <code>[str](#str)</code> | Spatial scheme. Options: - 'searchlight': Overlapping spheres with center-only aggregation - 'piecewise': Non-overlapping parcels (requires parcellation) | <code>'searchlight'</code>
 `radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for searchlight scheme. | <code>10.0</code>
-`parcellation` | <code>'nib.Nifti1Image \| None'</code> | Parcellation image for piecewise scheme (required if scheme='piecewise'). | <code>None</code>
+`parcellation` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| None</code> | Parcellation image for piecewise scheme (required if scheme='piecewise'). | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full dimensions. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. | <code>3</code>
 `device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
@@ -58,8 +58,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| tuple[BrainCollection, object]'</code> | BrainCollection with aligned data. If return_model=True, returns
-<code>'BrainCollection \| tuple[BrainCollection, object]'</code> | tuple of (aligned_collection, LocalAlignment_model).
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [tuple](#tuple)[[BrainCollection](#nltools.data.collection.BrainCollection), [object](#object)]</code> | BrainCollection with aligned data. If return_model=True, returns
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [tuple](#tuple)[[BrainCollection](#nltools.data.collection.BrainCollection), [object](#object)]</code> | tuple of (aligned_collection, LocalAlignment_model).
 
 **Examples:**
 
@@ -108,7 +108,7 @@ nltools.algorithms.alignment.LocalAlignment: Underlying alignment class.
 #### `detrend`
 
 ```python
-detrend(bc: 'BrainCollection', method: str = 'linear', n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
+detrend(bc: BrainCollection, method: str = 'linear', n_jobs: int = 1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Remove trend from each image.
@@ -119,7 +119,7 @@ Delegates to BrainData.detrend() for each image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to detrend. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to detrend. | *required*
 `method` | <code>[str](#str)</code> | 'linear' or 'constant'. | <code>'linear'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
@@ -128,7 +128,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with detrended images.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with detrended images.
 
 **Examples:**
 
@@ -140,7 +140,7 @@ Type | Description
 #### `filter_collection`
 
 ```python
-filter_collection(bc: 'BrainCollection', predicate: 'Callable | list | np.ndarray') -> 'BrainCollection'
+filter_collection(bc: BrainCollection, predicate: Callable | list | np.ndarray) -> BrainCollection
 ```
 
 Filter collection by predicate.
@@ -149,14 +149,14 @@ Filter collection by predicate.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to filter. | *required*
-`predicate` | <code>'Callable \| list \| np.ndarray'</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to filter. | *required*
+`predicate` | <code>[Callable](#collections.abc.Callable) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Filter condition. Can be: - callable: fn(BrainData) -> bool - list/ndarray: Boolean mask of length n_images - pl.Series / pd.Series: Boolean series | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with subset of images matching predicate.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with subset of images matching predicate.
 
 **Examples:**
 
@@ -179,7 +179,7 @@ Type | Description
 #### `map_axis0`
 
 ```python
-map_axis0(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
+map_axis0(bc: BrainCollection, fn: Callable, n_jobs: int, progress_bar: bool) -> BrainCollection
 ```
 
 Map function over images (axis=0).
@@ -187,7 +187,7 @@ Map function over images (axis=0).
 #### `map_axis1`
 
 ```python
-map_axis1(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
+map_axis1(bc: BrainCollection, fn: Callable, n_jobs: int, progress_bar: bool) -> BrainCollection
 ```
 
 Map function over timepoints (axis=1).
@@ -195,7 +195,7 @@ Map function over timepoints (axis=1).
 #### `map_axis2`
 
 ```python
-map_axis2(bc: 'BrainCollection', fn: Callable, n_jobs: int, progress_bar: bool) -> 'BrainCollection'
+map_axis2(bc: BrainCollection, fn: Callable, n_jobs: int, progress_bar: bool) -> BrainCollection
 ```
 
 Map function over voxels (axis=2) per image.
@@ -203,7 +203,7 @@ Map function over voxels (axis=2) per image.
 #### `map_collection`
 
 ```python
-map_collection(bc: 'BrainCollection', fn: Callable, axis: int | str = 0, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
+map_collection(bc: BrainCollection, fn: Callable, axis: int | str = 0, n_jobs: int = 1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Apply function across specified axis.
@@ -215,7 +215,7 @@ use convenience methods like standardize(), smooth(), etc.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to transform. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to transform. | *required*
 `fn` | <code>[Callable](#collections.abc.Callable)</code> | Function to apply. Signature depends on axis: - axis=0: fn(BrainData) -> BrainData (per image) - axis=1: fn(BrainData) -> BrainData (per timepoint slice) - axis=2: fn(ndarray[n_obs]) -> ndarray (per voxel timeseries) | *required*
 `axis` | <code>[int](#int) \| [str](#str)</code> | Axis to iterate over: - 0 or 'images': Apply fn to each image independently - 1 or 'time': Apply fn to each timepoint across images - 2 or 'voxels': Apply fn to each voxel timeseries per image | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 for all cores. Default 1. | <code>1</code>
@@ -225,7 +225,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with transformed data.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with transformed data.
 
 **Examples:**
 
@@ -248,7 +248,7 @@ Type | Description
 #### `smooth`
 
 ```python
-smooth(bc: 'BrainCollection', fwhm: float, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
+smooth(bc: BrainCollection, fwhm: float, n_jobs: int = 1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Spatially smooth each image.
@@ -259,7 +259,7 @@ Delegates to BrainData.smooth() for each image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to smooth. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to smooth. | *required*
 `fwhm` | <code>[float](#float)</code> | Full width at half maximum of Gaussian kernel in mm. | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>1</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
@@ -268,7 +268,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with smoothed images.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with smoothed images.
 
 **Examples:**
 
@@ -279,7 +279,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(bc: 'BrainCollection', axis: int = 0, method: str = 'center', verbose: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
+standardize(bc: BrainCollection, axis: int = 0, method: str = 'center', verbose: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Standardize each image.
@@ -290,7 +290,7 @@ Delegates to BrainData.standardize() for each image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to standardize. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to standardize. | *required*
 `axis` | <code>[int](#int)</code> | Axis for standardization within each image: - 0: Standardize across observations (time) per voxel - 1: Standardize across voxels per observation | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' (subtract mean) or 'zscore' (subtract mean, divide std) | <code>'center'</code>
 `verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings. Default: True. | <code>True</code>
@@ -301,7 +301,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with standardized images.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with standardized images.
 
 **Examples:**
 
@@ -314,7 +314,7 @@ Type | Description
 #### `threshold`
 
 ```python
-threshold(bc: 'BrainCollection', upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> 'BrainCollection'
+threshold(bc: BrainCollection, upper: float | str | None = None, lower: float | str | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = 1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Threshold each image.
@@ -325,7 +325,7 @@ Delegates to BrainData.threshold() for each image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to threshold. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to threshold. | *required*
 `upper` | <code>[float](#float) \| [str](#str) \| None</code> | Upper cutoff. String interpreted as percentile. | <code>None</code>
 `lower` | <code>[float](#float) \| [str](#str) \| None</code> | Lower cutoff. String interpreted as percentile. | <code>None</code>
 `binarize` | <code>[bool](#bool)</code> | Return binary mask. | <code>False</code>
@@ -337,7 +337,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with thresholded images.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with thresholded images.
 
 **Examples:**
 

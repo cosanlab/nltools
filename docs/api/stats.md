@@ -161,7 +161,7 @@ Name | Type | Description
 #### `circle_shift`
 
 ```python
-circle_shift(data: np.ndarray, shift_amount: Union[int, np.ndarray, None] = None, random_state: Union[int, np.random.RandomState, None] = None) -> np.ndarray
+circle_shift(data: np.ndarray, shift_amount: int | np.ndarray | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 Circular shift for time-series data.
@@ -175,8 +175,8 @@ time-series permutation tests.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`shift_amount` | <code>[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray), None]</code> | Number of positions to shift. If None, a random shift is drawn from ``[1, n_timepoints−1]``. | <code>None</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility (only used when *shift_amount* is None). | <code>None</code>
+`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Number of positions to shift. If None, a random shift is drawn from ``[1, n_timepoints−1]``. | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility (only used when *shift_amount* is None). | <code>None</code>
 
 **Returns:**
 
@@ -303,7 +303,7 @@ Type | Description
 #### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Correlation permutation test.
@@ -321,10 +321,10 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -746,7 +746,7 @@ Name | Type | Description
 #### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test).
@@ -765,10 +765,10 @@ Name | Type | Description | Default
 `how` | <code>[str](#str)</code> | Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``. | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Whether to include diagonal elements. | <code>False</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -824,7 +824,7 @@ This function provides unique cumulative threshold map functionality:
 #### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -841,10 +841,10 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness. ``2`` / ``'two'`` — two-tailed (mean ≠ 0); ``1`` / ``'upper'`` — upper one-tailed (mean > 0); ``-1`` / ``'lower'`` — lower one-tailed (mean < 0). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution in results. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend. ``'cpu'`` — joblib (default, 4–8× speedup); ``'gpu'`` — PyTorch GPU (fastest for large problems); ``None`` — single-threaded NumPy (debugging). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend. ``'cpu'`` — joblib (default, 4–8× speedup); ``'gpu'`` — PyTorch GPU (fastest for large problems); ``None`` — single-threaded NumPy (debugging). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -856,7 +856,7 @@ Type | Description
 #### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Union[int, np.random.RandomState, None] = None) -> np.ndarray
+phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -870,8 +870,8 @@ but destroyed temporal correlations.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`backend` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility. | <code>None</code>
+`backend` | <code>[str](#str) \| None</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -1013,7 +1013,7 @@ This function provides unique functionality not available in nilearn:
 #### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Union[int, np.random.RandomState, None] = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -1031,11 +1031,11 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `tail` | <code>[int](#int)</code> | Test sidedness (1, 2, or −1). | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -1108,7 +1108,7 @@ Returns:
 #### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -1125,10 +1125,10 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2036,7 +2036,7 @@ provides CPU-parallel and optional GPU-accelerated backends.
 ###### `circle_shift`
 
 ```python
-circle_shift(data: np.ndarray, shift_amount: Union[int, np.ndarray, None] = None, random_state: Union[int, np.random.RandomState, None] = None) -> np.ndarray
+circle_shift(data: np.ndarray, shift_amount: int | np.ndarray | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 Circular shift for time-series data.
@@ -2050,8 +2050,8 @@ time-series permutation tests.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`shift_amount` | <code>[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray), None]</code> | Number of positions to shift. If None, a random shift is drawn from ``[1, n_timepoints−1]``. | <code>None</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility (only used when *shift_amount* is None). | <code>None</code>
+`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Number of positions to shift. If None, a random shift is drawn from ``[1, n_timepoints−1]``. | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility (only used when *shift_amount* is None). | <code>None</code>
 
 **Returns:**
 
@@ -2062,7 +2062,7 @@ Type | Description
 ###### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Correlation permutation test.
@@ -2080,10 +2080,10 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2154,7 +2154,7 @@ Type | Description
 ###### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test).
@@ -2173,10 +2173,10 @@ Name | Type | Description | Default
 `how` | <code>[str](#str)</code> | Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``. | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Whether to include diagonal elements. | <code>False</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2199,7 +2199,7 @@ Chen et al. (2016). Untangling correlations at the group level.
 ###### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -2216,10 +2216,10 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness. ``2`` / ``'two'`` — two-tailed (mean ≠ 0); ``1`` / ``'upper'`` — upper one-tailed (mean > 0); ``-1`` / ``'lower'`` — lower one-tailed (mean < 0). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution in results. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend. ``'cpu'`` — joblib (default, 4–8× speedup); ``'gpu'`` — PyTorch GPU (fastest for large problems); ``None`` — single-threaded NumPy (debugging). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend. ``'cpu'`` — joblib (default, 4–8× speedup); ``'gpu'`` — PyTorch GPU (fastest for large problems); ``None`` — single-threaded NumPy (debugging). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2231,7 +2231,7 @@ Type | Description
 ###### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Union[int, np.random.RandomState, None] = None) -> np.ndarray
+phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -2245,8 +2245,8 @@ but destroyed temporal correlations.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`backend` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility. | <code>None</code>
+`backend` | <code>[str](#str) \| None</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2257,7 +2257,7 @@ Type | Description
 ###### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Union[int, np.random.RandomState, None] = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -2275,11 +2275,11 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `tail` | <code>[int](#int)</code> | Test sidedness (1, 2, or −1). | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`random_state` | <code>[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState), None]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
@@ -2302,7 +2302,7 @@ Lancaster et al. (2018). Surrogate data for hypothesis testing.
 ###### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -2319,10 +2319,10 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (default 4.0). | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
 

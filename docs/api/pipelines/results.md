@@ -22,7 +22,7 @@ Name | Description
 #### `CVResult`
 
 ```python
-CVResult(fold_results: List[FoldResult], pipeline: Any) -> None
+CVResult(fold_results: list[FoldResult], pipeline: Any) -> None
 ```
 
 Cross-validation result container.
@@ -34,7 +34,7 @@ predictions, and inverse transform capability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`fold_results` | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
+`fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
 Examples
@@ -54,7 +54,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
 [`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
 [`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
 [`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
@@ -68,7 +68,7 @@ Name | Type | Description
 ###### `inverse_transform`
 
 ```python
-inverse_transform(data: Optional[NDArray] = None) -> NDArray
+inverse_transform(data: NDArray | None = None) -> NDArray
 ```
 
 Map predictions back through inverse transforms.
@@ -80,7 +80,7 @@ predictions back to the original feature space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
+`data` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
 
 **Returns:**
 
@@ -187,7 +187,7 @@ Name | Description
 ###### `from_scores`
 
 ```python
-from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> 'PermutationResult'
+from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> PermutationResult
 ```
 
 Create PermutationResult from observed result and null scores.
@@ -205,7 +205,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PermutationResult'</code> | Complete permutation result with computed p-value.
+<code>[PermutationResult](#nltools.pipelines.results.PermutationResult)</code> | Complete permutation result with computed p-value.
 
 ###### `summary`
 

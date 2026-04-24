@@ -527,7 +527,7 @@ Type | Description
 #### `ReduceStep`
 
 ```python
-ReduceStep(method: str = 'pca', n_components: Optional[int] = None, random_state: Optional[int] = None) -> None
+ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
 ```
 
 Dimensionality reduction step.
@@ -540,8 +540,8 @@ new data to the reduced space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method: 'pca' (Principal Component Analysis, invertible) or 'ica' (Independent Component Analysis, not invertible). Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 Examples
 --------
@@ -565,8 +565,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
+[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
 
 ##### Methods
 

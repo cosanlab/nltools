@@ -7,7 +7,6 @@ Diagnostic and utility functions for DesignMatrix.
 Name | Description
 ---- | -----------
 [`clean`](#clean) | Remove highly correlated columns.
-[`details`](#details) | Return human-readable metadata summary.
 [`vif`](#vif) | Compute variance inflation factor for each column.
 
 
@@ -19,7 +18,7 @@ Name | Description
 #### `clean`
 
 ```python
-clean(dm: DesignMatrix, fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(dm: DesignMatrix, fill_na: int | float | None = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -42,26 +41,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
-
-#### `details`
-
-```python
-details(dm: DesignMatrix) -> str
-```
-
-Return human-readable metadata summary.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` | <code>[str](#str)</code> | Formatted string showing sampling_freq, shape, convolved columns, and polynomial columns.
 
 #### `vif`
 

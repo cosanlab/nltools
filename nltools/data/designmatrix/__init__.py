@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
-from .utils import copy_with
+from .utils import copy_with, df_passthrough
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -96,32 +96,32 @@ class DesignMatrix:
         # Create internal Polars DataFrame based on input type
         if data is None:
             # Empty initialization
-            self._df = pl.DataFrame()
+            self.data = pl.DataFrame()
 
         elif isinstance(data, pl.DataFrame):
             # Polars DataFrame - zero copy, just ensure string column names
-            self._df = data.rename({col: str(col) for col in data.columns})
+            self.data = data.rename({col: str(col) for col in data.columns})
 
         elif isinstance(data, dict):
             # Dictionary - let Polars handle it, ensure string column names
-            self._df = pl.DataFrame(data)
-            self._df = self._df.rename({col: str(col) for col in self._df.columns})
+            self.data = pl.DataFrame(data)
+            self.data = self.data.rename({col: str(col) for col in self.data.columns})
 
         elif isinstance(data, np.ndarray):
             # Numpy array - handle column names
             if columns is not None:
                 # Use provided column names
-                self._df = pl.DataFrame(data, schema=[str(c) for c in columns])
+                self.data = pl.DataFrame(data, schema=[str(c) for c in columns])
             else:
                 # Auto-generate column names as strings: '0', '1', '2', ...
                 n_cols = data.shape[1] if data.ndim > 1 else 1
                 auto_columns = [str(i) for i in range(n_cols)]
-                self._df = pl.DataFrame(data, schema=auto_columns)
+                self.data = pl.DataFrame(data, schema=auto_columns)
 
         elif _is_pandas_dataframe(data):
             # pandas DataFrame - convert to Polars, ensure string column names
-            self._df = pl.from_pandas(data)
-            self._df = self._df.rename({col: str(col) for col in self._df.columns})
+            self.data = pl.from_pandas(data)
+            self.data = self.data.rename({col: str(col) for col in self.data.columns})
 
         else:
             raise TypeError(
@@ -141,10 +141,14 @@ class DesignMatrix:
         Returns:
             np.ndarray: 2D numpy array representation
         """
-        arr = self._df.to_numpy()
+        arr = self.data.to_numpy()
         if dtype is not None:
             return arr.astype(dtype)
         return arr
+
+    def __dir__(self):
+        """Include polars DataFrame attrs for REPL/IDE autocomplete."""
+        return sorted(set(super().__dir__()) | set(dir(self.data)))
 
     def __eq__(self, other) -> bool:
         """
@@ -161,7 +165,24 @@ class DesignMatrix:
         """
         if not isinstance(other, DesignMatrix):
             return NotImplemented
-        return self._df.equals(other._df)
+        return self.data.equals(other.data)
+
+    def __getattr__(self, name: str):
+        """Forward unknown attrs to the underlying polars DataFrame.
+
+        Allowlisted row-preserving methods (see ``WRAP_AS_DESIGNMATRIX`` in utils)
+        return a new ``DesignMatrix`` with metadata preserved; everything else
+        returns the raw polars attribute. The ``data`` guard avoids recursion
+        during construction before ``data`` is assigned.
+        """
+        if name.startswith("_") or "data" not in self.__dict__:
+            raise AttributeError(name)
+        try:
+            return df_passthrough(self, name)
+        except AttributeError:
+            raise AttributeError(
+                f"'DesignMatrix' object has no attribute {name!r}"
+            ) from None
 
     def __getitem__(self, key: str | list[str]) -> pl.Series | DesignMatrix:
         """
@@ -172,16 +193,27 @@ class DesignMatrix:
         """
         if isinstance(key, str):
             # Single column - return Series
-            return self._df[key]
+            return self.data[key]
         if isinstance(key, list):
             # Multiple columns - return DesignMatrix with metadata
-            subset_df = self._df.select(key)
+            subset_df = self.data.select(key)
             return copy_with(self, subset_df)
         raise TypeError(f"Column key must be str or list of str, got {type(key)}")
 
     def __len__(self) -> int:
         """Return number of rows."""
-        return len(self._df)
+        return len(self.data)
+
+    def __repr__(self) -> str:
+        """Human-readable metadata summary."""
+        lines = [
+            f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})"
+        ]
+        if self.convolved:
+            lines.append(f"  convolved: {self.convolved}")
+        if self.polys:
+            lines.append(f"  polys: {self.polys}")
+        return "\n".join(lines)
 
     def __setitem__(self, key: str, value: int | float | list | np.ndarray | pl.Series):
         """
@@ -191,11 +223,11 @@ class DesignMatrix:
         dm['col'] = [1, 2, 3]  # Array assignment
         """
         if isinstance(value, (int, float)):
-            self._df = self._df.with_columns(pl.lit(value).alias(key))
+            self.data = self.data.with_columns(pl.lit(value).alias(key))
         elif isinstance(value, (list, np.ndarray)):
-            self._df = self._df.with_columns(pl.Series(key, value))
+            self.data = self.data.with_columns(pl.Series(key, value))
         elif isinstance(value, pl.Series):
-            self._df = self._df.with_columns(value.alias(key))
+            self.data = self.data.with_columns(value.alias(key))
         else:
             raise TypeError(f"Cannot set column from type {type(value)}")
 
@@ -204,13 +236,13 @@ class DesignMatrix:
     @property
     def columns(self) -> list[str]:
         """Column names of the design matrix as a list of strings."""
-        return self._df.columns
+        return self.data.columns
 
     @columns.setter
     def columns(self, new_names: list[str]):
         """Set column names."""
         str_names = [str(name) for name in new_names]
-        self._df = self._df.rename(dict(zip(self._df.columns, str_names)))
+        self.data = self.data.rename(dict(zip(self.data.columns, str_names)))
 
     @property
     def is_empty(self) -> bool:
@@ -219,12 +251,12 @@ class DesignMatrix:
         Returns:
             bool: True if the design matrix is empty, False otherwise.
         """
-        return self._df.is_empty()
+        return self.data.is_empty()
 
     @property
     def shape(self) -> tuple:
         """Return (n_rows, n_cols) tuple."""
-        return self._df.shape
+        return self.data.shape
 
     # ── Public methods (alphabetical) ───────────────────────────────────
 
@@ -342,20 +374,8 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Copy of the current DesignMatrix
         """
-        cloned_df = self._df.clone()
+        cloned_df = self.data.clone()
         return copy_with(self, cloned_df)
-
-    def details(self) -> str:
-        """
-        Return human-readable metadata summary.
-
-        Returns:
-            str: Formatted string showing sampling_freq, shape, convolved columns,
-                and polynomial columns
-        """
-        from .diagnostics import details
-
-        return details(self)
 
     def downsample(self, target: float, method: str = "mean", **kwargs) -> DesignMatrix:
         """
@@ -381,7 +401,7 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix without the specified columns.
         """
-        dropped_df = self._df.drop(columns)
+        dropped_df = self.data.drop(columns)
         return copy_with(self, dropped_df)
 
     def fillna(self, value: int | float) -> DesignMatrix:
@@ -393,7 +413,7 @@ class DesignMatrix:
         Returns:
             DesignMatrix: New DesignMatrix with NaN/null values replaced.
         """
-        filled_df = self._df.fill_null(value).fill_nan(value)
+        filled_df = self.data.fill_null(value).fill_nan(value)
         return copy_with(self, filled_df)
 
     def plot(self, figsize: tuple = (8, 6), **kwargs):
@@ -443,7 +463,7 @@ class DesignMatrix:
             data = data.reshape(-1, 1)
         new_data_df = pl.DataFrame(data, schema=column_names, orient="row")
 
-        poly_df = self._df.select(self.polys) if self.polys else pl.DataFrame()
+        poly_df = self.data.select(self.polys) if self.polys else pl.DataFrame()
 
         if poly_df.shape[1] > 0:
             combined_df = pl.concat([new_data_df, poly_df], how="horizontal")
@@ -480,10 +500,10 @@ class DesignMatrix:
             pl.Series: Sums along specified axis.
         """
         if axis == 0:
-            sums = [self._df[col].sum() for col in self._df.columns]
+            sums = [self.data[col].sum() for col in self.data.columns]
             return pl.Series(values=sums, name="")
         if axis == 1:
-            return self._df.select(pl.sum_horizontal(pl.all())).to_series()
+            return self.data.select(pl.sum_horizontal(pl.all())).to_series()
         raise ValueError(f"axis must be 0 or 1, got {axis}")
 
     def to_numpy(self) -> np.ndarray:

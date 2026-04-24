@@ -502,7 +502,7 @@ Selection criteria:
 #### `check_gpu_available`
 
 ```python
-check_gpu_available() -> Tuple[bool, Dict[str, Any]]
+check_gpu_available() -> tuple[bool, dict[str, Any]]
 ```
 
 Check if GPU acceleration is available.
@@ -511,7 +511,7 @@ Check if GPU acceleration is available.
 
 Name | Type | Description
 ---- | ---- | -----------
-`tuple` | <code>[Tuple](#typing.Tuple)[[bool](#bool), [Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
+`tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
 
 #### `resolve_backend`
 

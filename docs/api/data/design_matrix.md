@@ -1,7 +1,7 @@
 ## `DesignMatrix`
 
 ```python
-DesignMatrix(data: Union[pl.DataFrame, pd.DataFrame, np.ndarray, dict, None] = None, *, sampling_freq: Optional[float] = None, columns: Optional[List[str]] = None, convolved: Optional[List[str]] = None, polys: Optional[List[str]] = None)
+DesignMatrix(data: pl.DataFrame | pd.DataFrame | np.ndarray | dict | None = None, *, sampling_freq: float | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, polys: list[str] | None = None)
 ```
 
 Polars-based design matrix for experimental designs in neuroimaging.
@@ -67,7 +67,6 @@ Name | Description
 [`clean`](#clean) | Remove highly correlated columns.
 [`convolve`](#convolve) | Convolve columns with HRF or custom kernel.
 [`copy`](#copy) | Create a deep copy of the DesignMatrix.
-[`details`](#details) | Return human-readable metadata summary.
 [`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
@@ -87,7 +86,7 @@ Name | Description
 #### `add_dct_basis`
 
 ```python
-add_dct_basis(duration: float = 180, drop: int = 0) -> 'DesignMatrix'
+add_dct_basis(duration: float = 180, drop: int = 0) -> DesignMatrix
 ```
 
 Add discrete cosine transform basis functions (high-pass filter).
@@ -103,12 +102,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with DCT basis columns appended.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
 
 #### `add_poly`
 
 ```python
-add_poly(order: int = 0, include_lower: bool = True) -> 'DesignMatrix'
+add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
 ```
 
 Add Legendre polynomial drift terms.
@@ -124,12 +123,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with polynomial columns appended.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
 
 #### `append`
 
 ```python
-append(dm: Union['DesignMatrix', List['DesignMatrix']], *, axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> 'DesignMatrix'
+append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, verbose: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -149,12 +148,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Concatenated design matrix.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
 #### `clean`
 
 ```python
-clean(fill_na: Union[int, float, None] = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> 'DesignMatrix'
+clean(fill_na: int | float | None = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -172,12 +171,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Cleaned matrix with highly correlated columns removed
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
 #### `convolve`
 
 ```python
-convolve(conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> 'DesignMatrix'
+convolve(conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
 ```
 
 Convolve columns with HRF or custom kernel.
@@ -193,12 +192,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with convolved columns
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
 
 #### `copy`
 
 ```python
-copy() -> 'DesignMatrix'
+copy() -> DesignMatrix
 ```
 
 Create a deep copy of the DesignMatrix.
@@ -207,26 +206,12 @@ Create a deep copy of the DesignMatrix.
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Copy of the current DesignMatrix
-
-#### `details`
-
-```python
-details() -> str
-```
-
-Return human-readable metadata summary.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` | <code>[str](#str)</code> | Formatted string showing sampling_freq, shape, convolved columns, and polynomial columns
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
 
 #### `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> 'DesignMatrix'
+downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
 ```
 
 Reduce temporal resolution to target frequency using Polars-native operations.
@@ -242,12 +227,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Downsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
 
 #### `drop`
 
 ```python
-drop(columns: List[str]) -> 'DesignMatrix'
+drop(columns: list[str]) -> DesignMatrix
 ```
 
 Drop specified columns.
@@ -262,12 +247,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix without the specified columns.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
 
 #### `fillna`
 
 ```python
-fillna(value: Union[int, float]) -> 'DesignMatrix'
+fillna(value: int | float) -> DesignMatrix
 ```
 
 Fill NaN/null values with specified value.
@@ -282,7 +267,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with NaN/null values replaced.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
 
 #### `plot`
 
@@ -308,7 +293,7 @@ Type | Description
 #### `replace_data`
 
 ```python
-replace_data(data: np.ndarray, column_names: Optional[List[str]] = None) -> 'DesignMatrix'
+replace_data(data: np.ndarray, column_names: list[str] | None = None) -> DesignMatrix
 ```
 
 Replace data columns while preserving polynomials and metadata.
@@ -324,12 +309,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with replaced data columns, preserved polynomials
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved polynomials
 
 #### `standardize`
 
 ```python
-standardize(method: str = 'zscore', columns: Optional[List[str]] = None) -> 'DesignMatrix'
+standardize(method: str = 'zscore', columns: list[str] | None = None) -> DesignMatrix
 ```
 
 Standardize columns using the specified method.
@@ -339,13 +324,13 @@ Standardize columns using the specified method.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
-`columns` | <code>[Optional](#typing.Optional)[[List](#typing.List)[[str](#str)]]</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
 
 #### `sum`
 
@@ -398,7 +383,7 @@ Type | Description
 #### `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> 'DesignMatrix'
+upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
 ```
 
 Increase temporal resolution to target frequency.
@@ -414,7 +399,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | Upsampled DesignMatrix with updated sampling_freq
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
 
 #### `vif`
 
@@ -457,7 +442,7 @@ Name | Type | Description | Default
 #### `zscore`
 
 ```python
-zscore(columns: Optional[List[str]] = None) -> 'DesignMatrix'
+zscore(columns: list[str] | None = None) -> DesignMatrix
 ```
 
 Z-score standardize columns (mean=0, std=1).
@@ -472,5 +457,5 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>'DesignMatrix'</code> | New DesignMatrix with standardized columns
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
 

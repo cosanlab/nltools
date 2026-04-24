@@ -18,7 +18,7 @@ Name | Description
 #### `MultiSubjectPipeline`
 
 ```python
-MultiSubjectPipeline(data: List[NDArray], cv: Optional[Any] = None, groups: Optional[NDArray[np.intp]] = None, steps: List[Any] = list(), _is_lazy: bool = False) -> None
+MultiSubjectPipeline(data: list[NDArray], cv: Any | None = None, groups: NDArray[np.intp] | None = None, steps: list[Any] = list(), _is_lazy: bool = False) -> None
 ```
 
 Pipeline for multi-subject neuroimaging analyses.
@@ -32,10 +32,10 @@ Operates on a list of subject data arrays, supporting:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | Cross-validation scheme configuration. | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
+`cv` | <code>[Any](#typing.Any) \| None</code> | Cross-validation scheme configuration. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
+`steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
 Examples
 --------
@@ -63,19 +63,19 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`data`](#data) | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | 
+[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
+[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
 [`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | 
+[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 ##### Methods
 
 ###### `align`
 
 ```python
-align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> 'MultiSubjectPipeline'
+align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add cross-subject alignment step to pipeline.
@@ -97,7 +97,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'MultiSubjectPipeline'</code> | New pipeline with alignment step added.
+<code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
 Examples
 --------
@@ -156,7 +156,7 @@ Examples
 ###### `normalize`
 
 ```python
-normalize(method: str = 'zscore', **kwargs: str) -> 'MultiSubjectPipeline'
+normalize(method: str = 'zscore', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add normalization step (per-subject).
@@ -164,7 +164,7 @@ Add normalization step (per-subject).
 ###### `pipe`
 
 ```python
-pipe(transformer) -> 'MultiSubjectPipeline'
+pipe(transformer) -> MultiSubjectPipeline
 ```
 
 Add custom sklearn transformer.
@@ -212,7 +212,7 @@ Logistic regression with regularization::
 ###### `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Optional[int]) -> 'MultiSubjectPipeline'
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> MultiSubjectPipeline
 ```
 
 Add dimensionality reduction step.

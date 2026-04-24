@@ -21,7 +21,6 @@ Name | Description
 Roc(input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
 ```
 
-
 Roc Class
 
 The Roc class is based on Tor Wager's Matlab roc_plot.m function and

@@ -127,7 +127,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model
@@ -137,7 +137,7 @@ Compute the Deterministic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -151,7 +151,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace
@@ -161,7 +161,7 @@ Use the model to transform data to the Shared Response subspace
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -303,7 +303,7 @@ Name | Type | Description | Default
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -325,7 +325,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -347,7 +347,7 @@ Name | Type | Description
 ###### `transform_subject`
 
 ```python
-transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
+transform_subject(subject_data: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float]
 ```
 
 Align a new subject to the common space.
@@ -370,7 +370,7 @@ Name | Type | Description
 #### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -446,29 +446,29 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | 
-[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
 [`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
 [`n_iter`](#n_iter) | <code>[int](#int)</code> | 
 [`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
+[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
 [`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
 [`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 ##### Methods
 
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
+fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 ```
 
 Fit local alignment on multi-subject data.
@@ -490,7 +490,7 @@ self : LocalAlignment
 ###### `fit_transform`
 
 ```python
-fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
+fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 ```
 
 Fit alignment and transform data in one step.
@@ -510,7 +510,7 @@ List[np.ndarray]
 ###### `transform`
 
 ```python
-transform(data: List[np.ndarray]) -> List[np.ndarray]
+transform(data: list[np.ndarray]) -> list[np.ndarray]
 ```
 
 Apply local transforms to data.
@@ -619,7 +619,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model
@@ -629,7 +629,7 @@ Compute the probabilistic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -644,7 +644,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space
@@ -654,7 +654,7 @@ Use the model to transform matrix to Shared Response space
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used (as it is unsupervised learning) | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -827,7 +827,7 @@ dhrf : array of shape(length / t_r), dtype=float
 #### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -897,7 +897,7 @@ Name | Type | Description
 #### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -947,7 +947,7 @@ Name | Type | Description
 #### `ridge_svd`
 
 ```python
-ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
+ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: str | None = None, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> np.ndarray
 ```
 
 Solve ridge regression using Singular Value Decomposition.
@@ -1308,7 +1308,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model
@@ -1318,7 +1318,7 @@ Compute the Deterministic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -1332,7 +1332,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace
@@ -1342,7 +1342,7 @@ Use the model to transform data to the Shared Response subspace
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -1510,7 +1510,7 @@ n_iter = n_iter
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -1532,7 +1532,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -1554,7 +1554,7 @@ Name | Type | Description
 ######## `transform_subject`
 
 ```python
-transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
+transform_subject(subject_data: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float]
 ```
 
 Align a new subject to the common space.
@@ -1577,7 +1577,7 @@ Name | Type | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -1653,22 +1653,22 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | 
-[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
 [`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
 [`n_iter`](#n_iter) | <code>[int](#int)</code> | 
 [`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
+[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
 [`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
 [`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -1683,13 +1683,13 @@ aggregation: str = 'center'
 ######## `backend_`
 
 ```python
-backend_: Optional[Backend] = field(default=None, repr=False)
+backend_: Backend | None = field(default=None, repr=False)
 ```
 
 ######## `mask_`
 
 ```python
-mask_: Optional[Any] = field(default=None, repr=False)
+mask_: Any | None = field(default=None, repr=False)
 ```
 
 ######## `max_memory_gb`
@@ -1707,7 +1707,7 @@ method: str = 'procrustes'
 ######## `n_features`
 
 ```python
-n_features: Optional[int] = None
+n_features: int | None = None
 ```
 
 ######## `n_iter`
@@ -1725,31 +1725,31 @@ n_jobs: int = -1
 ######## `n_neighborhoods_batch`
 
 ```python
-n_neighborhoods_batch: Optional[int] = None
+n_neighborhoods_batch: int | None = None
 ```
 
 ######## `n_voxels_`
 
 ```python
-n_voxels_: Optional[int] = field(default=None, repr=False)
+n_voxels_: int | None = field(default=None, repr=False)
 ```
 
 ######## `neighborhoods_`
 
 ```python
-neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = field(default=None, repr=False)
+neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = field(default=None, repr=False)
 ```
 
 ######## `parallel`
 
 ```python
-parallel: Optional[str] = 'cpu'
+parallel: str | None = 'cpu'
 ```
 
 ######## `parcellation`
 
 ```python
-parcellation: Optional[Any] = None
+parcellation: Any | None = None
 ```
 
 ######## `radius_mm`
@@ -1767,13 +1767,13 @@ scheme: str = 'searchlight'
 ######## `template_`
 
 ```python
-template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
+template_: dict[int, np.ndarray] | None = field(default=None, repr=False)
 ```
 
 ######## `transforms_`
 
 ```python
-transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
+transforms_: dict[int, list[np.ndarray]] | None = field(default=None, repr=False)
 ```
 
 
@@ -1783,7 +1783,7 @@ transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=Fa
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
+fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 ```
 
 Fit local alignment on multi-subject data.
@@ -1805,7 +1805,7 @@ self : LocalAlignment
 ######## `fit_transform`
 
 ```python
-fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
+fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 ```
 
 Fit alignment and transform data in one step.
@@ -1825,7 +1825,7 @@ List[np.ndarray]
 ######## `transform`
 
 ```python
-transform(data: List[np.ndarray]) -> List[np.ndarray]
+transform(data: list[np.ndarray]) -> list[np.ndarray]
 ```
 
 Apply local transforms to data.
@@ -1958,7 +1958,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model
@@ -1968,7 +1968,7 @@ Compute the probabilistic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -1983,7 +1983,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space
@@ -1993,7 +1993,7 @@ Use the model to transform matrix to Shared Response space
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used (as it is unsupervised learning) | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -2222,7 +2222,7 @@ n_iter = n_iter
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -2244,7 +2244,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(data: List[np.ndarray], parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -2266,7 +2266,7 @@ Name | Type | Description
 ########## `transform_subject`
 
 ```python
-transform_subject(subject_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float, float]
+transform_subject(subject_data: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, float]
 ```
 
 Align a new subject to the common space.
@@ -2308,7 +2308,7 @@ Name | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Optional[Any] = None, n_features: Optional[int] = None, n_iter: int = 3, aggregation: str = 'center', parallel: Optional[str] = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: Optional[int] = None, max_memory_gb: float = 4.0, transforms_: Optional[Dict[int, List[np.ndarray]]] = None, template_: Optional[Dict[int, np.ndarray]] = None, neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = None, n_voxels_: Optional[int] = None, mask_: Optional[Any] = None, backend_: Optional[Backend] = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -2384,22 +2384,22 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | 
-[`mask_`](#mask_) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
 [`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
 [`n_iter`](#n_iter) | <code>[int](#int)</code> | 
 [`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[Optional](#typing.Optional)[[Union](#typing.Union)['SphereNeighborhoods', [Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]]</code> | 
-[`parallel`](#parallel) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`parcellation`](#parcellation) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
+[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
+[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
+[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
+[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
 [`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
 [`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | 
-[`transforms_`](#transforms_) | <code>[Optional](#typing.Optional)[[Dict](#typing.Dict)[[int](#int), [List](#typing.List)[[ndarray](#numpy.ndarray)]]]</code> | 
+[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -2414,13 +2414,13 @@ aggregation: str = 'center'
 ########## `backend_`
 
 ```python
-backend_: Optional[Backend] = field(default=None, repr=False)
+backend_: Backend | None = field(default=None, repr=False)
 ```
 
 ########## `mask_`
 
 ```python
-mask_: Optional[Any] = field(default=None, repr=False)
+mask_: Any | None = field(default=None, repr=False)
 ```
 
 ########## `max_memory_gb`
@@ -2438,7 +2438,7 @@ method: str = 'procrustes'
 ########## `n_features`
 
 ```python
-n_features: Optional[int] = None
+n_features: int | None = None
 ```
 
 ########## `n_iter`
@@ -2456,31 +2456,31 @@ n_jobs: int = -1
 ########## `n_neighborhoods_batch`
 
 ```python
-n_neighborhoods_batch: Optional[int] = None
+n_neighborhoods_batch: int | None = None
 ```
 
 ########## `n_voxels_`
 
 ```python
-n_voxels_: Optional[int] = field(default=None, repr=False)
+n_voxels_: int | None = field(default=None, repr=False)
 ```
 
 ########## `neighborhoods_`
 
 ```python
-neighborhoods_: Optional[Union['SphereNeighborhoods', Dict[int, np.ndarray]]] = field(default=None, repr=False)
+neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = field(default=None, repr=False)
 ```
 
 ########## `parallel`
 
 ```python
-parallel: Optional[str] = 'cpu'
+parallel: str | None = 'cpu'
 ```
 
 ########## `parcellation`
 
 ```python
-parcellation: Optional[Any] = None
+parcellation: Any | None = None
 ```
 
 ########## `radius_mm`
@@ -2498,13 +2498,13 @@ scheme: str = 'searchlight'
 ########## `template_`
 
 ```python
-template_: Optional[Dict[int, np.ndarray]] = field(default=None, repr=False)
+template_: dict[int, np.ndarray] | None = field(default=None, repr=False)
 ```
 
 ########## `transforms_`
 
 ```python
-transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=False)
+transforms_: dict[int, list[np.ndarray]] | None = field(default=None, repr=False)
 ```
 
 
@@ -2514,7 +2514,7 @@ transforms_: Optional[Dict[int, List[np.ndarray]]] = field(default=None, repr=Fa
 ###### `fit`
 
 ```python
-fit(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> 'LocalAlignment'
+fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 ```
 
 Fit local alignment on multi-subject data.
@@ -2536,7 +2536,7 @@ self : LocalAlignment
 ########## `fit_transform`
 
 ```python
-fit_transform(data: List[np.ndarray], mask: 'nib.Nifti1Image') -> List[np.ndarray]
+fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 ```
 
 Fit alignment and transform data in one step.
@@ -2556,7 +2556,7 @@ List[np.ndarray]
 ########## `transform`
 
 ```python
-transform(data: List[np.ndarray]) -> List[np.ndarray]
+transform(data: list[np.ndarray]) -> list[np.ndarray]
 ```
 
 Apply local transforms to data.
@@ -2776,7 +2776,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model
@@ -2786,7 +2786,7 @@ Compute the Deterministic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -2800,7 +2800,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace
@@ -2810,7 +2810,7 @@ Use the model to transform data to the Shared Response subspace
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -2954,7 +2954,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model
@@ -2964,7 +2964,7 @@ Compute the probabilistic Shared Response Model
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory budget in GB (default: 4.0). Only used when parallel="gpu". Defaults to 4.0. | <code>4.0</code>
@@ -2979,7 +2979,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(X: List[np.ndarray], y: Optional[Any] = None, parallel: Optional[str] = 'cpu', n_jobs: int = -1) -> List[Optional[np.ndarray]]
+transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space
@@ -2989,7 +2989,7 @@ Use the model to transform matrix to Shared Response space
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
-`y` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | not used (as it is unsupervised learning) | <code>None</code>
+`y` | <code>[Any](#typing.Any) \| None</code> | not used (as it is unsupervised learning) | <code>None</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": GPU acceleration (not yet implemented, falls back to CPU) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
@@ -3538,7 +3538,7 @@ Selection criteria:
 ###### `check_gpu_available`
 
 ```python
-check_gpu_available() -> Tuple[bool, Dict[str, Any]]
+check_gpu_available() -> tuple[bool, dict[str, Any]]
 ```
 
 Check if GPU acceleration is available.
@@ -3547,7 +3547,7 @@ Check if GPU acceleration is available.
 
 Name | Type | Description
 ---- | ---- | -----------
-`tuple` | <code>[Tuple](#typing.Tuple)[[bool](#bool), [Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
+`tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
 
 ###### `resolve_backend`
 
@@ -3984,7 +3984,7 @@ Name | Description
 ###### `OnlineBootstrapStats`
 
 ```python
-OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
+OnlineBootstrapStats(shape: tuple[int, ...], save_samples: bool = False, percentiles: tuple[float, float] = (2.5, 97.5))
 ```
 
 Memory-efficient online statistics aggregator for bootstrap samples.
@@ -3996,9 +3996,9 @@ mean and variance. Optionally stores all samples for exact percentile CIs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`shape` | <code>[Tuple](#typing.Tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
+`shape` | <code>[tuple](#tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
 `save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
+`percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
 **Examples:**
 
@@ -4084,7 +4084,7 @@ shape = shape
 ###### `get_results`
 
 ```python
-get_results() -> Dict[str, np.ndarray]
+get_results() -> dict[str, np.ndarray]
 ```
 
 Compute final bootstrap statistics.
@@ -4093,14 +4093,14 @@ Compute final bootstrap statistics.
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
 Examples:
 **Basic usage:**
@@ -4173,7 +4173,7 @@ Name | Type | Description | Default
 ###### `circle_shift`
 
 ```python
-circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
+circle_shift(data: np.ndarray, shift_amount: int | np.ndarray | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 Circular shift for time-series data.
@@ -4188,8 +4188,8 @@ feature (column) independently.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`shift_amount` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
+`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
 
 **Returns:**
 
@@ -4217,7 +4217,7 @@ array([[ 4, 30],
 ###### `compute_icc_voxelwise`
 
 ```python
-compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
+compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Backend | None = None) -> np.ndarray
 ```
 
 Compute voxel-wise ICC across many voxels.
@@ -4233,11 +4233,11 @@ Name | Type | Description | Default
 `n_subjects` | <code>[int](#int)</code> | Number of subjects | *required*
 `n_sessions` | <code>[int](#int)</code> | Number of sessions per subject | *required*
 `icc_type` | <code>[Literal](#typing.Literal)['icc1', 'icc2', 'icc3']</code> | Type of ICC to calculate - 'icc1': One-way random effects - 'icc2': Two-way random effects (default) - 'icc3': Two-way mixed effects | <code>'icc2'</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
 `Note` |  | For large voxel counts (>10K), vectorized computation (parallel=None) is | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB Only used when parallel='gpu' | <code>4.0</code>
-`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
+`backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Backend instance (auto-detected if None) | <code>None</code>
 
 **Returns:**
 
@@ -4267,7 +4267,7 @@ True
 ###### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Correlation permutation test.
@@ -4432,7 +4432,7 @@ True
 ###### `isc_group_permutation_test`
 
 ```python
-isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
+isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> dict[str, Any]
 ```
 
 Compute ISC difference between groups with permutation testing.
@@ -4453,9 +4453,9 @@ Name | Type | Description | Default
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
 `tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[Literal](#typing.Literal)['cpu', 'gpu']]</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
@@ -4465,12 +4465,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 Examples:
 >>> # Single-feature ISC group comparison
@@ -4514,7 +4514,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ###### `isc_permutation_test`
 
 ```python
-isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Compute intersubject correlation with permutation testing.
@@ -4538,21 +4538,21 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
 `sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
-`parallel` | <code>[Optional](#typing.Optional)[[Literal](#typing.Literal)['cpu', 'gpu']]</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 Examples:
 >>> # Single-feature ISC
@@ -4598,7 +4598,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ###### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -4672,7 +4672,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 ###### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -4742,7 +4742,7 @@ Name | Type | Description
 ###### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
+phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -4768,8 +4768,8 @@ dynamics.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`backend` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility | <code>None</code>
+`backend` | <code>[str](#str) \| None</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -4806,7 +4806,7 @@ True
 ###### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -4828,11 +4828,11 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
 `tail` | <code>[int](#int)</code> | Test type (1=one-tailed, 2=two-tailed) | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
 `return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -4878,7 +4878,7 @@ True
 ###### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -5024,7 +5024,7 @@ SIMPLE_METHODS = ['mean', 'median', 'std', 'sum', 'min', 'max']
 ###### `OnlineBootstrapStats`
 
 ```python
-OnlineBootstrapStats(shape: Tuple[int, ...], save_samples: bool = False, percentiles: Tuple[float, float] = (2.5, 97.5))
+OnlineBootstrapStats(shape: tuple[int, ...], save_samples: bool = False, percentiles: tuple[float, float] = (2.5, 97.5))
 ```
 
 Memory-efficient online statistics aggregator for bootstrap samples.
@@ -5036,9 +5036,9 @@ mean and variance. Optionally stores all samples for exact percentile CIs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`shape` | <code>[Tuple](#typing.Tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
+`shape` | <code>[tuple](#tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
 `save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
+`percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
 **Examples:**
 
@@ -5124,7 +5124,7 @@ shape = shape
 ###### `get_results`
 
 ```python
-get_results() -> Dict[str, np.ndarray]
+get_results() -> dict[str, np.ndarray]
 ```
 
 Compute final bootstrap statistics.
@@ -5133,14 +5133,14 @@ Compute final bootstrap statistics.
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
-<code>[Dict](#typing.Dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
 Examples:
 **Basic usage:**
@@ -5235,7 +5235,7 @@ Name | Description
 ###### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Correlation permutation test.
@@ -5354,7 +5354,7 @@ Name | Description
 ###### `compute_icc_voxelwise`
 
 ```python
-compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
+compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Backend | None = None) -> np.ndarray
 ```
 
 Compute voxel-wise ICC across many voxels.
@@ -5370,11 +5370,11 @@ Name | Type | Description | Default
 `n_subjects` | <code>[int](#int)</code> | Number of subjects | *required*
 `n_sessions` | <code>[int](#int)</code> | Number of sessions per subject | *required*
 `icc_type` | <code>[Literal](#typing.Literal)['icc1', 'icc2', 'icc3']</code> | Type of ICC to calculate - 'icc1': One-way random effects - 'icc2': Two-way random effects (default) - 'icc3': Two-way mixed effects | <code>'icc2'</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
 `Note` |  | For large voxel counts (>10K), vectorized computation (parallel=None) is | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB Only used when parallel='gpu' | <code>4.0</code>
-`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
+`backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Backend instance (auto-detected if None) | <code>None</code>
 
 **Returns:**
 
@@ -5457,7 +5457,7 @@ Name | Description
 ###### `isc_group_permutation_test`
 
 ```python
-isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, random_state: Optional[int] = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> Dict[str, Any]
+isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> dict[str, Any]
 ```
 
 Compute ISC difference between groups with permutation testing.
@@ -5478,9 +5478,9 @@ Name | Type | Description | Default
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
 `tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[Literal](#typing.Literal)['cpu', 'gpu']]</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
@@ -5490,12 +5490,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 Examples:
 >>> # Single-feature ISC group comparison
@@ -5539,7 +5539,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ######## `isc_permutation_test`
 
 ```python
-isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Optional[Literal['cpu', 'gpu']] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Compute intersubject correlation with permutation testing.
@@ -5563,21 +5563,21 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
 `sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
-`parallel` | <code>[Optional](#typing.Optional)[[Literal](#typing.Literal)['cpu', 'gpu']]</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
-<code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with the following keys:
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 Examples:
 >>> # Single-feature ISC
@@ -5747,7 +5747,7 @@ True
 ######## `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -5872,7 +5872,7 @@ Name | Description
 ###### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -5979,7 +5979,7 @@ Name | Description
 ###### `circle_shift`
 
 ```python
-circle_shift(data: np.ndarray, shift_amount: Optional[Union[int, np.ndarray]] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
+circle_shift(data: np.ndarray, shift_amount: int | np.ndarray | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 Circular shift for time-series data.
@@ -5994,8 +5994,8 @@ feature (column) independently.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`shift_amount` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray)]]</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
+`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
 
 **Returns:**
 
@@ -6023,7 +6023,7 @@ array([[ 4, 30],
 ######## `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: Optional[str] = None, random_state: Optional[Union[int, np.random.RandomState]] = None) -> np.ndarray
+phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -6049,8 +6049,8 @@ dynamics.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`backend` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility | <code>None</code>
+`backend` | <code>[str](#str) \| None</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6087,7 +6087,7 @@ True
 ######## `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: Optional[Union[int, np.random.RandomState]] = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -6109,11 +6109,11 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
 `tail` | <code>[int](#int)</code> | Test type (1=one-tailed, 2=two-tailed) | <code>2</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
 `return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
-`random_state` | <code>[Optional](#typing.Optional)[[Union](#typing.Union)[[int](#int), [RandomState](#numpy.random.RandomState)]]</code> | Random seed for reproducibility | <code>None</code>
+`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6178,7 +6178,7 @@ Name | Description
 ###### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -6417,7 +6417,7 @@ Name | Type | Description | Default
 ######## `validate_isc_parameters`
 
 ```python
-validate_isc_parameters(metric: str, summary_statistic: str, method: Optional[str] = None) -> None
+validate_isc_parameters(metric: str, summary_statistic: str, method: str | None = None) -> None
 ```
 
 Validate ISC parameter values.
@@ -6428,7 +6428,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
 `summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
-`method` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Resampling method (optional) | <code>None</code>
+`method` | <code>[str](#str) \| None</code> | Resampling method (optional) | <code>None</code>
 
 ######## `validate_metric_parameter`
 
@@ -6465,7 +6465,7 @@ Name | Type | Description | Default
 ######## `validate_parallel_parameter`
 
 ```python
-validate_parallel_parameter(parallel: Optional[str]) -> None
+validate_parallel_parameter(parallel: str | None) -> None
 ```
 
 Validate parallel parameter.
@@ -6474,12 +6474,12 @@ Validate parallel parameter.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+`parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
 
 ######## `validate_parallel_parameter_matrix`
 
 ```python
-validate_parallel_parameter_matrix(parallel: Optional[str]) -> None
+validate_parallel_parameter_matrix(parallel: str | None) -> None
 ```
 
 Validate parallel parameter for matrix operations.
@@ -6488,12 +6488,12 @@ Validate parallel parameter for matrix operations.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallel parameter value | *required*
+`parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
 
 ######## `validate_percentiles`
 
 ```python
-validate_percentiles(percentiles: Tuple[float, float]) -> None
+validate_percentiles(percentiles: tuple[float, float]) -> None
 ```
 
 Validate percentile values for confidence intervals.
@@ -6502,7 +6502,7 @@ Validate percentile values for confidence intervals.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`percentiles` | <code>[Tuple](#typing.Tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
+`percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
 
 ######## `validate_same_first_dimension`
 
@@ -6645,7 +6645,7 @@ Name | Description
 ###### `generate_bootstrap_indices`
 
 ```python
-generate_bootstrap_indices(n_samples: int, n_bootstrap: int, random_state: Optional[int] = None) -> np.ndarray
+generate_bootstrap_indices(n_samples: int, n_bootstrap: int, random_state: int | None = None) -> np.ndarray
 ```
 
 Generate bootstrap indices deterministically for resampling.
@@ -6659,7 +6659,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_samples` | <code>[int](#int)</code> | Number of samples in original dataset. | *required*
 `n_bootstrap` | <code>[int](#int)</code> | Number of bootstrap iterations. | *required*
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. Defaults to None. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Returns:**
 
@@ -6689,7 +6689,7 @@ array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
 ###### `generate_seeds`
 
 ```python
-generate_seeds(n_permute: int, random_state: Optional[int] = None) -> np.ndarray
+generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray
 ```
 
 Generate random seeds for deterministic parallelization.
@@ -6702,7 +6702,7 @@ to ensure deterministic behavior across parallel workers.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations | *required*
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6723,7 +6723,7 @@ True
 ###### `generate_sign_flips`
 
 ```python
-generate_sign_flips(n_permute: int, n_samples: int, random_state: Optional[int] = None) -> np.ndarray
+generate_sign_flips(n_permute: int, n_samples: int, random_state: int | None = None) -> np.ndarray
 ```
 
 Generate random sign-flip matrix for one-sample permutation tests.
@@ -6742,7 +6742,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_permute` | <code>[int](#int)</code> | Number of permutations to generate | *required*
 `n_samples` | <code>[int](#int)</code> | Number of samples in the dataset | *required*
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6773,7 +6773,7 @@ True
 ###### `get_random_state`
 
 ```python
-get_random_state(random_state: Optional[int] = None)
+get_random_state(random_state: int | None = None)
 ```
 
 Get RandomState instance from seed.
@@ -6782,7 +6782,7 @@ Get RandomState instance from seed.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed (int, RandomState, or None) | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed (int, RandomState, or None) | <code>None</code>
 
 **Returns:**
 
@@ -6843,7 +6843,7 @@ Name | Description
 ###### `generate_dirichlet_samples`
 
 ```python
-generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | List[float] = [0.1, 1.0], random_state: Optional[int] = None) -> np.ndarray
+generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | list[float] = [0.1, 1.0], random_state: int | None = None) -> np.ndarray
 ```
 
 Generate samples from a Dirichlet distribution.
@@ -6858,8 +6858,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_samples` | <code>[int](#int)</code> | Number of samples to generate. | *required*
 `n_kernels` | <code>[int](#int)</code> | Number of dimensions (feature spaces) of the distribution. | *required*
-`concentration` | <code>[float](#float) \| [List](#typing.List)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
+`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
 
 **Returns:**
 
@@ -6882,7 +6882,7 @@ True
 ###### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -6932,7 +6932,7 @@ Name | Type | Description
 ###### `ridge_svd`
 
 ```python
-ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
+ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: str | None = None, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> np.ndarray
 ```
 
 Solve ridge regression using Singular Value Decomposition.
@@ -7016,7 +7016,7 @@ Type | Description
 ###### `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: List[np.ndarray], Y: np.ndarray, n_iter: Union[int, np.ndarray] = 100, concentration: Union[float, List[float]] = [0.1, 1.0], alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -7037,18 +7037,18 @@ standard ridge regression is applied with alpha grid search.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`Xs` | <code>[List](#typing.List)[[ndarray](#numpy.ndarray)]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
+`Xs` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
 `Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`n_iter` | <code>[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
-`concentration` | <code>[Union](#typing.Union)[[float](#float), [List](#typing.List)[[float](#float)]]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`alphas` | <code>[Union](#typing.Union)[[float](#float), [ndarray](#numpy.ndarray), [List](#typing.List)[[float](#float)]]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[Union](#typing.Union)[[int](#int), [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)]</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`n_iter` | <code>[int](#int) \| [ndarray](#numpy.ndarray)</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
+`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
 `local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Optional](#typing.Optional)[[Callable](#typing.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)]]</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
 `fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
@@ -7056,16 +7056,16 @@ Name | Type | Description | Default
 `return_weights` | <code>[bool](#bool)</code> | Whether to refit on the entire dataset and return the weights. Defaults to True. | <code>True</code>
 `diagonalize_method` | <code>[str](#str)</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
 `warn` | <code>[bool](#bool)</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
 
 **Examples:**
 
@@ -7125,7 +7125,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ###### `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7139,27 +7139,27 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
 `Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`alphas` | <code>[Union](#typing.Union)[[float](#float), [ndarray](#numpy.ndarray), [List](#typing.List)[[float](#float)]]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[Union](#typing.Union)[[int](#int), [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)]</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
 `local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Optional](#typing.Optional)[[Callable](#typing.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)]]</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
 `fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
 
 **Examples:**
 
@@ -7270,7 +7270,7 @@ Name | Description
 ###### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: Optional[np.ndarray] = None, cv: int = 5, parallel: Optional[str] = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -7320,7 +7320,7 @@ Name | Type | Description
 ######## `ridge_svd`
 
 ```python
-ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: Optional[str] = None, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> np.ndarray
+ridge_svd(X: np.ndarray, y: np.ndarray, alpha: float = 1.0, parallel: str | None = None, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> np.ndarray
 ```
 
 Solve ridge regression using Singular Value Decomposition.
@@ -7429,7 +7429,7 @@ Name | Description
 ###### `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: List[np.ndarray], Y: np.ndarray, n_iter: Union[int, np.ndarray] = 100, concentration: Union[float, List[float]] = [0.1, 1.0], alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -7450,18 +7450,18 @@ standard ridge regression is applied with alpha grid search.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`Xs` | <code>[List](#typing.List)[[ndarray](#numpy.ndarray)]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
+`Xs` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
 `Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`n_iter` | <code>[Union](#typing.Union)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
-`concentration` | <code>[Union](#typing.Union)[[float](#float), [List](#typing.List)[[float](#float)]]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`alphas` | <code>[Union](#typing.Union)[[float](#float), [ndarray](#numpy.ndarray), [List](#typing.List)[[float](#float)]]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[Union](#typing.Union)[[int](#int), [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)]</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`n_iter` | <code>[int](#int) \| [ndarray](#numpy.ndarray)</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
+`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
 `local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Optional](#typing.Optional)[[Callable](#typing.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)]]</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
 `fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
@@ -7469,16 +7469,16 @@ Name | Type | Description | Default
 `return_weights` | <code>[bool](#bool)</code> | Whether to refit on the entire dataset and return the weights. Defaults to True. | <code>True</code>
 `diagonalize_method` | <code>[str](#str)</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
 `warn` | <code>[bool](#bool)</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
 
 **Examples:**
 
@@ -7538,7 +7538,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ######## `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: Union[float, np.ndarray, List[float]] = [0.1, 1.0, 10.0], cv: Union[int, BaseCrossValidator] = 5, local_alpha: bool = True, n_targets_batch: Optional[int] = None, n_targets_batch_refit: Optional[int] = None, n_alphas_batch: Optional[int] = None, Y_in_cpu: bool = True, score_func: Optional[Callable[[np.ndarray, np.ndarray], np.ndarray]] = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: Optional[int] = None) -> Dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7552,27 +7552,27 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
 `Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`alphas` | <code>[Union](#typing.Union)[[float](#float), [ndarray](#numpy.ndarray), [List](#typing.List)[[float](#float)]]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[Union](#typing.Union)[[int](#int), [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)]</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
 `local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Optional](#typing.Optional)[[Callable](#typing.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)]]</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
 `fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
 
 **Examples:**
 
@@ -7639,7 +7639,7 @@ Name | Description
 ###### `generate_dirichlet_samples`
 
 ```python
-generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | List[float] = [0.1, 1.0], random_state: Optional[int] = None) -> np.ndarray
+generate_dirichlet_samples(n_samples: int, n_kernels: int, concentration: float | list[float] = [0.1, 1.0], random_state: int | None = None) -> np.ndarray
 ```
 
 Generate samples from a Dirichlet distribution.
@@ -7654,8 +7654,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_samples` | <code>[int](#int)</code> | Number of samples to generate. | *required*
 `n_kernels` | <code>[int](#int)</code> | Number of dimensions (feature spaces) of the distribution. | *required*
-`concentration` | <code>[float](#float) \| [List](#typing.List)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
+`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
 
 **Returns:**
 

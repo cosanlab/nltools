@@ -45,7 +45,7 @@ def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
 
     # Use .with_columns() to replace only the zscored columns
     # (automatically preserves untouched columns - idiomatic Polars pattern)
-    zscored_df = dm._df.with_columns(zscore_exprs)
+    zscored_df = dm.data.with_columns(zscore_exprs)
 
     return copy_with(dm, zscored_df)
 
@@ -93,7 +93,7 @@ def standardize(
             (pl.col(col) - pl.col(col).mean()).alias(col) for col in columns_to_center
         ]
 
-        centered_df = dm._df.with_columns(center_exprs)
+        centered_df = dm.data.with_columns(center_exprs)
         return copy_with(dm, centered_df)
     raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
 
@@ -155,7 +155,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
         idx = pl.concat([idx, remainder])
 
     # Add grouping index to dataframe
-    df_with_idx = dm._df.with_columns(idx.alias("_group_idx"))
+    df_with_idx = dm.data.with_columns(idx.alias("_group_idx"))
 
     # Get all data columns
     data_cols = get_data_columns(dm, exclude_polys=False)
@@ -233,7 +233,7 @@ def upsample(
     # Interpolate each column using scipy (matches stats.upsample)
     upsampled_data = {}
     for col in data_cols:
-        col_data = dm._df[col].to_numpy()
+        col_data = dm.data[col].to_numpy()
 
         # Create interpolation function
         interpolate = interp1d(orig_indices, col_data, kind=method)

@@ -36,7 +36,7 @@ Name | Description
 #### `compute_icc_voxelwise`
 
 ```python
-compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: Optional[str] = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Optional[Backend] = None) -> np.ndarray
+compute_icc_voxelwise(data: np.ndarray, n_subjects: int, n_sessions: int, icc_type: Literal['icc1', 'icc2', 'icc3'] = 'icc2', parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, backend: Backend | None = None) -> np.ndarray
 ```
 
 Compute voxel-wise ICC across many voxels.
@@ -52,11 +52,11 @@ Name | Type | Description | Default
 `n_subjects` | <code>[int](#int)</code> | Number of subjects | *required*
 `n_sessions` | <code>[int](#int)</code> | Number of sessions per subject | *required*
 `icc_type` | <code>[Literal](#typing.Literal)['icc1', 'icc2', 'icc3']</code> | Type of ICC to calculate - 'icc1': One-way random effects - 'icc2': Two-way random effects (default) - 'icc3': Two-way mixed effects | <code>'icc2'</code>
-`parallel` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization method - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels) - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50× speedup) - None: Single-threaded vectorized NumPy (default, memory efficient for all sizes) | <code>'cpu'</code>
 `Note` |  | For large voxel counts (>10K), vectorized computation (parallel=None) is | *required*
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB Only used when parallel='gpu' | <code>4.0</code>
-`backend` | <code>[Optional](#typing.Optional)[[Backend](#nltools.algorithms.backends.Backend)]</code> | Backend instance (auto-detected if None) | <code>None</code>
+`backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Backend instance (auto-detected if None) | <code>None</code>
 
 **Returns:**
 

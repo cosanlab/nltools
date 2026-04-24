@@ -22,7 +22,7 @@ Name | Description
 #### `from_bids`
 
 ```python
-from_bids(layout: Any, mask: 'nib.Nifti1Image | Path | str', *, task: str | None = None, subject: str | list[str] | None = None, session: str | list[str] | None = None, run: int | list[int] | None = None, space: str | None = None, suffix: str = 'bold', extension: str = 'nii.gz', **bids_filters: str) -> 'BrainCollection'
+from_bids(layout: Any, mask: nib.Nifti1Image | Path | str, *, task: str | None = None, subject: str | list[str] | None = None, session: str | list[str] | None = None, run: int | list[int] | None = None, space: str | None = None, suffix: str = 'bold', extension: str = 'nii.gz', **bids_filters: str) -> BrainCollection
 ```
 
 Create BrainCollection from a BIDS dataset.
@@ -34,7 +34,7 @@ Requires pybids to be installed: `pip install pybids`
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `layout` | <code>[Any](#typing.Any)</code> | pybids BIDSLayout object or path to BIDS dataset. | *required*
-`mask` | <code>'nib.Nifti1Image \| Path \| str'</code> | Shared mask (required). | *required*
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask (required). | *required*
 `task` | <code>[str](#str) \| None</code> | BIDS task filter. | <code>None</code>
 `subject` | <code>[str](#str) \| [list](#list)[[str](#str)] \| None</code> | Subject ID(s) to include. | <code>None</code>
 `session` | <code>[str](#str) \| [list](#list)[[str](#str)] \| None</code> | Session ID(s) to include. | <code>None</code>
@@ -48,7 +48,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with metadata extracted from BIDS entities.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with metadata extracted from BIDS entities.
 
 **Examples:**
 
@@ -64,7 +64,7 @@ Type | Description
 #### `from_glob`
 
 ```python
-from_glob(pattern: str, mask: 'nib.Nifti1Image | Path | str', *, pattern_groups: 'dict[str, int] | str | None' = None, sort: bool = True) -> 'BrainCollection'
+from_glob(pattern: str, mask: nib.Nifti1Image | Path | str, *, pattern_groups: dict[str, int] | str | None = None, sort: bool = True) -> BrainCollection
 ```
 
 Create BrainCollection from glob pattern.
@@ -74,15 +74,15 @@ Create BrainCollection from glob pattern.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `pattern` | <code>[str](#str)</code> | Glob pattern (e.g., ``'/data/*/func/*_bold.nii.gz'``). | *required*
-`mask` | <code>'nib.Nifti1Image \| Path \| str'</code> | Shared mask (required). | *required*
-`pattern_groups` | <code>'dict[str, int] \| str \| None'</code> | Regex pattern with named groups for metadata extraction. Example: ``r'sub-(?P<subject>\w+)/.*run-(?P<run>\d+)'`` | <code>None</code>
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask (required). | *required*
+`pattern_groups` | <code>[dict](#dict)[[str](#str), [int](#int)] \| [str](#str) \| None</code> | Regex pattern with named groups for metadata extraction. Example: ``r'sub-(?P<subject>\w+)/.*run-(?P<run>\d+)'`` | <code>None</code>
 `sort` | <code>[bool](#bool)</code> | Sort files alphabetically (default True). | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with optional metadata from pattern groups.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with optional metadata from pattern groups.
 
 **Examples:**
 
@@ -97,7 +97,7 @@ Type | Description
 #### `from_stacked`
 
 ```python
-from_stacked(brain_data: 'BrainData', splits: list[int] | None = None, n_images: int | None = None) -> 'BrainCollection'
+from_stacked(brain_data: BrainData, splits: list[int] | None = None, n_images: int | None = None) -> BrainCollection
 ```
 
 Create BrainCollection by splitting a stacked BrainData.
@@ -106,7 +106,7 @@ Create BrainCollection by splitting a stacked BrainData.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`brain_data` | <code>'BrainData'</code> | BrainData with shape (n_total_obs, n_voxels). | *required*
+`brain_data` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData with shape (n_total_obs, n_voxels). | *required*
 `splits` | <code>[list](#list)[[int](#int)] \| None</code> | List of observation counts per image. Must sum to n_total_obs. | <code>None</code>
 `n_images` | <code>[int](#int) \| None</code> | Number of images (splits evenly). Mutually exclusive with splits. | <code>None</code>
 
@@ -114,7 +114,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with data split according to specification.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with data split according to specification.
 
 **Examples:**
 

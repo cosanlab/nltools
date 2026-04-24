@@ -19,7 +19,7 @@ Name | Description
 #### `write`
 
 ```python
-write(bc: 'BrainCollection', directory: 'str | Path', pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list['Path']
+write(bc: BrainCollection, directory: str | Path, pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list[Path]
 ```
 
 Write all images in collection to files.
@@ -28,8 +28,8 @@ Write all images in collection to files.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to write. | *required*
-`directory` | <code>'str \| Path'</code> | Output directory path. Will be created if it doesn't exist. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to write. | *required*
+`directory` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Output directory path. Will be created if it doesn't exist. | *required*
 `pattern` | <code>[str](#str)</code> | Filename pattern with {i} placeholder for image index. Default: "image_{i:04d}.nii.gz" produces image_0000.nii.gz, etc. | <code>'image_{i:04d}.nii.gz'</code>
 `metadata_file` | <code>[str](#str) \| None</code> | Optional filename for metadata CSV. Set to None to skip. Default: "metadata.csv" | <code>'metadata.csv'</code>
 
@@ -37,7 +37,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)['Path']</code> | List of paths to written files.
+<code>[list](#list)[[Path](#pathlib.Path)]</code> | List of paths to written files.
 
 **Examples:**
 

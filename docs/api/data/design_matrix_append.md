@@ -26,7 +26,7 @@ Name | Description
 #### `append`
 
 ```python
-append(dm: DesignMatrix, other: Union[DesignMatrix, List[DesignMatrix]], axis: int = 0, keep_separate: bool = True, unique_cols: Optional[List[str]] = None, fill_na: Union[int, float] = 0, verbose: bool = False) -> DesignMatrix
+append(dm: DesignMatrix, other: DesignMatrix | list[DesignMatrix], axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, verbose: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -40,7 +40,7 @@ Name | Type | Description | Default
 `axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). | <code>0</code>
 `keep_separate` | <code>[bool](#bool)</code> | Whether to separate polynomial columns across runs (only axis=0). | <code>True</code>
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
-`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN values during vertical concatenation. Default: 0. | <code>0</code>
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries introduced by the concatenation. Pass ``None`` to preserve nulls. Default: 0. | <code>0</code>
 `verbose` | <code>[bool](#bool)</code> | Print messages about polynomial separation. Default: False. | <code>False</code>
 
 **Returns:**
@@ -52,7 +52,7 @@ Name | Type | Description
 #### `append_horizontal`
 
 ```python
-append_horizontal(dm: DesignMatrix, to_append: List[DesignMatrix], fill_na: Union[int, float]) -> DesignMatrix
+append_horizontal(dm: DesignMatrix, to_append: list[DesignMatrix], fill_na: int | float | None) -> DesignMatrix
 ```
 
 Horizontal concatenation (axis=1) - add columns from other matrices.
@@ -63,7 +63,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
 `to_append` | <code>list of DesignMatrix</code> | Matrices whose columns to add. | *required*
-`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN/null entries with. | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
 
 **Returns:**
 
@@ -74,7 +74,7 @@ Name | Type | Description
 #### `append_vertical`
 
 ```python
-append_vertical(dm: DesignMatrix, to_append: List[DesignMatrix], keep_separate: bool, unique_cols: Optional[List[str]], fill_na: Union[int, float], verbose: bool) -> DesignMatrix
+append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
 ```
 
 Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
@@ -87,7 +87,7 @@ Name | Type | Description | Default
 `to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
 `keep_separate` | <code>[bool](#bool)</code> | Whether to separate polynomial columns across runs. | *required*
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
-`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN/null entries with. | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
 `verbose` | <code>[bool](#bool)</code> | Print messages about polynomial separation. | *required*
 
 **Returns:**
@@ -99,7 +99,7 @@ Name | Type | Description
 #### `append_vertical_with_separation`
 
 ```python
-append_vertical_with_separation(dm: DesignMatrix, to_append: List[DesignMatrix], unique_cols: Optional[List[str]], fill_na: Union[int, float], verbose: bool) -> DesignMatrix
+append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
 ```
 
 Vertical concatenation with automatic polynomial separation.
@@ -114,7 +114,7 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
 `to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
-`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN/null entries with. | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
 `verbose` | <code>[bool](#bool)</code> | Print messages about polynomial separation. | *required*
 
 **Returns:**
@@ -146,7 +146,7 @@ Name | Type | Description
 #### `identify_columns_to_separate`
 
 ```python
-identify_columns_to_separate(dm: DesignMatrix, all_dms: List[DesignMatrix], unique_cols: Optional[List[str]]) -> set
+identify_columns_to_separate(dm: DesignMatrix, all_dms: list[DesignMatrix], unique_cols: list[str] | None) -> set
 ```
 
 Identify which columns need run-specific separation.
@@ -168,7 +168,7 @@ Name | Type | Description
 #### `match_column_pattern`
 
 ```python
-match_column_pattern(columns: List[str], pattern: str) -> List[str]
+match_column_pattern(columns: list[str], pattern: str) -> list[str]
 ```
 
 Match columns against pattern with wildcard support.
@@ -184,5 +184,5 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[List](#typing.List)[[str](#str)]</code> | list of str: Column names matching the pattern.
+<code>[list](#list)[[str](#str)]</code> | list of str: Column names matching the pattern.
 

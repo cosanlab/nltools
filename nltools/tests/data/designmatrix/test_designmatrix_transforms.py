@@ -73,7 +73,7 @@ class TestDesignMatrixTransformations:
         - convolved list preserved
         - multi flag preserved
         """
-        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=2)
+        dm = DesignMatrix({"stim": [1, 2, 3], "poly_0": [1, 1, 1]}, sampling_freq=2)
         dm.polys = ["poly_0"]
         dm.convolved = ["stim"]
         dm.multi = True

@@ -179,9 +179,9 @@ class TestDesignMatrixUtilities:
     - heatmap() creates visualization (tested separately)
     """
 
-    def test_details_shows_metadata(self):
+    def test_repr_shows_metadata(self):
         """
-        .details() should return string with metadata summary.
+        repr(dm) should summarize metadata.
 
         Expected behavior:
         - Contains sampling_freq
@@ -189,18 +189,18 @@ class TestDesignMatrixUtilities:
         - Lists convolved columns
         - Lists polynomial columns
 
-        Use case: Quick inspection of DesignMatrix state
+        Use case: Quick inspection of DesignMatrix state at the REPL
         """
         dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=2)
         dm = dm.add_poly(0)
         dm = dm.convolve(columns=["a"])
 
-        details = dm.details()
+        text = repr(dm)
 
-        assert "sampling_freq=2" in details
-        assert "shape=(3, 2)" in details or "(3, 2)" in details
-        assert "poly_0" in details or "polys" in details
-        assert "convolved" in details
+        assert "sampling_freq=2" in text
+        assert "shape=(3, 2)" in text or "(3, 2)" in text
+        assert "poly_0" in text or "polys" in text
+        assert "convolved" in text
 
     def test_replace_data_keeps_metadata_and_polys(self):
         """

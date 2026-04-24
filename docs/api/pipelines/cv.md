@@ -23,7 +23,7 @@ Name | Type | Description
 ###### `n_splits`
 
 ```python
-n_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of splits.
@@ -33,7 +33,7 @@ Return number of splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
 **Returns:**
 
@@ -44,7 +44,7 @@ Type | Description
 ###### `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
+split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
 ```
 
 Generate train/test indices for each fold.
@@ -54,7 +54,7 @@ Generate train/test indices for each fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
@@ -132,7 +132,7 @@ Name | Type | Description
 ###### `n_inner_splits`
 
 ```python
-n_inner_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_inner_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of inner splits per outer fold.
@@ -142,7 +142,7 @@ Return number of inner splits per outer fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. | <code>None</code>
 
 **Returns:**
 
@@ -153,7 +153,7 @@ Type | Description
 ###### `n_outer_splits`
 
 ```python
-n_outer_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_outer_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of outer splits.
@@ -163,7 +163,7 @@ Return number of outer splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop. | <code>None</code>
 
 **Returns:**
 
@@ -174,7 +174,7 @@ Type | Description
 ###### `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None, inner_groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
+split(data: Any, groups: NDArray[np.intp] | None = None, inner_groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
 ```
 
 Generate nested cross-validation splits.
@@ -188,8 +188,8 @@ indices into the outer training set, not the original data.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
-`inner_groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
+`inner_groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
 
 **Yields:**
 
@@ -197,8 +197,8 @@ Type | Description
 ---- | -----------
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator)
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | where outer_train_idx and outer_test_idx are arrays of sample
-<code>[Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
-<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
+<code>[Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
+<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
 
 <details class="example" open markdown="1">
 <summary>Example</summary>

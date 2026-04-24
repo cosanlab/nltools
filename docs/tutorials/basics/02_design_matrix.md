@@ -7,57 +7,30 @@ kernelspec:
 
 # DesignMatrix Basics
 
-## Learning Objectives
-
-By the end of this tutorial, you will be able to:
-- Create `DesignMatrix` objects for fMRI analysis
-- Build task regressors and convolve them with the HRF
-- Add nuisance covariates (drift, motion)
-- Visualize design matrices as heatmaps
-- Diagnose multicollinearity with VIF
-- Combine design matrices across runs
-
 ## Introduction
 
-The `DesignMatrix` class represents the design matrix (**X**) in the General Linear Model: **Y = Xb + e**.
+The `DesignMatrix` class is the core data structure in for working with csv/tsv/dataframes that capture your experimental design (e.g. GLM analysis) or voxel-wise model (e.g. encoding models, group-analysis). `DesignMatrix` is backed by `polars` internally for fast operations, but accepts pandas DataFrames, dicts, and numpy arrays as input.
 
-A typical fMRI design matrix contains:
-- **Task regressors**: Stimulus timecourses convolved with the hemodynamic response function (HRF)
-- **Nuisance regressors**: Polynomial drift, motion parameters, physiological noise
-- **Intercept**: A column of ones (or polynomial order 0)
-
-`DesignMatrix` is backed by Polars internally for fast operations, but accepts pandas DataFrames, dicts, and numpy arrays as input.
+Lets load an included dataset to inspect a pre-built `DesignMatrix`:
 
 ```{code-cell} python3
-import numpy as np
 import matplotlib.pyplot as plt
-
+from nltools.datasets import fetch_haxby
 from nltools.data import DesignMatrix
+
+# Get all subjects
+brains, designs = fetch_haxby()
+
+# Just a single subject
+s1_brain, s1_design = brains[0], designs[0]
+
+s1_design
 ```
 
-## Creating a Design Matrix
-
-A `DesignMatrix` needs a `sampling_freq` (in Hz, i.e. 1/TR) to know the temporal resolution.
+`DesignMatrix` works just like a `polars` Dataframe so you can use familiar methods to inspect the data: `.head`, `.tail`, etc. 
 
 ```{code-cell} python3
-sampling_freq = 0.5  # TR = 2.0 seconds
-n_samples = 150      # Number of volumes
-TR = 1 / sampling_freq
-
-# Create from a dict
-dm = DesignMatrix(
-    {"intercept": np.ones(n_samples), "linear_trend": np.linspace(0, 1, n_samples)},
-    sampling_freq=sampling_freq,
-)
-print(f"Shape: {dm.shape}")
-print(f"Columns: {dm.columns}")
-```
-
-You can also add columns after creation:
-
-```{code-cell} python3
-dm["noise"] = np.random.randn(n_samples)
-print(f"After adding column: {dm.columns}")
+s1_design.head()
 ```
 
 ## HRF Convolution
@@ -238,10 +211,10 @@ plt.show()
 
 ### Details
 
-`details()` prints a summary of the design matrix structure:
+Printing (or `repr`-ing) a `DesignMatrix` shows a summary of its structure:
 
 ```{code-cell} python3
-print(dm_full.details())
+print(dm_full)
 ```
 
 ## Multicollinearity Diagnostics
@@ -265,64 +238,6 @@ dm_cleaned = dm_full.clean(thresh=0.95)
 print(f"Before: {dm_full.shape[1]} columns → After: {dm_cleaned.shape[1]} columns")
 ```
 
-## Experimental Design Patterns
-
-### Block Design
-
-```{code-cell} python3
-block_duration = 20  # seconds
-n_blocks = 5
-
-block_stim = np.zeros(200)
-for i in range(n_blocks):
-    onset = i * (block_duration * 2)  # alternating task/rest
-    start_idx = int(onset / TR)
-    end_idx = int((onset + block_duration) / TR)
-    if start_idx < len(block_stim):
-        block_stim[start_idx:min(end_idx, len(block_stim))] = 1
-
-dm_block = DesignMatrix({"task_block": block_stim}, sampling_freq=sampling_freq)
-dm_block = dm_block.convolve("hrf")
-dm_block = dm_block.add_poly(order=0)  # intercept only
-
-fig, ax = plt.subplots(figsize=(12, 3))
-ax.plot(dm_block["task_block"].to_numpy())
-ax.set_xlabel("Volume Number")
-ax.set_title("Block Design (HRF-convolved)")
-plt.tight_layout()
-plt.show()
-```
-
-### Event-Related Design
-
-```{code-cell} python3
-np.random.seed(42)
-n_trials = 20
-min_iti, max_iti = 4, 12  # seconds
-
-event_onsets = [10.0]
-for _ in range(n_trials - 1):
-    event_onsets.append(event_onsets[-1] + np.random.uniform(min_iti, max_iti))
-
-event_n_samples = int(event_onsets[-1] / TR) + 20
-event_stim = np.zeros(event_n_samples)
-for onset in event_onsets:
-    idx = int(onset / TR)
-    if idx < event_n_samples:
-        event_stim[idx] = 1
-
-dm_event = DesignMatrix({"task_event": event_stim}, sampling_freq=sampling_freq)
-dm_event = dm_event.convolve("hrf")
-dm_event = dm_event.add_poly(order=0)
-
-fig, ax = plt.subplots(figsize=(12, 3))
-ax.plot(dm_event["task_event"].to_numpy())
-ax.set_xlabel("Volume Number")
-ax.set_title("Event-Related Design (HRF-convolved)")
-plt.tight_layout()
-plt.show()
-```
-
 ## Combining Runs
 
 Use `append(axis=0)` to stack design matrices across runs. Polynomial columns are automatically separated per run with `keep_separate=True` (default):
@@ -341,33 +256,3 @@ print(f"Columns: {combined.columns}")
 ```
 
 Notice how `poly_0` and `poly_1` are duplicated per run — this ensures each run gets its own intercept and drift terms.
-
-## File I/O
-
-```{code-cell} python3
-import os
-import tempfile
-
-with tempfile.TemporaryDirectory() as tmpdir:
-    path = os.path.join(tmpdir, "design_matrix.csv")
-    dm_full._df.write_csv(path)
-    print(f"Saved: {dm_full.shape}")
-
-    import polars as pl
-    dm_loaded = DesignMatrix(pl.read_csv(path), sampling_freq=sampling_freq)
-    assert dm_loaded.shape == dm_full.shape
-    print(f"Loaded: {dm_loaded.shape} — verified")
-```
-
-## Summary
-
-In this tutorial you learned:
-- **Creating**: `DesignMatrix` from dicts, DataFrames, or arrays with `sampling_freq`
-- **Task regressors**: Build boxcar stimuli and convolve with `convolve("hrf")`
-- **Parametric modulation**: Modulate stimulus amplitude by trial-level variables
-- **Drift modeling**: `add_poly()` for Legendre polynomials, `add_dct_basis()` for DCT high-pass
-- **Visualization**: `plot()` for SPM-style display, `details()` for a text summary
-- **Diagnostics**: `vif()` for multicollinearity, `clean()` to auto-remove correlated columns
-- **Multi-run**: `append(axis=0)` with automatic per-run polynomial separation
-
-Next, explore [Adjacency](03_adjacency.md) for connectivity matrices, or see the [GLM workflow](../workflows/01_glm.md) to use design matrices in a full analysis.

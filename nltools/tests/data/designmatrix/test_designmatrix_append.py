@@ -1,3 +1,5 @@
+import pytest
+
 from nltools.data.designmatrix import DesignMatrix
 
 
@@ -286,3 +288,109 @@ class TestDesignMatrixConcatenation:
         assert "0_poly_0" in dm_runs.polys
         assert "1_poly_0" in dm_runs.polys
         assert "poly_0" not in dm_runs.polys  # Original name replaced
+
+
+class TestDesignMatrixAppendMetadata:
+    """Audit: convolved + polys metadata survives all append paths."""
+
+    def test_horizontal_append_merges_convolved(self):
+        """convolved from both DMs should be preserved on horizontal append."""
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
+        dm1.convolved = ["a"]
+        dm2.convolved = ["b"]
+
+        out = dm1.append(dm2, axis=1)
+        assert set(out.convolved) == {"a", "b"}
+
+    def test_vertical_simple_append_merges_convolved(self):
+        """keep_separate=False should preserve shared convolved entries."""
+        dm1 = DesignMatrix({"stim": [1, 2, 3]}, sampling_freq=1)
+        dm2 = DesignMatrix({"stim": [4, 5, 6]}, sampling_freq=1)
+        dm1.convolved = ["stim"]
+        dm2.convolved = ["stim"]
+
+        out = dm1.append(dm2, axis=0, keep_separate=False)
+        assert out.convolved == ["stim"]
+
+    def test_vertical_separation_merges_convolved_differing_names(self):
+        """keep_separate=True with different convolved columns per run preserves both."""
+        dm1 = DesignMatrix({"house": [1, 0, 0]}, sampling_freq=1).add_poly(0)
+        dm1.convolved = ["house"]
+        dm2 = DesignMatrix({"face": [0, 1, 0]}, sampling_freq=1).add_poly(0)
+        dm2.convolved = ["face"]
+
+        out = dm1.append(dm2, axis=0, keep_separate=True)
+        assert set(out.convolved) == {"house", "face"}
+
+    def test_vertical_separation_renames_convolved_via_unique_cols(self):
+        """When unique_cols renames a convolved column, convolved should track renames."""
+        dm1 = DesignMatrix({"motion_x": [1, 2], "stim": [1, 0]}, sampling_freq=1)
+        dm1.convolved = ["motion_x"]
+        dm2 = DesignMatrix({"motion_x": [3, 4], "stim": [0, 1]}, sampling_freq=1)
+        dm2.convolved = ["motion_x"]
+
+        out = dm1.append(dm2, axis=0, unique_cols=["motion_x"])
+        assert set(out.convolved) == {"0_motion_x", "1_motion_x"}
+
+
+class TestDesignMatrixAppendErrors:
+    """Audit: helpful errors for user-fixable issues."""
+
+    def test_non_multi_base_with_multi_to_append_raises(self):
+        """Base non-multi + appended multi-run DM would cause silent collision — should raise."""
+        multi = (
+            DesignMatrix({"s": [1, 2]}, sampling_freq=1)
+            .add_poly(0)
+            .append(DesignMatrix({"s": [3, 4]}, sampling_freq=1).add_poly(0), axis=0)
+        )
+        simple = DesignMatrix({"s": [99]}, sampling_freq=1).add_poly(0)
+
+        with pytest.raises(ValueError, match="multi-run"):
+            simple.append(multi, axis=0)
+
+    def test_dtype_mismatch_raises_clear_error(self):
+        """Vertical append of int vs float column should name column and dtypes."""
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"a": [1.5, 2.5]}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="dtype.*'a'"):
+            dm1.append(dm2, axis=0, keep_separate=False)
+
+    def test_horizontal_append_duplicate_cols_raises(self):
+        """Duplicate columns on horizontal append should raise with a helpful message."""
+        dm1 = DesignMatrix({"a": [1]}, sampling_freq=1)
+        dm2 = DesignMatrix({"a": [2]}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="[Dd]uplicate.*'a'"):
+            dm1.append(dm2, axis=1)
+
+
+class TestDesignMatrixAppendFillNa:
+    """Audit: fill_na=None should mean 'don't fill' across all paths."""
+
+    def test_fill_na_none_preserves_nulls_in_simple_vertical(self):
+        """keep_separate=False with fill_na=None keeps nulls."""
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
+        out = dm1.append(dm2, axis=0, keep_separate=False, fill_na=None)
+        # Missing cells stay as null (not filled with 0)
+        assert out["a"].to_list() == [1, 2, None, None]
+        assert out["b"].to_list() == [None, None, 3, 4]
+
+    def test_fill_na_none_preserves_nulls_in_separation(self):
+        """keep_separate=True with fill_na=None keeps nulls for separated polys."""
+        dm1 = DesignMatrix({"s": [1, 2]}, sampling_freq=1).add_poly(0)
+        dm2 = DesignMatrix({"s": [3, 4]}, sampling_freq=1).add_poly(0)
+        out = dm1.append(dm2, axis=0, keep_separate=True, fill_na=None)
+        # Separated poly columns: null in the other run, not 0
+        assert out["0_poly_0"].to_list()[2:] == [None, None]
+        assert out["1_poly_0"].to_list()[:2] == [None, None]
+
+    def test_fill_na_none_preserves_nulls_in_horizontal(self):
+        """Horizontal append with fill_na=None keeps nulls (when shapes differ would fail, but equal shapes no nulls)."""
+        # Same shape so no nulls introduced, but verify no error when fill_na=None
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
+        out = dm1.append(dm2, axis=1, fill_na=None)
+        assert out.shape == (2, 2)

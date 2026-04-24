@@ -52,7 +52,7 @@ Name | Type | Description | Default
 ###### `normalize`
 
 ```python
-normalize(method: str = 'zscore', **kwargs: str) -> 'BrainCollectionPipeline'
+normalize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
 ```
 
 Add normalization step.
@@ -68,12 +68,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollectionPipeline'</code> | New pipeline with normalization step added.
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with normalization step added.
 
 ###### `pipe`
 
 ```python
-pipe(transformer) -> 'BrainCollectionPipeline'
+pipe(transformer) -> BrainCollectionPipeline
 ```
 
 Add custom sklearn transformer.
@@ -88,12 +88,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollectionPipeline'</code> | New pipeline with custom step added.
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with custom step added.
 
 ###### `predict`
 
 ```python
-predict(y, algorithm: str = 'ridge', **kwargs: str) -> 'BrainCollectionCVResult'
+predict(y, algorithm: str = 'ridge', **kwargs: str) -> BrainCollectionCVResult
 ```
 
 Execute pipeline with CV and return prediction results.
@@ -110,12 +110,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollectionCVResult'</code> | Cross-validation results with scores and predictions.
+<code>[BrainCollectionCVResult](#nltools.data.collection.pipeline.BrainCollectionCVResult)</code> | Cross-validation results with scores and predictions.
 
 ###### `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> 'BrainCollectionPipeline'
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> BrainCollectionPipeline
 ```
 
 Add dimensionality reduction step.
@@ -132,12 +132,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollectionPipeline'</code> | New pipeline with reduction step added.
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
 
 #### `FittedBrainCollection`
 
 ```python
-FittedBrainCollection(brain_collection: 'BrainCollection', fitted_results: 'BrainCollection | dict[str, BrainCollection]', model: str, condition_names: list[str] | None = None)
+FittedBrainCollection(brain_collection: BrainCollection, fitted_results: BrainCollection | dict[str, BrainCollection], model: str, condition_names: list[str] | None = None)
 ```
 
 Wrapper for fitted BrainCollection enabling pool() chaining.
@@ -154,8 +154,8 @@ The execution model:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`brain_collection` | <code>'BrainCollection'</code> | The original collection that was fitted. | *required*
-`fitted_results` | <code>'BrainCollection \| dict[str, BrainCollection]'</code> | The fitted results. Can be a BrainCollection (betas or scores) or a dict mapping stat names to BrainCollections (e.g., {'betas': ..., 't': ...}). | *required*
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The original collection that was fitted. | *required*
+`fitted_results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | The fitted results. Can be a BrainCollection (betas or scores) or a dict mapping stat names to BrainCollections (e.g., {'betas': ..., 't': ...}). | *required*
 `model` | <code>[str](#str)</code> | The model type that was fitted ('glm' or 'ridge'). | *required*
 `condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions/regressors from the design matrix. | <code>None</code>
 
@@ -175,9 +175,9 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`betas`](#betas) | <code>'BrainCollection'</code> | Convenience accessor for beta coefficients from a GLM fit.
+[`betas`](#betas) | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Convenience accessor for beta coefficients from a GLM fit.
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the fitted collection.
-[`results`](#results) | <code>'BrainCollection \| dict[str, BrainCollection]'</code> | Access the fitted results directly.
+[`results`](#results) | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Access the fitted results directly.
 
 ##### Methods
 

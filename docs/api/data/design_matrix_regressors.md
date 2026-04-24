@@ -66,7 +66,7 @@ Name | Type | Description
 #### `convolve`
 
 ```python
-convolve(dm: DesignMatrix, conv_func: Union[str, np.ndarray] = 'hrf', columns: Optional[List[str]] = None) -> DesignMatrix
+convolve(dm: DesignMatrix, conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
 ```
 
 Convolve columns with HRF or custom kernel.

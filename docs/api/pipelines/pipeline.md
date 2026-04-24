@@ -53,7 +53,7 @@ Type | Description
 #### `FittedStack`
 
 ```python
-FittedStack(steps: List[FittedTransform] = list()) -> None
+FittedStack(steps: list[FittedTransform] = list()) -> None
 ```
 
 Collection of fitted transforms for inverse transform support.
@@ -65,7 +65,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[List](#typing.List)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples
 --------
@@ -196,7 +196,7 @@ Type | Description
 #### `Pipeline`
 
 ```python
-Pipeline(data: Any, cv: Optional[CVScheme] = None, steps: List[TransformStep] = list(), _is_lazy: bool = False) -> None
+Pipeline(data: Any, cv: CVScheme | None = None, steps: list[TransformStep] = list(), _is_lazy: bool = False) -> None
 ```
 
 Base pipeline for chained transforms with optional cross-validation.
@@ -211,8 +211,8 @@ side effects.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Input data (typically ndarray or BrainData). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[CVScheme](#nltools.pipelines.base.CVScheme)]</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
+`cv` | <code>[CVScheme](#nltools.pipelines.base.CVScheme) \| None</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
+`steps` | <code>[list](#list)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
 
 **Attributes:**
 
@@ -358,7 +358,7 @@ Type | Description
 ###### `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Any) -> Pipeline
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: Any) -> Pipeline
 ```
 
 Add a dimensionality reduction step to the pipeline.
@@ -368,7 +368,7 @@ Add a dimensionality reduction step to the pipeline.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'. Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
 `**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the reducer. | <code>{}</code>
 
 **Returns:**

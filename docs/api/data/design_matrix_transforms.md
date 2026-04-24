@@ -52,7 +52,7 @@ Name | Type | Description
 #### `standardize`
 
 ```python
-standardize(dm: DesignMatrix, columns: Optional[List[str]] = None, method: str = 'zscore') -> DesignMatrix
+standardize(dm: DesignMatrix, columns: list[str] | None = None, method: str = 'zscore') -> DesignMatrix
 ```
 
 Standardize columns using the specified method.
@@ -65,7 +65,7 @@ for data normalization.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`columns` | <code>[Optional](#typing.Optional)[[List](#typing.List)[[str](#str)]]</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
 `method` | <code>[str](#str)</code> | Standardization method. Options are: - 'zscore': Z-score standardization (mean=0, std=1) [default] - 'center': Mean centering only (mean=0) | <code>'zscore'</code>
 
 **Returns:**
@@ -115,7 +115,7 @@ Name | Type | Description
 #### `zscore`
 
 ```python
-zscore(dm: DesignMatrix, columns: Optional[List[str]] = None) -> DesignMatrix
+zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix
 ```
 
 Z-score standardize columns (mean=0, std=1).

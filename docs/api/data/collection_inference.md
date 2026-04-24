@@ -31,7 +31,7 @@ Name | Description
 #### `anova`
 
 ```python
-anova(bc: 'BrainCollection', groups: str | list | np.ndarray) -> tuple
+anova(bc: BrainCollection, groups: str | list | np.ndarray) -> tuple
 ```
 
 One-way ANOVA across groups defined by metadata.
@@ -43,7 +43,7 @@ voxel-wise equivalent of scipy.stats.f_oneway.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to test. | *required*
 `groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Group assignment for each image. Can be: - str: Column name in metadata - list/array: Group labels of length n_images | *required*
 
 **Returns:**
@@ -68,7 +68,7 @@ Type | Description
 #### `extract_for_isc`
 
 ```python
-extract_for_isc(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, progress_bar: bool = False) -> tuple[np.ndarray, dict]
+extract_for_isc(bc: BrainCollection, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract data for ISC computation.
@@ -80,8 +80,8 @@ Returns data in ISC-compatible format: (n_obs, n_subjects, n_features).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to extract from. | *required*
-`roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, extract mean per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to extract from. | *required*
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | If provided, extract mean per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
 `radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar during extraction. | <code>False</code>
 
@@ -94,7 +94,7 @@ Type | Description
 #### `extract_roi`
 
 ```python
-extract_roi(bc: 'BrainCollection', roi_mask: 'nib.Nifti1Image | Path | str', progress_bar: bool = False) -> tuple[np.ndarray, dict]
+extract_roi(bc: BrainCollection, roi_mask: nib.Nifti1Image | Path | str, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract mean signal per ROI.
@@ -102,7 +102,7 @@ Extract mean signal per ROI.
 #### `extract_searchlight`
 
 ```python
-extract_searchlight(bc: 'BrainCollection', radius_mm: float, progress_bar: bool = False) -> tuple[np.ndarray, dict]
+extract_searchlight(bc: BrainCollection, radius_mm: float, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract mean signal per searchlight sphere.
@@ -110,7 +110,7 @@ Extract mean signal per searchlight sphere.
 #### `extract_voxelwise`
 
 ```python
-extract_voxelwise(bc: 'BrainCollection', progress_bar: bool = False) -> tuple[np.ndarray, dict]
+extract_voxelwise(bc: BrainCollection, progress_bar: bool = False) -> tuple[np.ndarray, dict]
 ```
 
 Extract raw voxel data.
@@ -118,7 +118,7 @@ Extract raw voxel data.
 #### `isc`
 
 ```python
-isc(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
+isc(bc: BrainCollection, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
 ```
 
 Compute intersubject correlation (ISC) across the collection.
@@ -130,9 +130,9 @@ computed by correlating each subject's timeseries with others.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to compute ISC on. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to compute ISC on. | *required*
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
-`roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
 `radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `metric` | <code>[str](#str)</code> | Summary statistic for aggregating ISC values: - 'median': Robust to outliers (default) - 'mean': Fisher z-transformed mean | <code>'median'</code>
 `device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
@@ -174,7 +174,7 @@ discussion of statistical methodology first).
 #### `isc_test`
 
 ```python
-isc_test(bc: 'BrainCollection', method: str = 'loo', roi_mask: 'nib.Nifti1Image | Path | str | None' = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
+isc_test(bc: BrainCollection, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', tail: int = 2, ci_percentile: float = 95, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Compute ISC with permutation testing for statistical inference.
@@ -187,9 +187,9 @@ pipeline as isc() and wraps isc_permutation_test().
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to test. | *required*
 `method` | <code>[str](#str)</code> | ISC computation method: - 'loo': Leave-one-out (correlate each subject with mean of others) - 'pairwise': All pairwise correlations between subjects | <code>'loo'</code>
-`roi_mask` | <code>'nib.Nifti1Image \| Path \| str \| None'</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | If provided, compute ISC per ROI. Can be: - NIfTI image with integer labels (atlas/parcellation) - Path to parcellation file | <code>None</code>
 `radius_mm` | <code>[float](#float) \| None</code> | searchlight radius in mm. If None, use voxelwise mode. Ignored if roi_mask is provided. | <code>6.0</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Default 5000. | <code>5000</code>
 `permutation_method` | <code>[str](#str)</code> | Method for null distribution:<br>- 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016).   Tests whether observed ISC differs from random groupings. - 'circle_shift': Circular time-shift (preserves autocorrelation).   Tests for temporally-locked shared signal. - 'phase_randomize': FFT phase randomization (preserves power spectrum).   Tests for nonlinear temporal coupling. | <code>'bootstrap'</code>
@@ -259,7 +259,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 #### `permutation_test`
 
 ```python
-permutation_test(bc: 'BrainCollection', n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test(bc: BrainCollection, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 One-sample permutation test across images (sign-flipping).
@@ -275,7 +275,7 @@ nltools.algorithms.inference.one_sample_permutation_test.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to test. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
 `device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
@@ -305,7 +305,7 @@ Type | Description
 #### `permutation_test2`
 
 ```python
-permutation_test2(bc: 'BrainCollection', other: 'BrainCollection', n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test2(bc: BrainCollection, other: BrainCollection, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', max_gpu_memory_gb: float = 4.0, return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
 Two-sample permutation test between collections.
@@ -317,8 +317,8 @@ label permutation. More robust than parametric t-test.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | First BrainCollection. | *required*
-`other` | <code>'BrainCollection'</code> | Another BrainCollection to compare against. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | First BrainCollection. | *required*
+`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Another BrainCollection to compare against. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000). | <code>5000</code>
 `tail` | <code>[int](#int)</code> | Test type - 1 for one-tailed, 2 for two-tailed (default). | <code>2</code>
 `device` | <code>[str](#str)</code> | Compute device: 'cpu' (default) or 'gpu' (via PyTorch). | <code>'cpu'</code>
@@ -343,7 +343,7 @@ Type | Description
 #### `project_to_brain`
 
 ```python
-project_to_brain(bc: 'BrainCollection', values: np.ndarray, extraction_info: dict)
+project_to_brain(bc: BrainCollection, values: np.ndarray, extraction_info: dict)
 ```
 
 Project ISC values back to brain space.
@@ -352,7 +352,7 @@ Project ISC values back to brain space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection (used for mask). | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection (used for mask). | *required*
 `values` | <code>[ndarray](#numpy.ndarray)</code> | ISC values, shape depends on extraction mode: - ROI mode: (n_rois,) - Searchlight/voxelwise: (n_voxels,) | *required*
 `extraction_info` | <code>[dict](#dict)</code> | Dict from extract_for_isc with mode info. | *required*
 
@@ -365,7 +365,7 @@ Type | Description
 #### `ttest`
 
 ```python
-ttest(bc: 'BrainCollection', popmean: float = 0.0, axis: int | str = 0) -> tuple
+ttest(bc: BrainCollection, popmean: float = 0.0, axis: int | str = 0) -> tuple
 ```
 
 One-sample t-test across images.
@@ -378,7 +378,7 @@ scipy.stats.ttest_1samp.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | BrainCollection to test. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to test. | *required*
 `popmean` | <code>[float](#float)</code> | Population mean to test against (default: 0). | <code>0.0</code>
 `axis` | <code>[int](#int) \| [str](#str)</code> | Axis to test across. Only axis=0 (images) supported. | <code>0</code>
 
@@ -404,7 +404,7 @@ Type | Description
 #### `ttest2`
 
 ```python
-ttest2(bc: 'BrainCollection', other: 'BrainCollection', equal_var: bool = True) -> tuple
+ttest2(bc: BrainCollection, other: BrainCollection, equal_var: bool = True) -> tuple
 ```
 
 Two-sample t-test between collections.
@@ -416,8 +416,8 @@ voxel-wise equivalent of scipy.stats.ttest_ind.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bc` | <code>'BrainCollection'</code> | First BrainCollection. | *required*
-`other` | <code>'BrainCollection'</code> | Another BrainCollection to compare against. | *required*
+`bc` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | First BrainCollection. | *required*
+`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Another BrainCollection to compare against. | *required*
 `equal_var` | <code>[bool](#bool)</code> | If True (default), perform standard t-test assuming equal variances. If False, use Welch's t-test. | <code>True</code>
 
 **Returns:**

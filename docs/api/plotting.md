@@ -12,7 +12,7 @@ focused submodules:
 
 All public functions are re-exported here for convenience::
 
-    from nltools.plotting import plot_surface, plot_roc, component_viewer  # all work
+    from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
 
 **Modules:**
 
@@ -38,7 +38,7 @@ Name | Description
 [`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot
 [`plot_silhouette`](#plot_silhouette) | Silhouette plot indicating between- vs within-label distance.
 [`plot_stacked_adjacency`](#plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
-[`plot_surface`](#plot_surface) | Plot neuroimaging data on cortical surface.
+[`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 
 
@@ -113,7 +113,7 @@ Name | Type | Description
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -138,6 +138,7 @@ Name | Type | Description | Default
 `with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern as grayscale background. Defaults to True. | <code>True</code>
 `curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature (0=flat gray, 1=full contrast). Defaults to 0.5. | <code>0.5</code>
 `curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature (0=dark, 1=bright). Defaults to 0.5. | <code>0.5</code>
+`transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent (so the curvature shows through). ``"auto"`` (default) uses the input ``BrainData``'s ``.mask`` when available, matching the behavior of the volumetric ``.plot()``. Pass ``None`` to disable masking entirely. | <code>'auto'</code>
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to True. | <code>True</code>
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
@@ -362,78 +363,50 @@ Type | Description
 ---- | -----------
  | matplotlib axes with the stacked heatmap.
 
-#### `plot_surface`
+#### `plot_surf`
 
 ```python
-plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius_mm = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
+plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
-Plot neuroimaging data on cortical surface.
+Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
-Intelligently projects volumetric NIfTI data onto cortical surfaces
-and displays in customizable montage layouts. Automatically handles
-hemispheric parsing and uses included MNI152 template surfaces.
+Like nilearn's ``plot_img_on_surf`` but with actually-tight framing
+(via ``Axes3D.set_box_aspect(zoom=...)`` + ``set_axis_off``), an
+auto-applied transparency mask (same convention as ``plot_flatmap``),
+and a single shared colorbar instead of one-per-subplot.
+
+The grid is ``len(view) × len(hemi)`` — rows = views, cols = hemispheres.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`brain` |  | BrainData, nibabel Nifti1Image, or file path to NIfTI image. If BrainData has multiple images, plots the first one. | *required*
-`surface` | <code>[str](#str)</code> | Surface mesh type. Options: 'pial', 'inflated', 'midthickness', 'white'. Defaults to 'inflated'. | <code>'inflated'</code>
-`bg_map` | <code>[str](#str) or None</code> | Background map. Options: 'curvature', 'sulc', None, or file path to custom background map. Defaults to 'curvature'. | <code>'curvature'</code>
-`hemi` | <code>[str](#str)</code> | Hemisphere to plot. Options: 'left', 'right', 'both'. Defaults to 'both'. | <code>'both'</code>
-`view` | <code>[str](#str) or [list](#list)</code> | View type. Options: 'lateral', 'medial', 'montage', or list of views. Defaults to 'montage' (2x2 grid). | <code>'montage'</code>
-`threshold` | <code>[float](#float) or [str](#str)</code> | Threshold value. Can be a float or percentile string like '95%'. Defaults to None. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Colormap name. Defaults to 'RdBu_r'. | <code>'RdBu_r'</code>
-`vmax` | <code>[float](#float)</code> | Maximum value for colormap scaling. | <code>None</code>
-`vmin` | <code>[float](#float)</code> | Minimum value for colormap scaling. | <code>None</code>
-`darkness` | <code>[float](#float) or None</code> | Background darkness (0-1). Defaults to None. | <code>None</code>
-`bg_on_data` | <code>[bool](#bool)</code> | Overlay background on data. Defaults to False. | <code>False</code>
-`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to False. | <code>False</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size tuple (width, height). Defaults to (10, 10). | <code>(10, 10)</code>
-`n_samples` | <code>[int](#int)</code> | Number of samples for vol_to_surf projection. Defaults to 1. | <code>1</code>
-`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
-`interpolation` | <code>[str](#str)</code> | Interpolation method for projection. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
-`engine` | <code>[str](#str)</code> | Rendering engine. Options: 'matplotlib', 'plotly'. Defaults to 'matplotlib'. | <code>'matplotlib'</code>
-`axes` | <code>[Axes](#matplotlib.axes.Axes) or [list](#list)</code> | Custom matplotlib axes for montage layout. If None, creates new figure. Defaults to None. | <code>None</code>
-`save` | <code>[str](#str) or None</code> | File path to save plot. If None, plot is displayed but not saved. Defaults to None. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to plot_surf_stat_map. | <code>{}</code>
+`brain` |  | BrainData, nibabel Nifti1Image, or file path (MNI-space). | *required*
+`hemi` | <code>[str](#str) or [list](#list)</code> | ``"left"``, ``"right"``, ``"both"`` (default), or a list subset like ``["left"]``. | <code>'both'</code>
+`view` | <code>[str](#str) or [list](#list)</code> | ``"montage"`` (default, → ``["lateral", "medial"]``), a single view string, or any list subset of ``("lateral", "medial", "dorsal", "ventral", "anterior", "posterior")``. | <code>'montage'</code>
+`surface` | <code>[str](#str)</code> | fsaverage mesh to render on. One of ``"pial"`` (default), ``"inflated"``, ``"white"``, ``"sphere"``. | <code>'pial'</code>
+`template` | <code>[str](#str)</code> | fsaverage resolution (``"fsaverage3"`` … ``"fsaverage"``). Default ``"fsaverage5"``. | <code>'fsaverage5'</code>
+`threshold` | <code>[float](#float) or [str](#str)</code> | Absolute cutoff (``0.3``) or percentile string (``"95%"``). | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Matplotlib colormap. Default ``"RdBu_r"``. | <code>'RdBu_r'</code>
+`vmin, vmax` | <code>[float](#float)</code> | Colormap range. Defaults to symmetric ±max-abs. | *required*
+`transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to NaN-out vertices outside the mask so the background shines through. ``"auto"`` uses ``BrainData.mask``. | <code>'auto'</code>
+`bg_on_data` | <code>[bool](#bool)</code> | Whether to multiply data by background. | <code>False</code>
+`colorbar` | <code>[bool](#bool)</code> | Show a single shared colorbar. Default ``True``. | <code>True</code>
+`colorbar_orientation` | <code>[str](#str)</code> | ``"horizontal"`` (default) or ``"vertical"``. | <code>'horizontal'</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size. Default ``(10, 8)``. | <code>(10, 8)</code>
+`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | vol_to_surf sampling radius. Default ``3.0``. | <code>3.0</code>
+`interpolation` | <code>[str](#str)</code> | vol_to_surf interpolation. Default ``"linear"``. | <code>'linear'</code>
+`zoom` | <code>[float](#float)</code> | Zoom factor for each 3D axis (``Axes3D.set_box_aspect(zoom=...)``). Default ``1.2``; try ``1.4`` for the tightest clean framing. | <code>1.2</code>
+`axes` | <code>ndarray of Axes3D</code> | Pre-existing 3D axes to draw into. Shape should be ``(len(view), len(hemi))``. | <code>None</code>
+`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure or plotly.graph_objects.Figure: Figure object
- | containing the surface plot(s).
-
-**Examples:**
-
-Plot BrainData with default 2x2 montage:
-
-```pycon
->>> from nltools.plotting import plot_surface
->>> from nltools.data import BrainData
->>> brain = BrainData('data.nii.gz')
->>> fig = plot_surface(brain)
-```
-
-Single hemisphere, lateral view:
-
-```pycon
->>> fig = plot_surface(brain, hemi='left', view='lateral')
-```
-
-Custom colormap and threshold:
-
-```pycon
->>> fig = plot_surface(brain, cmap='hot', threshold=0.5)
-```
-
-Percentile threshold with custom background:
-
-```pycon
->>> fig = plot_surface(brain, threshold='95%', bg_map='sulc')
-```
+ | matplotlib.figure.Figure
 
 
 
@@ -579,14 +552,14 @@ Name | Description
 ---- | -----------
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
 [`plot_interactive_brain`](#plot_interactive_brain) | This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
-[`plot_surface`](#plot_surface) | Plot neuroimaging data on cortical surface.
+[`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 ##### Methods
 
 ###### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -611,6 +584,7 @@ Name | Type | Description | Default
 `with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern as grayscale background. Defaults to True. | <code>True</code>
 `curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature (0=flat gray, 1=full contrast). Defaults to 0.5. | <code>0.5</code>
 `curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature (0=dark, 1=bright). Defaults to 0.5. | <code>0.5</code>
+`transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent (so the curvature shows through). ``"auto"`` (default) uses the input ``BrainData``'s ``.mask`` when available, matching the behavior of the volumetric ``.plot()``. Pass ``None`` to disable masking entirely. | <code>'auto'</code>
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to True. | <code>True</code>
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
@@ -692,78 +666,50 @@ Type | Description
 ---- | -----------
  | interactive brain viewer widget
 
-###### `plot_surface`
+###### `plot_surf`
 
 ```python
-plot_surface(brain, surface = 'inflated', bg_map = 'curvature', hemi = 'both', view = 'montage', threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, darkness = None, bg_on_data = False, colorbar = False, figsize = (10, 10), n_samples = 1, radius_mm = 0.0, interpolation = 'linear', engine = 'matplotlib', axes = None, save = None, **kwargs)
+plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
-Plot neuroimaging data on cortical surface.
+Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
-Intelligently projects volumetric NIfTI data onto cortical surfaces
-and displays in customizable montage layouts. Automatically handles
-hemispheric parsing and uses included MNI152 template surfaces.
+Like nilearn's ``plot_img_on_surf`` but with actually-tight framing
+(via ``Axes3D.set_box_aspect(zoom=...)`` + ``set_axis_off``), an
+auto-applied transparency mask (same convention as ``plot_flatmap``),
+and a single shared colorbar instead of one-per-subplot.
+
+The grid is ``len(view) × len(hemi)`` — rows = views, cols = hemispheres.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`brain` |  | BrainData, nibabel Nifti1Image, or file path to NIfTI image. If BrainData has multiple images, plots the first one. | *required*
-`surface` | <code>[str](#str)</code> | Surface mesh type. Options: 'pial', 'inflated', 'midthickness', 'white'. Defaults to 'inflated'. | <code>'inflated'</code>
-`bg_map` | <code>[str](#str) or None</code> | Background map. Options: 'curvature', 'sulc', None, or file path to custom background map. Defaults to 'curvature'. | <code>'curvature'</code>
-`hemi` | <code>[str](#str)</code> | Hemisphere to plot. Options: 'left', 'right', 'both'. Defaults to 'both'. | <code>'both'</code>
-`view` | <code>[str](#str) or [list](#list)</code> | View type. Options: 'lateral', 'medial', 'montage', or list of views. Defaults to 'montage' (2x2 grid). | <code>'montage'</code>
-`threshold` | <code>[float](#float) or [str](#str)</code> | Threshold value. Can be a float or percentile string like '95%'. Defaults to None. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Colormap name. Defaults to 'RdBu_r'. | <code>'RdBu_r'</code>
-`vmax` | <code>[float](#float)</code> | Maximum value for colormap scaling. | <code>None</code>
-`vmin` | <code>[float](#float)</code> | Minimum value for colormap scaling. | <code>None</code>
-`darkness` | <code>[float](#float) or None</code> | Background darkness (0-1). Defaults to None. | <code>None</code>
-`bg_on_data` | <code>[bool](#bool)</code> | Overlay background on data. Defaults to False. | <code>False</code>
-`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to False. | <code>False</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size tuple (width, height). Defaults to (10, 10). | <code>(10, 10)</code>
-`n_samples` | <code>[int](#int)</code> | Number of samples for vol_to_surf projection. Defaults to 1. | <code>1</code>
-`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Defaults to 0.0. | <code>0.0</code>
-`interpolation` | <code>[str](#str)</code> | Interpolation method for projection. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
-`engine` | <code>[str](#str)</code> | Rendering engine. Options: 'matplotlib', 'plotly'. Defaults to 'matplotlib'. | <code>'matplotlib'</code>
-`axes` | <code>[Axes](#matplotlib.axes.Axes) or [list](#list)</code> | Custom matplotlib axes for montage layout. If None, creates new figure. Defaults to None. | <code>None</code>
-`save` | <code>[str](#str) or None</code> | File path to save plot. If None, plot is displayed but not saved. Defaults to None. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to plot_surf_stat_map. | <code>{}</code>
+`brain` |  | BrainData, nibabel Nifti1Image, or file path (MNI-space). | *required*
+`hemi` | <code>[str](#str) or [list](#list)</code> | ``"left"``, ``"right"``, ``"both"`` (default), or a list subset like ``["left"]``. | <code>'both'</code>
+`view` | <code>[str](#str) or [list](#list)</code> | ``"montage"`` (default, → ``["lateral", "medial"]``), a single view string, or any list subset of ``("lateral", "medial", "dorsal", "ventral", "anterior", "posterior")``. | <code>'montage'</code>
+`surface` | <code>[str](#str)</code> | fsaverage mesh to render on. One of ``"pial"`` (default), ``"inflated"``, ``"white"``, ``"sphere"``. | <code>'pial'</code>
+`template` | <code>[str](#str)</code> | fsaverage resolution (``"fsaverage3"`` … ``"fsaverage"``). Default ``"fsaverage5"``. | <code>'fsaverage5'</code>
+`threshold` | <code>[float](#float) or [str](#str)</code> | Absolute cutoff (``0.3``) or percentile string (``"95%"``). | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Matplotlib colormap. Default ``"RdBu_r"``. | <code>'RdBu_r'</code>
+`vmin, vmax` | <code>[float](#float)</code> | Colormap range. Defaults to symmetric ±max-abs. | *required*
+`transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to NaN-out vertices outside the mask so the background shines through. ``"auto"`` uses ``BrainData.mask``. | <code>'auto'</code>
+`bg_on_data` | <code>[bool](#bool)</code> | Whether to multiply data by background. | <code>False</code>
+`colorbar` | <code>[bool](#bool)</code> | Show a single shared colorbar. Default ``True``. | <code>True</code>
+`colorbar_orientation` | <code>[str](#str)</code> | ``"horizontal"`` (default) or ``"vertical"``. | <code>'horizontal'</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size. Default ``(10, 8)``. | <code>(10, 8)</code>
+`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | vol_to_surf sampling radius. Default ``3.0``. | <code>3.0</code>
+`interpolation` | <code>[str](#str)</code> | vol_to_surf interpolation. Default ``"linear"``. | <code>'linear'</code>
+`zoom` | <code>[float](#float)</code> | Zoom factor for each 3D axis (``Axes3D.set_box_aspect(zoom=...)``). Default ``1.2``; try ``1.4`` for the tightest clean framing. | <code>1.2</code>
+`axes` | <code>ndarray of Axes3D</code> | Pre-existing 3D axes to draw into. Shape should be ``(len(view), len(hemi))``. | <code>None</code>
+`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure or plotly.graph_objects.Figure: Figure object
- | containing the surface plot(s).
-
-**Examples:**
-
-Plot BrainData with default 2x2 montage:
-
-```pycon
->>> from nltools.plotting import plot_surface
->>> from nltools.data import BrainData
->>> brain = BrainData('data.nii.gz')
->>> fig = plot_surface(brain)
-```
-
-Single hemisphere, lateral view:
-
-```pycon
->>> fig = plot_surface(brain, hemi='left', view='lateral')
-```
-
-Custom colormap and threshold:
-
-```pycon
->>> fig = plot_surface(brain, cmap='hot', threshold=0.5)
-```
-
-Percentile threshold with custom background:
-
-```pycon
->>> fig = plot_surface(brain, threshold='95%', bg_map='sulc')
-```
+ | matplotlib.figure.Figure
 
 #### `decomposition`
 

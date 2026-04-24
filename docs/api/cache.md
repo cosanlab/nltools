@@ -281,7 +281,7 @@ Type | Description
 #### `hash_mask`
 
 ```python
-hash_mask(mask_img: 'Nifti1Image') -> str
+hash_mask(mask_img: Nifti1Image) -> str
 ```
 
 Compute a stable hash for a NIfTI mask image.
@@ -294,7 +294,7 @@ different voxel locations (or different affines) produce different hashes.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask_img` | <code>'Nifti1Image'</code> | NIfTI image to hash (typically a binary mask) | *required*
+`mask_img` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI image to hash (typically a binary mask) | *required*
 
 **Returns:**
 

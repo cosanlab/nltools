@@ -4,7 +4,6 @@
 BrainData(data = None, *, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
-
 BrainData is a class to represent neuroimaging data in python as a vector
 rather than a 3-dimensional matrix. This makes it easier to perform data
 manipulation and analyses.
@@ -45,6 +44,7 @@ Name | Description
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
 [`plot`](#plot) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
+[`plot_surf`](#plot_surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 [`predict`](#predict) | Generate predictions using fitted model OR classify patterns (MVPA).
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
 [`regions`](#regions) | Extract brain connected regions into separate regions.
@@ -609,7 +609,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(method = 'glass', upper = None, lower = None, threshold = None, cut_coords = None, cmap = None, bg_img = None, ax = None, title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot(method = 'glass', upper = None, lower = None, threshold = None, view = 'xyz', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -622,10 +622,12 @@ Name | Type | Description | Default
 `upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
 `lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
 `threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
-`cut_coords` | <code>[list](#list)</code> | Cut coordinates for multi-slice views. | <code>None</code>
+`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"xyz"``. | <code>'xyz'</code>
+`cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. Takes precedence over ``view``-based defaults. Either a list matching ``len(view)`` or a dict keyed by axis letter. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
 `bg_img` | <code>str/nibabel image</code> | Background image. | <code>None</code>
 `ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Matplotlib axis. | <code>None</code>
+`figsize` | <code>[tuple](#tuple)</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
 `title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
 `colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
 `save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
@@ -641,7 +643,7 @@ Type | Description
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -658,6 +660,7 @@ Name | Type | Description | Default
 `with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
 `curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature overlay. Default: 0.5. | <code>0.5</code>
 `curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature overlay. Default: 0.5. | <code>0.5</code>
+`transparency` | <code>BrainData, Nifti1Image, str, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent. ``"auto"`` (default) uses the instance's ``.mask``; pass ``None`` to disable masking. | <code>'auto'</code>
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
@@ -666,6 +669,25 @@ Name | Type | Description | Default
 `interpolation` | <code>[str](#str)</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | matplotlib.figure.Figure
+
+#### `plot_surf`
+
+```python
+plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
+```
+
+Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
+
+Facade over :func:`nltools.plotting.plot_surf`. See that function's
+docstring for the full argument reference. Notable defaults:
+``surface="pial"``, ``zoom=1.2``, ``transparency="auto"`` (uses
+this instance's ``.mask``).
 
 **Returns:**
 

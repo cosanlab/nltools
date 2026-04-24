@@ -29,7 +29,7 @@ Name | Description
 #### `cv`
 
 ```python
-cv(bc, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> 'BrainCollectionPipeline'
+cv(bc, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainCollectionPipeline
 ```
 
 Create a cross-validation pipeline for multi-subject analysis.
@@ -53,7 +53,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainCollectionPipeline` | <code>'BrainCollectionPipeline'</code> | Pipeline for method chaining.
+`BrainCollectionPipeline` | <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | Pipeline for method chaining.
 
 **Examples:**
 
@@ -88,7 +88,7 @@ CVScheme: For CV scheme configuration details.
 #### `fit`
 
 ```python
-fit(bc, model: str, X: 'pd.DataFrame | np.ndarray | str | list', cv: int | None = None, scale: bool = True, scale_value: float = 100.0, progress_bar: bool = False, **kwargs: bool) -> 'FittedBrainCollection'
+fit(bc, model: str, X: pd.DataFrame | np.ndarray | str | list, cv: int | None = None, scale: bool = True, scale_value: float = 100.0, progress_bar: bool = False, **kwargs: bool) -> FittedBrainCollection
 ```
 
 Fit a model to each subject in the collection.
@@ -103,7 +103,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
 `model` | <code>[str](#str)</code> | Model type - 'glm' or 'ridge' | *required*
-`X` | <code>'pd.DataFrame \| np.ndarray \| str \| list'</code> | Design/feature matrix. Can be: - pd.DataFrame/DesignMatrix: Shared (used for all subjects) - np.ndarray: Shared array (used for all subjects) - str: Column name in metadata pointing to file paths - list: Per-subject list of DataFrames/arrays/paths | *required*
+`X` | <code>[DataFrame](#pandas.DataFrame) \| [ndarray](#numpy.ndarray) \| [str](#str) \| [list](#list)</code> | Design/feature matrix. Can be: - pd.DataFrame/DesignMatrix: Shared (used for all subjects) - np.ndarray: Shared array (used for all subjects) - str: Column name in metadata pointing to file paths - list: Per-subject list of DataFrames/arrays/paths | *required*
 `cv` | <code>[int](#int) \| None</code> | Cross-validation folds (Ridge only). Default is None for GLM, 5 for Ridge when output='scores'. | <code>None</code>
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
@@ -114,14 +114,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'FittedBrainCollection'</code> | FittedBrainCollection wrapping the fitted results. Supports:
-<code>'FittedBrainCollection'</code> | - ``.results``: Access underlying BrainCollection(s) directly
-<code>'FittedBrainCollection'</code> | - ``.betas``: Convenience accessor for beta coefficients (GLM)
-<code>'FittedBrainCollection'</code> | - ``.pool()``: Aggregate across subjects for group analysis
-<code>'FittedBrainCollection'</code> | The underlying results contain:
-<code>'FittedBrainCollection'</code> | - GLM: Beta coefficients (n_regressors, n_voxels) per subject
-<code>'FittedBrainCollection'</code> | - Ridge: Scores or weights depending on 'output' kwarg
-<code>'FittedBrainCollection'</code> | If return_stats (GLM) or output='both' (Ridge), results is a dict.
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | FittedBrainCollection wrapping the fitted results. Supports:
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | - ``.results``: Access underlying BrainCollection(s) directly
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | - ``.betas``: Convenience accessor for beta coefficients (GLM)
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | - ``.pool()``: Aggregate across subjects for group analysis
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | The underlying results contain:
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | - GLM: Beta coefficients (n_regressors, n_voxels) per subject
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | - Ridge: Scores or weights depending on 'output' kwarg
+<code>[FittedBrainCollection](#nltools.data.collection.pipeline.FittedBrainCollection)</code> | If return_stats (GLM) or output='both' (Ridge), results is a dict.
 
 **Examples:**
 
@@ -154,7 +154,7 @@ fit_ridge: Legacy Ridge fitting (use fit(..., model='ridge') instead)
 #### `fit_from_events`
 
 ```python
-fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_from_events(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> BrainCollection | dict[str, BrainCollection]
 ```
 
 Build design matrices from events and fit GLM to each subject.
@@ -193,8 +193,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection of beta coefficients for task regressors.
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | If return_stats specified, returns dict with keys 'betas', 't', etc.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | BrainCollection of beta coefficients for task regressors.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | If return_stats specified, returns dict with keys 'betas', 't', etc.
 
 **Examples:**
 
@@ -226,7 +226,7 @@ _fit_glm: Internal method for design matrix-based fitting
 #### `fit_glm`
 
 ```python
-fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm(bc, events: pd.DataFrame, t_r: float, confounds: str | list[pd.DataFrame | Path | str] | None = None, confound_columns: list[str] | None = None, hrf_model: str = 'spm', drift_model: str = 'cosine', high_pass: float = 0.01, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, return_residuals: bool = False, save: dict[str, str] | None = None, progress_bar: bool = False, by_run: bool = False, run_column: str = 'run', run_lengths: int | list[int] | None = None) -> BrainCollection | dict[str, BrainCollection]
 ```
 
 Fit GLM to each subject in collection.
@@ -261,12 +261,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection where each BrainData has shape:
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | - (n_task_regressors, n_voxels) if by_run=False (default)
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | - (n_runs * n_task_regressors, n_voxels) if by_run=True
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | The ``._design_columns`` attribute stores task regressor names.
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | If by_run=True, also stores ``._condition_labels`` and ``._run_labels``.
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | If return_stats specified, returns dict with keys 'betas', 't', etc.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | BrainCollection where each BrainData has shape:
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | - (n_task_regressors, n_voxels) if by_run=False (default)
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | - (n_runs * n_task_regressors, n_voxels) if by_run=True
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | The ``._design_columns`` attribute stores task regressor names.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | If by_run=True, also stores ``._condition_labels`` and ``._run_labels``.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | If return_stats specified, returns dict with keys 'betas', 't', etc.
 
 **Examples:**
 
@@ -298,7 +298,7 @@ Type | Description
 #### `fit_glm_internal`
 
 ```python
-fit_glm_internal(bc, X: 'pd.DataFrame | np.ndarray | str | list', scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, progress_bar: bool = False) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_glm_internal(bc, X: pd.DataFrame | np.ndarray | str | list, scale: bool = True, scale_value: float = 100.0, return_stats: list[str] | None = None, save: dict[str, str] | None = None, progress_bar: bool = False) -> BrainCollection | dict[str, BrainCollection]
 ```
 
 Internal GLM fitting with design matrix input.
@@ -311,7 +311,7 @@ Called by fit(model='glm') and fit_from_events().
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`X` | <code>'pd.DataFrame \| np.ndarray \| str \| list'</code> | Design matrix. Can be: - pd.DataFrame/DesignMatrix: Shared (used for all subjects) - np.ndarray: Shared array (converted to DataFrame internally) - str: Column name in metadata pointing to file paths - list: Per-subject list of DataFrames/arrays/paths | *required*
+`X` | <code>[DataFrame](#pandas.DataFrame) \| [ndarray](#numpy.ndarray) \| [str](#str) \| [list](#list)</code> | Design matrix. Can be: - pd.DataFrame/DesignMatrix: Shared (used for all subjects) - np.ndarray: Shared array (converted to DataFrame internally) - str: Column name in metadata pointing to file paths - list: Per-subject list of DataFrames/arrays/paths | *required*
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
 `scale_value` | <code>[float](#float)</code> | Scaling value (default 100.0 for percent signal change). | <code>100.0</code>
 `return_stats` | <code>[list](#list)[[str](#str)] \| None</code> | Optional list of statistics to return as separate BrainCollections. Options: 't', 'r2', 'p', 'se', 'residual'. | <code>None</code>
@@ -322,12 +322,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection of betas, or dict with betas + requested stats.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | BrainCollection of betas, or dict with betas + requested stats.
 
 #### `fit_ridge`
 
 ```python
-fit_ridge(bc, X: 'np.ndarray | str | list', alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, progress_bar: bool = False, **ridge_kwargs: bool) -> 'BrainCollection | dict[str, BrainCollection]'
+fit_ridge(bc, X: np.ndarray | str | list, alpha: float | str = 1.0, cv: int | None = 5, scale: bool = True, scale_value: float = 100.0, output: str = 'scores', save: dict[str, str] | None = None, progress_bar: bool = False, **ridge_kwargs: bool) -> BrainCollection | dict[str, BrainCollection]
 ```
 
 Fit ridge regression to each subject in collection.
@@ -341,7 +341,7 @@ suitable for group-level inference on encoding model performance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`X` | <code>'np.ndarray \| str \| list'</code> | Feature matrix. Can be: - np.ndarray: Shared features (n_samples, n_features) used for all subjects - str: Column name in metadata pointing to feature file paths - list: List of arrays/DataFrames, one per subject | *required*
+`X` | <code>[ndarray](#numpy.ndarray) \| [str](#str) \| [list](#list)</code> | Feature matrix. Can be: - np.ndarray: Shared features (n_samples, n_features) used for all subjects - str: Column name in metadata pointing to feature file paths - list: List of arrays/DataFrames, one per subject | *required*
 `alpha` | <code>[float](#float) \| [str](#str)</code> | Ridge regularization parameter. Can be: - float: Fixed regularization strength - 'auto': Use cross-validation to select optimal alpha | <code>1.0</code>
 `cv` | <code>[int](#int) \| None</code> | Cross-validation folds for computing scores. Default is 5. Required when output='scores' or 'both'. Set to None only when output='weights'. | <code>5</code>
 `scale` | <code>[bool](#bool)</code> | If True, apply percent signal change scaling before fitting. | <code>True</code>
@@ -355,8 +355,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection of scores or weights, or dict with both if output='both'.
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | Each BrainData will have ``cv_results_`` attribute when cv is used.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | BrainCollection of scores or weights, or dict with both if output='both'.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Each BrainData will have ``cv_results_`` attribute when cv is used.
 
 **Examples:**
 
@@ -432,7 +432,7 @@ Type | Description
 #### `resolve_X`
 
 ```python
-resolve_X(bc, X: 'np.ndarray | pd.DataFrame | str | list | None') -> list | None
+resolve_X(bc, X: np.ndarray | pd.DataFrame | str | list | None) -> list | None
 ```
 
 Resolve design/feature matrix X to per-subject list.
@@ -448,7 +448,7 @@ three input patterns:
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`X` | <code>'np.ndarray \| pd.DataFrame \| str \| list \| None'</code> | Design/feature matrix. Can be: - np.ndarray: Shared array (used for all subjects) - pd.DataFrame: Shared DataFrame/DesignMatrix (used for all subjects) - str: Column name in metadata containing file paths - list: Per-subject list of arrays/DataFrames/paths - None: Error | *required*
+`X` | <code>[ndarray](#numpy.ndarray) \| [DataFrame](#pandas.DataFrame) \| [str](#str) \| [list](#list) \| None</code> | Design/feature matrix. Can be: - np.ndarray: Shared array (used for all subjects) - pd.DataFrame: Shared DataFrame/DesignMatrix (used for all subjects) - str: Column name in metadata containing file paths - list: Per-subject list of arrays/DataFrames/paths - None: Error | *required*
 
 **Returns:**
 

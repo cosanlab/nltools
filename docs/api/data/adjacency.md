@@ -4,7 +4,6 @@
 Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
 ```
 
-
 Adjacency is a class to represent Adjacency matrices as a vector rather
 than a 2-dimensional matrix. This makes it easier to perform data
 manipulation and analyses.

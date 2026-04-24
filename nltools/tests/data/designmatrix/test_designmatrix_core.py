@@ -23,7 +23,7 @@ class TestDesignMatrixConstruction:
         """Test construction from numpy, dict, Polars, and pandas."""
         dm = DesignMatrix(input_data, sampling_freq=1, **kwargs)
         assert set(dm.columns) == set(expected_cols)
-        assert isinstance(dm._df, pl.DataFrame)
+        assert isinstance(dm.data, pl.DataFrame)
 
     def test_empty_initialization(self):
         """Create empty DesignMatrix with only metadata."""
@@ -105,3 +105,112 @@ class TestDesignMatrixDataAccess:
         # Empty
         dm_empty = DesignMatrix(sampling_freq=1)
         assert dm_empty.is_empty is True
+
+
+class TestDesignMatrixPassthrough:
+    """Test polars DataFrame passthrough via __getattr__."""
+
+    def _dm(self):
+        dm = DesignMatrix(
+            {
+                "a": [1, 2, 3, 4, 5],
+                "b": [10, 20, 30, 40, 50],
+                "poly_0": [1, 1, 1, 1, 1],
+            },
+            sampling_freq=2,
+        )
+        dm.polys = ["poly_0"]
+        dm.convolved = ["a"]
+        return dm
+
+    @pytest.mark.parametrize(
+        "method,args",
+        [
+            ("head", (2,)),
+            ("tail", (2,)),
+            ("slice", (1, 3)),
+        ],
+    )
+    def test_row_preserving_methods_return_designmatrix(self, method, args):
+        """head/tail/slice return DesignMatrix with metadata preserved."""
+        dm = self._dm()
+        result = getattr(dm, method)(*args)
+        assert isinstance(result, DesignMatrix)
+        assert result.sampling_freq == 2
+        assert result.polys == ["poly_0"]
+        assert result.convolved == ["a"]
+        assert result.columns == ["a", "b", "poly_0"]
+
+    def test_filter_returns_designmatrix(self):
+        """filter() returns DesignMatrix with metadata preserved."""
+        dm = self._dm()
+        result = dm.filter(pl.col("a") > 2)
+        assert isinstance(result, DesignMatrix)
+        assert result.sampling_freq == 2
+        assert result.polys == ["poly_0"]
+        assert len(result) == 3
+
+    def test_sample_returns_designmatrix(self):
+        """sample() returns DesignMatrix with metadata preserved."""
+        dm = self._dm()
+        result = dm.sample(n=3, seed=0)
+        assert isinstance(result, DesignMatrix)
+        assert result.sampling_freq == 2
+        assert len(result) == 3
+
+    def test_raw_passthrough_for_informational_attrs(self):
+        """Attrs that don't return DataFrames pass through raw (dtypes, schema)."""
+        dm = self._dm()
+        assert dm.dtypes == dm.data.dtypes
+        assert dm.schema == dm.data.schema
+
+    def test_raw_passthrough_for_methods_outside_allowlist(self):
+        """Methods not in the allowlist return raw polars results."""
+        dm = self._dm()
+        # describe() returns a pl.DataFrame but isn't in allowlist — stays raw
+        result = dm.describe()
+        assert isinstance(result, pl.DataFrame)
+        assert not isinstance(result, DesignMatrix)
+
+    def test_unknown_attribute_raises(self):
+        """Unknown attrs raise AttributeError (not silently forwarded)."""
+        dm = self._dm()
+        with pytest.raises(AttributeError, match="no attribute 'not_a_real_method'"):
+            dm.not_a_real_method
+
+    def test_select_returns_designmatrix_and_prunes_metadata(self):
+        """select() returns DesignMatrix; polys/convolved entries for dropped cols are removed."""
+        dm = self._dm()
+        result = dm.select(["a", "b"])
+        assert isinstance(result, DesignMatrix)
+        assert result.columns == ["a", "b"]
+        assert result.sampling_freq == 2
+        # poly_0 was dropped — should be gone from polys
+        assert result.polys == []
+        # a was kept — convolved should still include it
+        assert result.convolved == ["a"]
+
+    def test_select_keeps_polys_entry_when_column_kept(self):
+        """select() preserves polys entries for columns it keeps."""
+        dm = self._dm()
+        result = dm.select(["a", "poly_0"])
+        assert result.polys == ["poly_0"]
+        assert result.convolved == ["a"]
+
+    def test_getitem_list_prunes_stale_metadata(self):
+        """dm[[cols]] likewise prunes polys/convolved entries for dropped cols."""
+        dm = self._dm()
+        subset = dm[["b"]]
+        assert subset.polys == []
+        assert subset.convolved == []
+
+    def test_dir_exposes_polars_methods(self):
+        """__dir__ surfaces polars methods for REPL/IDE autocomplete."""
+        dm = self._dm()
+        names = dir(dm)
+        assert "head" in names
+        assert "filter" in names
+        assert "describe" in names
+        # Explicit DesignMatrix methods still present
+        assert "convolve" in names
+        assert "add_poly" in names

@@ -21,7 +21,7 @@ Name | Description
 #### `ISCTerminal`
 
 ```python
-ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: Dict[str, Any] = dict()) -> None
+ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 ISC terminal for multi-subject pipelines.
@@ -37,7 +37,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Summary statistic: 'median' (default, robust) or 'mean' (Fisher z-transformed). | <code>'median'</code>
 `n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations for p-value computation. Default is 5000. | <code>5000</code>
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -55,7 +55,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`metric`](#metric) | <code>[str](#str)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -66,7 +66,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: list, **kwargs: list) -> 'ISCResult'
+fit_evaluate(data: list, **kwargs: list) -> ISCResult
 ```
 
 Compute ISC across subjects.
@@ -81,12 +81,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'ISCResult'</code> | Result containing ISC values, p-values, and confidence intervals.
+<code>[ISCResult](#nltools.pipelines.results.ISCResult)</code> | Result containing ISC values, p-values, and confidence intervals.
 
 #### `PredictTerminal`
 
 ```python
-PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: Dict[str, Any] = dict()) -> None
+PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 Prediction/classification terminal for CV pipelines.
@@ -100,7 +100,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` | <code>[NDArray](#numpy.typing.NDArray)</code> | Target variable to predict (labels or continuous values). | *required*
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -136,7 +136,7 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 ##### Methods
@@ -144,7 +144,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> 'FoldResult'
+fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> FoldResult
 ```
 
 Fit model on training data and evaluate on test data.
@@ -163,12 +163,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'FoldResult'</code> | Result containing score, predictions, indices, and fitted stack.
+<code>[FoldResult](#nltools.pipelines.results.FoldResult)</code> | Result containing score, predictions, indices, and fitted stack.
 
 ###### `with_y`
 
 ```python
-with_y(new_y: NDArray) -> 'PredictTerminal'
+with_y(new_y: NDArray) -> PredictTerminal
 ```
 
 Create copy with different target variable.
@@ -185,12 +185,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PredictTerminal'</code> | New terminal with updated y.
+<code>[PredictTerminal](#nltools.pipelines.terminals.PredictTerminal)</code> | New terminal with updated y.
 
 #### `RSATerminal`
 
 ```python
-RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: Dict[str, Any] = dict()) -> None
+RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: dict[str, Any] = dict()) -> None
 ```
 
 RSA terminal for multi-subject pipelines.
@@ -205,7 +205,7 @@ Name | Type | Description | Default
 `model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | Model RDM to correlate with neural RDMs. Should be a symmetric matrix or upper triangle (condensed form). | *required*
 `method` | <code>[str](#str)</code> | Correlation method: 'spearman' (default), 'pearson', or 'kendall'. | <code>'spearman'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -224,7 +224,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -234,7 +234,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: NDArray, **kwargs: NDArray) -> 'RSAResult'
+fit_evaluate(data: NDArray, **kwargs: NDArray) -> RSAResult
 ```
 
 Compute RSA correlation between neural and model RDMs.
@@ -249,5 +249,5 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'RSAResult'</code> | Result containing correlation coefficient and p-value.
+<code>[RSAResult](#nltools.pipelines.results.RSAResult)</code> | Result containing correlation coefficient and p-value.
 

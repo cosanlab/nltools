@@ -24,7 +24,7 @@ Name | Description
 #### `compute_contrasts`
 
 ```python
-compute_contrasts(bc, contrasts: 'str | dict | np.ndarray | list') -> 'BrainCollection | dict[str, BrainCollection]'
+compute_contrasts(bc, contrasts: str | dict | np.ndarray | list) -> BrainCollection | dict[str, BrainCollection]
 ```
 
 Compute contrasts from fitted GLM beta coefficients.
@@ -40,14 +40,14 @@ the _design_columns attribute set.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`contrasts` | <code>'str \| dict \| np.ndarray \| list'</code> | Can be: - str: Contrast string using column names, e.g., "face - house" - dict: Multiple contrasts, e.g., {"main": "face - house", "avg": [0.5, 0.5]} - array/list: Numeric contrast vector, e.g., [1, -1] | *required*
+`contrasts` | <code>[str](#str) \| [dict](#dict) \| [ndarray](#numpy.ndarray) \| [list](#list)</code> | Can be: - str: Contrast string using column names, e.g., "face - house" - dict: Multiple contrasts, e.g., {"main": "face - house", "avg": [0.5, 0.5]} - array/list: Numeric contrast vector, e.g., [1, -1] | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | BrainCollection where each BrainData has shape (n_voxels,) containing
-<code>'BrainCollection \| dict[str, BrainCollection]'</code> | the contrast values. If dict input, returns dict of BrainCollections.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | BrainCollection where each BrainData has shape (n_voxels,) containing
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | the contrast values. If dict input, returns dict of BrainCollections.
 
 **Examples:**
 
@@ -71,7 +71,7 @@ Type | Description
 #### `compute_single_contrast`
 
 ```python
-compute_single_contrast(bc, contrast: 'str | np.ndarray | list', design_columns: list[str]) -> 'BrainCollection'
+compute_single_contrast(bc, contrast: str | np.ndarray | list, design_columns: list[str]) -> BrainCollection
 ```
 
 Compute a single contrast across all subjects.
@@ -81,14 +81,14 @@ Compute a single contrast across all subjects.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`contrast` | <code>'str \| np.ndarray \| list'</code> | Contrast specification (string, array, or list) | *required*
+`contrast` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| [list](#list)</code> | Contrast specification (string, array, or list) | *required*
 `design_columns` | <code>[list](#list)[[str](#str)]</code> | List of regressor names from fit_glm | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with contrast values for each subject
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with contrast values for each subject
 
 #### `parse_contrast_string`
 
@@ -115,7 +115,7 @@ Type | Description
 #### `predict`
 
 ```python
-predict(bc, X: 'np.ndarray | str | list | None' = None, y: 'np.ndarray | None' = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: 'np.ndarray | None' = None, roi_mask: 'np.ndarray | None' = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False) -> 'BrainCollection'
+predict(bc, X: np.ndarray | str | list | None = None, y: np.ndarray | None = None, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False) -> BrainCollection
 ```
 
 Generate predictions for each subject in collection.
@@ -138,12 +138,12 @@ _run_labels (leave-one-run-out CV).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`X` | <code>'np.ndarray \| str \| list \| None'</code> | Features for timeseries prediction. Can be: - np.ndarray: Shared features (same for all subjects) - str: Metadata column with per-subject feature paths - list: Per-subject feature arrays | <code>None</code>
-`y` | <code>'np.ndarray \| None'</code> | Labels for MVPA decoding. If None and _condition_labels exists, will use stored condition labels (from fit_glm with by_run=True). | <code>None</code>
+`X` | <code>[ndarray](#numpy.ndarray) \| [str](#str) \| [list](#list) \| None</code> | Features for timeseries prediction. Can be: - np.ndarray: Shared features (same for all subjects) - str: Metadata column with per-subject feature paths - list: Per-subject feature arrays | <code>None</code>
+`y` | <code>[ndarray](#numpy.ndarray) \| None</code> | Labels for MVPA decoding. If None and _condition_labels exists, will use stored condition labels (from fit_glm with by_run=True). | <code>None</code>
 `method` | <code>[str](#str)</code> | MVPA method - 'whole_brain', 'searchlight', or 'roi'. | <code>'whole_brain'</code>
 `estimator` |  | Classifier - 'svm', 'logistic', 'ridge', 'lda' or sklearn estimator instance. | <code>'svm'</code>
 `cv` |  | Cross-validation strategy. If None and _run_labels exists, uses leave-one-group-out with run labels. | <code>5</code>
-`groups` | <code>'np.ndarray \| None'</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
 `roi_mask` |  | Mask for ROI-based MVPA. Required if method='roi'. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric (default 'accuracy'). | <code>'accuracy'</code>
@@ -155,9 +155,9 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection with prediction results:
-<code>'BrainCollection'</code> | - For timeseries: (n_timepoints, n_voxels) predicted responses
-<code>'BrainCollection'</code> | - For MVPA: (1, n_voxels) accuracy values
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection with prediction results:
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | - For timeseries: (n_timepoints, n_voxels) predicted responses
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | - For MVPA: (1, n_voxels) accuracy values
 
 **Examples:**
 
@@ -182,7 +182,7 @@ Type | Description
 #### `select_feature`
 
 ```python
-select_feature(bc, feature: 'int | str') -> 'BrainCollection'
+select_feature(bc, feature: int | str) -> BrainCollection
 ```
 
 Select a single feature's weights across all subjects.
@@ -198,14 +198,14 @@ each subject has shape (n_features, n_voxels).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bc` |  | BrainCollection instance. | *required*
-`feature` | <code>'int \| str'</code> | Feature to select. Can be: - int: Feature index (0-based) - str: Feature name (requires _feature_names attribute) | *required*
+`feature` | <code>[int](#int) \| [str](#str)</code> | Feature to select. Can be: - int: Feature index (0-based) - str: Feature name (requires _feature_names attribute) | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'BrainCollection'</code> | BrainCollection where each BrainData has shape (n_voxels,)
-<code>'BrainCollection'</code> | containing the weights for the specified feature.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection where each BrainData has shape (n_voxels,)
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | containing the weights for the specified feature.
 
 **Examples:**
 

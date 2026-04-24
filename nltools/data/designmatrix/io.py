@@ -82,7 +82,7 @@ def to_pandas(dm: DesignMatrix):
     """
     import pandas as pd
 
-    return pd.DataFrame(dm._df.to_dict(as_series=False))
+    return pd.DataFrame(dm.data.to_dict(as_series=False))
 
 
 def to_numpy(dm: DesignMatrix) -> np.ndarray:
@@ -104,7 +104,7 @@ def to_numpy(dm: DesignMatrix) -> np.ndarray:
         >>> arr.shape
         (3, 2)
     """
-    return dm._df.to_numpy()
+    return dm.data.to_numpy()
 
 
 def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
@@ -143,7 +143,7 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
         write_h5(dm, file_name)
     else:
         # Write as delimited text file (TSV or CSV)
-        dm._df.write_csv(file_name, separator=sep)
+        dm.data.write_csv(file_name, separator=sep)
 
 
 def write_h5(dm: DesignMatrix, file_name: str) -> None:
@@ -160,7 +160,7 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
 
     with h5py.File(file_name, "w") as f:
         # Store data
-        f.create_dataset("data", data=dm._df.to_numpy(), compression="gzip")
+        f.create_dataset("data", data=dm.data.to_numpy(), compression="gzip")
 
         # Store column names
         f.create_dataset(

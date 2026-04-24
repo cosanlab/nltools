@@ -159,7 +159,7 @@ Type | Description
 #### `CVResult`
 
 ```python
-CVResult(fold_results: List[FoldResult], pipeline: Any) -> None
+CVResult(fold_results: list[FoldResult], pipeline: Any) -> None
 ```
 
 Cross-validation result container.
@@ -171,7 +171,7 @@ predictions, and inverse transform capability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`fold_results` | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
+`fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
 Examples
@@ -191,7 +191,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
 [`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
 [`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
 [`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
@@ -205,7 +205,7 @@ Name | Type | Description
 ###### `inverse_transform`
 
 ```python
-inverse_transform(data: Optional[NDArray] = None) -> NDArray
+inverse_transform(data: NDArray | None = None) -> NDArray
 ```
 
 Map predictions back through inverse transforms.
@@ -217,7 +217,7 @@ predictions back to the original feature space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
+`data` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
 
 **Returns:**
 
@@ -282,7 +282,7 @@ Type | Description
 #### `CVSchemeImpl`
 
 ```python
-CVSchemeImpl(k: Optional[int] = None, scheme: CVSchemeType = 'kfold', split_by: Optional[str] = None, n: int = 1000, random_state: Optional[int] = None) -> None
+CVSchemeImpl(k: int | None = None, scheme: CVSchemeType = 'kfold', split_by: str | None = None, n: int = 1000, random_state: int | None = None) -> None
 ```
 
 Cross-validation scheme configuration.
@@ -298,11 +298,11 @@ Supports multiple CV strategies:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
 `scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'. | <code>'kfold'</code>
-`split_by` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
+`split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
 `n` | <code>[int](#int)</code> | Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000. | <code>1000</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
 **Examples:**
 
@@ -344,18 +344,18 @@ Name | Type | Description
 ---- | ---- | -----------
 [`is_loro`](#is_loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 [`is_loso`](#is_loso) | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-[`k`](#k) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`k`](#k) | <code>[int](#int) \| None</code> | 
 [`n`](#n) | <code>[int](#int)</code> | 
-[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
 [`scheme`](#scheme) | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
-[`split_by`](#split_by) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`split_by`](#split_by) | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 
 ###### `n_splits`
 
 ```python
-n_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of splits.
@@ -365,7 +365,7 @@ Return number of splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
 **Returns:**
 
@@ -376,7 +376,7 @@ Type | Description
 ###### `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
+split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
 ```
 
 Generate train/test indices for each fold.
@@ -386,7 +386,7 @@ Generate train/test indices for each fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
@@ -487,7 +487,7 @@ Type | Description
 #### `FittedStack`
 
 ```python
-FittedStack(steps: List[FittedTransform] = list()) -> None
+FittedStack(steps: list[FittedTransform] = list()) -> None
 ```
 
 Collection of fitted transforms for inverse transform support.
@@ -499,7 +499,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[List](#typing.List)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples
 --------
@@ -661,7 +661,7 @@ Return formatted summary string.
 #### `ISCTerminal`
 
 ```python
-ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: Dict[str, Any] = dict()) -> None
+ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 ISC terminal for multi-subject pipelines.
@@ -677,7 +677,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Summary statistic: 'median' (default, robust) or 'mean' (Fisher z-transformed). | <code>'median'</code>
 `n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations for p-value computation. Default is 5000. | <code>5000</code>
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -695,7 +695,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`metric`](#metric) | <code>[str](#str)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -706,7 +706,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: list, **kwargs: list) -> 'ISCResult'
+fit_evaluate(data: list, **kwargs: list) -> ISCResult
 ```
 
 Compute ISC across subjects.
@@ -721,12 +721,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'ISCResult'</code> | Result containing ISC values, p-values, and confidence intervals.
+<code>[ISCResult](#nltools.pipelines.results.ISCResult)</code> | Result containing ISC values, p-values, and confidence intervals.
 
 #### `MultiSubjectPipeline`
 
 ```python
-MultiSubjectPipeline(data: List[NDArray], cv: Optional[Any] = None, groups: Optional[NDArray[np.intp]] = None, steps: List[Any] = list(), _is_lazy: bool = False) -> None
+MultiSubjectPipeline(data: list[NDArray], cv: Any | None = None, groups: NDArray[np.intp] | None = None, steps: list[Any] = list(), _is_lazy: bool = False) -> None
 ```
 
 Pipeline for multi-subject neuroimaging analyses.
@@ -740,10 +740,10 @@ Operates on a list of subject data arrays, supporting:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | Cross-validation scheme configuration. | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
+`cv` | <code>[Any](#typing.Any) \| None</code> | Cross-validation scheme configuration. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
+`steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
 Examples
 --------
@@ -771,19 +771,19 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`data`](#data) | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | 
+[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
+[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
 [`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | 
+[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 ##### Methods
 
 ###### `align`
 
 ```python
-align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> 'MultiSubjectPipeline'
+align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add cross-subject alignment step to pipeline.
@@ -805,7 +805,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'MultiSubjectPipeline'</code> | New pipeline with alignment step added.
+<code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
 Examples
 --------
@@ -864,7 +864,7 @@ Examples
 ###### `normalize`
 
 ```python
-normalize(method: str = 'zscore', **kwargs: str) -> 'MultiSubjectPipeline'
+normalize(method: str = 'zscore', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add normalization step (per-subject).
@@ -872,7 +872,7 @@ Add normalization step (per-subject).
 ###### `pipe`
 
 ```python
-pipe(transformer) -> 'MultiSubjectPipeline'
+pipe(transformer) -> MultiSubjectPipeline
 ```
 
 Add custom sklearn transformer.
@@ -920,7 +920,7 @@ Logistic regression with regularization::
 ###### `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Optional[int]) -> 'MultiSubjectPipeline'
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> MultiSubjectPipeline
 ```
 
 Add dimensionality reduction step.
@@ -1031,7 +1031,7 @@ Name | Type | Description
 ###### `n_inner_splits`
 
 ```python
-n_inner_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_inner_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of inner splits per outer fold.
@@ -1041,7 +1041,7 @@ Return number of inner splits per outer fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. | <code>None</code>
 
 **Returns:**
 
@@ -1052,7 +1052,7 @@ Type | Description
 ###### `n_outer_splits`
 
 ```python
-n_outer_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_outer_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of outer splits.
@@ -1062,7 +1062,7 @@ Return number of outer splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop. | <code>None</code>
 
 **Returns:**
 
@@ -1073,7 +1073,7 @@ Type | Description
 ###### `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None, inner_groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
+split(data: Any, groups: NDArray[np.intp] | None = None, inner_groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
 ```
 
 Generate nested cross-validation splits.
@@ -1087,8 +1087,8 @@ indices into the outer training set, not the original data.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
-`inner_groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
+`inner_groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
 
 **Yields:**
 
@@ -1096,8 +1096,8 @@ Type | Description
 ---- | -----------
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator)
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | where outer_train_idx and outer_test_idx are arrays of sample
-<code>[Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
-<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
+<code>[Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
+<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
 
 <details class="example" open markdown="1">
 <summary>Example</summary>
@@ -1231,7 +1231,7 @@ Name | Description
 ###### `from_scores`
 
 ```python
-from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> 'PermutationResult'
+from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> PermutationResult
 ```
 
 Create PermutationResult from observed result and null scores.
@@ -1249,7 +1249,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PermutationResult'</code> | Complete permutation result with computed p-value.
+<code>[PermutationResult](#nltools.pipelines.results.PermutationResult)</code> | Complete permutation result with computed p-value.
 
 ###### `summary`
 
@@ -1329,7 +1329,7 @@ Type | Description
 #### `Pipeline`
 
 ```python
-Pipeline(data: Any, cv: Optional[CVScheme] = None, steps: List[TransformStep] = list(), _is_lazy: bool = False) -> None
+Pipeline(data: Any, cv: CVScheme | None = None, steps: list[TransformStep] = list(), _is_lazy: bool = False) -> None
 ```
 
 Base pipeline for chained transforms with optional cross-validation.
@@ -1344,8 +1344,8 @@ side effects.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Input data (typically ndarray or BrainData). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[CVScheme](#nltools.pipelines.base.CVScheme)]</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
+`cv` | <code>[CVScheme](#nltools.pipelines.base.CVScheme) \| None</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
+`steps` | <code>[list](#list)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
 
 **Attributes:**
 
@@ -1491,7 +1491,7 @@ Type | Description
 ###### `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Any) -> Pipeline
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: Any) -> Pipeline
 ```
 
 Add a dimensionality reduction step to the pipeline.
@@ -1501,7 +1501,7 @@ Add a dimensionality reduction step to the pipeline.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'. Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
 `**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the reducer. | <code>{}</code>
 
 **Returns:**
@@ -1520,7 +1520,7 @@ Type | Description
 #### `PooledData`
 
 ```python
-PooledData(data: NDArray, param: str, condition_names: Optional[list[str]] = None, subject_ids: Optional[list[str]] = None, mask: Optional[Any] = None, fitted_state: Optional[Any] = None, save_path: Optional[str] = None) -> None
+PooledData(data: NDArray, param: str, condition_names: list[str] | None = None, subject_ids: list[str] | None = None, mask: Any | None = None, fitted_state: Any | None = None, save_path: str | None = None) -> None
 ```
 
 Aggregated data from multiple subjects.
@@ -1535,10 +1535,10 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[NDArray](#numpy.typing.NDArray)</code> | Pooled data array. Shape is (n_subjects, n_voxels) for single parameter or (n_subjects, n_conditions, n_voxels) for multi-condition. | *required*
 `param` | <code>[str](#str)</code> | Parameter that was pooled (e.g., 'beta', 'residual', 't'). | *required*
-`condition_names` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Names of conditions if multi-condition data. | <code>None</code>
-`subject_ids` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Subject identifiers. | <code>None</code>
-`fitted_state` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | Saved fitted models for repool() functionality. | <code>None</code>
-`save_path` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Path where data was saved. | <code>None</code>
+`condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions if multi-condition data. | <code>None</code>
+`subject_ids` | <code>[list](#list)[[str](#str)] \| None</code> | Subject identifiers. | <code>None</code>
+`fitted_state` | <code>[Any](#typing.Any) \| None</code> | Saved fitted models for repool() functionality. | <code>None</code>
+`save_path` | <code>[str](#str) \| None</code> | Path where data was saved. | <code>None</code>
 
 Examples
 --------
@@ -1564,24 +1564,24 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition_names) | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | 
+[`condition_names`](#condition_names) | <code>[list](#list)[[str](#str)] \| None</code> | 
 [`data`](#data) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`fitted_state`](#fitted_state) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`mask`](#mask) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`n_conditions`](#n_conditions) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of conditions (None if single-condition).
+[`fitted_state`](#fitted_state) | <code>[Any](#typing.Any) \| None</code> | 
+[`mask`](#mask) | <code>[Any](#typing.Any) \| None</code> | 
+[`n_conditions`](#n_conditions) | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
 [`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
 [`param`](#param) | <code>[str](#str)</code> | 
-[`save_path`](#save_path) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`save_path`](#save_path) | <code>[str](#str) \| None</code> | 
 [`shape`](#shape) | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
-[`subject_ids`](#subject_ids) | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | 
+[`subject_ids`](#subject_ids) | <code>[list](#list)[[str](#str)] \| None</code> | 
 
 ##### Methods
 
 ###### `cv`
 
 ```python
-cv(k: Optional[int] = None, scheme: CVSchemeType = 'kfold', **kwargs: CVSchemeType) -> 'Pipeline'
+cv(k: int | None = None, scheme: CVSchemeType = 'kfold', **kwargs: CVSchemeType) -> Pipeline
 ```
 
 Create CV pipeline on pooled data.
@@ -1592,19 +1592,19 @@ Useful for classification on pooled betas.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of folds. | <code>None</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds. | <code>None</code>
 `scheme` | <code>[CVSchemeType](#nltools.pipelines.pool.CVSchemeType)</code> | CV scheme ('kfold', 'loso', 'loro', 'bootstrap'). | <code>'kfold'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'Pipeline'</code> | Pipeline for classification on pooled data.
+<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | Pipeline for classification on pooled data.
 
 ###### `fit`
 
 ```python
-fit(model: str, contrast: Optional[str] = None, contrasts: Optional[list[str]] = None, X: Optional[NDArray] = None, **kwargs: Optional[NDArray]) -> Union['StatResult', 'ResultDict']
+fit(model: str, contrast: str | None = None, contrasts: list[str] | None = None, X: NDArray | None = None, **kwargs: NDArray | None) -> StatResult | ResultDict
 ```
 
 Fit second-level statistical model.
@@ -1616,16 +1616,16 @@ This is a terminal method - executes immediately (eager).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `model` | <code>[str](#str)</code> | Statistical model type: 'ttest' (one-sample or two-sample with X), 'paired_ttest', or 'anova'. | *required*
-`contrast` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Single contrast specification (e.g., 'face-house'). | <code>None</code>
-`contrasts` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Multiple contrasts - returns ResultDict. | <code>None</code>
-`X` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | Design matrix for two-sample tests or ANOVA. | <code>None</code>
+`contrast` | <code>[str](#str) \| None</code> | Single contrast specification (e.g., 'face-house'). | <code>None</code>
+`contrasts` | <code>[list](#list)[[str](#str)] \| None</code> | Multiple contrasts - returns ResultDict. | <code>None</code>
+`X` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | Design matrix for two-sample tests or ANOVA. | <code>None</code>
 `**kwargs` |  | Additional arguments for the statistical test. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Union](#typing.Union)['StatResult', 'ResultDict']</code> | Statistical results. ResultDict if multiple contrasts specified.
+<code>[StatResult](#nltools.pipelines.pool.StatResult) \| [ResultDict](#nltools.pipelines.pool.ResultDict)</code> | Statistical results. ResultDict if multiple contrasts specified.
 
 Examples
 --------
@@ -1638,7 +1638,7 @@ Examples
 ###### `load`
 
 ```python
-load(path: str) -> 'PooledData'
+load(path: str) -> PooledData
 ```
 
 Load pooled data from disk.
@@ -1653,12 +1653,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PooledData'</code> | Loaded pooled data.
+<code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | Loaded pooled data.
 
 ###### `repool`
 
 ```python
-repool(param: str) -> 'PooledData'
+repool(param: str) -> PooledData
 ```
 
 Re-extract different parameter from saved fitted state.
@@ -1673,7 +1673,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PooledData'</code> | New PooledData with the requested parameter.
+<code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | New PooledData with the requested parameter.
 
 ###### `save`
 
@@ -1692,7 +1692,7 @@ Name | Type | Description | Default
 #### `PredictTerminal`
 
 ```python
-PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: Dict[str, Any] = dict()) -> None
+PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 Prediction/classification terminal for CV pipelines.
@@ -1706,7 +1706,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` | <code>[NDArray](#numpy.typing.NDArray)</code> | Target variable to predict (labels or continuous values). | *required*
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -1742,7 +1742,7 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 ##### Methods
@@ -1750,7 +1750,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> 'FoldResult'
+fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> FoldResult
 ```
 
 Fit model on training data and evaluate on test data.
@@ -1769,12 +1769,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'FoldResult'</code> | Result containing score, predictions, indices, and fitted stack.
+<code>[FoldResult](#nltools.pipelines.results.FoldResult)</code> | Result containing score, predictions, indices, and fitted stack.
 
 ###### `with_y`
 
 ```python
-with_y(new_y: NDArray) -> 'PredictTerminal'
+with_y(new_y: NDArray) -> PredictTerminal
 ```
 
 Create copy with different target variable.
@@ -1791,7 +1791,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PredictTerminal'</code> | New terminal with updated y.
+<code>[PredictTerminal](#nltools.pipelines.terminals.PredictTerminal)</code> | New terminal with updated y.
 
 #### `RSAResult`
 
@@ -1832,7 +1832,7 @@ Return formatted summary string.
 #### `RSATerminal`
 
 ```python
-RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: Dict[str, Any] = dict()) -> None
+RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: dict[str, Any] = dict()) -> None
 ```
 
 RSA terminal for multi-subject pipelines.
@@ -1847,7 +1847,7 @@ Name | Type | Description | Default
 `model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | Model RDM to correlate with neural RDMs. Should be a symmetric matrix or upper triangle (condensed form). | *required*
 `method` | <code>[str](#str)</code> | Correlation method: 'spearman' (default), 'pearson', or 'kendall'. | <code>'spearman'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -1866,7 +1866,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -1876,7 +1876,7 @@ Name | Type | Description
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: NDArray, **kwargs: NDArray) -> 'RSAResult'
+fit_evaluate(data: NDArray, **kwargs: NDArray) -> RSAResult
 ```
 
 Compute RSA correlation between neural and model RDMs.
@@ -1891,12 +1891,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'RSAResult'</code> | Result containing correlation coefficient and p-value.
+<code>[RSAResult](#nltools.pipelines.results.RSAResult)</code> | Result containing correlation coefficient and p-value.
 
 #### `ReduceStep`
 
 ```python
-ReduceStep(method: str = 'pca', n_components: Optional[int] = None, random_state: Optional[int] = None) -> None
+ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
 ```
 
 Dimensionality reduction step.
@@ -1909,8 +1909,8 @@ new data to the reduced space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method: 'pca' (Principal Component Analysis, invertible) or 'ica' (Independent Component Analysis, not invertible). Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 Examples
 --------
@@ -1934,8 +1934,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
+[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
 
 ##### Methods
 
@@ -1980,7 +1980,7 @@ Name | Description
 ###### `threshold_all`
 
 ```python
-threshold_all(method: str = 'fdr', alpha: float = 0.05) -> 'ResultDict'
+threshold_all(method: str = 'fdr', alpha: float = 0.05) -> ResultDict
 ```
 
 Apply thresholding to all results.
@@ -1996,12 +1996,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'ResultDict'</code> | New dict with thresholded results.
+<code>[ResultDict](#nltools.pipelines.pool.ResultDict)</code> | New dict with thresholded results.
 
 #### `StatResult`
 
 ```python
-StatResult(t_map: Optional[NDArray] = None, f_map: Optional[NDArray] = None, p_map: Optional[NDArray] = None, contrast: Optional[str] = None, df: Optional[int] = None) -> None
+StatResult(t_map: NDArray | None = None, f_map: NDArray | None = None, p_map: NDArray | None = None, contrast: str | None = None, df: int | None = None) -> None
 ```
 
 Result of statistical test.
@@ -2019,18 +2019,18 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`contrast`](#contrast) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`df`](#df) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`f_map`](#f_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`p_map`](#p_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`t_map`](#t_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
+[`df`](#df) | <code>[int](#int) \| None</code> | 
+[`f_map`](#f_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+[`p_map`](#p_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+[`t_map`](#t_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 
 ##### Methods
 
 ###### `threshold`
 
 ```python
-threshold(method: str = 'fdr', alpha: float = 0.05) -> 'StatResult'
+threshold(method: str = 'fdr', alpha: float = 0.05) -> StatResult
 ```
 
 Apply multiple comparison correction.
@@ -2046,7 +2046,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'StatResult'</code> | New result with thresholded maps.
+<code>[StatResult](#nltools.pipelines.pool.StatResult)</code> | New result with thresholded maps.
 
 ###### `to_nifti`
 
@@ -2237,7 +2237,7 @@ Type | Description
 ###### `FittedStack`
 
 ```python
-FittedStack(steps: List[FittedTransform] = list()) -> None
+FittedStack(steps: list[FittedTransform] = list()) -> None
 ```
 
 Collection of fitted transforms for inverse transform support.
@@ -2249,7 +2249,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[List](#typing.List)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples
 --------
@@ -2286,7 +2286,7 @@ Type | Description
 ######## `steps`
 
 ```python
-steps: List[FittedTransform] = field(default_factory=list)
+steps: list[FittedTransform] = field(default_factory=list)
 ```
 
 
@@ -2406,7 +2406,7 @@ Type | Description
 ###### `Pipeline`
 
 ```python
-Pipeline(data: Any, cv: Optional[CVScheme] = None, steps: List[TransformStep] = list(), _is_lazy: bool = False) -> None
+Pipeline(data: Any, cv: CVScheme | None = None, steps: list[TransformStep] = list(), _is_lazy: bool = False) -> None
 ```
 
 Base pipeline for chained transforms with optional cross-validation.
@@ -2421,8 +2421,8 @@ side effects.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Input data (typically ndarray or BrainData). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[CVScheme](#nltools.pipelines.base.CVScheme)]</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
+`cv` | <code>[CVScheme](#nltools.pipelines.base.CVScheme) \| None</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
+`steps` | <code>[list](#list)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
 
 **Attributes:**
 
@@ -2470,7 +2470,7 @@ Name | Description
 ###### `cv`
 
 ```python
-cv: Optional[CVScheme] = None
+cv: CVScheme | None = None
 ```
 
 ######## `data`
@@ -2490,7 +2490,7 @@ Return number of transform steps.
 ######## `steps`
 
 ```python
-steps: List[TransformStep] = field(default_factory=list)
+steps: list[TransformStep] = field(default_factory=list)
 ```
 
 
@@ -2600,7 +2600,7 @@ Type | Description
 ######## `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Any) -> Pipeline
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: Any) -> Pipeline
 ```
 
 Add a dimensionality reduction step to the pipeline.
@@ -2610,7 +2610,7 @@ Add a dimensionality reduction step to the pipeline.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'. Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
 `**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the reducer. | <code>{}</code>
 
 **Returns:**
@@ -2768,7 +2768,7 @@ CVSchemeType = Literal['kfold', 'loso', 'loro', 'bootstrap', 'permutation']
 ###### `CVScheme`
 
 ```python
-CVScheme(k: Optional[int] = None, scheme: CVSchemeType = 'kfold', split_by: Optional[str] = None, n: int = 1000, random_state: Optional[int] = None) -> None
+CVScheme(k: int | None = None, scheme: CVSchemeType = 'kfold', split_by: str | None = None, n: int = 1000, random_state: int | None = None) -> None
 ```
 
 Cross-validation scheme configuration.
@@ -2784,11 +2784,11 @@ Supports multiple CV strategies:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
 `scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'. | <code>'kfold'</code>
-`split_by` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
+`split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
 `n` | <code>[int](#int)</code> | Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000. | <code>1000</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
 **Examples:**
 
@@ -2830,11 +2830,11 @@ Name | Type | Description
 ---- | ---- | -----------
 [`is_loro`](#is_loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 [`is_loso`](#is_loso) | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-[`k`](#k) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`k`](#k) | <code>[int](#int) \| None</code> | 
 [`n`](#n) | <code>[int](#int)</code> | 
-[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
 [`scheme`](#scheme) | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
-[`split_by`](#split_by) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`split_by`](#split_by) | <code>[str](#str) \| None</code> | 
 
 
 
@@ -2871,7 +2871,7 @@ Type | Description
 ######## `k`
 
 ```python
-k: Optional[int] = None
+k: int | None = None
 ```
 
 ######## `n`
@@ -2883,7 +2883,7 @@ n: int = 1000
 ######## `random_state`
 
 ```python
-random_state: Optional[int] = None
+random_state: int | None = None
 ```
 
 ######## `scheme`
@@ -2895,7 +2895,7 @@ scheme: CVSchemeType = 'kfold'
 ######## `split_by`
 
 ```python
-split_by: Optional[str] = None
+split_by: str | None = None
 ```
 
 
@@ -2905,7 +2905,7 @@ split_by: Optional[str] = None
 ###### `n_splits`
 
 ```python
-n_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of splits.
@@ -2915,7 +2915,7 @@ Return number of splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
 **Returns:**
 
@@ -2926,7 +2926,7 @@ Type | Description
 ######## `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
+split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
 ```
 
 Generate train/test indices for each fold.
@@ -2936,7 +2936,7 @@ Generate train/test indices for each fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
@@ -3032,7 +3032,7 @@ outer: CVScheme
 ###### `n_inner_splits`
 
 ```python
-n_inner_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_inner_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of inner splits per outer fold.
@@ -3042,7 +3042,7 @@ Return number of inner splits per outer fold.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. | <code>None</code>
 
 **Returns:**
 
@@ -3053,7 +3053,7 @@ Type | Description
 ######## `n_outer_splits`
 
 ```python
-n_outer_splits(data: Any = None, groups: Optional[NDArray[np.intp]] = None) -> int
+n_outer_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
 Return number of outer splits.
@@ -3063,7 +3063,7 @@ Return number of outer splits.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes). | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop. | <code>None</code>
 
 **Returns:**
 
@@ -3074,7 +3074,7 @@ Type | Description
 ######## `split`
 
 ```python
-split(data: Any, groups: Optional[NDArray[np.intp]] = None, inner_groups: Optional[NDArray[np.intp]] = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
+split(data: Any, groups: NDArray[np.intp] | None = None, inner_groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp], Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]]]
 ```
 
 Generate nested cross-validation splits.
@@ -3088,8 +3088,8 @@ indices into the outer training set, not the original data.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). | *required*
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
-`inner_groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for outer loop (e.g., subject IDs). Required if outer.scheme is 'loso' or 'loro'. | <code>None</code>
+`inner_groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for inner loop. If provided, these are indexed by outer_train to get inner groups. | <code>None</code>
 
 **Yields:**
 
@@ -3097,8 +3097,8 @@ Type | Description
 ---- | -----------
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Tuple of (outer_train_idx, outer_test_idx, inner_splits_iterator)
 <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | where outer_train_idx and outer_test_idx are arrays of sample
-<code>[Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
-<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#typing.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
+<code>[Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]</code> | indices, and inner_splits_iterator yields (inner_train, inner_val)
+<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [Iterator](#collections.abc.Iterator)[[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]]]</code> | tuples with indices relative to outer_train_idx.
 
 <details class="example" open markdown="1">
 <summary>Example</summary>
@@ -3135,7 +3135,7 @@ Name | Description
 ###### `MultiSubjectPipeline`
 
 ```python
-MultiSubjectPipeline(data: List[NDArray], cv: Optional[Any] = None, groups: Optional[NDArray[np.intp]] = None, steps: List[Any] = list(), _is_lazy: bool = False) -> None
+MultiSubjectPipeline(data: list[NDArray], cv: Any | None = None, groups: NDArray[np.intp] | None = None, steps: list[Any] = list(), _is_lazy: bool = False) -> None
 ```
 
 Pipeline for multi-subject neuroimaging analyses.
@@ -3149,10 +3149,10 @@ Operates on a list of subject data arrays, supporting:
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
-`cv` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | Cross-validation scheme configuration. | <code>None</code>
-`groups` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
-`steps` | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | List of subject data arrays, each shape (n_obs, n_voxels). | *required*
+`cv` | <code>[Any](#typing.Any) \| None</code> | Cross-validation scheme configuration. | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
+`steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
 Examples
 --------
@@ -3180,12 +3180,12 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`data`](#data) | <code>[List](#typing.List)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | 
+[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
+[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
 [`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[List](#typing.List)[[Any](#typing.Any)]</code> | 
+[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 
 
@@ -3194,19 +3194,19 @@ Name | Type | Description
 ###### `cv`
 
 ```python
-cv: Optional[Any] = None
+cv: Any | None = None
 ```
 
 ######## `data`
 
 ```python
-data: List[NDArray]
+data: list[NDArray]
 ```
 
 ######## `groups`
 
 ```python
-groups: Optional[NDArray[np.intp]] = None
+groups: NDArray[np.intp] | None = None
 ```
 
 ######## `n_steps`
@@ -3228,7 +3228,7 @@ Number of subjects in the multi-subject dataset.
 ######## `steps`
 
 ```python
-steps: List[Any] = field(default_factory=list)
+steps: list[Any] = field(default_factory=list)
 ```
 
 
@@ -3238,7 +3238,7 @@ steps: List[Any] = field(default_factory=list)
 ###### `align`
 
 ```python
-align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> 'MultiSubjectPipeline'
+align(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add cross-subject alignment step to pipeline.
@@ -3260,7 +3260,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'MultiSubjectPipeline'</code> | New pipeline with alignment step added.
+<code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
 Examples
 --------
@@ -3319,7 +3319,7 @@ Examples
 ######## `normalize`
 
 ```python
-normalize(method: str = 'zscore', **kwargs: str) -> 'MultiSubjectPipeline'
+normalize(method: str = 'zscore', **kwargs: str) -> MultiSubjectPipeline
 ```
 
 Add normalization step (per-subject).
@@ -3327,7 +3327,7 @@ Add normalization step (per-subject).
 ######## `pipe`
 
 ```python
-pipe(transformer) -> 'MultiSubjectPipeline'
+pipe(transformer) -> MultiSubjectPipeline
 ```
 
 Add custom sklearn transformer.
@@ -3375,7 +3375,7 @@ Logistic regression with regularization::
 ######## `reduce`
 
 ```python
-reduce(method: str = 'pca', n_components: Optional[int] = None, **kwargs: Optional[int]) -> 'MultiSubjectPipeline'
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> MultiSubjectPipeline
 ```
 
 Add dimensionality reduction step.
@@ -3443,7 +3443,7 @@ Name | Description
 ###### `PooledData`
 
 ```python
-PooledData(data: NDArray, param: str, condition_names: Optional[list[str]] = None, subject_ids: Optional[list[str]] = None, mask: Optional[Any] = None, fitted_state: Optional[Any] = None, save_path: Optional[str] = None) -> None
+PooledData(data: NDArray, param: str, condition_names: list[str] | None = None, subject_ids: list[str] | None = None, mask: Any | None = None, fitted_state: Any | None = None, save_path: str | None = None) -> None
 ```
 
 Aggregated data from multiple subjects.
@@ -3458,10 +3458,10 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[NDArray](#numpy.typing.NDArray)</code> | Pooled data array. Shape is (n_subjects, n_voxels) for single parameter or (n_subjects, n_conditions, n_voxels) for multi-condition. | *required*
 `param` | <code>[str](#str)</code> | Parameter that was pooled (e.g., 'beta', 'residual', 't'). | *required*
-`condition_names` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Names of conditions if multi-condition data. | <code>None</code>
-`subject_ids` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Subject identifiers. | <code>None</code>
-`fitted_state` | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | Saved fitted models for repool() functionality. | <code>None</code>
-`save_path` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Path where data was saved. | <code>None</code>
+`condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions if multi-condition data. | <code>None</code>
+`subject_ids` | <code>[list](#list)[[str](#str)] \| None</code> | Subject identifiers. | <code>None</code>
+`fitted_state` | <code>[Any](#typing.Any) \| None</code> | Saved fitted models for repool() functionality. | <code>None</code>
+`save_path` | <code>[str](#str) \| None</code> | Path where data was saved. | <code>None</code>
 
 Examples
 --------
@@ -3487,17 +3487,17 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition_names) | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | 
+[`condition_names`](#condition_names) | <code>[list](#list)[[str](#str)] \| None</code> | 
 [`data`](#data) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`fitted_state`](#fitted_state) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`mask`](#mask) | <code>[Optional](#typing.Optional)[[Any](#typing.Any)]</code> | 
-[`n_conditions`](#n_conditions) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of conditions (None if single-condition).
+[`fitted_state`](#fitted_state) | <code>[Any](#typing.Any) \| None</code> | 
+[`mask`](#mask) | <code>[Any](#typing.Any) \| None</code> | 
+[`n_conditions`](#n_conditions) | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
 [`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
 [`param`](#param) | <code>[str](#str)</code> | 
-[`save_path`](#save_path) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
+[`save_path`](#save_path) | <code>[str](#str) \| None</code> | 
 [`shape`](#shape) | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
-[`subject_ids`](#subject_ids) | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | 
+[`subject_ids`](#subject_ids) | <code>[list](#list)[[str](#str)] \| None</code> | 
 
 
 
@@ -3506,7 +3506,7 @@ Name | Type | Description
 ###### `condition_names`
 
 ```python
-condition_names: Optional[list[str]] = None
+condition_names: list[str] | None = None
 ```
 
 ######## `data`
@@ -3518,19 +3518,19 @@ data: NDArray
 ######## `fitted_state`
 
 ```python
-fitted_state: Optional[Any] = field(default=None, repr=False)
+fitted_state: Any | None = field(default=None, repr=False)
 ```
 
 ######## `mask`
 
 ```python
-mask: Optional[Any] = field(default=None, repr=False)
+mask: Any | None = field(default=None, repr=False)
 ```
 
 ######## `n_conditions`
 
 ```python
-n_conditions: Optional[int]
+n_conditions: int | None
 ```
 
 Number of conditions (None if single-condition).
@@ -3560,7 +3560,7 @@ param: str
 ######## `save_path`
 
 ```python
-save_path: Optional[str] = None
+save_path: str | None = None
 ```
 
 ######## `shape`
@@ -3574,7 +3574,7 @@ Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
 ######## `subject_ids`
 
 ```python
-subject_ids: Optional[list[str]] = None
+subject_ids: list[str] | None = None
 ```
 
 
@@ -3584,7 +3584,7 @@ subject_ids: Optional[list[str]] = None
 ###### `cv`
 
 ```python
-cv(k: Optional[int] = None, scheme: CVSchemeType = 'kfold', **kwargs: CVSchemeType) -> 'Pipeline'
+cv(k: int | None = None, scheme: CVSchemeType = 'kfold', **kwargs: CVSchemeType) -> Pipeline
 ```
 
 Create CV pipeline on pooled data.
@@ -3595,19 +3595,19 @@ Useful for classification on pooled betas.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`k` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of folds. | <code>None</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds. | <code>None</code>
 `scheme` | <code>[CVSchemeType](#nltools.pipelines.pool.CVSchemeType)</code> | CV scheme ('kfold', 'loso', 'loro', 'bootstrap'). | <code>'kfold'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>'Pipeline'</code> | Pipeline for classification on pooled data.
+<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | Pipeline for classification on pooled data.
 
 ######## `fit`
 
 ```python
-fit(model: str, contrast: Optional[str] = None, contrasts: Optional[list[str]] = None, X: Optional[NDArray] = None, **kwargs: Optional[NDArray]) -> Union['StatResult', 'ResultDict']
+fit(model: str, contrast: str | None = None, contrasts: list[str] | None = None, X: NDArray | None = None, **kwargs: NDArray | None) -> StatResult | ResultDict
 ```
 
 Fit second-level statistical model.
@@ -3619,16 +3619,16 @@ This is a terminal method - executes immediately (eager).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `model` | <code>[str](#str)</code> | Statistical model type: 'ttest' (one-sample or two-sample with X), 'paired_ttest', or 'anova'. | *required*
-`contrast` | <code>[Optional](#typing.Optional)[[str](#str)]</code> | Single contrast specification (e.g., 'face-house'). | <code>None</code>
-`contrasts` | <code>[Optional](#typing.Optional)[[list](#list)[[str](#str)]]</code> | Multiple contrasts - returns ResultDict. | <code>None</code>
-`X` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | Design matrix for two-sample tests or ANOVA. | <code>None</code>
+`contrast` | <code>[str](#str) \| None</code> | Single contrast specification (e.g., 'face-house'). | <code>None</code>
+`contrasts` | <code>[list](#list)[[str](#str)] \| None</code> | Multiple contrasts - returns ResultDict. | <code>None</code>
+`X` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | Design matrix for two-sample tests or ANOVA. | <code>None</code>
 `**kwargs` |  | Additional arguments for the statistical test. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Union](#typing.Union)['StatResult', 'ResultDict']</code> | Statistical results. ResultDict if multiple contrasts specified.
+<code>[StatResult](#nltools.pipelines.pool.StatResult) \| [ResultDict](#nltools.pipelines.pool.ResultDict)</code> | Statistical results. ResultDict if multiple contrasts specified.
 
 Examples
 --------
@@ -3641,7 +3641,7 @@ Examples
 ######## `load`
 
 ```python
-load(path: str) -> 'PooledData'
+load(path: str) -> PooledData
 ```
 
 Load pooled data from disk.
@@ -3656,12 +3656,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PooledData'</code> | Loaded pooled data.
+<code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | Loaded pooled data.
 
 ######## `repool`
 
 ```python
-repool(param: str) -> 'PooledData'
+repool(param: str) -> PooledData
 ```
 
 Re-extract different parameter from saved fitted state.
@@ -3676,7 +3676,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PooledData'</code> | New PooledData with the requested parameter.
+<code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | New PooledData with the requested parameter.
 
 ######## `save`
 
@@ -3713,7 +3713,7 @@ Name | Description
 ###### `threshold_all`
 
 ```python
-threshold_all(method: str = 'fdr', alpha: float = 0.05) -> 'ResultDict'
+threshold_all(method: str = 'fdr', alpha: float = 0.05) -> ResultDict
 ```
 
 Apply thresholding to all results.
@@ -3729,12 +3729,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'ResultDict'</code> | New dict with thresholded results.
+<code>[ResultDict](#nltools.pipelines.pool.ResultDict)</code> | New dict with thresholded results.
 
 ###### `StatResult`
 
 ```python
-StatResult(t_map: Optional[NDArray] = None, f_map: Optional[NDArray] = None, p_map: Optional[NDArray] = None, contrast: Optional[str] = None, df: Optional[int] = None) -> None
+StatResult(t_map: NDArray | None = None, f_map: NDArray | None = None, p_map: NDArray | None = None, contrast: str | None = None, df: int | None = None) -> None
 ```
 
 Result of statistical test.
@@ -3752,11 +3752,11 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`contrast`](#contrast) | <code>[Optional](#typing.Optional)[[str](#str)]</code> | 
-[`df`](#df) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`f_map`](#f_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`p_map`](#p_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`t_map`](#t_map) | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | 
+[`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
+[`df`](#df) | <code>[int](#int) \| None</code> | 
+[`f_map`](#f_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+[`p_map`](#p_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+[`t_map`](#t_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 
 
 
@@ -3765,31 +3765,31 @@ Name | Type | Description
 ###### `contrast`
 
 ```python
-contrast: Optional[str] = None
+contrast: str | None = None
 ```
 
 ######## `df`
 
 ```python
-df: Optional[int] = None
+df: int | None = None
 ```
 
 ######## `f_map`
 
 ```python
-f_map: Optional[NDArray] = None
+f_map: NDArray | None = None
 ```
 
 ######## `p_map`
 
 ```python
-p_map: Optional[NDArray] = None
+p_map: NDArray | None = None
 ```
 
 ######## `t_map`
 
 ```python
-t_map: Optional[NDArray] = None
+t_map: NDArray | None = None
 ```
 
 
@@ -3799,7 +3799,7 @@ t_map: Optional[NDArray] = None
 ###### `threshold`
 
 ```python
-threshold(method: str = 'fdr', alpha: float = 0.05) -> 'StatResult'
+threshold(method: str = 'fdr', alpha: float = 0.05) -> StatResult
 ```
 
 Apply multiple comparison correction.
@@ -3815,7 +3815,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'StatResult'</code> | New result with thresholded maps.
+<code>[StatResult](#nltools.pipelines.pool.StatResult)</code> | New result with thresholded maps.
 
 ######## `to_nifti`
 
@@ -3856,7 +3856,7 @@ Name | Description
 ###### `CVResult`
 
 ```python
-CVResult(fold_results: List[FoldResult], pipeline: Any) -> None
+CVResult(fold_results: list[FoldResult], pipeline: Any) -> None
 ```
 
 Cross-validation result container.
@@ -3868,7 +3868,7 @@ predictions, and inverse transform capability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`fold_results` | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
+`fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
 Examples
@@ -3888,7 +3888,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[List](#typing.List)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
 [`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
 [`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
 [`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
@@ -3904,7 +3904,7 @@ Name | Type | Description
 ###### `fold_results`
 
 ```python
-fold_results: List[FoldResult]
+fold_results: list[FoldResult]
 ```
 
 ######## `is_fully_invertible`
@@ -3971,7 +3971,7 @@ Standard deviation of scores across folds.
 ###### `inverse_transform`
 
 ```python
-inverse_transform(data: Optional[NDArray] = None) -> NDArray
+inverse_transform(data: NDArray | None = None) -> NDArray
 ```
 
 Map predictions back through inverse transforms.
@@ -3983,7 +3983,7 @@ predictions back to the original feature space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[Optional](#typing.Optional)[[NDArray](#numpy.typing.NDArray)]</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
+`data` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | Data to inverse transform. If None, uses self.predictions. | <code>None</code>
 
 **Returns:**
 
@@ -4256,7 +4256,7 @@ Z-score of observed relative to null distribution.
 ###### `from_scores`
 
 ```python
-from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> 'PermutationResult'
+from_scores(observed: CVResult, null_scores: NDArray[np.floating]) -> PermutationResult
 ```
 
 Create PermutationResult from observed result and null scores.
@@ -4274,7 +4274,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PermutationResult'</code> | Complete permutation result with computed p-value.
+<code>[PermutationResult](#nltools.pipelines.results.PermutationResult)</code> | Complete permutation result with computed p-value.
 
 ######## `summary`
 
@@ -5081,7 +5081,7 @@ Type | Description
 ###### `ReduceStep`
 
 ```python
-ReduceStep(method: str = 'pca', n_components: Optional[int] = None, random_state: Optional[int] = None) -> None
+ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
 ```
 
 Dimensionality reduction step.
@@ -5094,8 +5094,8 @@ new data to the reduced space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Reduction method: 'pca' (Principal Component Analysis, invertible) or 'ica' (Independent Component Analysis, not invertible). Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
-`random_state` | <code>[Optional](#typing.Optional)[[int](#int)]</code> | Random seed for reproducibility. | <code>None</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 Examples
 --------
@@ -5119,8 +5119,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
-[`random_state`](#random_state) | <code>[Optional](#typing.Optional)[[int](#int)]</code> | 
+[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
+[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
 
 
 
@@ -5149,13 +5149,13 @@ method: str = 'pca'
 ######## `n_components`
 
 ```python
-n_components: Optional[int] = None
+n_components: int | None = None
 ```
 
 ######## `random_state`
 
 ```python
-random_state: Optional[int] = None
+random_state: int | None = None
 ```
 
 
@@ -5205,7 +5205,7 @@ Name | Description
 ###### `ISCTerminal`
 
 ```python
-ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: Dict[str, Any] = dict()) -> None
+ISCTerminal(method: str = 'pairwise', metric: str = 'median', n_permute: int = 5000, parallel: str = 'cpu', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 ISC terminal for multi-subject pipelines.
@@ -5221,7 +5221,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Summary statistic: 'median' (default, robust) or 'mean' (Fisher z-transformed). | <code>'median'</code>
 `n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations for p-value computation. Default is 5000. | <code>5000</code>
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -5239,7 +5239,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`metric`](#metric) | <code>[str](#str)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -5252,7 +5252,7 @@ Name | Type | Description
 ###### `kwargs`
 
 ```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
+kwargs: dict[str, Any] = field(default_factory=dict)
 ```
 
 ######## `method`
@@ -5286,7 +5286,7 @@ parallel: str = 'cpu'
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: list, **kwargs: list) -> 'ISCResult'
+fit_evaluate(data: list, **kwargs: list) -> ISCResult
 ```
 
 Compute ISC across subjects.
@@ -5301,12 +5301,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'ISCResult'</code> | Result containing ISC values, p-values, and confidence intervals.
+<code>[ISCResult](#nltools.pipelines.results.ISCResult)</code> | Result containing ISC values, p-values, and confidence intervals.
 
 ###### `PredictTerminal`
 
 ```python
-PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: Dict[str, Any] = dict()) -> None
+PredictTerminal(y: NDArray, algorithm: str = 'ridge', kwargs: dict[str, Any] = dict()) -> None
 ```
 
 Prediction/classification terminal for CV pipelines.
@@ -5320,7 +5320,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` | <code>[NDArray](#numpy.typing.NDArray)</code> | Target variable to predict (labels or continuous values). | *required*
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -5356,7 +5356,7 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 
@@ -5372,7 +5372,7 @@ algorithm: str = 'ridge'
 ######## `kwargs`
 
 ```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
+kwargs: dict[str, Any] = field(default_factory=dict)
 ```
 
 ######## `y`
@@ -5388,7 +5388,7 @@ y: NDArray
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> 'FoldResult'
+fit_evaluate(train_data: NDArray, test_data: NDArray, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: Any) -> FoldResult
 ```
 
 Fit model on training data and evaluate on test data.
@@ -5407,12 +5407,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'FoldResult'</code> | Result containing score, predictions, indices, and fitted stack.
+<code>[FoldResult](#nltools.pipelines.results.FoldResult)</code> | Result containing score, predictions, indices, and fitted stack.
 
 ######## `with_y`
 
 ```python
-with_y(new_y: NDArray) -> 'PredictTerminal'
+with_y(new_y: NDArray) -> PredictTerminal
 ```
 
 Create copy with different target variable.
@@ -5429,12 +5429,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'PredictTerminal'</code> | New terminal with updated y.
+<code>[PredictTerminal](#nltools.pipelines.terminals.PredictTerminal)</code> | New terminal with updated y.
 
 ###### `RSATerminal`
 
 ```python
-RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: Dict[str, Any] = dict()) -> None
+RSATerminal(model_rdm: NDArray, method: str = 'spearman', n_permute: int = 5000, kwargs: dict[str, Any] = dict()) -> None
 ```
 
 RSA terminal for multi-subject pipelines.
@@ -5449,7 +5449,7 @@ Name | Type | Description | Default
 `model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | Model RDM to correlate with neural RDMs. Should be a symmetric matrix or upper triangle (condensed form). | *required*
 `method` | <code>[str](#str)</code> | Correlation method: 'spearman' (default), 'pearson', or 'kendall'. | <code>'spearman'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
-`kwargs` | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
 Examples
 --------
@@ -5468,7 +5468,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[Dict](#typing.Dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
 [`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 [`n_permute`](#n_permute) | <code>[int](#int)</code> | 
@@ -5480,7 +5480,7 @@ Name | Type | Description
 ###### `kwargs`
 
 ```python
-kwargs: Dict[str, Any] = field(default_factory=dict)
+kwargs: dict[str, Any] = field(default_factory=dict)
 ```
 
 ######## `method`
@@ -5508,7 +5508,7 @@ n_permute: int = 5000
 ###### `fit_evaluate`
 
 ```python
-fit_evaluate(data: NDArray, **kwargs: NDArray) -> 'RSAResult'
+fit_evaluate(data: NDArray, **kwargs: NDArray) -> RSAResult
 ```
 
 Compute RSA correlation between neural and model RDMs.
@@ -5523,5 +5523,5 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>'RSAResult'</code> | Result containing correlation coefficient and p-value.
+<code>[RSAResult](#nltools.pipelines.results.RSAResult)</code> | Result containing correlation coefficient and p-value.
 

@@ -152,7 +152,7 @@ Name | Type | Description | Default
 #### `compute_searchlight_neighborhoods`
 
 ```python
-compute_searchlight_neighborhoods(mask_img: 'Nifti1Image', radius_mm: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
+compute_searchlight_neighborhoods(mask_img: Nifti1Image, radius_mm: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
 ```
 
 Compute sphere neighborhoods for all voxels in a brain mask.
@@ -169,7 +169,7 @@ voxel resolution.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask_img` | <code>'Nifti1Image'</code> | NIfTI mask image defining the brain region | *required*
+`mask_img` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI mask image defining the brain region | *required*
 `radius_mm` | <code>[float](#float)</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
 `use_cache` | <code>[bool](#bool)</code> | If True, cache results to ~/.nltools/cache/searchlight/ for fast reloading (default: True) | <code>True</code>
 

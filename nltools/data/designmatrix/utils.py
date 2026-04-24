@@ -6,12 +6,40 @@ public API.
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 import polars as pl
 
 if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
+
+
+WRAP_AS_DESIGNMATRIX = frozenset(
+    {"head", "tail", "sample", "slice", "filter", "select"}
+)
+
+
+def df_passthrough(dm: DesignMatrix, name: str):
+    """Resolve ``name`` on ``dm.data``; re-wrap DataFrame results for allowlisted methods.
+
+    Used by ``DesignMatrix.__getattr__`` to expose polars' DataFrame API without
+    duplicating every method. Row-preserving ops in ``WRAP_AS_DESIGNMATRIX`` return
+    a new ``DesignMatrix`` with metadata copied via ``copy_with``; everything else
+    returns the raw polars object.
+    """
+    attr = getattr(dm.data, name)
+    if not callable(attr) or name not in WRAP_AS_DESIGNMATRIX:
+        return attr
+
+    @functools.wraps(attr)
+    def wrapped(*args, **kwargs):
+        result = attr(*args, **kwargs)
+        if isinstance(result, pl.DataFrame):
+            return copy_with(dm, result)
+        return result
+
+    return wrapped
 
 
 def copy_with(
@@ -36,13 +64,16 @@ def copy_with(
     """
     from nltools.data.designmatrix import DesignMatrix
 
-    # Start with current metadata
+    # Start with current metadata, apply caller overrides
     metadata = get_metadata(dm)
-
-    # Apply updates
     metadata.update(metadata_updates)
 
-    # Create new DesignMatrix
+    # Prune column-name metadata against the new frame so that ops which drop
+    # columns (select, __getitem__ with a list) don't leave dangling references.
+    new_cols = set(new_df.columns)
+    metadata["convolved"] = [c for c in metadata["convolved"] if c in new_cols]
+    metadata["polys"] = [c for c in metadata["polys"] if c in new_cols]
+
     new_dm = DesignMatrix(
         new_df,
         sampling_freq=metadata["sampling_freq"],

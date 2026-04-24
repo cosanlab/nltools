@@ -96,13 +96,13 @@ def convolve(
         for col in columns_to_convolve:
             # Convert to numpy for convolution operation
             # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
-            col_data = dm._df[col].to_numpy()
+            col_data = dm.data[col].to_numpy()
             convolved = np.convolve(col_data, conv_func)[:n_rows]
             convolved_series.append(pl.Series(col, convolved))
 
         # Use .with_columns() to replace only convolved columns
         # (automatically preserves non-convolved columns and column order)
-        new_df = dm._df.with_columns(convolved_series)
+        new_df = dm.data.with_columns(convolved_series)
 
     else:
         # Multiple kernels: shape is (samples, n_kernels)
@@ -110,14 +110,14 @@ def convolve(
         convolved_series = []
 
         for col in columns_to_convolve:
-            col_data = dm._df[col].to_numpy()
+            col_data = dm.data[col].to_numpy()
             for k_idx in range(n_kernels):
                 kernel = conv_func[:, k_idx]
                 convolved = np.convolve(col_data, kernel)[:n_rows]
                 convolved_series.append(pl.Series(f"{col}_c{k_idx}", convolved))
 
         # Drop original columns, add convolved variants (idiomatic Polars pattern)
-        new_df = dm._df.drop(columns_to_convolve).with_columns(convolved_series)
+        new_df = dm.data.drop(columns_to_convolve).with_columns(convolved_series)
 
     # Update metadata
     return copy_with(dm, new_df, convolved=columns_to_convolve)
@@ -202,7 +202,7 @@ def add_poly(
         return dm
 
     # Add new polynomial columns using Polars .with_columns()
-    new_df = dm._df.with_columns(
+    new_df = dm.data.with_columns(
         [pl.Series(name, values) for name, values in new_poly_cols.items()]
     )
 
@@ -282,7 +282,7 @@ def add_dct_basis(
         if name in basis_to_add:
             new_basis_cols[name] = basis_mat[:, i]
 
-    new_df = dm._df.with_columns(
+    new_df = dm.data.with_columns(
         [pl.Series(name, values) for name, values in new_basis_cols.items()]
     )
 

@@ -113,7 +113,7 @@ True
 #### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: Optional[str] = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: Optional[int] = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
