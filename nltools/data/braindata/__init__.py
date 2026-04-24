@@ -43,6 +43,9 @@ class BrainData:
             - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
             - nibabel Nifti1Image object
             - URL to download data from
+            - numpy array (1D ``(n_voxels,)`` for a single image or 2D
+              ``(n_images, n_voxels)`` for a stack). The ``mask`` argument
+              is required and must define the same number of in-mask voxels.
         mask: Brain mask. Can be None (uses MNI template), a nibabel
             Nifti1Image, a file path (str/Path) to a mask file, or a template
             name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for
@@ -118,6 +121,31 @@ class BrainData:
             load_from_url(self, data)
         elif data_type in ["file", "nibabel"]:
             load_from_file(self, data)
+        elif data_type == "array":
+            # Raw numpy array path. Requires an explicit mask because without
+            # one we can't map the flat voxel axis to 3D space. Accepts 1D
+            # (n_voxels,) for a single image or 2D (n_images, n_voxels) for a
+            # stack. Values are stored as-is; users are expected to have
+            # already applied any scaling they want.
+            if mask is None:
+                raise ValueError(
+                    "Constructing BrainData from a numpy array requires an "
+                    "explicit mask — pass mask=<path|Nifti1Image> that matches "
+                    "the array's voxel axis."
+                )
+            arr = np.asarray(data)
+            if arr.ndim not in (1, 2):
+                raise ValueError(
+                    f"numpy array input must be 1D (n_voxels,) or 2D "
+                    f"(n_images, n_voxels); got shape {arr.shape}"
+                )
+            n_voxels_mask = int((self.mask.get_fdata() > 0).sum())
+            if arr.shape[-1] != n_voxels_mask:
+                raise ValueError(
+                    f"numpy array last axis ({arr.shape[-1]}) must match the "
+                    f"number of in-mask voxels ({n_voxels_mask})."
+                )
+            self.data = arr
 
         # Collapse extra trailing dimensions, but preserve samples dimension for list inputs
         if self.data is not None and self.data.ndim > 1 and data_type != "list":

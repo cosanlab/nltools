@@ -180,9 +180,11 @@ def validate_data_type(data):
         return "file"
     if isinstance(data, nib.Nifti1Image):
         return "nibabel"
+    if isinstance(data, np.ndarray):
+        return "array"
     raise TypeError(
         f"Data must be a BrainData, filepath (str/Path), nibabel image, "
-        f"or list of these types. Received {type(data).__name__}"
+        f"numpy array, or list of these types. Received {type(data).__name__}"
     )
 
 

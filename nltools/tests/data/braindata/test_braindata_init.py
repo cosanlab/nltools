@@ -809,3 +809,68 @@ class TestBrainDataInit:
         )
         brain_multi = BrainData(data_multi, resample=True)
         assert brain_multi.shape[0] == 5
+
+
+class TestBrainDataInitFromArray:
+    """Construct BrainData directly from a numpy array + explicit mask.
+
+    Lets group-level stats (t, z, mean, ...) be wrapped back into BrainData
+    without the copy-a-template-and-overwrite-.data dance.
+    """
+
+    @pytest.fixture
+    def small_mask(self, tmp_path):
+        mask_arr = np.zeros((5, 5, 5), dtype=np.float32)
+        mask_arr[1:4, 1:4, 1:4] = 1.0  # 27 in-mask voxels
+        img = nib.Nifti1Image(mask_arr, affine=np.eye(4, dtype=np.float32))
+        path = tmp_path / "mask.nii.gz"
+        nib.save(img, path)
+        return img, int(mask_arr.sum()), str(path)
+
+    def test_construct_from_1d_array(self, small_mask):
+        mask_img, n_vox, _ = small_mask
+        arr = np.arange(n_vox, dtype=np.float32)
+        bd = BrainData(arr, mask=mask_img)
+        assert bd.shape[-1] == n_vox
+        np.testing.assert_array_equal(np.asarray(bd.data).ravel(), arr)
+
+    def test_construct_from_2d_array(self, small_mask):
+        mask_img, n_vox, _ = small_mask
+        arr = np.random.RandomState(0).randn(4, n_vox).astype(np.float32)
+        bd = BrainData(arr, mask=mask_img)
+        assert bd.shape == (4, n_vox)
+        np.testing.assert_array_equal(np.asarray(bd.data), arr)
+
+    def test_construct_from_array_with_mask_path(self, small_mask):
+        _, n_vox, mask_path = small_mask
+        arr = np.zeros(n_vox, dtype=np.float32)
+        bd = BrainData(arr, mask=mask_path)
+        assert bd.shape[-1] == n_vox
+
+    def test_array_without_mask_raises(self, small_mask):
+        _, n_vox, _ = small_mask
+        arr = np.zeros(n_vox, dtype=np.float32)
+        with pytest.raises(ValueError, match="requires an explicit mask"):
+            BrainData(arr)
+
+    def test_array_shape_mismatch_raises(self, small_mask):
+        mask_img, n_vox, _ = small_mask
+        # One voxel short
+        arr = np.zeros(n_vox - 1, dtype=np.float32)
+        with pytest.raises(ValueError, match="must match the number of in-mask voxels"):
+            BrainData(arr, mask=mask_img)
+
+    def test_array_higher_dim_raises(self, small_mask):
+        mask_img, n_vox, _ = small_mask
+        with pytest.raises(ValueError, match="must be 1D.*or 2D"):
+            BrainData(np.zeros((2, 3, n_vox), dtype=np.float32), mask=mask_img)
+
+    def test_array_roundtrip_through_h5(self, small_mask, tmp_path):
+        mask_img, n_vox, _ = small_mask
+        arr = np.random.RandomState(1).randn(3, n_vox).astype(np.float32)
+        bd = BrainData(arr, mask=mask_img)
+        out = tmp_path / "roundtrip.h5"
+        bd.write(str(out))
+        bd2 = BrainData(str(out))
+        assert bd2.shape == bd.shape
+        np.testing.assert_array_equal(np.asarray(bd2.data), np.asarray(bd.data))
