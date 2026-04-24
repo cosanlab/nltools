@@ -79,7 +79,7 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 |----------------|---------------|--------|
 | `from nltools.simulator import Simulator` | `from nltools import Simulator` | Moved to `nltools.data.simulator` |
 | `from nltools.simulator import SimulateGrid` | `from nltools import SimulateGrid` | Moved to `nltools.data.simulator` |
-| `from nltools.file_reader import onsets_to_dm` | `from nltools.io import onsets_to_dm` | Moved to `nltools.io.file_reader` |
+| `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` builds a boxcar DM; call `.convolve()` for HRF |
 | `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
 | `from nltools.stats import regress` | **Removed** | Use `BrainData.fit(model='glm')` |
@@ -91,10 +91,19 @@ from nltools.external import glover_hrf
 # NEW:
 from nltools.algorithms.hrf import glover_hrf
 
-# OLD: onsets_to_dm
+# OLD: onsets_to_dm (file path → convolved DM in one call)
 from nltools.file_reader import onsets_to_dm
-# NEW:
-from nltools.io import onsets_to_dm
+dm = onsets_to_dm(events_path, run_length=200, sampling_freq=0.5)
+# NEW: DesignMatrix accepts BIDS events / confounds files directly.
+# Output is boxcar by default — convolve explicitly so you can append
+# confounds / drift terms first without HRF-convolving them.
+from nltools.data import DesignMatrix
+dm = DesignMatrix(events_path, run_length=200, TR=2.0)
+dm = dm.convolve()
+# In-memory events DataFrame? Use the helper directly:
+from nltools.data.designmatrix.io import events_to_dm
+dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
+dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
 
 # OLD: get_anatomical (removed entirely)
 from nltools.utils import get_anatomical
@@ -293,6 +302,72 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 ```
 
 **Timeline**: Complete in v0.6.0. All integration work finished. Tutorials and examples updated.
+
+(designmatrix-from-file)=
+### DesignMatrix accepts file paths
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — replaces standalone `onsets_to_dm`
+
+`DesignMatrix.__init__` now accepts a `.tsv` / `.csv` path (str or `pathlib.Path`) and dispatches based on column inspection:
+
+- **BIDS events** (file has `onset` and `duration` columns) → boxcar regressors aligned to TRs (one column per `trial_type`, `modulation` passed through if present). No HRF convolution and no auto `constant` column — call `.convolve()` and `.add_poly(0)` explicitly.
+- **Tabular / confounds** (anything else) → read as-is.
+
+```python
+from nltools.data import DesignMatrix
+
+# OLD: onsets_to_dm built and HRF-convolved in one call
+from nltools.file_reader import onsets_to_dm
+dm = onsets_to_dm(events_path, run_length=200, sampling_freq=0.5)
+
+# NEW: separate steps so confounds + drift can be added before convolution
+events = DesignMatrix(events_path, run_length=200, TR=2.0)
+confounds = DesignMatrix(confounds_path, run_length="infer", TR=2.0)
+dm = events.append(confounds, axis=1, as_confounds=True)
+dm = dm.add_poly(2).convolve()
+```
+
+Constructor rules for the file-path branch:
+
+- `run_length` is required. `'infer'` is allowed for tabular/confounds files (uses the file's row count); rejected for events files (the row count would be the number of events, not TRs).
+- Pass exactly one of `TR` (seconds) or `sampling_freq` (Hz). Passing both raises `ValueError`.
+- BIDS events files require lowercase `onset`, `duration`, `trial_type` columns (and optional `modulation`).
+
+**For in-memory events DataFrames** (the path `nltools.datasets.load_haxby_example` and similar takes), use the helper directly:
+
+```python
+from nltools.data.designmatrix.io import events_to_dm
+
+dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
+dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
+```
+
+(designmatrix-confounds-rename)=
+### DesignMatrix `.polys` → `.confounds` (attribute and kwargs)
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — attribute rename, no compat shim
+
+The DesignMatrix metadata list that tracks nuisance columns (intercept, polynomial drift, DCT cosines, motion regressors, …) was previously called `.polys`. v0.6.0 renames it to `.confounds` to better describe what it actually contains; method names like `add_poly` / `add_dct_basis` are unchanged but their output columns are now registered in `.confounds` instead.
+
+| v0.5.x | v0.6.0 |
+|--------|--------|
+| `dm.polys` | `dm.confounds` |
+| `DesignMatrix(..., polys=[...])` | `DesignMatrix(..., confounds=[...])` |
+| `dm.vif(exclude_polys=True)` | `dm.vif(exclude_confounds=True)` |
+| `dm.clean(exclude_polys=True)` | `dm.clean(exclude_confounds=True)` |
+| (no analogue — pre-existing only on raw-DataFrame inputs) | `dm.append(other_dm, axis=1, as_confounds=True)` (new — promotes appended DM cols to confounds) |
+
+`__repr__` now surfaces the confound list with a count:
+
+```text
+DesignMatrix(sampling_freq=0.5, shape=(200, 6))
+  convolved (2): ['stim', 'cue']
+  confounds (3): ['poly_0', 'poly_1', 'poly_2']
+```
+
+`DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`). There is no DM HDF5 reader yet, so this only affects newly written files.
+
+**`BrainData.X = dm` now works.** The `.X` setter previously rejected `DesignMatrix` with `TypeError`; v0.6.0 unwraps it to `dm.data` (the underlying polars DataFrame). DM-specific metadata isn't preserved on `BrainData.X`, but you no longer need the explicit `.data` step.
 
 ## Breaking Changes
 
@@ -1431,7 +1506,8 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 ### Must fix (will crash)
 
 - [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
-- [ ] Update `from nltools.file_reader import ...` → `from nltools.io import ...`
+- [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf).convolve()` (or pass in-memory DataFrames via `events_to_dm(...)` from `nltools.data.designmatrix.io`). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
+- [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
 - [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
 - [ ] Update `from nltools.prefs import MNI_Template` → `from nltools.templates import MNI_Template`

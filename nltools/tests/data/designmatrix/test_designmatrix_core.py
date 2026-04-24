@@ -44,7 +44,7 @@ class TestDesignMatrixConstruction:
         dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=None)
         assert dm.sampling_freq is None
         assert dm.convolved == []
-        assert dm.polys == []
+        assert dm.confounds == []
         assert dm.multi is False
 
 
@@ -56,7 +56,7 @@ class TestDesignMatrixDataAccess:
         dm = DesignMatrix(
             {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}, sampling_freq=2
         )
-        dm.polys = ["a"]
+        dm.confounds = ["a"]
 
         # Single column
         col = dm["a"]
@@ -68,7 +68,7 @@ class TestDesignMatrixDataAccess:
         assert isinstance(subset, DesignMatrix)
         assert subset.columns == ["a", "c"]
         assert subset.sampling_freq == 2
-        assert subset.polys == ["a"]
+        assert subset.confounds == ["a"]
 
     def test_setitem(self):
         """Test scalar broadcast, array assignment, and column replacement."""
@@ -119,7 +119,7 @@ class TestDesignMatrixPassthrough:
             },
             sampling_freq=2,
         )
-        dm.polys = ["poly_0"]
+        dm.confounds = ["poly_0"]
         dm.convolved = ["a"]
         return dm
 
@@ -129,7 +129,7 @@ class TestDesignMatrixPassthrough:
         result = dm.slice(1, 3)
         assert isinstance(result, DesignMatrix)
         assert result.sampling_freq == 2
-        assert result.polys == ["poly_0"]
+        assert result.confounds == ["poly_0"]
         assert result.convolved == ["a"]
         assert result.columns == ["a", "b", "poly_0"]
 
@@ -139,7 +139,7 @@ class TestDesignMatrixPassthrough:
         result = dm.filter(pl.col("a") > 2)
         assert isinstance(result, DesignMatrix)
         assert result.sampling_freq == 2
-        assert result.polys == ["poly_0"]
+        assert result.confounds == ["poly_0"]
         assert len(result) == 3
 
     @pytest.mark.parametrize(
@@ -186,29 +186,29 @@ class TestDesignMatrixPassthrough:
             dm.not_a_real_method
 
     def test_select_returns_designmatrix_and_prunes_metadata(self):
-        """select() returns DesignMatrix; polys/convolved entries for dropped cols are removed."""
+        """select() returns DesignMatrix; confounds/convolved entries for dropped cols are removed."""
         dm = self._dm()
         result = dm.select(["a", "b"])
         assert isinstance(result, DesignMatrix)
         assert result.columns == ["a", "b"]
         assert result.sampling_freq == 2
-        # poly_0 was dropped — should be gone from polys
-        assert result.polys == []
+        # poly_0 was dropped — should be gone from confounds
+        assert result.confounds == []
         # a was kept — convolved should still include it
         assert result.convolved == ["a"]
 
-    def test_select_keeps_polys_entry_when_column_kept(self):
-        """select() preserves polys entries for columns it keeps."""
+    def test_select_keeps_confounds_entry_when_column_kept(self):
+        """select() preserves confounds entries for columns it keeps."""
         dm = self._dm()
         result = dm.select(["a", "poly_0"])
-        assert result.polys == ["poly_0"]
+        assert result.confounds == ["poly_0"]
         assert result.convolved == ["a"]
 
     def test_getitem_list_prunes_stale_metadata(self):
-        """dm[[cols]] likewise prunes polys/convolved entries for dropped cols."""
+        """dm[[cols]] likewise prunes confounds/convolved entries for dropped cols."""
         dm = self._dm()
         subset = dm[["b"]]
-        assert subset.polys == []
+        assert subset.confounds == []
         assert subset.convolved == []
 
     def test_dir_exposes_polars_methods(self):

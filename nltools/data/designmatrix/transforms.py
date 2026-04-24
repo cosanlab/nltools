@@ -32,7 +32,7 @@ def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
     # Determine which columns to z-score
     if columns is None:
         # Default: all columns except polynomials
-        columns_to_zscore = get_data_columns(dm, exclude_polys=True)
+        columns_to_zscore = get_data_columns(dm, exclude_confounds=True)
     else:
         columns_to_zscore = columns
 
@@ -84,7 +84,7 @@ def standardize(
     if method == "center":
         # Determine which columns to center
         if columns is None:
-            columns_to_center = get_data_columns(dm, exclude_polys=True)
+            columns_to_center = get_data_columns(dm, exclude_confounds=True)
         else:
             columns_to_center = columns
 
@@ -158,7 +158,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
     df_with_idx = dm.data.with_columns(idx.alias("_group_idx"))
 
     # Get all data columns
-    data_cols = get_data_columns(dm, exclude_polys=False)
+    data_cols = get_data_columns(dm, exclude_confounds=False)
 
     # Group by index and aggregate
     if method == "mean":
@@ -227,8 +227,8 @@ def upsample(
     orig_indices = np.arange(0, dm.shape[0], 1)
     new_indices = np.arange(0, dm.shape[0] - 1, step_size)
 
-    # Get all data columns (including polynomials - upsample everything)
-    data_cols = get_data_columns(dm, exclude_polys=False)
+    # Get all data columns (including confounds - upsample everything)
+    data_cols = get_data_columns(dm, exclude_confounds=False)
 
     # Interpolate each column using scipy (matches stats.upsample)
     upsampled_data = {}

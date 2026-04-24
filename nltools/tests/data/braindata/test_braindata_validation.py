@@ -29,6 +29,19 @@ class TestValidateFrame:
         assert out.shape == (3, 2)
         assert out.columns == ["a", "b"]
 
+    def test_accepts_designmatrix_unwraps_to_polars(self):
+        """Handing a DesignMatrix to BrainData.X should work — unwraps to .data."""
+        from nltools.data import DesignMatrix
+
+        dm = DesignMatrix(
+            {"stim": [1.0, 0.0, 1.0], "drift": [0.0, 0.5, 1.0]},
+            sampling_freq=0.5,
+        ).add_poly(0)
+        out = validate_frame(dm)
+        assert isinstance(out, pl.DataFrame)
+        assert out.shape == (3, 3)
+        assert set(out.columns) == {"stim", "drift", "poly_0"}
+
     def test_accepts_numpy_2d(self):
         arr = np.arange(6, dtype=float).reshape(3, 2)
         out = validate_frame(arr)

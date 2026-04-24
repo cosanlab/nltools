@@ -38,7 +38,7 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | `plotting` (submodule) | `plotting` | unchanged (now package) |
 | `stats` (submodule) | `stats` | unchanged (now package) |
 | `utils` (submodule) | `utils` | unchanged |
-| `file_reader` (submodule) | — | moved → `io/file_reader.py` |
+| `file_reader` (submodule) | — | removed (functionality folded into `DesignMatrix.__init__` — see `nltools/data/designmatrix/`) |
 | `mask` (submodule) | `mask` | unchanged |
 | `prefs` (submodule) | — | removed (replaced by `templates/`) |
 | `external` (submodule) | — | removed (moved to `algorithms/`) |
@@ -81,20 +81,49 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 
 ---
 
-## `nltools/file_reader.py` → `nltools/io/file_reader.py`
+## `nltools/file_reader.py` → folded into `DesignMatrix.__init__`
 
 | Old | New | Status |
 |---|---|---|
-| `onsets_to_dm` | `onsets_to_dm` | moved + signature-changed |
+| `nltools.file_reader.onsets_to_dm` | `DesignMatrix(path, run_length=..., TR=...)` | removed — functionality folded into the constructor |
+| (no analogue) | `nltools.data.designmatrix.io.events_to_dm` | added — internal helper that converts an in-memory events DataFrame to a boxcar frame |
 
-**`onsets_to_dm` signature changes:**
+**Migration:**
 
-- `sampling_freq=1/tr` → `TR=tr` (pass the TR directly; sampling frequency derived internally).
-- `hrf_model` now defaults to `'glover'` — the returned `DesignMatrix` is already HRF-convolved. Pass `hrf_model=None` for raw onset regressors (old behaviour).
-- `run_length` is still accepted and still required for single-run inputs.
-- Event DataFrame must use BIDS-standard lowercase columns: `onset`, `duration`, `trial_type` (old code using `Onset`/`Duration`/`Stim` will raise `ValueError: The provided events data has no onset column`).
-- Output column names are the raw `trial_type` values (e.g. `horizontal_checkerboard`) — the old `_c0` suffix is gone.
-- An intercept column named `constant` is added automatically.
+`onsets_to_dm` is gone. `DesignMatrix.__init__` now accepts a file path (or `pathlib.Path`) and dispatches based on column inspection:
+
+- `onset` + `duration` columns present → BIDS events file → boxcar regressors aligned to TRs (one column per `trial_type`, `modulation` passed through if present, no auto `constant` column).
+- otherwise → tabular file (confounds / nuisance regressors) read as-is.
+
+```python
+# v0.5.x → 0.6.0
+# OLD:
+from nltools.file_reader import onsets_to_dm
+dm = onsets_to_dm(events_path, run_length=200, sampling_freq=0.5)  # convolved by default
+
+# NEW (file path → DesignMatrix; convolve explicitly):
+from nltools.data import DesignMatrix
+dm = DesignMatrix(events_path, run_length=200, TR=2.0)  # boxcar
+dm = dm.convolve()                                       # HRF-convolved
+```
+
+Notes:
+
+- `run_length` is required.
+- Pass exactly one of `TR` (seconds) or `sampling_freq` (Hz). Passing both raises `ValueError`.
+- `run_length='infer'` is accepted for tabular/confounds files (uses the file's row count); rejected for events files (the row count is the number of events, not the number of TRs).
+- Output is **boxcar** by default. Call `.convolve()` afterwards for HRF convolution — splitting the steps lets you append confounds / add drift terms before convolution without HRF-convolving the nuisance columns.
+- BIDS-standard lowercase column names are required: `onset`, `duration`, `trial_type` (and optional `modulation`).
+- No auto `constant` column is added — call `.add_poly(0)` to add an intercept explicitly.
+
+**For in-memory events DataFrames**, use the helper directly (this is what `nltools.datasets` uses internally):
+
+```python
+from nltools.data.designmatrix.io import events_to_dm
+
+dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
+dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
+```
 
 ---
 
@@ -250,8 +279,8 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | `Brain_Data` | `BrainData` | renamed |
 | `.shape` | `.shape` (property) | unchanged |
 | `.dtype` | `.dtype` (property) | unchanged |
-| — | `.X` (property) | added |
-| — | `.Y` (property) | added |
+| — | `.X` (property) | added — setter accepts polars/pandas DataFrame, numpy array, CSV path, or `DesignMatrix` (unwrapped to its underlying polars frame) |
+| — | `.Y` (property) | added — same accepted types as `.X` |
 | `.isempty` | `.is_empty` (property) | renamed |
 | `.empty` | `.create_empty` | renamed |
 | `.mean` | `.mean` | unchanged |
@@ -361,9 +390,13 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 |---|---|---|
 | `Design_Matrix` | `DesignMatrix` | renamed |
 | `Design_Matrix_Series` | — | removed |
+| `Design_Matrix(df, sampling_freq=...)` | `DesignMatrix(df_or_path, *, sampling_freq=..., TR=..., run_length=..., ...)` | signature-changed — accepts a `.tsv`/`.csv` path (BIDS events → boxcar; otherwise tabular as-is) plus new `TR=` convenience (mutually exclusive with `sampling_freq`) and `run_length=` (required for file paths; `'infer'` allowed for tabular) |
+| `.polys` (attribute) | `.confounds` (attribute) | renamed — broader name to match what it tracks (intercept, polynomial drift, DCT cosines, motion, …). The `polys=` constructor kwarg is renamed to `confounds=`. |
 | `.details` | `.details` | unchanged |
-| `.append` | `.append` | signature-changed (now supports `axis=1` column concat) |
-| `.vif` | `.vif` | unchanged |
+| `.__repr__` | `.__repr__` | signature-changed — now shows `confounds (N): [...]` and `convolved (N): [...]` with element counts |
+| `.append` | `.append(*, as_confounds=False, ...)` | signature-changed — `axis=1` column concat now supported; new `as_confounds` kwarg promotes the appended DM's columns to nuisance/confounds in the result |
+| `.vif(exclude_polys=True)` | `.vif(exclude_confounds=True)` | renamed kwarg |
+| `.clean(exclude_polys=False, ...)` | `.clean(exclude_confounds=False, ...)` | renamed kwarg |
 | `.heatmap` | — | removed — use `.plot()` (heatmap-style) or `sns.heatmap(dm.to_pandas())` |
 | `.info` | — | removed — use `.details()` |
 | `.head` | — | removed — use `.to_pandas().head()` |
@@ -374,8 +407,8 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | `.downsample` | `.downsample` | unchanged |
 | `.upsample` | `.upsample` | unchanged |
 | `.zscore` | `.zscore` | unchanged |
-| `.add_poly` | `.add_poly` | unchanged |
-| `.add_dct_basis` | `.add_dct_basis(..., include_constant=True)` | signature-changed — new keyword-only `include_constant: bool = True` adds a `cosine_0` constant/intercept column (mirrors `poly_0` in `add_poly`). Old SPM-style behaviour (no constant): pass `include_constant=False`. |
+| `.add_poly` | `.add_poly` | unchanged (now registers cols in `.confounds` instead of `.polys`) |
+| `.add_dct_basis` | `.add_dct_basis(..., include_constant=True)` | signature-changed — new keyword-only `include_constant: bool = True` adds a `cosine_0` constant/intercept column (mirrors `poly_0` in `add_poly`). Old SPM-style behaviour (no constant): pass `include_constant=False`. Cols registered in `.confounds`. |
 | `.replace_data` | `.replace_data` | unchanged |
 | `.clean` | `.clean` | unchanged |
 | — | `.shape` (property) | added |
@@ -390,6 +423,8 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | — | `.to_numpy` | added |
 | — | `.to_pandas` | added |
 | — | `.write` | added |
+
+**HDF5 metadata key**: `DesignMatrix.write()` to `.h5` previously stored a `polys` attribute on the metadata group; v0.6.0 stores `confounds` instead. There is currently no DM HDF5 reader, so this is a write-format change only.
 
 ---
 
@@ -469,7 +504,7 @@ Status legend: `renamed`, `removed`, `moved`, `signature-changed`, `added`, `unc
 | `utils.to_h5` | `io.h5.to_h5` | moved |
 | — | `io.h5.is_h5_path` | added |
 | — | `io.h5.load_brain_data_h5` | added |
-| `file_reader.onsets_to_dm` | `io.file_reader.onsets_to_dm` | moved |
+| `file_reader.onsets_to_dm` | — | removed — folded into `DesignMatrix.__init__` (file path) and `nltools.data.designmatrix.io.events_to_dm` (in-memory DataFrame). See the *file_reader* section above. |
 
 ---
 

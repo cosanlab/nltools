@@ -64,15 +64,15 @@ class TestDesignMatrixConvolution:
         Convolution should skip columns marked as polynomials.
 
         Expected behavior:
-        - Columns in .polys list are NOT convolved
+        - Columns in .confounds list are NOT convolved
         - Only stimulus columns are convolved
 
-        Rationale: Polynomials (intercept, drift) represent baseline, not stimulus
+        Rationale: Confounds (intercept, drift, motion, …) represent baseline, not stimulus
         """
         dm = DesignMatrix(
             {"stim": [1, 0, 0, 0], "intercept": [1, 1, 1, 1]}, sampling_freq=1
         )
-        dm.polys = ["intercept"]
+        dm.confounds = ["intercept"]
 
         dm_conv = dm.convolve()
 
@@ -160,7 +160,7 @@ class TestDesignMatrixPolynomials:
     Behavioral contract:
     - add_poly() adds Legendre polynomials (orthogonal on [-1, 1])
     - add_dct_basis() adds discrete cosine transform basis (high-pass filter)
-    - .polys metadata tracks polynomial columns
+    - .confounds metadata tracks polynomial / DCT columns (alongside other nuisance regressors)
     - Polynomials are NOT duplicated if added twice
     """
 
@@ -171,7 +171,7 @@ class TestDesignMatrixPolynomials:
         Expected behavior:
         - Creates poly_0 (intercept), poly_1 (linear), poly_2 (quadratic)
         - All columns present in output
-        - .polys metadata updated
+        - .confounds metadata updated
 
         Use case: Model baseline and slow drift in fMRI
         """
@@ -185,7 +185,7 @@ class TestDesignMatrixPolynomials:
         assert "poly_2" in dm_poly.columns
 
         # Metadata should track polynomials
-        assert set(dm_poly.polys) == {"poly_0", "poly_1", "poly_2"}
+        assert set(dm_poly.confounds) == {"poly_0", "poly_1", "poly_2"}
 
     def test_add_poly_intercept_is_constant(self):
         """
@@ -265,7 +265,7 @@ class TestDesignMatrixPolynomials:
         Expected behavior:
         - Multiple cosine_* columns added
         - Number of bases depends on duration and sampling_freq
-        - .polys metadata updated
+        - .confounds metadata updated
 
         Use case: High-pass filtering (SPM-style)
         """
@@ -282,7 +282,7 @@ class TestDesignMatrixPolynomials:
         assert len(cosine_cols) > 1, "Should add multiple DCT bases"
 
         # Metadata should track
-        assert "cosine_1" in dm_dct.polys
+        assert "cosine_1" in dm_dct.confounds
 
     def test_add_dct_basis_drop_parameter(self):
         """

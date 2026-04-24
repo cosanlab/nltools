@@ -11,6 +11,7 @@ from __future__ import annotations
 
 __all__ = ["DesignMatrix"]
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -39,21 +40,36 @@ class DesignMatrix:
     Uses composition pattern (not subclassing) for clean metadata preservation.
 
     Args:
-        data (DataFrame, ndarray, dict, or None): Input data. Accepts:
+        data (DataFrame, ndarray, dict, str/Path, or None): Input data. Accepts:
             - Polars DataFrame (zero-copy)
             - pandas DataFrame (converted to Polars)
             - numpy ndarray
             - dict (keys=columns, values=data)
+            - str or Path to a `.tsv`/`.csv` file. BIDS events files
+              (containing `onset` and `duration` columns) are converted to
+              boxcar regressors — call ``convolve()`` afterwards if you want
+              HRF convolution. Any other tabular file is read as-is and is
+              typically used for confounds.
             - None (empty initialization)
-        sampling_freq (float, optional): Sampling frequency in Hz (1/TR for fMRI data)
+        sampling_freq (float, optional): Sampling frequency in Hz (1/TR for fMRI data).
+            Mutually exclusive with ``TR``.
+        TR (float, optional): Repetition time in seconds. Convenience for
+            ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``.
+        run_length (int or 'infer', optional): Required when ``data`` is a
+            file path. Number of TRs in the run. Pass ``'infer'`` for
+            tabular/confounds files to accept whatever row count the file
+            has (not valid for events files).
         columns (list of str, optional): Column names (used with ndarray input)
         convolved (list of str, optional): Names of convolved columns (tracked internally)
-        polys (list of str, optional): Names of polynomial columns (tracked internally)
+        confounds (list of str, optional): Names of nuisance/confound columns
+            (intercept, polynomial drift, DCT cosines, motion, …) tracked internally
 
     Attributes:
         sampling_freq (float or None): Sampling frequency in Hz
         convolved (list of str): Columns that have been convolved
-        polys (list of str): Polynomial/nuisance columns (intercept, trends, DCT bases)
+        confounds (list of str): Nuisance/confound columns (intercept, polynomial
+            trends, DCT bases, motion, physio, …) — these are skipped by
+            ``.convolve()`` and kept separate per run on multi-run vertical append.
         multi (bool): True if created from multi-run concatenation
 
     Examples:
@@ -75,28 +91,58 @@ class DesignMatrix:
         >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
     """
 
-    _metadata = ["sampling_freq", "convolved", "polys", "multi"]
+    _metadata = ["sampling_freq", "convolved", "confounds", "multi"]
 
     def __init__(
         self,
-        data: pl.DataFrame | pd.DataFrame | np.ndarray | dict | None = None,
+        data: pl.DataFrame
+        | pd.DataFrame
+        | np.ndarray
+        | dict
+        | str
+        | Path
+        | None = None,
         *,
         sampling_freq: float | None = None,
+        TR: float | None = None,
+        run_length: int | str | None = None,
         columns: list[str] | None = None,
         convolved: list[str] | None = None,
-        polys: list[str] | None = None,
+        confounds: list[str] | None = None,
     ):
         """Initialize DesignMatrix from various input types."""
+        if TR is not None and sampling_freq is not None:
+            raise ValueError("Pass exactly one of `TR` or `sampling_freq`, not both.")
+        if TR is not None:
+            sampling_freq = 1.0 / TR
+
         # Initialize metadata
         self.sampling_freq = sampling_freq
         self.convolved = convolved if convolved is not None else []
-        self.polys = polys if polys is not None else []
+        self.confounds = confounds if confounds is not None else []
         self.multi = False
 
         # Create internal Polars DataFrame based on input type
         if data is None:
             # Empty initialization
             self.data = pl.DataFrame()
+
+        elif isinstance(data, (str, Path)):
+            if run_length is None:
+                raise ValueError(
+                    "Loading DesignMatrix from a file requires `run_length`."
+                )
+            if sampling_freq is None:
+                raise ValueError(
+                    "Loading DesignMatrix from a file requires `TR` or `sampling_freq`."
+                )
+            from .io import load_from_file
+
+            self.data, _is_events = load_from_file(
+                data,
+                run_length=run_length,
+                sampling_freq=sampling_freq,
+            )
 
         elif isinstance(data, pl.DataFrame):
             # Polars DataFrame - zero copy, just ensure string column names
@@ -155,7 +201,7 @@ class DesignMatrix:
         Check equality with another DesignMatrix.
 
         Compares data frames only (ignores metadata like sampling_freq, convolved,
-        polys, and multi).
+        confounds, and multi).
 
         Args:
             other (DesignMatrix): Design matrix to compare with
@@ -210,9 +256,9 @@ class DesignMatrix:
             f"DesignMatrix(sampling_freq={self.sampling_freq}, shape={self.shape})"
         ]
         if self.convolved:
-            lines.append(f"  convolved: {self.convolved}")
-        if self.polys:
-            lines.append(f"  polys: {self.polys}")
+            lines.append(f"  convolved ({len(self.convolved)}): {self.convolved}")
+        if self.confounds:
+            lines.append(f"  confounds ({len(self.confounds)}): {self.confounds}")
         return "\n".join(lines)
 
     def __setitem__(self, key: str, value: int | float | list | np.ndarray | pl.Series):
@@ -311,6 +357,7 @@ class DesignMatrix:
         keep_separate: bool = True,
         unique_cols: list[str] | None = None,
         fill_na: int | float = 0,
+        as_confounds: bool = False,
         verbose: bool = False,
     ) -> DesignMatrix:
         """
@@ -320,25 +367,38 @@ class DesignMatrix:
             dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
             axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
                 Default: 0.
-            keep_separate (bool): Whether to separate polynomial columns across runs
+            keep_separate (bool): Whether to separate confound columns across runs
                 (only applies when axis=0). Default: True.
             unique_cols (list of str, optional): Additional columns to keep separated
                 (supports wildcards).
             fill_na (int or float): Value to fill NaN values during vertical
                 concatenation. Default: 0.
-            verbose (bool): Print messages about polynomial separation. Default: False.
+            as_confounds (bool): Only applies when ``axis=1``. If True, mark all
+                columns from ``dm`` as nuisance/confounds in the result — they
+                get skipped by ``.convolve()`` and separated across runs on
+                later vertical appends. Default: False.
+            verbose (bool): Print messages about confound separation. Default: False.
 
         Returns:
             DesignMatrix: Concatenated design matrix.
         """
         from .append import append
 
-        return append(self, dm, axis, keep_separate, unique_cols, fill_na, verbose)
+        return append(
+            self,
+            dm,
+            axis=axis,
+            keep_separate=keep_separate,
+            unique_cols=unique_cols,
+            fill_na=fill_na,
+            as_confounds=as_confounds,
+            verbose=verbose,
+        )
 
     def clean(
         self,
         fill_na: int | float | None = 0,
-        exclude_polys: bool = False,
+        exclude_confounds: bool = False,
         thresh: float = 0.95,
         verbose: bool = True,
     ) -> DesignMatrix:
@@ -347,7 +407,7 @@ class DesignMatrix:
 
         Args:
             fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
-            exclude_polys (bool): Skip polynomial columns from correlation check
+            exclude_confounds (bool): Skip confound/nuisance columns from correlation check
             thresh (float): Correlation threshold (drop if abs(r) >= thresh, default 0.95)
             verbose (bool): Print dropped column names
 
@@ -356,7 +416,7 @@ class DesignMatrix:
         """
         from .diagnostics import clean
 
-        return clean(self, fill_na, exclude_polys, thresh, verbose)
+        return clean(self, fill_na, exclude_confounds, thresh, verbose)
 
     def convolve(
         self,
@@ -452,14 +512,14 @@ class DesignMatrix:
         column_names: list[str] | None = None,
     ) -> DesignMatrix:
         """
-        Replace data columns while preserving polynomials and metadata.
+        Replace data columns while preserving confounds and metadata.
 
         Args:
             data (ndarray): New data array (must match number of rows in current DesignMatrix)
             column_names (list of str, optional): Names for new data columns.
 
         Returns:
-            DesignMatrix: New DesignMatrix with replaced data columns, preserved polynomials
+            DesignMatrix: New DesignMatrix with replaced data columns, preserved confounds
 
         Raises:
             ValueError: If row count doesn't match existing data
@@ -478,10 +538,12 @@ class DesignMatrix:
             data = data.reshape(-1, 1)
         new_data_df = pl.DataFrame(data, schema=column_names, orient="row")
 
-        poly_df = self.data.select(self.polys) if self.polys else pl.DataFrame()
+        confound_df = (
+            self.data.select(self.confounds) if self.confounds else pl.DataFrame()
+        )
 
-        if poly_df.shape[1] > 0:
-            combined_df = pl.concat([new_data_df, poly_df], how="horizontal")
+        if confound_df.shape[1] > 0:
+            combined_df = pl.concat([new_data_df, confound_df], how="horizontal")
         else:
             combined_df = new_data_df
 
@@ -557,12 +619,12 @@ class DesignMatrix:
 
         return upsample(self, target, method, **kwargs)
 
-    def vif(self, exclude_polys: bool = True) -> np.ndarray | None:
+    def vif(self, exclude_confounds: bool = True) -> np.ndarray | None:
         """
         Compute variance inflation factor for each column.
 
         Args:
-            exclude_polys (bool): Skip polynomial columns. Default: True.
+            exclude_confounds (bool): Skip confound/nuisance columns. Default: True.
 
         Returns:
             np.ndarray: VIF values for each included column. Returns None if the
@@ -570,7 +632,7 @@ class DesignMatrix:
         """
         from .diagnostics import vif
 
-        return vif(self, exclude_polys)
+        return vif(self, exclude_confounds)
 
     def write(self, file_name: str, sep: str = "\t") -> None:
         """Write DesignMatrix to file.

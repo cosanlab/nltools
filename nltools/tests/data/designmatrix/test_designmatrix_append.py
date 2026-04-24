@@ -47,12 +47,12 @@ class TestDesignMatrixConcatenation:
         assert dm_combined.shape == (1, 3)
         assert set(dm_combined.columns) == {"a", "b", "c"}
 
-    def test_horizontal_append_pandas_dataframe_as_nuisance(self):
+    def test_horizontal_append_pandas_dataframe_as_confounds(self):
         """
         Horizontal append accepts pandas DataFrames; new columns are tracked
-        as nuisance (added to .polys) so vertical multi-run appends separate
-        them per run. Typical use: adding motion confounds from a BIDS
-        confounds.tsv in one call instead of a per-column loop.
+        as confounds (added to .confounds) so vertical multi-run appends
+        separate them per run. Typical use: adding motion confounds from a
+        BIDS confounds.tsv in one call instead of a per-column loop.
         """
         import pandas as pd
 
@@ -65,13 +65,13 @@ class TestDesignMatrixConcatenation:
 
         assert combined.shape == (3, 3)
         assert set(combined.columns) == {"task", "trans_x", "rot_y"}
-        # The confound columns should be tracked as nuisance/polys so they
-        # get per-run separation on vertical append.
-        assert "trans_x" in combined.polys
-        assert "rot_y" in combined.polys
-        assert "task" not in combined.polys
+        # The confound columns should be tracked in .confounds so they get
+        # per-run separation on vertical append.
+        assert "trans_x" in combined.confounds
+        assert "rot_y" in combined.confounds
+        assert "task" not in combined.confounds
 
-    def test_horizontal_append_polars_dataframe_as_nuisance(self):
+    def test_horizontal_append_polars_dataframe_as_confounds(self):
         """Same behavior for a polars DataFrame input."""
         import polars as pl
 
@@ -82,7 +82,7 @@ class TestDesignMatrixConcatenation:
 
         assert combined.shape == (2, 3)
         assert set(combined.columns) == {"task", "x", "y"}
-        assert set(combined.polys) >= {"x", "y"}
+        assert set(combined.confounds) >= {"x", "y"}
 
     def test_horizontal_append_dataframe_rejects_unsupported_type(self):
         """A non-DesignMatrix, non-DataFrame input raises a clear error."""
@@ -330,26 +330,26 @@ class TestDesignMatrixConcatenation:
 
     def test_vertical_append_preserves_polynomial_metadata(self):
         """
-        After separation, .polys metadata should contain all separated poly names.
+        After separation, .confounds metadata should contain all separated poly names.
 
         Expected behavior:
-        - .polys list contains '0_poly_0', '1_poly_0', etc.
+        - .confounds list contains '0_poly_0', '1_poly_0', etc.
         - Original 'poly_0' not in metadata (replaced by separated versions)
 
-        Use case: Track which columns are polynomials for later operations
+        Use case: Track which columns are confounds for later operations
         """
         dm1 = DesignMatrix({"s": [1]}, sampling_freq=1).add_poly(0)
         dm2 = DesignMatrix({"s": [2]}, sampling_freq=1).add_poly(0)
 
         dm_runs = dm1.append(dm2, axis=0, keep_separate=True)
 
-        assert "0_poly_0" in dm_runs.polys
-        assert "1_poly_0" in dm_runs.polys
-        assert "poly_0" not in dm_runs.polys  # Original name replaced
+        assert "0_poly_0" in dm_runs.confounds
+        assert "1_poly_0" in dm_runs.confounds
+        assert "poly_0" not in dm_runs.confounds  # Original name replaced
 
 
 class TestDesignMatrixAppendMetadata:
-    """Audit: convolved + polys metadata survives all append paths."""
+    """Audit: convolved + confounds metadata survives all append paths."""
 
     def test_horizontal_append_merges_convolved(self):
         """convolved from both DMs should be preserved on horizontal append."""
@@ -437,7 +437,7 @@ class TestDesignMatrixAppendFillNa:
         assert out["b"].to_list() == [None, None, 3, 4]
 
     def test_fill_na_none_preserves_nulls_in_separation(self):
-        """keep_separate=True with fill_na=None keeps nulls for separated polys."""
+        """keep_separate=True with fill_na=None keeps nulls for separated confounds."""
         dm1 = DesignMatrix({"s": [1, 2]}, sampling_freq=1).add_poly(0)
         dm2 = DesignMatrix({"s": [3, 4]}, sampling_freq=1).add_poly(0)
         out = dm1.append(dm2, axis=0, keep_separate=True, fill_na=None)

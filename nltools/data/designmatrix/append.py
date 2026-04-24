@@ -43,7 +43,7 @@ def _coerce_horizontal_input(x, sampling_freq):
 
     ``append(axis=1)`` accepts DesignMatrix, pandas DataFrame, or polars
     DataFrame. Raw-frame inputs are wrapped into a DesignMatrix whose new
-    columns are tracked as nuisance (``.polys``) — that way a subsequent
+    columns are tracked as nuisance (``.confounds``) — that way a subsequent
     multi-run vertical append keeps them separated per run, which matches the
     usual use of this path (motion / physio / compcor confounds).
 
@@ -63,7 +63,7 @@ def _coerce_horizontal_input(x, sampling_freq):
         return x
     if isinstance(x, pl.DataFrame) or _is_pandas_dataframe(x):
         wrapped = DesignMatrix(x, sampling_freq=sampling_freq)
-        wrapped.polys = list(wrapped.columns)
+        wrapped.confounds = list(wrapped.columns)
         return wrapped
     raise TypeError(
         "append(axis=1) expects DesignMatrix, pandas DataFrame, or polars "
@@ -78,6 +78,7 @@ def append(
     keep_separate: bool = True,
     unique_cols: list[str] | None = None,
     fill_na: int | float | None = 0,
+    as_confounds: bool = False,
     verbose: bool = False,
 ) -> DesignMatrix:
     """
@@ -88,14 +89,20 @@ def append(
         other (DesignMatrix, DataFrame, or list): Matrix/matrices to append.
             For ``axis=1`` (horizontal), also accepts a pandas or polars
             DataFrame (or list thereof); the new columns are treated as
-            nuisance regressors (tracked in ``.polys`` on the result).
+            nuisance regressors (tracked in ``.confounds`` on the result).
             For ``axis=0`` (vertical), all items must be ``DesignMatrix``.
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
-        keep_separate (bool): Whether to separate polynomial columns across runs (only axis=0).
+        keep_separate (bool): Whether to separate confound columns across runs (only axis=0).
         unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries introduced
             by the concatenation. Pass ``None`` to preserve nulls. Default: 0.
-        verbose (bool): Print messages about polynomial separation. Default: False.
+        as_confounds (bool): Only applies to ``axis=1``. When True, all columns
+            contributed by ``other`` are tracked as nuisance regressors in
+            the result's ``.confounds`` — so they're skipped by ``.convolve()``
+            and kept separate across runs in later vertical appends. Useful
+            when ``other`` is a pre-built DesignMatrix of confounds that
+            hasn't already marked its columns. Default: False.
+        verbose (bool): Print messages about confound separation. Default: False.
 
     Returns:
         DesignMatrix: Concatenated design matrix.
@@ -128,7 +135,7 @@ def append(
         raise ValueError("All Design Matrices must have the same sampling frequency!")
 
     if axis == 1:
-        return append_horizontal(dm, to_append, fill_na)
+        return append_horizontal(dm, to_append, fill_na, as_confounds=as_confounds)
     if axis == 0:
         # Refuse the silent-collision case: a non-multi base with any multi
         # DM in to_append would re-index the base as run 0 and collide with
@@ -152,6 +159,7 @@ def append_horizontal(
     dm: DesignMatrix,
     to_append: list[DesignMatrix],
     fill_na: int | float | None,
+    as_confounds: bool = False,
 ) -> DesignMatrix:
     """
     Horizontal concatenation (axis=1) - add columns from other matrices.
@@ -161,6 +169,8 @@ def append_horizontal(
         to_append (list of DesignMatrix): Matrices whose columns to add.
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
+        as_confounds (bool): If True, mark all columns contributed by
+            ``to_append`` as nuisance/confounds in the result.
 
     Returns:
         DesignMatrix: New DesignMatrix with columns from all matrices.
@@ -192,11 +202,15 @@ def append_horizontal(
     if fill_na is not None:
         new_df = new_df.fill_null(fill_na)
 
-    # Merge polys + convolved metadata across all matrices, dedup in order.
-    all_polys = _merge_ordered([dm.polys, *(e.polys for e in to_append)])
+    # Merge confounds + convolved metadata across all matrices, dedup in order.
+    confound_lists = [dm.confounds, *(e.confounds for e in to_append)]
+    if as_confounds:
+        # Promote all columns from to_append to nuisance/confounds
+        confound_lists.extend(e.columns for e in to_append)
+    all_confounds = _merge_ordered(confound_lists)
     all_convolved = _merge_ordered([dm.convolved, *(e.convolved for e in to_append)])
 
-    return copy_with(dm, new_df, polys=all_polys, convolved=all_convolved)
+    return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
 
 
 def _merge_ordered(lists: list[list[str]]) -> list[str]:
@@ -220,17 +234,17 @@ def append_vertical(
     verbose: bool,
 ) -> DesignMatrix:
     """
-    Vertical concatenation (axis=0) - stack rows, with optional polynomial separation.
+    Vertical concatenation (axis=0) - stack rows, with optional confound separation.
 
     Args:
         dm: Base DesignMatrix instance.
         to_append (list of DesignMatrix): Matrices to stack below dm.
-        keep_separate (bool): Whether to separate polynomial columns across runs.
+        keep_separate (bool): Whether to separate confound columns across runs.
         unique_cols (list of str, optional): Additional columns to keep separated
             (supports wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
-        verbose (bool): Print messages about polynomial separation.
+        verbose (bool): Print messages about confound separation.
 
     Returns:
         DesignMatrix: New DesignMatrix with rows from all matrices.
@@ -247,13 +261,13 @@ def append_vertical(
         if fill_na is not None:
             new_df = new_df.fill_null(fill_na)
 
-        # Merge polys + convolved across matrices
-        all_polys = _merge_ordered([d.polys for d in all_dms])
+        # Merge confounds + convolved across matrices
+        all_confounds = _merge_ordered([d.confounds for d in all_dms])
         all_convolved = _merge_ordered([d.convolved for d in all_dms])
 
-        return copy_with(dm, new_df, polys=all_polys, convolved=all_convolved)
+        return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
 
-    # Complex case: keep_separate=True - separate polynomial columns across runs
+    # Complex case: keep_separate=True - separate confound columns across runs
     return append_vertical_with_separation(dm, to_append, unique_cols, fill_na, verbose)
 
 
@@ -323,11 +337,11 @@ def identify_columns_to_separate(
     """
     cols_to_sep = set()
 
-    # Add polynomial columns from non-multi DMs only
-    # (Multi-run DMs already have separated polynomials)
+    # Add confound columns from non-multi DMs only
+    # (Multi-run DMs already have separated confounds)
     for d in all_dms:
-        if d.polys and not d.multi:
-            cols_to_sep.update(d.polys)
+        if d.confounds and not d.multi:
+            cols_to_sep.update(d.confounds)
 
     # Add unique_cols with wildcard matching
     if unique_cols:
@@ -352,7 +366,7 @@ def append_vertical_with_separation(
     verbose: bool,
 ) -> DesignMatrix:
     """
-    Vertical concatenation with automatic polynomial separation.
+    Vertical concatenation with automatic confound separation.
 
     Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
     active only in their respective runs (sparse representation).
@@ -364,10 +378,10 @@ def append_vertical_with_separation(
             (supports wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
-        verbose (bool): Print messages about polynomial separation.
+        verbose (bool): Print messages about confound separation.
 
     Returns:
-        DesignMatrix: Concatenated DesignMatrix with run-separated polynomial columns
+        DesignMatrix: Concatenated DesignMatrix with run-separated confound columns
             and multi=True.
     """
     # Handle two cases differently:
@@ -383,7 +397,7 @@ def append_vertical_with_separation(
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
         processed_dfs = []
-        all_new_polys: list[str] = []
+        all_new_confounds: list[str] = []
         all_new_convolved: list[str] = []
 
         for i, d in enumerate(all_dms):
@@ -391,8 +405,8 @@ def append_vertical_with_separation(
             processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)
 
-            for poly in d.polys:
-                all_new_polys.append(rename_map.get(poly, poly))
+            for confound in d.confounds:
+                all_new_confounds.append(rename_map.get(confound, confound))
             for conv in d.convolved:
                 renamed = rename_map.get(conv, conv)
                 if renamed not in all_new_convolved:
@@ -407,7 +421,7 @@ def append_vertical_with_separation(
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
         processed_dfs = [dm.data]
-        all_new_polys = list(dm.polys)
+        all_new_confounds = list(dm.confounds)
         all_new_convolved = list(dm.convolved)
 
         for i, d in enumerate(to_append):
@@ -418,8 +432,8 @@ def append_vertical_with_separation(
             processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)
 
-            for poly in d.polys:
-                all_new_polys.append(rename_map.get(poly, poly))
+            for confound in d.confounds:
+                all_new_confounds.append(rename_map.get(confound, confound))
             for conv in d.convolved:
                 renamed = rename_map.get(conv, conv)
                 if renamed not in all_new_convolved:
@@ -438,7 +452,7 @@ def append_vertical_with_separation(
     return copy_with(
         dm,
         result_df,
-        polys=all_new_polys,
+        confounds=all_new_confounds,
         convolved=all_new_convolved,
         multi=True,
     )

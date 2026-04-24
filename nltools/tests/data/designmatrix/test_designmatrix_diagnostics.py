@@ -35,7 +35,7 @@ class TestDesignMatrixDiagnostics:
         )
 
         # Perfect collinearity should return None with error message
-        vifs_perfect = dm_perfect.vif(exclude_polys=True)
+        vifs_perfect = dm_perfect.vif(exclude_confounds=True)
         assert vifs_perfect is None, "Perfect collinearity should return None"
 
         # Create data with high but not perfect correlation
@@ -48,7 +48,7 @@ class TestDesignMatrixDiagnostics:
             sampling_freq=1,
         )
 
-        vifs_high = dm_high.vif(exclude_polys=True)
+        vifs_high = dm_high.vif(exclude_confounds=True)
         assert vifs_high is not None, (
             "Should return VIF values for non-perfect correlation"
         )
@@ -58,7 +58,7 @@ class TestDesignMatrixDiagnostics:
 
     def test_vif_excludes_polynomial_columns_by_default(self):
         """
-        exclude_polys=True should not compute VIF for polynomial columns.
+        exclude_confounds=True should not compute VIF for polynomial columns.
 
         Expected behavior:
         - Polynomials skipped in VIF calculation
@@ -69,7 +69,7 @@ class TestDesignMatrixDiagnostics:
         dm = DesignMatrix({"a": [1, 2, 3, 4, 5]}, sampling_freq=1)
         dm = dm.add_poly(order=2)  # Adds poly_0, poly_1, poly_2
 
-        vifs = dm.vif(exclude_polys=True)
+        vifs = dm.vif(exclude_confounds=True)
 
         # Should only compute VIF for 'a', not polynomials
         assert len(vifs) == 1, "Should only compute VIF for non-polynomial columns"
@@ -124,9 +124,9 @@ class TestDesignMatrixDiagnostics:
         assert "a" in dm_clean.columns
         assert dm_clean.shape[1] < dm.shape[1], "Should drop correlated columns"
 
-    def test_clean_excludes_polys_from_collinearity_check(self):
+    def test_clean_excludes_confounds_from_collinearity_check(self):
         """
-        exclude_polys=True should keep polynomial columns even if correlated.
+        exclude_confounds=True should keep polynomial columns even if correlated.
 
         Expected behavior:
         - Polynomials not checked for collinearity
@@ -137,7 +137,7 @@ class TestDesignMatrixDiagnostics:
         dm = DesignMatrix({"a": [1, 2, 3, 4]}, sampling_freq=1)
         dm = dm.add_poly(order=2)  # poly_1 and poly_2 might be correlated
 
-        dm_clean = dm.clean(exclude_polys=True)
+        dm_clean = dm.clean(exclude_confounds=True)
 
         # All polynomials should be retained
         assert "poly_0" in dm_clean.columns
@@ -199,10 +199,10 @@ class TestDesignMatrixUtilities:
 
         assert "sampling_freq=2" in text
         assert "shape=(3, 2)" in text or "(3, 2)" in text
-        assert "poly_0" in text or "polys" in text
+        assert "poly_0" in text or "confounds" in text
         assert "convolved" in text
 
-    def test_replace_data_keeps_metadata_and_polys(self):
+    def test_replace_data_keeps_metadata_and_confounds(self):
         """
         .replace_data() swaps data columns but preserves polynomial columns.
 

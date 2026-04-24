@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
+def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
     """
     Compute variance inflation factor for each column.
 
@@ -21,7 +21,7 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
 
     Args:
         dm: DesignMatrix instance.
-        exclude_polys (bool): Skip polynomial columns. Default: True.
+        exclude_confounds (bool): Skip nuisance/confound columns. Default: True.
 
     Returns:
         np.ndarray: VIF values for each included column. Returns None if the
@@ -40,14 +40,14 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
         )
 
     # Determine which columns to include (using polars selectors for declarative filtering)
-    if exclude_polys and dm.polys:
-        # Use polars selector: "select all columns except polynomial terms"
-        subset_df = dm.data.select(cs.exclude(dm.polys))
-    elif exclude_polys:
-        # No polys to exclude, use all columns
+    if exclude_confounds and dm.confounds:
+        # Use polars selector: "select all columns except confound terms"
+        subset_df = dm.data.select(cs.exclude(dm.confounds))
+    elif exclude_confounds:
+        # No confounds to exclude, use all columns
         subset_df = dm.data
     else:
-        # Always exclude intercept (poly_0) columns even when exclude_polys=False
+        # Always exclude intercept (poly_0) columns even when exclude_confounds=False
         cols_to_use = [c for c in dm.columns if "poly_0" not in c]
         subset_df = dm.data.select(cols_to_use)
 
@@ -79,7 +79,7 @@ def vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None:
 def clean(
     dm: DesignMatrix,
     fill_na: int | float | None = 0,
-    exclude_polys: bool = False,
+    exclude_confounds: bool = False,
     thresh: float = 0.95,
     verbose: bool = True,
 ) -> DesignMatrix:
@@ -93,7 +93,7 @@ def clean(
         dm: DesignMatrix instance.
         fill_na (int, float, or None): Fill NaN values before checking correlations.
             Default: 0.
-        exclude_polys (bool): Skip polynomial columns from correlation check.
+        exclude_confounds (bool): Skip nuisance/confound columns from correlation check.
             Default: False.
         thresh (float): Correlation threshold (drop if abs(r) >= thresh).
             Default: 0.95.
@@ -117,8 +117,8 @@ def clean(
         result = result.fillna(fill_na)
 
     # Determine which columns to check for correlation
-    if exclude_polys:
-        cols_to_check = get_data_columns(result, exclude_polys=True)
+    if exclude_confounds:
+        cols_to_check = get_data_columns(result, exclude_confounds=True)
     else:
         cols_to_check = list(result.columns)
 
@@ -171,11 +171,11 @@ def clean(
         # Drop from DataFrame
         new_df = result.data.drop(remove)
 
-        # Update polys metadata
-        new_polys = [p for p in result.polys if p not in remove]
+        # Update confounds metadata
+        new_confounds = [p for p in result.confounds if p not in remove]
 
         # Return cleaned matrix
-        return copy_with(result, new_df, polys=new_polys)
+        return copy_with(result, new_df, confounds=new_confounds)
     if verbose:
         print("Dropping columns not needed...skipping")
     return result

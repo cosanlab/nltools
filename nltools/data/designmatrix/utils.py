@@ -15,9 +15,7 @@ if TYPE_CHECKING:
     from nltools.data.designmatrix import DesignMatrix
 
 
-WRAP_AS_DESIGNMATRIX = frozenset(
-    {"slice", "filter", "select"}
-)
+WRAP_AS_DESIGNMATRIX = frozenset({"slice", "filter", "select"})
 
 
 def df_passthrough(dm: DesignMatrix, name: str):
@@ -72,13 +70,13 @@ def copy_with(
     # columns (select, __getitem__ with a list) don't leave dangling references.
     new_cols = set(new_df.columns)
     metadata["convolved"] = [c for c in metadata["convolved"] if c in new_cols]
-    metadata["polys"] = [c for c in metadata["polys"] if c in new_cols]
+    metadata["confounds"] = [c for c in metadata["confounds"] if c in new_cols]
 
     new_dm = DesignMatrix(
         new_df,
         sampling_freq=metadata["sampling_freq"],
         convolved=metadata["convolved"],
-        polys=metadata["polys"],
+        confounds=metadata["confounds"],
     )
     new_dm.multi = metadata["multi"]
 
@@ -92,31 +90,32 @@ def get_metadata(dm: DesignMatrix) -> dict:
         dm: DesignMatrix instance.
 
     Returns:
-        dict: Dictionary with keys 'sampling_freq', 'convolved', 'polys', 'multi'.
+        dict: Dictionary with keys 'sampling_freq', 'convolved', 'confounds', 'multi'.
     """
     return {
         "sampling_freq": dm.sampling_freq,
         "convolved": dm.convolved.copy(),
-        "polys": dm.polys.copy(),
+        "confounds": dm.confounds.copy(),
         "multi": dm.multi,
     }
 
 
-def get_data_columns(dm: DesignMatrix, exclude_polys: bool = True) -> list[str]:
+def get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[str]:
     """
-    Get column names, optionally excluding polynomials.
+    Get column names, optionally excluding confound regressors.
 
     This helper reduces code duplication across methods that need to
-    distinguish between data columns and polynomial/nuisance columns.
+    distinguish between experimental regressors and nuisance/confound columns
+    (polynomial drift, DCT cosines, motion, etc.).
 
     Args:
         dm: DesignMatrix instance.
-        exclude_polys (bool, default=True): If True, exclude polynomial/nuisance
-            columns from the result.
+        exclude_confounds (bool, default=True): If True, exclude nuisance
+            columns tracked in ``dm.confounds`` from the result.
 
     Returns:
-        list of str: Column names (excluding polys if requested).
+        list of str: Column names (excluding confounds if requested).
     """
-    if exclude_polys and dm.polys:
-        return [col for col in dm.columns if col not in dm.polys]
+    if exclude_confounds and dm.confounds:
+        return [col for col in dm.columns if col not in dm.confounds]
     return list(dm.columns)

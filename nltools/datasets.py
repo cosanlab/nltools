@@ -15,8 +15,8 @@ __all__ = [
 ]
 
 from pathlib import Path
-from nltools.data import BrainData
-from nltools.io import onsets_to_dm
+from nltools.data import BrainData, DesignMatrix
+from nltools.data.designmatrix.io import events_to_dm
 
 # Core dependencies
 from nilearn.datasets import fetch_neurovault_ids
@@ -243,12 +243,12 @@ def load_haxby_example(n_runs=1, random_state=42):
                 for i, cond in enumerate(order)
             ]
         )
-        dm = onsets_to_dm(
-            timings=events_df,
+        dm_data = events_to_dm(
+            events_df,
             run_length=n_timepoints,
-            TR=TR,
-            hrf_model="glover",
+            sampling_freq=1.0 / TR,
         )
+        dm = DesignMatrix(dm_data, sampling_freq=1.0 / TR).convolve()
 
         # Positive BOLD-like baseline intensity + voxelwise Gaussian noise,
         # plus signal injected into a disjoint voxel cluster per condition

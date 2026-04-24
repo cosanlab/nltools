@@ -7,12 +7,125 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
+import polars as pl
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from nltools.data.designmatrix import DesignMatrix
+
+
+def events_to_dm(
+    events: pl.DataFrame | pd.DataFrame,
+    *,
+    run_length: int,
+    sampling_freq: float,
+) -> pl.DataFrame:
+    """Convert a BIDS events table to boxcar regressors aligned to TRs.
+
+    Uses `nilearn.glm.first_level.make_first_level_design_matrix` with
+    `hrf_model=None` to sample events onto the TR grid without HRF
+    convolution — the caller is expected to call `DesignMatrix.convolve()`
+    explicitly when convolution is desired. Drops nilearn's auto-added
+    `constant` column; users add the intercept via `add_poly(0)`.
+
+    Args:
+        events: pandas or polars DataFrame with BIDS columns `onset`,
+            `duration`, `trial_type` (required); `modulation` is passed
+            through if present.
+        run_length: Number of TRs the run contains.
+        sampling_freq: Sampling frequency in Hz (= 1/TR).
+
+    Returns:
+        pl.DataFrame with one column per unique `trial_type`, values in
+        {0, modulation} indicating where each condition is active.
+    """
+    import pandas as pd
+    from nilearn.glm.first_level import make_first_level_design_matrix
+
+    if isinstance(events, pl.DataFrame):
+        events = pd.DataFrame(events.to_dict(as_series=False))
+
+    tr = 1.0 / sampling_freq
+    frame_times = np.arange(run_length) * tr
+    dm = make_first_level_design_matrix(
+        frame_times,
+        events=events,
+        hrf_model=None,
+        drift_model=None,
+    )
+    if "constant" in dm.columns:
+        dm = dm.drop(columns=["constant"])
+    # Avoid pyarrow dep on the pandas → polars hop (matches `to_pandas` below).
+    return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
+
+
+def load_from_file(
+    path: str | Path,
+    *,
+    run_length: int | str,
+    sampling_freq: float,
+) -> tuple[pl.DataFrame, bool]:
+    """Read a TSV/CSV into the frame a DesignMatrix wraps.
+
+    Dispatches on column inspection:
+
+    - `onset` and `duration` both present → BIDS events → boxcar DM via
+      `events_to_dm` (unconvolved; caller convolves later).
+    - otherwise → tabular file (confounds / nuisance regressors) read as-is.
+
+    `run_length='infer'` is accepted only for the tabular path; events
+    files must provide an explicit integer (they have a variable row count
+    per run, unlike confounds which are 1 row per TR).
+
+    Args:
+        path: Path to a `.tsv` or `.csv` file.
+        run_length: Number of TRs, or `'infer'` for tabular inputs.
+        sampling_freq: Sampling frequency in Hz (= 1/TR).
+
+    Returns:
+        Tuple of (data frame, is_events) — `is_events` signals to the
+        caller that the columns are experimental regressors rather than
+        nuisance.
+    """
+    p = Path(path)
+    sep = "\t" if p.suffix.lower() == ".tsv" else ","
+    raw = pl.read_csv(
+        p,
+        separator=sep,
+        null_values=["n/a", "N/A", "NA", ""],
+        infer_schema_length=10_000,
+    )
+
+    is_events = "onset" in raw.columns and "duration" in raw.columns
+
+    if is_events:
+        if run_length == "infer":
+            raise ValueError(
+                "run_length='infer' is not valid for BIDS events files "
+                "(the row count is the number of events, not the number "
+                "of TRs). Pass an explicit integer run_length."
+            )
+        data_df = events_to_dm(
+            raw,
+            run_length=int(run_length),
+            sampling_freq=sampling_freq,
+        )
+        return data_df, True
+
+    if run_length != "infer":
+        rl = int(run_length)
+        if raw.height != rl:
+            raise ValueError(
+                f"Tabular file {p.name} has {raw.height} rows but "
+                f"run_length={rl}. Pass run_length='infer' to accept "
+                f"whatever the file contains."
+            )
+    return raw, False
 
 
 def plot_designmatrix(
@@ -146,7 +259,7 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
 
     Notes:
         TSV format is recommended for BIDS compatibility.
-        HDF5 format preserves metadata (sampling_freq, convolved, polys).
+        HDF5 format preserves metadata (sampling_freq, convolved, confounds).
     """
     from pathlib import Path
 
@@ -190,6 +303,6 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
         if dm.sampling_freq is not None:
             meta.attrs["sampling_freq"] = dm.sampling_freq
         meta.attrs["convolved"] = np.array(dm.convolved, dtype="S")
-        meta.attrs["polys"] = np.array(dm.polys, dtype="S")
+        meta.attrs["confounds"] = np.array(dm.confounds, dtype="S")
         meta.attrs["multi"] = dm.multi
         meta.attrs["obj_type"] = "design_matrix"

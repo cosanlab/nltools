@@ -35,6 +35,14 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
     if frame is None:
         return pl.DataFrame()
 
+    # Unwrap DesignMatrix to its underlying polars DataFrame — DM-specific
+    # metadata (sampling_freq, convolved, confounds) isn't preserved on
+    # BrainData, but users should be able to hand a DM in directly.
+    from nltools.data.designmatrix import DesignMatrix
+
+    if isinstance(frame, DesignMatrix):
+        frame = frame.data
+
     if isinstance(frame, pl.DataFrame):
         out = frame
     elif isinstance(frame, (str, Path)):

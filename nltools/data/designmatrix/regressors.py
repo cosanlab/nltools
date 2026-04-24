@@ -59,7 +59,7 @@ def convolve(
     # Determine which columns to convolve
     if columns is None:
         # Default: all columns except polynomials
-        columns_to_convolve = get_data_columns(dm, exclude_polys=True)
+        columns_to_convolve = get_data_columns(dm, exclude_confounds=True)
     else:
         columns_to_convolve = columns
 
@@ -154,7 +154,7 @@ def add_poly(
         )
 
     # Check for ambiguous polynomials from previous append operations
-    if dm.polys and any(elem.count("_") == 2 for elem in dm.polys):
+    if dm.confounds and any(elem.count("_") == 2 for elem in dm.confounds):
         raise ValueError(
             "This Design Matrix contains polynomial terms that were kept "
             "separate from a previous append operation. This makes it ambiguous "
@@ -170,8 +170,8 @@ def add_poly(
 
     # Detect existing intercept columns (constant, poly_0, or any all-ones poly)
     _has_intercept = False
-    if dm.polys:
-        for p in dm.polys:
+    if dm.confounds:
+        for p in dm.confounds:
             col_vals = dm[p].to_numpy().flatten()
             if np.allclose(col_vals, 1.0):
                 _has_intercept = True
@@ -181,7 +181,7 @@ def add_poly(
     new_poly_cols = {}
     for i in orders_to_add:
         poly_name = f"poly_{i}"
-        if poly_name in dm.polys:
+        if poly_name in dm.confounds:
             warnings.warn(
                 f"Design Matrix already has {i}th order polynomial...skipping",
                 stacklevel=3,
@@ -206,12 +206,12 @@ def add_poly(
         [pl.Series(name, values) for name, values in new_poly_cols.items()]
     )
 
-    # Update polys metadata
-    new_polys = dm.polys.copy() if dm.polys else []
-    new_polys.extend(new_poly_cols.keys())
+    # Update confounds metadata
+    new_confounds = dm.confounds.copy() if dm.confounds else []
+    new_confounds.extend(new_poly_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return copy_with(dm, new_df, polys=new_polys)
+    return copy_with(dm, new_df, confounds=new_confounds)
 
 
 def add_dct_basis(
@@ -248,7 +248,9 @@ def add_dct_basis(
         )
 
     # Check for ambiguous cosine bases from previous append operations
-    if dm.polys and any(elem.count("_") == 2 and "cosine" in elem for elem in dm.polys):
+    if dm.confounds and any(
+        elem.count("_") == 2 and "cosine" in elem for elem in dm.confounds
+    ):
         raise ValueError(
             "This Design Matrix contains cosine bases that were kept "
             "separate from a previous append operation. This makes it ambiguous "
@@ -268,16 +270,16 @@ def add_dct_basis(
 
     # Optionally prepend cosine_0 (constant/intercept) — mirrors poly_0 in add_poly.
     # make_cosine_basis drops the constant per SPM; we re-add it here when asked,
-    # and skip if an intercept-like polys column already exists.
+    # and skip if an intercept-like confounds column already exists.
     if include_constant:
         _has_intercept = False
-        if dm.polys:
-            for p in dm.polys:
+        if dm.confounds:
+            for p in dm.confounds:
                 col_vals = dm[p].to_numpy().flatten()
                 if np.allclose(col_vals, 1.0):
                     _has_intercept = True
                     break
-        if "cosine_0" in (dm.polys or []) or _has_intercept:
+        if "cosine_0" in (dm.confounds or []) or _has_intercept:
             warnings.warn(
                 "Design Matrix already has an intercept column...skipping cosine_0",
                 stacklevel=3,
@@ -287,8 +289,8 @@ def add_dct_basis(
             basis_mat = np.column_stack([np.ones(dm.shape[0]), basis_mat])
 
     # Check which bases we don't already have (idempotent)
-    if dm.polys:
-        basis_to_add = [name for name in basis_col_names if name not in dm.polys]
+    if dm.confounds:
+        basis_to_add = [name for name in basis_col_names if name not in dm.confounds]
     else:
         basis_to_add = basis_col_names
 
@@ -311,9 +313,9 @@ def add_dct_basis(
         [pl.Series(name, values) for name, values in new_basis_cols.items()]
     )
 
-    # Update polys metadata
-    new_polys = dm.polys.copy() if dm.polys else []
-    new_polys.extend(new_basis_cols.keys())
+    # Update confounds metadata
+    new_confounds = dm.confounds.copy() if dm.confounds else []
+    new_confounds.extend(new_basis_cols.keys())
 
     # Return new DesignMatrix with updated data and metadata
-    return copy_with(dm, new_df, polys=new_polys)
+    return copy_with(dm, new_df, confounds=new_confounds)

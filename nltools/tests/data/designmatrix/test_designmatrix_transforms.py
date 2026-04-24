@@ -69,19 +69,19 @@ class TestDesignMatrixTransformations:
 
         Expected behavior:
         - sampling_freq preserved
-        - polys list preserved
+        - confounds list preserved
         - convolved list preserved
         - multi flag preserved
         """
         dm = DesignMatrix({"stim": [1, 2, 3], "poly_0": [1, 1, 1]}, sampling_freq=2)
-        dm.polys = ["poly_0"]
+        dm.confounds = ["poly_0"]
         dm.convolved = ["stim"]
         dm.multi = True
 
         dm_filled = dm.fillna(0)
 
         assert dm_filled.sampling_freq == 2
-        assert dm_filled.polys == ["poly_0"]
+        assert dm_filled.confounds == ["poly_0"]
         assert dm_filled.convolved == ["stim"]
         assert dm_filled.multi is True
 
@@ -138,15 +138,15 @@ class TestDesignMatrixStatisticalOperations:
         .zscore() should NOT standardize polynomial columns by default.
 
         Expected behavior:
-        - Columns in .polys list are skipped
-        - Only non-polynomial columns standardized
+        - Columns in .confounds list are skipped
+        - Only non-confound columns standardized
 
-        Rationale: Polynomials (intercept, trends) should not be standardized
+        Rationale: Confounds (intercept, trends, motion, …) should not be standardized
         """
         dm = DesignMatrix(
             {"stim": [1, 2, 3, 4], "poly_0": [1, 1, 1, 1]}, sampling_freq=1
         )
-        dm.polys = ["poly_0"]
+        dm.confounds = ["poly_0"]
 
         dm_z = dm.zscore()
 
