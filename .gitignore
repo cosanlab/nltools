@@ -19,6 +19,7 @@ dev/
 *.log
 *.sql
 *.sqlite
+*.json
 
 # iPython Notebook Caches #
 ###########################
