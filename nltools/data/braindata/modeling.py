@@ -85,7 +85,7 @@ def cv(
 
 def fit(
     bd,
-    model=None,
+    model='glm',
     X=None,
     cv=None,
     inplace=True,
@@ -170,8 +170,8 @@ def fit(
     from nltools.models import Ridge, Glm
 
     # Validate inputs
-    if model is None:
-        raise TypeError("model must be provided")
+    if model not in ['glm', 'ridge']:
+        raise TypeError("supported models are 'glm' (default) and 'ridge'")
     if X is None:
         raise TypeError("X must be provided")
 
@@ -267,8 +267,6 @@ def fit(
             glm_kwargs["progress_bar"] = progress_bar
         target.model_ = Glm(**glm_kwargs)
         fit_glm(target, X_model)
-    else:
-        raise ValueError(f"Unknown model '{model}'. Must be one of: 'ridge', 'glm'")
 
     # If inplace=False, copy model_ to bd (needed for predict()) and return Fit
     if not inplace:
@@ -618,7 +616,7 @@ def to_fit_dataclass(bd, model):
             r2=r2,
         )
 
-    raise ValueError(f"Unknown model '{model}'. Must be 'ridge' or 'glm'")
+    raise AssertionError(f"unvalidated model passed to to_fit_dataclass: {model!r}")
 
 
 def _signed_z_from_p(t_like_arr, p_arr):

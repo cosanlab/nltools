@@ -794,7 +794,7 @@ class BrainData:
 
     def fit(
         self,
-        model=None,
+        model='glm',
         X=None,
         cv=None,
         inplace=True,
