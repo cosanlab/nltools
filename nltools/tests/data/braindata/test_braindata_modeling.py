@@ -452,7 +452,7 @@ class TestBrainDataModeling:
     def test_fit_validates_model_name(self, minimal_brain_data):
         """Test fit() raises error for unknown model names."""
         X = np.random.randn(len(minimal_brain_data), 10)
-        with pytest.raises(TypeError, match="supported models are"):
+        with pytest.raises(ValueError, match="Unknown model"):
             minimal_brain_data.fit(model="unknown_model", X=X)
 
     def test_fit_validates_X_shape(self, minimal_brain_data):
