@@ -76,6 +76,10 @@ benchmarks/results/
 .github/copilot-instructions.md
 nltools/tests/data/haxby/
 
+# Nifti templates + parcellations — fetched lazily from
+# https://huggingface.co/datasets/nltools/niftis on first use
+nltools/resources/niftis/
+
 # Dolt database files (added by bd init)
 .dolt/
 *.db

@@ -1,12 +1,14 @@
-"""Pure path-resolution helpers for MNI template files."""
+"""Pure path-resolution helpers for MNI template files.
 
-import os
+Resolves logical (template, resolution, file_type) tuples to local paths.
+Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
+:mod:`nltools.templates.fetch`.
+"""
+
 import re
-from os.path import dirname, join
 
+from .fetch import fetch_nifti
 from .registry import SUPPORTED_RESOLUTIONS, VERSION_MAP, VERSION_TO_TEMPLATE
-
-_RESOURCES = join(dirname(dirname(__file__)), "resources", "niftis")
 
 
 def resolve_paths(template: str, resolution: int) -> dict[str, str]:
@@ -21,7 +23,6 @@ def resolve_paths(template: str, resolution: int) -> dict[str, str]:
 
     Raises:
         ValueError: If template or resolution is invalid.
-        FileNotFoundError: If any template file is missing on disk.
     """
     if template not in VERSION_MAP:
         raise ValueError(
@@ -34,23 +35,14 @@ def resolve_paths(template: str, resolution: int) -> dict[str, str]:
         )
 
     version = VERSION_MAP[template]
-    base = join(_RESOURCES, template)
     res_str = f"{resolution}mm"
 
-    out: dict[str, str] = {}
-    for file_type, key in [("mask", "mask"), ("brain", "brain"), ("T1", "plot")]:
-        new = join(base, f"{res_str}-MNI152-2009{version}-{file_type}.nii.gz")
-        old = join(base, f"MNI152_{res_str}_{file_type}.nii.gz")
-        if not os.path.exists(new) and os.path.exists(old):
-            out[key] = old
-        elif os.path.exists(new):
-            out[key] = new
-        else:
-            raise FileNotFoundError(
-                f"Template file not found: {new}\n"
-                f"This suggests an incomplete installation or missing template files."
-            )
-    return out
+    return {
+        key: fetch_nifti(
+            f"{template}/{res_str}-MNI152-2009{version}-{file_type}.nii.gz"
+        )
+        for file_type, key in [("mask", "mask"), ("brain", "brain"), ("T1", "plot")]
+    }
 
 
 def resolve_template_name(template_name: str, file_type: str = "mask") -> str:

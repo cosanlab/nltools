@@ -19,6 +19,7 @@ classifiers = [
 ]
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
+    "huggingface-hub>=0.30",
     "nilearn>=0.12",
     "polars>=1.18",
     "pynv>=0.3",
@@ -59,14 +60,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["nltools"]
-# Drop anything that bloats the wheel without being used at runtime: tests,
-# the 1mm MNI templates (~30 MB; 2mm/3mm cover the common cases), and macOS
-# filesystem detritus.
+# Niftis (templates + parcellations) are fetched lazily from
+# huggingface.co/datasets/nltools/niftis on first use, never vendored.
 exclude = [
   "nltools/tests",
   "nltools/tests/**",
-  "nltools/resources/**/1mm-*.nii.gz",
-  "nltools/resources/**/.DS_Store",
+  "nltools/resources/niftis/**",
+  "**/.DS_Store",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -77,9 +77,9 @@ include = [
   "pyproject.toml",
 ]
 exclude = [
-  "nltools/resources/**/1mm-*.nii.gz",
-  "nltools/resources/**/.DS_Store",
+  "nltools/resources/niftis/**",
   "nltools/tests/data/**",
+  "**/.DS_Store",
 ]
 
 [tool.ruff]
