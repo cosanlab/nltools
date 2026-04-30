@@ -29,18 +29,21 @@ from .config import (
     set_brainspace,
     with_brainspace,
 )
+from .fetch import fetch_resource, seed_resources
 from .matching import TemplateMatch, get_bg_image, match_resolution
 from .paths import resolve_paths, resolve_template_name
 
 __all__ = [
     "BrainSpaceConfig",
     "TemplateMatch",
+    "fetch_resource",
     "get_bg_image",
     "get_brainspace",
     "match_resolution",
     "reset_brainspace",
     "resolve_paths",
     "resolve_template_name",
+    "seed_resources",
     "set_brainspace",
     "with_brainspace",
 ]

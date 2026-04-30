@@ -177,7 +177,51 @@ def test_designmatrix_numpy():
 test("DesignMatrix(numpy)", test_designmatrix_numpy)
 
 # ------------------------------------------------------------------
-# 5. Optional-extras gating
+# 5. HF dataset fetcher (pyodide async seed → sync fetch)
+# ------------------------------------------------------------------
+print("\\n[fetch_resource]")
+
+from nltools.templates import fetch_resource, seed_resources, resolve_paths
+
+_relpath = "default/2mm-MNI152-2009fsl-mask.nii.gz"
+
+# Sync access without seeding should raise a clear error.
+def test_fetch_unseeded_raises():
+    try:
+        fetch_resource(_relpath)
+    except RuntimeError as e:
+        assert "seed_resources" in str(e), f"unhelpful message: {e}"
+        return
+    raise AssertionError("expected RuntimeError when cache is empty")
+test("fetch_resource raises before seed", test_fetch_unseeded_raises)
+
+# Seed and verify the file lands in the cache.
+await seed_resources([_relpath])
+
+def test_fetch_after_seed():
+    import os
+    path = fetch_resource(_relpath)
+    assert os.path.exists(path), f"missing: {path}"
+    assert os.path.getsize(path) > 0, f"empty: {path}"
+test("fetch_resource after seed", test_fetch_after_seed)
+
+# resolve_paths(default, 2) needs all three of mask/brain/T1.
+await seed_resources([
+    "default/2mm-MNI152-2009fsl-mask.nii.gz",
+    "default/2mm-MNI152-2009fsl-brain.nii.gz",
+    "default/2mm-MNI152-2009fsl-T1.nii.gz",
+])
+
+def test_resolve_paths_after_seed():
+    import os
+    paths = resolve_paths("default", 2)
+    assert set(paths) == {"mask", "brain", "plot"}, f"keys={set(paths)}"
+    for k, p in paths.items():
+        assert os.path.exists(p), f"{k} missing: {p}"
+test("resolve_paths after seed", test_resolve_paths_after_seed)
+
+# ------------------------------------------------------------------
+# 6. Optional-extras gating
 # ------------------------------------------------------------------
 # These should be NOT installed in the default Pyodide env — the split in
 # pyproject.toml moved them out of the core deps. We only verify import
