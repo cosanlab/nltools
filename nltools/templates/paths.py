@@ -7,7 +7,7 @@ Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
 
 import re
 
-from .fetch import fetch_nifti
+from .fetch import fetch_resource
 from .registry import SUPPORTED_RESOLUTIONS, VERSION_MAP, VERSION_TO_TEMPLATE
 
 
@@ -38,7 +38,7 @@ def resolve_paths(template: str, resolution: int) -> dict[str, str]:
     res_str = f"{resolution}mm"
 
     return {
-        key: fetch_nifti(
+        key: fetch_resource(
             f"{template}/{res_str}-MNI152-2009{version}-{file_type}.nii.gz"
         )
         for file_type, key in [("mask", "mask"), ("brain", "brain"), ("T1", "plot")]

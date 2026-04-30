@@ -1,10 +1,10 @@
-"""Lazy fetcher for nifti template + parcellation files hosted on HF Hub.
+"""Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
 
-Files live in the ``nltools/niftis`` dataset repo on Hugging Face. The first
-call for a given file downloads it into the local HF cache
-(``~/.cache/huggingface/hub`` by default); subsequent calls return the cached
-path without touching the network. Pin via :data:`REVISION` so cache hits
-remain stable across releases.
+Covers MNI templates, parcellation label maps, the parcel-names CSV, and
+any other resources living under huggingface.co/datasets/nltools/niftis.
+First call for a given file downloads it into the local HF cache
+(``~/.cache/huggingface/hub`` by default); subsequent calls return the
+cached path without touching the network.
 """
 
 import sys
@@ -13,12 +13,13 @@ REPO_ID = "nltools/niftis"
 REVISION = "main"
 
 
-def fetch_nifti(relpath: str) -> str:
-    """Return a local path to a nifti from the ``nltools/niftis`` HF dataset.
+def fetch_resource(relpath: str) -> str:
+    """Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
     Args:
         relpath: Path within the dataset repo, e.g.
-            ``'default/2mm-MNI152-2009fsl-mask.nii.gz'``.
+            ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or
+            ``'masks/k88_parcel_names.csv'``.
 
     Returns:
         Absolute path to the cached file on disk.
