@@ -150,7 +150,7 @@ def plot_designmatrix(
         **kwargs: Additional keyword arguments passed to seaborn.heatmap().
 
     Returns:
-        matplotlib.axes.Axes: The axes object containing the heatmap.
+        matplotlib.figure.Figure: The figure containing the heatmap.
 
     Examples:
         >>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
@@ -188,7 +188,10 @@ def plot_designmatrix(
     ax.set_xlabel("Regressors")
     ax.set_ylabel("Time (TRs)")
 
-    return ax
+    # Detach from pyplot so the cell's `flush_figures` post-hook doesn't
+    # render the same figure a second time alongside the returned value.
+    plt.close(fig)
+    return fig
 
 
 def to_pandas(dm: DesignMatrix):

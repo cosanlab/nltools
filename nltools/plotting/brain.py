@@ -378,9 +378,11 @@ def plot_surf(
             constrained_layout=True,
             squeeze=False,
         )
+        owns_fig = True
     else:
         axes_arr = np.asarray(axes).reshape(nrows, ncols)
         fig = axes_arr.flat[0].figure
+        owns_fig = False
 
     # --- draw each subplot -----------------------------------------------
     for r, v in enumerate(views):
@@ -423,6 +425,8 @@ def plot_surf(
     if save is not None:
         fig.savefig(save, bbox_inches="tight", facecolor="white", dpi=300)
 
+    if owns_fig:
+        plt.close(fig)
     return fig
 
 
@@ -617,12 +621,15 @@ def plot_flatmap(
         texture_left_masked = texture_left
         texture_right_masked = texture_right
 
-    # Create figure and axes
+    # Create figure and axes. Track ownership so caller-supplied axes keep
+    # their figure on pyplot's tracker.
     if axes is None:
         fig, ax = plt.subplots(1, 1, figsize=figsize)
+        owns_fig = True
     else:
         ax = axes
         fig = ax.figure
+        owns_fig = False
 
     # Plot curvature background
     if with_curvature:
@@ -707,4 +714,6 @@ def plot_flatmap(
     if save is not None:
         fig.savefig(save, bbox_inches="tight", facecolor="white", dpi=300)
 
+    if owns_fig:
+        plt.close(fig)
     return fig

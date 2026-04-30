@@ -794,7 +794,7 @@ class BrainData:
 
     def fit(
         self,
-        model='glm',
+        model="glm",
         X=None,
         cv=None,
         inplace=True,
@@ -987,7 +987,10 @@ class BrainData:
             **kwargs: Additional arguments passed to nilearn plot functions.
 
         Returns:
-            Display or matplotlib Figure.
+            matplotlib.figure.Figure: The figure object. For
+            ``method="slices"`` with multiple views, returns the last figure
+            created (each view produces a separate figure that is
+            auto-displayed in notebooks).
         """
         from .plotting import plot_brain
 

@@ -65,7 +65,9 @@ def plot_brain(
         **kwargs: Additional arguments passed to nilearn plot functions.
 
     Returns:
-        Display or matplotlib Figure.
+        matplotlib.figure.Figure: The figure object. For ``method="slices"``
+        with multiple views, returns the last figure created (each view
+        produces a separate figure that is auto-displayed in notebooks).
     """
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
@@ -128,9 +130,7 @@ def plot_brain(
             )
         cut_coords = [cut_coords[v] for v in views]
     else:
-        cut_coords = [
-            list(c) if isinstance(c, range) else c for c in cut_coords
-        ]
+        cut_coords = [list(c) if isinstance(c, range) else c for c in cut_coords]
         if len(cut_coords) != len(views):
             raise ValueError(
                 f"`cut_coords` has {len(cut_coords)} entries but view={view!r} "
@@ -150,8 +150,11 @@ def plot_brain(
     except Exception as e:
         raise RuntimeError(f"Failed to convert BrainData to NIfTI: {e}") from e
 
-    # Plot based on 'method' parameter
-    display_objects = []
+    # Collect the matplotlib figure underlying each nilearn display, so the
+    # return value has a standard `_repr_*_` path and is recognized by
+    # frontend filters. The figure we ultimately return is detached from
+    # pyplot below to avoid double-display via `flush_figures`.
+    figures = []
 
     # Prepare kwargs with title if provided
     # Remove 'how' from kwargs if present (backward compatibility)
@@ -175,9 +178,10 @@ def plot_brain(
             plot_abs=False,
             **plot_kwargs,
         )
-        display_objects.append(display_glass)
+        fig = display_glass.frame_axes.figure
         if save_paths:
-            plt.savefig(save_paths["glass"], bbox_inches="tight")
+            fig.savefig(save_paths["glass"], bbox_inches="tight")
+        figures.append(fig)
 
     elif method == "slices":
         # Background image selection (respects current brain space)
@@ -211,12 +215,19 @@ def plot_brain(
                 colorbar=colorbar,
                 **plot_kwargs,
             )
-            display_objects.append(display_slice)
+            fig = display_slice.frame_axes.figure
             if savefile:
-                plt.savefig(savefile, bbox_inches="tight")
+                fig.savefig(savefile, bbox_inches="tight")
+            figures.append(fig)
 
-    # Return last display object or None
-    return display_objects[-1] if display_objects else None
+    # Detach only the figure we return so its `_repr_*_` rendering doesn't
+    # duplicate via `flush_figures`. Any other figures (e.g. earlier
+    # per-view figures from method="slices") stay on pyplot's tracker so the
+    # cell's post-hook can display them.
+    if figures:
+        plt.close(figures[-1])
+        return figures[-1]
+    return None
 
 
 def plot_flatmap_brain(
@@ -314,11 +325,15 @@ def _plot_matplotlib(
     """
     import matplotlib.pyplot as plt
 
-    # Create axis if not provided
+    # Create axis if not provided. Track ownership so we only detach figures
+    # we created from pyplot's tracker — caller-supplied axes belong to the
+    # caller's figure lifecycle.
     if ax is None:
         fig, ax = plt.subplots(figsize=figsize)
+        owns_fig = True
     else:
         fig = ax.figure
+        owns_fig = False
 
     if method == "timeseries":
         # For single image, raise informative error
@@ -378,6 +393,8 @@ def _plot_matplotlib(
     if save:
         fig.savefig(save, bbox_inches="tight", dpi=150)
 
+    if owns_fig:
+        plt.close(fig)
     return fig
 
 

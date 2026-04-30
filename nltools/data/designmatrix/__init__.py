@@ -500,7 +500,7 @@ class DesignMatrix:
             **kwargs: Additional keyword arguments passed to seaborn.heatmap()
 
         Returns:
-            matplotlib.axes.Axes: The axes object containing the heatmap
+            matplotlib.figure.Figure: The figure containing the heatmap.
         """
         from .io import plot_designmatrix
 
