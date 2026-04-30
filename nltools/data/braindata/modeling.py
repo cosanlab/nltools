@@ -85,13 +85,17 @@ def cv(
 
 def fit(
     bd,
-    model='glm',
+    model="glm",
     X=None,
     cv=None,
     inplace=True,
     progress_bar=None,
     scale=True,
     scale_value=100.0,
+    design_clean=True,
+    design_clean_thresh=0.95,
+    design_clean_exclude_confounds=False,
+    design_clean_fill_na=0,
     **kwargs,
 ):
     """Fit a model to brain imaging data.
@@ -123,6 +127,19 @@ def fit(
             units, which is standard for fMRI analysis.
         scale_value (float, default=100.0): Target value for mean after scaling.
             Only used if scale=True.
+        design_clean (bool, default=True): GLM only. If True, run
+            ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly
+            correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed.
+            Ignored when ``model='ridge'``.
+        design_clean_thresh (float, default=0.95): GLM only. Correlation
+            threshold passed to ``DesignMatrix.clean()`` (drops if
+            ``abs(r) >= thresh``). Ignored when ``model='ridge'``.
+        design_clean_exclude_confounds (bool, default=False): GLM only. If
+            True, ``DesignMatrix.clean()`` skips confound columns when
+            checking correlations. Ignored when ``model='ridge'``.
+        design_clean_fill_na (int, float, or None, default=0): GLM only.
+            Fill value for NaNs before correlation check in
+            ``DesignMatrix.clean()``. Ignored when ``model='ridge'``.
         **kwargs (dict): Additional arguments passed to model constructor
             - Ridge: alpha, alphas, backend, random_state
             - Glm: noise_model, minimize_memory, etc.
@@ -170,7 +187,7 @@ def fit(
     from nltools.models import Ridge, Glm
 
     # Validate inputs
-    if model not in ['glm', 'ridge']:
+    if model not in ["glm", "ridge"]:
         raise TypeError("supported models are 'glm' (default) and 'ridge'")
     if X is None:
         raise TypeError("X must be provided")
@@ -185,6 +202,17 @@ def fit(
             raise ValueError(
                 f"X has {X_array.shape[0]} samples, but brain data has {bd.shape[0]} samples. "
                 f"number of samples must match."
+            )
+        if design_clean:
+            from nltools.data.designmatrix import DesignMatrix
+
+            if not isinstance(X_model, DesignMatrix):
+                X_model = DesignMatrix(X_model)
+            X_model = X_model.clean(
+                fill_na=design_clean_fill_na,
+                exclude_confounds=design_clean_exclude_confounds,
+                thresh=design_clean_thresh,
+                verbose=bd.verbose,
             )
     else:
         # Ridge: handle list (banded ridge) or array (regular ridge)
