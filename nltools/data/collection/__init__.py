@@ -447,167 +447,27 @@ class BrainCollection:
         Returns:
             BrainData for single-image access, BrainCollection for multi-image.
         """
-        # String key: lookup by metadata
-        if isinstance(key, str):
-            return self._getitem_by_metadata(key)
+        from .indexing import getitem
 
-        # Tuple: multi-dimensional indexing
-        if isinstance(key, tuple):
-            return self._getitem_multidim(key)
-
-        # Single index
-        if isinstance(key, int):
-            return self._load_item(key)
-
-        # Slice or list
-        if isinstance(key, slice):
-            indices = range(*key.indices(len(self)))
-            return self._subset(list(indices))
-
-        if isinstance(key, (list, np.ndarray)):
-            return self._subset(list(key))
-
-        raise TypeError(f"Invalid index type: {type(key).__name__}")
+        return getitem(self, key)
 
     def _getitem_by_metadata(self, key: str) -> BrainData:
         """Get item by metadata value (e.g., subject ID)."""
-        for col in ["subject", "subject_id", "sub", "id"]:
-            if col in self._metadata.columns:
-                mask = (self._metadata[col] == key).to_numpy()
-                match_idx = np.flatnonzero(mask)
-                if len(match_idx) == 1:
-                    return self._load_item(int(match_idx[0]))
-                if len(match_idx) > 1:
-                    raise KeyError(
-                        f"Multiple images match '{key}' in column '{col}'. "
-                        "Use integer indexing or more specific key."
-                    )
-        raise KeyError(
-            f"No image found for key '{key}'. "
-            "Ensure metadata has 'subject' column or use integer indexing."
-        )
+        from .indexing import getitem_by_metadata
+
+        return getitem_by_metadata(self, key)
 
     def _getitem_multidim(self, key: tuple) -> BrainData | BrainCollection:
         """Handle multi-dimensional indexing: bc[i, j] or bc[i, j, k]."""
-        if len(key) == 0:
-            raise IndexError("Empty index")
+        from .indexing import getitem_multidim
 
-        # First dimension: images
-        img_key = key[0]
-
-        # Single image case
-        if isinstance(img_key, int):
-            bd = self._load_item(img_key)
-
-            if len(key) == 1:
-                return bd
-
-            # Observation indexing
-            obs_key = key[1]
-            if isinstance(obs_key, int):
-                # Single observation
-                if bd.data.ndim == 1:
-                    if obs_key != 0:
-                        raise IndexError(
-                            f"Observation index {obs_key} out of range for single image"
-                        )
-                    sliced_data = bd.data
-                else:
-                    sliced_data = bd.data[obs_key]
-
-                # Return as BrainData with single observation
-                from ..braindata import BrainData
-
-                result = BrainData(mask=bd.mask)
-                result.data = sliced_data
-                return result
-
-            if isinstance(obs_key, slice):
-                # Slice observations
-                from ..braindata import BrainData
-
-                if bd.data.ndim == 1:
-                    sliced_data = bd.data[np.newaxis, :][obs_key]
-                else:
-                    sliced_data = bd.data[obs_key]
-
-                result = BrainData(mask=bd.mask)
-                result.data = sliced_data
-                return result
-
-            raise TypeError(f"Invalid observation index type: {type(obs_key)}")
-
-        # Multiple images case
-        if isinstance(img_key, slice):
-            indices = list(range(*img_key.indices(len(self))))
-        elif isinstance(img_key, (list, np.ndarray)):
-            indices = list(img_key)
-        else:
-            raise TypeError(f"Invalid image index type: {type(img_key)}")
-
-        # Create subset collection
-        subset = self._subset(indices)
-
-        if len(key) == 1:
-            return subset
-
-        # Apply observation slicing to each image
-        obs_key = key[1]
-        if isinstance(obs_key, (int, slice)):
-            # Apply obs indexing via apply
-            def slice_obs(bd: BrainData) -> BrainData:
-                """Slice observations from a BrainData object using the captured obs_key.
-
-                Handles 1-D data by temporarily expanding to 2-D before indexing.
-
-                Args:
-                    bd: BrainData object to slice.
-
-                Returns:
-                    New BrainData containing only the selected observation(s).
-                """
-                from ..braindata import BrainData
-
-                if bd.data.ndim == 1:
-                    data = bd.data[np.newaxis, :]
-                else:
-                    data = bd.data
-
-                if isinstance(obs_key, int):
-                    sliced = data[obs_key]
-                else:
-                    sliced = data[obs_key]
-
-                result = BrainData(mask=bd.mask)
-                result.data = sliced
-                return result
-
-            # Apply without creating new collection
-            new_items = [slice_obs(subset._load_item(i)) for i in range(len(subset))]
-            return BrainCollection(
-                new_items, mask=self._mask, metadata=subset._metadata
-            )
-
-        raise TypeError(f"Invalid observation index type: {type(obs_key)}")
+        return getitem_multidim(self, key)
 
     def _subset(self, indices: list[int]) -> BrainCollection:
         """Create a new BrainCollection with subset of items."""
-        new_items = [self._items[i] for i in indices]
-        if self._metadata.is_empty():
-            new_metadata = self._metadata
-        else:
-            new_metadata = self._metadata[list(indices)]
+        from .indexing import subset
 
-        # Create new collection without re-validating
-        new_bc = object.__new__(BrainCollection)
-        new_bc._mask = self._mask
-        new_bc._n_voxels = self._n_voxels
-        new_bc._items = new_items
-        new_bc._is_loaded = [self._is_loaded[i] for i in indices]
-        new_bc._sample_counts = [self._sample_counts[i] for i in indices]
-        new_bc._metadata = new_metadata
-
-        return new_bc
+        return subset(self, indices)
 
     # =========================================================================
     # Construction Class Methods
