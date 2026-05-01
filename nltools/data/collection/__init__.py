@@ -19,7 +19,6 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
-    TypeVar,
     Any,
 )
 from collections.abc import Iterator, Generator
@@ -45,8 +44,6 @@ if TYPE_CHECKING:
 
 # Lazy imports for optional dependencies
 tqdm = attempt_to_import("tqdm", "tqdm")
-
-T = TypeVar("T")
 
 
 class BrainCollection:
