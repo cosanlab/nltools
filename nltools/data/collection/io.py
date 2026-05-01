@@ -1,12 +1,16 @@
-"""I/O functions for BrainCollection.
+"""I/O and memory-management functions for BrainCollection.
 
-Provides save path resolution and write functionality extracted from BrainCollection.
+Save path resolution, on-disk write, and lazy load/unload helpers extracted
+from BrainCollection. All BrainCollection I/O methods converted to functions
+taking ``bc`` as first argument.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 if TYPE_CHECKING:
     from nltools.data.collection import BrainCollection
@@ -122,3 +126,66 @@ def write(
         metadata_out.write_csv(directory / metadata_file)
 
     return written_paths
+
+
+def memory_estimate(bc: BrainCollection) -> str:
+    """Estimate memory usage for loading all images.
+
+    Returns a human-readable string like
+    ``"12.4 GB total (1.2 GB per image avg)"``.
+    """
+    # If we know sample counts, use them; otherwise estimate from loaded
+    known_counts = [c for c in bc._sample_counts if c is not None]
+    if known_counts:
+        avg_obs = np.mean(known_counts)
+    else:
+        # Load first item to estimate
+        bc._load_item(0)
+        avg_obs = bc._sample_counts[0]
+
+    bytes_per_element = 8  # float64
+    bytes_per_image = avg_obs * bc.n_voxels * bytes_per_element
+    total_bytes = bytes_per_image * bc.n_images
+
+    def format_bytes(b: float) -> str:
+        if b >= 1e9:
+            return f"{b / 1e9:.1f} GB"
+        if b >= 1e6:
+            return f"{b / 1e6:.1f} MB"
+        return f"{b / 1e3:.1f} KB"
+
+    return (
+        f"{format_bytes(total_bytes)} total "
+        f"({format_bytes(bytes_per_image)} per image avg)"
+    )
+
+
+def load(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection:
+    """Load specified images into memory. Returns the collection for chaining."""
+    idx_iter = range(len(bc._items)) if indices is None else indices
+
+    for idx in idx_iter:
+        bc._load_item(idx)
+
+    return bc
+
+
+def unload(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection:
+    """Free memory for items originally loaded from paths.
+
+    Replaces in-memory BrainData with its source path so it can be lazily
+    reloaded on next access. Items without a known source path are skipped.
+    Returns the collection for chaining.
+    """
+    from nltools.data.braindata import BrainData
+
+    idx_iter = range(len(bc._items)) if indices is None else indices
+
+    for idx in idx_iter:
+        item = bc._items[idx]
+        if isinstance(item, BrainData) and hasattr(item, "_source_path"):
+            # Can only unload if we know the original path
+            bc._items[idx] = item._source_path
+            bc._is_loaded[idx] = False
+
+    return bc

@@ -326,38 +326,9 @@ class BrainCollection:
         Returns:
             Human-readable string like "12.4 GB total (1.2 GB per image avg)"
         """
-        # If we know sample counts, use them; otherwise estimate from loaded
-        known_counts = [c for c in self._sample_counts if c is not None]
-        if known_counts:
-            avg_obs = np.mean(known_counts)
-        else:
-            # Load first item to estimate
-            self._load_item(0)
-            avg_obs = self._sample_counts[0]
+        from .io import memory_estimate
 
-        bytes_per_element = 8  # float64
-        bytes_per_image = avg_obs * self.n_voxels * bytes_per_element
-        total_bytes = bytes_per_image * self.n_images
-
-        def format_bytes(b: float) -> str:
-            """Format a byte count as a human-readable string (KB, MB, or GB).
-
-            Args:
-                b: Byte count to format.
-
-            Returns:
-                Formatted string with one decimal place and appropriate unit.
-            """
-            if b >= 1e9:
-                return f"{b / 1e9:.1f} GB"
-            if b >= 1e6:
-                return f"{b / 1e6:.1f} MB"
-            return f"{b / 1e3:.1f} KB"
-
-        return (
-            f"{format_bytes(total_bytes)} total "
-            f"({format_bytes(bytes_per_image)} per image avg)"
-        )
+        return memory_estimate(self)
 
     def load(self, indices: list[int] | None = None) -> BrainCollection:
         """
@@ -369,12 +340,9 @@ class BrainCollection:
         Returns:
             self (for chaining)
         """
-        idx_iter = range(len(self._items)) if indices is None else indices
+        from .io import load
 
-        for idx in idx_iter:
-            self._load_item(idx)
-
-        return self
+        return load(self, indices)
 
     def unload(self, indices: list[int] | None = None) -> BrainCollection:
         """
@@ -388,18 +356,9 @@ class BrainCollection:
         Returns:
             self (for chaining)
         """
-        from ..braindata import BrainData
+        from .io import unload
 
-        idx_iter = range(len(self._items)) if indices is None else indices
-
-        for idx in idx_iter:
-            item = self._items[idx]
-            if isinstance(item, BrainData) and hasattr(item, "_source_path"):
-                # Can only unload if we know the original path
-                self._items[idx] = item._source_path
-                self._is_loaded[idx] = False
-
-        return self
+        return unload(self, indices)
 
     # =========================================================================
     # Dunder Methods
