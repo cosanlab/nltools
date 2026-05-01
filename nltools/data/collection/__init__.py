@@ -624,128 +624,21 @@ class BrainCollection:
         batch_size: int | None = None,
     ) -> BrainData:
         """Aggregate across images (axis=0) using streaming algorithm."""
-        from ..braindata import BrainData
+        from .aggregation import aggregate_axis0
 
-        # Ensure all sample counts are known
-        for i in range(len(self)):
-            if self._sample_counts[i] is None:
-                self._load_item(i)
-
-        # Check uniform observation counts
-        unique_counts = set(self._sample_counts)
-        if len(unique_counts) > 1:
-            raise ValueError(
-                f"Cannot aggregate axis=0: images have variable observation counts "
-                f"{sorted(unique_counts)}. Use apply() for per-image operations."
-            )
-
-        n_obs = self._sample_counts[0]
-
-        if func == "mean":
-            # Welford's online mean algorithm
-            running_mean = np.zeros((n_obs, self.n_voxels))
-
-            iterator = range(self.n_images)
-            if tqdm is not None:
-                iterator = tqdm.tqdm(iterator, desc="Computing mean (axis=0)")
-
-            for count, i in enumerate(iterator, start=1):
-                bd = self._load_item(i)
-                data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-                delta = data - running_mean
-                running_mean += delta / count
-
-            result = BrainData(mask=self._mask)
-            result.data = running_mean
-            return result
-
-        if func == "sum":
-            running_sum = np.zeros((n_obs, self.n_voxels))
-            for i in range(self.n_images):
-                bd = self._load_item(i)
-                data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-                running_sum += data
-            result = BrainData(mask=self._mask)
-            result.data = running_sum
-            return result
-
-        if func in ("std", "var"):
-            # Welford's online variance algorithm
-            running_mean = np.zeros((n_obs, self.n_voxels))
-            running_m2 = np.zeros((n_obs, self.n_voxels))
-            count = 0
-
-            for i in range(self.n_images):
-                bd = self._load_item(i)
-                data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-                count += 1
-                delta = data - running_mean
-                running_mean += delta / count
-                delta2 = data - running_mean
-                running_m2 += delta * delta2
-
-            variance = running_m2 / max(count - 1, 1)  # Sample variance
-            result = BrainData(mask=self._mask)
-            result.data = np.sqrt(variance) if func == "std" else variance
-            return result
-
-        if func in ("min", "max"):
-            agg_func = np.minimum if func == "min" else np.maximum
-            running = None
-            for i in range(self.n_images):
-                bd = self._load_item(i)
-                data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-                if running is None:
-                    running = data.copy()
-                else:
-                    running = agg_func(running, data)
-            result = BrainData(mask=self._mask)
-            result.data = running
-            return result
-
-        if func == "median":
-            # Median requires all data in memory
-            tensor = self.to_tensor()
-            median_data = np.median(tensor, axis=0)
-            result = BrainData(mask=self._mask)
-            result.data = median_data
-            return result
-
-        raise ValueError(f"Unknown aggregation function: {func}")
+        return aggregate_axis0(self, func, batch_size)
 
     def _aggregate_axis1(self, func: str) -> BrainCollection:
         """Aggregate across observations (axis=1) per image."""
-        from ..braindata import BrainData
+        from .aggregation import aggregate_axis1
 
-        agg_func = getattr(np, func)
-        new_items = []
-
-        iterator = range(self.n_images)
-        if tqdm is not None:
-            iterator = tqdm.tqdm(iterator, desc=f"Computing {func} (axis=1)")
-
-        for i in iterator:
-            bd = self._load_item(i)
-            data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-            agg_data = agg_func(data, axis=0)
-            new_bd = BrainData(mask=self._mask)
-            new_bd.data = agg_data
-            new_items.append(new_bd)
-
-        return BrainCollection(new_items, mask=self._mask, metadata=self._metadata)
+        return aggregate_axis1(self, func)
 
     def _aggregate_axis2(self, func: str) -> np.ndarray:
         """Aggregate across voxels (axis=2) -> numpy array."""
-        agg_func = getattr(np, func)
-        results = []
+        from .aggregation import aggregate_axis2
 
-        for i in range(self.n_images):
-            bd = self._load_item(i)
-            data = bd.data if bd.data.ndim == 2 else bd.data[np.newaxis, :]
-            agg_data = agg_func(data, axis=1)  # Aggregate over voxels
-            results.append(agg_data)
-
-        return np.array(results)
+        return aggregate_axis2(self, func)
 
     def mean(
         self,
@@ -830,26 +723,9 @@ class BrainCollection:
         batch_size: int | None = None,
     ) -> BrainData | BrainCollection | np.ndarray:
         """Dispatch aggregation to appropriate axis handler."""
+        from .aggregation import aggregate
 
-        axis = self._normalize_axis(axis)
-
-        # Handle tuple of axes
-        if isinstance(axis, tuple):
-            # Sort axes to process in order
-            axes = sorted(axis)
-            result = self
-            for ax in reversed(axes):
-                # After each reduction, axis indices shift
-                result = result._aggregate(func, ax, batch_size)
-            return result
-
-        if axis == 0:
-            return self._aggregate_axis0(func, batch_size)
-        if axis == 1:
-            return self._aggregate_axis1(func)
-        if axis == 2:
-            return self._aggregate_axis2(func)
-        raise ValueError(f"Invalid axis: {axis}. Must be 0, 1, 2, or tuple.")
+        return aggregate(self, func, axis, batch_size)
 
     # =========================================================================
     # Conversion Methods
