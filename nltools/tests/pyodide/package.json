@@ -9,5 +9,8 @@
   },
   "dependencies": {
     "pyodide": "^0.27.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
   }
 }

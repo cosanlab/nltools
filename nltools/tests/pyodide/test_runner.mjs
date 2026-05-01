@@ -11,6 +11,10 @@
  * Prereq: a wheel built in dist/ (run `uv build --wheel` first).
  */
 
+// Polyfill IndexedDB so Pyodide's IDBFS works in node — required for the
+// persistent-cache tests below. Must happen before loadPyodide().
+import "fake-indexeddb/auto";
+
 import { loadPyodide } from "pyodide";
 import { readFileSync, readdirSync } from "fs";
 import { join, dirname } from "path";
@@ -219,6 +223,34 @@ def test_resolve_paths_after_seed():
     for k, p in paths.items():
         assert os.path.exists(p), f"{k} missing: {p}"
 test("resolve_paths after seed", test_resolve_paths_after_seed)
+
+# Persistence: simulate a page reload by unmounting IDBFS and resetting
+# state. After remount + syncfs(true), the file should reappear without
+# any network call — proving the cache survives in IndexedDB.
+import nltools.templates.fetch as _fetch
+import pyodide_js as _pyodide_js
+
+_seeded_path = fetch_resource(_relpath)
+_mount_point = str(_fetch._PYODIDE_CACHE_ROOT.parent)
+_pyodide_js.FS.unmount(_mount_point)
+_fetch._idbfs_mounted = False
+
+def test_unmount_clears_memfs():
+    import os
+    assert not os.path.exists(_seeded_path), (
+        f"unmount should drop in-memory copy: {_seeded_path}"
+    )
+test("unmount clears MEMFS copy", test_unmount_clears_memfs)
+
+await _fetch._ensure_idbfs_mounted()
+
+def test_idbfs_persistence():
+    import os
+    assert os.path.exists(_seeded_path), (
+        f"file did not survive remount via IDB: {_seeded_path}"
+    )
+    assert os.path.getsize(_seeded_path) > 0
+test("file restored from IndexedDB after remount", test_idbfs_persistence)
 
 # ------------------------------------------------------------------
 # 6. Optional-extras gating
