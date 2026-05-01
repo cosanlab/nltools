@@ -27,6 +27,8 @@ from collections.abc import Iterator, Generator
 from nltools.utils import attempt_to_import
 
 # Re-exports from submodules (used by external code / tests)
+from .core import AXIS_NAMES as _AXIS_NAMES  # noqa: F401
+from .core import coerce_metadata as _coerce_metadata  # noqa: F401
 from .io import _resolve_save_path  # noqa: F401
 from .modeling import _build_subject_design_matrix, _fit_glm_by_run  # noqa: F401
 from .pipeline import (  # noqa: F401
@@ -41,64 +43,10 @@ if TYPE_CHECKING:
     from ..braindata import BrainData
 
 
-def _coerce_metadata(
-    metadata: pl.DataFrame | pd.DataFrame | dict | None,
-    n_items: int,
-) -> pl.DataFrame:
-    """Coerce metadata input to a polars DataFrame.
-
-    Accepts polars/pandas DataFrame, dict-of-columns, or None (→ empty frame
-    of length ``n_items``). Pandas is taken at the boundary as a convenience
-    affordance; internal state is always polars.
-    """
-    if metadata is None:
-        return pl.DataFrame()
-
-    if isinstance(metadata, pl.DataFrame):
-        out = metadata
-    elif isinstance(metadata, dict):
-        out = pl.DataFrame(metadata)
-    else:
-        try:
-            import pandas as pd
-        except ImportError:
-            pd = None
-        if pd is not None and isinstance(metadata, pd.DataFrame):
-            out = pl.DataFrame(
-                {str(c): metadata[c].to_numpy() for c in metadata.columns}
-            )
-        else:
-            raise TypeError(
-                "metadata must be a polars/pandas DataFrame, dict, or None. "
-                f"Received {type(metadata).__name__}"
-            )
-
-    if not out.is_empty() and out.height != n_items:
-        raise ValueError(
-            f"metadata length ({out.height}) must match items length ({n_items})"
-        )
-    return out
-
-
 # Lazy imports for optional dependencies
 tqdm = attempt_to_import("tqdm", "tqdm")
 
 T = TypeVar("T")
-
-# Axis name mapping for intuitive access
-_AXIS_NAMES = {
-    "images": 0,
-    "subjects": 0,
-    "image": 0,
-    "subject": 0,
-    "observations": 1,
-    "time": 1,
-    "timepoints": 1,
-    "obs": 1,
-    "voxels": 2,
-    "space": 2,
-    "spatial": 2,
-}
 
 
 class BrainCollection:
@@ -560,22 +508,9 @@ class BrainCollection:
         self, axis: int | str | tuple[int | str, ...]
     ) -> int | tuple[int, ...]:
         """Convert axis name to integer."""
-        if isinstance(axis, str):
-            if axis.lower() not in _AXIS_NAMES:
-                raise ValueError(
-                    f"Unknown axis name: {axis}. "
-                    f"Valid names: {list(_AXIS_NAMES.keys())}"
-                )
-            return _AXIS_NAMES[axis.lower()]
-        if isinstance(axis, tuple):
-            normalized: list[int] = []
-            for a in axis:
-                result = self._normalize_axis(a)
-                if isinstance(result, tuple):
-                    raise ValueError("Nested tuple axes are not supported")
-                normalized.append(result)
-            return tuple(normalized)
-        return axis
+        from .core import normalize_axis
+
+        return normalize_axis(axis)
 
     def _aggregate_axis0(
         self,
