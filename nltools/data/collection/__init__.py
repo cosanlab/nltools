@@ -756,49 +756,9 @@ class BrainCollection:
             >>> for batch in bc.to_tensor(batch_size=10):
             ...     process(batch)  # batch.shape = (10, 100, 50000)
         """
-        # First, ensure all sample counts are known
-        for i in range(len(self)):
-            if self._sample_counts[i] is None:
-                self._load_item(i)
+        from .conversions import to_tensor
 
-        # Check for uniform observation counts
-        unique_counts = set(self._sample_counts)
-        if len(unique_counts) > 1:
-            raise ValueError(
-                f"Cannot convert to tensor: images have variable observation counts "
-                f"{sorted(unique_counts)}. Use to_list() instead."
-            )
-
-        n_obs = self._sample_counts[0]
-
-        if batch_size is not None:
-            return self._to_tensor_batched(batch_size, n_obs)
-
-        # Full tensor
-        tensor = np.zeros((self.n_images, n_obs, self.n_voxels))
-        for i in range(self.n_images):
-            bd = self._load_item(i)
-            data = bd.data
-            if data.ndim == 1:
-                data = data[np.newaxis, :]
-            tensor[i] = data
-
-        return tensor
-
-    def _to_tensor_batched(
-        self, batch_size: int, n_obs: int
-    ) -> Generator[np.ndarray, None, None]:
-        """Generator yielding batches of the tensor."""
-        for start in range(0, self.n_images, batch_size):
-            end = min(start + batch_size, self.n_images)
-            batch_tensor = np.zeros((end - start, n_obs, self.n_voxels))
-            for i, idx in enumerate(range(start, end)):
-                bd = self._load_item(idx)
-                data = bd.data
-                if data.ndim == 1:
-                    data = data[np.newaxis, :]
-                batch_tensor[i] = data
-            yield batch_tensor
+        return to_tensor(self, batch_size)
 
     def to_list(self) -> list[BrainData]:
         """
@@ -809,7 +769,9 @@ class BrainCollection:
         Returns:
             List of BrainData objects.
         """
-        return [self._load_item(i) for i in range(len(self))]
+        from .conversions import to_list
+
+        return to_list(self)
 
     def to_stacked(self) -> BrainData:
         """
@@ -824,22 +786,9 @@ class BrainCollection:
             >>> stacked.shape
             (300, 50000)  # 3 images * 100 obs each
         """
-        from ..braindata import BrainData
+        from .conversions import to_stacked
 
-        # Collect all data
-        all_data = []
-        for i in range(len(self)):
-            bd = self._load_item(i)
-            data = bd.data
-            if data.ndim == 1:
-                data = data[np.newaxis, :]
-            all_data.append(data)
-
-        stacked_data = np.vstack(all_data)
-
-        result = BrainData(mask=self._mask)
-        result.data = stacked_data
-        return result
+        return to_stacked(self)
 
     def write(
         self,
@@ -905,53 +854,9 @@ class BrainCollection:
             >>> for batch in bc.iter_batches(batch_size=10, axis=1):
             ...     process(batch)  # batch has 10 timepoints per image
         """
-        axis = self._normalize_axis(axis)
+        from .conversions import iter_batches
 
-        if axis == 0:
-            # Batch over images
-            n_batches = int(np.ceil(self.n_images / batch_size))
-            iterator = range(n_batches)
-
-            if progress_bar and tqdm is not None:
-                iterator = tqdm.tqdm(iterator, desc="Batching images", total=n_batches)
-
-            for batch_idx in iterator:
-                start = batch_idx * batch_size
-                end = min(start + batch_size, self.n_images)
-                yield self._subset(list(range(start, end)))
-
-        elif axis == 1:
-            # Batch over observations - requires uniform obs counts
-            for i in range(len(self)):
-                if self._sample_counts[i] is None:
-                    self._load_item(i)
-
-            unique_counts = set(self._sample_counts)
-            if len(unique_counts) > 1:
-                raise ValueError(
-                    "Cannot batch over observations with variable counts. "
-                    f"Found counts: {sorted(unique_counts)}"
-                )
-
-            n_obs = self._sample_counts[0]
-            n_batches = int(np.ceil(n_obs / batch_size))
-            iterator = range(n_batches)
-
-            if progress_bar and tqdm is not None:
-                iterator = tqdm.tqdm(
-                    iterator, desc="Batching observations", total=n_batches
-                )
-
-            for batch_idx in iterator:
-                start = batch_idx * batch_size
-                end = min(start + batch_size, n_obs)
-                # Slice observations for each image
-                batch = self[:, start:end]
-                assert isinstance(batch, BrainCollection)
-                yield batch
-
-        else:
-            raise ValueError(f"Cannot batch over axis {axis}. Use axis=0 or axis=1.")
+        yield from iter_batches(self, batch_size, axis, progress_bar)
 
     # =========================================================================
     # Group Inference Methods
