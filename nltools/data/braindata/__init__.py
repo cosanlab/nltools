@@ -971,7 +971,7 @@ class BrainData:
         upper=None,
         lower=None,
         threshold=None,
-        view="xyz",
+        view="z",
         cut_coords=None,
         cmap=None,
         bg_img=None,
@@ -981,6 +981,7 @@ class BrainData:
         colorbar=True,
         save=None,
         stat="mean",
+        limit=3,
         **kwargs,
     ):
         """Plot BrainData instance using nilearn visualization or matplotlib.
@@ -992,7 +993,7 @@ class BrainData:
             threshold (float, optional): Convenience parameter for thresholding.
             view (str): For ``method="slices"``, any non-empty combination of
                 ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
-                Default: ``"xyz"``.
+                Default: ``"z"``.
             cut_coords (list or dict, optional): Cut coordinates for
                 multi-slice views. Takes precedence over ``view``-based
                 defaults. Either a list matching ``len(view)`` or a dict
@@ -1005,13 +1006,18 @@ class BrainData:
             colorbar (bool): Whether to show colorbar. Default: True.
             save (str, optional): Path to save figure(s).
             stat (str): Statistic for timeseries plots. Default: 'mean'.
+            limit (int): Maximum number of images to render when this
+                BrainData contains multiple maps and ``method`` is
+                ``"glass"`` or ``"slices"``. Default: 3. Warns when more
+                images exist than ``limit``.
             **kwargs: Additional arguments passed to nilearn plot functions.
 
         Returns:
-            matplotlib.figure.Figure: The figure object. For
-            ``method="slices"`` with multiple views, returns the last figure
-            created (each view produces a separate figure that is
-            auto-displayed in notebooks).
+            matplotlib.figure.Figure or list[matplotlib.figure.Figure]: A
+            single figure for single-image data; a list of figures for
+            multi-image data with ``method`` in ``{"glass", "slices"}``
+            (one per image for glass; one per image-and-view pair for
+            slices).
         """
         from .plotting import plot_brain
 
@@ -1031,6 +1037,7 @@ class BrainData:
             colorbar=colorbar,
             save=save,
             stat=stat,
+            limit=limit,
             **kwargs,
         )
 

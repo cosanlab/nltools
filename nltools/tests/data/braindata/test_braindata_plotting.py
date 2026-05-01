@@ -55,7 +55,7 @@ class TestBrainDataPlotting:
 
     def test_plot_custom_cut_coords(self, minimal_brain_data):
         """Test custom cut coordinates"""
-        result = minimal_brain_data[0].plot(cut_coords=[[0], [0], [0]])
+        result = minimal_brain_data[0].plot(view="xyz", cut_coords=[[0], [0], [0]])
         assert result is not None
 
     def test_plot_custom_colormap(self, minimal_brain_data):
@@ -117,10 +117,11 @@ class TestBrainDataPlotting:
     def test_plot_cut_coords_format_validation(self, minimal_brain_data):
         """Test that cut_coords format is handled correctly"""
         single_image = minimal_brain_data[0]
-        result = single_image.plot(cut_coords=[[0], [0], [0]])
+        result = single_image.plot(view="xyz", cut_coords=[[0], [0], [0]])
         assert result is not None
         result = single_image.plot(
-            cut_coords=[range(-10, 11, 5), range(-10, 11, 5), range(-10, 11, 5)]
+            view="xyz",
+            cut_coords=[range(-10, 11, 5), range(-10, 11, 5), range(-10, 11, 5)],
         )
         assert result is not None
 
@@ -186,3 +187,48 @@ class TestBrainDataPlotting:
         result = minimal_brain_data[0].plot(method="histogram", ax=ax)
         assert result is not None
         plt.close(fig)
+
+    # ==================== Multi-image rendering (limit) ====================
+
+    def test_plot_multi_image_returns_list_glass(self, minimal_brain_data):
+        """Multi-image glass plot returns a list of figures, one per image."""
+        from matplotlib.figure import Figure
+
+        with pytest.warns(UserWarning, match="plotting first"):
+            result = minimal_brain_data.plot(method="glass", limit=2)
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert all(isinstance(f, Figure) for f in result)
+
+    def test_plot_multi_image_returns_list_slices(self, minimal_brain_data):
+        """Multi-image slices plot returns one figure per image-and-view pair."""
+        from matplotlib.figure import Figure
+
+        # `minimal_brain_data` has tiny bounds; supply in-range cut_coords.
+        # `limit` caps the number of images rendered; slices still produces
+        # one figure per axis, so the list has limit*len(view) figures.
+        with pytest.warns(UserWarning, match="plotting first"):
+            result = minimal_brain_data.plot(
+                method="slices", view="xz", cut_coords=[[0], [0]], limit=2
+            )
+        assert isinstance(result, list)
+        assert len(result) == 4  # 2 images x 2 views
+        assert all(isinstance(f, Figure) for f in result)
+
+    def test_plot_multi_image_no_warning_within_limit(self, minimal_brain_data):
+        """No warning when image count is within `limit`."""
+        import warnings
+
+        sub = minimal_brain_data[:2]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            result = sub.plot(method="glass", limit=3)
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    def test_plot_single_image_still_returns_figure(self, minimal_brain_data):
+        """Single-image data continues to return a single Figure (not a list)."""
+        from matplotlib.figure import Figure
+
+        result = minimal_brain_data[0].plot(method="glass")
+        assert isinstance(result, Figure)

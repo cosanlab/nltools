@@ -19,7 +19,7 @@ def plot_brain(
     upper=None,
     lower=None,
     threshold=None,
-    view="xyz",
+    view="z",
     cut_coords=None,
     cmap=None,
     bg_img=None,
@@ -29,6 +29,7 @@ def plot_brain(
     colorbar=True,
     save=None,
     stat="mean",
+    limit=3,
     **kwargs,
 ):
     """Plot BrainData instance using nilearn visualization or matplotlib.
@@ -46,7 +47,7 @@ def plot_brain(
             Use ``upper``/``lower`` for one-sided data thresholding.
         view (str): For ``method="slices"``, any non-empty combination of
             ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
-            Default: ``"xyz"``.
+            Default: ``"z"``.
         cut_coords (list or dict, optional): Cut coordinates for multi-slice
             views. If provided, takes precedence over ``view``-based defaults.
             Either a list of per-axis coordinate sequences whose length
@@ -62,12 +63,21 @@ def plot_brain(
         save (str, optional): Path to save figure(s).
         stat (str): Statistic for timeseries plots. Valid options:
             'mean', 'median', 'std'.
+        limit (int): Maximum number of images to render when ``bd`` contains
+            multiple maps and ``method`` is ``"glass"`` or ``"slices"``.
+            Default: 3. A warning is emitted if the data has more images than
+            ``limit``. Ignored for single-image data and for matplotlib-based
+            methods (``"timeseries"``, ``"histogram"``), which already
+            aggregate across images.
         **kwargs: Additional arguments passed to nilearn plot functions.
 
     Returns:
-        matplotlib.figure.Figure: The figure object. For ``method="slices"``
-        with multiple views, returns the last figure created (each view
-        produces a separate figure that is auto-displayed in notebooks).
+        matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
+        single-image data, the figure object (last one created if
+        ``method="slices"`` produced multiple per-axis figures). For
+        multi-image data with ``method`` in ``{"glass", "slices"}``, a list
+        of figures (one per image for glass; one per image-and-view pair for
+        slices). All figures auto-display in notebooks.
     """
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
@@ -98,16 +108,6 @@ def plot_brain(
             bd, method=method, stat=stat, ax=ax, figsize=figsize, title=title, save=save
         )
 
-    # Handle thresholding (nltools band-pass semantics on the data itself)
-    if upper is not None or lower is not None:
-        obj = bd.threshold(upper=upper, lower=lower)
-    else:
-        obj = bd
-
-    # Ensure single image for plotting
-    if len(obj.shape) > 1 and obj.shape[0] > 1:
-        obj = obj[0]
-
     # Parse `view` into an ordered list of axis letters (only matters for
     # method="slices"; cheap to compute so we always do it).
     views = list(view.lower()) if isinstance(view, str) else []
@@ -137,97 +137,126 @@ def plot_brain(
                 f"requires {len(views)}."
             )
 
-    # Default colormap with auto-selection
-    if cmap is None:
-        cmap = auto_select_colormap(obj.data)
+    # Decide which images to plot. For multi-image data we render up to
+    # `limit` maps and return a list of figures so the user can see (and
+    # programmatically access) each map instead of silently dropping all
+    # but the first.
+    multi = len(bd.shape) > 1 and bd.shape[0] > 1
+    if multi:
+        n_total = bd.shape[0]
+        n_to_plot = min(n_total, limit)
+        if n_total > limit:
+            warnings.warn(
+                f"BrainData contains {n_total} images; plotting first "
+                f"{n_to_plot}. Pass `limit={n_total}` (or higher) to plot "
+                "more, or index/aggregate before calling .plot().",
+                UserWarning,
+                stacklevel=2,
+            )
+        sub_objs = [bd[i] for i in range(n_to_plot)]
+    else:
+        sub_objs = [bd]
 
-    # Handle save paths
-    save_paths = prepare_save_paths(save) if save else None
-
-    # Convert to nifti
-    try:
-        nifti_img = obj.to_nifti()
-    except Exception as e:
-        raise RuntimeError(f"Failed to convert BrainData to NIfTI: {e}") from e
+    # Resolve background image once for slices (template lookup is the same
+    # across images sharing a mask).
+    if method == "slices" and bg_img is None:
+        try:
+            bg_img = get_bg_image(bd.mask.affine)
+        except ValueError as e:
+            if "isotropic" in str(e).lower() or "isometric" in str(e).lower():
+                cfg = get_brainspace()
+                warnings.warn(
+                    f"Non-isometric voxels detected: {str(e)}. "
+                    f"Using default MNI152 template ({cfg.template}, "
+                    f"{cfg.resolution}mm) as background image. "
+                    f"To use a custom background, provide bg_img parameter.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                bg_img = cfg.brain
+            else:
+                raise
 
     # Collect the matplotlib figure underlying each nilearn display, so the
     # return value has a standard `_repr_*_` path and is recognized by
-    # frontend filters. The figure we ultimately return is detached from
-    # pyplot below to avoid double-display via `flush_figures`.
+    # frontend filters. For single-image data the last figure is detached
+    # from pyplot below to avoid double-display via `flush_figures`.
     figures = []
 
-    # Prepare kwargs with title if provided
-    # Remove 'how' from kwargs if present (backward compatibility)
-    plot_kwargs = kwargs.copy()
-    plot_kwargs.pop("how", None)  # Remove 'how' if accidentally passed
-    if title:
-        plot_kwargs["title"] = title
-    if threshold is not None:
-        plot_kwargs["threshold"] = threshold
-    # Use the BrainData mask as a transparency image so voxels outside the
-    # mask render transparent (nilearn >= 0.12). Users can override by passing
-    # their own `transparency=` kwarg.
-    plot_kwargs.setdefault("transparency", obj.mask)
+    for idx, sub in enumerate(sub_objs):
+        # Apply thresholding per-image
+        if upper is not None or lower is not None:
+            obj = sub.threshold(upper=upper, lower=lower)
+        else:
+            obj = sub
 
-    if method == "glass":
-        display_glass = plot_glass_brain(
-            nifti_img,
-            display_mode="lzry",
-            colorbar=colorbar,
-            cmap=cmap,
-            plot_abs=False,
-            **plot_kwargs,
-        )
-        fig = display_glass.frame_axes.figure
-        if save_paths:
-            fig.savefig(save_paths["glass"], bbox_inches="tight")
-        figures.append(fig)
+        cmap_use = cmap if cmap is not None else auto_select_colormap(obj.data)
+        save_paths = prepare_save_paths(save, idx if multi else None) if save else None
 
-    elif method == "slices":
-        # Background image selection (respects current brain space)
-        if bg_img is None:
-            try:
-                bg_img = get_bg_image(obj.mask.affine)
-            except ValueError as e:
-                # Handle non-isometric voxels gracefully
-                if "isotropic" in str(e).lower() or "isometric" in str(e).lower():
-                    cfg = get_brainspace()
-                    warnings.warn(
-                        f"Non-isometric voxels detected: {str(e)}. "
-                        f"Using default MNI152 template ({cfg.template}, "
-                        f"{cfg.resolution}mm) as background image. "
-                        f"To use a custom background, provide bg_img parameter.",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                    bg_img = cfg.brain
-                else:
-                    # Re-raise if it's a different ValueError
-                    raise
-        for v, c in zip(views, cut_coords):
-            savefile = save_paths["slices"][v] if save_paths else None
-            display_slice = plot_stat_map(
+        try:
+            nifti_img = obj.to_nifti()
+        except Exception as e:
+            raise RuntimeError(f"Failed to convert BrainData to NIfTI: {e}") from e
+
+        # Per-image kwargs. Use the BrainData mask as a transparency image
+        # so voxels outside the mask render transparent (nilearn >= 0.12).
+        # Users can override by passing their own `transparency=` kwarg.
+        plot_kwargs = kwargs.copy()
+        plot_kwargs.pop("how", None)
+        if multi:
+            sub_title = f"{title} (image {idx})" if title else f"image {idx}"
+        else:
+            sub_title = title
+        if sub_title:
+            plot_kwargs["title"] = sub_title
+        if threshold is not None:
+            plot_kwargs["threshold"] = threshold
+        plot_kwargs.setdefault("transparency", obj.mask)
+
+        if method == "glass":
+            display_glass = plot_glass_brain(
                 nifti_img,
-                cut_coords=c,
-                display_mode=v,
-                cmap=cmap,
-                bg_img=bg_img,
+                display_mode="lzry",
                 colorbar=colorbar,
+                cmap=cmap_use,
+                plot_abs=False,
                 **plot_kwargs,
             )
-            fig = display_slice.frame_axes.figure
-            if savefile:
-                fig.savefig(savefile, bbox_inches="tight")
+            fig = display_glass.frame_axes.figure
+            if save_paths:
+                fig.savefig(save_paths["glass"], bbox_inches="tight")
             figures.append(fig)
 
-    # Detach only the figure we return so its `_repr_*_` rendering doesn't
-    # duplicate via `flush_figures`. Any other figures (e.g. earlier
-    # per-view figures from method="slices") stay on pyplot's tracker so the
-    # cell's post-hook can display them.
-    if figures:
-        plt.close(figures[-1])
-        return figures[-1]
-    return None
+        elif method == "slices":
+            for v, c in zip(views, cut_coords):
+                savefile = save_paths["slices"][v] if save_paths else None
+                display_slice = plot_stat_map(
+                    nifti_img,
+                    cut_coords=c,
+                    display_mode=v,
+                    cmap=cmap_use,
+                    bg_img=bg_img,
+                    colorbar=colorbar,
+                    **plot_kwargs,
+                )
+                fig = display_slice.frame_axes.figure
+                if savefile:
+                    fig.savefig(savefile, bbox_inches="tight")
+                figures.append(fig)
+
+    if not figures:
+        return None
+    if multi:
+        # Leave all figures attached to pyplot's tracker so notebook
+        # auto-display via `flush_figures` renders each one. Return the
+        # list for programmatic access.
+        return figures
+    # Single image: detach only the figure we return so its `_repr_*_`
+    # rendering doesn't duplicate via `flush_figures`. Any earlier per-view
+    # figures from method="slices" stay on pyplot's tracker so the cell's
+    # post-hook can display them.
+    plt.close(figures[-1])
+    return figures[-1]
 
 
 def plot_flatmap_brain(
@@ -431,11 +460,13 @@ def auto_select_colormap(data):
     return "RdBu_r"
 
 
-def prepare_save_paths(save):
+def prepare_save_paths(save, idx=None):
     """Prepare save paths for multiple plot outputs.
 
     Args:
         save: Base save path (str or Path)
+        idx (int, optional): Image index appended as ``_img{idx}`` to the
+            base filename. Used to disambiguate saves across multiple images.
 
     Returns:
         dict: Dictionary with 'glass' and 'slices' keys containing save paths
@@ -446,6 +477,9 @@ def prepare_save_paths(save):
         filename, extension = filename.rsplit(".", 1)
     else:
         extension = "png"
+
+    if idx is not None:
+        filename = f"{filename}_img{idx}"
 
     base_path = os.path.join(path, filename) if path else filename
 
