@@ -385,16 +385,27 @@ def compute_ridge_cv(bd, X, cv, alpha=None, alphas=None, backend="auto", **kwarg
     if alpha is None:
         alpha = bd.model_.alpha if hasattr(bd.model_, "alpha") else 1.0
 
-    # Normalize cv parameter
+    # fit_intercept is forwarded transparently from the BrainData layer.
+    fit_intercept = bool(getattr(bd.model_, "fit_intercept", False))
+
+    # Normalize cv parameter. We refuse generators here with a clear
+    # message — the splitter must be re-iterable across alpha selection
+    # *and* the per-fold scoring loop, and a generator can only be
+    # consumed once.
+    if hasattr(cv, "__next__") and not hasattr(cv, "split"):
+        raise TypeError(
+            "Got a generator for `cv` (e.g. `splitter.split(X, ...)`). "
+            "Pass an sklearn CV splitter object instead — "
+            "KFold(5, shuffle=True), GroupKFold(8), etc. — so the "
+            "BrainData layer can iterate it more than once."
+        )
     if cv == "auto":
-        # cv='auto' implies alpha selection with default 5 folds
         cv_splitter = check_cv(5)
         perform_alpha_selection = True
     elif isinstance(cv, int):
         cv_splitter = check_cv(cv)
         perform_alpha_selection = alpha == "auto"
     else:
-        # Assume sklearn CV object
         cv_splitter = cv
         perform_alpha_selection = alpha == "auto"
 
@@ -416,12 +427,21 @@ def compute_ridge_cv(bd, X, cv, alpha=None, alphas=None, backend="auto", **kwarg
 
     # Perform alpha selection if requested
     if perform_alpha_selection:
-        # Use efficient ridge_cv for alpha selection
+        # Use efficient ridge_cv for alpha selection. The splitter object
+        # (not just its n_splits) is forwarded so leave-one-run-out and
+        # shuffled K-fold actually pick alphas under the user's chosen
+        # split scheme — the original code dropped this, silently using
+        # contiguous K-fold for alpha selection regardless.
         if alphas is None:
             alphas = np.logspace(-2, 4, 20)  # Default alpha grid
 
         result = ridge_cv(
-            X, bd.data, alphas=alphas, cv=cv_splitter.n_splits, parallel=parallel
+            X,
+            bd.data,
+            alphas=alphas,
+            cv=cv_splitter,
+            fit_intercept=fit_intercept,
+            parallel=parallel,
         )
 
         best_alpha = result["alpha"]
@@ -438,17 +458,25 @@ def compute_ridge_cv(bd, X, cv, alpha=None, alphas=None, backend="auto", **kwarg
     else:
         cv_results = {}
 
-    # Perform CV with fixed alpha to get predictions and per-fold scores
+    # Perform CV with fixed alpha to get predictions and per-fold scores.
+    # When fit_intercept=True we follow sklearn's convention — center on
+    # the *training* fold and apply that same offset to the test fold —
+    # so the returned predictions live on the original BOLD scale.
     fold_scores = []
     for fold_idx, (train_idx, test_idx) in enumerate(cv_splitter.split(X)):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = bd.data[train_idx], bd.data[test_idx]
 
-        # Fit Ridge on training fold
-        coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel)
-
-        # Predict on test fold
-        y_pred = X_test @ coef
+        if fit_intercept:
+            X_offset = X_train.mean(axis=0)
+            y_offset = y_train.mean(axis=0)
+            coef = ridge_svd(
+                X_train - X_offset, y_train - y_offset, alpha=alpha, parallel=parallel
+            )
+            y_pred = (X_test - X_offset) @ coef + y_offset
+        else:
+            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel)
+            y_pred = X_test @ coef
 
         # Store out-of-fold predictions
         cv_predictions[test_idx] = y_pred

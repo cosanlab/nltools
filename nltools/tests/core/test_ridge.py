@@ -385,3 +385,61 @@ def test_ridge_converges_to_ols_when_alpha_near_zero():
 
     # Should be very close to OLS (within numerical precision)
     np.testing.assert_allclose(beta_ridge_small, beta_ols, rtol=1e-4, atol=1e-4)
+
+
+# ============================================================================
+# ridge_cv: splitter forwarding + fit_intercept
+# ============================================================================
+
+
+class TestRidgeCvSplitter:
+    """ridge_cv must honor an arbitrary sklearn splitter, not just int folds."""
+
+    def _data(self, n=200, p=10, intercept=0.0, seed=0):
+        rng = np.random.default_rng(seed)
+        X = rng.standard_normal((n, p)).astype(np.float32)
+        coef = rng.standard_normal(p).astype(np.float32)
+        y = (X @ coef + intercept + 0.1 * rng.standard_normal(n)).astype(np.float32)
+        return X, y
+
+    def test_int_cv_still_works(self):
+        from nltools.algorithms.ridge import ridge_cv
+
+        X, y = self._data()
+        result = ridge_cv(X, y, alphas=np.array([0.1, 1.0, 10.0]), cv=3)
+        assert "alpha" in result
+        assert result["cv_scores"].shape == (3, 3, 1)
+
+    def test_splitter_object_honored(self):
+        """Different splitters should produce different per-fold scores."""
+        from sklearn.model_selection import KFold
+        from nltools.algorithms.ridge import ridge_cv
+
+        X, y = self._data()
+        alphas = np.array([0.1, 1.0, 10.0])
+        contig = ridge_cv(X, y, alphas=alphas, cv=KFold(5, shuffle=False))
+        shuffled = ridge_cv(
+            X, y, alphas=alphas, cv=KFold(5, shuffle=True, random_state=0)
+        )
+        assert contig["cv_scores"].shape == shuffled["cv_scores"].shape == (5, 3, 1)
+        # Per-fold scores should differ — same data, different splits.
+        assert not np.allclose(contig["cv_scores"], shuffled["cv_scores"])
+
+    def test_fit_intercept_recovers_offset(self):
+        from nltools.algorithms.ridge import ridge_cv
+
+        X, y = self._data(intercept=42.0)
+        result = ridge_cv(
+            X, y, alphas=np.array([0.01, 0.1, 1.0]), cv=5, fit_intercept=True
+        )
+        assert "intercept" in result
+        assert abs(result["intercept"] - 42.0) < 0.5
+
+    def test_generator_cv_rejected(self):
+        """A consumed-once generator can't be re-iterated for alpha sweeps."""
+        from sklearn.model_selection import KFold
+        from nltools.algorithms.ridge import ridge_cv
+
+        X, y = self._data()
+        with pytest.raises(TypeError, match="generator"):
+            ridge_cv(X, y, alphas=np.array([0.1, 1.0]), cv=KFold(5).split(X))

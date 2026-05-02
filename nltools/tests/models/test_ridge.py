@@ -223,3 +223,58 @@ class TestRidgeBackend:
 
         assert y_pred.shape == (100,)
         assert model.backend_.name in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
+
+
+class TestRidgeFitIntercept:
+    """fit_intercept must work on both fixed-α and CV paths."""
+
+    def _offset_data(self, intercept=100.0, n=200, p=10, seed=0):
+        rng = np.random.default_rng(seed)
+        X = rng.standard_normal((n, p))
+        coef = rng.standard_normal(p)
+        y = X @ coef + intercept + 0.1 * rng.standard_normal(n)
+        return X, y, coef, intercept
+
+    def test_fixed_alpha_recovers_intercept(self):
+        X, y, _, true_intercept = self._offset_data()
+        m = Ridge(alpha=0.1, fit_intercept=True).fit(X, y)
+        assert isinstance(m.intercept_, float)
+        assert abs(m.intercept_ - true_intercept) < 0.5
+        assert m.score(X, y) > 0.95
+
+    def test_fixed_alpha_no_intercept_kept_for_compat(self):
+        """fit_intercept=False stores zero — predict() works either way."""
+        X, y, _, _ = self._offset_data(intercept=0.0)
+        m = Ridge(alpha=0.1, fit_intercept=False).fit(X, y)
+        assert m.intercept_ == 0.0
+        assert m.score(X, y) > 0.95
+
+    def test_fixed_alpha_intercept_silently_failed_before(self):
+        """Regression: previously fit_intercept was silently ignored on the
+        fixed-α path, producing catastrophically negative R² when y had a
+        non-zero mean. Now should be ~1.0 on this clean data."""
+        X, y, _, _ = self._offset_data(intercept=100.0)
+        m = Ridge(alpha=0.1, fit_intercept=True).fit(X, y)
+        assert m.score(X, y) > 0.99  # would be very negative without the fix
+
+    def test_multi_target_intercept_per_column(self):
+        X, y, _, _ = self._offset_data(intercept=100.0)
+        Y = np.column_stack([y, y * 2 + 50])  # second target has intercept ≈ 250
+        m = Ridge(alpha=0.1, fit_intercept=True).fit(X, Y)
+        assert m.intercept_.shape == (2,)
+        assert abs(m.intercept_[0] - 100.0) < 0.5
+        assert abs(m.intercept_[1] - 250.0) < 1.0
+
+    def test_cv_path_recovers_intercept(self):
+        X, y, _, true_intercept = self._offset_data()
+        m = Ridge(alpha="auto", cv=5, alphas=[0.01, 0.1, 1, 10], fit_intercept=True)
+        m.fit(X, y)
+        assert isinstance(m.intercept_, float)
+        assert abs(m.intercept_ - true_intercept) < 0.5
+        assert m.score(X, y) > 0.95
+
+    def test_predict_includes_intercept(self):
+        X, y, _, true_intercept = self._offset_data(intercept=50.0)
+        m = Ridge(alpha=0.1, fit_intercept=True).fit(X, y)
+        # Predictions should land near y, not near zero.
+        assert abs(m.predict(X).mean() - y.mean()) < 1.0

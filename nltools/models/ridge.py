@@ -170,15 +170,37 @@ class Ridge(BaseModel):
                     "Banded ridge requires alpha='auto' with cross-validation. "
                     "For fixed alpha with single feature space, pass X as array, not list."
                 )
-            # Fixed alpha: use simple ridge_svd
+            # Fixed alpha: use simple ridge_svd. When fit_intercept=True we
+            # follow sklearn's convention: center X and y on the training
+            # mean, fit ridge on the centered data, then recover the
+            # intercept = y_mean - X_mean @ coef. Without this, ridge has
+            # no offset to absorb a non-zero target mean and silently
+            # produces catastrophically biased predictions.
             self.alpha_ = self.alpha
-            self.coef_ = ridge_svd(Xs[0], y, alpha=self.alpha_, parallel=self.backend_)
+            X_train = Xs[0]
+            if self.fit_intercept:
+                X_offset = X_train.mean(axis=0)
+                y_offset = y.mean(axis=0)
+                self.coef_ = ridge_svd(
+                    X_train - X_offset,
+                    y - y_offset,
+                    alpha=self.alpha_,
+                    parallel=self.backend_,
+                )
+                # coef_ is (n_features, n_targets); intercept is (n_targets,)
+                self.intercept_ = y_offset - X_offset @ self.coef_
+            else:
+                self.coef_ = ridge_svd(
+                    X_train, y, alpha=self.alpha_, parallel=self.backend_
+                )
+                self.intercept_ = np.zeros(y.shape[1], dtype=self.coef_.dtype)
             self.cv_scores_ = None
             self.deltas_ = None
 
-            # Squeeze coef_ if y was originally 1D (backward compatibility)
+            # Squeeze coef_ / intercept_ if y was originally 1D
             if y_was_1d and self.coef_.ndim == 2 and self.coef_.shape[1] == 1:
                 self.coef_ = self.coef_.squeeze(axis=1)
+                self.intercept_ = float(np.asarray(self.intercept_).squeeze())
 
             # Call parent fit to set fitted state
             super().fit(Xs[0], y)
@@ -201,6 +223,13 @@ class Ridge(BaseModel):
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
             )
+            # solve_ridge_cv centers X and y internally when fit_intercept,
+            # and the returned coefs are the centered-data coefficients.
+            # Recover intercept the standard way.
+            if self.fit_intercept:
+                self.intercept_ = y.mean(axis=0) - Xs[0].mean(axis=0) @ result["coefs"]
+            else:
+                self.intercept_ = np.zeros(y.shape[1], dtype=result["coefs"].dtype)
             self.alpha_ = result["best_alphas"]
             self.deltas_ = None
             coefs = result["coefs"]
@@ -243,13 +272,19 @@ class Ridge(BaseModel):
             self.alpha_ = None  # alphas are embedded in deltas
             coefs = result["coefs"]
             cv_scores = result["cv_scores"]
+            # Banded ridge solver returns intercept directly when requested.
+            if self.fit_intercept and "intercept" in result:
+                self.intercept_ = result["intercept"]
+            else:
+                self.intercept_ = np.zeros(y.shape[1], dtype=coefs.dtype)
 
         self.coef_ = coefs
         self.cv_scores_ = cv_scores
 
-        # Squeeze coef_ if y was originally 1D (backward compatibility)
+        # Squeeze coef_ / intercept_ if y was originally 1D
         if y_was_1d and self.coef_.ndim == 2 and self.coef_.shape[1] == 1:
             self.coef_ = self.coef_.squeeze(axis=1)
+            self.intercept_ = float(np.asarray(self.intercept_).squeeze())
 
         # Call parent fit to set fitted state
         # Use concatenated X for single feature space check
@@ -273,6 +308,10 @@ class Ridge(BaseModel):
 
         # Compute predictions
         y_pred = X @ self.coef_
+        # Intercept is 0 when fit_intercept=False, so this branch is a
+        # cheap no-op then. Stored as scalar / vector matching coef_.
+        intercept = getattr(self, "intercept_", 0.0)
+        y_pred = y_pred + intercept
 
         # Squeeze if coef_ is 1D (single target case)
         if self.coef_.ndim == 1:

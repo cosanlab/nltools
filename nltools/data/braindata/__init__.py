@@ -375,6 +375,11 @@ class BrainData:
         return self.data.shape
 
     @property
+    def size(self):
+        """Total number of elements in BrainData.data (numpy convention)."""
+        return self.data.size
+
+    @property
     def X(self):
         """Design matrix / per-image covariates as a polars DataFrame."""
         return self._X

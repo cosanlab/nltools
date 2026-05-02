@@ -30,8 +30,14 @@ References:
     - himalaya documentation: https://gallantlab.github.io/himalaya/
 """
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
 from nltools.algorithms.backends import resolve_backend
+
+if TYPE_CHECKING:
+    from sklearn.model_selection import BaseCrossValidator
 
 
 def ridge_svd(
@@ -181,7 +187,8 @@ def ridge_cv(
     y: np.ndarray,
     # Optional algorithm parameters
     alphas: np.ndarray | None = None,
-    cv: int = 5,
+    cv: "int | BaseCrossValidator" = 5,  # noqa: F821  (forward ref)
+    fit_intercept: bool = False,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
     max_gpu_memory_gb: float = 4.0,
@@ -199,7 +206,17 @@ def ridge_cv(
         y (np.ndarray): Target values with shape (n_samples,) or (n_samples, n_targets)
         alphas (np.ndarray, optional): Array of alpha values to try. If None, uses default range:
             np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000]
-        cv (int, optional): Number of cross-validation folds. Defaults to 5.
+        cv (int or sklearn CV splitter, optional): Number of folds (int) or
+            an sklearn cross-validator (anything with ``.split(X)`` and
+            ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or
+            ``GroupKFold(8)``). Splitters are honored for the actual fold
+            iteration, so leave-one-run-out and shuffled-K-fold give different
+            results from contiguous K-fold. Defaults to 5.
+        fit_intercept (bool, optional): If True, center X and y on the
+            training mean before fitting and recover the intercept after.
+            The returned ``coef`` is on the centered scale; the recovered
+            intercept is returned under the ``intercept`` key. Defaults to
+            False.
         parallel (str, optional): Execution backend.
             - None: Single-threaded NumPy (debugging/small problems)
             - "cpu": CPU-only using NumPy (default)
@@ -233,6 +250,8 @@ def ridge_cv(
         - For multi-target regression, selects alpha that maximizes mean R**2 across targets
         - When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
     """
+    from sklearn.model_selection import check_cv
+
     # Default alphas: logarithmic range from 0.01 to 10000
     if alphas is None:
         alphas = np.logspace(-2, 4, 20)
@@ -250,75 +269,84 @@ def ridge_cv(
     if single_target:
         y = y[:, np.newaxis]
 
+    # sklearn-style centering for fit_intercept. Centering happens *before*
+    # the CV split so each training fold sees data shifted by the global
+    # mean. solve_ridge_cv uses per-fold centering (more correct in tiny
+    # samples) but we keep this simpler form here — the difference is
+    # negligible on neuroimaging-sized data.
+    if fit_intercept:
+        X_offset = X.mean(axis=0)
+        y_offset = y.mean(axis=0)
+        X = X - X_offset
+        y = y - y_offset
+
     n_samples, n_features = X.shape
     n_targets = y.shape[1]
     n_alphas = len(alphas)
 
-    # Initialize CV scores array: (n_folds, n_alphas, n_targets)
-    cv_scores = np.zeros((cv, n_alphas, n_targets))
+    # Resolve cv to an sklearn splitter. ``check_cv`` accepts int or any
+    # sklearn-compatible splitter; everything else (e.g. a generator from
+    # ``splitter.split(X)``) blows up here with a clearer error than
+    # AttributeError later.
+    if hasattr(cv, "__next__") and not hasattr(cv, "split"):
+        raise TypeError(
+            "ridge_cv received a generator for `cv`. Pass an sklearn CV "
+            "splitter object (e.g. KFold(5, shuffle=True), GroupKFold(8)) "
+            "rather than the result of `splitter.split(X, ...)` — the "
+            "splitter must be re-iterable across alphas."
+        )
+    cv_splitter = check_cv(cv) if isinstance(cv, int) else cv
+    n_splits = cv_splitter.get_n_splits()
 
-    # Create fold indices
-    fold_size = n_samples // cv
-    indices = np.arange(n_samples)
+    # Initialize CV scores array: (n_splits, n_alphas, n_targets)
+    cv_scores = np.zeros((n_splits, n_alphas, n_targets))
 
-    # Perform cross-validation
-    for fold in range(cv):
-        # Create train/test split
-        test_start = fold * fold_size
-        test_end = test_start + fold_size if fold < cv - 1 else n_samples
-        test_idx = indices[test_start:test_end]
-        train_idx = np.concatenate([indices[:test_start], indices[test_end:]])
+    # Convert backend to parallel parameter for ridge_svd
+    parallel_param = "gpu" if backend.name.startswith("torch") else "cpu"
 
+    # Perform cross-validation using whatever splitter the caller passed —
+    # this is the fix that makes shuffled K-fold and leave-one-run-out
+    # actually do what the user asked.
+    for fold, (train_idx, test_idx) in enumerate(cv_splitter.split(X)):
         X_train, X_test = X[train_idx], X[test_idx]
         y_train, y_test = y[train_idx], y[test_idx]
 
-        # Try each alpha
         for i, alpha in enumerate(alphas):
-            # Fit model
-            # Convert backend to parallel parameter for ridge_svd
-            # Backend handles MPS/CUDA/CPU gracefully, but ridge_svd expects simple parallel param
-            if backend.name.startswith("torch"):
-                parallel_param = (
-                    "gpu"  # Backend will use GPU/MPS if available, CPU otherwise
-                )
-            else:
-                parallel_param = "cpu"
             coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel_param)
-
-            # Predict and score
-            # Note: y_train is already 2D (n, 1) for single target, so coef is (n_features, 1)
             if coef.ndim == 1:
                 coef = coef[:, np.newaxis]
-
             y_pred = X_test @ coef
-
-            # Calculate R**2 for each target
             for t in range(n_targets):
                 ss_res = np.sum((y_test[:, t] - y_pred[:, t]) ** 2)
                 ss_tot = np.sum((y_test[:, t] - y_test[:, t].mean()) ** 2)
-                r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
-                cv_scores[fold, i, t] = r2
+                cv_scores[fold, i, t] = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
 
     # Select best alpha: maximize mean R**2 across folds and targets
-    mean_scores = cv_scores.mean(axis=(0, 2))  # Average over folds and targets
+    mean_scores = cv_scores.mean(axis=(0, 2))
     best_idx = np.argmax(mean_scores)
     best_alpha = alphas[best_idx]
 
-    # Fit final model on full data
-    # Convert backend to parallel parameter for ridge_svd
-    if backend.name.startswith("torch"):
-        parallel_param = "gpu"
-    else:
-        parallel_param = "cpu"
+    # Fit final model on full (centered, if applicable) data
     coef_final = ridge_svd(X, y, alpha=best_alpha, parallel=parallel_param)
+
+    # Recover intercept on the original (uncentered) scale
+    intercept = None
+    if fit_intercept:
+        coef_2d = coef_final if coef_final.ndim == 2 else coef_final[:, np.newaxis]
+        intercept = y_offset - X_offset @ coef_2d
 
     # Return to original shape for single-target
     if single_target:
         coef_final = coef_final.squeeze()
+        if intercept is not None:
+            intercept = float(np.asarray(intercept).squeeze())
 
-    return {
+    result = {
         "alpha": float(best_alpha),
         "coef": coef_final,
         "cv_scores": cv_scores,
         "backend": backend.name,
     }
+    if intercept is not None:
+        result["intercept"] = intercept
+    return result

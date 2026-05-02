@@ -831,3 +831,73 @@ class TestBrainDataTTest:
         )
         with pytest.raises(ValueError, match="n_voxels"):
             minimal_brain_data.ttest2(other)
+
+
+class TestBrainDataRidgeCV:
+    """Splitter forwarding, generator rejection, and .size."""
+
+    def test_size_property(self, minimal_brain_data):
+        assert minimal_brain_data.size == minimal_brain_data.data.size
+
+    def test_splitter_object_changes_alpha_selection(self, minimal_brain_data):
+        """Different CV schemes produce different per-alpha scores."""
+        n = minimal_brain_data.shape[0]
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((n, 8))
+
+        b1 = minimal_brain_data.copy()
+        b1.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=np.logspace(-2, 4, 10),
+            cv=KFold(5, shuffle=False),
+            scale=False,
+        )
+        b2 = minimal_brain_data.copy()
+        b2.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=np.logspace(-2, 4, 10),
+            cv=KFold(5, shuffle=True, random_state=0),
+            scale=False,
+        )
+        # Same data, different splits → different alpha_scores.
+        assert not np.allclose(
+            b1.cv_results_["alpha_scores"], b2.cv_results_["alpha_scores"]
+        )
+
+    def test_generator_cv_rejected(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((n, 5))
+        gen = KFold(5).split(X)
+        with pytest.raises(TypeError, match="generator"):
+            minimal_brain_data.fit(
+                model="ridge", X=X, alpha="auto", cv=gen, scale=False
+            )
+
+    def test_fit_intercept_propagates_to_cv_path(self, minimal_brain_data):
+        """fit_intercept=True is forwarded through compute_ridge_cv."""
+        n = minimal_brain_data.shape[0]
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((n, 5))
+
+        # Non-trivial BOLD offset — without fit_intercept, CV path
+        # produces strongly biased predictions (the original bug).
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=np.logspace(-2, 2, 6),
+            cv=KFold(5, shuffle=True, random_state=0),
+            scale=False,
+            fit_intercept=True,
+        )
+        # Held-out predictions live on the original BOLD scale.
+        preds = bd.cv_results_["predictions"].data
+        assert abs(preds.mean() - 100.0) < 5.0
