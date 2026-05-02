@@ -13,6 +13,23 @@ DEFAULT_SLICE_CUT_COORDS = {
 }
 
 
+def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
+    """Raise if ``bd`` is not in a standard MNI space supported by templates.
+
+    Used to gate plotting paths that draw against MNI-aligned scaffolding
+    (glass-brain outlines, fsaverage surfaces, template backgrounds).
+    Native-space data would render in misleading positions.
+    """
+    from nltools.templates import is_standard_space
+
+    ok, reason = is_standard_space(bd.mask.affine)
+    if ok:
+        return
+    raise ValueError(
+        f"{op_name} requires data in standard MNI space, but {reason}. {remedy}"
+    )
+
+
 def plot_brain(
     bd,
     method="glass",
@@ -82,7 +99,7 @@ def plot_brain(
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
 
-    from nltools.templates import get_bg_image, get_brainspace
+    from nltools.templates import get_bg_image
 
     # Validate inputs
     if bd.is_empty:
@@ -157,25 +174,44 @@ def plot_brain(
     else:
         sub_objs = [bd]
 
-    # Resolve background image once for slices (template lookup is the same
-    # across images sharing a mask).
-    if method == "slices" and bg_img is None:
-        try:
-            bg_img = get_bg_image(bd.mask.affine)
-        except ValueError as e:
-            if "isotropic" in str(e).lower() or "isometric" in str(e).lower():
-                cfg = get_brainspace()
+    # Standard-space gate. Glass brain draws an MNI-shape outline, and the
+    # default slice background is looked up from the MNI template registry
+    # — both are misleading on native-space data. Slices with a user-
+    # supplied bg_img work for any space and are the documented escape
+    # hatch (see Miyawaki / native-space tutorials).
+    from nltools.templates import is_standard_space
+
+    standard, reason = is_standard_space(bd.mask.affine)
+    if not standard:
+        if method == "glass":
+            if bg_img is not None:
                 warnings.warn(
-                    f"Non-isometric voxels detected: {str(e)}. "
-                    f"Using default MNI152 template ({cfg.template}, "
-                    f"{cfg.resolution}mm) as background image. "
-                    f"To use a custom background, provide bg_img parameter.",
+                    f"method='glass' requires standard MNI space ({reason}); "
+                    f"falling back to method='slices' with the bg_img you "
+                    "provided.",
                     UserWarning,
                     stacklevel=2,
                 )
-                bg_img = cfg.brain
+                method = "slices"
             else:
-                raise
+                raise ValueError(
+                    f"method='glass' requires data in standard MNI space, "
+                    f"but {reason}. Pass method='slices' with "
+                    f"bg_img=<your subject anatomical>, or call "
+                    f"bd.resample() to bring data into standard space first."
+                )
+        elif method == "slices" and bg_img is None:
+            raise ValueError(
+                f"Cannot auto-resolve a background image for non-standard-"
+                f"space data ({reason}). Pass "
+                f"bg_img=<your subject anatomical>, or call bd.resample() "
+                f"to bring data into standard space first."
+            )
+
+    # Resolve background image once for slices (template lookup is the same
+    # across images sharing a mask).
+    if method == "slices" and bg_img is None:
+        bg_img = get_bg_image(bd.mask.affine)
 
     # Collect the matplotlib figure underlying each nilearn display, so the
     # return value has a standard `_repr_*_` path and is recognized by
@@ -312,6 +348,18 @@ def plot_flatmap_brain(
 
     if bd.is_empty:
         raise ValueError("Cannot plot empty BrainData object")
+
+    _require_standard_space(
+        bd,
+        "plot_flatmap",
+        remedy=(
+            "Flatmap projection samples vol_to_surf at fsaverage (MNI-"
+            "aligned) coordinates and produces garbage on native-space "
+            "data. Use bd.plot(method='slices', bg_img=<your subject "
+            "anatomical>) instead, or call bd.resample() to bring data "
+            "into standard space first."
+        ),
+    )
 
     return plot_flatmap(
         brain=bd,

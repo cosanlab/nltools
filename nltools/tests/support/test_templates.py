@@ -329,3 +329,47 @@ class TestGetBgImage:
         cfg = BrainSpaceConfig(template="fmriprep", resolution=2)
         path = get_bg_image(_isotropic_affine(2.0), img_type="brain", config=cfg)
         assert "fmriprep" in path
+
+
+# ---------------------------------------------------------------------------
+# is_standard_space
+# ---------------------------------------------------------------------------
+
+
+class TestIsStandardSpace:
+    """Gate predicate used by plotting paths to refuse non-MNI data."""
+
+    def test_isotropic_supported_resolutions(self):
+        from nltools.templates import is_standard_space
+
+        for mm in (1, 2, 3):
+            ok, reason = is_standard_space(_isotropic_affine(float(mm)))
+            assert ok, f"{mm}mm should be standard, got reason={reason!r}"
+            assert reason is None
+
+    def test_non_isotropic_rejected(self):
+        # Miyawaki-shaped voxels: non-isotropic in subject native space.
+        from nltools.templates import is_standard_space
+
+        aff = np.eye(4)
+        aff[0, 0] = 3.3
+        aff[1, 1] = 3.6
+        aff[2, 2] = 6.4
+        ok, reason = is_standard_space(aff)
+        assert not ok
+        assert "non-isotropic" in reason
+
+    def test_isotropic_unsupported_resolution_rejected(self):
+        # 7mm isotropic — isotropic but not in any template's supported set.
+        from nltools.templates import is_standard_space
+
+        ok, reason = is_standard_space(_isotropic_affine(7.0))
+        assert not ok
+        assert "supported MNI template resolution" in reason
+
+    def test_non_integer_resolution_rejected(self):
+        from nltools.templates import is_standard_space
+
+        ok, reason = is_standard_space(_isotropic_affine(2.5))
+        assert not ok
+        assert "integer-mm" in reason

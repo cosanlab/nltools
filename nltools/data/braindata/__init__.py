@@ -1145,6 +1145,19 @@ class BrainData:
             matplotlib.figure.Figure
         """
         from nltools.plotting import plot_surf
+        from .plotting import _require_standard_space
+
+        _require_standard_space(
+            self,
+            "plot_surf",
+            remedy=(
+                "Surface projection samples vol_to_surf at fsaverage "
+                "(MNI-aligned) coordinates and produces garbage on "
+                "native-space data. Use bd.plot(method='slices', "
+                "bg_img=<your subject anatomical>) instead, or call "
+                "bd.resample() to bring data into standard space first."
+            ),
+        )
 
         return plot_surf(
             self,

@@ -232,3 +232,71 @@ class TestBrainDataPlotting:
 
         result = minimal_brain_data[0].plot(method="glass")
         assert isinstance(result, Figure)
+
+
+# ---------------------------------------------------------------------------
+# Standard-space gate (glass / slices / flatmap / surf on native data)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def native_brain_data():
+    """BrainData on a Miyawaki-shaped (anisotropic, native) affine.
+
+    Used to exercise the standard-space plotting gate. Voxels (3.3, 3.6,
+    6.4) mm fail :func:`nltools.templates.is_standard_space`.
+    """
+    import nibabel as nib
+
+    np.random.seed(0)
+    spatial_shape = (4, 4, 3)
+    n_samples = 6
+    affine = np.diag([3.3, 3.6, 6.4, 1.0]).astype(float)
+
+    # Real binary mask (some zero voxels) so nilearn's transparency_range
+    # has a usable [0, 1] span.
+    mask_data = np.zeros(spatial_shape, dtype=np.float32)
+    mask_data[:, :, :2] = 1.0
+    mask_img = nib.Nifti1Image(mask_data, affine)
+    volume_4d = np.random.randn(*spatial_shape, n_samples).astype(np.float32)
+    nifti_img = nib.Nifti1Image(volume_4d, affine)
+    return BrainData(nifti_img, mask=mask_img)
+
+
+class TestStandardSpaceGate:
+    def test_glass_on_native_raises(self, native_brain_data):
+        with pytest.raises(ValueError, match="standard MNI space"):
+            native_brain_data[0].plot(method="glass")
+
+    def test_glass_on_native_falls_back_when_bg_img_provided(self, native_brain_data):
+        """If the user passed a bg_img, redirect glass→slices with a warning."""
+        # Use the BrainData's own mask as a stand-in bg_img — it shares the
+        # native affine so plot_stat_map renders without resampling.
+        with pytest.warns(UserWarning, match="glass.*falling back"):
+            result = native_brain_data[0].plot(
+                method="glass",
+                bg_img=native_brain_data.mask,
+                cut_coords=[[5]],
+            )
+        assert result is not None
+
+    def test_slices_no_bg_on_native_raises(self, native_brain_data):
+        with pytest.raises(ValueError, match="non-standard"):
+            native_brain_data[0].plot(method="slices", cut_coords=[0])
+
+    def test_slices_with_bg_on_native_works(self, native_brain_data):
+        """Explicit bg_img is the supported escape hatch for native data."""
+        result = native_brain_data[0].plot(
+            method="slices",
+            bg_img=native_brain_data.mask,
+            cut_coords=[[5]],
+        )
+        assert result is not None
+
+    def test_flatmap_on_native_raises(self, native_brain_data):
+        with pytest.raises(ValueError, match="standard MNI space"):
+            native_brain_data[0].plot_flatmap()
+
+    def test_surf_on_native_raises(self, native_brain_data):
+        with pytest.raises(ValueError, match="standard MNI space"):
+            native_brain_data[0].plot_surf()

@@ -105,6 +105,52 @@ def match_resolution(
     )
 
 
+def is_standard_space(
+    affine: np.ndarray,
+    *,
+    config: BrainSpaceConfig | None = None,
+) -> tuple[bool, str | None]:
+    """Check whether an affine is compatible with our MNI templates.
+
+    A "standard space" affine has isotropic voxels at one of the supported
+    template resolutions (the union of ``SUPPORTED_RESOLUTIONS``). Plotting
+    surfaces (glass brain, flatmap, surface montage) and template-driven
+    background lookup all assume this — non-isotropic or off-grid data
+    would render in misleading positions.
+
+    Args:
+        affine: 4x4 affine matrix from a NIfTI image (typically
+            ``bd.mask.affine``).
+        config: Optional explicit ``BrainSpaceConfig``; defaults to the
+            current global brain space (only the supported resolution set
+            is consulted).
+
+    Returns:
+        ``(True, None)`` if compatible; otherwise ``(False, reason)`` with
+        ``reason`` a one-line human-readable explanation suitable for
+        embedding in an error message.
+    """
+    del config  # accepted for symmetry with get_bg_image; not needed today
+    res_array = np.abs(np.diag(affine[:3, :3]))
+    voxel_dims = np.unique(np.round(res_array, 3))
+    if len(voxel_dims) != 1:
+        zooms = tuple(round(float(r), 2) for r in res_array)
+        return False, f"voxels are non-isotropic (zooms={zooms} mm)"
+    res = float(voxel_dims[0])
+    res_int = int(round(res))
+    if abs(res - res_int) > 1e-3:
+        return False, (
+            f"voxel size {res:.3f}mm is not an integer-mm template resolution"
+        )
+    all_supported = sorted({r for rs in SUPPORTED_RESOLUTIONS.values() for r in rs})
+    if res_int not in all_supported:
+        return False, (
+            f"voxel size {res_int}mm is not a supported MNI template "
+            f"resolution (supported: {all_supported}mm)"
+        )
+    return True, None
+
+
 def get_bg_image(
     affine: np.ndarray,
     img_type: str = "brain",

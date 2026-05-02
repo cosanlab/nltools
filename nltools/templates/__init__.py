@@ -30,7 +30,7 @@ from .config import (
     with_brainspace,
 )
 from .fetch import fetch_resource, seed_resources
-from .matching import TemplateMatch, get_bg_image, match_resolution
+from .matching import TemplateMatch, get_bg_image, is_standard_space, match_resolution
 from .paths import resolve_paths, resolve_template_name
 
 __all__ = [
@@ -39,6 +39,7 @@ __all__ = [
     "fetch_resource",
     "get_bg_image",
     "get_brainspace",
+    "is_standard_space",
     "match_resolution",
     "reset_brainspace",
     "resolve_paths",
