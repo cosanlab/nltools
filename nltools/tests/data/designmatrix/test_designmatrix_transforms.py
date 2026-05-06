@@ -73,9 +73,12 @@ class TestDesignMatrixTransformations:
         - convolved list preserved
         - multi flag preserved
         """
-        dm = DesignMatrix({"stim": [1, 2, 3], "poly_0": [1, 1, 1]}, sampling_freq=2)
-        dm.confounds = ["poly_0"]
-        dm.convolved = ["stim"]
+        dm = DesignMatrix(
+            {"stim": [1, 2, 3], "poly_0": [1, 1, 1]},
+            sampling_freq=2,
+            confounds=["poly_0"],
+            convolved=["stim"],
+        )
         dm.multi = True
 
         dm_filled = dm.fillna(0)
@@ -144,9 +147,10 @@ class TestDesignMatrixStatisticalOperations:
         Rationale: Confounds (intercept, trends, motion, …) should not be standardized
         """
         dm = DesignMatrix(
-            {"stim": [1, 2, 3, 4], "poly_0": [1, 1, 1, 1]}, sampling_freq=1
+            {"stim": [1, 2, 3, 4], "poly_0": [1, 1, 1, 1]},
+            sampling_freq=1,
+            confounds=["poly_0"],
         )
-        dm.confounds = ["poly_0"]
 
         dm_z = dm.zscore()
 

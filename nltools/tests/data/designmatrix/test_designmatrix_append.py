@@ -353,40 +353,44 @@ class TestDesignMatrixAppendMetadata:
 
     def test_horizontal_append_merges_convolved(self):
         """convolved from both DMs should be preserved on horizontal append."""
-        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
-        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
-        dm1.convolved = ["a"]
-        dm2.convolved = ["b"]
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1, convolved=["a"])
+        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1, convolved=["b"])
 
         out = dm1.append(dm2, axis=1)
         assert set(out.convolved) == {"a", "b"}
 
     def test_vertical_simple_append_merges_convolved(self):
         """keep_separate=False should preserve shared convolved entries."""
-        dm1 = DesignMatrix({"stim": [1, 2, 3]}, sampling_freq=1)
-        dm2 = DesignMatrix({"stim": [4, 5, 6]}, sampling_freq=1)
-        dm1.convolved = ["stim"]
-        dm2.convolved = ["stim"]
+        dm1 = DesignMatrix({"stim": [1, 2, 3]}, sampling_freq=1, convolved=["stim"])
+        dm2 = DesignMatrix({"stim": [4, 5, 6]}, sampling_freq=1, convolved=["stim"])
 
         out = dm1.append(dm2, axis=0, keep_separate=False)
         assert out.convolved == ["stim"]
 
     def test_vertical_separation_merges_convolved_differing_names(self):
         """keep_separate=True with different convolved columns per run preserves both."""
-        dm1 = DesignMatrix({"house": [1, 0, 0]}, sampling_freq=1).add_poly(0)
-        dm1.convolved = ["house"]
-        dm2 = DesignMatrix({"face": [0, 1, 0]}, sampling_freq=1).add_poly(0)
-        dm2.convolved = ["face"]
+        dm1 = DesignMatrix(
+            {"house": [1, 0, 0]}, sampling_freq=1, convolved=["house"]
+        ).add_poly(0)
+        dm2 = DesignMatrix(
+            {"face": [0, 1, 0]}, sampling_freq=1, convolved=["face"]
+        ).add_poly(0)
 
         out = dm1.append(dm2, axis=0, keep_separate=True)
         assert set(out.convolved) == {"house", "face"}
 
     def test_vertical_separation_renames_convolved_via_unique_cols(self):
         """When unique_cols renames a convolved column, convolved should track renames."""
-        dm1 = DesignMatrix({"motion_x": [1, 2], "stim": [1, 0]}, sampling_freq=1)
-        dm1.convolved = ["motion_x"]
-        dm2 = DesignMatrix({"motion_x": [3, 4], "stim": [0, 1]}, sampling_freq=1)
-        dm2.convolved = ["motion_x"]
+        dm1 = DesignMatrix(
+            {"motion_x": [1, 2], "stim": [1, 0]},
+            sampling_freq=1,
+            convolved=["motion_x"],
+        )
+        dm2 = DesignMatrix(
+            {"motion_x": [3, 4], "stim": [0, 1]},
+            sampling_freq=1,
+            convolved=["motion_x"],
+        )
 
         out = dm1.append(dm2, axis=0, unique_cols=["motion_x"])
         assert set(out.convolved) == {"0_motion_x", "1_motion_x"}

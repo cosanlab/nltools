@@ -62,9 +62,12 @@ def _coerce_horizontal_input(x, sampling_freq):
     if isinstance(x, DesignMatrix):
         return x
     if isinstance(x, pl.DataFrame) or _is_pandas_dataframe(x):
-        wrapped = DesignMatrix(x, sampling_freq=sampling_freq)
-        wrapped.confounds = list(wrapped.columns)
-        return wrapped
+        # Build once, then re-wrap so we can pass `confounds=` via the
+        # constructor (the public attribute is read-only).
+        tmp = DesignMatrix(x, sampling_freq=sampling_freq)
+        return DesignMatrix(
+            tmp.data, sampling_freq=sampling_freq, confounds=list(tmp.columns)
+        )
     raise TypeError(
         "append(axis=1) expects DesignMatrix, pandas DataFrame, or polars "
         f"DataFrame; got {type(x).__name__}"

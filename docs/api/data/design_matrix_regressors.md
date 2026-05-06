@@ -22,7 +22,7 @@ Name | Description
 #### `add_dct_basis`
 
 ```python
-add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0) -> DesignMatrix
+add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
 ```
 
 Add discrete cosine transform basis functions (high-pass filter).
@@ -34,6 +34,7 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add DCT basis to. | *required*
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in :func:`add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -88,19 +89,30 @@ Name | Type | Description
 **Examples:**
 
 ```pycon
->>> # Default HRF convolution
+>>> # Default HRF convolution → produces 'stim_c0'
 >>> dm_conv = convolve(dm)
 ```
 
 ```pycon
->>> # Custom kernel
+>>> # Custom 1-D kernel → produces 'stim_c0'
 >>> kernel = np.array([0.5, 1.0, 0.5])
 >>> dm_conv = convolve(dm, conv_func=kernel)
 ```
 
 ```pycon
->>> # Multiple kernels (FIR model)
+>>> # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
 >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
->>> dm_conv = convolve(dm, conv_func=kernels)  # Creates col_c0, col_c1
+>>> dm_conv = convolve(dm, conv_func=kernels)
 ```
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Convolved columns are always renamed to ``<col>_c{i}``; the source
+column is dropped. ``dm.convolved`` records the post-suffix names
+(the columns that actually exist in the returned dataframe), so
+downstream metadata propagation through ``.append()`` stays in
+sync with the dataframe.
+
+</details>
 

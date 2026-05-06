@@ -9,6 +9,8 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
+[`events_to_dm`](#events_to_dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
+[`load_from_file`](#load_from_file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
 [`plot_designmatrix`](#plot_designmatrix) | Visualize design matrix as heatmap (SPM-style).
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
@@ -21,10 +23,73 @@ Name | Description
 
 ### Methods
 
+#### `events_to_dm`
+
+```python
+events_to_dm(events: pl.DataFrame | pd.DataFrame, *, run_length: int, sampling_freq: float) -> pl.DataFrame
+```
+
+Convert a BIDS events table to boxcar regressors aligned to TRs.
+
+Uses `nilearn.glm.first_level.make_first_level_design_matrix` with
+`hrf_model=None` to sample events onto the TR grid without HRF
+convolution — the caller is expected to call `DesignMatrix.convolve()`
+explicitly when convolution is desired. Drops nilearn's auto-added
+`constant` column; users add the intercept via `add_poly(0)`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`events` | <code>[DataFrame](#polars.DataFrame) \| [DataFrame](#pandas.DataFrame)</code> | pandas or polars DataFrame with BIDS columns `onset`, `duration`, `trial_type` (required); `modulation` is passed through if present. | *required*
+`run_length` | <code>[int](#int)</code> | Number of TRs the run contains. | *required*
+`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame)</code> | pl.DataFrame with one column per unique `trial_type`, values in
+<code>[DataFrame](#polars.DataFrame)</code> | {0, modulation} indicating where each condition is active.
+
+#### `load_from_file`
+
+```python
+load_from_file(path: str | Path, *, run_length: int | str, sampling_freq: float) -> tuple[pl.DataFrame, bool]
+```
+
+Read a TSV/CSV into the frame a DesignMatrix wraps.
+
+Dispatches on column inspection:
+
+- `onset` and `duration` both present → BIDS events → boxcar DM via
+  `events_to_dm` (unconvolved; caller convolves later).
+- otherwise → tabular file (confounds / nuisance regressors) read as-is.
+
+`run_length='infer'` is accepted only for the tabular path; events
+files must provide an explicit integer (they have a variable row count
+per run, unlike confounds which are 1 row per TR).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`path` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to a `.tsv` or `.csv` file. | *required*
+`run_length` | <code>[int](#int) \| [str](#str)</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
+`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame)</code> | Tuple of (data frame, is_events) — `is_events` signals to the
+<code>[bool](#bool)</code> | caller that the columns are experimental regressors rather than
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | nuisance.
+
 #### `plot_designmatrix`
 
 ```python
-plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), **kwargs: tuple)
+plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), *, rescale: bool = True, **kwargs: bool)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -38,13 +103,14 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 `figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height) in inches. Default: (8, 6). | <code>(8, 6)</code>
+`rescale` | <code>[bool](#bool)</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (matches SPM/nilearn convention). Default: True. | <code>True</code>
 `**kwargs` |  | Additional keyword arguments passed to seaborn.heatmap(). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | matplotlib.axes.Axes: The axes object containing the heatmap.
+ | matplotlib.figure.Figure: The figure containing the heatmap.
 
 **Examples:**
 
@@ -155,7 +221,7 @@ Type | Description
 <summary>Notes</summary>
 
 TSV format is recommended for BIDS compatibility.
-HDF5 format preserves metadata (sampling_freq, convolved, polys).
+HDF5 format preserves metadata (sampling_freq, convolved, confounds).
 
 </details>
 

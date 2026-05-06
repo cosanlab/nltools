@@ -370,6 +370,57 @@ DesignMatrix(sampling_freq=0.5, shape=(200, 6))
 
 **`BrainData.X = dm` now works.** The `.X` setter previously rejected `DesignMatrix` with `TypeError`; v0.6.0 unwraps it to `dm.data` (the underlying polars DataFrame). DM-specific metadata isn't preserved on `BrainData.X`, but you no longer need the explicit `.data` step.
 
+(designmatrix-confounds-readonly)=
+### DesignMatrix `.convolved` and `.confounds` are read-only
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — direct assignment now raises `AttributeError`
+
+The `.convolved` and `.confounds` lists are managed by `.convolve()`, `.append()`, `.add_poly()`, and `.add_dct_basis()`. Direct mutation was a foot-gun (the v0.5.1 PPI-style flow needed `dm.convolved = list(other.columns)` after a `pd.concat` round-trip clobbered metadata) and is now disallowed.
+
+```python
+# OLD (v0.5.1) — silently mutates state, easy to forget when columns later get renamed
+combined = DesignMatrix(
+    pd.concat([dm_task.to_pandas(), motion, csf, spikes], axis=1),
+    sampling_freq=0.5,
+)
+combined.convolved = list(dm_task.columns)   # manual re-assert after pd.concat
+combined.confounds = list(motion.columns) + ["csf"] + list(spikes.columns)
+
+# NEW (v0.6.0) — append manages both lists for you
+combined = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
+# combined.convolved → ['stim_c0', ...]
+# combined.confounds → ['motion_tx', ..., 'csf', 'spike_0', ..., 'poly_0', ...]
+```
+
+If you really need to set initial state explicitly, pass `convolved=` / `confounds=` to the constructor — those kwargs still work (and `copy_with` uses them internally for metadata propagation):
+
+```python
+dm = DesignMatrix(arr, sampling_freq=0.5, columns=cols, confounds=["intercept"])
+```
+
+The error message points to the canonical replacement:
+
+```text
+AttributeError: DesignMatrix.confounds is read-only. Pass `confounds=...` to the
+constructor, or use `.append(other_dm, axis=1, as_confounds=True)` /
+`.append(raw_df, axis=1)` (raw frames are auto-marked) to register confound regressors.
+```
+
+(designmatrix-copy-constructor)=
+### `DesignMatrix(other_dm)` is now a copy-constructor
+
+**Status**: ✅ NEW (v0.6.0) — additive, no migration required
+
+Passing a `DesignMatrix` to the constructor returns an independent copy with `data`, `sampling_freq`, `convolved`, `confounds`, and `multi` carried over. Explicit kwargs override inherited values. This matches the pandas `pd.DataFrame(other_df)` idiom and short-circuits the v0.5.1 "wrap it again to reset metadata" pattern (which dropped metadata on the floor).
+
+```python
+copy = DesignMatrix(dm)                          # full copy, all metadata preserved
+copy = DesignMatrix(dm, sampling_freq=1.0)       # override sampling_freq, keep the rest
+copy = DesignMatrix(dm, convolved=[])            # clear convolved, keep confounds
+```
+
+In v0.5.1 this raised `TypeError: Unsupported data type`.
+
 (designmatrix-convolve-suffix)=
 ### DesignMatrix.convolve() always suffixes `_c{i}`
 
@@ -1540,6 +1591,8 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 - [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
 - [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf).convolve()` (or pass in-memory DataFrames via `events_to_dm(...)` from `nltools.data.designmatrix.io`). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
+- [ ] Replace any direct `dm.convolved = …` / `dm.confounds = …` assignments with the constructor kwargs (`convolved=`, `confounds=`) or with `.append(other, axis=1)` — the attributes are now read-only properties. See [DesignMatrix .convolved / .confounds are read-only](#designmatrix-confounds-readonly).
+- [ ] Replace `pd.concat([dm.to_pandas(), confounds_df], axis=1) → DesignMatrix(...)` with `dm.append(confounds_df, axis=1)` (raw DataFrames are auto-marked as confounds; metadata is preserved).
 - [ ] Update column lookups after `.convolve()`: `dm_conv["stim"]` → `dm_conv["stim_c0"]`. Includes `compute_contrasts("A - B")` strings → `compute_contrasts("A_c0 - B_c0")`. See [DesignMatrix.convolve() always suffixes](#designmatrix-convolve-suffix).
 - [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`

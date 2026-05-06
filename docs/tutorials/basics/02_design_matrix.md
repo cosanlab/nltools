@@ -185,3 +185,46 @@ combined.plot();
 ```
 
 Notice how all `poly` columns are kept separated but `face` and `house` regressors have been stacked so that a single estimate is computed across runs.
+
+## Mixing Task Regressors with External Confounds
+
+Real GLM workflows usually combine HRF-convolved task regressors with confound regressors that come from external preprocessing — head motion parameters, spike regressors, CSF/WM signals, physio. The canonical pattern is `.append(axis=1)`: it accepts a `DesignMatrix` *or* a raw pandas / polars DataFrame, automatically marks the appended columns as confounds (so they're skipped by `.convolve()` and kept separate per run on a later vertical append), and merges the `convolved` / `confounds` metadata correctly.
+
+```{code-cell} python3
+import pandas as pd
+
+# 1. Convolve task regressors. Convolved columns get a `_c0` suffix; .convolved tracks them.
+dm_task = dm.convolve()
+print(dm_task)
+```
+
+```{code-cell} python3
+# 2. Confound regressors typically arrive as pandas DataFrames from your preprocessing pipeline.
+n_tr = dm_task.shape[0]
+rng = np.random.default_rng(0)
+motion = pd.DataFrame(
+    rng.normal(size=(n_tr, 6)),
+    columns=[f'motion_{ax}' for ax in ['tx','ty','tz','rx','ry','rz']],
+)
+csf = pd.DataFrame({'csf': rng.normal(size=n_tr)})
+spikes = pd.DataFrame({f'spike_{i}': (np.arange(n_tr) == i*5).astype(float) for i in range(2)})
+
+# 3. Append them all at once, then add drift terms. No `pd.concat` round-trip needed —
+#    raw DataFrames are auto-wrapped and their columns are tracked as confounds.
+dm_full = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
+print(dm_full)
+```
+
+`dm_full.convolved` records the HRF-convolved task regressors, `dm_full.confounds` records the motion / spike / CSF / drift columns. Both are managed by `.convolve()` / `.append()` / `.add_poly()`; they're read-only properties — pass `convolved=` or `confounds=` to the constructor if you ever need to set initial state directly.
+
+```{code-cell} python3
+dm_full.plot();
+```
+
+If your confounds are already a `DesignMatrix` (e.g. you built them with `.add_poly()` or read them in via the file-path constructor), pass them in the same way — `as_confounds=True` is the explicit knob to mark a `DesignMatrix`'s columns as confounds even when its own `confounds` list is empty:
+
+```{code-cell} python3
+motion_dm = DesignMatrix(motion, sampling_freq=dm.sampling_freq)
+dm_full2 = dm_task.append(motion_dm, axis=1, as_confounds=True)
+print(dm_full2.confounds)
+```

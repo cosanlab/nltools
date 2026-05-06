@@ -95,7 +95,8 @@ class DesignMatrix:
 
     def __init__(
         self,
-        data: pl.DataFrame
+        data: DesignMatrix
+        | pl.DataFrame
         | pd.DataFrame
         | np.ndarray
         | dict
@@ -110,20 +111,32 @@ class DesignMatrix:
         convolved: list[str] | None = None,
         confounds: list[str] | None = None,
     ):
-        """Initialize DesignMatrix from various input types."""
+        """Initialize DesignMatrix from various input types.
+
+        Passing another ``DesignMatrix`` returns a copy: ``data``,
+        ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
+        carried over. Any explicit kwarg overrides the inherited value.
+        """
         if TR is not None and sampling_freq is not None:
             raise ValueError("Pass exactly one of `TR` or `sampling_freq`, not both.")
         if TR is not None:
             sampling_freq = 1.0 / TR
 
-        # Initialize metadata
-        self.sampling_freq = sampling_freq
-        self.convolved = convolved if convolved is not None else []
-        self.confounds = confounds if confounds is not None else []
         self.multi = False
 
         # Create internal Polars DataFrame based on input type
-        if data is None:
+        if isinstance(data, DesignMatrix):
+            # Copy-constructor: inherit data + metadata; explicit kwargs override.
+            self.data = data.data.clone()
+            if sampling_freq is None:
+                sampling_freq = data.sampling_freq
+            if convolved is None:
+                convolved = list(data.convolved)
+            if confounds is None:
+                confounds = list(data.confounds)
+            self.multi = data.multi
+
+        elif data is None:
             # Empty initialization
             self.data = pl.DataFrame()
 
@@ -172,8 +185,16 @@ class DesignMatrix:
         else:
             raise TypeError(
                 f"Unsupported data type: {type(data)}. "
-                f"Expected Polars/pandas DataFrame, numpy array, dict, or None."
+                f"Expected DesignMatrix, Polars/pandas DataFrame, numpy array, "
+                f"dict, str/Path, or None."
             )
+
+        # Initialize metadata (after data dispatch so copy-constructor can
+        # populate inherited values). Stored on private attrs so the public
+        # ``.convolved`` / ``.confounds`` are read-only properties.
+        self.sampling_freq = sampling_freq
+        self._convolved = list(convolved) if convolved is not None else []
+        self._confounds = list(confounds) if confounds is not None else []
 
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
@@ -289,6 +310,45 @@ class DesignMatrix:
         """Set column names."""
         str_names = [str(name) for name in new_names]
         self.data = self.data.rename(dict(zip(self.data.columns, str_names)))
+
+    @property
+    def confounds(self) -> list[str]:
+        """Names of nuisance/confound columns (read-only).
+
+        Managed by ``.convolve()``, ``.append()``, ``.add_poly()``,
+        ``.add_dct_basis()``, and the ``confounds=`` constructor kwarg. Direct
+        assignment raises ``AttributeError`` — pass via the constructor or use
+        ``.append(other, axis=1)`` (which auto-tracks confounds when ``other``
+        is a raw pandas/polars DataFrame).
+        """
+        return self._confounds
+
+    @confounds.setter
+    def confounds(self, value):
+        raise AttributeError(
+            "DesignMatrix.confounds is read-only. Pass `confounds=...` to the "
+            "constructor, or use `.append(other_dm, axis=1, as_confounds=True)` "
+            "/ `.append(raw_df, axis=1)` (raw frames are auto-marked) to "
+            "register confound regressors."
+        )
+
+    @property
+    def convolved(self) -> list[str]:
+        """Names of HRF-convolved columns (read-only).
+
+        Managed by ``.convolve()`` and ``.append()`` (merges across inputs).
+        Direct assignment raises ``AttributeError`` — pass via the
+        ``convolved=`` constructor kwarg if you need to set initial state.
+        """
+        return self._convolved
+
+    @convolved.setter
+    def convolved(self, value):
+        raise AttributeError(
+            "DesignMatrix.convolved is read-only. Pass `convolved=...` to the "
+            "constructor, or use `.convolve()` / `.append()` which manage this "
+            "metadata automatically."
+        )
 
     @property
     def is_empty(self) -> bool:

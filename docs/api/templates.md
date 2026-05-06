@@ -29,6 +29,7 @@ Scope a change to a block::
 Name | Description
 ---- | -----------
 [`config`](#config) | Global brain-space configuration: frozen dataclass + set/get/with API.
+[`fetch`](#fetch) | Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
 [`matching`](#matching) | Affine-based template matching and background-image selection.
 [`paths`](#paths) | Pure path-resolution helpers for MNI template files.
 [`registry`](#registry) | Static registry of supported MNI templates.
@@ -44,12 +45,15 @@ Name | Description
 
 Name | Description
 ---- | -----------
+[`fetch_resource`](#fetch_resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
 [`get_bg_image`](#get_bg_image) | Get a background image path matching a data resolution.
 [`get_brainspace`](#get_brainspace) | Return the current global brain-space configuration.
+[`is_standard_space`](#is_standard_space) | Check whether an affine is compatible with our MNI templates.
 [`match_resolution`](#match_resolution) | Find the best matching template for a given affine matrix.
 [`reset_brainspace`](#reset_brainspace) | Reset the global brain-space configuration to defaults.
 [`resolve_paths`](#resolve_paths) | Build mask/brain/plot paths for a template + resolution.
 [`resolve_template_name`](#resolve_template_name) | Resolve a template name string to a file path.
+[`seed_resources`](#seed_resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 [`set_brainspace`](#set_brainspace) | Set the global brain-space configuration.
 [`with_brainspace`](#with_brainspace) | Temporarily change the global brain-space configuration.
 
@@ -73,6 +77,26 @@ Name | Type | Description
 [`resolution`](#resolution) | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
 
 ### Methods
+
+#### `fetch_resource`
+
+```python
+fetch_resource(relpath: str) -> str
+```
+
+Return a local path to a file from the ``nltools/niftis`` HF dataset.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Absolute path to the cached file on disk.
 
 #### `get_bg_image`
 
@@ -107,6 +131,35 @@ get_brainspace() -> BrainSpaceConfig
 ```
 
 Return the current global brain-space configuration.
+
+#### `is_standard_space`
+
+```python
+is_standard_space(affine: np.ndarray, *, config: BrainSpaceConfig | None = None) -> tuple[bool, str | None]
+```
+
+Check whether an affine is compatible with our MNI templates.
+
+A "standard space" affine has isotropic voxels at one of the supported
+template resolutions (the union of ``SUPPORTED_RESOLUTIONS``). Plotting
+surfaces (glass brain, flatmap, surface montage) and template-driven
+background lookup all assume this — non-isotropic or off-grid data
+would render in misleading positions.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a NIfTI image (typically ``bd.mask.affine``). | *required*
+`config` | <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig) \| None</code> | Optional explicit ``BrainSpaceConfig``; defaults to the current global brain space (only the supported resolution set is consulted). | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[bool](#bool)</code> | ``(True, None)`` if compatible; otherwise ``(False, reason)`` with
+<code>[str](#str) \| None</code> | ``reason`` a one-line human-readable explanation suitable for
+<code>[tuple](#tuple)[[bool](#bool), [str](#str) \| None]</code> | embedding in an error message.
 
 #### `match_resolution`
 
@@ -184,6 +237,29 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Absolute path to the requested template file.
+
+#### `seed_resources`
+
+```python
+seed_resources(relpaths: list[str]) -> None
+```
+
+Pre-download dataset files in Pyodide so sync fetches resolve from cache.
+
+No-op outside Pyodide — :func:`fetch_resource` does its own lazy download
+via ``huggingface_hub`` there. In Pyodide this must be called (and
+awaited) before any code path that calls :func:`fetch_resource`,
+:func:`resolve_paths`, or :func:`resolve_template_name` synchronously.
+
+The cache is backed by IndexedDB, so files persist across page reloads.
+The first call per session mounts IDBFS and pulls any prior data;
+subsequent calls only download files not already cached.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
 
 #### `set_brainspace`
 
@@ -324,6 +400,83 @@ Type | Description
 ---- | -----------
 <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig)</code> | The ``BrainSpaceConfig`` active inside the block.
 
+#### `fetch`
+
+Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
+
+Covers MNI templates, parcellation label maps, the parcel-names CSV, and
+any other resources living under huggingface.co/datasets/nltools/niftis.
+First call for a given file downloads it into the local HF cache
+(``~/.cache/huggingface/hub`` by default); subsequent calls return the
+cached path without touching the network.
+
+In Pyodide the synchronous HF cache is unavailable (``huggingface_hub``
+isn't installed and sync HTTP from Python is not viable). Consumers must
+``await seed_resources([...])`` once at app boot to pre-download the
+files they need; subsequent sync ``fetch_resource()`` calls then hit
+the IDBFS-backed cache populated by the seed. The cache persists across
+page reloads via IndexedDB, so seeding only does network work once per
+browser per dataset revision.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fetch_resource`](#fetch_resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
+[`seed_resources`](#seed_resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`REPO_ID`](#REPO_ID) |  | 
+[`REVISION`](#REVISION) |  | 
+
+##### Methods
+
+###### `fetch_resource`
+
+```python
+fetch_resource(relpath: str) -> str
+```
+
+Return a local path to a file from the ``nltools/niftis`` HF dataset.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Absolute path to the cached file on disk.
+
+###### `seed_resources`
+
+```python
+seed_resources(relpaths: list[str]) -> None
+```
+
+Pre-download dataset files in Pyodide so sync fetches resolve from cache.
+
+No-op outside Pyodide — :func:`fetch_resource` does its own lazy download
+via ``huggingface_hub`` there. In Pyodide this must be called (and
+awaited) before any code path that calls :func:`fetch_resource`,
+:func:`resolve_paths`, or :func:`resolve_template_name` synchronously.
+
+The cache is backed by IndexedDB, so files persist across page reloads.
+The first call per session mounts IDBFS and pulls any prior data;
+subsequent calls only download files not already cached.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
+
 #### `matching`
 
 Affine-based template matching and background-image selection.
@@ -339,6 +492,7 @@ Name | Description
 Name | Description
 ---- | -----------
 [`get_bg_image`](#get_bg_image) | Get a background image path matching a data resolution.
+[`is_standard_space`](#is_standard_space) | Check whether an affine is compatible with our MNI templates.
 [`match_resolution`](#match_resolution) | Find the best matching template for a given affine matrix.
 
 ##### Methods
@@ -369,6 +523,35 @@ Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Path to the template image file.
 
+###### `is_standard_space`
+
+```python
+is_standard_space(affine: np.ndarray, *, config: BrainSpaceConfig | None = None) -> tuple[bool, str | None]
+```
+
+Check whether an affine is compatible with our MNI templates.
+
+A "standard space" affine has isotropic voxels at one of the supported
+template resolutions (the union of ``SUPPORTED_RESOLUTIONS``). Plotting
+surfaces (glass brain, flatmap, surface montage) and template-driven
+background lookup all assume this — non-isotropic or off-grid data
+would render in misleading positions.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a NIfTI image (typically ``bd.mask.affine``). | *required*
+`config` | <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig) \| None</code> | Optional explicit ``BrainSpaceConfig``; defaults to the current global brain space (only the supported resolution set is consulted). | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[bool](#bool)</code> | ``(True, None)`` if compatible; otherwise ``(False, reason)`` with
+<code>[str](#str) \| None</code> | ``reason`` a one-line human-readable explanation suitable for
+<code>[tuple](#tuple)[[bool](#bool), [str](#str) \| None]</code> | embedding in an error message.
+
 ###### `match_resolution`
 
 ```python
@@ -397,6 +580,10 @@ Name | Type | Description
 #### `paths`
 
 Pure path-resolution helpers for MNI template files.
+
+Resolves logical (template, resolution, file_type) tuples to local paths.
+Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
+:mod:`nltools.templates.fetch`.
 
 **Methods:**
 

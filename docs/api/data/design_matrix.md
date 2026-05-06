@@ -1,7 +1,7 @@
 ## `DesignMatrix`
 
 ```python
-DesignMatrix(data: pl.DataFrame | pd.DataFrame | np.ndarray | dict | None = None, *, sampling_freq: float | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, polys: list[str] | None = None)
+DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None)
 ```
 
 Polars-based design matrix for experimental designs in neuroimaging.
@@ -13,11 +13,13 @@ Uses composition pattern (not subclassing) for clean metadata preservation.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>DataFrame, ndarray, dict, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - None (empty initialization) | <code>None</code>
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (1/TR for fMRI data) | <code>None</code>
+`data` | <code>DataFrame, ndarray, dict, str/Path, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - str or Path to a `.tsv`/`.csv` file. BIDS events files   (containing `onset` and `duration` columns) are converted to   boxcar regressors — call ``convolve()`` afterwards if you want   HRF convolution. Any other tabular file is read as-is and is   typically used for confounds. - None (empty initialization) | <code>None</code>
+`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (1/TR for fMRI data). Mutually exclusive with ``TR``. | <code>None</code>
+`TR` | <code>[float](#float)</code> | Repetition time in seconds. Convenience for ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``. | <code>None</code>
+`run_length` | <code>[int](#int) or 'infer'</code> | Required when ``data`` is a file path. Number of TRs in the run. Pass ``'infer'`` for tabular/confounds files to accept whatever row count the file has (not valid for events files). | <code>None</code>
 `columns` | <code>list of str</code> | Column names (used with ndarray input) | <code>None</code>
 `convolved` | <code>list of str</code> | Names of convolved columns (tracked internally) | <code>None</code>
-`polys` | <code>list of str</code> | Names of polynomial columns (tracked internally) | <code>None</code>
+`confounds` | <code>list of str</code> | Names of nuisance/confound columns (intercept, polynomial drift, DCT cosines, motion, …) tracked internally | <code>None</code>
 
 **Attributes:**
 
@@ -25,7 +27,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`sampling_freq`](#sampling_freq) | <code>[float](#float) or None</code> | Sampling frequency in Hz
 [`convolved`](#convolved) | <code>list of str</code> | Columns that have been convolved
-[`polys`](#polys) | <code>list of str</code> | Polynomial/nuisance columns (intercept, trends, DCT bases)
+[`confounds`](#confounds) | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
 [`multi`](#multi) | <code>[bool](#bool)</code> | True if created from multi-run concatenation
 
 **Examples:**
@@ -41,8 +43,8 @@ Name | Type | Description
 ```
 
 ```pycon
->>> # Convolve with HRF
->>> dm_conv = dm.convolve()
+>>> # Convolve with HRF — convolved columns get a `_c0` suffix
+>>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
 ```
 
 ```pycon
@@ -71,7 +73,7 @@ Name | Description
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
-[`replace_data`](#replace_data) | Replace data columns while preserving polynomials and metadata.
+[`replace_data`](#replace_data) | Replace data columns while preserving confounds and metadata.
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute sum along axis.
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
@@ -81,12 +83,16 @@ Name | Description
 [`write`](#write) | Write DesignMatrix to file.
 [`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
 
+Passing another ``DesignMatrix`` returns a copy: ``data``,
+``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
+carried over. Any explicit kwarg overrides the inherited value.
+
 ### Methods
 
 #### `add_dct_basis`
 
 ```python
-add_dct_basis(duration: float = 180, drop: int = 0) -> DesignMatrix
+add_dct_basis(duration: float = 180, drop: int = 0, *, include_constant: bool = True) -> DesignMatrix
 ```
 
 Add discrete cosine transform basis functions (high-pass filter).
@@ -97,6 +103,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in :meth:`add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -128,7 +135,7 @@ Name | Type | Description
 #### `append`
 
 ```python
-append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, verbose: bool = False) -> DesignMatrix
+append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -139,10 +146,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>DesignMatrix or list of DesignMatrix</code> | Design matrix/matrices to append. | *required*
 `axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). Default: 0. | <code>0</code>
-`keep_separate` | <code>[bool](#bool)</code> | Whether to separate polynomial columns across runs (only applies when axis=0). Default: True. | <code>True</code>
+`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs (only applies when axis=0). Default: True. | <code>True</code>
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
 `fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN values during vertical concatenation. Default: 0. | <code>0</code>
-`verbose` | <code>[bool](#bool)</code> | Print messages about polynomial separation. Default: False. | <code>False</code>
+`as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
+`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
 
 **Returns:**
 
@@ -153,7 +161,7 @@ Name | Type | Description
 #### `clean`
 
 ```python
-clean(fill_na: int | float | None = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -163,7 +171,7 @@ Remove highly correlated columns.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations (default 0) | <code>0</code>
-`exclude_polys` | <code>[bool](#bool)</code> | Skip polynomial columns from correlation check | <code>False</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns from correlation check | <code>False</code>
 `thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh, default 0.95) | <code>0.95</code>
 `verbose` | <code>[bool](#bool)</code> | Print dropped column names | <code>True</code>
 
@@ -181,18 +189,23 @@ convolve(conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) 
 
 Convolve columns with HRF or custom kernel.
 
+Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
+the kernel index, ``0`` for a single 1-D kernel). The source columns
+are dropped, and ``self.convolved`` lists the post-suffix names so
+downstream metadata stays in sync with the dataframe.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
-`columns` | <code>list of str</code> | Columns to convolve (default: all non-polynomial columns) | <code>None</code>
+`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels). | <code>'hrf'</code>
+`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns). | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns renamed.
 
 #### `copy`
 
@@ -272,7 +285,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(figsize: tuple = (8, 6), **kwargs: tuple)
+plot(figsize: tuple = (4, 6), *, rescale: bool = True, **kwargs: bool)
 ```
 
 Visualize design matrix as heatmap (SPM-style).
@@ -281,14 +294,15 @@ Visualize design matrix as heatmap (SPM-style).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`figsize` | <code>tuple, default=(8, 6)</code> | Figure size (width, height) in inches | <code>(8, 6)</code>
+`figsize` | <code>tuple, default=(8, 6)</code> | Figure size (width, height) in inches | <code>(4, 6)</code>
+`rescale` | <code>bool, default=True</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (matches SPM/nilearn convention). Set False to plot raw values. | <code>True</code>
 `**kwargs` |  | Additional keyword arguments passed to seaborn.heatmap() | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | matplotlib.axes.Axes: The axes object containing the heatmap
+ | matplotlib.figure.Figure: The figure containing the heatmap.
 
 #### `replace_data`
 
@@ -296,7 +310,7 @@ Type | Description
 replace_data(data: np.ndarray, column_names: list[str] | None = None) -> DesignMatrix
 ```
 
-Replace data columns while preserving polynomials and metadata.
+Replace data columns while preserving confounds and metadata.
 
 **Parameters:**
 
@@ -309,7 +323,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved polynomials
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
 
 #### `standardize`
 
@@ -404,7 +418,7 @@ Name | Type | Description
 #### `vif`
 
 ```python
-vif(exclude_polys: bool = True) -> np.ndarray | None
+vif(exclude_confounds: bool = True) -> np.ndarray | None
 ```
 
 Compute variance inflation factor for each column.
@@ -413,7 +427,7 @@ Compute variance inflation factor for each column.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`exclude_polys` | <code>[bool](#bool)</code> | Skip polynomial columns. Default: True. | <code>True</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns. Default: True. | <code>True</code>
 
 **Returns:**
 

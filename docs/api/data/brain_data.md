@@ -12,7 +12,7 @@ manipulation and analyses.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from | <code>None</code>
+`data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from - numpy array (1D ``(n_voxels,)`` for a single image or 2D   ``(n_images, n_voxels)`` for a stack). The ``mask`` argument   is required and must define the same number of in-mask voxels. | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
@@ -46,6 +46,7 @@ Name | Description
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
 [`plot_surf`](#plot_surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 [`predict`](#predict) | Generate predictions using fitted model OR classify patterns (MVPA).
+[`predict_multi`](#predict_multi) | Deprecated: removed in v0.6.0; will return in a future Model class.
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
 [`regions`](#regions) | Extract brain connected regions into separate regions.
 [`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
@@ -78,6 +79,7 @@ Name | Type | Description
 [`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
 [`masker`](#masker) |  | 
 [`shape`](#shape) |  | Get images by voxels shape.
+[`size`](#size) |  | Total number of elements in BrainData.data (numpy convention).
 [`verbose`](#verbose) |  | 
 
 ### Methods
@@ -476,7 +478,7 @@ Type | Description
 #### `fit`
 
 ```python
-fit(model = None, X = None, cv = None, inplace = True, scale = True, scale_value = 100.0, progress_bar = None, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, scale = True, scale_value = 100.0, progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -489,13 +491,19 @@ are stored for later use with predict().
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>None</code>
+`model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
-`cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only) | <code>None</code>
+`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return Fit dataclass with results (self unchanged). | <code>True</code>
 `scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. | <code>True</code>
 `scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. | <code>100.0</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
+`design_clean` | <code>bool, default=True</code> | GLM only. Run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
+`design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
+`design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
+`design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
 
 **Returns:**
@@ -503,6 +511,29 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+After ``model="glm"``, the following per-regressor BrainData
+attributes are populated — one map per design-matrix column:
+
+    - ``glm_betas``: effect-size (β) maps.
+    - ``glm_t``: marginal t-statistic for each regressor.
+    - ``glm_p``: marginal p-value.
+    - ``glm_se``: standard error of β.
+    - ``glm_r2``: voxel-wise R².
+
+``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
+regressor ``i`` only. For contrasts across regressors
+(``"A - B"``, ``[1, -1, 0, ...]``) use :meth:`compute_contrasts` —
+you cannot correctly combine these per-regressor maps by hand
+because t-statistic arithmetic requires the off-diagonal elements
+of the parameter covariance matrix, which are not stored. Pass
+``contrast_type="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
+one contrast in a single call.
+
+</details>
 
 **Examples:**
 
@@ -609,7 +640,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(method = 'glass', upper = None, lower = None, threshold = None, view = 'xyz', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot(method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -622,7 +653,7 @@ Name | Type | Description | Default
 `upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
 `lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
 `threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
-`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"xyz"``. | <code>'xyz'</code>
+`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
 `cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. Takes precedence over ``view``-based defaults. Either a list matching ``len(view)`` or a dict keyed by axis letter. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
 `bg_img` | <code>str/nibabel image</code> | Background image. | <code>None</code>
@@ -632,13 +663,18 @@ Name | Type | Description | Default
 `colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
 `save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
 `stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Default: 'mean'. | <code>'mean'</code>
+`limit` | <code>[int](#int)</code> | Maximum number of images to render when this BrainData contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. Warns when more images exist than ``limit``. | <code>3</code>
 `**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | Display or matplotlib Figure.
+ | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: A
+ | single figure for single-image data; a list of figures for
+ | multi-image data with ``method`` in ``{"glass", "slices"}``
+ | (one per image for glass; one per image-and-view pair for
+ | slices).
 
 #### `plot_flatmap`
 
@@ -737,6 +773,18 @@ Name | Type | Description
 >>> predictions = brain_data.predict(X=new_features)
 >>> accuracy = brain_data.predict(y=labels, method='searchlight')
 ```
+
+#### `predict_multi`
+
+```python
+predict_multi(*args, **kwargs)
+```
+
+Deprecated: removed in v0.6.0; will return in a future Model class.
+
+Per the v0.6 migration guide, the multi-method MVPA wrapper has
+been removed. Use :meth:`predict` for whole-brain MVPA, or compose
+sklearn estimators directly via the new Model API.
 
 #### `r_to_z`
 
@@ -1036,11 +1084,11 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | ``{"t": BrainData, "p": BrainData}`` for the parametric
- |  | case, or ``{"mean": BrainData, "p": BrainData}`` when
- |  | ``permutation=True``.
+Type | Description
+---- | -----------
+ | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images (effect size). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)`` —   matches nilearn's ``output_type='z_score'``. - ``"p"``: parametric p-value, or empirical p when   ``permutation=True``.
+ | The effect size is always returned alongside the inferential maps
+ | so group-level code never has to recompute the mean.
 
 **Examples:**
 
@@ -1048,10 +1096,12 @@ Name | Type | Description
 >>> # Stack of subject-level contrast maps
 >>> result = contrast_maps.ttest()
 >>> sig = result["p"].data < 0.05
+>>> effect = result["mean"]       # for reporting magnitude
+>>> z_map = result["z"]           # for nilearn-style thresholding
 ```
 
 ```pycon
->>> # Permutation-based inference
+>>> # Permutation-based p-values; still reports t/z/mean
 >>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
 ```
 

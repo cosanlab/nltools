@@ -897,7 +897,7 @@ Name | Type | Description
 #### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -912,7 +912,8 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
-`cv` | <code>[int](#int)</code> | Number of cross-validation folds. Defaults to 5. | <code>5</code>
+`cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
+`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
@@ -6830,6 +6831,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
+[`cross_val_predict_ridge`](#cross_val_predict_ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
 [`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
 [`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
 [`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
@@ -6839,6 +6841,48 @@ Name | Description
 
 
 ##### Methods
+
+###### `cross_val_predict_ridge`
+
+```python
+cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
+```
+
+Held-out ridge predictions per CV fold under a (per-target) alpha.
+
+For each fold, refits ridge with the supplied alpha (per-target or
+scalar) on the training fold and predicts the held-out fold. Targets
+sharing the same alpha share an SVD of the training fold via
+:func:`_refit_banded_ridge`, so the cost scales with the number of
+*unique* alphas, not the number of targets.
+
+Designed to be the BrainData CV layer's source of held-out predictions
+when alpha selection has already been done by ``solve_ridge_cv``: pass
+the selected per-voxel alphas back through here to get the fold-by-fold
+predictions and per-fold R² needed for ``cv_results_``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
+`Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). 1D ``Y`` is promoted to (n_samples, 1). | *required*
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | Per-target alpha array of shape (n_targets,) or a scalar (broadcast to every target). | *required*
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``) are rejected — pass the splitter object instead. | <code>5</code>
+`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and Y on the *training fold's* mean per fold (sklearn convention) and add the intercept back so predictions live on the original Y scale. | <code>False</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during refit (for memory efficiency). If None, processes all targets at once. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas. If None, processes all unique alphas at once. | <code>None</code>
+`Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>4.0</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'parallel': Backend used (for transparency).
 
 ###### `generate_dirichlet_samples`
 
@@ -6882,7 +6926,7 @@ True
 ###### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -6897,7 +6941,8 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
-`cv` | <code>[int](#int)</code> | Number of cross-validation folds. Defaults to 5. | <code>5</code>
+`cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
+`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
@@ -7159,7 +7204,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'parallel': Backend used (for transparency).
 
 **Examples:**
 
@@ -7270,7 +7315,7 @@ Name | Description
 ###### `ridge_cv`
 
 ```python
-ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int = 5, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+ridge_cv(X: np.ndarray, y: np.ndarray, alphas: np.ndarray | None = None, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
 ```
 
 Ridge regression with cross-validation for hyperparameter selection.
@@ -7285,7 +7330,8 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
-`cv` | <code>[int](#int)</code> | Number of cross-validation folds. Defaults to 5. | <code>5</code>
+`cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
+`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
 `parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
@@ -7419,6 +7465,7 @@ Follows himalaya's implementation patterns:
 
 Name | Description
 ---- | -----------
+[`cross_val_predict_ridge`](#cross_val_predict_ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
 [`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
 [`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
 
@@ -7426,7 +7473,49 @@ Name | Description
 
 ####### Functions##
 
-###### `solve_banded_ridge_cv`
+###### `cross_val_predict_ridge`
+
+```python
+cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
+```
+
+Held-out ridge predictions per CV fold under a (per-target) alpha.
+
+For each fold, refits ridge with the supplied alpha (per-target or
+scalar) on the training fold and predicts the held-out fold. Targets
+sharing the same alpha share an SVD of the training fold via
+:func:`_refit_banded_ridge`, so the cost scales with the number of
+*unique* alphas, not the number of targets.
+
+Designed to be the BrainData CV layer's source of held-out predictions
+when alpha selection has already been done by ``solve_ridge_cv``: pass
+the selected per-voxel alphas back through here to get the fold-by-fold
+predictions and per-fold R² needed for ``cv_results_``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
+`Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). 1D ``Y`` is promoted to (n_samples, 1). | *required*
+`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | Per-target alpha array of shape (n_targets,) or a scalar (broadcast to every target). | *required*
+`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``) are rejected — pass the splitter object instead. | <code>5</code>
+`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and Y on the *training fold's* mean per fold (sklearn convention) and add the intercept back so predictions live on the original Y scale. | <code>False</code>
+`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during refit (for memory efficiency). If None, processes all targets at once. | <code>None</code>
+`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas. If None, processes all unique alphas at once. | <code>None</code>
+`Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
+`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
+`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>4.0</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'parallel': Backend used (for transparency).
+
+######## `solve_banded_ridge_cv`
 
 ```python
 solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
@@ -7572,7 +7661,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'parallel': Backend used (for transparency).
 
 **Examples:**
 

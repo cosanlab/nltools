@@ -42,7 +42,7 @@ Name | Type | Description
 #### `plot_brain`
 
 ```python
-plot_brain(bd, method = 'glass', upper = None, lower = None, threshold = None, view = 'xyz', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', **kwargs)
+plot_brain(bd, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -56,7 +56,7 @@ Name | Type | Description | Default
 `upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
 `lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
 `threshold` | <code>[float](#float)</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``|value| < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
-`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"xyz"``. | <code>'xyz'</code>
+`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
 `cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. If provided, takes precedence over ``view``-based defaults. Either a list of per-axis coordinate sequences whose length matches ``view``, or a dict keyed by axis letter (``{"x": [...], "z": [...]}``) from which entries for each axis in ``view`` are looked up. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
 `bg_img` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Background image for slice views. | <code>None</code>
@@ -66,13 +66,19 @@ Name | Type | Description | Default
 `colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
 `save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
 `stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Valid options: 'mean', 'median', 'std'. | <code>'mean'</code>
+`limit` | <code>[int](#int)</code> | Maximum number of images to render when ``bd`` contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. A warning is emitted if the data has more images than ``limit``. Ignored for single-image data and for matplotlib-based methods (``"timeseries"``, ``"histogram"``), which already aggregate across images. | <code>3</code>
 `**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | Display or matplotlib Figure.
+ | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
+ | single-image data, the figure object (last one created if
+ | ``method="slices"`` produced multiple per-axis figures). For
+ | multi-image data with ``method`` in ``{"glass", "slices"}``, a list
+ | of figures (one per image for glass; one per image-and-view pair for
+ | slices). All figures auto-display in notebooks.
 
 #### `plot_flatmap_brain`
 
@@ -113,7 +119,7 @@ Type | Description
 #### `prepare_save_paths`
 
 ```python
-prepare_save_paths(save)
+prepare_save_paths(save, idx = None)
 ```
 
 Prepare save paths for multiple plot outputs.
@@ -123,6 +129,7 @@ Prepare save paths for multiple plot outputs.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `save` |  | Base save path (str or Path) | *required*
+`idx` | <code>[int](#int)</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
 
 **Returns:**
 

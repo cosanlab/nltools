@@ -54,9 +54,10 @@ class TestDesignMatrixDataAccess:
     def test_getitem(self):
         """Test single column returns Series, multiple returns DesignMatrix."""
         dm = DesignMatrix(
-            {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]}, sampling_freq=2
+            {"a": [1, 2, 3], "b": [4, 5, 6], "c": [7, 8, 9]},
+            sampling_freq=2,
+            confounds=["a"],
         )
-        dm.confounds = ["a"]
 
         # Single column
         col = dm["a"]
@@ -111,17 +112,16 @@ class TestDesignMatrixPassthrough:
     """Test polars DataFrame passthrough via __getattr__."""
 
     def _dm(self):
-        dm = DesignMatrix(
+        return DesignMatrix(
             {
                 "a": [1, 2, 3, 4, 5],
                 "b": [10, 20, 30, 40, 50],
                 "poly_0": [1, 1, 1, 1, 1],
             },
             sampling_freq=2,
+            confounds=["poly_0"],
+            convolved=["a"],
         )
-        dm.confounds = ["poly_0"]
-        dm.convolved = ["a"]
-        return dm
 
     def test_slice_returns_designmatrix(self):
         """slice() is allowlisted and preserves DesignMatrix + metadata."""

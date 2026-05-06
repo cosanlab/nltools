@@ -154,9 +154,11 @@ Each `.glm_*` attribute holds one map per regressor. `glm_betas[i]` is the effec
 
 `compute_contrasts(..., contrast_type="all")` returns the effect size, t, z, p, and SE maps for one contrast in a single call — so group code can grab the effect size while thresholding code grabs the t-map, no double work.
 
+Note that `.convolve()` renames each column to `<col>_c0` (and `_c1`, `_c2`, … if you pass a multi-kernel basis), so the contrast string references the post-convolution names:
+
 ```{code-cell} python
 result = brain.compute_contrasts(
-    "language - string",
+    "language_c0 - string_c0",
     contrast_type="all",
 )
 print("Keys:", sorted(result.keys()))
@@ -182,7 +184,7 @@ Even at one subject the left-lateralized fronto-temporal language network is vis
 The same fitting recipe applies to every subject. We collect one effect-size map per subject:
 
 ```python
-def fit_first_level(sub: str, contrast: str = "language - string") -> BrainData:
+def fit_first_level(sub: str, contrast: str = "language_c0 - string_c0") -> BrainData:
     """Load sub's BOLD, build the DM, fit GLM, return the effect-size map."""
     p = get_sub_files(sub)
     bd = BrainData(p["bold"])
@@ -272,7 +274,7 @@ The complete flow in compact form:
 # subjects = sorted(p.name for p in root.glob("sub-*") if p.is_dir())
 
 # 2. First-level per subject → effect-size map
-# effect_maps = [fit_first_level(sub, "language - string") for sub in subjects]
+# effect_maps = [fit_first_level(sub, "language_c0 - string_c0") for sub in subjects]
 
 # 3. Stack and run group one-sample test
 # group = concatenate(effect_maps)

@@ -90,9 +90,10 @@ class TestDesignMatrixConvolution:
         Rationale: Confounds (intercept, drift, motion, …) represent baseline, not stimulus
         """
         dm = DesignMatrix(
-            {"stim": [1, 0, 0, 0], "intercept": [1, 1, 1, 1]}, sampling_freq=1
+            {"stim": [1, 0, 0, 0], "intercept": [1, 1, 1, 1]},
+            sampling_freq=1,
+            confounds=["intercept"],
         )
-        dm.confounds = ["intercept"]
 
         dm_conv = dm.convolve()
 

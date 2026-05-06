@@ -18,7 +18,7 @@ Name | Description
 #### `clean`
 
 ```python
-clean(dm: DesignMatrix, fill_na: int | float | None = 0, exclude_polys: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(dm: DesignMatrix, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -32,7 +32,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 `fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations. Default: 0. | <code>0</code>
-`exclude_polys` | <code>[bool](#bool)</code> | Skip polynomial columns from correlation check. Default: False. | <code>False</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns from correlation check. Default: False. | <code>False</code>
 `thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh). Default: 0.95. | <code>0.95</code>
 `verbose` | <code>[bool](#bool)</code> | Print dropped column names. Default: True. | <code>True</code>
 
@@ -45,7 +45,7 @@ Name | Type | Description
 #### `vif`
 
 ```python
-vif(dm: DesignMatrix, exclude_polys: bool = True) -> np.ndarray | None
+vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None
 ```
 
 Compute variance inflation factor for each column.
@@ -58,7 +58,7 @@ Uses diagonal elements of inverted correlation matrix
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`exclude_polys` | <code>[bool](#bool)</code> | Skip polynomial columns. Default: True. | <code>True</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns. Default: True. | <code>True</code>
 
 **Returns:**
 

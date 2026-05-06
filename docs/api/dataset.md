@@ -11,7 +11,6 @@ Name | Description
 ---- | -----------
 [`download_nifti`](#download_nifti) | Download an image from a URL to a nifti file.
 [`fetch_emotion_ratings`](#fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
-[`fetch_haxby`](#fetch_haxby) | Download and load Haxby2001 dataset from nilearn.
 [`fetch_neurovault_collection`](#fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
 [`fetch_pain`](#fetch_pain) | Download and load pain dataset from Neurovault.
 [`load_haxby_example`](#load_haxby_example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
@@ -75,46 +74,6 @@ A sensitive and specific neural signature for picture-induced negative affect.
 PLoS biology, 13(6), e1002180.
 
 </details>
-
-#### `fetch_haxby`
-
-```python
-fetch_haxby(n_subjects = 1, data_dir = None, verbose = 1, mask = 'haxby_mask', resample = False)
-```
-
-Download and load Haxby2001 dataset from nilearn.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_subjects` | <code>int, None, or 'all'</code> | Which subject to load (1-6), or None/'all' for all subjects. Default: 1. - `n_subjects=1`: Returns all runs for subject 1 - `n_subjects=2`: Returns all runs for subject 2 - `n_subjects=None` or `'all'`: Returns all runs for all subjects (nested lists) | <code>1</code>
-`data_dir` | <code>[str](#str)</code> | Directory to store downloaded data. Default: None | <code>None</code>
-`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
-`mask` | <code>str, nibabel.Nifti1Image, or None, default="haxby_mask"</code> | Brain mask to use. - `"haxby_mask"`: Use the default mask provided with the Haxby dataset (default) - `None`: Use default MNI template mask - Other: Passed directly to BrainData (file path, nibabel object, etc.) | <code>'haxby_mask'</code>
-`resample` | <code>bool, default=False</code> | Whether to automatically resample data to mask space. See BrainData.__init__() for details. | <code>False</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | - If n_subjects is int: (list of BrainData, list of DesignMatrix) - all runs for that subject - If n_subjects is None or 'all': (list of lists of BrainData, list of lists of DesignMatrix)   First level: subjects, second level: runs per subject
-
-**Examples:**
-
-```pycon
->>> # Load all runs for subject 1
->>> brain_data, design_matrix = fetch_haxby(n_subjects=1)
->>> len(brain_data)  # Number of runs
->>>
->>> # Load all runs for subject 2
->>> brain_data, design_matrix = fetch_haxby(n_subjects=2)
->>>
->>> # Load all runs for all subjects
->>> brain_data_nested, design_matrix_nested = fetch_haxby(n_subjects='all')
->>> len(brain_data_nested)  # Number of subjects
->>> len(brain_data_nested[0])  # Number of runs for first subject
-```
 
 #### `fetch_neurovault_collection`
 
@@ -180,15 +139,15 @@ load_haxby_example(n_runs = 1, random_state = 42)
 
 Load a small synthetic Haxby-like dataset, entirely in-memory.
 
-Matches the return shape of `fetch_haxby(n_subjects=1)` — paired lists of
-`BrainData` and `DesignMatrix`, one entry per run — but generates a tiny
-synthetic volume (10 x 10 x 5 = 500 voxels) with condition-specific signal
-injected into disjoint voxel clusters. No network I/O, no disk I/O, no
-nilearn fetcher dependency. Runs in well under a second.
+Returns paired lists of `BrainData` and `DesignMatrix`, one entry per
+run, generated from a tiny synthetic volume (10 x 10 x 5 = 500 voxels)
+with condition-specific signal injected into disjoint voxel clusters.
+No network I/O, no disk I/O, no nilearn fetcher dependency. Runs in
+well under a second.
 
 Intended for tutorials, documentation examples, and Pyodide / in-browser
-environments where `fetch_haxby` cannot download the real dataset. The
-eight conditions match the real Haxby object-recognition experiment
+environments where downloading a real fMRI dataset is impractical. The
+eight conditions match the real Haxby 2001 object-recognition experiment
 (face, house, cat, bottle, scissors, shoe, chair, scrambledpix), arranged
 in a randomized 9-TR block design with TR=2.5s.
 
@@ -203,7 +162,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`tuple` |  | `(list[BrainData], list[DesignMatrix])`, each of length n_runs. The DesignMatrix columns are the eight condition names plus a "constant" column, matching `fetch_haxby`'s output shape.
+`tuple` |  | `(list[BrainData], list[DesignMatrix])`, each of length n_runs. The DesignMatrix columns are the eight condition names suffixed with ``_c0`` (HRF-convolved boxcars).
 
 **Examples:**
 
@@ -213,7 +172,7 @@ Name | Type | Description
 >>> data, dm = brain_data[0], design_matrices[0]
 >>> data.shape
 (72, 500)
->>> "face" in dm.columns
+>>> "face_c0" in dm.columns
 True
 ```
 
