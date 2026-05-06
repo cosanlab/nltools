@@ -327,7 +327,6 @@ class TestProperties:
     def test_cache_root_under_cwd_default(self, bc_pathbacked, tmp_path):
         assert tmp_path in bc_pathbacked.cache_root.parents
 
-    @XFAIL
     def test_memory_estimate_returns_string(self, bc_inmem):
         assert isinstance(bc_inmem.memory_estimate(), str)
 

@@ -112,10 +112,29 @@ def read(
 ) -> BrainCollection:
     """Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
 
-    Does **not** recover from cache subdirs in v0.6.0 — call ``bc.write(...)``
-    first to materialize a portable directory.
+    Discovers items by globbing ``image_*.nii*`` (matches the ``write()``
+    default pattern) and pairs them with rows from ``metadata.csv`` if it
+    exists. Does **not** recover from cache subdirs in v0.6.0.
     """
-    raise NotImplementedError("scaffold")
+    directory = Path(directory)
+    if not directory.is_dir():
+        raise FileNotFoundError(f"directory not found: {directory}")
+
+    paths = sorted(directory.glob("image_*.nii*"))
+    if not paths:
+        raise ValueError(f"no image_*.nii* files found in {directory}")
+
+    metadata_path = directory / "metadata.csv"
+    metadata: pl.DataFrame | None = None
+    if metadata_path.exists():
+        metadata = pl.read_csv(metadata_path)
+
+    return cls.from_paths(
+        paths,
+        mask=mask,
+        metadata=metadata,
+        cache_dir=cache_dir,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +187,22 @@ def write(
     ``directory`` plus a metadata CSV. Skips the cache layout entirely so
     the result is shareable / archival.
     """
-    raise NotImplementedError("scaffold")
+    from .execution import _atomic_write_nifti
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+
+    paths: list[Path] = []
+    for i in range(len(bc._items)):
+        bd = bc._load_item(i)
+        out_path = directory / pattern.format(i=i)
+        _atomic_write_nifti(out_path, bd)
+        paths.append(out_path)
+
+    if metadata_file is not None and bc._metadata is not None:
+        bc._metadata.write_csv(directory / metadata_file)
+
+    return paths
 
 
 def load(
@@ -181,7 +215,14 @@ def load(
     ``unload`` and does not allocate a step
     subdir, does not write to disk, does not produce a new identity.
     """
-    raise NotImplementedError("scaffold")
+    from ..braindata import BrainData as _BrainData
+
+    targets = range(len(bc._items)) if indices is None else indices
+    for i in targets:
+        item = bc._items[i]
+        if not isinstance(item, _BrainData):
+            bc._items[i] = _BrainData(item, mask=bc._mask)
+    return bc
 
 
 def unload(
@@ -193,13 +234,50 @@ def unload(
     Mutates in place. This is a no-op for items that don't have a backing path
     because dropping them would lose data.
     """
-    raise NotImplementedError("scaffold")
+    from ..braindata import BrainData as _BrainData
+
+    targets = range(len(bc._items)) if indices is None else indices
+    for i in targets:
+        if isinstance(bc._items[i], _BrainData) and bc._source_paths[i] is not None:
+            bc._items[i] = bc._source_paths[i]
+    return bc
 
 
 def memory_estimate(bc: BrainCollection) -> str:
     """Human-readable RAM estimate if every item were loaded.
 
-    Used by ``BrainCollection.memory_estimate()``; reports ``n_subjects``,
-    typical per-item shape, and an estimated total in MB/GB.
+    Reports ``n_subjects``, the per-item shape (or "unknown" if path-backed
+    and not yet loaded), and an estimated total in MB/GB based on float32.
     """
-    raise NotImplementedError("scaffold")
+    from ..braindata import BrainData as _BrainData
+
+    n = len(bc._items)
+    if n == 0:
+        return "BrainCollection(empty)"
+
+    # Find a probe item to read shape from. Prefer in-memory; fall back to
+    # loading the first path-backed item.
+    probe = None
+    for it in bc._items:
+        if isinstance(it, _BrainData):
+            probe = it
+            break
+    if probe is None:
+        probe = bc._load_item(0)
+
+    n_obs, n_vox = probe.shape
+    # Assume float32 throughout — over-estimates float16 by 2x, fine.
+    bytes_per_item = n_obs * n_vox * 4
+    total = bytes_per_item * n
+
+    def _human(b: float) -> str:
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if b < 1024:
+                return f"{b:.1f} {unit}"
+            b /= 1024
+        return f"{b:.1f} PB"
+
+    return (
+        f"BrainCollection(n_subjects={n}, per_item={n_obs}×{n_vox}, "
+        f"estimated_total≈{_human(total)})"
+    )

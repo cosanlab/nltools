@@ -117,29 +117,24 @@ class TestFromBIDS:
 
 
 class TestLoadUnload:
-    @XFAIL
     def test_load_materializes_paths(self, bc_pathbacked):
         bc_pathbacked.load()
         assert all(bc_pathbacked.is_loaded)
 
-    @XFAIL
     def test_load_returns_self_for_chaining(self, bc_pathbacked):
         out = bc_pathbacked.load()
         assert out is bc_pathbacked
 
-    @XFAIL
     def test_unload_drops_inmem_data_when_path_exists(self, bc_pathbacked):
         bc_pathbacked.load()
         bc_pathbacked.unload()
         assert not any(bc_pathbacked.is_loaded)
 
-    @XFAIL
     def test_unload_noop_for_inmem_only(self, bc_inmem):
         """No backing path → unload would lose data; should be a no-op."""
         bc_inmem.unload()
         assert all(bc_inmem.is_loaded)
 
-    @XFAIL
     def test_load_indices_subset(self, bc_pathbacked):
         bc_pathbacked.load(indices=[0])
         loaded = bc_pathbacked.is_loaded
@@ -147,20 +142,17 @@ class TestLoadUnload:
 
 
 class TestWriteRead:
-    @XFAIL
     def test_write_creates_one_file_per_item(self, bc_inmem, tmp_path):
         out_dir = tmp_path / "out"
         paths = bc_inmem.write(out_dir)
         assert len(paths) == bc_inmem.n_subjects
         assert all(p.exists() for p in paths)
 
-    @XFAIL
     def test_write_emits_metadata_csv(self, bc_inmem, tmp_path):
         out_dir = tmp_path / "out"
         bc_inmem.write(out_dir)
         assert (out_dir / "metadata.csv").exists()
 
-    @XFAIL
     def test_read_roundtrip(self, bc_inmem, tmp_path):
         out_dir = tmp_path / "out"
         bc_inmem.write(out_dir)
@@ -169,7 +161,6 @@ class TestWriteRead:
 
 
 class TestCleanup:
-    @XFAIL
     def test_cleanup_removes_cache_root(self, bc_pathbacked):
         root = bc_pathbacked.cache_root
         # Some step subdirs should exist after a parallel op
@@ -178,7 +169,6 @@ class TestCleanup:
         bc_pathbacked.cleanup()
         assert not root.exists()
 
-    @XFAIL
     def test_cleanup_invalidates_clones(self, bc_pathbacked):
         clone = bc_pathbacked.smooth(fwhm=6.0)
         bc_pathbacked.cleanup()
@@ -186,7 +176,6 @@ class TestCleanup:
         with pytest.raises(FileNotFoundError):
             clone.load()
 
-    @XFAIL
     def test_cleanup_all_classmethod(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         # Should not raise even if no caches present.

@@ -74,6 +74,8 @@ class BrainCollection:
       _parent_step_id str | None                    upstream step id (lineage)
       _step_dirs      list[Path]                    lineage of step subdirs
                                                     that produced these items
+      _source_paths   list[Path | None]             per-item backing path
+                                                    (None for in-memory only)
     """
 
     # ------------------------------------------------------------------
@@ -108,20 +110,21 @@ class BrainCollection:
         self._metadata = core.coerce_metadata(metadata, n)
 
         items: list = []
+        source_paths: list[Path | None] = []
         for b in brains:
             if isinstance(b, _BrainData):
                 items.append(b)
+                source_paths.append(None)
             elif isinstance(b, (str, Path)):
                 p = Path(b)
-                if lazy:
-                    items.append(p)
-                else:
-                    items.append(_BrainData(p, mask=self._mask))
+                source_paths.append(p)
+                items.append(p if lazy else _BrainData(p, mask=self._mask))
             else:
                 raise TypeError(
                     f"brains[i] must be BrainData/Path/str, got {type(b).__name__}"
                 )
         self._items = items
+        self._source_paths = source_paths
 
         self._designs = list(designs) if designs is not None else [None] * n
         self._confounds = [None] * n
@@ -781,7 +784,13 @@ class BrainCollection:
             cache=cache,
         )
         new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
-        return self._clone(_items=results, _step_id=step_id, _step_dirs=new_dirs)
+        new_sources = [r if isinstance(r, Path) else None for r in results]
+        return self._clone(
+            _items=results,
+            _step_id=step_id,
+            _step_dirs=new_dirs,
+            _source_paths=new_sources,
+        )
 
     def apply(
         self,
@@ -820,7 +829,13 @@ class BrainCollection:
             cache=cache,
         )
         new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
-        return self._clone(_items=results, _step_id=step_id, _step_dirs=new_dirs)
+        new_sources = [r if isinstance(r, Path) else None for r in results]
+        return self._clone(
+            _items=results,
+            _step_id=step_id,
+            _step_dirs=new_dirs,
+            _source_paths=new_sources,
+        )
 
     # ------------------------------------------------------------------
     # IO / cleanup — delegate to io.py
@@ -853,8 +868,16 @@ class BrainCollection:
         return io.write(self, directory, pattern=pattern, metadata_file=metadata_file)
 
     def cleanup(self) -> None:
-        """Remove ``cache_root`` and invalidate every clone derived from ``self``."""
-        raise NotImplementedError("scaffold")
+        """Remove ``cache_root`` and invalidate every clone derived from ``self``.
+
+        Idempotent — calling twice is a no-op. Path-backed items in any
+        clone become unloadable after this; use ``bc.write(...)`` first to
+        materialize a portable copy if needed.
+        """
+        import shutil
+
+        if self._cache_root is not None and self._cache_root.exists():
+            shutil.rmtree(self._cache_root)
 
     @classmethod
     def cleanup_all(cls, directory: Path | str = ".") -> None:
@@ -863,7 +886,15 @@ class BrainCollection:
         Wide brush — can kill sibling sessions in the same cwd. Prefer
         ``bc.cleanup()`` for surgical removal.
         """
-        raise NotImplementedError("scaffold")
+        import shutil
+
+        directory = Path(directory)
+        cache_parent = directory / ".nltools_cache"
+        if not cache_parent.exists():
+            return
+        for run_dir in cache_parent.iterdir():
+            if run_dir.is_dir() and core.is_run_id(run_dir.name):
+                shutil.rmtree(run_dir)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -889,6 +920,9 @@ class BrainCollection:
         new._step_dirs = overrides.get(
             "_step_dirs", list(getattr(self, "_step_dirs", []))
         )
+        new._source_paths = overrides.get(
+            "_source_paths", list(getattr(self, "_source_paths", []))
+        )
         return new
 
     def _next_step_id(self) -> str:
@@ -911,6 +945,7 @@ class BrainCollection:
             _designs=[self._designs[i] for i in indices],
             _confounds=[self._confounds[i] for i in indices],
             _sample_masks=[self._sample_masks[i] for i in indices],
+            _source_paths=[self._source_paths[i] for i in indices],
             _metadata=self._metadata[indices] if self._metadata is not None else None,
         )
 
