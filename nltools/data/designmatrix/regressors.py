@@ -37,16 +37,23 @@ def convolve(
         DesignMatrix: New DesignMatrix with convolved columns
 
     Examples:
-        >>> # Default HRF convolution
+        >>> # Default HRF convolution → produces 'stim_c0'
         >>> dm_conv = convolve(dm)
 
-        >>> # Custom kernel
+        >>> # Custom 1-D kernel → produces 'stim_c0'
         >>> kernel = np.array([0.5, 1.0, 0.5])
         >>> dm_conv = convolve(dm, conv_func=kernel)
 
-        >>> # Multiple kernels (FIR model)
+        >>> # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
         >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
-        >>> dm_conv = convolve(dm, conv_func=kernels)  # Creates col_c0, col_c1
+        >>> dm_conv = convolve(dm, conv_func=kernels)
+
+    Notes:
+        Convolved columns are always renamed to ``<col>_c{i}``; the source
+        column is dropped. ``dm.convolved`` records the post-suffix names
+        (the columns that actually exist in the returned dataframe), so
+        downstream metadata propagation through ``.append()`` stays in
+        sync with the dataframe.
     """
     from nltools.algorithms.hrf import glover_hrf
 
@@ -87,40 +94,29 @@ def convolve(
             "Tip: Use conv_func='hrf' for canonical HRF."
         )
 
-    # Perform convolution
+    # Normalize to 2-D (samples, n_kernels) so 1-D and 2-D paths share code.
+    kernels_2d = conv_func.reshape(-1, 1) if conv_func.ndim == 1 else conv_func
+    n_kernels = kernels_2d.shape[1]
     n_rows = dm.shape[0]
 
-    if len(conv_func.shape) == 1:
-        # Single kernel: keep original column names (replace in-place)
-        convolved_series = []
-        for col in columns_to_convolve:
-            # Convert to numpy for convolution operation
-            # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
-            col_data = dm.data[col].to_numpy()
-            convolved = np.convolve(col_data, conv_func)[:n_rows]
-            convolved_series.append(pl.Series(col, convolved))
+    convolved_series: list[pl.Series] = []
+    new_convolved: list[str] = []
+    for col in columns_to_convolve:
+        # NECESSARY: np.convolve requires numpy arrays (no Polars equivalent)
+        col_data = dm.data[col].to_numpy()
+        for k_idx in range(n_kernels):
+            kernel = kernels_2d[:, k_idx]
+            result = np.convolve(col_data, kernel)[:n_rows]
+            new_name = f"{col}_c{k_idx}"
+            convolved_series.append(pl.Series(new_name, result))
+            new_convolved.append(new_name)
 
-        # Use .with_columns() to replace only convolved columns
-        # (automatically preserves non-convolved columns and column order)
-        new_df = dm.data.with_columns(convolved_series)
+    # Drop source columns and add suffixed variants. Single-kernel and
+    # multi-kernel are now uniform: source name never survives, output is
+    # always ``<col>_c{i}``.
+    new_df = dm.data.drop(columns_to_convolve).with_columns(convolved_series)
 
-    else:
-        # Multiple kernels: shape is (samples, n_kernels)
-        n_kernels = conv_func.shape[1]
-        convolved_series = []
-
-        for col in columns_to_convolve:
-            col_data = dm.data[col].to_numpy()
-            for k_idx in range(n_kernels):
-                kernel = conv_func[:, k_idx]
-                convolved = np.convolve(col_data, kernel)[:n_rows]
-                convolved_series.append(pl.Series(f"{col}_c{k_idx}", convolved))
-
-        # Drop original columns, add convolved variants (idiomatic Polars pattern)
-        new_df = dm.data.drop(columns_to_convolve).with_columns(convolved_series)
-
-    # Update metadata
-    return copy_with(dm, new_df, convolved=columns_to_convolve)
+    return copy_with(dm, new_df, convolved=new_convolved)
 
 
 def add_poly(

@@ -79,8 +79,8 @@ class DesignMatrix:
         >>> # Add columns
         >>> dm['stim'] = [0, 1, 1, 0] * 25
 
-        >>> # Convolve with HRF
-        >>> dm_conv = dm.convolve()
+        >>> # Convolve with HRF — convolved columns get a `_c0` suffix
+        >>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
 
         >>> # Add polynomial drift terms
         >>> dm_conv = dm_conv.add_poly(order=2)
@@ -426,13 +426,18 @@ class DesignMatrix:
         """
         Convolve columns with HRF or custom kernel.
 
+        Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
+        the kernel index, ``0`` for a single 1-D kernel). The source columns
+        are dropped, and ``self.convolved`` lists the post-suffix names so
+        downstream metadata stays in sync with the dataframe.
+
         Args:
             conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
-                Can be 1D array (single kernel) or 2D (samples x kernels)
-            columns (list of str, optional): Columns to convolve (default: all non-polynomial columns)
+                Can be 1D array (single kernel) or 2D (samples x kernels).
+            columns (list of str, optional): Columns to convolve (default: all non-confound columns).
 
         Returns:
-            DesignMatrix: New DesignMatrix with convolved columns
+            DesignMatrix: New DesignMatrix with convolved columns renamed.
         """
         from .regressors import convolve
 

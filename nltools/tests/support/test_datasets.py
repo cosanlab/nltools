@@ -150,7 +150,8 @@ class TestLoadHaxbyExample:
             "chair",
             "scrambledpix",
         ):
-            assert cond in cols, f"missing condition {cond}"
+            # `.convolve()` always suffixes `_c0`
+            assert f"{cond}_c0" in cols, f"missing condition {cond}_c0"
 
     def test_multiple_runs(self):
         from nltools.datasets import load_haxby_example
@@ -197,7 +198,7 @@ class TestLoadHaxbyExample:
                 order=2, include_lower=True
             )
             data.fit(model="glm", X=dm_full)
-            face_vs_house = data.compute_contrasts("face - house")
+            face_vs_house = data.compute_contrasts("face_c0 - house_c0")
         # signal clusters were disjoint, so the face-house map should have
         # clearly significant voxels in both directions.
         assert np.abs(face_vs_house.data).max() > 3.0

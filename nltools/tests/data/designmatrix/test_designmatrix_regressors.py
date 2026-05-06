@@ -11,7 +11,8 @@ class TestDesignMatrixConvolution:
     - Default convolution uses Glover HRF
     - Can provide custom kernels
     - Polynomial columns excluded from convolution
-    - .convolved metadata tracks which columns were convolved
+    - Convolved columns are always renamed to ``<col>_c{i}``; the source
+      column is dropped. ``.convolved`` lists post-suffix names.
     """
 
     def test_convolve_with_default_hrf_delays_response(self):
@@ -21,6 +22,7 @@ class TestDesignMatrixConvolution:
         Expected behavior:
         - Peak shifts later in time (HRF peaks ~5-6s after stimulus)
         - Signal is smoothed (convolution blurs sharp edges)
+        - Output column is renamed to ``stim_c0`` (always-suffix policy)
 
         Use case: Model hemodynamic response in fMRI
         """
@@ -33,13 +35,12 @@ class TestDesignMatrixConvolution:
 
         # Peak should shift later due to HRF delay
         original_peak_idx = dm["stim"].arg_max()
-        convolved_peak_idx = dm_conv["stim"].arg_max()
+        convolved_peak_idx = dm_conv["stim_c0"].arg_max()
 
         assert convolved_peak_idx > original_peak_idx, (
             "HRF convolution should delay peak response"
         )
 
-    # NOTE: DesignMatrix may not currently have this feature, but we've always wanted to support multiple kernels as well passed in a list of inputs that automatically creates columns * kernels new convovled columns. See if it's easy to support this
     def test_convolve_with_custom_kernel(self):
         """
         Convolution with custom kernel should use provided function.
@@ -47,6 +48,7 @@ class TestDesignMatrixConvolution:
         Expected behavior:
         - Custom kernel applied via convolution
         - Results differ from default HRF
+        - Output column renamed to ``stim_c0``
 
         Use case: Model non-canonical HRF, or other response functions (SCR, pupil)
         """
@@ -57,14 +59,32 @@ class TestDesignMatrixConvolution:
         dm_conv = dm.convolve(conv_func=kernel)
 
         # First value should be smoothed
-        assert dm_conv["stim"].to_list()[0] == pytest.approx(0.33, abs=0.01)
+        assert dm_conv["stim_c0"].to_list()[0] == pytest.approx(0.33, abs=0.01)
+
+    def test_convolve_drops_source_columns(self):
+        """
+        Convolution drops the un-convolved source column.
+
+        Expected behavior:
+        - After ``dm.convolve()``, ``stim`` no longer exists; ``stim_c0`` does.
+        - Holds for both 1-D and 2-D kernels.
+
+        Rationale: Callers want the convolved regressor in place of the
+        boxcar; leaving both around bloats the design and breaks downstream
+        column lookups.
+        """
+        dm = DesignMatrix({"stim": [1, 0, 0, 0, 0]}, sampling_freq=1)
+        dm_conv = dm.convolve(conv_func=np.array([0.5, 0.5]))
+
+        assert "stim" not in dm_conv.columns
+        assert "stim_c0" in dm_conv.columns
 
     def test_convolve_ignores_polynomial_columns(self):
         """
         Convolution should skip columns marked as polynomials.
 
         Expected behavior:
-        - Columns in .confounds list are NOT convolved
+        - Columns in .confounds list are NOT convolved (no suffix added)
         - Only stimulus columns are convolved
 
         Rationale: Confounds (intercept, drift, motion, …) represent baseline, not stimulus
@@ -76,18 +96,22 @@ class TestDesignMatrixConvolution:
 
         dm_conv = dm.convolve()
 
-        # Intercept should be unchanged
+        # Intercept should be unchanged AND keep its name (no suffix)
+        assert "intercept" in dm_conv.columns
         assert dm_conv["intercept"].to_list() == [1, 1, 1, 1], (
-            "Polynomial columns should not be convolved"
+            "Confound columns should not be convolved"
         )
+        # And the stim column should be renamed
+        assert "stim_c0" in dm_conv.columns
+        assert "stim" not in dm_conv.columns
 
     def test_convolve_specific_columns_only(self):
         """
         Can specify which columns to convolve.
 
         Expected behavior:
-        - Only specified columns are convolved
-        - Other columns unchanged
+        - Only specified columns are convolved (and renamed ``_c0``)
+        - Other columns unchanged (no suffix)
 
         Use case: Convolve task regressors but not parametric modulators
         """
@@ -98,10 +122,9 @@ class TestDesignMatrixConvolution:
 
         dm_conv = dm.convolve(columns=["stim_A"])
 
-        # Only stim_A should be different
-        assert dm_conv["stim_A"].to_list() != dm["stim_A"].to_list(), (
-            "Specified column should be convolved"
-        )
+        # stim_A is convolved → renamed; stim_B / baseline untouched
+        assert "stim_A" not in dm_conv.columns
+        assert "stim_A_c0" in dm_conv.columns
         assert dm_conv["stim_B"].to_list() == dm["stim_B"].to_list(), (
             "Unspecified column should be unchanged"
         )
@@ -109,22 +132,42 @@ class TestDesignMatrixConvolution:
 
     def test_convolve_updates_metadata(self):
         """
-        Convolution should update .convolved metadata.
+        Convolution should update .convolved metadata to post-suffix names.
 
         Expected behavior:
-        - .convolved list contains names of convolved columns
+        - ``.convolved`` lists the actual column names in the output
+          (post-suffix), not the source names
         - Metadata persists in returned DesignMatrix
 
-        Use case: Track which regressors have been convolved
+        Use case: Track which regressors have been convolved, and let
+        ``.append()``'s rename path find them in the dataframe.
         """
         dm = DesignMatrix({"stim": [1, 0, 0, 0]}, sampling_freq=1)
         dm_conv = dm.convolve(columns=["stim"])
 
-        assert "stim" in dm_conv.convolved, (
-            "Convolved columns should be tracked in metadata"
-        )
+        assert dm_conv.convolved == ["stim_c0"]
 
-    # NOTE: see earlier note
+    def test_convolved_metadata_survives_multirun_append(self):
+        """
+        Regression: ``.convolved`` entries must be real column names so that
+        vertical ``.append()`` rename map (``"col" -> "{run}_col"``) keeps
+        metadata in sync with the dataframe.
+
+        Before the always-suffix fix, ``.convolved`` carried pre-suffix names
+        that didn't exist in the dataframe, so ``append()`` couldn't rename
+        them and metadata silently drifted.
+        """
+        dm1 = DesignMatrix({"stim": [1, 0, 0, 0]}, sampling_freq=1).convolve()
+        dm2 = DesignMatrix({"stim": [0, 0, 1, 0]}, sampling_freq=1).convolve()
+
+        out = dm1.append(dm2, axis=0, unique_cols=["stim_c0"])
+
+        # Both runs' convolved columns exist in the dataframe under
+        # run-prefixed names, AND .convolved tracks them.
+        assert "0_stim_c0" in out.columns
+        assert "1_stim_c0" in out.columns
+        assert set(out.convolved) == {"0_stim_c0", "1_stim_c0"}
+
     def test_convolve_with_multiple_kernels(self):
         """
         Support convolution with multiple kernels (2D array).

@@ -243,8 +243,10 @@ def _(mo):
 
 @app.cell
 def _(brain):
+    # `.convolve()` suffixes columns with `_c0`, so the contrast string
+    # uses the post-convolution names.
     result = brain.compute_contrasts(
-        "language - string",
+        "language_c0 - string_c0",
         contrast_type="all",
     )
     print("Keys:", sorted(result.keys()))
@@ -285,7 +287,7 @@ def _(mo):
 
 @app.cell
 def _(BrainData, DesignMatrix, get_sub_files):
-    def fit_first_level(sub: str, contrast: str = "language - string") -> BrainData:
+    def fit_first_level(sub: str, contrast: str = "language_c0 - string_c0") -> BrainData:
         """Load sub's BOLD, build the DM, fit GLM, return the effect-size map."""
         p = get_sub_files(sub)
         bd = BrainData(p["bold"])

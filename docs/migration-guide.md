@@ -29,6 +29,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Parallel flag** | `parallel='cpu'\|'gpu'\|None` (BrainCollection) | `device='cpu'\|'gpu'`, `n_jobs=…` | **Split** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
+| **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
 | **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surface`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
 | **`nltools.prefs`** | `from nltools.prefs import MNI_Template` | `from nltools.templates import MNI_Template` + `set_brainspace()` | **Moved** |
@@ -361,13 +362,44 @@ The DesignMatrix metadata list that tracks nuisance columns (intercept, polynomi
 
 ```text
 DesignMatrix(sampling_freq=0.5, shape=(200, 6))
-  convolved (2): ['stim', 'cue']
+  convolved (2): ['stim_c0', 'cue_c0']
   confounds (3): ['poly_0', 'poly_1', 'poly_2']
 ```
 
 `DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`). There is no DM HDF5 reader yet, so this only affects newly written files.
 
 **`BrainData.X = dm` now works.** The `.X` setter previously rejected `DesignMatrix` with `TypeError`; v0.6.0 unwraps it to `dm.data` (the underlying polars DataFrame). DM-specific metadata isn't preserved on `BrainData.X`, but you no longer need the explicit `.data` step.
+
+(designmatrix-convolve-suffix)=
+### DesignMatrix.convolve() always suffixes `_c{i}`
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — column-name policy changed
+
+`dm.convolve()` now renames every convolved column to `<col>_c{i}` regardless of kernel shape, and drops the source column. Previously the 1-D kernel path replaced columns in place (kept the original name) while the 2-D kernel path suffixed `_c0`, `_c1`, ….
+
+The `dm.convolved` metadata list now records the **post-suffix** names that actually exist in the dataframe, so multi-run vertical `.append()` (which renames per run) keeps metadata in sync with the columns.
+
+```python
+# OLD (v0.5.1)
+dm = DesignMatrix({"face": [1, 0, 1, 0]}, sampling_freq=0.5)
+dm_conv = dm.convolve()
+dm_conv["face"]            # ✓ existed
+dm_conv.convolved          # ['face']  (matched columns)
+
+# NEW (v0.6.0)
+dm_conv = dm.convolve()
+dm_conv["face"]            # ❌ KeyError — column was dropped
+dm_conv["face_c0"]         # ✓
+dm_conv.convolved          # ['face_c0']
+
+# Multi-kernel call still produces _c0/_c1/... and now records all three
+dm_fir = dm.convolve(conv_func=fir_basis_3kernels)
+dm_fir.convolved           # ['face_c0', 'face_c1', 'face_c2']
+```
+
+**Migration**: search call sites for column lookups by trial-type name after a `.convolve()` chain (especially in `compute_contrasts(...)` strings) and append `_c0`. For example, `brain.compute_contrasts("language - string")` becomes `brain.compute_contrasts("language_c0 - string_c0")`.
+
+**Why**: deterministic column names regardless of kernel rank, and a fix for a metadata-drift bug where 2-D-kernel `convolve()` recorded pre-suffix names that didn't exist in the dataframe — `.append(..., axis=0)`'s rename map silently skipped them and `dm.convolved` ended up referring to ghost columns.
 
 ## Breaking Changes
 
@@ -1508,6 +1540,7 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 - [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
 - [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf).convolve()` (or pass in-memory DataFrames via `events_to_dm(...)` from `nltools.data.designmatrix.io`). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
+- [ ] Update column lookups after `.convolve()`: `dm_conv["stim"]` → `dm_conv["stim_c0"]`. Includes `compute_contrasts("A - B")` strings → `compute_contrasts("A_c0 - B_c0")`. See [DesignMatrix.convolve() always suffixes](#designmatrix-convolve-suffix).
 - [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
 - [ ] Update `from nltools.prefs import MNI_Template` → `from nltools.templates import MNI_Template`

@@ -201,8 +201,8 @@ def load_haxby_example(n_runs=1, random_state=42):
 
     Returns:
         tuple: `(list[BrainData], list[DesignMatrix])`, each of length n_runs.
-            The DesignMatrix columns are the eight condition names plus a
-            "constant" column.
+            The DesignMatrix columns are the eight condition names suffixed
+            with ``_c0`` (HRF-convolved boxcars).
 
     Examples:
         >>> from nltools.datasets import load_haxby_example
@@ -210,7 +210,7 @@ def load_haxby_example(n_runs=1, random_state=42):
         >>> data, dm = brain_data[0], design_matrices[0]
         >>> data.shape
         (72, 500)
-        >>> "face" in dm.columns
+        >>> "face_c0" in dm.columns
         True
     """
     import numpy as np
@@ -264,9 +264,10 @@ def load_haxby_example(n_runs=1, random_state=42):
         voxels_per_cond = n_voxels // n_conditions
         voxel_order = rng.permutation(n_voxels)
         for c_idx, cond in enumerate(_HAXBY_CONDITIONS):
-            if cond not in dm.columns:
+            cond_col = f"{cond}_c0"
+            if cond_col not in dm.columns:
                 continue
-            regressor = np.asarray(dm[cond], dtype=np.float32)
+            regressor = np.asarray(dm[cond_col], dtype=np.float32)
             cluster = voxel_order[
                 c_idx * voxels_per_cond : (c_idx + 1) * voxels_per_cond
             ]

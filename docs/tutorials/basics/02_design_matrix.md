@@ -75,7 +75,7 @@ dm.plot();
 
 ## HRF Convolution
 
-The hemodynamic response function (HRF) models the sluggish BOLD signal response to neural activity. You can use `.convolve()` to apply this function to all your columns of interest. Notice how the columns are delayed in time:
+The hemodynamic response function (HRF) models the sluggish BOLD signal response to neural activity. You can use `.convolve()` to apply this function to all your columns of interest. Convolved columns are renamed with a `_c0` suffix (and `_c1`, `_c2`, … if you pass multiple kernels) so callers can refer to them deterministically. Notice how the columns are delayed in time:
 
 ```{code-cell} python3
 dm.convolve().plot();
@@ -84,7 +84,7 @@ dm.convolve().plot();
 ```{code-cell} python
 import seaborn as sns
 ax = sns.lineplot(dm.data['face_A'], label='original')
-sns.lineplot(dm.convolve().data['face_A'], label='convolved', ax=ax);
+sns.lineplot(dm.convolve().data['face_A_c0'], label='convolved', ax=ax);
 ```
 
 ## Creating Drift Regressors
