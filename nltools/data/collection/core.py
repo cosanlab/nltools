@@ -1,93 +1,115 @@
-"""Stateless helpers for BrainCollection.
+"""Module-level helpers for BrainCollection.
 
-Constants and pure-function helpers shared across the collection submodules
-(metadata coercion, axis-name normalization). Instance-touching helpers like
-``_resolve_mask`` and ``_load_item`` remain on the BrainCollection class
-itself, since they read/mutate the collection's internal state across many
-call sites.
+Pure functions: metadata coercion, mask resolution, run/step ID generation,
+step-directory naming. No class state lives here.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import os
+import re
+import secrets
+from datetime import datetime, UTC
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
+import nibabel as nib
 import polars as pl
 
 if TYPE_CHECKING:
     import pandas as pd
 
 
-# Axis name mapping for intuitive access on BrainCollection
-AXIS_NAMES = {
-    "images": 0,
-    "subjects": 0,
-    "image": 0,
-    "subject": 0,
-    "observations": 1,
-    "time": 1,
-    "timepoints": 1,
-    "obs": 1,
-    "voxels": 2,
-    "space": 2,
-    "spatial": 2,
-}
+__all__ = [
+    "coerce_metadata",
+    "make_run_id",
+    "make_step_dirname",
+    "resolve_cache_dir",
+    "resolve_mask",
+]
 
 
 def coerce_metadata(
     metadata: pl.DataFrame | pd.DataFrame | dict | None,
-    n_items: int,
+    n_subjects: int,
 ) -> pl.DataFrame:
-    """Coerce metadata input to a polars DataFrame.
+    """Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
 
-    Accepts polars/pandas DataFrame, dict-of-columns, or None (→ empty frame
-    of length ``n_items``). Pandas is taken at the boundary as a convenience
-    affordance; internal state is always polars.
+    Accepts polars/pandas DataFrames or a dict-of-columns. ``None`` yields a
+    DataFrame with a default ``subject`` column (``sub-0001``, ...).
+
+    Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
+    the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
     """
-    if metadata is None:
-        return pl.DataFrame()
-
-    if isinstance(metadata, pl.DataFrame):
-        out = metadata
-    elif isinstance(metadata, dict):
-        out = pl.DataFrame(metadata)
-    else:
-        try:
-            import pandas as pd
-        except ImportError:
-            pd = None
-        if pd is not None and isinstance(metadata, pd.DataFrame):
-            out = pl.DataFrame(
-                {str(c): metadata[c].to_numpy() for c in metadata.columns}
-            )
-        else:
-            raise TypeError(
-                "metadata must be a polars/pandas DataFrame, dict, or None. "
-                f"Received {type(metadata).__name__}"
-            )
-
-    if not out.is_empty() and out.height != n_items:
-        raise ValueError(
-            f"metadata length ({out.height}) must match items length ({n_items})"
-        )
-    return out
+    raise NotImplementedError("scaffold")
 
 
-def normalize_axis(
-    axis: int | str | tuple[int | str, ...],
-) -> int | tuple[int, ...]:
-    """Convert axis name (or tuple of names) to integer axis index."""
-    if isinstance(axis, str):
-        if axis.lower() not in AXIS_NAMES:
-            raise ValueError(
-                f"Unknown axis name: {axis}. Valid names: {list(AXIS_NAMES.keys())}"
-            )
-        return AXIS_NAMES[axis.lower()]
-    if isinstance(axis, tuple):
-        normalized: list[int] = []
-        for a in axis:
-            result = normalize_axis(a)
-            if isinstance(result, tuple):
-                raise ValueError("Nested tuple axes are not supported")
-            normalized.append(result)
-        return tuple(normalized)
-    return axis
+def resolve_mask(
+    mask: nib.Nifti1Image | Path | str,
+) -> nib.Nifti1Image:
+    """Resolve a mask spec into a Nifti1Image.
+
+    Accepts a Nifti1Image, a path, or a known nltools template string
+    (e.g. ``"3mm-MNI152-2009c"``). String templates dispatch to the same
+    resolver used by ``BrainData``.
+    """
+    raise NotImplementedError("scaffold")
+
+
+def resolve_cache_dir(cache_dir: Path | str | None) -> Path | None:
+    """Resolve ``cache_dir`` per the spec's precedence rules.
+
+    Order: explicit arg → ``NLTOOLS_CACHE_DIR`` env var → ``./.nltools_cache``.
+    Returns ``None`` when the caller passes ``None`` (signaling tempdir mode).
+    The returned path is *not* yet decorated with a ``run_id`` subdir; that
+    happens at construction time on the instance.
+    """
+    if cache_dir is None:
+        # Sentinel: caller wants an auto-cleaned tempdir.
+        return None
+    if isinstance(cache_dir, (str, Path)) and str(cache_dir) == "./.nltools_cache":
+        env = os.environ.get("NLTOOLS_CACHE_DIR")
+        if env:
+            return Path(env).expanduser().resolve()
+    return Path(cache_dir).expanduser().resolve()
+
+
+_RUN_ID_RE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]{8}$")
+
+
+def make_run_id(now: datetime | None = None) -> str:
+    """Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+
+    Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
+    ``secrets.token_hex(4)``. Lex-sortable, collision-free across processes.
+    """
+    now = now or datetime.now(UTC)
+    return f"{now.strftime('%Y%m%dT%H%M%S')}_{secrets.token_hex(4)}"
+
+
+def _slug_kwargs(kwargs: dict[str, Any]) -> str:
+    """Turn ``{'fwhm': 6.0}`` into ``'fwhm-6.0'`` for step-dir naming.
+
+    Sorted by key, simple types only. Skips ``None``. Lossy by design — the
+    full kwargs are recorded in the bundle attrs / sidecar, not the dirname.
+    """
+    raise NotImplementedError("scaffold")
+
+
+def make_step_dirname(
+    op: str,
+    kwargs: dict[str, Any] | None = None,
+    *,
+    now: datetime | None = None,
+) -> str:
+    """Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+
+    Each call yields a unique name (UUID tail) — same op + same params
+    twice produces two subdirs, never overwriting.
+    """
+    raise NotImplementedError("scaffold")
+
+
+def is_run_id(name: str) -> bool:
+    """True if ``name`` matches the run-id regex (``YYYYMMDDTHHMMSS_########``)."""
+    return bool(_RUN_ID_RE.match(name))

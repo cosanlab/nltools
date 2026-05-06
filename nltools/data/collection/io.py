@@ -1,191 +1,193 @@
-"""I/O and memory-management functions for BrainCollection.
+"""IO and constructors for BrainCollection.
 
-Save path resolution, on-disk write, and lazy load/unload helpers extracted
-from BrainCollection. All BrainCollection I/O methods converted to functions
-taking ``bc`` as first argument.
+Constructors (``from_bids``, ``from_glob``, ``from_paths``, ``read``),
+write, load/unload, cache plumbing, and ``memory_estimate``. Anything that
+crosses the disk boundary lives here.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
+import nibabel as nib
+import polars as pl
 
 if TYPE_CHECKING:
-    from nltools.data.collection import BrainCollection
+    import pandas as pd
+
+    from . import BrainCollection
 
 
-def _resolve_save_path(
-    template: str,
-    metadata_row: dict,
-    idx: int,
-) -> Path:
-    """Resolve a template path using metadata values.
+__all__ = [
+    "discover_bids",
+    "from_bids",
+    "from_glob",
+    "from_paths",
+    "load",
+    "memory_estimate",
+    "read",
+    "unload",
+    "write",
+]
 
-    Replaces {column_name} placeholders with values from metadata.
-    Falls back to {idx} for the subject index.
 
-    Args:
-        template: Path template with {placeholders}, e.g., 'output/{subject}_betas.nii.gz'
-        metadata_row: Dict of metadata for this subject (e.g. from ``pl.DataFrame.row(i, named=True)``)
-        idx: Subject index (used for {idx} placeholder)
+# ---------------------------------------------------------------------------
+# Constructors
+# ---------------------------------------------------------------------------
 
-    Returns:
-        Resolved Path object
 
-    Raises:
-        KeyError: If placeholder not found in metadata and not 'idx'
+def from_bids(
+    cls: type[BrainCollection],
+    root: Path | str | Any,
+    *,
+    mask: nib.Nifti1Image | Path | str,
+    task: str | None = None,
+    space: str | None = None,
+    sub_labels: list[str] | None = None,
+    img_filters: list[tuple[str, str]] | None = None,
+    derivatives_folder: str = "derivatives",
+    pair_events: bool = True,
+    confounds_strategy: str | tuple[str, ...] | None = None,
+    confounds_kwargs: dict | None = None,
+    TR: float | str = "infer",
+    cache_dir: Path | str | None = "./.nltools_cache",
+) -> BrainCollection:
+    """Build a ``BrainCollection`` from a BIDS dataset.
 
-    Example:
-        >>> row = {'subject': 'sub-01', 'session': 'ses-01'}
-        >>> _resolve_save_path('out/{subject}_{session}.nii.gz', row, 0)
-        PosixPath('out/sub-01_ses-01.nii.gz')
+    Delegates discovery to ``nilearn.glm.first_level.first_level_from_bids``
+    (which wraps pybids), drops the returned ``models``, and keeps paths +
+    events/confounds DataFrames. Per-item ``DesignMatrix`` is built from the
+    events DataFrame; convolution / drift / confound merging is **not** done
+    here — that's the user's ``transform_designs`` step.
+
+    See SPEC §"``from_bids`` — concrete design" for edge cases.
     """
-    import re
-    from pathlib import Path
+    raise NotImplementedError("scaffold")
 
-    result = template
 
-    placeholders = re.findall(r"\{(\w+)\}", template)
+def from_glob(
+    cls: type[BrainCollection],
+    pattern: str,
+    *,
+    mask: nib.Nifti1Image | Path | str,
+    design_pattern: str | None = None,
+    pattern_groups: dict[str, int] | str | None = None,
+    sort: bool = True,
+    cache_dir: Path | str | None = "./.nltools_cache",
+) -> BrainCollection:
+    """Build a collection by globbing for BOLD images (and optionally designs)."""
+    raise NotImplementedError("scaffold")
 
-    for placeholder in placeholders:
-        if placeholder == "idx":
-            value = str(idx)
-        elif placeholder in metadata_row:
-            value = str(metadata_row[placeholder])
-        else:
-            available = list(metadata_row.keys()) + ["idx"]
-            raise KeyError(
-                f"Placeholder '{{{placeholder}}}' not found in metadata. "
-                f"Available: {available}"
-            )
-        result = result.replace(f"{{{placeholder}}}", value)
 
-    path = Path(result)
+def from_paths(
+    cls: type[BrainCollection],
+    brain_paths: list[Path | str],
+    *,
+    mask: nib.Nifti1Image | Path | str,
+    design_paths: list[Path | str | None] | None = None,
+    metadata: pl.DataFrame | pd.DataFrame | dict | None = None,
+    cache_dir: Path | str | None = "./.nltools_cache",
+) -> BrainCollection:
+    """Build a collection from explicit lists of brain (and design) paths."""
+    raise NotImplementedError("scaffold")
 
-    # Create parent directories if needed
-    path.parent.mkdir(parents=True, exist_ok=True)
 
-    return path
+def read(
+    cls: type[BrainCollection],
+    directory: Path | str,
+    *,
+    mask: nib.Nifti1Image | Path | str,
+    cache_dir: Path | str | None = "./.nltools_cache",
+) -> BrainCollection:
+    """Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
+
+    Does **not** recover from cache subdirs in v0.6.0 — call ``bc.write(...)``
+    first to materialize a portable directory.
+    """
+    raise NotImplementedError("scaffold")
+
+
+# ---------------------------------------------------------------------------
+# BIDS discovery (split out so it's testable on its own)
+# ---------------------------------------------------------------------------
+
+
+def discover_bids(
+    root: Path | str | Any,
+    *,
+    task: str | None,
+    space: str | None,
+    sub_labels: list[str] | None,
+    img_filters: list[tuple[str, str]] | None,
+    derivatives_folder: str,
+    confounds_strategy: str | tuple[str, ...] | None,
+    confounds_kwargs: dict | None,
+    TR: float | str,
+) -> dict[str, list]:
+    """Walk the BIDS dataset and return aligned per-item lists.
+
+    Returns a dict with keys: ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
+    ``sample_masks``, ``metadata_rows``, ``TRs``. Each list is the same length
+    (one entry per BOLD file). Anything missing for an item is ``None``.
+
+    Errors per SPEC §"Edge cases / errors":
+      - Missing TR with ``TR='infer'``: raise.
+      - ``task=None`` + ``pair_events=True``: caller silently downgrades.
+      - fmriprep absent + ``confounds_strategy`` set: raise.
+      - pybids not installed: raise ``ImportError``.
+    """
+    raise NotImplementedError("scaffold")
+
+
+# ---------------------------------------------------------------------------
+# Write / load / unload / memory
+# ---------------------------------------------------------------------------
 
 
 def write(
     bc: BrainCollection,
-    directory: str | Path,
+    directory: Path | str,
+    *,
     pattern: str = "image_{i:04d}.nii.gz",
     metadata_file: str | None = "metadata.csv",
 ) -> list[Path]:
-    """Write all images in collection to files.
+    """Write a clean, portable copy of ``bc`` outside the cache root.
 
-    Args:
-        bc: BrainCollection to write.
-        directory: Output directory path. Will be created if it doesn't exist.
-        pattern: Filename pattern with {i} placeholder for image index.
-            Default: "image_{i:04d}.nii.gz" produces image_0000.nii.gz, etc.
-        metadata_file: Optional filename for metadata CSV. Set to None to skip.
-            Default: "metadata.csv"
-
-    Returns:
-        List of paths to written files.
-
-    Examples:
-        >>> bc = BrainCollection([bd1, bd2, bd3], mask=mask)
-        >>> paths = write(bc, "output/")
-        >>> # Creates: output/image_0000.nii.gz, image_0001.nii.gz, etc.
-
-        >>> # Custom pattern
-        >>> write(bc, "output/", pattern="sub-{i:02d}_bold.nii.gz")
-        >>> # Creates: output/sub-00_bold.nii.gz, sub-01_bold.nii.gz, etc.
-
-        >>> # With BIDS-style naming using metadata
-        >>> bc.metadata["filename"] = [f"sub-{s}_bold.nii.gz" for s in subjects]
-        >>> for i, bd in enumerate(bc):
-        ...     bd.write(f"output/{bc.metadata.loc[i, 'filename']}")
+    Inverse of ``BrainCollection.read()``. Writes one NIfTI per item under
+    ``directory`` plus a metadata CSV. Skips the cache layout entirely so
+    the result is shareable / archival.
     """
-    from pathlib import Path
+    raise NotImplementedError("scaffold")
 
-    directory = Path(directory)
-    directory.mkdir(parents=True, exist_ok=True)
 
-    written_paths = []
-    for i in range(len(bc)):
-        bd = bc._load_item(i)
-        file_name = pattern.format(i=i)
-        file_path = directory / file_name
-        bd.write(str(file_path))
-        written_paths.append(file_path)
+def load(
+    bc: BrainCollection,
+    indices: list[int] | None = None,
+) -> BrainCollection:
+    """Materialize path-backed items into ``BrainData``. Mutates ``bc`` in place.
 
-    # Write metadata if requested
-    if metadata_file is not None and not bc._metadata.is_empty():
-        import polars as pl
+    The only mutation method besides ``unload`` — does not allocate a step
+    subdir, does not write to disk, does not produce a new identity.
+    """
+    raise NotImplementedError("scaffold")
 
-        metadata_out = bc._metadata.with_columns(
-            pl.Series("file_path", [str(p) for p in written_paths])
-        )
-        metadata_out.write_csv(directory / metadata_file)
 
-    return written_paths
+def unload(
+    bc: BrainCollection,
+    indices: list[int] | None = None,
+) -> BrainCollection:
+    """Drop in-memory data for items that have backing paths. Mutates in place.
+
+    No-op for items that don't have a backing path (would lose data).
+    """
+    raise NotImplementedError("scaffold")
 
 
 def memory_estimate(bc: BrainCollection) -> str:
-    """Estimate memory usage for loading all images.
+    """Human-readable RAM estimate if every item were loaded.
 
-    Returns a human-readable string like
-    ``"12.4 GB total (1.2 GB per image avg)"``.
+    Used by ``BrainCollection.memory_estimate()``; reports ``n_subjects``,
+    typical per-item shape, and an estimated total in MB/GB.
     """
-    # If we know sample counts, use them; otherwise estimate from loaded
-    known_counts = [c for c in bc._sample_counts if c is not None]
-    if known_counts:
-        avg_obs = np.mean(known_counts)
-    else:
-        # Load first item to estimate
-        bc._load_item(0)
-        avg_obs = bc._sample_counts[0]
-
-    bytes_per_element = 8  # float64
-    bytes_per_image = avg_obs * bc.n_voxels * bytes_per_element
-    total_bytes = bytes_per_image * bc.n_images
-
-    def format_bytes(b: float) -> str:
-        if b >= 1e9:
-            return f"{b / 1e9:.1f} GB"
-        if b >= 1e6:
-            return f"{b / 1e6:.1f} MB"
-        return f"{b / 1e3:.1f} KB"
-
-    return (
-        f"{format_bytes(total_bytes)} total "
-        f"({format_bytes(bytes_per_image)} per image avg)"
-    )
-
-
-def load(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection:
-    """Load specified images into memory. Returns the collection for chaining."""
-    idx_iter = range(len(bc._items)) if indices is None else indices
-
-    for idx in idx_iter:
-        bc._load_item(idx)
-
-    return bc
-
-
-def unload(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection:
-    """Free memory for items originally loaded from paths.
-
-    Replaces in-memory BrainData with its source path so it can be lazily
-    reloaded on next access. Items without a known source path are skipped.
-    Returns the collection for chaining.
-    """
-    from nltools.data.braindata import BrainData
-
-    idx_iter = range(len(bc._items)) if indices is None else indices
-
-    for idx in idx_iter:
-        item = bc._items[idx]
-        if isinstance(item, BrainData) and hasattr(item, "_source_path"):
-            # Can only unload if we know the original path
-            bc._items[idx] = item._source_path
-            bc._is_loaded[idx] = False
-
-    return bc
+    raise NotImplementedError("scaffold")
