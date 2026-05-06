@@ -22,7 +22,7 @@ def component_viewer(output, tr=2.0):
     """This a function to interactively view the results of a decomposition analysis
 
     Args:
-        output: (dict) output dictionary from running Brain_data.decompose()
+        output: (dict) output dictionary from running BrainData.decompose()
         tr: (float) repetition time of data
     """
 
@@ -42,7 +42,7 @@ def component_viewer(output, tr=2.0):
             from ipywidgets import interact
 
             tr = 2.4
-            output = data_filtered_smoothed.decompose(algorithm='ica', n_components=30, axis='images', whiten=True)
+            output = data_filtered_smoothed.decompose(method='ica', n_components=30, axis='images', whiten=True)
 
             interact(component_inspector, component=BoundedIntText(description='Component', value=0, min=0, max=len(output['components'])-1),
                   threshold=BoundedFloatText(description='Threshold', value=2.0, min=0, max=4, step=.1))

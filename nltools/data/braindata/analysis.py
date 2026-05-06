@@ -804,7 +804,7 @@ def transform_pairwise_data(bd):
     return out
 
 
-def decompose(bd, method="pca", axis="voxels", n_components=None, *args, **kwargs):
+def decompose(bd, *, method="pca", axis="voxels", n_components=None, **kwargs):
     """Decompose BrainData object
 
     Args:

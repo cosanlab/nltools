@@ -674,9 +674,7 @@ class BrainData:
             random_state=random_state,
         )
 
-    def decompose(
-        self, method="pca", axis="voxels", n_components=None, *args, **kwargs
-    ):
+    def decompose(self, *, method="pca", axis="voxels", n_components=None, **kwargs):
         """Decompose BrainData object.
 
         Args:
@@ -685,6 +683,7 @@ class BrainData:
             axis: dimension to decompose ['voxels','images']
             n_components: (int) number of components. If None then retain
                         as many as possible.
+            **kwargs: forwarded to the underlying sklearn decomposition estimator.
 
         Returns:
             output: a dictionary of decomposition parameters
@@ -696,7 +695,6 @@ class BrainData:
             method=method,
             axis=axis,
             n_components=n_components,
-            *args,
             **kwargs,
         )
 
