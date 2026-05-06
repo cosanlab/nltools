@@ -278,3 +278,19 @@ class TestRidgeFitIntercept:
         m = Ridge(alpha=0.1, fit_intercept=True).fit(X, y)
         # Predictions should land near y, not near zero.
         assert abs(m.predict(X).mean() - y.mean()) < 1.0
+
+    def test_cv_path_intercept_comes_from_solver(self):
+        """CV-path Ridge.fit() must pull intercept from the solver's return,
+        not recompute it post-hoc on the original data. The two are
+        algebraically identical, but the contract is that the solver owns
+        intercept calculation (parity with banded path)."""
+        X, y, _, _ = self._offset_data(intercept=100.0, n=120, p=8)
+        Y = np.column_stack([y, y * 0.5 + 20.0])  # multi-target
+        m = Ridge(
+            alpha="auto", cv=4, alphas=[0.01, 0.1, 1.0, 10.0], fit_intercept=True
+        ).fit(X, Y)
+        # Per-target intercept array (solver returns shape (n_targets,))
+        assert m.intercept_.shape == (2,)
+        # alpha_ must be per-target now (local_alpha=True default)
+        assert isinstance(m.alpha_, np.ndarray)
+        assert m.alpha_.shape == (2,)

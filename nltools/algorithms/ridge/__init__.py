@@ -18,6 +18,7 @@ Quick Start:
 from .solvers import (
     solve_ridge_cv,
     solve_banded_ridge_cv,
+    cross_val_predict_ridge,
 )
 
 # Utilities (internal but useful)
@@ -34,14 +35,12 @@ from .core import (
 )
 
 __all__ = [
-    # Utilities (advanced usage)
     "_decompose_ridge",
     "_r2_score",
+    "cross_val_predict_ridge",
     "generate_dirichlet_samples",
     "ridge_cv",
-    # Legacy solvers (backward compatible)
     "ridge_svd",
     "solve_banded_ridge_cv",
-    # New solvers (GPU-enabled)
     "solve_ridge_cv",
 ]

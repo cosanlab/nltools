@@ -223,11 +223,11 @@ class Ridge(BaseModel):
                 fit_intercept=self.fit_intercept,
                 conservative=self.conservative,
             )
-            # solve_ridge_cv centers X and y internally when fit_intercept,
-            # and the returned coefs are the centered-data coefficients.
-            # Recover intercept the standard way.
+            # The solver owns intercept calculation (parity with banded
+            # ridge). We just plumb it through; never recompute on the
+            # un-centered data here.
             if self.fit_intercept:
-                self.intercept_ = y.mean(axis=0) - Xs[0].mean(axis=0) @ result["coefs"]
+                self.intercept_ = result["intercept"]
             else:
                 self.intercept_ = np.zeros(y.shape[1], dtype=result["coefs"].dtype)
             self.alpha_ = result["best_alphas"]

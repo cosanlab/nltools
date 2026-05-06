@@ -552,7 +552,12 @@ class TestBrainDataModeling:
         assert np.isfinite(np.mean(brain_data.cv_results_["mean_score"]))
 
     def test_fit_ridge_cv_alpha_auto(self, small_brain_data_for_cv):
-        """Test alpha='auto' and cv='auto' trigger alpha selection."""
+        """alpha='auto' triggers per-voxel α selection by default (v0.6).
+
+        Breaking change: cv_results_['best_alpha'] is now (n_voxels,)
+        when local_alpha=True (the new default). Pass local_alpha=False
+        to get the legacy single-α-for-all-voxels behavior.
+        """
         brain_data, X = small_brain_data_for_cv
 
         alphas = [0.1, 1.0, 10.0]
@@ -564,10 +569,15 @@ class TestBrainDataModeling:
         assert "scores" in brain_data.cv_results_
         assert "mean_score" in brain_data.cv_results_
 
-        assert brain_data.cv_results_["best_alpha"] in alphas
+        # Per-voxel α: array of shape (n_voxels,), each entry from the alpha grid.
+        best = brain_data.cv_results_["best_alpha"]
+        assert isinstance(best, np.ndarray)
+        assert best.shape == (5,)  # 5 voxels in the fixture
+        assert np.all(np.isin(best, alphas))
         assert brain_data.cv_results_["alpha_scores"].shape == (3, 3, 5)
         assert brain_data.cv_results_["scores"].shape == (3, 5)
-        assert brain_data.model_.alpha == brain_data.cv_results_["best_alpha"]
+        # Model exposes the same per-voxel α via .alpha_ (post-fit attribute).
+        np.testing.assert_array_equal(brain_data.model_.alpha_, best)
 
         # Check all expected keys and types
         expected_keys = {
@@ -580,7 +590,6 @@ class TestBrainDataModeling:
         }
         assert set(brain_data.cv_results_.keys()) == expected_keys
         assert isinstance(brain_data.cv_results_["predictions"], BrainData)
-        assert isinstance(brain_data.cv_results_["best_alpha"], (int, float))
 
     def test_fit_ridge_no_cv_backward_compat(self, small_brain_data_for_cv):
         """Test fit() without cv parameter doesn't create cv_results_."""
@@ -901,3 +910,235 @@ class TestBrainDataRidgeCV:
         # Held-out predictions live on the original BOLD scale.
         preds = bd.cv_results_["predictions"].data
         assert abs(preds.mean() - 100.0) < 5.0
+
+
+class TestBrainDataRidgePerVoxelAlpha:
+    """v0.6 contract: bd.fit(model='ridge', alpha='auto', cv=K) selects α
+    per-voxel by default and refits the full-data weights with those α.
+
+    The previous BrainData CV path collapsed to a single global α even with
+    Ridge.local_alpha=True (the default), so the per-voxel machinery in
+    solve_ridge_cv was never reached and LORO produced wildly negative R².
+    These tests pin down the new behavior.
+    """
+
+    @staticmethod
+    def _per_voxel_fixture(n=80, p=12, n_voxels=6, snr_high=5.0, snr_low=0.2, seed=0):
+        """Two voxels per noise regime so SNR drives α selection."""
+        from nltools.data import BrainData
+        import nibabel as nib
+
+        rng = np.random.default_rng(seed)
+        X = rng.standard_normal((n, p)).astype(np.float32)
+
+        # True coefficients shared across voxels
+        coef = rng.standard_normal((p, n_voxels)).astype(np.float32)
+        signal = X @ coef
+        # Half voxels: low noise (low SNR → larger α). Other half: high SNR.
+        noise = rng.standard_normal((n, n_voxels)).astype(np.float32)
+        scales = np.array(
+            [snr_low if j < n_voxels // 2 else snr_high for j in range(n_voxels)],
+            dtype=np.float32,
+        )
+        # Higher scale → noise dominates → wants larger α.
+        Y = signal + noise * (1.0 / scales[None, :])
+
+        spatial_shape = (n_voxels, 1, 1)
+        mask_data = np.zeros(spatial_shape, dtype=bool)
+        mask_data.flat[:n_voxels] = True
+        affine = np.eye(4)
+        volume_4d = np.zeros(spatial_shape + (n,), dtype=np.float32)
+        for t in range(n):
+            volume_t = np.zeros(spatial_shape, dtype=np.float32)
+            volume_t.flat[:n_voxels] = Y[t]
+            volume_4d[..., t] = volume_t
+
+        bd = BrainData(
+            nib.Nifti1Image(volume_4d, affine),
+            mask=nib.Nifti1Image(mask_data.astype(np.float32), affine),
+        )
+        return bd, X, Y
+
+    def test_best_alpha_is_per_voxel_array(self):
+        bd, X, _ = self._per_voxel_fixture()
+        alphas = np.logspace(-2, 4, 12)
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=alphas,
+            cv=5,
+            scale=False,
+            fit_intercept=True,
+        )
+        best = bd.cv_results_["best_alpha"]
+        assert isinstance(best, np.ndarray)
+        assert best.shape == (bd.shape[1],)
+
+    def test_local_alpha_false_collapses_to_scalar(self):
+        bd, X, _ = self._per_voxel_fixture()
+        alphas = np.logspace(-2, 4, 12)
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=alphas,
+            cv=5,
+            scale=False,
+            fit_intercept=True,
+            local_alpha=False,
+        )
+        best = bd.cv_results_["best_alpha"]
+        # All voxels share the same α; representation is scalar (or
+        # per-voxel array with only one unique value).
+        if isinstance(best, np.ndarray):
+            assert best.shape == (bd.shape[1],)
+            assert np.unique(best).size == 1
+        else:
+            assert isinstance(best, (int, float, np.floating, np.integer))
+
+    def test_voxels_with_different_snr_pick_different_alphas(self):
+        bd, X, _ = self._per_voxel_fixture(
+            n=120, p=10, n_voxels=8, snr_high=10.0, snr_low=0.1, seed=1
+        )
+        alphas = np.logspace(-2, 4, 16)
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=alphas,
+            cv=5,
+            scale=False,
+            fit_intercept=True,
+        )
+        best = bd.cv_results_["best_alpha"]
+        assert isinstance(best, np.ndarray)
+        # Low-SNR (noisy) voxels should pick larger α than high-SNR ones.
+        n_voxels = bd.shape[1]
+        low_snr = best[: n_voxels // 2]
+        high_snr = best[n_voxels // 2 :]
+        # Mean α over the noisy half is strictly larger than the clean half.
+        assert low_snr.mean() > high_snr.mean()
+
+    def test_full_data_coefs_match_per_voxel_alpha_refit(self):
+        from nltools.algorithms.ridge import ridge_svd
+
+        bd, X, Y = self._per_voxel_fixture()
+        alphas = np.logspace(-2, 4, 12)
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=alphas,
+            cv=5,
+            scale=False,
+            fit_intercept=True,
+        )
+        best = bd.cv_results_["best_alpha"]
+        assert isinstance(best, np.ndarray) and best.shape == (bd.shape[1],)
+
+        # Replicate the solver's centering: global mean across all rows of X / Y.
+        X_offset = X.mean(axis=0)
+        Y_offset = bd.data.mean(axis=0)
+        Xc = X - X_offset
+        Yc = bd.data - Y_offset
+
+        coefs = bd.ridge_weights.data  # (n_features, n_voxels)
+        for j in range(bd.shape[1]):
+            expected = ridge_svd(Xc, Yc[:, j], alpha=float(best[j]))
+            np.testing.assert_allclose(
+                coefs[:, j],
+                expected,
+                rtol=1e-3,
+                atol=1e-3,
+                err_msg=f"voxel {j} weights diverge from per-α refit",
+            )
+
+    def test_held_out_predictions_use_per_voxel_alpha(self):
+        from sklearn.model_selection import KFold
+        from nltools.algorithms.ridge import ridge_svd
+
+        bd, X, _ = self._per_voxel_fixture(
+            n=120, p=10, n_voxels=8, snr_high=10.0, snr_low=0.1, seed=2
+        )
+        alphas = np.logspace(-2, 4, 12)
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=alphas,
+            cv=KFold(5, shuffle=False),
+            scale=False,
+            fit_intercept=True,
+        )
+        per_voxel_preds = bd.cv_results_["predictions"].data
+
+        # Build a baseline: same CV splits, but force a single global α.
+        # If predictions use per-voxel α, this baseline differs.
+        global_alpha = float(np.median(bd.cv_results_["best_alpha"]))
+        baseline = np.zeros_like(per_voxel_preds)
+        cv_splitter = KFold(5, shuffle=False)
+        for train_idx, test_idx in cv_splitter.split(X):
+            X_tr, X_te = X[train_idx], X[test_idx]
+            y_tr = bd.data[train_idx]
+            X_off = X_tr.mean(axis=0)
+            y_off = y_tr.mean(axis=0)
+            coef = ridge_svd(X_tr - X_off, y_tr - y_off, alpha=global_alpha)
+            baseline[test_idx] = (X_te - X_off) @ coef + y_off
+
+        assert per_voxel_preds.shape == baseline.shape
+        assert not np.allclose(per_voxel_preds, baseline)
+
+    def test_local_alpha_named_kwarg_on_bd_fit(self):
+        bd, X, _ = self._per_voxel_fixture()
+        # Passing as named kwarg should work and should be forwarded.
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=np.logspace(-2, 4, 8),
+            cv=3,
+            scale=False,
+            local_alpha=False,
+        )
+        assert bd.model_.local_alpha is False
+
+    def test_loro_via_groupkfold_returns_sensible_per_voxel_results(self):
+        """GroupKFold over per-run blocks → α selection respects splitter and
+        per-voxel R² isn't disastrously negative."""
+        from sklearn.model_selection import GroupKFold
+
+        bd, X, _ = self._per_voxel_fixture(
+            n=80, p=10, n_voxels=8, snr_high=8.0, snr_low=0.5, seed=3
+        )
+        # Synthetic per-run groups: 8 runs of 10 samples each.
+        groups = np.repeat(np.arange(8), 10)
+        splitter = GroupKFold(n_splits=8)
+        # GroupKFold needs groups passed to .split, so we wrap it.
+
+        class _GroupSplitter:
+            def __init__(self, splitter, groups):
+                self._s = splitter
+                self._g = groups
+
+            def split(self, X, y=None, groups=None):
+                return self._s.split(X, y, self._g)
+
+            def get_n_splits(self, X=None, y=None, groups=None):
+                return self._s.get_n_splits(X, y, self._g)
+
+        cv = _GroupSplitter(splitter, groups)
+
+        bd.fit(
+            model="ridge",
+            X=X,
+            alpha="auto",
+            alphas=np.logspace(-2, 4, 12),
+            cv=cv,
+            scale=False,
+            fit_intercept=True,
+        )
+        mean_score = bd.cv_results_["mean_score"]
+        assert mean_score.shape == (bd.shape[1],)
+        assert mean_score.max() > 0.0
+        assert mean_score.mean() > -1.0

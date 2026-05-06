@@ -685,6 +685,8 @@ def solve_ridge_cv(
                 shape (n_features, n_targets). Always returned on CPU (numpy array).
             - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).
                 Always returned on CPU (numpy array).
+            - 'intercept': Per-target intercept of shape (n_targets,). Only present
+                when ``fit_intercept=True``.
             - 'parallel': Backend used (for transparency).
 
     Examples:
@@ -873,9 +875,232 @@ def solve_ridge_cv(
     scores = backend.to_numpy(scores)
 
     # Return dict with consistent keys
-    return {
+    result = {
         "best_alphas": best_alphas,
         "coefs": coefs,
         "cv_scores": scores,
+        "parallel": backend.name,
+    }
+    # Mirror solve_banded_ridge_cv: when intercept was fit, return the
+    # per-target intercept derived from the same X/Y means used for
+    # centering. Solver owns intercept calculation; callers must not
+    # recompute it from the original (un-centered) data.
+    if fit_intercept:
+        result["intercept"] = (
+            backend.to_numpy(Y_offset) - backend.to_numpy(X_offset) @ coefs
+        )
+    return result
+
+
+def cross_val_predict_ridge(
+    # Required
+    X: np.ndarray,
+    Y: np.ndarray,
+    *,
+    alphas: float | np.ndarray,
+    cv: int | BaseCrossValidator = 5,
+    fit_intercept: bool = False,
+    n_targets_batch: int | None = None,
+    n_alphas_batch: int | None = None,
+    Y_in_cpu: bool = True,
+    score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
+    # Backend parameters (grouped) — same vocabulary as solve_ridge_cv
+    parallel: str | None = "cpu",
+    n_jobs: int = -1,
+    max_gpu_memory_gb: float = 4.0,
+) -> dict[str, Any]:
+    """Held-out ridge predictions per CV fold under a (per-target) alpha.
+
+    For each fold, refits ridge with the supplied alpha (per-target or
+    scalar) on the training fold and predicts the held-out fold. Targets
+    sharing the same alpha share an SVD of the training fold via
+    :func:`_refit_banded_ridge`, so the cost scales with the number of
+    *unique* alphas, not the number of targets.
+
+    Designed to be the BrainData CV layer's source of held-out predictions
+    when alpha selection has already been done by ``solve_ridge_cv``: pass
+    the selected per-voxel alphas back through here to get the fold-by-fold
+    predictions and per-fold R² needed for ``cv_results_``.
+
+    Args:
+        X: Feature matrix of shape (n_samples, n_features).
+        Y: Target data of shape (n_samples, n_targets). 1D ``Y`` is
+            promoted to (n_samples, 1).
+        alphas: Per-target alpha array of shape (n_targets,) or a scalar
+            (broadcast to every target).
+        cv: Cross-validation strategy. If int, uses KFold with that many
+            splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``)
+            are rejected — pass the splitter object instead.
+        fit_intercept: If True, center X and Y on the *training fold's*
+            mean per fold (sklearn convention) and add the intercept back
+            so predictions live on the original Y scale.
+        n_targets_batch: Batch size for targets during refit (for memory
+            efficiency). If None, processes all targets at once.
+        n_alphas_batch: Batch size for alphas. If None, processes all
+            unique alphas at once.
+        Y_in_cpu: If True, keep Y on CPU and transfer batches to backend
+            device as needed (recommended for large neuroimaging Y).
+        score_func: Per-fold scoring function ``(y_true, y_pred) -> per-target
+            scores``. If None, uses R² in NumPy on CPU (cheap at one fold's
+            size and decoupled from backend ops to avoid stray transfers).
+        parallel: Backend to use: "cpu", "gpu", or None.
+        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
+            Only used when parallel="cpu".
+        max_gpu_memory_gb: GPU memory budget in GB (only used if
+            parallel="gpu").
+
+    Returns:
+        dict: Dictionary with keys:
+            - 'predictions': (n_samples, n_targets) held-out per-target
+              predictions on the original Y scale (CPU numpy).
+            - 'folds': (n_samples,) int fold index per row (CPU numpy).
+            - 'scores': (n_splits, n_targets) per-fold R² (or
+              ``score_func``) at the supplied alpha (CPU numpy).
+            - 'parallel': Backend used (for transparency).
+
+    Raises:
+        TypeError: If ``cv`` is a single-use generator. Pass the splitter
+            object instead.
+        ValueError: If ``alphas`` does not broadcast to ``(n_targets,)``,
+            or ``n_samples`` of X and Y disagree.
+    """
+    # Reject single-use generators — same reason ridge_cv rejects them:
+    # the splitter must be re-iterable across folds.
+    is_splitter = hasattr(cv, "split") and hasattr(cv, "get_n_splits")
+    if hasattr(cv, "__next__") and not is_splitter:
+        raise TypeError(
+            "Got a generator for `cv` (e.g. `splitter.split(X, ...)`). "
+            "Pass an sklearn CV splitter object instead — KFold(...), "
+            "GroupKFold(...), etc. — so this function can iterate it more "
+            "than once."
+        )
+
+    backend = resolve_backend(parallel)
+    xp = backend.xp
+
+    # Coerce X onto backend
+    X = backend.asarray(X)
+    n_samples, n_features = X.shape
+    dtype = X.dtype
+    device = getattr(X, "device", None)
+
+    # Normalize Y to 2D
+    Y_np = np.asarray(Y)
+    if Y_np.ndim == 1:
+        Y_np = Y_np[:, None]
+    n_samples_y, n_targets = Y_np.shape
+    if n_samples != n_samples_y:
+        raise ValueError(f"n_samples mismatch: X has {n_samples}, Y has {n_samples_y}")
+
+    # Per-target alpha vector
+    alphas_per_target = np.asarray(alphas, dtype=np.float64)
+    if alphas_per_target.ndim == 0:
+        alphas_per_target = np.full(n_targets, float(alphas_per_target))
+    if alphas_per_target.shape != (n_targets,):
+        raise ValueError(
+            f"alphas must be scalar or shape (n_targets,)={n_targets}; "
+            f"got shape {alphas_per_target.shape}"
+        )
+
+    # Y onto backend (CPU or device, controlled by Y_in_cpu)
+    Y_b = backend.asarray(Y_np, dtype=dtype, device="cpu" if Y_in_cpu else device)
+
+    # Resolve batch sizes
+    if n_targets_batch is None:
+        n_targets_batch = n_targets
+    unique_alphas = np.unique(alphas_per_target)
+    if n_alphas_batch is None:
+        n_alphas_batch = len(unique_alphas)
+
+    # Setup CV
+    if isinstance(cv, int):
+        cv = KFold(n_splits=cv, shuffle=False)
+    n_splits = cv.get_n_splits()
+
+    # CPU output buffers (callers downstream are numpy-only)
+    pred_dtype = np.dtype(dtype) if not isinstance(dtype, np.dtype) else dtype
+    if pred_dtype.kind != "f":
+        pred_dtype = np.float32
+    predictions = np.zeros((n_samples, n_targets), dtype=pred_dtype)
+    folds = np.zeros(n_samples, dtype=int)
+    scores = np.zeros((n_splits, n_targets), dtype=pred_dtype)
+
+    for split_idx, (train_idx, val_idx) in enumerate(cv.split(X)):
+        train_idx_cpu = train_idx
+        val_idx_cpu = val_idx
+        train_idx_b = backend.asarray(train_idx)
+        val_idx_b = backend.asarray(val_idx)
+
+        X_train = X[train_idx_b]
+        X_val = X[val_idx_b]
+
+        # Per-fold centering on the *training* fold (sklearn convention).
+        if fit_intercept:
+            X_train_mean = xp.mean(X_train, axis=0)
+            X_train_c = X_train - X_train_mean[None, :]
+            X_val_c = X_val - X_train_mean[None, :]
+        else:
+            X_train_c = X_train
+            X_val_c = X_val
+
+        # Pull this fold's Y_train onto the same device as X — _refit_banded_ridge
+        # will see Y_in_cpu=False and operate on backend tensors throughout.
+        if Y_in_cpu:
+            Y_train_dev = backend.to_gpu(Y_b[train_idx_cpu], device=device)
+        else:
+            Y_train_dev = Y_b[train_idx_b]
+
+        if fit_intercept:
+            Y_train_mean = xp.mean(Y_train_dev, axis=0)
+            Y_train_c = Y_train_dev - Y_train_mean[None, :]
+        else:
+            Y_train_mean = None
+            Y_train_c = Y_train_dev
+
+        # Refit per unique alpha, on the chosen backend. _refit_banded_ridge
+        # handles target/alpha batching and returns coefs on CPU (n_features,
+        # n_targets).
+        coefs_cpu = _refit_banded_ridge(
+            X=X_train_c,
+            Y=Y_train_c,
+            best_alphas=alphas_per_target,
+            alphas=alphas_per_target,  # unused internally; uses unique(best_alphas)
+            n_targets_batch=n_targets_batch,
+            n_alphas_batch=n_alphas_batch,
+            Y_in_cpu=False,  # Y_train_c lives on backend already
+            backend=backend,
+        )
+
+        # Compute predictions on the backend, then bring to CPU.
+        coefs_dev = backend.asarray(coefs_cpu, dtype=dtype, device=device)
+        pred_dev = backend.matmul(X_val_c, coefs_dev)
+        if fit_intercept:
+            pred_dev = pred_dev + Y_train_mean[None, :]
+        pred_cpu = backend.to_numpy(pred_dev)
+
+        # Score per target on this fold. Doing R² on CPU at one fold's size
+        # is negligible and avoids needing a backend-aware mean broadcast.
+        Y_val_cpu = (
+            np.asarray(Y_b[val_idx_cpu])
+            if Y_in_cpu
+            else backend.to_numpy(Y_b[val_idx_b])
+        )
+        if score_func is None:
+            ss_res = np.sum((Y_val_cpu - pred_cpu) ** 2, axis=0)
+            ss_tot = np.sum((Y_val_cpu - Y_val_cpu.mean(axis=0)) ** 2, axis=0)
+            scores[split_idx] = 1.0 - ss_res / (ss_tot + 1e-10)
+        else:
+            scores[split_idx] = np.asarray(score_func(Y_val_cpu, pred_cpu))
+
+        predictions[val_idx_cpu] = pred_cpu
+        folds[val_idx_cpu] = split_idx
+
+        del X_train, X_val, X_train_c, X_val_c, Y_train_dev, Y_train_c
+        del coefs_cpu, coefs_dev, pred_dev, pred_cpu, Y_val_cpu
+
+    return {
+        "predictions": predictions,
+        "folds": folds,
+        "scores": scores,
         "parallel": backend.name,
     }

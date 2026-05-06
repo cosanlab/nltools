@@ -443,3 +443,74 @@ class TestRidgeCvSplitter:
         X, y = self._data()
         with pytest.raises(TypeError, match="generator"):
             ridge_cv(X, y, alphas=np.array([0.1, 1.0]), cv=KFold(5).split(X))
+
+
+class TestSolveRidgeCvIntercept:
+    """solve_ridge_cv must return intercept (parity with banded variant)."""
+
+    def test_solve_ridge_cv_returns_intercept(self):
+        from nltools.algorithms.ridge import solve_ridge_cv
+
+        rng = np.random.default_rng(0)
+        n, p, t = 80, 6, 4
+        X = rng.standard_normal((n, p)).astype(np.float32)
+        coef = rng.standard_normal((p, t)).astype(np.float32)
+        # Per-target intercepts.
+        true_intercept = np.array([1.0, -3.0, 10.0, 0.5], dtype=np.float32)
+        Y = (
+            X @ coef
+            + true_intercept[None, :]
+            + 0.1 * rng.standard_normal((n, t)).astype(np.float32)
+        )
+
+        result = solve_ridge_cv(
+            X,
+            Y,
+            alphas=np.array([0.01, 0.1, 1.0, 10.0]),
+            cv=5,
+            fit_intercept=True,
+        )
+        assert "intercept" in result
+        intercept = np.asarray(result["intercept"])
+        assert intercept.shape == (t,)
+        # Identity check vs documented formula.
+        Y_off = Y.mean(axis=0)
+        X_off = X.mean(axis=0)
+        expected = Y_off - X_off @ result["coefs"]
+        np.testing.assert_allclose(intercept, expected, rtol=1e-4, atol=1e-4)
+
+
+class TestCrossValPredictRidge:
+    """cross_val_predict_ridge: held-out predictions per fold under per-target α."""
+
+    @staticmethod
+    def _data(n=60, p=8, t=4, seed=0):
+        rng = np.random.default_rng(seed)
+        X = rng.standard_normal((n, p)).astype(np.float32)
+        coef = rng.standard_normal((p, t)).astype(np.float32)
+        Y = X @ coef + 0.1 * rng.standard_normal((n, t)).astype(np.float32)
+        return X, Y
+
+    def test_cross_val_predict_ridge_shape(self):
+        from nltools.algorithms.ridge import cross_val_predict_ridge
+
+        X, Y = self._data()
+        n_targets = Y.shape[1]
+        result = cross_val_predict_ridge(X, Y, alphas=np.full(n_targets, 1.0), cv=5)
+        assert result["predictions"].shape == (X.shape[0], n_targets)
+        assert result["folds"].shape == (X.shape[0],)
+        assert set(np.unique(result["folds"]).tolist()) == set(range(5))
+        assert result["scores"].shape == (5, n_targets)
+
+    def test_cross_val_predict_ridge_uses_per_target_alpha(self):
+        from nltools.algorithms.ridge import cross_val_predict_ridge
+
+        X, Y = self._data(seed=1)
+        n_targets = Y.shape[1]
+        uniform = cross_val_predict_ridge(X, Y, alphas=np.full(n_targets, 1.0), cv=5)
+        varied_alphas = np.array([0.01, 1.0, 100.0, 10.0])[:n_targets]
+        varied = cross_val_predict_ridge(X, Y, alphas=varied_alphas, cv=5)
+        # Different α → different held-out predictions.
+        assert not np.allclose(uniform["predictions"], varied["predictions"])
+        # Folds tell the same story for both calls.
+        np.testing.assert_array_equal(uniform["folds"], varied["folds"])

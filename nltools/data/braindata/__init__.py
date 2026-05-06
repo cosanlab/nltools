@@ -800,8 +800,11 @@ class BrainData:
     def fit(
         self,
         model="glm",
+        *,
         X=None,
         cv=None,
+        local_alpha=True,
+        fit_intercept=False,
         inplace=True,
         scale=True,
         scale_value=100.0,
@@ -821,7 +824,17 @@ class BrainData:
         Args:
             model (str): Model type: 'ridge', 'glm', or future model names
             X (array-like or DataFrame): Design matrix or feature matrix
-            cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification (Ridge only)
+            cv (int or sklearn CV splitter, optional): Cross-validation
+                specification (Ridge only). int → ``KFold(cv)``; pass a
+                splitter object (e.g. ``KFold(5, shuffle=True)``,
+                ``GroupKFold(8)``) for non-contiguous folds. Generators
+                (``splitter.split(X)``) are rejected.
+            local_alpha (bool, default=True): Ridge only. If True, select
+                α independently per voxel via ``solve_ridge_cv``. If False,
+                pick a single α shared across all voxels.
+            fit_intercept (bool, default=False): Ridge only. Forwarded to
+                the Ridge model — center X and y on the training fold mean
+                per fold and recover the intercept after.
             inplace (bool, default=True): If True, mutate self and return self.
                 If False, return Fit dataclass with results (self unchanged).
             scale (bool, default=True): Apply grand-mean scaling before fitting.
@@ -876,6 +889,8 @@ class BrainData:
             model=model,
             X=X,
             cv=cv,
+            local_alpha=local_alpha,
+            fit_intercept=fit_intercept,
             inplace=inplace,
             scale=scale,
             scale_value=scale_value,
