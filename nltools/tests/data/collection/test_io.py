@@ -13,7 +13,6 @@ XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
 
 
 class TestFromPaths:
-    @XFAIL
     def test_from_paths_basic(self, tiny_mask, tiny_nifti_paths):
         bc = BrainCollection.from_paths(
             tiny_nifti_paths,
@@ -23,7 +22,6 @@ class TestFromPaths:
         assert bc.n_subjects == 3
         assert not any(bc.is_loaded)  # path-backed
 
-    @XFAIL
     def test_from_paths_with_metadata(self, tiny_mask, tiny_nifti_paths):
         bc = BrainCollection.from_paths(
             tiny_nifti_paths,

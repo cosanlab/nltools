@@ -233,14 +233,12 @@ class TestSignatures:
 class TestInit:
     """Construction from explicit lists."""
 
-    @XFAIL
     def test_init_with_loaded_brain_data(self, tiny_mask, tiny_brain_factory):
         brains = [tiny_brain_factory(seed=i) for i in range(3)]
         bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
         assert bc.n_subjects == 3
         assert all(bc.is_loaded)
 
-    @XFAIL
     def test_init_with_metadata_dict(self, tiny_mask, tiny_brain_factory):
         brains = [tiny_brain_factory(seed=i) for i in range(2)]
         bc = BrainCollection(
@@ -252,7 +250,6 @@ class TestInit:
         assert isinstance(bc.metadata, pl.DataFrame)
         assert "group" in bc.metadata.columns
 
-    @XFAIL
     def test_init_metadata_length_mismatch_raises(self, tiny_mask, tiny_brain_factory):
         brains = [tiny_brain_factory(seed=i) for i in range(2)]
         with pytest.raises(ValueError):
@@ -263,13 +260,11 @@ class TestInit:
                 cache_dir=None,
             )
 
-    @XFAIL
     def test_init_designs_length_mismatch_raises(self, tiny_mask, tiny_brain_factory):
         brains = [tiny_brain_factory(seed=i) for i in range(2)]
         with pytest.raises(ValueError):
             BrainCollection(brains, mask=tiny_mask, designs=[None], cache_dir=None)
 
-    @XFAIL
     def test_init_cache_root_resolved_at_construction(
         self,
         tiny_mask,
@@ -289,13 +284,11 @@ class TestInit:
         monkeypatch.chdir(tmp_path.parent)
         assert bc.cache_root == original  # not relocated by chdir
 
-    @XFAIL
     def test_init_cache_dir_none_uses_tempdir(self, tiny_mask, tiny_brain_factory):
         brains = [tiny_brain_factory(seed=0)]
         bc = BrainCollection(brains, mask=tiny_mask, cache_dir=None)
         assert bc._cache_root is None or bc._cache_root.exists()
 
-    @XFAIL
     def test_init_cache_dir_env_var_precedence(
         self,
         tiny_mask,
@@ -312,31 +305,25 @@ class TestInit:
 
 
 class TestProperties:
-    @XFAIL
     def test_n_subjects_n_voxels_shape(self, bc_inmem):
         assert bc_inmem.n_subjects == 3
         assert bc_inmem.n_voxels == 27  # 3*3*3 mask
         n_sub, n_obs, n_vox = bc_inmem.shape
         assert n_sub == 3 and n_vox == 27
 
-    @XFAIL
     def test_is_loaded_inmem(self, bc_inmem):
         assert all(bc_inmem.is_loaded)
 
-    @XFAIL
     def test_is_loaded_pathbacked(self, bc_pathbacked):
         assert not any(bc_pathbacked.is_loaded)
 
-    @XFAIL
     def test_metadata_is_polars(self, bc_inmem):
         assert isinstance(bc_inmem.metadata, pl.DataFrame)
 
-    @XFAIL
     def test_designs_returns_list(self, bc_inmem):
         d = bc_inmem.designs
         assert isinstance(d, list) and len(d) == bc_inmem.n_subjects
 
-    @XFAIL
     def test_cache_root_under_cwd_default(self, bc_pathbacked, tmp_path):
         assert tmp_path in bc_pathbacked.cache_root.parents
 

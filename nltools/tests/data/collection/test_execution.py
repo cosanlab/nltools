@@ -38,18 +38,31 @@ class TestRunIdAndStepDirs:
         ids = {core.make_run_id() for _ in range(50)}
         assert len(ids) == 50
 
-    @XFAIL
     def test_make_step_dirname_includes_op_and_kwargs(self):
         """SPEC §"Parallel write safety": step subdir name is unique per call."""
         name = core.make_step_dirname("smooth", {"fwhm": 6.0})
         assert "smooth" in name
         assert "fwhm-6.0" in name
 
-    @XFAIL
     def test_make_step_dirname_unique_for_same_args(self):
         a = core.make_step_dirname("smooth", {"fwhm": 6.0})
         b = core.make_step_dirname("smooth", {"fwhm": 6.0})
         assert a != b  # uuid tail makes them unique
+
+    def test_make_step_dirname_no_kwargs(self):
+        name = core.make_step_dirname("mean")
+        # run_id prefix + "_mean", no trailing underscore
+        assert name.endswith("_mean")
+
+    def test_make_step_dirname_kwargs_sorted(self):
+        """Sorted by key so naming is deterministic across processes."""
+        name = core.make_step_dirname("op", {"b": 2, "a": 1})
+        assert "a-1_b-2" in name
+
+    def test_make_step_dirname_skips_none_values(self):
+        name = core.make_step_dirname("op", {"x": None, "y": 1})
+        assert "x" not in name
+        assert "y-1" in name
 
     def test_resolve_cache_dir_explicit(self, tmp_path):
         result = core.resolve_cache_dir(tmp_path / "x")
@@ -63,6 +76,92 @@ class TestRunIdAndStepDirs:
         monkeypatch.setenv("NLTOOLS_CACHE_DIR", str(env_root))
         result = core.resolve_cache_dir("./.nltools_cache")
         assert result == env_root.resolve()
+
+
+class TestSlugKwargs:
+    def test_empty_dict(self):
+        assert core._slug_kwargs({}) == ""
+
+    def test_simple_value(self):
+        assert core._slug_kwargs({"fwhm": 6.0}) == "fwhm-6.0"
+
+    def test_sorted_by_key(self):
+        assert core._slug_kwargs({"b": 2, "a": 1}) == "a-1_b-2"
+
+    def test_skips_none(self):
+        assert core._slug_kwargs({"x": None, "y": 5}) == "y-5"
+
+    def test_string_values(self):
+        assert core._slug_kwargs({"method": "linear"}) == "method-linear"
+
+    def test_bool_values(self):
+        assert core._slug_kwargs({"flag": True}) == "flag-True"
+
+
+class TestCoerceMetadata:
+    def test_none_yields_default_subject_column(self):
+        import polars as pl
+
+        md = core.coerce_metadata(None, 3)
+        assert isinstance(md, pl.DataFrame)
+        assert md.height == 3
+        assert "subject" in md.columns
+        assert md["subject"].to_list() == ["sub-0001", "sub-0002", "sub-0003"]
+
+    def test_dict_input(self):
+        md = core.coerce_metadata({"group": [0, 1, 0]}, 3)
+        assert md.height == 3
+        assert "group" in md.columns
+
+    def test_polars_passthrough(self):
+        import polars as pl
+
+        src = pl.DataFrame({"a": [1, 2, 3]})
+        md = core.coerce_metadata(src, 3)
+        assert md.equals(src)
+
+    def test_pandas_converted(self):
+        import pandas as pd
+
+        src = pd.DataFrame({"x": ["a", "b", "c"]})
+        md = core.coerce_metadata(src, 3)
+        import polars as pl
+
+        assert isinstance(md, pl.DataFrame)
+        assert md["x"].to_list() == ["a", "b", "c"]
+
+    def test_length_mismatch_raises(self):
+        with pytest.raises(ValueError, match="length"):
+            core.coerce_metadata({"x": [1, 2]}, 3)
+
+
+class TestResolveMask:
+    def test_nifti_image_passthrough(self, tiny_mask):
+        out = core.resolve_mask(tiny_mask)
+        assert out is tiny_mask
+
+    def test_path_loads(self, tiny_mask_path):
+        out = core.resolve_mask(tiny_mask_path)
+        import nibabel as nib
+
+        assert isinstance(out, nib.Nifti1Image)
+
+    def test_str_path_loads(self, tiny_mask_path):
+        out = core.resolve_mask(str(tiny_mask_path))
+        import nibabel as nib
+
+        assert isinstance(out, nib.Nifti1Image)
+
+    def test_template_string_resolves(self):
+        import nibabel as nib
+
+        # 3mm + nilearn (a) is supported; 3mm + fmriprep (c) is not.
+        out = core.resolve_mask("3mm-MNI152-2009a")
+        assert isinstance(out, nib.Nifti1Image)
+
+    def test_invalid_input_raises(self):
+        with pytest.raises((ValueError, TypeError, FileNotFoundError)):
+            core.resolve_mask(12345)
 
 
 # ---------------------------------------------------------------------------
@@ -134,20 +233,17 @@ class TestWorkerDataclasses:
 
 
 class TestApplyDispatch:
-    @XFAIL
     def test_apply_returns_lightweight_clone(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0)
         assert isinstance(out, BrainCollection)
         assert out is not bc_pathbacked
         assert out.n_subjects == bc_pathbacked.n_subjects
 
-    @XFAIL
     def test_clone_shares_cache_root_and_mask(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0)
         assert out.cache_root == bc_pathbacked.cache_root
         assert out.mask is bc_pathbacked.mask  # by reference
 
-    @XFAIL
     def test_clone_shares_metadata_by_reference(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0)
         assert out.metadata is bc_pathbacked.metadata
@@ -156,29 +252,24 @@ class TestApplyDispatch:
 class TestCacheKnob:
     """SPEC §"The cache= knob"."""
 
-    @XFAIL
     def test_auto_path_backed_source_writes_through(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0, cache="auto")
         assert not any(out.is_loaded)  # all path-backed
 
-    @XFAIL
     def test_auto_loaded_source_stays_in_memory(self, bc_inmem):
         out = bc_inmem.smooth(fwhm=6.0, cache="auto")
         assert all(out.is_loaded)
 
-    @XFAIL
     def test_force_true_writes_through_loaded_source(self, bc_inmem):
         out = bc_inmem.smooth(fwhm=6.0, cache=True)
         assert not any(out.is_loaded)
 
-    @XFAIL
     def test_force_false_loads_path_backed_source(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0, cache=False)
         assert all(out.is_loaded)
 
 
 class TestStepLineage:
-    @XFAIL
     def test_steps_lex_sorted_oldest_to_newest(self, bc_pathbacked):
         a = bc_pathbacked.smooth(fwhm=6.0)
         b = a.standardize()
@@ -188,14 +279,12 @@ class TestStepLineage:
         assert any("smooth" in n for n in names)
         assert any("standardize" in n for n in names)
 
-    @XFAIL
     def test_each_eager_step_is_separate_subdir(self, bc_pathbacked):
         """SPEC §"Eager, no fused chains": two on-disk steps, not fused."""
         chained = bc_pathbacked.smooth(fwhm=6.0).standardize()
         steps = chained.steps()
         assert len(steps) >= 2
 
-    @XFAIL
     def test_repeat_call_creates_new_subdir(self, bc_pathbacked):
         a = bc_pathbacked.smooth(fwhm=6.0)
         b = bc_pathbacked.smooth(fwhm=6.0)
@@ -205,14 +294,12 @@ class TestStepLineage:
 
 
 class TestParallelWriteSafety:
-    @XFAIL
     def test_one_file_per_item_per_step(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0)
         latest = out.steps()[-1]
         files = sorted(latest.glob("*.nii*"))
         assert len(files) == bc_pathbacked.n_subjects
 
-    @XFAIL
     def test_no_tmp_files_after_success(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0)
         latest = out.steps()[-1]
@@ -220,21 +307,32 @@ class TestParallelWriteSafety:
 
 
 class TestErrorPropagation:
-    @XFAIL
     def test_worker_error_includes_subject_context(self, bc_pathbacked):
-        """SPEC §"Errors": fail fast, message embeds subject/run."""
+        """SPEC §"Errors": fail fast, message embeds subject + original error."""
 
         def boom(bd):
             raise ValueError("kaboom")
 
         with pytest.raises(BrainCollectionWorkerError) as exc:
             bc_pathbacked.map(boom)
-        # message includes subject id
-        assert "subject" in str(exc.value)
-        # original chained
+        msg = str(exc.value)
+        # subject context
+        assert "subject" in msg
+        # original error type + message preserved in the wrapper's text
+        # (multiprocess can lose the literal __cause__ chain across pickling)
+        assert "ValueError" in msg
+        assert "kaboom" in msg
+
+    def test_worker_error_chain_preserved_in_single_process(self, bc_pathbacked):
+        """Same-process path keeps the literal ``__cause__`` chain."""
+
+        def boom(bd):
+            raise ValueError("kaboom")
+
+        with pytest.raises(BrainCollectionWorkerError) as exc:
+            bc_pathbacked.map(boom, n_jobs=1)
         assert isinstance(exc.value.__cause__, ValueError)
 
-    @XFAIL
     def test_partial_step_dir_preserved_on_failure(self, bc_pathbacked, tmp_path):
         def maybe_boom(bd):
             raise ValueError("kaboom")
@@ -328,7 +426,6 @@ class TestBundleIO:
 
 
 class TestNestedParallelismGuard:
-    @XFAIL
     def test_inner_n_jobs_capped_when_outer_parallel(self, bc_pathbacked):
         """SPEC §"Nested parallelism": ``inner_max_num_threads=1`` by default."""
         # Behavioral check: just ensure the call returns successfully.

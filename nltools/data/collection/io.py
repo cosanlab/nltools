@@ -89,8 +89,18 @@ def from_paths(
     metadata: pl.DataFrame | pd.DataFrame | dict | None = None,
     cache_dir: Path | str | None = "./.nltools_cache",
 ) -> BrainCollection:
-    """Build a collection from explicit lists of brain (and design) paths."""
-    raise NotImplementedError("scaffold")
+    """Build a collection from explicit lists of brain (and design) paths.
+
+    Always lazy — items are stored as ``Path`` and loaded on demand.
+    """
+    return cls(
+        brains=list(brain_paths),
+        mask=mask,
+        designs=design_paths,
+        metadata=metadata,
+        lazy=True,
+        cache_dir=cache_dir,
+    )
 
 
 def read(

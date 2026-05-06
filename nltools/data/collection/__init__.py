@@ -72,6 +72,8 @@ class BrainCollection:
       _cache_root     Path | None                   shared by clones
       _step_id        str | None                    this collection's step id
       _parent_step_id str | None                    upstream step id (lineage)
+      _step_dirs      list[Path]                    lineage of step subdirs
+                                                    that produced these items
     """
 
     # ------------------------------------------------------------------
@@ -94,7 +96,50 @@ class BrainCollection:
         ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
         Resolved at construction and frozen on the instance.
         """
-        raise NotImplementedError("scaffold")
+        from ..braindata import BrainData as _BrainData
+
+        n = len(brains)
+        if designs is not None and len(designs) != n:
+            raise ValueError(
+                f"designs length ({len(designs)}) does not match brains ({n})"
+            )
+
+        self._mask = core.resolve_mask(mask)
+        self._metadata = core.coerce_metadata(metadata, n)
+
+        items: list = []
+        for b in brains:
+            if isinstance(b, _BrainData):
+                items.append(b)
+            elif isinstance(b, (str, Path)):
+                p = Path(b)
+                if lazy:
+                    items.append(p)
+                else:
+                    items.append(_BrainData(p, mask=self._mask))
+            else:
+                raise TypeError(
+                    f"brains[i] must be BrainData/Path/str, got {type(b).__name__}"
+                )
+        self._items = items
+
+        self._designs = list(designs) if designs is not None else [None] * n
+        self._confounds = [None] * n
+        self._sample_masks = [None] * n
+
+        resolved = core.resolve_cache_dir(cache_dir)
+        if resolved is None:
+            import atexit
+            import shutil
+            import tempfile
+
+            resolved = Path(tempfile.mkdtemp(prefix="nltools_cache_"))
+            atexit.register(lambda p=resolved: shutil.rmtree(p, ignore_errors=True))
+        self._cache_root = resolved / core.make_run_id()
+        self._cache_root.mkdir(parents=True, exist_ok=True)
+        self._step_id = None
+        self._parent_step_id = None
+        self._step_dirs: list[Path] = []
 
     # ------------------------------------------------------------------
     # Classmethod factories — delegate to io.py
@@ -185,10 +230,7 @@ class BrainCollection:
         mask: nib.Nifti1Image | Path | str,
         cache_dir: Path | str | None = "./.nltools_cache",
     ) -> BrainCollection:
-        """Read a collection written by ``write()``.
-
-        This does not recover from cache subdirectories in v0.6.0.
-        """
+        """Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0."""
         return io.read(cls, directory, mask=mask, cache_dir=cache_dir)
 
     # ------------------------------------------------------------------
@@ -201,11 +243,10 @@ class BrainCollection:
 
     @property
     def n_voxels(self) -> int:
-        """Return the voxel count from the mask.
-
-        Raises if the mask is unset.
-        """
-        raise NotImplementedError("scaffold")
+        """Voxel count from the mask. Raises if mask is unset."""
+        if self._mask is None:
+            raise ValueError("mask not set")
+        return int(np.asarray(self._mask.dataobj).astype(bool).sum())
 
     @property
     def mask(self) -> nib.Nifti1Image:
@@ -232,8 +273,18 @@ class BrainCollection:
 
     @property
     def shape(self) -> tuple[int, int | None, int]:
-        """``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``."""
-        raise NotImplementedError("scaffold")
+        """``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+        ``n_obs`` is ``None`` when any item is path-backed (loading just to
+        report shape would defeat the purpose) or when items are ragged.
+        """
+        n_sub = len(self._items)
+        n_vox = self.n_voxels
+        if not self._items or not all(self.is_loaded):
+            return (n_sub, None, n_vox)
+        n_obs_set = {bd.shape[0] for bd in self._items}
+        n_obs = next(iter(n_obs_set)) if len(n_obs_set) == 1 else None
+        return (n_sub, n_obs, n_vox)
 
     @property
     def cache_root(self) -> Path:
@@ -252,11 +303,9 @@ class BrainCollection:
         return len(self._items)
 
     def __iter__(self) -> Iterator:  # Iterator[BrainData]
-        """Yield each item as a ``BrainData``.
-
-        Paths are loaded lazily.
-        """
-        raise NotImplementedError("scaffold")
+        """Yield each item as a ``BrainData``. Loads paths lazily."""
+        for i in range(len(self._items)):
+            yield self._load_item(i)
 
     def __getitem__(self, key) -> Any:  # BrainData | BrainCollection
         """See SPEC §"Indexing and iteration" for the full dispatch table.
@@ -267,18 +316,66 @@ class BrainCollection:
         bc['sub-01']          → BrainData (metadata['subject'] lookup)
         bc[pl.col(...) == ..] → BrainCollection (polars expression)
         """
-        raise NotImplementedError("scaffold")
+        if isinstance(key, (int, np.integer)):
+            return self._load_item(int(key))
+
+        if isinstance(key, slice):
+            indices = list(range(*key.indices(len(self))))
+            return self._subset(indices)
+
+        if isinstance(key, str):
+            if "subject" not in self._metadata.columns:
+                raise KeyError("metadata has no 'subject' column for label lookup")
+            subjects = self._metadata["subject"].to_list()
+            if key not in subjects:
+                raise KeyError(f"subject {key!r} not found")
+            return self._load_item(subjects.index(key))
+
+        if isinstance(key, pl.Expr):
+            mask = self._metadata.with_columns(_mask=key)["_mask"].to_numpy()
+            return self._subset(np.where(mask.astype(bool))[0].tolist())
+
+        if isinstance(key, (list, np.ndarray, pl.Series)):
+            arr = key.to_numpy() if isinstance(key, pl.Series) else np.asarray(key)
+            if arr.dtype == bool:
+                if len(arr) != len(self):
+                    raise ValueError(
+                        f"boolean mask length ({len(arr)}) != n_subjects ({len(self)})"
+                    )
+                return self._subset(np.where(arr)[0].tolist())
+            return self._subset([int(i) for i in arr])
+
+        raise TypeError(f"unsupported index type: {type(key).__name__}")
 
     def iter_pairs(self) -> Iterator[tuple]:  # tuple[BrainData, DesignMatrix | None]
         """Yield ``(BrainData, DesignMatrix | None)`` pairs."""
-        raise NotImplementedError("scaffold")
+        for i in range(len(self._items)):
+            yield self._load_item(i), self._designs[i]
 
     def filter(
         self,
         predicate: Callable | list | np.ndarray | pl.Series | pd.Series,
     ) -> BrainCollection:
-        """Filter to a subset by predicate, mask, or boolean Series."""
-        raise NotImplementedError("scaffold")
+        """Filter to a subset by predicate, polars expression, or boolean array."""
+        if isinstance(predicate, pl.Expr):
+            return self[predicate]
+
+        if callable(predicate):
+            bool_arr = np.array(
+                [bool(predicate(self._load_item(i))) for i in range(len(self))]
+            )
+            return self._subset(np.where(bool_arr)[0].tolist())
+
+        if isinstance(predicate, pl.Series):
+            arr = predicate.to_numpy().astype(bool)
+        else:
+            # numpy array, list, or pandas Series
+            arr = np.asarray(predicate, dtype=bool)
+        if len(arr) != len(self):
+            raise ValueError(
+                f"predicate length ({len(arr)}) != n_subjects ({len(self)})"
+            )
+        return self._subset(np.where(arr)[0].tolist())
 
     # ------------------------------------------------------------------
     # Per-subject ops — mirror BrainData, run in parallel
@@ -293,7 +390,11 @@ class BrainCollection:
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
         return self.apply(
-            "smooth", fwhm, n_jobs=n_jobs, progress_bar=progress_bar, cache=cache
+            "smooth",
+            fwhm=fwhm,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
         )
 
     def standardize(
@@ -363,7 +464,7 @@ class BrainCollection:
     ) -> BrainCollection:
         return self.apply(
             "resample",
-            target,
+            target=target,
             interpolation=interpolation,
             n_jobs=n_jobs,
             progress_bar=progress_bar,
@@ -448,11 +549,11 @@ class BrainCollection:
         cache: Literal["auto", True, False] = "auto",
         **kwargs,
     ):  # BrainData | BrainCollection
-        """Dispatch prediction according to the provided target argument.
+        """Two distinct paths, dispatched by argument:
 
-        - ``y=`` only → group MVPA (subjects as samples) → ``BrainData``
-        - ``X_new=`` only → per-subject predict-after-fit → ``BrainCollection``
-        - both / neither → raise
+          ``y=`` only    → group MVPA (subjects as samples) → ``BrainData``
+          ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
+          both / neither → raise
 
         ``predict(y=...)`` requires single-map-per-subject items (run
         ``compute_contrasts(...)`` first if you have GLM/ridge bundles).
@@ -644,10 +745,7 @@ class BrainCollection:
         n: int = 1000,
         random_state: int | None = None,
     ) -> BrainCollectionPipeline:
-        """Build a cross-validation pipeline for cross-subject prediction.
-
-        See ``pipeline.py`` for details.
-        """
+        """Build a CV pipeline for cross-subject prediction. See ``pipeline.py``."""
         raise NotImplementedError("scaffold")
 
     # ------------------------------------------------------------------
@@ -663,45 +761,87 @@ class BrainCollection:
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
         """Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel."""
-        raise NotImplementedError("scaffold")
+        from . import execution
+
+        def worker(task):
+            bd, _ = execution._materialize(task)
+            result = fn(bd)
+            if task.out_path is not None:
+                execution._atomic_write_nifti(task.out_path, result)
+                return task.out_path
+            return result
+
+        results, step_dir, step_id = execution._apply(
+            self,
+            worker,
+            op="map",
+            op_kwargs={},
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+        )
+        new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
+        return self._clone(_items=results, _step_id=step_id, _step_dirs=new_dirs)
 
     def apply(
         self,
-        method: str,
+        op: str,
         *args,
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
         **kwargs,
     ) -> BrainCollection:
-        """Call ``BrainData.<method>(*args, **kwargs)`` on every item in parallel.
+        """Call ``BrainData.<op>(*args, **kwargs)`` on every item in parallel.
 
         All per-subject methods (``smooth``, ``standardize``, ...) reduce to
         this. Centralizes the ``_apply`` plumbing and the cache-knob handling.
+        ``op`` is named ``op`` (not ``method``) to avoid colliding with
+        ``BrainData`` methods that themselves take a ``method=`` kwarg
+        (``standardize``, ``detrend``, ...).
         """
-        raise NotImplementedError("scaffold")
+        from . import execution
+
+        def worker(task):
+            bd, _ = execution._materialize(task)
+            result = getattr(bd, op)(*args, **kwargs)
+            if task.out_path is not None:
+                execution._atomic_write_nifti(task.out_path, result)
+                return task.out_path
+            return result
+
+        results, step_dir, step_id = execution._apply(
+            self,
+            worker,
+            op=op,
+            op_kwargs=kwargs,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+        )
+        new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
+        return self._clone(_items=results, _step_id=step_id, _step_dirs=new_dirs)
 
     # ------------------------------------------------------------------
     # IO / cleanup — delegate to io.py
     # ------------------------------------------------------------------
 
     def load(self, indices: list[int] | None = None) -> BrainCollection:
-        """Materialize path-backed items in place.
-
-        Returns ``self`` for chaining.
-        """
+        """Materialize path-backed items in place. Returns ``self`` for chaining."""
         return io.load(self, indices)
 
     def unload(self, indices: list[int] | None = None) -> BrainCollection:
-        """Drop in-memory data for items with backing paths.
-
-        Returns ``self``.
-        """
+        """Drop in-memory data for items with backing paths. Returns ``self``."""
         return io.unload(self, indices)
 
     def steps(self) -> list[Path]:
-        """List step subdirs under ``cache_root``, oldest to newest (lex-sorted)."""
-        raise NotImplementedError("scaffold")
+        """Step subdirs that produced this collection's items, oldest to newest.
+
+        Lineage chain accumulated through clones (one entry per upstream
+        cached op). Empty when the collection was constructed directly or
+        no ancestor wrote to disk.
+        """
+        return list(getattr(self, "_step_dirs", []))
 
     def write(
         self,
@@ -746,21 +886,40 @@ class BrainCollection:
         new._cache_root = overrides.get("_cache_root", self._cache_root)
         new._step_id = overrides.get("_step_id", None)
         new._parent_step_id = overrides.get("_parent_step_id", self._step_id)
+        new._step_dirs = overrides.get(
+            "_step_dirs", list(getattr(self, "_step_dirs", []))
+        )
         return new
 
     def _next_step_id(self) -> str:
         """Generate a fresh step id (run-id format: ``{timestamp}_{uuid8}``)."""
         return core.make_run_id()
 
+    def _load_item(self, i: int) -> BrainData:
+        """Return item ``i`` as a ``BrainData``, loading from path if needed."""
+        from ..braindata import BrainData as _BrainData
+
+        item = self._items[i]
+        if isinstance(item, _BrainData):
+            return item
+        return _BrainData(item, mask=self._mask)
+
+    def _subset(self, indices: list[int]) -> BrainCollection:
+        """Return a clone restricted to ``indices`` (preserves cache + slot alignment)."""
+        return self._clone(
+            _items=[self._items[i] for i in indices],
+            _designs=[self._designs[i] for i in indices],
+            _confounds=[self._confounds[i] for i in indices],
+            _sample_masks=[self._sample_masks[i] for i in indices],
+            _metadata=self._metadata[indices] if self._metadata is not None else None,
+        )
+
     # ------------------------------------------------------------------
     # Lifecycle / repr
     # ------------------------------------------------------------------
 
     def __del__(self) -> None:
-        """Perform no cleanup during finalization.
-
-        Cache cleanup is always explicit via ``bc.cleanup()``.
-        """
+        """No-op. Cache cleanup is always explicit (``bc.cleanup()``)."""
         return
 
     def __repr__(self) -> str:

@@ -29,6 +29,9 @@ __all__ = [
 ]
 
 
+_TEMPLATE_NAME_RE = re.compile(r"^\d+mm-MNI152-2009[acfsl]+$")
+
+
 def coerce_metadata(
     metadata: pl.DataFrame | pd.DataFrame | dict | None,
     n_subjects: int,
@@ -41,7 +44,25 @@ def coerce_metadata(
     Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
     the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
     """
-    raise NotImplementedError("scaffold")
+    if metadata is None:
+        return pl.DataFrame(
+            {"subject": [f"sub-{i + 1:04d}" for i in range(n_subjects)]}
+        )
+
+    if isinstance(metadata, pl.DataFrame):
+        df = metadata
+    elif isinstance(metadata, dict):
+        df = pl.DataFrame(metadata)
+    else:
+        # Convert via to_dict to avoid the pyarrow dependency that
+        # pl.from_pandas requires for string columns.
+        df = pl.DataFrame(metadata.to_dict(orient="list"))
+
+    if df.height != n_subjects:
+        raise ValueError(
+            f"metadata length ({df.height}) does not match n_subjects ({n_subjects})"
+        )
+    return df
 
 
 def resolve_mask(
@@ -53,7 +74,15 @@ def resolve_mask(
     (e.g. ``"3mm-MNI152-2009c"``). String templates dispatch to the same
     resolver used by ``BrainData``.
     """
-    raise NotImplementedError("scaffold")
+    if isinstance(mask, nib.Nifti1Image):
+        return mask
+    if isinstance(mask, str) and _TEMPLATE_NAME_RE.match(mask):
+        from ...templates.paths import resolve_template_name
+
+        return nib.load(resolve_template_name(mask, file_type="mask"))
+    if isinstance(mask, (str, Path)):
+        return nib.load(mask)
+    raise TypeError(f"unsupported mask type: {type(mask).__name__}")
 
 
 def resolve_cache_dir(cache_dir: Path | str | None) -> Path | None:
@@ -93,7 +122,8 @@ def _slug_kwargs(kwargs: dict[str, Any]) -> str:
     Sorted by key, simple types only. Skips ``None``. Lossy by design — the
     full kwargs are recorded in the bundle attrs / sidecar, not the dirname.
     """
-    raise NotImplementedError("scaffold")
+    parts = [f"{k}-{v}" for k, v in sorted(kwargs.items()) if v is not None]
+    return "_".join(parts)
 
 
 def make_step_dirname(
@@ -107,7 +137,9 @@ def make_step_dirname(
     Each call yields a unique name (UUID tail) — same op + same params
     twice produces two subdirs, never overwriting.
     """
-    raise NotImplementedError("scaffold")
+    base = f"{make_run_id(now)}_{op}"
+    slug = _slug_kwargs(kwargs or {})
+    return f"{base}_{slug}" if slug else base
 
 
 def is_run_id(name: str) -> bool:
