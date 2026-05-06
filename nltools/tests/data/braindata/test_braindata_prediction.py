@@ -1,9 +1,7 @@
 import numpy as np
-import polars as pl
 import pytest
 
 from nltools.data import BrainData
-from nltools.data.simulator import Simulator
 
 
 class TestBrainDataPrediction:
@@ -57,16 +55,10 @@ class TestBrainDataPrediction:
         assert isinstance(accuracy, BrainData)
         assert 0 <= accuracy.data.flatten()[0] <= 1
 
-    @pytest.mark.slow
-    def test_predict_multi(self):
-        """Test that deprecated predict_multi method raises NotImplementedError."""
-        # Need to set up minimal data for the test
-        sim = Simulator()
-        dat = sim.create_data([0, 1], sigma=1, reps=5, output_dir=".")
-        y = pl.read_csv("y.csv", has_header=False)
-        dat = BrainData("data.nii.gz", Y=y)
-
+    def test_predict_multi(self, minimal_brain_data):
+        """Deprecated .predict_multi() raises NotImplementedError pointing
+        at the future Model class (per migration guide)."""
         with pytest.raises(
             NotImplementedError, match="predict_multi.*deprecated.*Model class"
         ):
-            dat.predict_multi(algorithm="svm")
+            minimal_brain_data.predict_multi(algorithm="svm")

@@ -1315,6 +1315,20 @@ class BrainData:
             mode=mode,
         )
 
+    def predict_multi(self, *args, **kwargs):
+        """Deprecated: removed in v0.6.0; will return in a future Model class.
+
+        Per the v0.6 migration guide, the multi-method MVPA wrapper has
+        been removed. Use :meth:`predict` for whole-brain MVPA, or compose
+        sklearn estimators directly via the new Model API.
+        """
+        raise NotImplementedError(
+            "BrainData.predict_multi() is deprecated and was removed in "
+            "v0.6.0. It will return in a future Model class. For now, use "
+            ".predict(y=...) for whole-brain MVPA, or compose sklearn "
+            "estimators directly. See the migration guide."
+        )
+
     def resample_to(self, img=None, resolution=None, interpolation=None):
         """Resample BrainData to match target image or resolution.
 

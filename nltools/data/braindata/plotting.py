@@ -13,6 +13,30 @@ DEFAULT_SLICE_CUT_COORDS = {
 }
 
 
+def _image_world_bounds(nifti_img, axis_letter: str) -> tuple[float, float]:
+    """World-coord (lo, hi) bounds of ``nifti_img`` along ``axis_letter``.
+
+    Used to bounds-trim ``DEFAULT_SLICE_CUT_COORDS`` so MNI-shaped defaults
+    don't trip nilearn's strict cut_coords validation when the data has
+    a non-MNI affine or covers a small native-space FOV.
+    """
+    from nibabel.affines import apply_affine
+
+    shape = nifti_img.shape[:3]
+    affine = nifti_img.affine
+    axis_idx = "xyz".index(axis_letter)
+    corners = np.array(
+        [
+            [i, j, k]
+            for i in (0, shape[0] - 1)
+            for j in (0, shape[1] - 1)
+            for k in (0, shape[2] - 1)
+        ]
+    )
+    world = apply_affine(affine, corners)
+    return float(world[:, axis_idx].min()), float(world[:, axis_idx].max())
+
+
 def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
     """Raise if ``bd`` is not in a standard MNI space supported by templates.
 
@@ -136,6 +160,11 @@ def plot_brain(
 
     # Resolve cut_coords against `views`. User-supplied cut_coords take
     # precedence; defaults are drawn from DEFAULT_SLICE_CUT_COORDS per-axis.
+    # Track whether we picked the defaults so we can bounds-trim them later
+    # against the actual image — MNI-shaped defaults land outside the data
+    # for native-space or small synthetic maps, and nilearn 0.12 rejects
+    # all-out-of-bounds cut_coords with an opaque ValueError.
+    cut_coords_were_defaulted = cut_coords is None
     if cut_coords is None:
         cut_coords = [DEFAULT_SLICE_CUT_COORDS[v] for v in views]
     elif isinstance(cut_coords, dict):
@@ -266,9 +295,18 @@ def plot_brain(
         elif method == "slices":
             for v, c in zip(views, cut_coords):
                 savefile = save_paths["slices"][v] if save_paths else None
+                # Trim defaulted MNI cut_coords down to coords that actually
+                # land inside the image. If nothing remains (small native-
+                # space FOV, single-slice synthetic data), pass None so
+                # nilearn picks its own coords within the bounds.
+                c_eff = c
+                if cut_coords_were_defaulted and isinstance(c_eff, list):
+                    lo, hi = _image_world_bounds(nifti_img, v)
+                    in_bounds = [float(x) for x in c_eff if lo <= float(x) <= hi]
+                    c_eff = in_bounds if in_bounds else None
                 display_slice = plot_stat_map(
                     nifti_img,
-                    cut_coords=c,
+                    cut_coords=c_eff,
                     display_mode=v,
                     cmap=cmap_use,
                     bg_img=bg_img,
