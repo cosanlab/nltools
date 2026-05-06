@@ -1,0 +1,8 @@
+#!/bin/sh
+# Pre-commit: run lint + design guards.
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+set -e
+
+echo "pre-commit: running lint..."
+uv run poe lint
+
