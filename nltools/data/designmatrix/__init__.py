@@ -315,19 +315,26 @@ class DesignMatrix:
             lines.append(f"  confounds ({len(self.confounds)}): {self.confounds}")
         return "\n".join(lines)
 
-    def __setitem__(self, key: str, value: int | float | list | np.ndarray | pl.Series):
+    def __setitem__(
+        self,
+        key: str,
+        value: int | float | list | np.ndarray | pl.Series | pl.Expr,
+    ):
         """
         Set column values.
 
-        dm['col'] = 0  # Broadcast scalar
-        dm['col'] = [1, 2, 3]  # Array assignment
+        dm['col'] = 0                            # Broadcast scalar
+        dm['col'] = [1, 2, 3]                    # Array assignment
+        dm['col'] = pl.col('a') + pl.col('b')    # Polars expression
         """
-        if isinstance(value, (int, float)):
+        if isinstance(value, pl.Expr):
+            self.data = self.data.with_columns(value.alias(key))
+        elif isinstance(value, pl.Series):
+            self.data = self.data.with_columns(value.alias(key))
+        elif isinstance(value, (int, float)):
             self.data = self.data.with_columns(pl.lit(value).alias(key))
         elif isinstance(value, (list, np.ndarray)):
             self.data = self.data.with_columns(pl.Series(key, value))
-        elif isinstance(value, pl.Series):
-            self.data = self.data.with_columns(value.alias(key))
         else:
             raise TypeError(f"Cannot set column from type {type(value)}")
 
@@ -731,6 +738,47 @@ class DesignMatrix:
         from .diagnostics import vif
 
         return vif(self, exclude_confounds)
+
+    def with_columns(self, *exprs, **named_exprs) -> DesignMatrix:
+        """Add or replace columns via Polars expressions.
+
+        Mirrors :meth:`polars.DataFrame.with_columns`. Named kwargs become
+        named columns; positional ``pl.Expr`` arguments are accepted as-is
+        (including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
+        with metadata preserved; new columns are *not* auto-tagged as
+        convolved or confounds.
+
+        For convenience, named-kwarg values that aren't ``pl.Expr`` /
+        ``pl.Series`` are coerced:
+
+        - ``int``/``float`` → broadcast scalar via ``pl.lit``
+        - ``list`` / ``np.ndarray`` → wrapped as ``pl.Series``
+
+        Examples:
+            >>> dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
+            >>> dm = dm.with_columns(
+            ...     vmpfc=seed_signal,
+            ...     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+            ... )
+        """
+        from .utils import copy_with
+
+        coerced = {}
+        for name, value in named_exprs.items():
+            if isinstance(value, (pl.Expr, pl.Series)):
+                coerced[name] = value
+            elif isinstance(value, (list, np.ndarray)):
+                coerced[name] = pl.Series(name, value)
+            elif isinstance(value, (int, float)):
+                coerced[name] = pl.lit(value).alias(name)
+            else:
+                raise TypeError(
+                    f"with_columns: kwarg {name!r} has unsupported type "
+                    f"{type(value).__name__}. Pass a polars Expr/Series, "
+                    "numpy array, list, or scalar."
+                )
+        new_data = self.data.with_columns(*exprs, **coerced)
+        return copy_with(self, new_data)
 
     def write(self, file_name: str, sep: str = "\t") -> None:
         """Write DesignMatrix to file.

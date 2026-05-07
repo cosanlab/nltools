@@ -88,6 +88,20 @@ class TestDesignMatrixDataAccess:
         assert dm["a"].to_list() == [7, 8, 9]
         assert dm.columns == ["a", "b", "c", "d"]
 
+    def test_setitem_polars_expr(self):
+        """`dm['col'] = pl.Expr` evaluates the expression in the DM's frame."""
+        dm = DesignMatrix({"a": [1, 2, 3], "b": [10, 20, 30]}, sampling_freq=1)
+        dm["c"] = pl.col("a") + pl.col("b")
+        assert dm["c"].to_list() == [11, 22, 33]
+
+    def test_setitem_polars_series(self):
+        """`dm['col'] = pl.Series(...)` accepts a polars Series directly."""
+        dm = DesignMatrix({"a": [1, 2, 3]}, sampling_freq=1)
+        dm["b"] = pl.Series("ignored_name", [4, 5, 6])
+        assert dm["b"].to_list() == [4, 5, 6]
+        # The setitem key wins over the Series' own name.
+        assert "ignored_name" not in dm.columns
+
     def test_properties(self):
         """Test shape, columns, is_empty, len."""
         dm = DesignMatrix(
@@ -221,3 +235,92 @@ class TestDesignMatrixPassthrough:
         # Explicit DesignMatrix methods still present
         assert "convolve" in names
         assert "add_poly" in names
+
+
+class TestDesignMatrixWithColumns:
+    """Polars-style `with_columns(**named_exprs)` returns a new DM with cols added/replaced."""
+
+    def _dm(self):
+        return DesignMatrix(
+            {
+                "a": [1.0, 2.0, 3.0, 4.0, 5.0],
+                "b": [10.0, 20.0, 30.0, 40.0, 50.0],
+                "poly_0": [1, 1, 1, 1, 1],
+            },
+            sampling_freq=2,
+            confounds=["poly_0"],
+            convolved=["a"],
+        )
+
+    def test_named_kwarg_with_polars_expr(self):
+        """`with_columns(c=pl.col('a') + pl.col('b'))` adds a new column from an expression."""
+        dm = self._dm()
+        result = dm.with_columns(c=pl.col("a") + pl.col("b"))
+        assert isinstance(result, DesignMatrix)
+        assert "c" in result.columns
+        assert result["c"].to_list() == [11.0, 22.0, 33.0, 44.0, 55.0]
+
+    def test_chained_calls_for_sequential_refs(self):
+        """Polars evaluates exprs in a single call in parallel — chain calls for refs.
+
+        This is intentional polars semantics, not a quirk of our wrapper.
+        """
+        dm = self._dm()
+        result = dm.with_columns(c=pl.col("a") * 2).with_columns(d=pl.col("c") + 1)
+        assert result["d"].to_list() == [3.0, 5.0, 7.0, 9.0, 11.0]
+
+    def test_accepts_polars_series(self):
+        seed = pl.Series("vmpfc", [0.1, 0.2, 0.3, 0.4, 0.5])
+        dm = self._dm().with_columns(vmpfc=seed)
+        assert dm["vmpfc"].to_list() == [0.1, 0.2, 0.3, 0.4, 0.5]
+
+    def test_accepts_numpy_array(self):
+        """Raw numpy arrays are coerced to pl.Series with the kwarg as the column name."""
+        arr = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+        dm = self._dm().with_columns(vmpfc=arr)
+        assert dm["vmpfc"].to_list() == [0.1, 0.2, 0.3, 0.4, 0.5]
+
+    def test_accepts_list(self):
+        dm = self._dm().with_columns(seed=[0.1, 0.2, 0.3, 0.4, 0.5])
+        assert dm["seed"].to_list() == [0.1, 0.2, 0.3, 0.4, 0.5]
+
+    def test_accepts_scalar_broadcast(self):
+        dm = self._dm().with_columns(intercept=1.0)
+        assert dm["intercept"].to_list() == [1.0] * 5
+
+    def test_replaces_existing_column(self):
+        """Naming an existing column overwrites it (matches polars semantics)."""
+        dm = self._dm().with_columns(a=pl.col("a") * 100)
+        assert dm["a"].to_list() == [100.0, 200.0, 300.0, 400.0, 500.0]
+
+    def test_returns_new_dm_original_unchanged(self):
+        dm = self._dm()
+        _ = dm.with_columns(c=pl.col("a"))
+        assert "c" not in dm.columns
+
+    def test_preserves_metadata(self):
+        """sampling_freq, convolved, confounds carry over."""
+        dm = self._dm()
+        result = dm.with_columns(c=pl.col("a") * pl.col("b"))
+        assert result.sampling_freq == 2
+        assert result.convolved == ["a"]
+        assert result.confounds == ["poly_0"]
+
+    def test_new_columns_not_auto_marked(self):
+        """Added columns are user-defined data — not auto-tagged as convolved or confound."""
+        dm = self._dm()
+        result = dm.with_columns(c=pl.col("a"))
+        assert "c" not in result.convolved
+        assert "c" not in result.confounds
+
+    def test_chains_with_drop_and_convolve(self):
+        """Composes naturally with the existing chainable API."""
+        dm = (
+            self._dm()
+            .with_columns(combined=pl.sum_horizontal(["a", "b"]))
+            .drop(["a", "b"])
+        )
+        assert "combined" in dm.columns
+        assert "a" not in dm.columns
+        assert "b" not in dm.columns
+        assert dm["combined"].to_list() == [11.0, 22.0, 33.0, 44.0, 55.0]
