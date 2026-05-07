@@ -80,7 +80,7 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 |----------------|---------------|--------|
 | `from nltools.simulator import Simulator` | `from nltools import Simulator` | Moved to `nltools.data.simulator` |
 | `from nltools.simulator import SimulateGrid` | `from nltools import SimulateGrid` | Moved to `nltools.data.simulator` |
-| `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` builds a boxcar DM; call `.convolve()` for HRF |
+| `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
 | `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
 | `from nltools.stats import regress` | **Removed** | Use `BrainData.fit(model='glm')` |
@@ -95,13 +95,19 @@ from nltools.algorithms.hrf import glover_hrf
 # OLD: onsets_to_dm (file path → convolved DM in one call)
 from nltools.file_reader import onsets_to_dm
 dm = onsets_to_dm(events_path, run_length=200, sampling_freq=0.5)
-# NEW: DesignMatrix accepts BIDS events / confounds files directly.
-# Output is boxcar by default — convolve explicitly so you can append
-# confounds / drift terms first without HRF-convolving them.
+# NEW: DesignMatrix accepts BIDS events / confounds files directly and
+# HRF-convolves by default — same default as nilearn's
+# make_first_level_design_matrix(hrf_model='glover'). Columns get the
+# canonical `_c0` suffix and .convolved is populated.
 from nltools.data import DesignMatrix
 dm = DesignMatrix(events_path, run_length=200, TR=2.0)
-dm = dm.convolve()
-# In-memory events DataFrame? Use the helper directly:
+
+# Need raw boxcar instead? (PPI / FIR / pedagogy that builds interaction
+# terms before convolution.) Opt out:
+dm_boxcar = DesignMatrix(events_path, run_length=200, TR=2.0, hrf_model=None)
+dm = dm_boxcar.convolve()  # convolve later, after manipulating regressors
+
+# In-memory events DataFrame? Use the helper directly (always boxcar — caller convolves):
 from nltools.data.designmatrix.io import events_to_dm
 dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
@@ -311,8 +317,8 @@ stats = adj.regress(dm)  # Works! Converts dm.to_numpy() internally
 
 `DesignMatrix.__init__` now accepts a `.tsv` / `.csv` path (str or `pathlib.Path`) and dispatches based on column inspection:
 
-- **BIDS events** (file has `onset` and `duration` columns) → boxcar regressors aligned to TRs (one column per `trial_type`, `modulation` passed through if present). No HRF convolution and no auto `constant` column — call `.convolve()` and `.add_poly(0)` explicitly.
-- **Tabular / confounds** (anything else) → read as-is.
+- **BIDS events** (file has `onset` and `duration` columns) → HRF-convolved regressors aligned to TRs by default (one column per `trial_type`, suffixed `_c0`, `.convolved` populated). Default is `hrf_model='glover'`, matching nilearn's `make_first_level_design_matrix`. Pass `hrf_model=None` for raw boxcar (e.g., PPI / FIR / pedagogical material that introduces convolution as a separate step). No auto `constant` column either way — call `.add_poly(0)` for the intercept.
+- **Tabular / confounds** (anything else) → read as-is. `hrf_model` is silently ignored.
 
 ```python
 from nltools.data import DesignMatrix
@@ -321,11 +327,13 @@ from nltools.data import DesignMatrix
 from nltools.file_reader import onsets_to_dm
 dm = onsets_to_dm(events_path, run_length=200, sampling_freq=0.5)
 
-# NEW: separate steps so confounds + drift can be added before convolution
-events = DesignMatrix(events_path, run_length=200, TR=2.0)
+# NEW (default): one-line construct + convolve
+dm = DesignMatrix(events_path, run_length=200, TR=2.0)
+
+# Variant: append confounds + drift before convolution (PPI, etc.)
+events = DesignMatrix(events_path, run_length=200, TR=2.0, hrf_model=None)
 confounds = DesignMatrix(confounds_path, run_length="infer", TR=2.0)
-dm = events.append(confounds, axis=1, as_confounds=True)
-dm = dm.add_poly(2).convolve()
+dm = events.append(confounds, axis=1, as_confounds=True).add_poly(2).convolve()
 ```
 
 Constructor rules for the file-path branch:
@@ -1594,7 +1602,7 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 ### Must fix (will crash)
 
 - [ ] Rename `Brain_Data` → `BrainData`, `Design_Matrix` → `DesignMatrix` everywhere
-- [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf).convolve()` (or pass in-memory DataFrames via `events_to_dm(...)` from `nltools.data.designmatrix.io`). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
+- [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf)` (HRF-convolved by default; pass `hrf_model=None` for boxcar). For in-memory DataFrames use `events_to_dm(...)` from `nltools.data.designmatrix.io` (always boxcar). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
 - [ ] Replace any direct `dm.convolved = …` / `dm.confounds = …` assignments with the constructor kwargs (`convolved=`, `confounds=`) or with `.append(other, axis=1)` — the attributes are now read-only properties. See [DesignMatrix .convolved / .confounds are read-only](#designmatrix-confounds-readonly).
 - [ ] Replace `pd.concat([dm.to_pandas(), confounds_df], axis=1) → DesignMatrix(...)` with `dm.append(confounds_df, axis=1)` (raw DataFrames are auto-marked as confounds; metadata is preserved).

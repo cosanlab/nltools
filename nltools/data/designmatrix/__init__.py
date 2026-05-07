@@ -110,19 +110,39 @@ class DesignMatrix:
         columns: list[str] | None = None,
         convolved: list[str] | None = None,
         confounds: list[str] | None = None,
+        hrf_model: str | None = "glover",
     ):
         """Initialize DesignMatrix from various input types.
 
         Passing another ``DesignMatrix`` returns a copy: ``data``,
         ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
         carried over. Any explicit kwarg overrides the inherited value.
+
+        When ``data`` is a path to a BIDS events file, the constructor
+        HRF-convolves the regressors by default (``hrf_model='glover'``,
+        matching nilearn's ``make_first_level_design_matrix``). The output
+        columns are suffixed ``_c0`` and ``.convolved`` is populated. Pass
+        ``hrf_model=None`` to load raw boxcar regressors instead — useful
+        for FIR designs, PPI flows that build interaction terms before
+        convolution, or pedagogical material that introduces convolution
+        as a separate step. ``hrf_model`` is silently ignored when ``data``
+        is anything other than an events file.
         """
         if TR is not None and sampling_freq is not None:
             raise ValueError("Pass exactly one of `TR` or `sampling_freq`, not both.")
         if TR is not None:
             sampling_freq = 1.0 / TR
 
+        if hrf_model is not None and hrf_model != "glover":
+            raise ValueError(
+                f"Unknown hrf_model={hrf_model!r}. nltools currently supports "
+                "hrf_model='glover' (default, canonical Glover HRF) or "
+                "hrf_model=None (boxcar — caller convolves explicitly with "
+                ".convolve())."
+            )
+
         self.multi = False
+        _is_events = False  # set True only by the events-file branch below
 
         # Create internal Polars DataFrame based on input type
         if isinstance(data, DesignMatrix):
@@ -156,6 +176,8 @@ class DesignMatrix:
                 run_length=run_length,
                 sampling_freq=sampling_freq,
             )
+            # Mirror to the outer scope so the post-dispatch auto-convolve
+            # block (below) can pick it up.
 
         elif isinstance(data, pl.DataFrame):
             # Polars DataFrame - zero copy, just ensure string column names
@@ -195,6 +217,17 @@ class DesignMatrix:
         self.sampling_freq = sampling_freq
         self._convolved = list(convolved) if convolved is not None else []
         self._confounds = list(confounds) if confounds is not None else []
+
+        # Auto-convolve when the constructor loaded events from a file. Matches
+        # nilearn's `make_first_level_design_matrix(hrf_model='glover')`
+        # default. Use ``hrf_model=None`` to opt out (PPI/FIR/teaching flows
+        # that need raw boxcars before convolution).
+        if _is_events and hrf_model is not None:
+            from .regressors import convolve as _convolve
+
+            convolved_dm = _convolve(self)
+            self.data = convolved_dm.data
+            self._convolved = list(convolved_dm.convolved)
 
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 

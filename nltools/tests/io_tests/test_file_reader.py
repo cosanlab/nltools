@@ -29,12 +29,26 @@ def onsets_data(onsets_path):
 
 
 class TestDesignMatrixFromEventsFile:
-    """`DesignMatrix(<events file>, ...)` builds boxcar regressors."""
+    """`DesignMatrix(<events file>, ...)` HRF-convolves by default.
+
+    The constructor matches nilearn's default (`hrf_model='glover'`).
+    Pass `hrf_model=None` to get raw boxcar regressors instead — useful for
+    pedagogy, FIR designs, or PPI flows that build interaction terms before
+    convolution.
+    """
 
     def test_from_filepath_returns_designmatrix(self, onsets_path):
         dm = DesignMatrix(onsets_path, run_length=1364, TR=2.0)
         assert isinstance(dm, DesignMatrix)
         assert dm.sampling_freq == pytest.approx(0.5)
+
+    def test_default_is_convolved(self, onsets_path, onsets_data):
+        """Default is HRF-convolved; columns get the canonical `_c0` suffix."""
+        dm = DesignMatrix(onsets_path, run_length=1364, TR=2.0)
+        for trial_type in onsets_data.trial_type.unique():
+            assert f"{trial_type}_c0" in dm.columns
+            assert trial_type not in dm.columns
+        assert set(dm.convolved) == set(dm.columns)
 
     def test_shape(self, onsets_path, onsets_data):
         """Output is (run_length, n_unique_trial_types) — no auto-intercept."""
@@ -47,14 +61,26 @@ class TestDesignMatrixFromEventsFile:
         dm = DesignMatrix(onsets_path, run_length=1364, TR=2.0)
         assert "constant" not in dm.columns
 
-    def test_onset_sums(self, onsets_path, onsets_data):
-        """Column sums reflect stimulus counts × (duration / TR) for boxcar."""
+    def test_hrf_model_none_gives_boxcar(self, onsets_path, onsets_data):
+        """Opt-out: boxcar regressors with raw trial-type column names."""
+        dm = DesignMatrix(onsets_path, run_length=1364, TR=2.0, hrf_model=None)
+        for trial_type in onsets_data.trial_type.unique():
+            assert trial_type in dm.columns
+            assert f"{trial_type}_c0" not in dm.columns
+        assert dm.convolved == []
+
+    def test_boxcar_onset_sums(self, onsets_path, onsets_data):
+        """Boxcar (opt-out) sums reflect stimulus counts × (duration / TR)."""
         TR = 2.0
         duration = 10.0  # from onsets_example.csv
-        dm = DesignMatrix(onsets_path, run_length=1364, TR=TR)
+        dm = DesignMatrix(onsets_path, run_length=1364, TR=TR, hrf_model=None)
         stim_counts = onsets_data.trial_type.value_counts(sort=False)[dm.columns]
         expected = stim_counts.values * (duration / TR)
         assert np.allclose(expected, dm.sum().to_numpy())
+
+    def test_unknown_hrf_model_errors(self, onsets_path):
+        with pytest.raises(ValueError, match="hrf_model"):
+            DesignMatrix(onsets_path, run_length=1364, TR=2.0, hrf_model="not_a_model")
 
     def test_path_object_accepted(self, onsets_path):
         dm = DesignMatrix(Path(onsets_path), run_length=1364, TR=2.0)
@@ -107,6 +133,15 @@ class TestDesignMatrixFromTabularFile:
         dm = DesignMatrix(confounds_path, run_length="infer", TR=2.0)
         # First row was "n/a" across all columns
         assert dm.data["trans_x"].is_null().sum() == 1
+
+    def test_hrf_model_ignored_for_tabular(self, confounds_path):
+        """`hrf_model` only fires on events files — tabular columns pass through unchanged."""
+        dm_default = DesignMatrix(confounds_path, run_length="infer", TR=2.0)
+        dm_explicit = DesignMatrix(
+            confounds_path, run_length="infer", TR=2.0, hrf_model="glover"
+        )
+        assert list(dm_default.columns) == list(dm_explicit.columns)
+        assert dm_default.convolved == [] == dm_explicit.convolved
 
 
 class TestInitValidation:
