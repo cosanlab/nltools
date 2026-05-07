@@ -145,3 +145,46 @@ def bc_pathbacked(tiny_mask, tiny_nifti_paths, tmp_path):
         )
     except NotImplementedError:
         pytest.skip("BrainCollection.from_paths not yet implemented")
+
+
+@pytest.fixture(scope="function")
+def tiny_design_factory():
+    """Factory: ``tiny_design_factory(n_obs=8, seed=0)`` → 2-col DesignMatrix."""
+    import pandas as pd
+
+    from nltools.data import DesignMatrix
+
+    def _make(n_obs: int = 8, seed: int = 0):
+        rng = np.random.default_rng(seed)
+        # Two non-collinear regressors so design_clean keeps both columns.
+        t = np.linspace(0, 2 * np.pi, n_obs)
+        return DesignMatrix(
+            pd.DataFrame(
+                {
+                    "a": np.sin(t) + 0.1 * rng.standard_normal(n_obs),
+                    "b": np.cos(t) + 0.1 * rng.standard_normal(n_obs),
+                }
+            ),
+            TR=2.0,
+        )
+
+    return _make
+
+
+@pytest.fixture(scope="function")
+def bc_with_designs(tiny_mask, tiny_brain_factory, tiny_design_factory, tmp_path):
+    """Three-subject in-memory collection with paired DesignMatrix per item."""
+    from nltools.data import BrainCollection
+
+    brains = [tiny_brain_factory(n_obs=8, seed=i) for i in range(3)]
+    designs = [tiny_design_factory(n_obs=8, seed=10 + i) for i in range(3)]
+    try:
+        return BrainCollection(
+            brains,
+            mask=tiny_mask,
+            designs=designs,
+            lazy=False,
+            cache_dir=tmp_path / "cache",
+        )
+    except NotImplementedError:
+        pytest.skip("BrainCollection.__init__ not yet implemented")

@@ -233,6 +233,7 @@ def _apply(
     *,
     op: str,
     op_kwargs: dict | None = None,
+    step_id: str | None = None,
     n_jobs: int = -1,
     progress_bar: bool = False,
     backend: str = "loky",
@@ -266,7 +267,8 @@ def _apply(
 
     do_cache = _resolve_cache_mode(bc._items, cache)
 
-    step_id = core.make_run_id()
+    if step_id is None:
+        step_id = core.make_run_id()
     step_dir: Path | None = None
     if do_cache:
         step_dirname = core.make_step_dirname(op, op_kwargs)
@@ -363,6 +365,73 @@ class tqdm_joblib:
 # ---------------------------------------------------------------------------
 
 
+def _write_bundle(
+    out_path: Path,
+    *,
+    datasets: dict[str, np.ndarray | bytes],
+    attrs: dict[str, Any],
+) -> Path:
+    """Generic bundle writer (atomic tmp+rename, ``h5py.File(locking=False)``).
+
+    Used by ``write_glm_bundle`` and ``write_ridge_bundle``. Embeds raw bytes
+    via ``np.frombuffer(..., dtype=np.uint8)`` so HDF5 stores them as a
+    fixed-shape uint8 dataset (rather than a variable-length blob).
+    """
+    import h5py
+
+    tmp = out_path.parent / f".tmp_{out_path.name}"
+    with h5py.File(tmp, "w", locking=False) as f:
+        for name, value in datasets.items():
+            if isinstance(value, bytes):
+                f.create_dataset(name, data=np.frombuffer(value, dtype=np.uint8))
+            else:
+                f.create_dataset(name, data=value)
+        for k, v in attrs.items():
+            f.attrs[k] = v
+    os.rename(tmp, out_path)
+    return out_path
+
+
+def _read_bundle_attrs_and_validate(path: Path) -> tuple[Any, dict[str, Any]]:
+    """Open ``path``, validate ``bundle_schema_version``, warn on nltools mismatch.
+
+    Returns the open ``h5py.File`` and a dict of decoded attrs.
+    Caller is responsible for ``close()``.
+    """
+    import h5py
+
+    f = h5py.File(path, "r", locking=False)
+    try:
+        version = int(f.attrs.get("bundle_schema_version", 0))
+        if version != BUNDLE_SCHEMA_VERSION:
+            f.close()
+            raise ValueError(
+                f"bundle schema mismatch: file is v{version}, current is "
+                f"v{BUNDLE_SCHEMA_VERSION}. Re-run the upstream op to "
+                f"regenerate {path.name}."
+            )
+        file_nltools_version = f.attrs.get("nltools_version", b"") or b""
+        if isinstance(file_nltools_version, bytes):
+            file_nltools_version = file_nltools_version.decode()
+        try:
+            from nltools import __version__ as current_version
+        except Exception:
+            current_version = ""
+        if file_nltools_version and file_nltools_version != current_version:
+            import warnings
+
+            warnings.warn(
+                f"bundle was written by nltools v{file_nltools_version}, "
+                f"reading with v{current_version}. Usually fine within a "
+                f"minor version.",
+                stacklevel=3,
+            )
+        return f, dict(f.attrs)
+    except Exception:
+        f.close()
+        raise
+
+
 def write_glm_bundle(
     out_path: Path,
     *,
@@ -394,18 +463,67 @@ def write_glm_bundle(
     Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
     portable across machines. Uses ``h5py.File(..., locking=False)``.
     """
-    raise NotImplementedError("scaffold")
+    import json
+
+    return _write_bundle(
+        out_path,
+        datasets={
+            "betas": np.asarray(betas),
+            "residuals": np.asarray(residuals),
+            "sigma2": np.asarray(sigma2),
+            "r2": np.asarray(r2),
+            "X": np.asarray(X),
+            "mask": mask_bytes,
+        },
+        attrs={
+            "affine": np.asarray(affine),
+            "regressor_names": json.dumps(list(regressor_names)),
+            "scale": bool(scale),
+            "scale_value": float(scale_value),
+            "model_kwargs": json.dumps(model_kwargs),
+            "nltools_version": nltools_version,
+            "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+            "step_id": step_id,
+            "parent_step_id": parent_step_id or "",
+            "op": op,
+            "kwargs": json.dumps(op_kwargs),
+        },
+    )
 
 
 def read_glm_bundle(path: Path) -> dict[str, Any]:
-    """Read and validate a GLM bundle.
+    """Read a GLM bundle. Validates ``bundle_schema_version``.
 
-    Validates ``bundle_schema_version``. A schema-version mismatch raises with
-    a migration message; nltools-version
+    Schema-version mismatch raises with a migration message; nltools-version
     mismatch logs a warning but does not refuse — bundles are usually
     forward-compatible within a minor version.
     """
-    raise NotImplementedError("scaffold")
+    import json
+
+    f, attrs = _read_bundle_attrs_and_validate(Path(path))
+    try:
+        out: dict[str, Any] = {
+            "betas": f["betas"][:],
+            "residuals": f["residuals"][:],
+            "sigma2": f["sigma2"][:],
+            "r2": f["r2"][:],
+            "X": f["X"][:],
+            "mask_bytes": bytes(f["mask"][:]),
+            "affine": np.asarray(attrs["affine"]),
+            "regressor_names": json.loads(attrs["regressor_names"]),
+            "scale": bool(attrs["scale"]),
+            "scale_value": float(attrs["scale_value"]),
+            "model_kwargs": json.loads(attrs["model_kwargs"]),
+            "step_id": _to_str(attrs["step_id"]),
+            "parent_step_id": _to_str(attrs.get("parent_step_id", "")) or None,
+            "op": _to_str(attrs["op"]),
+            "kwargs": json.loads(attrs["kwargs"]),
+            "nltools_version": _to_str(attrs.get("nltools_version", "")),
+            "bundle_schema_version": int(attrs["bundle_schema_version"]),
+        }
+        return out
+    finally:
+        f.close()
 
 
 def write_ridge_bundle(
@@ -431,15 +549,381 @@ def write_ridge_bundle(
     Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
     (``weights``, ``cv_scores``, ``predictions``, ``scores``).
     """
-    raise NotImplementedError("scaffold")
+    import json
+
+    return _write_bundle(
+        out_path,
+        datasets={
+            "weights": np.asarray(weights),
+            "cv_scores": np.asarray(cv_scores),
+            "predictions": np.asarray(predictions),
+            "scores": np.asarray(scores),
+            "X": np.asarray(X),
+            "mask": mask_bytes,
+        },
+        attrs={
+            "affine": np.asarray(affine),
+            "regressor_names": json.dumps(list(regressor_names)),
+            "model_kwargs": json.dumps(model_kwargs),
+            "nltools_version": nltools_version,
+            "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+            "step_id": step_id,
+            "parent_step_id": parent_step_id or "",
+            "op": op,
+            "kwargs": json.dumps(op_kwargs),
+        },
+    )
 
 
 def read_ridge_bundle(path: Path) -> dict[str, Any]:
-    """Read a ridge bundle.
+    """Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``."""
+    import json
 
-    Uses the same schema and version handling as ``read_glm_bundle``.
+    f, attrs = _read_bundle_attrs_and_validate(Path(path))
+    try:
+        out: dict[str, Any] = {
+            "weights": f["weights"][:],
+            "cv_scores": f["cv_scores"][:],
+            "predictions": f["predictions"][:],
+            "scores": f["scores"][:],
+            "X": f["X"][:],
+            "mask_bytes": bytes(f["mask"][:]),
+            "affine": np.asarray(attrs["affine"]),
+            "regressor_names": json.loads(attrs["regressor_names"]),
+            "model_kwargs": json.loads(attrs["model_kwargs"]),
+            "step_id": _to_str(attrs["step_id"]),
+            "parent_step_id": _to_str(attrs.get("parent_step_id", "")) or None,
+            "op": _to_str(attrs["op"]),
+            "kwargs": json.loads(attrs["kwargs"]),
+            "nltools_version": _to_str(attrs.get("nltools_version", "")),
+            "bundle_schema_version": int(attrs["bundle_schema_version"]),
+        }
+        return out
+    finally:
+        f.close()
+
+
+def _to_str(v: Any) -> str:
+    """Decode HDF5 attr that might be bytes or str into a plain str."""
+    if isinstance(v, bytes):
+        return v.decode()
+    return str(v)
+
+
+# ---------------------------------------------------------------------------
+# Bundle extraction from a fitted BrainData
+# ---------------------------------------------------------------------------
+
+
+def _mask_to_bytes(mask) -> bytes:
+    """Serialize a Nifti1Image mask to raw NIfTI bytes for embedding."""
+    import nibabel as nib
+
+    if not isinstance(mask, nib.Nifti1Image):
+        mask = nib.Nifti1Image(np.asarray(mask.dataobj), mask.affine)
+    return mask.to_bytes()
+
+
+def _bytes_to_mask(b: bytes):
+    """Inverse of ``_mask_to_bytes``."""
+    import nibabel as nib
+
+    return nib.Nifti1Image.from_bytes(b)
+
+
+def _extract_glm_bundle_data(bd) -> dict[str, Any]:
+    """Pull GLM arrays + design info off a fitted ``BrainData``."""
+    import numpy as np
+
+    betas = np.asarray(bd.glm_betas.data)
+    residuals = np.asarray(bd.glm_residual.data)
+    r2 = np.asarray(bd.glm_r2.data).reshape(-1)
+    X = np.asarray(bd.design_matrix)
+    n_obs = X.shape[0]
+    rank = int(np.linalg.matrix_rank(X))
+    df = max(n_obs - rank, 1)
+    sigma2 = (residuals**2).sum(axis=0) / df
+    return {
+        "betas": betas.astype(np.float32),
+        "residuals": residuals.astype(np.float32),
+        "sigma2": sigma2.astype(np.float32),
+        "r2": r2.astype(np.float32),
+        "X": X.astype(np.float32),
+        "mask_bytes": _mask_to_bytes(bd.mask),
+        "affine": np.asarray(bd.mask.affine),
+        "regressor_names": list(bd.design_matrix.columns),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Per-subject worker for BC.fit
+# ---------------------------------------------------------------------------
+
+
+def _build_design_context(task: _ItemTask, bd) -> _DesignContext:
+    """Construct a ``_DesignContext`` from an ``_ItemTask`` for X=callable."""
+    meta = task.metadata_row
+
+    def _path_or_none(key: str) -> Path | None:
+        v = meta.get(key)
+        return Path(v) if v else None
+
+    return _DesignContext(
+        bd=bd,
+        dm=task.design,
+        confounds=task.confounds,
+        sample_mask=task.sample_mask,
+        metadata=meta,
+        subject=meta.get("subject"),
+        session=meta.get("session"),
+        run=meta.get("run"),
+        task=meta.get("task"),
+        TR=float(meta.get("TR", 2.0)),
+        bold_path=_path_or_none("bold_path") or Path(str(task.item)),
+        events_path=_path_or_none("events_path"),
+        confounds_path=_path_or_none("confounds_path"),
+    )
+
+
+def _resolve_x_for_item(
+    task: _ItemTask,
+    bd,
+    *,
+    x_mode: str,
+    x_value: Any,
+):
+    """Per-item X resolution shared by ``fit`` and ``predict``."""
+    if x_mode == "designs":
+        return task.design
+    if x_mode == "shared":
+        return x_value
+    if x_mode == "list":
+        return x_value[task.idx]
+    if x_mode == "callable":
+        ctx = _build_design_context(task, bd)
+        return x_value(ctx)
+    raise ValueError(f"unknown x_mode {x_mode!r}")
+
+
+# ---------------------------------------------------------------------------
+# Contrast computation from a bundle
+# ---------------------------------------------------------------------------
+
+
+_CONTRAST_TERM_RE = None  # lazily compiled in _parse_contrast_string
+
+
+def _parse_contrast_string(expr: str, regressor_names: list[str]) -> np.ndarray:
+    """Parse ``"A - B"`` / ``"2*A - B"`` into a contrast vector over ``regressor_names``.
+
+    Supports terms of the form ``[+-]? coef * name`` separated by ``+`` / ``-``.
+    Coefficient is optional (defaults to 1). Names must exactly match
+    ``regressor_names``.
     """
-    raise NotImplementedError("scaffold")
+    import re
+
+    global _CONTRAST_TERM_RE
+    if _CONTRAST_TERM_RE is None:
+        _CONTRAST_TERM_RE = re.compile(
+            r"\s*([+-]?)\s*(?:([0-9.]+)\s*\*\s*)?([\w.]+)\s*"
+        )
+
+    name_idx = {n: i for i, n in enumerate(regressor_names)}
+    c = np.zeros(len(regressor_names), dtype=np.float64)
+    pos = 0
+    matched_any = False
+    for m in _CONTRAST_TERM_RE.finditer(expr.strip()):
+        if m.start() != pos:
+            raise ValueError(f"could not parse contrast {expr!r} at position {pos}")
+        sign = -1.0 if m.group(1) == "-" else 1.0
+        coef = float(m.group(2)) if m.group(2) else 1.0
+        name = m.group(3)
+        if name not in name_idx:
+            raise ValueError(f"regressor {name!r} not in design ({regressor_names!r})")
+        c[name_idx[name]] += sign * coef
+        pos = m.end()
+        matched_any = True
+    if not matched_any or pos != len(expr.strip()):
+        raise ValueError(f"could not parse contrast {expr!r}")
+    return c
+
+
+def _coerce_contrast(contrast, regressor_names: list[str]) -> np.ndarray:
+    """Turn ``contrast`` (str/list/ndarray) into a contrast vector."""
+    if isinstance(contrast, str):
+        return _parse_contrast_string(contrast, regressor_names)
+    arr = np.asarray(contrast, dtype=np.float64)
+    if arr.shape != (len(regressor_names),):
+        raise ValueError(
+            f"contrast vector length {arr.shape} != n_regressors "
+            f"({len(regressor_names)})"
+        )
+    return arr
+
+
+_CONTRAST_TYPES = ("beta", "t", "z", "p", "se")
+
+
+def _compute_contrast_from_bundle(
+    bundle: dict[str, Any],
+    contrast,
+    contrast_type: str,
+):
+    """Compute one contrast statistic (or all) from a GLM bundle.
+
+    Closed-form OLS contrast statistics:
+      - effect = c'β
+      - var(c'β) = sigma² · c' (X'X)⁻¹ c
+      - t = effect / sqrt(var)
+      - df = n_obs − rank(X)
+      - p = 2 · sf(|t|, df), z = sign(t) · isf(p/2)
+
+    Returns an ndarray (one stat per voxel) or, if ``contrast_type='all'``,
+    a dict with ``{'beta', 't', 'z', 'p', 'se'}``.
+    """
+    if contrast_type not in (*_CONTRAST_TYPES, "all"):
+        raise ValueError(
+            f"contrast_type must be one of {_CONTRAST_TYPES + ('all',)}; "
+            f"got {contrast_type!r}"
+        )
+
+    X = bundle["X"]
+    betas = bundle["betas"]
+    sigma2 = bundle["sigma2"]
+    c = _coerce_contrast(contrast, bundle["regressor_names"])
+
+    effect = c @ betas
+    XtX_inv = np.linalg.pinv(X.T @ X)
+    var_factor = float(c @ XtX_inv @ c)
+    se = np.sqrt(var_factor * sigma2)
+    # avoid divide-by-zero where sigma2 is exactly 0 (degenerate voxels)
+    t_stat = np.divide(
+        effect, se, out=np.zeros_like(effect, dtype=np.float64), where=se > 0
+    )
+
+    if contrast_type == "beta":
+        return effect
+    if contrast_type == "se":
+        return se
+    if contrast_type == "t":
+        return t_stat
+
+    from scipy.stats import norm, t as t_dist
+
+    df = max(X.shape[0] - int(np.linalg.matrix_rank(X)), 1)
+    p = 2.0 * t_dist.sf(np.abs(t_stat), df)
+
+    if contrast_type == "p":
+        return p
+
+    z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+
+    if contrast_type == "z":
+        return z
+
+    return {"beta": effect, "se": se, "t": t_stat, "p": p, "z": z}
+
+
+def _contrast_worker(
+    task: _ItemTask,
+    *,
+    contrast,
+    contrast_type: str,
+    step_id: str,
+    parent_step_id: str | None,
+    op: str,
+    op_kwargs: dict,
+):
+    """Worker for ``BC.compute_contrasts``: read bundle, compute, write NIfTI."""
+    from ..braindata import BrainData as _BrainData
+
+    if not isinstance(task.item, (str, Path)):
+        raise ValueError(
+            "compute_contrasts requires bundle-path items; got an in-memory "
+            "object. Run .fit(model='glm', cache=True) first or use cache=True."
+        )
+
+    bundle = read_glm_bundle(Path(task.item))
+    arr = _compute_contrast_from_bundle(bundle, contrast, contrast_type)
+    if isinstance(arr, dict):
+        # contrast_type='all' is dispatched at the BC layer; should not
+        # reach the per-stat worker as 'all'.
+        raise RuntimeError("worker received contrast_type='all' — bug")
+
+    mask = _bytes_to_mask(bundle["mask_bytes"])
+    bd = _BrainData(arr.reshape(1, -1), mask=mask)
+
+    if task.out_path is None:
+        return bd
+
+    _atomic_write_nifti(task.out_path, bd)
+    try:
+        from nltools import __version__ as _v
+    except Exception:
+        _v = ""
+    write_lineage_sidecar(
+        task.out_path,
+        step_id=step_id,
+        parent_step_id=parent_step_id,
+        op=op,
+        op_kwargs=op_kwargs,
+        nltools_version=_v,
+    )
+    return task.out_path
+
+
+def _fit_worker(
+    task: _ItemTask,
+    *,
+    model: str,
+    x_mode: str,
+    x_value: Any,
+    scale: bool,
+    scale_value: float,
+    model_kwargs: dict,
+    step_id: str,
+    parent_step_id: str | None,
+    op_kwargs: dict,
+):
+    """Worker fn for ``BC.fit``: run BD.fit, write a bundle if caching."""
+    bd, _ = _materialize(task)
+    X = _resolve_x_for_item(task, bd, x_mode=x_mode, x_value=x_value)
+    if X is None:
+        raise ValueError(
+            f"item {task.idx} has no design (X=None and self.designs[i] is None)"
+        )
+
+    bd.fit(model=model, X=X, scale=scale, scale_value=scale_value, **model_kwargs)
+
+    if task.out_path is None:
+        return bd
+
+    try:
+        from nltools import __version__ as _v
+    except Exception:
+        _v = ""
+
+    if model == "glm":
+        bundle_data = _extract_glm_bundle_data(bd)
+        write_glm_bundle(
+            task.out_path,
+            **bundle_data,
+            scale=scale,
+            scale_value=scale_value,
+            model_kwargs=model_kwargs,
+            step_id=step_id,
+            parent_step_id=parent_step_id,
+            op="fit",
+            op_kwargs=op_kwargs,
+            nltools_version=_v,
+        )
+    elif model == "ridge":
+        # Ridge bundle: TODO when test coverage drives it
+        raise NotImplementedError("ridge bundle write not yet wired")
+    else:
+        raise ValueError(f"unknown model {model!r}")
+
+    return task.out_path
 
 
 # ---------------------------------------------------------------------------
@@ -456,9 +940,28 @@ def write_lineage_sidecar(
     op_kwargs: dict,
     nltools_version: str,
 ) -> Path:
-    """Write ``{nifti_path.stem}.json`` with lineage attrs.
+    """Write ``{nifti_path.basename}.json`` with lineage attrs.
 
-    Used for NIfTI outputs (``smooth``, ``standardize``, ``compute_contrasts``,
-    ``predict(X_new)``, etc.) that don't embed lineage in their own format.
+    For ``.nii.gz`` paths, both extensions are stripped (so
+    ``sub-01.nii.gz`` → ``sub-01.json``). Used for NIfTI outputs
+    (``smooth``, ``standardize``, ``compute_contrasts``, ``predict(X_new)``,
+    etc.) that don't embed lineage in their own format.
     """
-    raise NotImplementedError("scaffold")
+    import json
+
+    name = nifti_path.name
+    base = name[:-7] if name.endswith(".nii.gz") else nifti_path.stem
+    sidecar = nifti_path.parent / f"{base}.json"
+    sidecar.write_text(
+        json.dumps(
+            {
+                "step_id": step_id,
+                "parent_step_id": parent_step_id,
+                "op": op,
+                "kwargs": op_kwargs,
+                "nltools_version": nltools_version,
+            },
+            indent=2,
+        )
+    )
+    return sidecar

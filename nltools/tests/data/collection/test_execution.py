@@ -346,7 +346,6 @@ class TestErrorPropagation:
 class TestBundleIO:
     """SPEC §"HDF5 fit bundle"."""
 
-    @XFAIL
     def test_glm_bundle_layout(self, tmp_path):
         path = tmp_path / "sub-01_fit.h5"
         execution.write_glm_bundle(
@@ -375,7 +374,6 @@ class TestBundleIO:
             for attr in ("step_id", "op", "kwargs", "nltools_version"):
                 assert attr in f.attrs
 
-    @XFAIL
     def test_bundle_atomic_no_tmp_after_success(self, tmp_path):
         path = tmp_path / "sub-01_fit.h5"
         execution.write_glm_bundle(
@@ -400,7 +398,6 @@ class TestBundleIO:
         assert path.exists()
         assert not path.with_suffix(".h5.tmp").exists()
 
-    @XFAIL
     def test_bundle_schema_mismatch_raises(self, tmp_path):
         path = tmp_path / "bogus.h5"
         with h5py.File(path, "w") as f:
@@ -408,7 +405,6 @@ class TestBundleIO:
         with pytest.raises(ValueError, match="schema"):
             execution.read_glm_bundle(path)
 
-    @XFAIL
     def test_lineage_sidecar_written(self, tmp_path):
         nifti_path = tmp_path / "sub-01.nii.gz"
         nifti_path.write_bytes(b"fake")

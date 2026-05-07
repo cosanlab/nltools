@@ -513,7 +513,91 @@ class BrainCollection:
           - ``list``         → per-subject (len == n_subjects)
           - ``callable``     → ``fn(ctx: _DesignContext) -> DesignMatrix``
         """
-        raise NotImplementedError("scaffold")
+        from . import execution
+
+        if model not in ("glm", "ridge"):
+            raise ValueError(f"unknown model {model!r}; expected 'glm' or 'ridge'")
+
+        x_mode, x_value = self._resolve_x_arg(X)
+
+        # Pre-generate step_id so the worker can stamp it into the bundle.
+        step_id = self._next_step_id()
+        parent_step_id = self._step_id
+        op_kwargs_full = {"model": model, **model_kwargs}
+
+        def worker(task):
+            return execution._fit_worker(
+                task,
+                model=model,
+                x_mode=x_mode,
+                x_value=x_value,
+                scale=scale,
+                scale_value=scale_value,
+                model_kwargs=model_kwargs,
+                step_id=step_id,
+                parent_step_id=parent_step_id,
+                op_kwargs=op_kwargs_full,
+            )
+
+        results, step_dir, _ = execution._apply(
+            self,
+            worker,
+            op=f"fit_{model}",
+            op_kwargs={
+                k: v
+                for k, v in op_kwargs_full.items()
+                if isinstance(v, (int, float, bool, str))
+            },
+            step_id=step_id,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+            out_ext="_fit.h5",
+        )
+        new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
+        new_sources = [r if isinstance(r, Path) else None for r in results]
+        return self._clone(
+            _items=results,
+            _step_id=step_id,
+            _step_dirs=new_dirs,
+            _source_paths=new_sources,
+        )
+
+    def _resolve_x_arg(
+        self,
+        X: DesignMatrix | list | Callable | None,
+    ) -> tuple[str, Any]:
+        """Inspect ``X`` and return ``(mode, value)`` for worker dispatch.
+
+        Modes:
+          - ``"designs"``: ``value`` is ``None`` (worker reads ``task.design``)
+          - ``"shared"``: ``value`` is a single ``DesignMatrix``
+          - ``"list"``: ``value`` is a list of ``DesignMatrix`` per item
+          - ``"callable"``: ``value`` is the callable
+        """
+        from ..designmatrix import DesignMatrix as _DesignMatrix
+
+        if X is None:
+            if any(d is None for d in self._designs):
+                missing = [i for i, d in enumerate(self._designs) if d is None]
+                raise ValueError(
+                    f"items {missing} have no paired design; pass X= or use "
+                    f"from_bids(pair_events=True)"
+                )
+            return "designs", None
+        if isinstance(X, _DesignMatrix):
+            return "shared", X
+        if isinstance(X, list):
+            if len(X) != len(self):
+                raise ValueError(
+                    f"X list length ({len(X)}) != n_subjects ({len(self)})"
+                )
+            return "list", list(X)
+        if callable(X):
+            return "callable", X
+        raise TypeError(
+            f"X must be None, DesignMatrix, list, or callable; got {type(X).__name__}"
+        )
 
     def compute_contrasts(
         self,
@@ -528,10 +612,103 @@ class BrainCollection:
 
         Returns:
           single contrast + single ``contrast_type`` → ``BrainCollection``
-          multiple contrasts                          → ``dict[str, BrainCollection]``
-          ``contrast_type='all'``                     → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+          multiple contrasts (single type)            → ``dict[str, BrainCollection]``
+          ``contrast_type='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+          multiple contrasts + ``contrast_type='all'`` → nested
+                                                         ``dict[name, dict[stat, BrainCollection]]``
+
+        Each per-subject NIfTI gets a JSON sidecar with lineage attrs
+        (``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
+        ``nltools_version``).
         """
-        raise NotImplementedError("scaffold")
+        from . import execution
+
+        # Normalize contrasts → dict[name, contrast_def] + single flag
+        if isinstance(contrasts, str):
+            contrast_dict = {contrasts: contrasts}
+            single_contrast = True
+        elif isinstance(contrasts, list):
+            contrast_dict = {
+                c if isinstance(c, str) else f"c{i}": c for i, c in enumerate(contrasts)
+            }
+            single_contrast = False
+        elif isinstance(contrasts, dict):
+            contrast_dict = contrasts
+            single_contrast = False
+        else:
+            raise TypeError(
+                f"contrasts must be str/list/dict, got {type(contrasts).__name__}"
+            )
+
+        # Normalize stat types
+        if contrast_type == "all":
+            stat_types = list(execution._CONTRAST_TYPES)
+        elif contrast_type in execution._CONTRAST_TYPES:
+            stat_types = [contrast_type]
+        else:
+            raise ValueError(
+                f"contrast_type must be one of "
+                f"{execution._CONTRAST_TYPES + ('all',)}; got {contrast_type!r}"
+            )
+
+        per_pair: dict[tuple[str, str], BrainCollection] = {}
+        for cname, cdef in contrast_dict.items():
+            for stat in stat_types:
+                step_id = self._next_step_id()
+                parent_step_id = self._step_id
+                op = f"contrast_{cname}_{stat}"
+                op_kwargs = {"contrast": str(cdef), "contrast_type": stat}
+
+                def worker(
+                    task,
+                    _cdef=cdef,
+                    _stat=stat,
+                    _step=step_id,
+                    _parent=parent_step_id,
+                    _op=op,
+                    _op_kwargs=op_kwargs,
+                ):
+                    return execution._contrast_worker(
+                        task,
+                        contrast=_cdef,
+                        contrast_type=_stat,
+                        step_id=_step,
+                        parent_step_id=_parent,
+                        op=_op,
+                        op_kwargs=_op_kwargs,
+                    )
+
+                results, step_dir, _ = execution._apply(
+                    self,
+                    worker,
+                    op=op,
+                    op_kwargs={"contrast_type": stat},
+                    step_id=step_id,
+                    n_jobs=n_jobs,
+                    progress_bar=progress_bar,
+                    cache=cache,
+                )
+                new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
+                new_sources = [r if isinstance(r, Path) else None for r in results]
+                per_pair[(cname, stat)] = self._clone(
+                    _items=results,
+                    _step_id=step_id,
+                    _step_dirs=new_dirs,
+                    _source_paths=new_sources,
+                )
+
+        # Reshape outputs by input shape
+        if single_contrast and contrast_type != "all":
+            return per_pair[(next(iter(contrast_dict)), contrast_type)]
+        if single_contrast and contrast_type == "all":
+            cname = next(iter(contrast_dict))
+            return {stat: per_pair[(cname, stat)] for stat in stat_types}
+        if not single_contrast and contrast_type != "all":
+            return {cname: per_pair[(cname, contrast_type)] for cname in contrast_dict}
+        return {
+            cname: {stat: per_pair[(cname, stat)] for stat in stat_types}
+            for cname in contrast_dict
+        }
 
     def predict(
         self,

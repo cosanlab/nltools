@@ -77,50 +77,115 @@ class TestPredictSignature:
 
 
 class TestFitBehavior:
-    @XFAIL
-    def test_fit_glm_returns_pathbacked_collection(self, bc_pathbacked):
-        # Each item needs a paired DesignMatrix; bc_pathbacked has none — this
-        # path will need from_bids or explicit designs in the real test.
-        # Placeholder: assert returned type only.
-        out = bc_pathbacked.fit(model="glm", X=None)
+    def test_fit_glm_returns_collection(self, bc_with_designs):
+        out = bc_with_designs.fit(model="glm", n_jobs=1)
+        assert isinstance(out, BrainCollection)
+        assert out.n_subjects == bc_with_designs.n_subjects
+        # cache='auto' on a loaded source stays in memory
+        assert all(out.is_loaded)
+
+    def test_fit_glm_cache_true_writes_bundles(self, bc_with_designs):
+        from pathlib import Path
+
+        out = bc_with_designs.fit(model="glm", cache=True, n_jobs=1)
+        assert not any(out.is_loaded)  # path-backed
+        for item in out._items:
+            assert isinstance(item, Path)
+            assert item.suffix == ".h5"
+            assert item.exists()
+
+    def test_fit_glm_bundle_has_expected_arrays(self, bc_with_designs):
+        from nltools.data.collection.execution import read_glm_bundle
+
+        out = bc_with_designs.fit(model="glm", cache=True, n_jobs=1)
+        bundle = read_glm_bundle(out._items[0])
+        # 8 obs, 27 voxels, 2 regressors
+        assert bundle["betas"].shape == (2, 27)
+        assert bundle["residuals"].shape == (8, 27)
+        assert bundle["sigma2"].shape == (27,)
+        assert bundle["X"].shape == (8, 2)
+        assert bundle["regressor_names"] == ["a", "b"]
+
+    def test_fit_x_shared_designmatrix(self, bc_with_designs, tiny_design_factory):
+        shared = tiny_design_factory(n_obs=8, seed=99)
+        out = bc_with_designs.fit(model="glm", X=shared, n_jobs=1)
         assert isinstance(out, BrainCollection)
 
-    @XFAIL
-    def test_fit_x_callable_receives_design_context(self, bc_pathbacked):
-        seen: list = []
+    def test_fit_x_callable_receives_design_context(self, bc_with_designs):
+        seen = []
 
         def make_design(ctx):
             seen.append(ctx)
-            from nltools.data import DesignMatrix
+            return ctx.dm  # passthrough
 
-            return DesignMatrix(np.zeros((1, 1)))
-
-        bc_pathbacked.fit(model="glm", X=make_design)
-        assert len(seen) == bc_pathbacked.n_subjects
-        # ctx exposes named attributes
+        bc_with_designs.fit(model="glm", X=make_design, n_jobs=1)
+        assert len(seen) == bc_with_designs.n_subjects
         assert hasattr(seen[0], "TR")
         assert hasattr(seen[0], "subject")
+        assert hasattr(seen[0], "bd")
+
+    def test_fit_x_none_requires_paired_designs(self, tiny_mask, tiny_brain_factory):
+        brains = [tiny_brain_factory(seed=i) for i in range(2)]
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        with pytest.raises(ValueError, match="no paired design"):
+            bc.fit(model="glm", X=None)
+
+    def test_fit_unknown_model_raises(self, bc_with_designs):
+        with pytest.raises(ValueError, match="unknown model"):
+            bc_with_designs.fit(model="bogus")
 
 
 class TestComputeContrastsBehavior:
-    @XFAIL
-    def test_single_contrast_returns_collection(self, bc_inmem):
-        # Assumes bc_inmem holds fit bundles; placeholder for now.
-        out = bc_inmem.compute_contrasts("a - b", contrast_type="beta")
+    @pytest.fixture(scope="function")
+    def fitted_bc(self, bc_with_designs):
+        return bc_with_designs.fit(model="glm", cache=True, n_jobs=1)
+
+    def test_single_contrast_returns_collection(self, fitted_bc):
+        out = fitted_bc.compute_contrasts("a - b", contrast_type="beta", n_jobs=1)
+        assert isinstance(out, BrainCollection)
+        assert out.n_subjects == fitted_bc.n_subjects
+
+    def test_single_regressor_identity_contrast(self, fitted_bc):
+        out = fitted_bc.compute_contrasts("a", contrast_type="beta", n_jobs=1)
         assert isinstance(out, BrainCollection)
 
-    @XFAIL
-    def test_multiple_contrasts_returns_dict(self, bc_inmem):
-        out = bc_inmem.compute_contrasts(["a", "b"], contrast_type="beta")
+    def test_multiple_contrasts_returns_dict(self, fitted_bc):
+        out = fitted_bc.compute_contrasts(
+            {"main": "a - b", "avg": "a + b"},
+            contrast_type="beta",
+            n_jobs=1,
+        )
         assert isinstance(out, dict)
+        assert set(out.keys()) == {"main", "avg"}
         assert all(isinstance(v, BrainCollection) for v in out.values())
 
-    @XFAIL
-    def test_all_contrast_types_returns_dict_keyed_by_type(self, bc_inmem):
-        out = bc_inmem.compute_contrasts("a", contrast_type="all")
+    def test_all_contrast_types_returns_dict_keyed_by_type(self, fitted_bc):
+        out = fitted_bc.compute_contrasts("a", contrast_type="all", n_jobs=1)
         assert isinstance(out, dict)
         for k in ("beta", "t", "z", "p", "se"):
             assert k in out
+            assert isinstance(out[k], BrainCollection)
+
+    def test_contrast_writes_lineage_sidecar(self, fitted_bc):
+        import json
+
+        out = fitted_bc.compute_contrasts("a", contrast_type="beta", n_jobs=1)
+        item = out._items[0]
+        sidecar = item.parent / (item.name[:-7] + ".json")  # .nii.gz → .json
+        assert sidecar.exists()
+        data = json.loads(sidecar.read_text())
+        assert data["op"].startswith("contrast_")
+        assert "step_id" in data
+
+    def test_contrast_unknown_regressor_raises(self, fitted_bc):
+        from nltools.data.collection import BrainCollectionWorkerError
+
+        with pytest.raises(BrainCollectionWorkerError, match="not in design"):
+            fitted_bc.compute_contrasts("nonexistent", n_jobs=1)
+
+    def test_contrast_invalid_type_raises(self, fitted_bc):
+        with pytest.raises(ValueError, match="contrast_type"):
+            fitted_bc.compute_contrasts("a", contrast_type="bogus", n_jobs=1)
 
 
 class TestPredictDispatch:
