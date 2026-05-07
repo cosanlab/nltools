@@ -981,25 +981,23 @@ def smooth(bd, fwhm):
     return out
 
 
-def find_spikes_data(bd, global_spike_cutoff=3, diff_spike_cutoff=3):
-    """Function to identify spikes from Time Series Data
-
-    Args:
-        bd: BrainData instance.
-        global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
-                             in standard deviations, None indicates do not calculate.
-        diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
-                             in standard deviations, None indicates do not calculate.
-
-    Returns:
-        pl.DataFrame: DataFrame with spikes as indicator variables.
-    """
+def find_spikes_data(
+    bd,
+    global_spike_cutoff=3,
+    diff_spike_cutoff=3,
+    *,
+    TR=None,
+    sampling_freq=None,
+):
+    """Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`."""
     from nltools.stats import find_spikes
 
     return find_spikes(
         bd,
         global_spike_cutoff=global_spike_cutoff,
         diff_spike_cutoff=diff_spike_cutoff,
+        TR=TR,
+        sampling_freq=sampling_freq,
     )
 
 

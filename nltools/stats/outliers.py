@@ -183,17 +183,34 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
     raise ValueError("Data must be a Polars or pandas DataFrame or Series")
 
 
-def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
-    """Function to identify spikes from fMRI Time Series Data
+def find_spikes(
+    data,
+    global_spike_cutoff=3,
+    diff_spike_cutoff=3,
+    *,
+    TR: float | None = None,
+    sampling_freq: float | None = None,
+):
+    """Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 
     Args:
         data: BrainData or nibabel instance
-        global_spike_cutoff: (int,None) cutoff to identify spikes in global signal
-                             in standard deviations, None indicates do not calculate.
-        diff_spike_cutoff: (int,None) cutoff to identify spikes in average frame difference
-                             in standard deviations, None indicates do not calculate.
+        global_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
+            the per-TR global signal. None to skip.
+        diff_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
+            the per-TR mean absolute frame-to-frame difference. None to skip.
+        TR: Repetition time in seconds. Sets the returned DesignMatrix's
+            sampling_freq for downstream `.append(...)` / `.convolve()`.
+            Pass exactly one of `TR` or `sampling_freq`.
+        sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
+
     Returns:
-        Polars DataFrame with spikes as indicator variables
+        DesignMatrix: one indicator column per detected spike, with all
+        spike columns pre-marked as confounds. Row position is the time
+        axis (no separate `TR` index column — that was a pandas-era
+        artifact). When `TR` / `sampling_freq` aren't provided the DM has
+        `sampling_freq=None`; you can still `.append()` it onto a DM that
+        does have one.
     """
 
     from nltools.data import BrainData
@@ -239,24 +256,39 @@ def find_spikes(data, global_spike_cutoff=3, diff_spike_cutoff=3):
         frame_outliers = np.where(
             (frame_diff > upper_threshold) | (frame_diff < lower_threshold)
         )[0]
-    # Build spike regressors using Polars
-    outlier_data = {"TR": list(range(1, len(global_mn) + 1))}
+    # Build spike regressors using Polars. Row position is the time axis;
+    # no separate "TR" index column (pandas-era artifact, dropped in v0.6.0).
+    outlier_data: dict[str, list[int]] = {}
 
     if global_spike_cutoff is not None:
-        # Create regressor columns for global spikes
         for i, loc in enumerate(global_outliers):
             col_name = f"global_spike{i + 1}"
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
 
-    # Build FD regressors using Polars
     if diff_spike_cutoff is not None:
-        # Create regressor columns for diff spikes
         for i, loc in enumerate(frame_outliers):
             col_name = f"diff_spike{i + 1}"
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
 
-    return pl.DataFrame(outlier_data)
+    if TR is not None and sampling_freq is not None:
+        raise ValueError(
+            "find_spikes: pass exactly one of `TR` or `sampling_freq`, not both."
+        )
+    if TR is not None:
+        sampling_freq = 1.0 / TR
+
+    # Synthesize an empty regressor frame when no spikes were found so the
+    # DesignMatrix has the right row count for downstream .append().
+    if not outlier_data:
+        df = pl.DataFrame({"_no_spikes": [0] * len(global_mn)}).drop("_no_spikes")
+    else:
+        df = pl.DataFrame(outlier_data)
+
+    from nltools.data import DesignMatrix
+
+    spike_cols = list(df.columns)
+    return DesignMatrix(df, sampling_freq=sampling_freq, confounds=spike_cols)

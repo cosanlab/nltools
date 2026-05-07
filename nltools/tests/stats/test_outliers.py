@@ -150,11 +150,70 @@ class TestZscore:
 
 
 class TestFindSpikes:
-    """Test spike detection in neuroimaging data."""
+    """Test spike detection in neuroimaging data.
+
+    `find_spikes` returns a `DesignMatrix` with spike indicator columns
+    pre-marked as confounds. The legacy `TR` index column is dropped (row
+    position is the time axis in the Polars-backed DM). Pass `TR=` or
+    `sampling_freq=` to make `.convolve()` / `.append()` happy downstream.
+    """
+
+    @pytest.fixture
+    def spike_nifti(self):
+        """Tiny synthetic 4D nifti with two known global spikes."""
+        import nibabel as nib
+
+        rng = np.random.default_rng(0)
+        n_tr = 30
+        data = rng.standard_normal((4, 4, 4, n_tr))
+        # Inject two global spikes well above 3σ.
+        data[..., 5] += 50
+        data[..., 20] += 50
+        return nib.Nifti1Image(data, affine=np.eye(4))
+
+    def test_returns_designmatrix(self, spike_nifti):
+        from nltools.data import DesignMatrix
+
+        dm = find_spikes(spike_nifti)
+        assert isinstance(dm, DesignMatrix)
+
+    def test_drops_tr_column(self, spike_nifti):
+        """The legacy 'TR' (1-indexed timestamp) column is no longer included."""
+        dm = find_spikes(spike_nifti)
+        assert "TR" not in dm.columns
+
+    def test_spike_columns_marked_as_confounds(self, spike_nifti):
+        dm = find_spikes(spike_nifti)
+        spike_cols = [c for c in dm.columns if "spike" in c]
+        assert spike_cols, "expected at least one spike column"
+        for c in spike_cols:
+            assert c in dm.confounds
+
+    def test_row_count_matches_input(self, spike_nifti):
+        dm = find_spikes(spike_nifti)
+        assert dm.shape[0] == 30  # n_tr
+
+    def test_sampling_freq_kwarg_propagates(self, spike_nifti):
+        dm = find_spikes(spike_nifti, sampling_freq=0.5)
+        assert dm.sampling_freq == 0.5
+
+    def test_tr_kwarg_propagates(self, spike_nifti):
+        dm = find_spikes(spike_nifti, TR=2.0)
+        assert dm.sampling_freq == pytest.approx(0.5)
+
+    def test_no_freq_kwarg_leaves_sampling_freq_unset(self, spike_nifti):
+        """Without TR/sampling_freq, the DM has sampling_freq=None.
+
+        Downstream `.convolve()` will error helpfully; users append into a DM
+        that already has sampling_freq set.
+        """
+        dm = find_spikes(spike_nifti)
+        assert dm.sampling_freq is None
 
     @pytest.mark.slow
     def test_find_spikes_brain_data(self):
-        """Find spikes in simulated BrainData."""
+        """Find spikes in simulated BrainData (slow — uses Simulator)."""
+        from nltools.data import DesignMatrix
         from nltools.data.simulator import Simulator
         from nltools.mask import create_sphere
 
@@ -162,20 +221,6 @@ class TestFindSpikes:
         s1 = create_sphere([0, 0, 0], radius=3)
         d1 = sim.create_data([0, 1], 1, reps=50, output_dir=None).apply_mask(s1)
 
-        spikes = find_spikes(d1)
-        assert isinstance(spikes, pl.DataFrame)
-        assert spikes.shape[0] == len(d1)
-
-    @pytest.mark.slow
-    def test_find_spikes_nifti(self):
-        """Find spikes from a NIfTI image."""
-        from nltools.data.simulator import Simulator
-        from nltools.mask import create_sphere
-
-        sim = Simulator()
-        s1 = create_sphere([0, 0, 0], radius=3)
-        d1 = sim.create_data([0, 1], 1, reps=50, output_dir=None).apply_mask(s1)
-
-        spikes = find_spikes(d1.to_nifti())
-        assert isinstance(spikes, pl.DataFrame)
-        assert spikes.shape[0] == len(d1)
+        dm = find_spikes(d1)
+        assert isinstance(dm, DesignMatrix)
+        assert dm.shape[0] == len(d1)
