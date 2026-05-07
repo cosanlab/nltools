@@ -63,7 +63,79 @@ def from_bids(
 
     See SPEC §"``from_bids`` — concrete design" for edge cases.
     """
-    raise NotImplementedError("scaffold")
+    discovered = discover_bids(
+        root,
+        task=task,
+        space=space,
+        sub_labels=sub_labels,
+        img_filters=img_filters,
+        derivatives_folder=derivatives_folder,
+        confounds_strategy=confounds_strategy,
+        confounds_kwargs=confounds_kwargs,
+        TR=TR,
+    )
+
+    bold_paths = discovered["bold_paths"]
+    events_dfs = discovered["events_dfs"]
+    confounds_dfs = discovered["confounds_dfs"]
+    sample_masks = discovered["sample_masks"]
+    metadata_rows = discovered["metadata_rows"]
+    TRs = discovered["TRs"]
+
+    if not bold_paths:
+        raise ValueError("no BOLD files discovered with the given filters")
+
+    # Build paired DesignMatrix from each events DF.
+    designs: list = []
+    if pair_events and task is not None:
+        from ..designmatrix import DesignMatrix
+
+        warned_missing: list[int] = []
+        for i, ev_df in enumerate(events_dfs):
+            if ev_df is None:
+                designs.append(None)
+                warned_missing.append(i)
+                continue
+            tr = TRs[i] if TRs[i] is not None else 2.0
+            # Pre-convert via dict so DesignMatrix's polars conversion
+            # doesn't trip on string columns without pyarrow installed.
+            ev_pl = pl.DataFrame(ev_df.to_dict(orient="list"))
+            designs.append(DesignMatrix(ev_pl, run_length="infer", TR=tr))
+        if warned_missing:
+            import warnings
+
+            warnings.warn(
+                f"{len(warned_missing)} BOLD files had no events.tsv; their "
+                f"designs are None. Indices: {warned_missing[:5]}"
+                f"{'...' if len(warned_missing) > 5 else ''}",
+                stacklevel=2,
+            )
+    else:
+        designs = [None] * len(bold_paths)
+
+    # Build polars-friendly metadata table from the per-item dicts.
+    cols: dict[str, list] = {}
+    for row in metadata_rows:
+        for k, v in row.items():
+            cols.setdefault(k, []).append(v)
+    # Pad missing keys per row with None.
+    n = len(bold_paths)
+    for k, vs in cols.items():
+        if len(vs) < n:
+            vs.extend([None] * (n - len(vs)))
+
+    bc = cls.from_paths(
+        bold_paths,
+        mask=mask,
+        design_paths=None,
+        metadata=cols,
+        cache_dir=cache_dir,
+    )
+    # Inject parallel slots that from_paths doesn't know about.
+    bc._designs = list(designs)
+    bc._confounds = list(confounds_dfs)
+    bc._sample_masks = list(sample_masks)
+    return bc
 
 
 def from_glob(
@@ -76,8 +148,57 @@ def from_glob(
     sort: bool = True,
     cache_dir: Path | str | None = "./.nltools_cache",
 ) -> BrainCollection:
-    """Build a collection by globbing for BOLD images (and optionally designs)."""
-    raise NotImplementedError("scaffold")
+    """Build a collection by globbing for BOLD images (and optionally designs).
+
+    ``pattern_groups`` extracts metadata from filename wildcards. Pass
+    ``{column_name: wildcard_index}`` (0-based) to capture each ``*`` in
+    ``pattern`` into a metadata column.
+    """
+    import glob as _glob
+    import re
+
+    paths = _glob.glob(pattern)
+    if sort:
+        paths = sorted(paths)
+    if not paths:
+        raise ValueError(f"no files matched {pattern!r}")
+
+    metadata: dict | None = None
+    if pattern_groups:
+        # Convert glob pattern to a regex with capture groups for each '*'.
+        re_pattern = re.escape(pattern).replace(r"\*", "(.*?)")
+        cregex = re.compile(re_pattern + r"$")
+        per_col: dict[str, list] = {col: [] for col in pattern_groups}
+        for p in paths:
+            m = cregex.match(p)
+            if m is None:
+                # Fallback: leave as None for this row
+                for col in per_col:
+                    per_col[col].append(None)
+                continue
+            for col, idx in pattern_groups.items():
+                per_col[col].append(m.group(idx + 1))
+        metadata = per_col
+
+    designs = None
+    if design_pattern is not None:
+        design_paths = _glob.glob(design_pattern)
+        if sort:
+            design_paths = sorted(design_paths)
+        if len(design_paths) != len(paths):
+            raise ValueError(
+                f"design glob matched {len(design_paths)} files but BOLD glob "
+                f"matched {len(paths)}"
+            )
+        designs = design_paths
+
+    return cls.from_paths(
+        paths,
+        mask=mask,
+        design_paths=designs,
+        metadata=metadata,
+        cache_dir=cache_dir,
+    )
 
 
 def from_paths(
@@ -142,6 +263,113 @@ def read(
 # ---------------------------------------------------------------------------
 
 
+def _discover_bids_no_task(
+    root: Path | str | Any,
+    *,
+    space: str | None,
+    sub_labels: list[str] | None,
+    img_filters: list[tuple[str, str]] | None,
+    derivatives_folder: str,
+    TR: float | str,
+) -> dict[str, list]:
+    """Lightweight BIDS path discovery when ``task=None`` (no events/models).
+
+    Walks the derivatives folder for ``*_bold.nii*`` files matching the given
+    filters. Designs are unset; TR comes from a JSON sidecar lookup or the
+    explicit ``TR=`` arg.
+    """
+    import json as _json
+    import re
+
+    root = Path(root)
+    derivatives = root / derivatives_folder
+    base = derivatives if derivatives.exists() else root
+
+    candidates = sorted(base.rglob("*_bold.nii*"))
+
+    def _match_filters(name: str) -> bool:
+        if space is not None and f"space-{space}" not in name:
+            return False
+        for k, v in img_filters or []:
+            if f"{k}-{v}" not in name:
+                return False
+        if sub_labels is not None:
+            entities = dict(re.findall(r"([a-zA-Z]+)-([a-zA-Z0-9]+)", name))
+            if entities.get("sub") not in sub_labels:
+                return False
+        return True
+
+    matched = [p for p in candidates if _match_filters(p.name)]
+    if not matched:
+        raise ValueError(f"no BOLD files found under {base} matching the given filters")
+
+    out_paths: list[Path] = []
+    out_meta: list[dict] = []
+    out_TRs: list = []
+
+    for p in matched:
+        entities = dict(re.findall(r"([a-zA-Z]+)-([a-zA-Z0-9]+)", p.name))
+
+        tr_val: float | None = None
+        if TR == "infer":
+            # Try the sidecar adjacent to this BOLD first.
+            sidecar = p.with_name(p.name.split(".")[0] + ".json")
+            if not sidecar.exists():
+                # Search the raw tree for a matching sub/ses/task/run sidecar
+                # by stripping derivative-only entities (space-, desc-).
+                raw_root = root
+                pattern_parts = [
+                    f"sub-{entities['sub']}" if entities.get("sub") else "*",
+                    f"ses-{entities['ses']}" if entities.get("ses") else "",
+                    f"task-{entities['task']}" if entities.get("task") else "*",
+                    f"run-{entities['run']}" if entities.get("run") else "",
+                ]
+                # Build a glob that ignores order: just look for any json
+                # whose name contains all required entities.
+                for candidate in sorted(raw_root.rglob("*_bold.json")):
+                    if all(
+                        (part == "" or part == "*" or part in candidate.name)
+                        for part in pattern_parts
+                    ):
+                        sidecar = candidate
+                        break
+            if sidecar and sidecar.exists():
+                try:
+                    tr_val = float(_json.loads(sidecar.read_text())["RepetitionTime"])
+                except Exception:
+                    tr_val = None
+            if tr_val is None:
+                raise ValueError(f"could not infer TR for {p.name!r}; pass TR=<float>")
+        else:
+            tr_val = float(TR)
+
+        out_paths.append(p)
+        out_meta.append(
+            {
+                "subject": entities.get("sub"),
+                "session": entities.get("ses"),
+                "run": int(entities["run"]) if entities.get("run") else None,
+                "task": entities.get("task"),
+                "space": entities.get("space") or space,
+                "bold_path": str(p),
+                "events_path": None,
+                "confounds_path": None,
+                "TR": tr_val,
+            }
+        )
+        out_TRs.append(tr_val)
+
+    n = len(out_paths)
+    return {
+        "bold_paths": out_paths,
+        "events_dfs": [None] * n,
+        "confounds_dfs": [None] * n,
+        "sample_masks": [None] * n,
+        "metadata_rows": out_meta,
+        "TRs": out_TRs,
+    }
+
+
 def discover_bids(
     root: Path | str | Any,
     *,
@@ -166,7 +394,124 @@ def discover_bids(
       - fmriprep absent + ``confounds_strategy`` set: raise.
       - pybids not installed: raise ``ImportError``.
     """
-    raise NotImplementedError("scaffold")
+    try:
+        from nilearn.glm.first_level import first_level_from_bids
+    except ImportError as e:
+        raise ImportError(
+            "from_bids requires nilearn (pip install nilearn). "
+            "pybids is also needed for full BIDS support."
+        ) from e
+
+    if task is None:
+        # Lightweight discovery — no events, no models. Per spec: when
+        # task is None, we silently drop event/design pairing.
+        return _discover_bids_no_task(
+            root,
+            space=space,
+            sub_labels=sub_labels,
+            img_filters=img_filters,
+            derivatives_folder=derivatives_folder,
+            TR=TR,
+        )
+
+    models, imgs_per_sub, events_per_sub, confounds_per_sub = first_level_from_bids(
+        str(root),
+        task,
+        space_label=space,
+        sub_labels=sub_labels,
+        img_filters=img_filters or [],
+        derivatives_folder=derivatives_folder,
+    )
+
+    # If user asked for fmriprep confounds via load_confounds, override
+    # the raw DataFrames returned above.
+    if confounds_strategy is not None:
+        try:
+            from nilearn.interfaces.fmriprep import load_confounds
+        except ImportError as e:
+            raise ImportError(
+                "confounds_strategy= requires nilearn.interfaces.fmriprep "
+                "(install fmriprep-compatible nilearn)."
+            ) from e
+        # load_confounds takes a list of BOLD paths and returns
+        # (confounds_df, sample_mask) tuples.
+        flat_imgs = [str(p) for sub_imgs in imgs_per_sub for p in sub_imgs]
+        kwargs = {"strategy": confounds_strategy}
+        if confounds_kwargs:
+            kwargs.update(confounds_kwargs)
+        cf_dfs, smask = load_confounds(flat_imgs, **kwargs)
+        # Re-shape back to per-subject lists for alignment with the loop below.
+        re_shaped_cf: list = []
+        re_shaped_sm: list = []
+        offset = 0
+        for sub_imgs in imgs_per_sub:
+            n = len(sub_imgs)
+            re_shaped_cf.append(list(cf_dfs[offset : offset + n]))
+            re_shaped_sm.append(list(smask[offset : offset + n]))
+            offset += n
+        confounds_per_sub = re_shaped_cf
+        sample_masks_per_sub = re_shaped_sm
+    else:
+        # No strategy → no sample masks; keep the raw confounds DFs.
+        sample_masks_per_sub = [[None] * len(sub) for sub in imgs_per_sub]
+
+    out_paths: list[Path] = []
+    out_events: list = []
+    out_confounds: list = []
+    out_sample_masks: list = []
+    out_meta: list[dict] = []
+    out_TRs: list = []
+
+    import re
+
+    for sub_idx, (model, sub_imgs, sub_events, sub_confs) in enumerate(
+        zip(models, imgs_per_sub, events_per_sub, confounds_per_sub)
+    ):
+        sub_smasks = sample_masks_per_sub[sub_idx]
+        for run_idx, img_path in enumerate(sub_imgs):
+            ev = sub_events[run_idx] if run_idx < len(sub_events) else None
+            cf = sub_confs[run_idx] if run_idx < len(sub_confs) else None
+            sm = sub_smasks[run_idx] if run_idx < len(sub_smasks) else None
+
+            name = Path(img_path).name
+            entities = dict(re.findall(r"([a-zA-Z]+)-([a-zA-Z0-9]+)", name))
+
+            if TR == "infer":
+                tr_val = float(model.t_r) if model.t_r is not None else None
+                if tr_val is None:
+                    raise ValueError(
+                        f"could not infer TR for {name!r}; pass TR=<float>"
+                    )
+            else:
+                tr_val = float(TR)
+
+            row = {
+                "subject": entities.get("sub"),
+                "session": entities.get("ses"),
+                "run": int(entities["run"]) if entities.get("run") else None,
+                "task": entities.get("task") or task,
+                "space": entities.get("space") or space,
+                "bold_path": str(img_path),
+                "events_path": None,  # nilearn doesn't expose; left for from_bids
+                "confounds_path": None,
+                "TR": tr_val,
+            }
+
+            out_paths.append(Path(img_path))
+            out_events.append(ev)
+            out_confounds.append(cf)
+            out_sample_masks.append(sm)
+            out_meta.append(row)
+            out_TRs.append(tr_val)
+
+    return {
+        "bold_paths": out_paths,
+        "events_dfs": out_events,
+        "confounds_dfs": out_confounds,
+        "sample_masks": out_sample_masks,
+        "metadata_rows": out_meta,
+        "TRs": out_TRs,
+    }
 
 
 # ---------------------------------------------------------------------------

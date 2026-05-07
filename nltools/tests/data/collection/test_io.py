@@ -33,7 +33,6 @@ class TestFromPaths:
 
 
 class TestFromGlob:
-    @XFAIL
     def test_from_glob_basic(self, tiny_mask, tiny_nifti_paths, tmp_path):
         bc = BrainCollection.from_glob(
             str(tmp_path / "sub-*.nii.gz"),
@@ -42,7 +41,6 @@ class TestFromGlob:
         )
         assert bc.n_subjects == 3
 
-    @XFAIL
     def test_from_glob_pattern_groups_extract_metadata(
         self,
         tiny_mask,
@@ -56,26 +54,30 @@ class TestFromGlob:
             cache_dir=None,
         )
         assert "subject" in bc.metadata.columns
+        # Wildcard captured "01", "02", "03" (without "sub-" prefix)
+        assert bc.metadata["subject"].to_list() == ["01", "02", "03"]
 
 
 @pytest.mark.skipif(not HAS_FAKE_BIDS, reason="nilearn fake-BIDS not available")
 class TestFromBIDS:
     """SPEC §"`from_bids` — concrete design"."""
 
-    @XFAIL
+    # nilearn's fake BIDS has fmriprep derivatives in space=T1w with
+    # desc=preproc and desc=fmriprep — pin to the preproc one.
+    BIDS_KW = {"space": "T1w", "img_filters": [("desc", "preproc")]}
+
     def test_from_bids_basic(self, fake_bids_root, tiny_mask):
         bc = BrainCollection.from_bids(
             fake_bids_root,
             mask=tiny_mask,
             task="task01",
             cache_dir=None,
+            **self.BIDS_KW,
         )
         assert bc.n_subjects > 0
-        # populated metadata columns
         for col in ("subject", "task", "bold_path", "TR"):
             assert col in bc.metadata.columns
 
-    @XFAIL
     def test_from_bids_pairs_events(self, fake_bids_root, tiny_mask):
         bc = BrainCollection.from_bids(
             fake_bids_root,
@@ -83,11 +85,10 @@ class TestFromBIDS:
             task="task01",
             pair_events=True,
             cache_dir=None,
+            **self.BIDS_KW,
         )
-        # at least one design paired
         assert any(d is not None for d in bc.designs)
 
-    @XFAIL
     def test_from_bids_no_task_downgrades_pair_events(
         self,
         fake_bids_root,
@@ -100,10 +101,10 @@ class TestFromBIDS:
             task=None,
             pair_events=True,
             cache_dir=None,
+            **self.BIDS_KW,
         )
         assert all(d is None for d in bc.designs)
 
-    @XFAIL
     def test_from_bids_TR_from_sidecar(self, fake_bids_root, tiny_mask):
         bc = BrainCollection.from_bids(
             fake_bids_root,
@@ -111,8 +112,8 @@ class TestFromBIDS:
             task="task01",
             TR="infer",
             cache_dir=None,
+            **self.BIDS_KW,
         )
-        # all items have a numeric TR
         assert all(isinstance(t, (int, float)) for t in bc.metadata["TR"].to_list())
 
 

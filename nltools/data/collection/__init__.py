@@ -482,12 +482,14 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
-        """Map a function over paired ``DesignMatrix``es.
+        """Map ``fn(dm) -> DesignMatrix`` over each paired design.
 
-        ``fn`` may take either a ``DesignMatrix`` or a ``DesignContext``;
-        the wrapper inspects arity and dispatches.
+        Items with no paired design are skipped (kept as ``None``). Runs in
+        the parent process — designs are small. ``n_jobs``/``progress_bar``/
+        ``cache`` are accepted for surface consistency but ignored.
         """
-        raise NotImplementedError("scaffold")
+        new_designs = [fn(dm) if dm is not None else None for dm in self._designs]
+        return self._clone(_designs=new_designs, _step_id=self._next_step_id())
 
     # ------------------------------------------------------------------
     # Fit / contrasts / predict — mirror BrainData
@@ -738,7 +740,146 @@ class BrainCollection:
         ``predict(y=...)`` requires single-map-per-subject items (run
         ``compute_contrasts(...)`` first if you have GLM/ridge bundles).
         """
-        raise NotImplementedError("scaffold")
+        if y is None and X_new is None:
+            raise ValueError(
+                "predict requires either y= (group MVPA) or X_new= "
+                "(per-subject predict-after-fit). Got neither."
+            )
+        if y is not None and X_new is not None:
+            raise ValueError(
+                "predict accepts y= or X_new=, not both. They're different "
+                "operations: y= runs group MVPA across subjects, X_new= runs "
+                "per-subject predict-after-fit."
+            )
+
+        if y is not None:
+            return self._predict_group(
+                y,
+                method=method,
+                estimator=estimator,
+                cv=cv,
+                groups=groups,
+                roi_mask=roi_mask,
+                radius_mm=radius_mm,
+                scoring=scoring,
+                standardize=standardize,
+                return_weights=return_weights,
+                n_jobs=n_jobs,
+                progress_bar=progress_bar,
+                **kwargs,
+            )
+
+        return self._predict_per_subject(
+            X_new,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+        )
+
+    def _predict_group(
+        self,
+        y,
+        *,
+        method: str,
+        estimator: str,
+        cv,
+        groups,
+        roi_mask,
+        radius_mm: float,
+        scoring: str,
+        standardize: bool,
+        return_weights: bool,
+        n_jobs: int,
+        progress_bar: bool,
+        **kwargs,
+    ):
+        """Group MVPA: subjects as samples → ``BrainData`` with CV attrs."""
+        from ..braindata import BrainData
+
+        # Items must be single-map-per-subject (1, n_voxels) shape.
+        # GLM bundles (.h5) and multi-row BD must call compute_contrasts first.
+        for i, item in enumerate(self._items):
+            if isinstance(item, Path) and item.suffix in (".h5", ".hdf5"):
+                raise ValueError(
+                    f"item {i} is a fit bundle ({item.name}); call "
+                    f"compute_contrasts(...) first to get a single map per subject."
+                )
+
+        # Stack subject maps as one BrainData (n_subjects, n_voxels).
+        arrays = []
+        for i in range(len(self._items)):
+            x = np.asarray(self._load_item(i).data)
+            if x.ndim > 1 and x.shape[0] != 1:
+                raise ValueError(
+                    f"item {i} has shape {x.shape}; predict(y=...) requires "
+                    f"single-map-per-subject items. Call compute_contrasts(...) "
+                    f"first."
+                )
+            arrays.append(x.reshape(-1))
+        stacked = np.stack(arrays, axis=0).astype(np.float32)
+        bd = BrainData(stacked, mask=self._mask)
+
+        # Resolve y from metadata column name if needed.
+        y_arr = (
+            np.asarray(self._metadata[y].to_list())
+            if isinstance(y, str)
+            else np.asarray(y)
+        )
+        groups_arr = (
+            np.asarray(self._metadata[groups].to_list())
+            if isinstance(groups, str)
+            else (np.asarray(groups) if groups is not None else None)
+        )
+
+        # Build a CV splitter from the spec
+        from sklearn.model_selection import KFold, LeaveOneGroupOut
+
+        cv_arg = cv
+        if cv == "loso":
+            if groups_arr is None:
+                # Default: each subject is its own group
+                groups_arr = np.arange(len(self))
+            cv_arg = LeaveOneGroupOut()
+        elif cv == "loro":
+            if groups_arr is None:
+                if "run" not in self._metadata.columns:
+                    raise ValueError(
+                        "cv='loro' requires 'run' metadata or explicit groups"
+                    )
+                groups_arr = np.asarray(self._metadata["run"].to_list())
+            cv_arg = LeaveOneGroupOut()
+        elif isinstance(cv, int):
+            cv_arg = KFold(cv)
+
+        # Forward to BD.predict; result is a BrainData with CV attrs attached.
+        # BD.predict signature: (X, y, *, method, estimator, cv, groups, ...)
+        return bd.predict(
+            X=None,
+            y=y_arr,
+            method=method,
+            estimator=estimator,
+            cv=cv_arg,
+            groups=groups_arr,
+            roi_mask=roi_mask,
+            radius_mm=radius_mm,
+            scoring=scoring,
+            standardize=standardize,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+        )
+
+    def _predict_per_subject(
+        self,
+        X_new: np.ndarray,
+        *,
+        n_jobs: int,
+        progress_bar: bool,
+        cache: Literal["auto", True, False],
+    ) -> BrainCollection:
+        """Per-subject predict-after-fit; each item is a fitted model bundle."""
+        raise NotImplementedError(
+            "predict(X_new=...) requires fitted ridge bundles; not yet wired"
+        )
 
     # ------------------------------------------------------------------
     # Group reductions — delegate to inference.py
@@ -925,8 +1066,21 @@ class BrainCollection:
         n: int = 1000,
         random_state: int | None = None,
     ) -> BrainCollectionPipeline:
-        """Build a CV pipeline for cross-subject prediction. See ``pipeline.py``."""
-        raise NotImplementedError("scaffold")
+        """Build a CV pipeline for cross-subject prediction.
+
+        See ``pipeline.py`` for the builder API. The pipeline's ``predict``
+        terminal returns a ``BrainData`` with CV attrs attached.
+        """
+        from ...pipelines.cv import CVScheme
+
+        cv_scheme = CVScheme(
+            scheme=method,
+            k=k,
+            split_by=split_by,
+            n=n,
+            random_state=random_state,
+        )
+        return BrainCollectionPipeline(self, cv=cv_scheme, groups=groups)
 
     # ------------------------------------------------------------------
     # Composition primitives
