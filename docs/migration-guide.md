@@ -587,6 +587,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 |--------|-------------|------------------|
 | `.regress()` | `.fit(model='glm', X=design_matrix)` — deprecated shim still works, just emits a `DeprecationWarning` | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, method=…, estimator='svm', …)` (updated API) | **Low** |
+| `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
@@ -1159,7 +1160,7 @@ A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollecti
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.predict`, `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.predict`, `BrainCollection.align` and the ICC/permutation helpers. The fluent pipeline (`brain.cv(k).predict(y, algorithm=…)`) keeps `algorithm` — that stays the model selector inside an already-method-scoped pipeline call. |
 | Classifier / sklearn estimator | — (was also `algorithm=`) | `estimator` | `BrainData.predict`, `BrainCollection.predict` |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | All four facades and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
 | Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainCollection.isc`, `.isc_test`, `.predict`, `.align`; `BrainData.predict` (searchlight), `BrainData.plot_flatmap`; `nltools.plotting.plot_surface`, `plot_flatmap`. The returned info dict from `_extract_for_isc` also renames `"radius"` → `"radius_mm"`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
@@ -1173,6 +1174,7 @@ A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollecti
 ```python
 # OLD
 brain.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5}, radius=10)
+brain.decompose(algorithm='ica', n_components=20, axis='images', whiten=True)
 brain.plot(kind='glass', thr_upper=2.3, thr_lower=-2.3)
 bc.isc(radius=6.0, parallel='gpu', show_progress=True)
 bc.isc_test(n_permute=5000, parallel='cpu')
@@ -1181,6 +1183,7 @@ adj.similarity(other, ignore_diagonal=True)  # old: include the diagonal
 
 # NEW
 brain.predict(y=labels, method='searchlight', estimator='svm', cv=5, radius_mm=10)
+brain.decompose(method='ica', n_components=20, axis='images', whiten=True)
 brain.plot(method='glass', upper=2.3, lower=-2.3)
 bc.isc(radius_mm=6.0, device='gpu', progress_bar=True)
 bc.isc_test(n_permute=5000, device='cpu')
@@ -1356,6 +1359,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 | `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
 | `BrainData.predict()` | API changed | `algorithm=`, `cv_dict=` | `method=`, `cv=` | Update keywords |
+| `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
 | Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
 | Return keys | Key renamed | `null_dist` | `null_distribution` | Wrapper handles mapping |
 
@@ -1515,6 +1519,7 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 | HDF5 files from v0.5.1 (deepdish/PyTables) | ✅ Fully compatible (read path restored via h5py + hdf5plugin; no PyTables dependency) | None |
 | `.regress()` | ⚠️ Deprecated shim | Update to `.fit(model='glm')` to silence warning |
 | `.predict()` | ⚠️ API changed | Update `algorithm=` → `method=/estimator=`, `cv_dict=` → `cv=`, `radius=` → `radius_mm=` |
+| `.decompose()` | ⚠️ Kwargs changed | Update `algorithm=` → `method=`; signature is now keyword-only after `self` |
 | `BrainData.ttest()` | ⚠️ Signature changed | Old `threshold_dict=` kwarg gone; use `popmean=`, `permutation=`, `tail=`, `n_permute=` |
 | `.X` and `.Y` attributes | ✅ Still work | Prefer passing `X=` to `.fit()` directly |
 | `.isempty` | ⚠️ Deprecated | Use `.is_empty` instead |
@@ -1610,6 +1615,7 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 
 - [ ] Replace `.regress()` with `.fit(model='glm')` (deprecated shim still works, emits `DeprecationWarning`)
 - [ ] Update `.predict(algorithm=...)` to `.predict(method=..., estimator=..., cv=...)` (new keyword API)
+- [ ] Update `.decompose(algorithm=...)` to `.decompose(method=...)` (same `algorithm → method` rename; signature is now keyword-only after `self`)
 - [ ] Update `.shape()` → `.shape`, `.isempty()` → `.is_empty`, `.dtype()` → `.dtype`
 - [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
