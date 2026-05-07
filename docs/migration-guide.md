@@ -1391,6 +1391,40 @@ Also: `match_resolution()` now returns a frozen `TemplateMatch` dataclass (attri
 
 **Plotting helper re-exports** — `_plot_matplotlib` and other underscore-prefixed plotting helpers are no longer re-exported from `nltools.plotting` / `nltools`. Import them from their actual module if you really need them (internal use only).
 
+(loading-brain-images)=
+### Loading canonical brain images
+
+For atlases, parcellations, ROI masks, and templates, prefer
+`fetch_resource` from `nltools.templates` over hard-coded external URLs.
+Files live in the `nltools/niftis` HF dataset, are cached locally on first
+use, and the same returned path drops straight into anything that takes a
+NIfTI path — nilearn plotting/masking helpers, `nibabel.load`, and
+`BrainData(path)`.
+
+```python
+from nltools.templates import fetch_resource, list_resources
+from nltools.data import BrainData
+from nilearn import plotting
+
+# Discover what's available (one HF API hit per session, cached)
+list_resources(prefix="masks/")
+# → ['masks/desikan_killiany_mni152nlin6_1mm.nii.gz',
+#    'masks/k50_2mm.nii.gz', 'masks/shen_268_2mm.nii.gz', ...]
+
+# Path-string return — works for both consumers without conversion
+plotting.plot_roi(fetch_resource("masks/shen_268_2mm.nii.gz"))   # nilearn
+mask = BrainData(fetch_resource("masks/k50_2mm.nii.gz"))         # nltools
+```
+
+Avoid the v0.5.1-era `BrainData('https://...nii.gz').to_nifti()` round-trip
+when the goal is just to feed a remote NIfTI to nilearn — it parses the
+file into nltools' internal Polars frame and immediately reverses the
+process. `fetch_resource(...)` returns a path nilearn accepts directly.
+
+`list_resources()` requires `huggingface_hub` and is unavailable in
+Pyodide; browser-deployed code should pre-seed known paths via
+`await seed_resources([...])` instead.
+
 ---
 
 ## Legacy HDF5 compatibility (restored)
