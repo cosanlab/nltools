@@ -373,3 +373,73 @@ class TestIsStandardSpace:
         ok, reason = is_standard_space(_isotropic_affine(2.5))
         assert not ok
         assert "integer-mm" in reason
+
+
+# ---------------------------------------------------------------------------
+# list_resources
+# ---------------------------------------------------------------------------
+
+
+class TestListResources:
+    """Discoverability for the nltools/niftis HF dataset.
+
+    These tests hit the HF API once per session (cached via lru_cache).
+    Skip the suite locally with `pytest -k "not list_resources"` if offline.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        from nltools.templates.fetch import _list_repo_files_cached
+
+        _list_repo_files_cached.cache_clear()
+        yield
+        _list_repo_files_cached.cache_clear()
+
+    def test_returns_non_empty_list(self):
+        from nltools.templates import list_resources
+
+        files = list_resources()
+        assert isinstance(files, list)
+        assert len(files) > 0
+        assert all(isinstance(f, str) for f in files)
+
+    def test_returns_sorted(self):
+        from nltools.templates import list_resources
+
+        files = list_resources()
+        assert files == sorted(files)
+
+    def test_includes_known_files(self):
+        """Sanity check: known files in the dataset are in the listing."""
+        from nltools.templates import list_resources
+
+        files = list_resources()
+        # Long-standing fixture
+        assert "masks/k50_2mm.nii.gz" in files
+        # Newly uploaded atlases (C6)
+        assert "masks/desikan_killiany_mni152nlin6_1mm.nii.gz" in files
+        assert "masks/shen_268_2mm.nii.gz" in files
+        assert "masks/glasser_360_mni152nlin6_4mm.nii.gz" in files
+        assert "masks/fsl_bilateral_amygdala_thr0.nii.gz" in files
+
+    def test_prefix_filter(self):
+        from nltools.templates import list_resources
+
+        masks = list_resources(prefix="masks/")
+        assert all(f.startswith("masks/") for f in masks)
+        assert "masks/k50_2mm.nii.gz" in masks
+
+    def test_prefix_no_matches_returns_empty(self):
+        from nltools.templates import list_resources
+
+        assert list_resources(prefix="nonexistent_subdir/") == []
+
+    def test_returned_paths_are_fetchable(self):
+        """A path from list_resources() round-trips through fetch_resource()."""
+        from nltools.templates import fetch_resource, list_resources
+
+        files = list_resources(prefix="masks/")
+        assert files, "expected non-empty mask listing"
+        # Pick the smallest known file to keep the test fast
+        path = fetch_resource("masks/fsl_bilateral_amygdala_thr0.nii.gz")
+        assert os.path.exists(path)

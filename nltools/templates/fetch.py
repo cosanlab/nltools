@@ -15,6 +15,7 @@ page reloads via IndexedDB, so seeding only does network work once per
 browser per dataset revision.
 """
 
+import functools
 import sys
 from pathlib import Path
 
@@ -36,10 +37,13 @@ def fetch_resource(relpath: str) -> str:
     Args:
         relpath: Path within the dataset repo, e.g.
             ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or
-            ``'masks/k88_parcel_names.csv'``.
+            ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources`
+            to enumerate what's available.
 
     Returns:
-        Absolute path to the cached file on disk.
+        Absolute path to the cached file on disk. The returned path drops
+        straight into anything that takes a NIfTI path — nilearn plotting
+        and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
     """
     if "pyodide" in sys.modules:
         return _fetch_pyodide(relpath)
@@ -52,6 +56,49 @@ def fetch_resource(relpath: str) -> str:
         repo_type="dataset",
         revision=REVISION,
     )
+
+
+@functools.lru_cache(maxsize=8)
+def _list_repo_files_cached(repo_id: str, revision: str) -> tuple[str, ...]:
+    """Single HF API hit per (repo, revision) for the session."""
+    from huggingface_hub import HfApi
+
+    files = HfApi().list_repo_files(
+        repo_id=repo_id, repo_type="dataset", revision=revision
+    )
+    return tuple(sorted(files))
+
+
+def list_resources(prefix: str | None = None) -> list[str]:
+    """List files available in the ``nltools/niftis`` HF dataset.
+
+    Companion to :func:`fetch_resource` — surfaces what's downloadable
+    without forcing users to remember relpath strings or visit the HF
+    web UI.
+
+    Args:
+        prefix: Optional path prefix to filter by (e.g., ``'masks/'``,
+            ``'default/'``, ``'fmriprep/'``). Matches with
+            ``str.startswith``.
+
+    Returns:
+        Sorted list of relative paths usable with :func:`fetch_resource`.
+
+    Notes:
+        Hits the HF API once per session (cached). Not available in
+        Pyodide — browser-deployed code should know its paths in advance
+        and pre-seed via :func:`seed_resources`.
+    """
+    if "pyodide" in sys.modules:
+        raise RuntimeError(
+            "list_resources() requires huggingface_hub and is unavailable "
+            "in Pyodide. Pre-seed your known paths via "
+            "`await seed_resources([...])` instead."
+        )
+    files = _list_repo_files_cached(REPO_ID, REVISION)
+    if prefix:
+        return [f for f in files if f.startswith(prefix)]
+    return list(files)
 
 
 async def seed_resources(relpaths: list[str]) -> None:
