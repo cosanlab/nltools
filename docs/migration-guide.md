@@ -351,6 +351,62 @@ dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
 ```
 
+#### Worked example: PPI (psycho-physiological interaction) design
+
+The PPI flow exercises most of the v0.6.0 idioms together — boxcar opt-out,
+Polars-native column manipulation, mixed-input `.append()` for confounds, and
+the `find_spikes` → DesignMatrix interop. The model is
+
+```
+Y_voxel = β_task·motor + β_seed·vmpfc + β_PPI·(motor × vmpfc)
+        + β_conf·confounds + ε
+```
+
+where `motor` is HRF-convolved, `vmpfc` is a measured BOLD timeseries from a
+seed ROI (so it is **not** convolved), and the interaction term is the
+elementwise product of the two.
+
+```python
+import polars as pl
+from nltools.data import DesignMatrix
+
+# 1. Load BIDS events as boxcar — PPI needs to combine motor variants BEFORE
+#    convolving, so opt out of the constructor's default HRF convolution.
+events = DesignMatrix(events_path, run_length=n_tr, TR=tr, hrf_model=None)
+
+# 2. Collapse the four motor variants into one combined regressor with a
+#    Polars expression, then convolve everything in one pass.
+motor_variables = ["video_left_hand", "audio_left_hand",
+                   "video_right_hand", "audio_right_hand"]
+task = (
+    events
+    .with_columns(motor=pl.sum_horizontal(motor_variables))
+    .drop(motor_variables)
+    .convolve()
+)
+
+# 3. Add the seed timeseries (raw — already a BOLD signal) and the PPI
+#    interaction. pl.col() expressions let the interaction read like the math.
+task = task.with_columns(
+    vmpfc=vmpfc_signal,
+).with_columns(
+    vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+)
+
+# 4. Stack confounds + drift. .append() handles a mixed list of pandas
+#    DataFrames (csf, mc_cov) and DesignMatrix instances (spikes — which
+#    already knows its own columns are confounds via find_spikes).
+spikes = bold.find_spikes(global_spike_cutoff=3, diff_spike_cutoff=3, TR=tr)
+dm = task.append(
+    [csf, mc_cov, spikes], axis=1, as_confounds=True,
+).add_poly(order=2, include_lower=True)
+```
+
+The metadata stays consistent across the chain — `dm.convolved` lists the
+HRF-convolved task regressors (`motor_c0`, …), `dm.confounds` lists the
+nuisance regressors (CSF, motion, spike censors, drift), and the
+regressors-of-interest (`vmpfc`, `vmpfc_motor`) stay out of both.
+
 (designmatrix-confounds-rename)=
 ### DesignMatrix `.polys` → `.confounds` (attribute and kwargs)
 
