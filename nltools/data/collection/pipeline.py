@@ -34,7 +34,7 @@ class BrainCollectionPipeline:
         >>> # Leave-one-subject-out with preprocessing
         >>> result = (bc
         ...     .cv(scheme='loso')
-        ...     .normalize()
+        ...     .standardize()
         ...     .reduce(n_components=50)
         ...     .predict(labels, algorithm='svm'))
         >>> print(f"Mean accuracy: {result.mean_score:.2%}")
@@ -88,15 +88,15 @@ class BrainCollectionPipeline:
         new._steps = self._steps + [step]
         return new
 
-    def normalize(self, method: str = "zscore", **kwargs) -> BrainCollectionPipeline:
-        """Add normalization step.
+    def standardize(self, method: str = "zscore", **kwargs) -> BrainCollectionPipeline:
+        """Add standardization step.
 
         Args:
-            method: Normalization method ('zscore', 'minmax').
+            method: Standardization method ('zscore', 'minmax').
             **kwargs: Additional arguments for NormalizeStep.
 
         Returns:
-            New pipeline with normalization step added.
+            New pipeline with standardization step added.
         """
         from nltools.pipelines.steps import NormalizeStep
 

@@ -240,6 +240,12 @@ class TestCVPipeline:
         pipe = bc_inmem.cv(method="loso")
         assert isinstance(pipe, BrainCollectionPipeline)
 
+    def test_pipeline_standardize_step_added(self, bc_inmem):
+        """SPEC §865: BrainCollectionPipeline.standardize() (renamed from normalize)."""
+        assert bc_inmem.cv(method="loso").standardize().n_steps == 1
+        # And confirm the old name is gone from the public surface.
+        assert not hasattr(bc_inmem.cv(method="loso"), "normalize")
+
     @pytest.mark.xfail(
         reason="pipeline.predict still returns BrainCollectionCVResult; the "
         "BrainData adapter is part of the pipeline-refactor task",
