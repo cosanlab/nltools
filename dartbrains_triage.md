@@ -1,7 +1,10 @@
 # dartbrains × nltools v0.6.0 — Triage
 
 Living status doc covering both nltools-side fixes and dartbrains course-side
-migration to the v0.6.0 API. Last full pass: 2026-05-08.
+migration to the v0.6.0 API. Last full pass: 2026-05-08 (predict-rewrite
+follow-ups landed: `a3fe4da7` brain-space `Predict` fields + ROI per-fold
+scores, `80c882b8` `.convolve()` idempotent fix, `05b02baf` drop
+`final_weight_map`, `c3b9f6e3` ROI voxel-space weight maps).
 
 ---
 
@@ -51,11 +54,14 @@ migration to the v0.6.0 API. Last full pass: 2026-05-08.
 
 ### Deferred chapter
 
-- [ ] **`Multivariate_Prediction.py`** — unblocked by the nltools-side `Predict` rewrite (see resolved item above). Now mechanically migratable:
+- [ ] **`Multivariate_Prediction.py`** — unblocked by the nltools-side `Predict` rewrite (see resolved item above), then **further simplified** by four follow-up commits (`a3fe4da7`, `80c882b8`, `05b02baf`, `c3b9f6e3`). Migration is now even more mechanical than the original triage anticipated:
   - Kwarg rewrite: `algorithm=` → `model=`, `cv_dict={...}` → `cv=int_or_splitter`. Note `'ridge'` is regression-only — for classification use `'ridge_classifier'`.
-  - Result access: `result['weight_map']` → `result.weight_map`; `result['mcr_all'].mean()` → `result.mean_score`; per-fold scores → `result.scores`.
-  - For published "single weight map" cells: pass `refit=True` and use `result.final_weight_map` (full-data fit) instead of the per-fold mean.
-  - Custom preprocessing (e.g., feature selection): pass `model=make_pipeline(StandardScaler(), SelectKBest(...), LinearSVC())` rather than chaining — the fluent `data.cv(k=5).predict(...)` API is gone.
+  - Result access: `result['weight_map']` → `result.weight_map`; `result['mcr_all'].mean()` → `result.mean_score`; per-fold scores → `result.scores`. Spatial fields (`weight_map`, `fold_weight_maps`, `accuracy_map`) are now `BrainData` objects — `result.weight_map.plot()` works directly with no wrapping.
+  - For the published "single weight map": **don't pass anything special** — `result.weight_map` is the all-data refit by default (commit `05b02baf` dropped `refit=` / `final_weight_map`). The per-fold CV-mean is no longer surfaced as a top-level field; it's `result.fold_weight_maps.data.mean(axis=0)` if anyone needs it.
+  - To apply the trained model to new data: `result.estimator.predict(new_X)` (whole_brain) or `result.estimator[label].predict(...)` (ROI, dict-keyed by parcel label).
+  - Custom preprocessing pipelines: `model=make_pipeline(StandardScaler(), SelectKBest(...), LinearSVC())`. Don't pass `standardize=False` — `predict()` auto-detects the Pipeline and flips it for you with a one-shot warning (commit `a3fe4da7`). The fluent `data.cv(k=5).predict(...)` API is gone.
+  - **New capability available**: ROI dispatch (`method='roi', roi_mask=atlas`) now produces voxel-space `weight_map` / `fold_weight_maps` plus a per-parcel `estimator` dict (commit `c3b9f6e3`). If the chapter wants a "where in the brain is the pattern most diagnostic" analysis to complement whole-brain decoding, this is a single extra `predict()` call.
+  - **Reference tutorial**: `docs/tutorials/workflows/05_decoding.md` walks through the whole flow on Haxby (face vs house) — whole-brain weight map + interpretation caveats, fold stability map, ROI dispatch with the bundled k50 atlas, and a Pipeline-as-model aside. Use as the migration target shape for `Multivariate_Prediction.py`.
   - C4 cleanup of `BrainData([BrainData(f) for f in paths])` at lines 168-169 still needed.
 
 ### iplot() cleanup (depends on B1 nltools-side decision)
