@@ -257,23 +257,24 @@ class TestInplace:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(y=y, method="whole_brain", cv=3)
         assert isinstance(result, Predict)
-        assert (
-            not hasattr(sim_brain_data, "weight_map")
-            or sim_brain_data.weight_map is None
-            or sim_brain_data.weight_map is not result.weight_map
-        )
+        # inplace=False must not attach predict_* attrs to bd
+        assert not hasattr(sim_brain_data, "predict_weight_map")
+        assert not hasattr(sim_brain_data, "predict_predictions")
 
-    def test_inplace_true_mutates_self(self, sim_brain_data):
+    def test_inplace_true_mutates_self_with_predict_prefix(self, sim_brain_data):
+        """inplace=True attaches result fields with a ``predict_`` prefix —
+        mirrors ``bd.fit()``'s ``glm_*`` / ``ridge_*`` model-prefixed naming.
+        """
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, inplace=True)
         assert result is sim_brain_data
-        assert sim_brain_data.weight_map is not None
-        assert sim_brain_data.weight_map.shape == (n_voxels,)
-        assert sim_brain_data.predictions is not None
-        assert sim_brain_data.scores is not None
-        assert isinstance(sim_brain_data.mean_score, float)
+        assert sim_brain_data.predict_weight_map is not None
+        assert sim_brain_data.predict_weight_map.shape == (n_voxels,)
+        assert sim_brain_data.predict_predictions is not None
+        assert sim_brain_data.predict_scores is not None
+        assert isinstance(sim_brain_data.predict_mean_score, float)
 
 
 # ---------------------------------------------------------------------------
@@ -346,3 +347,154 @@ class TestPredictMulti:
             NotImplementedError, match="predict_multi.*deprecated.*Model class"
         ):
             minimal_brain_data.predict_multi(algorithm="svm")
+
+
+# ---------------------------------------------------------------------------
+# Brain-space wrapping — spatial fields are BrainData, not raw arrays
+# ---------------------------------------------------------------------------
+
+
+class TestBrainDataWrapping:
+    """Spatial result fields are BrainData objects so users can call
+    ``.plot()`` directly without wrapping. Numpy access via ``.data``.
+    """
+
+    def test_whole_brain_weight_maps_are_braindata(self, sim_brain_data):
+        from nltools.data import BrainData
+
+        n = sim_brain_data.shape[0]
+        n_voxels = sim_brain_data.shape[1]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        result = sim_brain_data.predict(
+            y=y, method="whole_brain", cv=3, model="svm", refit=True
+        )
+        for field in ("weight_map", "fold_weight_maps", "final_weight_map"):
+            obj = getattr(result, field)
+            assert isinstance(obj, BrainData), f"{field} should be BrainData"
+        # Same mask as the source BrainData (so .plot() composes)
+        assert result.weight_map.mask is sim_brain_data.mask
+        # Underlying numpy still accessible and has expected shapes
+        assert result.weight_map.data.shape == (n_voxels,)
+        assert result.fold_weight_maps.data.shape == (3, n_voxels)
+        assert result.final_weight_map.data.shape == (n_voxels,)
+
+    def test_searchlight_accuracy_map_is_braindata(self, minimal_brain_data):
+        from nltools.data import BrainData
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        result = minimal_brain_data.predict(
+            y=y, method="searchlight", cv=3, radius_mm=4.0, n_jobs=1
+        )
+        assert isinstance(result.accuracy_map, BrainData)
+        assert result.accuracy_map.mask is minimal_brain_data.mask
+
+
+# ---------------------------------------------------------------------------
+# ROI dispatch — repurposed scores/mean_score/std_score + roi_labels
+# ---------------------------------------------------------------------------
+
+
+class TestROIDispatch:
+    """ROI runner produces per-fold-per-ROI scores (not just the mean) and
+    exposes parcel labels so users can map indices back to atlas IDs.
+    """
+
+    def _build_atlas(self, bd, n_rois=3):
+        """Construct an in-memory atlas matching bd.mask, with `n_rois`
+        contiguous parcels evenly partitioning the mask voxels."""
+        import nibabel as nib
+
+        mask_data = bd.mask.get_fdata().astype(bool)
+        flat = np.zeros(mask_data.sum(), dtype=np.int64)
+        chunk = max(1, len(flat) // n_rois)
+        for i in range(n_rois):
+            flat[i * chunk : (i + 1) * chunk] = i + 1
+        flat[(n_rois) * chunk :] = n_rois  # any remainder → last parcel
+        out = np.zeros(mask_data.shape, dtype=np.int64)
+        out[mask_data] = flat
+        return nib.Nifti1Image(out, bd.mask.affine, bd.mask.header)
+
+    def test_roi_populates_repurposed_score_fields(self, minimal_brain_data):
+        from nltools.data import BrainData
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+
+        result = minimal_brain_data.predict(
+            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+        )
+        # Score fields are arrays, not scalars, on ROI dispatch
+        assert result.scores is not None
+        assert result.scores.shape == (3, 2)  # (n_folds, n_rois)
+        assert result.mean_score is not None
+        assert result.mean_score.shape == (2,)
+        assert result.std_score is not None
+        assert result.std_score.shape == (2,)
+        assert result.roi_labels is not None
+        assert result.roi_labels.shape == (2,)
+        # Atlas labels in mean_score order
+        assert list(result.roi_labels) == [1, 2]
+        # accuracy_map is a BrainData
+        assert isinstance(result.accuracy_map, BrainData)
+
+    def test_roi_leaves_whole_brain_fields_none(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+        result = minimal_brain_data.predict(
+            y=y, method="roi", roi_mask=atlas, cv=3, n_jobs=1
+        )
+        assert result.weight_map is None
+        assert result.fold_weight_maps is None
+        assert result.predictions is None
+        assert result.cv_folds is None
+
+
+# ---------------------------------------------------------------------------
+# Pipeline auto-detect — model=Pipeline triggers standardize=False default
+# ---------------------------------------------------------------------------
+
+
+class TestPipelineStandardizeDetect:
+    def test_pipeline_default_warns_and_disables_standardize(self, sim_brain_data):
+        """Passing a Pipeline with the default ``standardize=True`` warns and
+        flips standardize off — avoids silently wrapping another StandardScaler.
+        """
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import LinearSVC
+
+        n = sim_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        pipe = make_pipeline(StandardScaler(), LinearSVC(dual="auto", max_iter=10000))
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            sim_brain_data.predict(y=y, method="whole_brain", cv=3, model=pipe)
+        msgs = [str(warn.message) for warn in w]
+        assert any("Pipeline" in m and "standardize" in m for m in msgs), (
+            f"expected pipeline-standardize warning, got: {msgs}"
+        )
+
+    def test_pipeline_explicit_standardize_true_still_wraps(self, sim_brain_data):
+        """User can opt back into wrapping by passing ``standardize=True``
+        explicitly — same value as the default but no warning is suppressed.
+        Behavior is the same as today, just confirmed not silently flipped.
+        """
+        from sklearn.pipeline import make_pipeline
+        from sklearn.svm import LinearSVC
+
+        n = sim_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        pipe = make_pipeline(LinearSVC(dual="auto", max_iter=10000))
+        # standardize=False explicitly: never warns, never wraps
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            sim_brain_data.predict(
+                y=y, method="whole_brain", cv=3, model=pipe, standardize=False
+            )
+        assert not any(
+            "Pipeline" in str(warn.message) and "standardize" in str(warn.message)
+            for warn in w
+        )

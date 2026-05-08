@@ -196,11 +196,14 @@ def predict_mvpa(
             f"y has {y.shape[0]} samples but data has {bd.shape[0]} samples"
         )
 
+    standardize = _resolve_standardize_for_model(resolved_model, standardize)
     pipe = build_pipeline(resolved_model, standardize, reduce, n_components)
     X_data = bd.data  # (n_samples, n_voxels)
 
     if method == "whole_brain":
-        result = _run_whole_brain(X_data, y, pipe, cv_splitter, groups, scoring, refit)
+        result = _run_whole_brain(
+            bd, X_data, y, pipe, cv_splitter, groups, scoring, refit
+        )
     elif method == "searchlight":
         result = _run_searchlight(
             bd,
@@ -230,9 +233,30 @@ def predict_mvpa(
 
     if inplace:
         for fname in result.available():
-            setattr(bd, fname, getattr(result, fname))
+            setattr(bd, f"predict_{fname}", getattr(result, fname))
         return bd
     return result
+
+
+def _resolve_standardize_for_model(resolved_model, standardize: bool) -> bool:
+    """Auto-default ``standardize=False`` when the user passes a sklearn
+    ``Pipeline`` as ``model=``. Pipelines are an explicit "I'm taking control
+    of preprocessing" signal — silently wrapping another StandardScaler around
+    them double-scales features. Users can opt back in with ``standardize=True``
+    explicitly.
+    """
+    from sklearn.pipeline import Pipeline
+
+    if standardize and isinstance(resolved_model, Pipeline):
+        warnings.warn(
+            "Detected sklearn Pipeline as model — defaulting standardize=False "
+            "to avoid wrapping another StandardScaler around your pipeline. "
+            "Pass standardize=True explicitly to override.",
+            UserWarning,
+            stacklevel=4,
+        )
+        return False
+    return standardize
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +327,7 @@ def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
 # ---------------------------------------------------------------------------
 
 
-def _run_whole_brain(X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
+def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
     """Per-fold: fit pipe, score, predict OOF, extract weight_map."""
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
@@ -326,15 +350,15 @@ def _run_whole_brain(X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
         fold_weight_maps.append(_extract_weight_map(fitted, n_voxels))
 
     scores = np.asarray(fold_scores, dtype=float)
-    weight_map, fold_weight_maps_arr = _aggregate_weight_maps(
+    weight_map_arr, fold_weight_maps_arr = _aggregate_weight_maps(
         fold_weight_maps, n_folds=len(fold_scores), n_voxels=n_voxels
     )
 
     final_estimator = None
-    final_weight_map = None
+    final_weight_map_arr = None
     if refit:
         final_estimator = clone(pipe).fit(X, y)
-        final_weight_map = _extract_weight_map(final_estimator, n_voxels)
+        final_weight_map_arr = _extract_weight_map(final_estimator, n_voxels)
 
     return Predict(
         predictions=fold_predictions,
@@ -342,11 +366,26 @@ def _run_whole_brain(X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
         mean_score=float(scores.mean()),
         std_score=float(scores.std()),
         cv_folds=fold_idx_array,
-        weight_map=weight_map,
-        fold_weight_maps=fold_weight_maps_arr,
+        weight_map=_to_braindata(weight_map_arr, bd.mask),
+        fold_weight_maps=_to_braindata(fold_weight_maps_arr, bd.mask),
         final_estimator=final_estimator,
-        final_weight_map=final_weight_map,
+        final_weight_map=_to_braindata(final_weight_map_arr, bd.mask),
     )
+
+
+def _to_braindata(arr, mask):
+    """Wrap a (n_voxels,) or (n_rows, n_voxels) array as BrainData with mask.
+
+    Returns None if arr is None — preserves "field not applicable" semantics.
+    """
+    if arr is None:
+        return None
+    from nltools.data import BrainData
+
+    arr = np.asarray(arr)
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+    return BrainData(arr, mask=mask)
 
 
 def _iter_split(cv, X, y, groups):
@@ -475,7 +514,9 @@ def _run_searchlight(
         accuracies = Parallel(n_jobs=n_jobs)(
             delayed(decode_sphere)(c, n) for c, n in neighborhood_list
         )
-    return Predict(accuracy_map=np.asarray(accuracies, dtype=float))
+    return Predict(
+        accuracy_map=_to_braindata(np.asarray(accuracies, dtype=float), bd.mask)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +527,14 @@ def _run_searchlight(
 def _run_roi(
     bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
 ) -> Predict:
-    """Per-ROI CV decoding projected back to voxel space."""
+    """Per-ROI CV decoding. Returns Predict with:
+
+    - ``scores`` ``(n_folds, n_rois)``, ``mean_score`` / ``std_score``
+      ``(n_rois,)`` — fold scores per parcel and their cross-fold summary.
+    - ``roi_labels`` ``(n_rois,)`` — atlas integer IDs in the same order.
+    - ``accuracy_map`` BrainData ``(1, n_voxels)`` — every voxel inside parcel
+      *i* set to that parcel's mean accuracy (others NaN).
+    """
     from pathlib import Path
 
     import nibabel as nib
@@ -517,18 +565,20 @@ def _run_roi(
     unique_labels = np.unique(label_vec)
     unique_labels = unique_labels[unique_labels != 0]
 
+    n_folds = cv.get_n_splits(X, y, groups=groups)
+
     def decode_roi(roi_label):
         cols = label_vec == roi_label
         if not cols.any():
-            return np.nan
+            return np.full(n_folds, np.nan, dtype=float)
         X_roi = X[:, cols]
         try:
             scores = cross_val_score(
                 clone(pipe), X_roi, y, cv=cv, groups=groups, scoring=scoring
             )
-            return float(np.mean(scores))
+            return np.asarray(scores, dtype=float)
         except Exception:
-            return np.nan
+            return np.full(n_folds, np.nan, dtype=float)
 
     iterator = unique_labels
     if progress_bar:
@@ -540,13 +590,26 @@ def _run_roi(
             pass
 
     if n_jobs == 1:
-        per_roi = [decode_roi(label) for label in iterator]
+        per_roi_fold_scores = [decode_roi(label) for label in iterator]
     else:
-        per_roi = Parallel(n_jobs=n_jobs)(
+        per_roi_fold_scores = Parallel(n_jobs=n_jobs)(
             delayed(decode_roi)(label) for label in iterator
         )
 
+    # Stack: (n_rois, n_folds) → transpose to (n_folds, n_rois) for consistency
+    # with whole-brain `scores` axis-0 = folds.
+    fold_scores_per_roi = np.vstack(per_roi_fold_scores).T  # (n_folds, n_rois)
+    mean_per_roi = np.nanmean(fold_scores_per_roi, axis=0)  # (n_rois,)
+    std_per_roi = np.nanstd(fold_scores_per_roi, axis=0)  # (n_rois,)
+
     out = np.full(label_vec.shape, np.nan, dtype=float)
-    for roi_label, acc in zip(unique_labels, per_roi):
+    for roi_label, acc in zip(unique_labels, mean_per_roi):
         out[label_vec == roi_label] = acc
-    return Predict(accuracy_map=out)
+
+    return Predict(
+        scores=fold_scores_per_roi,
+        mean_score=mean_per_roi,
+        std_score=std_per_roi,
+        roi_labels=unique_labels.astype(np.int64),
+        accuracy_map=_to_braindata(out, bd.mask),
+    )

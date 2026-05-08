@@ -1,151 +1,265 @@
 ---
 file_format: mystnb
+authors:
+  - Eshin Jolly
 kernelspec:
   name: python3
   display_name: Python 3
 execute:
-  skip: true
+  allow_errors: false
 ---
 
-# Multivariate Pattern Analysis (MVPA)
-
-Classification using face vs. house decoding from the Haxby dataset.
-
-```{code-cell} python3
-import matplotlib
-
-matplotlib.use("Agg")
-
+```{code-cell} python
+:tags: [remove-cell]
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.svm import SVC
-from sklearn.model_selection import cross_val_score, LeaveOneGroupOut
+import pandas as pd
+```
+
+# Decoding (MVPA)
+
+## Introduction
+
+The GLM tutorial asks **"where in the brain is activity different between conditions?"**. Decoding flips the question:
+
+> **Can the spatial pattern of activity *predict* which condition was being viewed?**
+
+Same data, different lens. Instead of one regression per voxel, we run one classifier across all voxels at once, and we judge it on **held-out** data — if it generalizes, the pattern carries information.
+
+Once you have a working decoder, two interpretation goals follow naturally — and this tutorial walks through both:
+
+1. **Whole-brain decoding.** One classifier sees every voxel. The output is one *weight map* across the whole brain telling you which voxels contributed (with caveats — we'll get to those).
+2. **ROI decoding.** Train one classifier per region using a parcellation atlas. The output is one *accuracy* per region, so you can see *where* in the brain the pattern is informative without trusting raw classifier weights.
+
+We'll use `BrainData.predict()` for both — same call, different `method=`.
+
+```{code-cell} python
+from nltools.data import BrainData
+```
+
+## Load Haxby (one subject)
+
+The classic MVPA dataset: one subject (`sub-2`) viewing 8 object categories across 12 runs. We'll restrict to **face vs house** — the two conditions with the strongest, best-understood signal — and let `BrainData` auto-resample to MNI 3mm:
+
+```{code-cell} python
+from nilearn.datasets import fetch_haxby
+
+HAXBY = fetch_haxby(subjects=[2], verbose=0)
+brain = BrainData(HAXBY.func[0])
+print(f"brain.shape: {brain.shape}  (TRs, voxels)")
+print(f"mask zooms : {brain.mask.header.get_zooms()}")
+```
+
+The label file ships per-TR condition labels and a run-id (`chunks`) per TR:
+
+```{code-cell} python
+labels = pd.read_csv(HAXBY.session_target[0], sep=" ")
+print(f"total TRs: {len(labels)}")
+print(f"conditions: {sorted(labels['labels'].unique())}")
+print(f"runs: {sorted(labels['chunks'].unique())}")
+```
+
+Filter to the face & house TRs and build a binary label vector (1 = face, 0 = house). Boolean-indexing a `BrainData` slices the timeseries the same way it slices a numpy array:
+
+```{code-cell} python
+keep = labels["labels"].isin(["face", "house"]).to_numpy()
+y = (labels.loc[keep, "labels"] == "face").astype(int).to_numpy()
+trials = brain[keep]
+print(f"trials.shape: {trials.shape}  (n_trials, n_voxels)")
+print(f"class balance: {np.bincount(y)}  (house, face)")
+```
+
+```{code-cell} python
+trials[0].plot(method="slices", title="Example face trial (one TR)")
+```
+
+## Whole-brain decoding
+
+`BrainData.predict()` mirrors `.fit()`: one call, one frozen result dataclass. The dispatch is set by `method=`, the algorithm by `model=`. For whole-brain MVPA with a linear SVM:
+
+```{code-cell} python
+result_wb = trials.predict(
+    y=y,
+    method="whole_brain",
+    model="svm",
+    cv=5,
+    refit=True,
+)
+print("Populated fields:", result_wb.available())
+```
+
+`result_wb` is a `Predict` dataclass — frozen, every field defaults to `None`, only the fields relevant to this call are populated. `available()` lists them so you don't have to guess what dispatch path filled which slot.
+
+### How well? — per-fold scores
+
+`scores` is the score per fold; `mean_score` and `std_score` are the cross-fold summary. For a binary classifier with `scoring='auto'`, "score" resolves to **accuracy**:
+
+```{code-cell} python
+fig, ax = plt.subplots(figsize=(5, 3))
+folds = list(range(1, len(result_wb.scores) + 1))
+ax.bar(folds, result_wb.scores, color="C0")
+ax.axhline(0.5, color="k", linestyle="--", linewidth=1, label="chance")
+ax.set_ylim(0, 1)
+ax.set_xlabel("CV fold")
+ax.set_ylabel("accuracy")
+ax.set_title(
+    f"Whole-brain SVM: face vs house\n"
+    f"mean = {result_wb.mean_score:.3f} ± {result_wb.std_score:.3f}"
+)
+ax.legend(loc="lower right")
+fig
+```
+
+### Where does the signal live? — the weight map
+
+For linear classifiers, `weight_map` is the **mean of per-fold `.coef_` vectors, projected back to voxel space**. It's already a `BrainData` (same mask as `trials`), so `.plot()` just works:
+
+```{code-cell} python
+result_wb.weight_map.plot(
+    method="slices",
+    title="SVM weight map: + favors face, − favors house",
+    cmap="RdBu_r",
+    colorbar=True,
+)
+```
+
+> **Interpretation caveat.** Raw classifier weights are *not* statistical maps. A voxel with a large positive weight is one the classifier *uses* to push toward "face" — but a voxel with weight ≈ 0 might still carry information that other voxels already supply. For a principled "activation pattern" view, see Haufe et al. 2014 (the `weight × cov(X)` transformation).
+
+### How stable is the map across folds?
+
+`fold_weight_maps` holds one weight vector per fold — a `BrainData` with `(n_folds, n_voxels)` data. Voxels whose sign and magnitude are consistent across folds are the trustworthy ones. A simple stability proxy is the across-fold standard deviation — low values = consistent voxel:
+
+```{code-cell} python
+fold_std = result_wb.fold_weight_maps.data.std(axis=0)
+stability = BrainData(fold_std, mask=trials.mask)
+stability.plot(
+    method="slices",
+    title="Across-fold std of weights (lower = more stable)",
+    cmap="viridis",
+    colorbar=True,
+)
+```
+
+### The single map you'd publish — `final_weight_map`
+
+With `refit=True`, `predict()` runs the cross-validation **and** fits a final estimator on *all* the data. `final_estimator` is the sklearn estimator; `final_weight_map` is its coefficients projected back to voxel space (also a `BrainData`). This is the right "headline" map: CV gave us an honest accuracy, refit gives us the best-effort weight pattern.
+
+```{code-cell} python
+result_wb.final_weight_map.plot(
+    method="slices",
+    title="final_weight_map (refit on all data)",
+    cmap="RdBu_r",
+    colorbar=True,
+)
+```
+
+## ROI decoding with the bundled k200 atlas
+
+The whole-brain map answers *"where do voxels contribute when one classifier sees them all together?"*. ROI decoding answers a different question: **which regions, on their own, carry enough information to discriminate?** That's a more honest "where" — each region competes only against chance, not against its neighbours.
+
+nltools ships parcellation atlases at every supported template/resolution. Our data is in 3mm default-template space (the auto-resampled output above), so we'll grab the matching k200:
+
+```{code-cell} python
+from nltools.templates import fetch_resource
+
+atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k200.nii.gz")
+atlas = BrainData(atlas_path)
+atlas.plot(method="slices", title="k200 atlas (200-region parcellation)")
+```
+
+Pass the atlas to `predict(method="roi", roi_mask=...)`. This trains one classifier per parcel and returns a single `accuracy_map` — every voxel inside parcel *i* is filled with parcel *i*'s cross-validated accuracy. Voxels outside any parcel are `NaN`:
+
+```{code-cell} python
+result_roi = trials.predict(
+    y=y,
+    method="roi",
+    roi_mask=atlas_path,
+    model="svm",
+    cv=5,
+    n_jobs=4,
+)
+print("Populated fields:", result_roi.available())
+print(f"scores shape    : {result_roi.scores.shape}  (n_folds, n_rois)")
+print(f"mean_score shape: {result_roi.mean_score.shape}  (one accuracy per parcel)")
+```
+
+On `method="roi"` the score fields are repurposed for the per-parcel layout: `scores` is `(n_folds, n_rois)`, `mean_score` and `std_score` are `(n_rois,)`, and `roi_labels` carries the atlas integer IDs in the same order. `accuracy_map` is a `BrainData` brain-space view of `mean_score` — every voxel inside a parcel shows that parcel's mean accuracy.
+
+### Per-region accuracy as a brain map
+
+```{code-cell} python
+result_roi.accuracy_map.plot(
+    method="slices",
+    title="ROI decoding accuracy (chance = 0.5)",
+    cmap="RdBu_r",
+    vmin=0.3,
+    vmax=0.7,
+    colorbar=True,
+)
+```
+
+Regions tinted red beat chance for face/house; blue underperform chance (in a small dataset, that's almost entirely noise). Ventro-temporal cortex should light up clearly — that's where face- and place-selective patches live.
+
+### Top-N regions by accuracy
+
+`mean_score` plus `roi_labels` makes ranking trivial — sort the indices, then index both arrays in lockstep:
+
+```{code-cell} python
+top_n = 15
+order = np.argsort(result_roi.mean_score)[::-1][:top_n]
+top_acc = result_roi.mean_score[order]
+top_labels = result_roi.roi_labels[order]
+
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.barh(range(top_n), top_acc[::-1], color="C3")
+ax.axvline(0.5, color="k", linestyle="--", linewidth=1, label="chance")
+ax.set_yticks(range(top_n))
+ax.set_yticklabels([f"parcel {label}" for label in top_labels][::-1])
+ax.set_xlabel("accuracy")
+ax.set_title(f"Top {top_n} parcels (out of {len(result_roi.roi_labels)})")
+ax.legend(loc="lower right")
+fig
+```
+
+## Plug in any sklearn estimator
+
+String shortcuts (`'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`, etc.) cover the common cases. For anything custom — feature selection, custom preprocessing, hyperparameter search — pass any sklearn estimator or `Pipeline` directly to `model=`. When `predict()` detects a `Pipeline`, it automatically flips `standardize=False` so it doesn't wrap a second `StandardScaler` around your pipeline (a one-shot warning prints to confirm):
+
+```{code-cell} python
+from sklearn.feature_selection import SelectKBest
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from nltools.datasets import fetch_haxby
+from sklearn.svm import LinearSVC
+
+pipe = make_pipeline(
+    StandardScaler(),
+    SelectKBest(k=500),
+    LinearSVC(max_iter=5000),
+)
+result_pipe = trials.predict(y=y, method="whole_brain", cv=5, model=pipe)
+print(f"500-voxel pipeline: mean accuracy = {result_pipe.mean_score:.3f}")
+print(f"Populated fields  : {result_pipe.available()}")
 ```
 
-## Load Data
+`weight_map` is *not* populated here — `predict()` only back-projects coefficients from linear models with a direct voxel-to-coefficient correspondence. A `SelectKBest` feature mask plus a downstream classifier breaks that link, so the field stays `None`. The cross-validated accuracy is still the right thing to read.
 
-```{code-cell} python3
-print("Loading Haxby dataset...")
-all_data, all_dm = fetch_haxby(n_subjects="all", verbose=1)
+## Putting it all together
 
-n_subjects = 3
-print(f"\nUsing {n_subjects} subjects")
-```
+| Goal | Call | Result fields |
+|---|---|---|
+| Whole-brain accuracy + weight map | `bd.predict(y=y, method="whole_brain", model="svm", cv=K, refit=True)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map`/`fold_weight_maps`/`final_weight_map` (BrainData), `final_estimator` |
+| Per-region accuracy | `bd.predict(y=y, method="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` (BrainData) |
+| Custom preprocessing | `bd.predict(y=y, model=Pipeline(...), ...)` | `standardize` auto-flipped to `False`; CV fields populated, weight_map None when feature selection breaks back-projection |
+| Refit on full data | add `refit=True` | adds `final_estimator`, `final_weight_map` |
+| Result attached to `bd` | add `inplace=True` | fields become `bd.predict_*` attributes |
 
-## Extract Face and House Samples
+> **Whole-brain vs ROI — what each tells you**
+>
+> A whole-brain weight map is the *joint* contribution of every voxel within one model. It reflects the geometry of the data the classifier saw, not which voxels are independently predictive. ROI accuracy answers the cleaner "is this region informative on its own?" question. Use both when you can — agreement across the two views is much more convincing than either alone.
 
-```{code-cell} python3
-X_list = []
-y_list = []
-groups_list = []
+## Next Steps
 
-for subj_idx in range(n_subjects):
-    data = all_data[subj_idx][0]
-    dm = all_dm[subj_idx][0]
-
-    face_mask = dm["face"].to_numpy() > 0.5
-    house_mask = dm["house"].to_numpy() > 0.5
-
-    face_data = data[face_mask].data
-    house_data = data[house_mask].data
-
-    X_list.append(face_data)
-    X_list.append(house_data)
-    y_list.extend([1] * len(face_data))
-    y_list.extend([0] * len(house_data))
-    groups_list.extend([subj_idx] * (len(face_data) + len(house_data)))
-
-    print(f"Subject {subj_idx + 1}: {len(face_data)} face, {len(house_data)} house")
-
-X = np.vstack(X_list)
-y = np.array(y_list)
-groups = np.array(groups_list)
-
-print(f"\nTotal: {len(y)} samples, {X.shape[1]} voxels")
-```
-
-## Train Classifier
-
-```{code-cell} python3
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-clf = SVC(kernel="linear", C=1.0)
-clf.fit(X_scaled, y)
-
-train_accuracy = clf.score(X_scaled, y)
-print(f"Training accuracy: {train_accuracy * 100:.1f}%")
-```
-
-## Cross-Validation (Leave-One-Subject-Out)
-
-```{code-cell} python3
-logo = LeaveOneGroupOut()
-cv_scores = cross_val_score(clf, X_scaled, y, cv=logo, groups=groups)
-
-print("LOSO cross-validation:")
-for i, score in enumerate(cv_scores):
-    print(f"  Fold {i + 1}: {score * 100:.1f}%")
-print(f"\nMean: {cv_scores.mean() * 100:.1f}% (±{cv_scores.std() * 100:.1f}%)")
-print("Chance: 50%")
-```
-
-## Classifier Weights
-
-```{code-cell} python3
-weights = clf.coef_[0]
-
-template = all_data[0][0][0]
-weight_brain = template.copy()
-weight_brain.data = weights.reshape(1, -1)
-
-print(f"Positive (face): {(weights > 0).sum()} voxels")
-print(f"Negative (house): {(weights < 0).sum()} voxels")
-
-weight_brain.plot(title="SVM Weights: Face (+) vs House (-)")
-```
-
-## Feature Selection
-
-```{code-cell} python3
-# Keep top 10% variance voxels
-voxel_var = np.var(X, axis=0)
-threshold = np.percentile(voxel_var, 90)
-selected_voxels = voxel_var >= threshold
-
-print(f"Selected: {selected_voxels.sum()} of {len(voxel_var)} voxels")
-
-X_selected = X[:, selected_voxels]
-X_selected_scaled = scaler.fit_transform(X_selected)
-
-cv_scores_selected = cross_val_score(clf, X_selected_scaled, y, cv=logo, groups=groups)
-
-print(f"CV accuracy: {cv_scores_selected.mean() * 100:.1f}%")
-print(f"Full brain: {cv_scores.mean() * 100:.1f}%")
-```
-
-## Regularization
-
-```{code-cell} python3
-c_values = [0.01, 0.1, 1.0, 10.0]
-
-print("Effect of C parameter:")
-for c in c_values:
-    clf_reg = SVC(kernel="linear", C=c)
-    scores = cross_val_score(clf_reg, X_scaled, y, cv=logo, groups=groups)
-    print(f"  C={c:5.2f}: {scores.mean() * 100:.1f}%")
-```
-
-## Summary
-
-```{code-cell} python3
-print("=" * 40)
-print("MVPA: Face vs House")
-print("=" * 40)
-print(f"Subjects: {n_subjects}")
-print(f"Samples: {(y == 1).sum()} face, {(y == 0).sum()} house")
-print(f"Voxels: {X.shape[1]}")
-print(f"\nLOSO CV: {cv_scores.mean() * 100:.1f}%")
-print("Chance: 50%")
-```
+- **Searchlight**: roving sphere instead of fixed parcels — `bd.predict(method="searchlight", radius_mm=8.0)`.
+- **Multi-subject decoding** with leave-one-subject-out CV — see [Multi-Subject Decoding](08_multi_subject_decoding.md).
+- **Encoding models**: the inverse view — predict voxel responses from features rather than features from voxels — see [Encoding](02_encoding.md).
+- **RSA**: characterize the *structure* of representations, not just their separability — see [RSA](04_rsa.md).

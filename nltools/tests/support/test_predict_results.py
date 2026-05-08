@@ -49,6 +49,27 @@ class TestPredictCreation:
         assert result.accuracy_map.shape == (n_voxels,)
         assert result.weight_map is None
 
+    def test_roi_result_with_repurposed_score_fields(self):
+        """ROI dispatch repurposes scores/mean_score/std_score with array
+        shapes. ``roi_labels`` carries the atlas IDs in matching order.
+        """
+        n_folds, n_rois, n_voxels = 5, 200, 1000
+        result = Predict(
+            scores=np.random.rand(n_folds, n_rois),
+            mean_score=np.random.rand(n_rois),
+            std_score=np.random.rand(n_rois),
+            roi_labels=np.arange(1, n_rois + 1, dtype=np.int64),
+            accuracy_map=np.random.rand(n_voxels),
+        )
+        assert result.scores.shape == (n_folds, n_rois)
+        assert result.mean_score.shape == (n_rois,)
+        assert result.std_score.shape == (n_rois,)
+        assert result.roi_labels.shape == (n_rois,)
+        assert "roi_labels" in result.available()
+        # Whole-brain-only fields stay None on ROI dispatch
+        assert result.weight_map is None
+        assert result.fold_weight_maps is None
+
     def test_refit_fields(self):
         n_voxels = 1000
         from sklearn.svm import LinearSVC

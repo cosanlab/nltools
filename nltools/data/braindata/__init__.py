@@ -1266,8 +1266,27 @@ class BrainData:
            etc.). ``inplace`` has no effect in this mode.
         2. **MVPA decoding** (``y`` provided): train a classifier or
            regressor with cross-validation. Returns a :class:`Predict`
-           dataclass with ``predictions``, ``scores``, ``mean_score``,
-           ``weight_map`` (linear models only), ``fold_weight_maps``, etc.
+           dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
+           ``final_weight_map``, ``accuracy_map``) are :class:`BrainData`
+           objects so ``result.weight_map.plot()`` works directly. Drop down
+           to numpy via ``result.weight_map.data``.
+
+        Field shapes by ``method=``:
+
+        - **whole_brain**: ``predictions`` (n_samples,), ``scores`` (n_folds,),
+          ``mean_score`` float, ``std_score`` float, ``weight_map`` BrainData,
+          ``fold_weight_maps`` BrainData (n_folds, n_voxels). With
+          ``refit=True``: ``final_estimator``, ``final_weight_map``.
+        - **roi**: ``scores`` (n_folds, n_rois), ``mean_score`` (n_rois,),
+          ``std_score`` (n_rois,), ``roi_labels`` (n_rois,) atlas IDs in
+          matching order, ``accuracy_map`` BrainData (each voxel = parcel
+          mean accuracy).
+        - **searchlight**: ``accuracy_map`` BrainData.
+
+        With ``inplace=True``, fields are attached to ``self`` with a
+        ``predict_`` prefix (e.g. ``self.predict_weight_map``,
+        ``self.predict_accuracy_map``), mirroring ``bd.fit()``'s
+        ``glm_*`` / ``ridge_*`` naming.
 
         Args:
             y (array-like, optional): Labels (classification) or continuous
@@ -1275,9 +1294,7 @@ class BrainData:
             X (array-like, optional): Features for timeseries prediction,
                 shape ``(n_samples, n_features)``. Triggers encoding mode.
             method (str): MVPA dispatch — ``'whole_brain'``, ``'searchlight'``,
-                or ``'roi'``. Whole-brain populates ``weight_map`` /
-                ``fold_weight_maps``; searchlight / ROI populate
-                ``accuracy_map`` only.
+                or ``'roi'``.
             model (str or sklearn estimator): Algorithm. String shortcuts:
 
                 - Classification: ``'svm'`` (LinearSVC), ``'logistic'``,
@@ -1286,11 +1303,16 @@ class BrainData:
 
                 Or pass any sklearn estimator / Pipeline (e.g.,
                 ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``).
+                When ``model`` is a sklearn ``Pipeline``, ``standardize`` is
+                auto-defaulted to ``False`` (with a warning) so we don't wrap
+                another StandardScaler around your pipeline. Pass
+                ``standardize=True`` explicitly to override.
             cv (int or sklearn CV splitter): ``int`` → KFold (regression) or
                 StratifiedKFold (classification); pass a splitter for custom
                 schemes (e.g., ``GroupKFold``).
             standardize (bool): Z-score features per fold before fitting.
-                Default ``True``.
+                Default ``True``. Auto-flipped to ``False`` when ``model`` is
+                a sklearn ``Pipeline`` (see ``model`` above).
             reduce (str, optional): Per-fold dimensionality reduction.
                 Currently only ``'pca'`` supported. Default ``None``. Weight
                 maps are back-projected through PCA to voxel space.
@@ -1304,9 +1326,9 @@ class BrainData:
             roi_mask (Nifti1Image or path-like, optional): Atlas image for
                 ``method='roi'``.
             radius_mm (float): Searchlight radius in mm. Default ``10.0``.
-            inplace (bool): If ``True``, populate result fields as attributes
-                on ``self`` and return ``self``. Default ``False`` returns a
-                fresh :class:`Predict`.
+            inplace (bool): If ``True``, populate result fields as
+                ``predict_*`` attributes on ``self`` and return ``self``.
+                Default ``False`` returns a fresh :class:`Predict`.
             n_jobs (int): Parallel jobs for searchlight / ROI. Default ``1``;
                 searchlight on a real brain at higher ``n_jobs`` can be
                 memory-heavy.
@@ -1314,18 +1336,23 @@ class BrainData:
 
         Returns:
             Predict | BrainData: ``Predict`` dataclass when ``inplace=False``;
-                ``self`` (mutated) when ``inplace=True``.
+                ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
         Examples:
             >>> result = brain.predict(y=labels, method='whole_brain', cv=5)
-            >>> result.weight_map           # shape (n_voxels,)
+            >>> result.weight_map.plot()    # spatial field is BrainData
             >>> result.mean_score           # mean accuracy across folds
 
             >>> result = brain.predict(y=labels, method='searchlight',
             ...                        radius_mm=8.0, n_jobs=4)
-            >>> BrainData(result.accuracy_map, mask=brain.mask).plot()
+            >>> result.accuracy_map.plot()
 
-            Custom sklearn pipeline as model::
+            >>> result = brain.predict(y=labels, method='roi', roi_mask=atlas)
+            >>> top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
+            >>> result.accuracy_map.plot()  # brain-space view of the same map
+
+            Custom sklearn pipeline as model — standardize auto-defaults to
+            False because we detect the Pipeline::
 
                 from sklearn.feature_selection import SelectKBest
                 from sklearn.pipeline import make_pipeline
@@ -1333,7 +1360,7 @@ class BrainData:
                 from sklearn.svm import LinearSVC
                 pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
                                      LinearSVC())
-                result = brain.predict(y=labels, model=pipe, standardize=False)
+                result = brain.predict(y=labels, model=pipe)
         """
         from .prediction import predict
 

@@ -287,48 +287,42 @@ class Predict:
     by :meth:`BrainData.predict`. Fields not applicable to the call remain
     ``None`` and are filtered from :meth:`available` and :meth:`asdict`.
 
-    Field groups by call shape:
+    **Brain-space outputs are :class:`BrainData` objects**, not raw arrays —
+    so ``result.weight_map.plot()`` works directly. Drop down to numpy via
+    ``result.weight_map.data`` if needed. Non-spatial fields (``predictions``,
+    ``cv_folds``, scalar scores) stay as numpy.
 
-    **MVPA cross-validation** (``y`` provided):
-        predictions, scores, mean_score, std_score, cv_folds.
+    Field shapes by dispatch:
 
-    **Whole-brain decoding**:
-        weight_map, fold_weight_maps (also populated for ROI when each ROI
-        emits a coefficient vector).
+    **method='whole_brain'** (with ``y``):
+        - ``predictions``: ``(n_samples,)`` ndarray, OOF predictions
+        - ``scores``: ``(n_folds,)`` ndarray, per-fold score
+        - ``mean_score``: float
+        - ``std_score``: float
+        - ``cv_folds``: ``(n_samples,)`` ndarray, fold index per sample
+        - ``weight_map``: BrainData ``(1, n_voxels)``, mean across folds
+        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``
 
-    **Searchlight / ROI**:
-        accuracy_map (voxel-shaped accuracy values).
+    **method='roi'** (with ``y``):
+        - ``scores``: ``(n_folds, n_rois)`` ndarray
+        - ``mean_score``: ``(n_rois,)`` ndarray, mean across folds per parcel
+        - ``std_score``: ``(n_rois,)`` ndarray
+        - ``roi_labels``: ``(n_rois,)`` ndarray of atlas integer IDs in the
+          same order as ``mean_score`` / ``std_score`` / ``scores`` axis 1
+        - ``accuracy_map``: BrainData ``(1, n_voxels)``, every voxel inside
+          parcel *i* set to that parcel's mean accuracy (others NaN)
 
-    **Refit on full data** (``refit=True``):
-        final_estimator, final_weight_map.
+    **method='searchlight'** (with ``y``):
+        - ``accuracy_map``: BrainData ``(1, n_voxels)``, sphere-centered
+          accuracy at each voxel
+
+    **refit=True** (whole_brain only):
+        - ``final_estimator``: fitted sklearn estimator
+        - ``final_weight_map``: BrainData ``(1, n_voxels)``
 
     Note: encoding-model timeseries prediction (``bd.predict(X=...)``) returns
     a ``BrainData`` directly, not a ``Predict`` — the natural container for a
     voxel timeseries.
-
-    Attributes
-    ----------
-    predictions : ndarray, optional
-        Out-of-fold predictions in original sample order, shape (n_samples,).
-    scores : ndarray, optional
-        Per-fold score, shape (n_folds,).
-    mean_score : float, optional
-        Mean score across folds.
-    std_score : float, optional
-        Standard deviation of scores across folds.
-    cv_folds : ndarray, optional
-        Fold index per sample, shape (n_samples,).
-    accuracy_map : ndarray, optional
-        Voxel-shaped accuracy map for searchlight / ROI methods.
-    weight_map : ndarray, optional
-        Mean linear-classifier coefficients across folds, projected to voxel
-        space, shape (n_voxels,).
-    fold_weight_maps : ndarray, optional
-        Per-fold linear-classifier coefficients, shape (n_folds, n_voxels).
-    final_estimator : sklearn estimator, optional
-        Estimator refit on full data when ``refit=True``.
-    final_weight_map : ndarray, optional
-        Coefficients from the full-data refit, shape (n_voxels,).
 
     Methods
     -------
@@ -341,20 +335,21 @@ class Predict:
     # MVPA / classification — populated when y given
     predictions: np.ndarray | None = None
     scores: np.ndarray | None = None
-    mean_score: float | None = None
-    std_score: float | None = None
+    mean_score: Any = None  # float (whole_brain) or ndarray (n_rois,) (roi)
+    std_score: Any = None  # float (whole_brain) or ndarray (n_rois,) (roi)
     cv_folds: np.ndarray | None = None
 
-    # Searchlight / ROI
-    accuracy_map: np.ndarray | None = None
+    # ROI — atlas labels in the order of mean_score / std_score / scores axis 1
+    roi_labels: np.ndarray | None = None
 
-    # Linear-model weight maps
-    weight_map: np.ndarray | None = None
-    fold_weight_maps: np.ndarray | None = None
+    # Brain-space maps — BrainData when populated by the runners
+    accuracy_map: Any = None  # BrainData
+    weight_map: Any = None  # BrainData
+    fold_weight_maps: Any = None  # BrainData
 
     # refit=True
-    final_estimator: Any | None = None
-    final_weight_map: np.ndarray | None = None
+    final_estimator: Any = None
+    final_weight_map: Any = None  # BrainData
 
     def available(self) -> list:
         """Return names of non-None fields (excludes private)."""
