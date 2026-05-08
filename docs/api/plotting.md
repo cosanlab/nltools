@@ -56,7 +56,7 @@ This a function to interactively view the results of a decomposition analysis
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`output` |  | (dict) output dictionary from running Brain_data.decompose() | *required*
+`output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
 
 #### `plot_between_label_distance`
@@ -735,7 +735,7 @@ This a function to interactively view the results of a decomposition analysis
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`output` |  | (dict) output dictionary from running Brain_data.decompose() | *required*
+`output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
 
 #### `prediction`

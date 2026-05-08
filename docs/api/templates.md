@@ -49,6 +49,7 @@ Name | Description
 [`get_bg_image`](#get_bg_image) | Get a background image path matching a data resolution.
 [`get_brainspace`](#get_brainspace) | Return the current global brain-space configuration.
 [`is_standard_space`](#is_standard_space) | Check whether an affine is compatible with our MNI templates.
+[`list_resources`](#list_resources) | List files available in the ``nltools/niftis`` HF dataset.
 [`match_resolution`](#match_resolution) | Find the best matching template for a given affine matrix.
 [`reset_brainspace`](#reset_brainspace) | Reset the global brain-space configuration to defaults.
 [`resolve_paths`](#resolve_paths) | Build mask/brain/plot paths for a template + resolution.
@@ -90,13 +91,15 @@ Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. | *required*
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources` to enumerate what's available. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Absolute path to the cached file on disk.
+<code>[str](#str)</code> | Absolute path to the cached file on disk. The returned path drops
+<code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
+<code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
 #### `get_bg_image`
 
@@ -160,6 +163,39 @@ Type | Description
 <code>[bool](#bool)</code> | ``(True, None)`` if compatible; otherwise ``(False, reason)`` with
 <code>[str](#str) \| None</code> | ``reason`` a one-line human-readable explanation suitable for
 <code>[tuple](#tuple)[[bool](#bool), [str](#str) \| None]</code> | embedding in an error message.
+
+#### `list_resources`
+
+```python
+list_resources(prefix: str | None = None) -> list[str]
+```
+
+List files available in the ``nltools/niftis`` HF dataset.
+
+Companion to :func:`fetch_resource` — surfaces what's downloadable
+without forcing users to remember relpath strings or visit the HF
+web UI.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`prefix` | <code>[str](#str) \| None</code> | Optional path prefix to filter by (e.g., ``'masks/'``, ``'default/'``, ``'fmriprep/'``). Matches with ``str.startswith``. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with :func:`fetch_resource`.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Hits the HF API once per session (cached). Not available in
+Pyodide — browser-deployed code should know its paths in advance
+and pre-seed via :func:`seed_resources`.
+
+</details>
 
 #### `match_resolution`
 
@@ -423,6 +459,7 @@ browser per dataset revision.
 Name | Description
 ---- | -----------
 [`fetch_resource`](#fetch_resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
+[`list_resources`](#list_resources) | List files available in the ``nltools/niftis`` HF dataset.
 [`seed_resources`](#seed_resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
 **Attributes:**
@@ -446,13 +483,48 @@ Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. | *required*
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources` to enumerate what's available. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Absolute path to the cached file on disk.
+<code>[str](#str)</code> | Absolute path to the cached file on disk. The returned path drops
+<code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
+<code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
+
+###### `list_resources`
+
+```python
+list_resources(prefix: str | None = None) -> list[str]
+```
+
+List files available in the ``nltools/niftis`` HF dataset.
+
+Companion to :func:`fetch_resource` — surfaces what's downloadable
+without forcing users to remember relpath strings or visit the HF
+web UI.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`prefix` | <code>[str](#str) \| None</code> | Optional path prefix to filter by (e.g., ``'masks/'``, ``'default/'``, ``'fmriprep/'``). Matches with ``str.startswith``. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with :func:`fetch_resource`.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Hits the HF API once per session (cached). Not available in
+Pyodide — browser-deployed code should know its paths in advance
+and pre-seed via :func:`seed_resources`.
+
+</details>
 
 ###### `seed_resources`
 

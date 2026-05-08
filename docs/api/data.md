@@ -1086,6 +1086,7 @@ Name | Description
 [`find_spikes`](#find_spikes) | Identify spikes from Time Series Data.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient.
+[`iplot`](#iplot) | Interactive HTML viewer with threshold panel (and volume slider for 4D).
 [`mean`](#mean) | Get mean of each voxel or image.
 [`median`](#median) | Get median of each voxel or image.
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
@@ -1380,7 +1381,7 @@ Name | Type | Description
 ###### `decompose`
 
 ```python
-decompose(method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(*, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
 Decompose BrainData object.
@@ -1392,6 +1393,7 @@ Name | Type | Description | Default
 `method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
+`**kwargs` |  | forwarded to the underlying sklearn decomposition estimator. | <code>{}</code>
 
 **Returns:**
 
@@ -1504,7 +1506,7 @@ Name | Type | Description
 ###### `find_spikes`
 
 ```python
-find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
 ```
 
 Identify spikes from Time Series Data.
@@ -1515,12 +1517,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `global_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in global signal in standard deviations, or None to skip. | <code>3</code>
 `diff_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in average frame difference in standard deviations, or None to skip. | <code>3</code>
+`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | pandas dataframe with spikes as indicator variables
+ | DesignMatrix with one indicator column per detected spike, with
+ | all spike columns pre-marked as confounds.
 
 ###### `fit`
 
@@ -1621,6 +1626,40 @@ Name | Type | Description
 ```pycon
 >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 ```
+
+###### `iplot`
+
+```python
+iplot(*, view: str = 'ortho', mode: str = 'symmetric', units: str = 'value', lower: float | None = None, upper: float | None = None, threshold: float | None = None, bg_img: float | None = None, cut_coords: float | None = None, cmap: str | None = None, symmetric_cmap: bool = True, **kwargs: bool)
+```
+
+Interactive HTML viewer with threshold panel (and volume slider for 4D).
+
+Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
+ortho or surface viewer. Renders inline in Jupyter, marimo, and
+Jupyter Book v2 / mystmd built sites.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`view` | <code>[str](#str)</code> | ``"ortho"`` (default, uses ``nilearn.view_img``) or ``"surface"`` (uses ``nilearn.view_img_on_surf``). | <code>'ortho'</code>
+`mode` | <code>[str](#str)</code> | ``"symmetric"`` (default, single ``|x| ≥ upper`` slider) or ``"independent"`` (separate negative/positive cutoffs; voxels in ``(lower, upper)`` are masked). | <code>'symmetric'</code>
+`units` | <code>[str](#str)</code> | ``"value"`` (default) or ``"percentile"``. Toggleable in the UI; this just sets the initial state. | <code>'value'</code>
+`lower` | <code>[float](#float) \| None</code> | Initial negative cutoff for ``mode="independent"`` (must be ≤ 0). Ignored in symmetric mode. | <code>None</code>
+`upper` | <code>[float](#float) \| None</code> | Initial threshold for symmetric mode (``|x| ≥ upper``) or positive cutoff for independent mode (must be ≥ 0). | <code>None</code>
+`threshold` | <code>[float](#float) \| None</code> | Deprecated alias for ``upper`` (symmetric mode). | <code>None</code>
+`bg_img` |  | Background image (ortho only). Defaults to nilearn's MNI152. | <code>None</code>
+`cut_coords` |  | Initial cut coordinates (ortho only). | <code>None</code>
+`cmap` | <code>[str](#str) \| None</code> | Colormap name. | <code>None</code>
+`symmetric_cmap` | <code>[bool](#bool)</code> | Whether the colormap is symmetric around zero. | <code>True</code>
+`**kwargs` |  | Forwarded to ``nilearn.view_img`` / ``nilearn.view_img_on_surf``. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | BrainViewerWidget
 
 ###### `mean`
 
@@ -2223,7 +2262,7 @@ Convert z score back into r value for each element of data object.
 #### `DesignMatrix`
 
 ```python
-DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None)
+DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover')
 ```
 
 Polars-based design matrix for experimental designs in neuroimaging.
@@ -2302,12 +2341,23 @@ Name | Description
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`upsample`](#upsample) | Increase temporal resolution to target frequency.
 [`vif`](#vif) | Compute variance inflation factor for each column.
+[`with_columns`](#with_columns) | Add or replace columns via Polars expressions.
 [`write`](#write) | Write DesignMatrix to file.
 [`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
 
 Passing another ``DesignMatrix`` returns a copy: ``data``,
 ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
 carried over. Any explicit kwarg overrides the inherited value.
+
+When ``data`` is a path to a BIDS events file, the constructor
+HRF-convolves the regressors by default (``hrf_model='glover'``,
+matching nilearn's ``make_first_level_design_matrix``). The output
+columns are suffixed ``_c0`` and ``.convolved`` is populated. Pass
+``hrf_model=None`` to load raw boxcar regressors instead — useful
+for FIR designs, PPI flows that build interaction terms before
+convolution, or pedagogical material that introduces convolution
+as a separate step. ``hrf_model`` is silently ignored when ``data``
+is anything other than an events file.
 
 ##### Methods
 
@@ -2656,6 +2706,36 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular.
+
+###### `with_columns`
+
+```python
+with_columns(*exprs, **named_exprs) -> DesignMatrix
+```
+
+Add or replace columns via Polars expressions.
+
+Mirrors :meth:`polars.DataFrame.with_columns`. Named kwargs become
+named columns; positional ``pl.Expr`` arguments are accepted as-is
+(including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
+with metadata preserved; new columns are *not* auto-tagged as
+convolved or confounds.
+
+For convenience, named-kwarg values that aren't ``pl.Expr`` /
+``pl.Series`` are coerced:
+
+- ``int``/``float`` → broadcast scalar via ``pl.lit``
+- ``list`` / ``np.ndarray`` → wrapped as ``pl.Series``
+
+**Examples:**
+
+```pycon
+>>> dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
+>>> dm = dm.with_columns(
+...     vmpfc=seed_signal,
+...     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+... )
+```
 
 ###### `write`
 
@@ -4039,6 +4119,7 @@ Name | Description
 [`prediction`](#prediction) | BrainData prediction functions.
 [`utils`](#utils) | Shared helpers for BrainData submodules.
 [`validation`](#validation) | Validation utilities for BrainData class.
+[`widgets`](#widgets) | Anywidget-based interactive viewer for BrainData.
 
 **Classes:**
 
@@ -4070,7 +4151,7 @@ Name | Description
 [`distance`](#distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 [`filter_data`](#filter_data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes_data`](#find_spikes_data) | Function to identify spikes from Time Series Data
+[`find_spikes_data`](#find_spikes_data) | Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
@@ -4186,7 +4267,7 @@ Name | Type | Description
 ######## `decompose`
 
 ```python
-decompose(bd, method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(bd, *, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
 Decompose BrainData object
@@ -4325,24 +4406,10 @@ nilearn.signal.clean documentation for all available options
 ######## `find_spikes_data`
 
 ```python
-find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = None, sampling_freq = None)
 ```
 
-Function to identify spikes from Time Series Data
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`global_spike_cutoff` |  | (int,None) cutoff to identify spikes in global signal                  in standard deviations, None indicates do not calculate. | <code>3</code>
-`diff_spike_cutoff` |  | (int,None) cutoff to identify spikes in average frame difference                  in standard deviations, None indicates do not calculate. | <code>3</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | pl.DataFrame: DataFrame with spikes as indicator variables.
+Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
 
 ######## `icc`
 
@@ -7139,6 +7206,148 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Type of items ('brain_data' or 'file').
+
+###### `widgets`
+
+Anywidget-based interactive viewer for BrainData.
+
+`BrainViewerWidget` wraps nilearn's HTML viewers (`view_img`,
+`view_img_on_surf`) inside an iframe with a threshold panel (with
+symmetric/independent and value/percentile toggles), plus a volume
+slider for 4D BrainData. Renders inline in Jupyter, marimo, and
+Jupyter Book v2 (mystmd) static-built sites via the standard widget
+mimebundle.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BrainViewerWidget`](#BrainViewerWidget) | Interactive ortho/surface viewer with threshold panel and (for 4D) volume slider.
+
+
+
+####### Classes##
+
+###### `BrainViewerWidget`
+
+```python
+BrainViewerWidget(bd, *, view: str = 'ortho', mode: str = 'symmetric', units: str = 'value', lower: float | None = None, upper: float | None = None, threshold: float | None = None, **view_kwargs: float | None)
+```
+
+Bases: <code>[AnyWidget](#anywidget.AnyWidget)</code>
+
+Interactive ortho/surface viewer with threshold panel and (for 4D) volume slider.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`data_max`](#data_max) |  | 
+[`data_min`](#data_min) |  | 
+[`has_volume_slider`](#has_volume_slider) |  | 
+[`html`](#html) |  | 
+[`lower`](#lower) |  | 
+[`mode_pct`](#mode_pct) |  | 
+[`mode_signed`](#mode_signed) |  | 
+[`n_volumes`](#n_volumes) |  | 
+[`pct_table_abs`](#pct_table_abs) |  | 
+[`pct_table_neg`](#pct_table_neg) |  | 
+[`pct_table_pos`](#pct_table_pos) |  | 
+[`upper`](#upper) |  | 
+[`vmax_abs`](#vmax_abs) |  | 
+[`volume_idx`](#volume_idx) |  | 
+
+
+
+######### Attributes####
+
+###### `data_max`
+
+```python
+data_max = traitlets.Float(0.0).tag(sync=True)
+```
+
+########## `data_min`
+
+```python
+data_min = traitlets.Float(0.0).tag(sync=True)
+```
+
+########## `has_volume_slider`
+
+```python
+has_volume_slider = n > 1
+```
+
+########## `html`
+
+```python
+html = traitlets.Unicode('').tag(sync=True)
+```
+
+########## `lower`
+
+```python
+lower = float(lower) if lower is not None else 0.0
+```
+
+########## `mode_pct`
+
+```python
+mode_pct = units == 'percentile'
+```
+
+########## `mode_signed`
+
+```python
+mode_signed = mode == 'independent'
+```
+
+########## `n_volumes`
+
+```python
+n_volumes = n
+```
+
+########## `pct_table_abs`
+
+```python
+pct_table_abs = traitlets.List(trait=(traitlets.Float())).tag(sync=True)
+```
+
+########## `pct_table_neg`
+
+```python
+pct_table_neg = traitlets.List(trait=(traitlets.Float())).tag(sync=True)
+```
+
+########## `pct_table_pos`
+
+```python
+pct_table_pos = traitlets.List(trait=(traitlets.Float())).tag(sync=True)
+```
+
+########## `upper`
+
+```python
+upper = float(upper) if upper is not None else 0.0
+```
+
+########## `vmax_abs`
+
+```python
+vmax_abs = traitlets.Float(1.0).tag(sync=True)
+```
+
+########## `volume_idx`
+
+```python
+volume_idx = traitlets.Int(0).tag(sync=True)
+```
+
+
+
+####### Functions
 
 #### `collection`
 

@@ -45,7 +45,7 @@ Name | Description
 [`double_center`](#double_center) | Double-center a distance matrix.
 [`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 [`fdr`](#fdr) | Determine FDR threshold given a p value array and desired false
-[`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
+[`find_spikes`](#find_spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 [`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
 [`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score
 [`holm_bonf`](#holm_bonf) | Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
@@ -441,21 +441,31 @@ Name | Type | Description
 #### `find_spikes`
 
 ```python
-find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
 ```
 
-Function to identify spikes from fMRI Time Series Data
+Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | BrainData or nibabel instance | *required*
-`global_spike_cutoff` |  | (int,None) cutoff to identify spikes in global signal                  in standard deviations, None indicates do not calculate. | <code>3</code>
-`diff_spike_cutoff` |  | (int,None) cutoff to identify spikes in average frame difference                  in standard deviations, None indicates do not calculate. | <code>3</code>
+`global_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR global signal. None to skip. | <code>3</code>
+`diff_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR mean absolute frame-to-frame difference. None to skip. | <code>3</code>
+`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
-Returns:
-    Polars DataFrame with spikes as indicator variables
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` |  | one indicator column per detected spike, with all
+ |  | spike columns pre-marked as confounds. Row position is the time
+ |  | axis (no separate `TR` index column — that was a pandas-era
+ |  | artifact). When `TR` / `sampling_freq` aren't provided the DM has
+ |  | `sampling_freq=None`; you can still `.append()` it onto a DM that
+ |  | does have one.
 
 #### `fisher_r_to_z`
 
@@ -1931,7 +1941,7 @@ Outlier detection, robust statistics, and data normalization.
 
 Name | Description
 ---- | -----------
-[`find_spikes`](#find_spikes) | Function to identify spikes from fMRI Time Series Data
+[`find_spikes`](#find_spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 [`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 [`winsorize`](#winsorize) | Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 [`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
@@ -1943,21 +1953,31 @@ Name | Description
 ###### `find_spikes`
 
 ```python
-find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
 ```
 
-Function to identify spikes from fMRI Time Series Data
+Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | BrainData or nibabel instance | *required*
-`global_spike_cutoff` |  | (int,None) cutoff to identify spikes in global signal                  in standard deviations, None indicates do not calculate. | <code>3</code>
-`diff_spike_cutoff` |  | (int,None) cutoff to identify spikes in average frame difference                  in standard deviations, None indicates do not calculate. | <code>3</code>
+`global_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR global signal. None to skip. | <code>3</code>
+`diff_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR mean absolute frame-to-frame difference. None to skip. | <code>3</code>
+`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
-Returns:
-    Polars DataFrame with spikes as indicator variables
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` |  | one indicator column per detected spike, with all
+ |  | spike columns pre-marked as confounds. Row position is the time
+ |  | axis (no separate `TR` index column — that was a pandas-era
+ |  | artifact). When `TR` / `sampling_freq` aren't provided the DM has
+ |  | `sampling_freq=None`; you can still `.append()` it onto a DM that
+ |  | does have one.
 
 ###### `trim`
 

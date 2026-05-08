@@ -18,7 +18,7 @@ Name | Description
 [`distance`](#distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 [`filter_data`](#filter_data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes_data`](#find_spikes_data) | Function to identify spikes from Time Series Data
+[`find_spikes_data`](#find_spikes_data) | Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
@@ -134,7 +134,7 @@ Name | Type | Description
 #### `decompose`
 
 ```python
-decompose(bd, method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(bd, *, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
 Decompose BrainData object
@@ -273,24 +273,10 @@ nilearn.signal.clean documentation for all available options
 #### `find_spikes_data`
 
 ```python
-find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = None, sampling_freq = None)
 ```
 
-Function to identify spikes from Time Series Data
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`global_spike_cutoff` |  | (int,None) cutoff to identify spikes in global signal                  in standard deviations, None indicates do not calculate. | <code>3</code>
-`diff_spike_cutoff` |  | (int,None) cutoff to identify spikes in average frame difference                  in standard deviations, None indicates do not calculate. | <code>3</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | pl.DataFrame: DataFrame with spikes as indicator variables.
+Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
 
 #### `icc`
 

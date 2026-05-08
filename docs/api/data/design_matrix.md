@@ -1,7 +1,7 @@
 ## `DesignMatrix`
 
 ```python
-DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None)
+DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover')
 ```
 
 Polars-based design matrix for experimental designs in neuroimaging.
@@ -80,12 +80,23 @@ Name | Description
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`upsample`](#upsample) | Increase temporal resolution to target frequency.
 [`vif`](#vif) | Compute variance inflation factor for each column.
+[`with_columns`](#with_columns) | Add or replace columns via Polars expressions.
 [`write`](#write) | Write DesignMatrix to file.
 [`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
 
 Passing another ``DesignMatrix`` returns a copy: ``data``,
 ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
 carried over. Any explicit kwarg overrides the inherited value.
+
+When ``data`` is a path to a BIDS events file, the constructor
+HRF-convolves the regressors by default (``hrf_model='glover'``,
+matching nilearn's ``make_first_level_design_matrix``). The output
+columns are suffixed ``_c0`` and ``.convolved`` is populated. Pass
+``hrf_model=None`` to load raw boxcar regressors instead — useful
+for FIR designs, PPI flows that build interaction terms before
+convolution, or pedagogical material that introduces convolution
+as a separate step. ``hrf_model`` is silently ignored when ``data``
+is anything other than an events file.
 
 ### Methods
 
@@ -434,6 +445,36 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular.
+
+#### `with_columns`
+
+```python
+with_columns(*exprs, **named_exprs) -> DesignMatrix
+```
+
+Add or replace columns via Polars expressions.
+
+Mirrors :meth:`polars.DataFrame.with_columns`. Named kwargs become
+named columns; positional ``pl.Expr`` arguments are accepted as-is
+(including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
+with metadata preserved; new columns are *not* auto-tagged as
+convolved or confounds.
+
+For convenience, named-kwarg values that aren't ``pl.Expr`` /
+``pl.Series`` are coerced:
+
+- ``int``/``float`` → broadcast scalar via ``pl.lit``
+- ``list`` / ``np.ndarray`` → wrapped as ``pl.Series``
+
+**Examples:**
+
+```pycon
+>>> dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
+>>> dm = dm.with_columns(
+...     vmpfc=seed_signal,
+...     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+... )
+```
 
 #### `write`
 
