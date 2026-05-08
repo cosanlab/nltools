@@ -1218,6 +1218,10 @@ class BrainData:
         self,
         *,
         view: str = "ortho",
+        mode: str = "symmetric",
+        units: str = "value",
+        lower: float | None = None,
+        upper: float | None = None,
         threshold: float | None = None,
         bg_img=None,
         cut_coords=None,
@@ -1225,7 +1229,7 @@ class BrainData:
         symmetric_cmap: bool = True,
         **kwargs,
     ):
-        """Interactive HTML viewer with threshold slider (and volume slider for 4D).
+        """Interactive HTML viewer with threshold panel (and volume slider for 4D).
 
         Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
         ortho or surface viewer. Renders inline in Jupyter, marimo, and
@@ -1234,9 +1238,16 @@ class BrainData:
         Args:
             view: ``"ortho"`` (default, uses ``nilearn.view_img``) or
                 ``"surface"`` (uses ``nilearn.view_img_on_surf``).
-            threshold: Initial threshold for the viewer slider. The slider
-                range is ``[0, max(abs(data))]``. Defaults to 0 (effectively
-                unthresholded).
+            mode: ``"symmetric"`` (default, single ``|x| ≥ upper`` slider) or
+                ``"independent"`` (separate negative/positive cutoffs;
+                voxels in ``(lower, upper)`` are masked).
+            units: ``"value"`` (default) or ``"percentile"``. Toggleable
+                in the UI; this just sets the initial state.
+            lower: Initial negative cutoff for ``mode="independent"`` (must
+                be ≤ 0). Ignored in symmetric mode.
+            upper: Initial threshold for symmetric mode (``|x| ≥ upper``)
+                or positive cutoff for independent mode (must be ≥ 0).
+            threshold: Deprecated alias for ``upper`` (symmetric mode).
             bg_img: Background image (ortho only). Defaults to nilearn's MNI152.
             cut_coords: Initial cut coordinates (ortho only).
             cmap: Colormap name.
@@ -1266,6 +1277,10 @@ class BrainData:
         return BrainViewerWidget(
             self,
             view=view,
+            mode=mode,
+            units=units,
+            lower=lower,
+            upper=upper,
             threshold=threshold,
             **view_kwargs,
         )

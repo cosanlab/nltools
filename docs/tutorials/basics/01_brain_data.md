@@ -275,15 +275,34 @@ mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsiz
 
 ### Interactive Viewer
 
-`BrainData.iplot()` returns an interactive HTML viewer (an [`anywidget`](https://anywidget.dev) wrapping `nilearn.view_img` / `view_img_on_surf`). Drag through ortho slices, adjust the threshold slider, and — for 4D data — step through volumes with the volume slider that appears automatically.
+`BrainData.iplot()` returns an interactive HTML viewer (an [`anywidget`](https://anywidget.dev) wrapping `nilearn.view_img` / `view_img_on_surf`). Drag through ortho slices, adjust thresholds with the panel above the brain, and — for 4D data — step through volumes with the volume slider that appears automatically.
 
 ```{code-cell} python3
-# 3D: ortho viewer + threshold slider
+# 3D: ortho viewer + threshold panel
 masked_data.iplot()
 ```
 
+The threshold panel has two toggles you can flip at any time:
+
+- **Value ↔ Percentile** — switch between thresholding by absolute value (`|x| ≥ 2.3`) or by percentile of the data distribution (`top 5%`).
+- **Symmetric ↔ Independent** — symmetric uses one slider over `|x|`. Independent gives you separate negative and positive cutoffs, so you can see strong negative activations without also forcing the same threshold on positives.
+
+You can also set the initial state via kwargs:
+
 ```{code-cell} python3
-# 4D: same call adds a volume slider
+import numpy as np
+# Start in percentile mode at the 95th percentile of |x| (the "top 5%")
+p95 = float(np.percentile(np.abs(masked_data.data), 95))
+masked_data.iplot(units="percentile", upper=p95)
+```
+
+```{code-cell} python3
+# Independent thresholds: tighter on the negative side, looser on positives
+masked_data.iplot(mode="independent", lower=-0.4, upper=0.2)
+```
+
+```{code-cell} python3
+# 4D: same call adds a volume slider alongside the threshold panel
 brains[:10].iplot()
 ```
 

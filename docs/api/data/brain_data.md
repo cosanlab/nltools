@@ -39,6 +39,7 @@ Name | Description
 [`find_spikes`](#find_spikes) | Identify spikes from Time Series Data.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient.
+[`iplot`](#iplot) | Interactive HTML viewer with threshold panel (and volume slider for 4D).
 [`mean`](#mean) | Get mean of each voxel or image.
 [`median`](#median) | Get median of each voxel or image.
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
@@ -333,7 +334,7 @@ Name | Type | Description
 #### `decompose`
 
 ```python
-decompose(method = 'pca', axis = 'voxels', n_components = None, *args, **kwargs)
+decompose(*, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
 Decompose BrainData object.
@@ -345,6 +346,7 @@ Name | Type | Description | Default
 `method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
 `axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
 `n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
+`**kwargs` |  | forwarded to the underlying sklearn decomposition estimator. | <code>{}</code>
 
 **Returns:**
 
@@ -457,7 +459,7 @@ Name | Type | Description
 #### `find_spikes`
 
 ```python
-find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3)
+find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
 ```
 
 Identify spikes from Time Series Data.
@@ -468,12 +470,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `global_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in global signal in standard deviations, or None to skip. | <code>3</code>
 `diff_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in average frame difference in standard deviations, or None to skip. | <code>3</code>
+`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | pandas dataframe with spikes as indicator variables
+ | DesignMatrix with one indicator column per detected spike, with
+ | all spike columns pre-marked as confounds.
 
 #### `fit`
 
@@ -574,6 +579,40 @@ Name | Type | Description
 ```pycon
 >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 ```
+
+#### `iplot`
+
+```python
+iplot(*, view: str = 'ortho', mode: str = 'symmetric', units: str = 'value', lower: float | None = None, upper: float | None = None, threshold: float | None = None, bg_img: float | None = None, cut_coords: float | None = None, cmap: str | None = None, symmetric_cmap: bool = True, **kwargs: bool)
+```
+
+Interactive HTML viewer with threshold panel (and volume slider for 4D).
+
+Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
+ortho or surface viewer. Renders inline in Jupyter, marimo, and
+Jupyter Book v2 / mystmd built sites.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`view` | <code>[str](#str)</code> | ``"ortho"`` (default, uses ``nilearn.view_img``) or ``"surface"`` (uses ``nilearn.view_img_on_surf``). | <code>'ortho'</code>
+`mode` | <code>[str](#str)</code> | ``"symmetric"`` (default, single ``|x| ≥ upper`` slider) or ``"independent"`` (separate negative/positive cutoffs; voxels in ``(lower, upper)`` are masked). | <code>'symmetric'</code>
+`units` | <code>[str](#str)</code> | ``"value"`` (default) or ``"percentile"``. Toggleable in the UI; this just sets the initial state. | <code>'value'</code>
+`lower` | <code>[float](#float) \| None</code> | Initial negative cutoff for ``mode="independent"`` (must be ≤ 0). Ignored in symmetric mode. | <code>None</code>
+`upper` | <code>[float](#float) \| None</code> | Initial threshold for symmetric mode (``|x| ≥ upper``) or positive cutoff for independent mode (must be ≥ 0). | <code>None</code>
+`threshold` | <code>[float](#float) \| None</code> | Deprecated alias for ``upper`` (symmetric mode). | <code>None</code>
+`bg_img` |  | Background image (ortho only). Defaults to nilearn's MNI152. | <code>None</code>
+`cut_coords` |  | Initial cut coordinates (ortho only). | <code>None</code>
+`cmap` | <code>[str](#str) \| None</code> | Colormap name. | <code>None</code>
+`symmetric_cmap` | <code>[bool](#bool)</code> | Whether the colormap is symmetric around zero. | <code>True</code>
+`**kwargs` |  | Forwarded to ``nilearn.view_img`` / ``nilearn.view_img_on_surf``. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | BrainViewerWidget
 
 #### `mean`
 

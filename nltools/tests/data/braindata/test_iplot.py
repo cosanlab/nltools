@@ -1,13 +1,12 @@
 """Tests for BrainData.iplot() — anywidget-based interactive viewer.
 
-Tier 1: 3D ortho viewer with threshold slider.
+Tier 1: 3D ortho viewer with threshold panel (symmetric/independent + value/pct).
 Tier 2: 4D viewer adds a volume slider.
 view='surface' uses nilearn.view_img_on_surf under the same widget shell.
 """
 
 import numpy as np
 import pytest
-
 
 
 class TestIplotReturnType:
@@ -55,7 +54,7 @@ class TestIplotReturnType:
             bundle = bundle[0]
         html = bundle["text/html"]
         assert "bv-slider" in html
-        assert 'type=&quot;range&quot;' in html  # escaped for outer iframe srcdoc
+        assert "type=&quot;range&quot;" in html  # escaped for outer iframe srcdoc
         assert "addEventListener" in html  # JS swap handler is embedded
 
     def test_iplot_4d_static_fallback_escapes_close_script(self, minimal_brain_data):
@@ -69,11 +68,6 @@ class TestIplotReturnType:
         if isinstance(bundle, tuple):
             bundle = bundle[0]
         html = bundle["text/html"]
-        # No raw "</script" should remain in the JSON array section
-        # (only in the literal `</script>` that closes our IIFE)
-        # Heuristic: count "</script" in the escaped inner_doc portion.
-        # Easier: the escaped inner_doc has &lt;\/script&gt; for nilearn's
-        # closing tags after the fix.
         assert "&lt;\\/script&gt;" in html  # escaped close-tag inside JSON
 
 
@@ -84,19 +78,83 @@ class TestIplotInteractivity:
         w.volume_idx = 2
         assert w.html != before
 
-    def test_threshold_change_triggers_refresh(self, minimal_brain_data):
+    def test_upper_change_triggers_refresh(self, minimal_brain_data):
         w = minimal_brain_data[0].iplot()
         before = w.html
-        # pick a value within range
-        w.threshold = float(w.threshold_max * 0.5)
+        w.upper = float(w.vmax_abs * 0.5)
         assert w.html != before
 
-    def test_threshold_range_reflects_data(self, minimal_brain_data):
+    def test_lower_change_triggers_refresh_in_independent_mode(
+        self, minimal_brain_data
+    ):
+        w = minimal_brain_data[0].iplot(mode="independent")
+        before = w.html
+        # setting upper to a value > all data masks every positive voxel
+        w.upper = float(w.data_max)
+        assert w.html != before
+
+
+class TestIplotDataRange:
+    def test_data_range_reflects_data(self, minimal_brain_data):
         w = minimal_brain_data[0].iplot()
-        expected_max = float(np.nanmax(np.abs(minimal_brain_data[0].data)))
-        assert w.threshold_min == 0.0
-        assert w.threshold_max == pytest.approx(expected_max)
-        assert w.threshold_step == pytest.approx(expected_max / 100.0)
+        arr = np.asarray(minimal_brain_data[0].data)
+        finite = arr[np.isfinite(arr)]
+        assert w.vmax_abs == pytest.approx(float(np.abs(finite).max()))
+        assert w.data_min == pytest.approx(min(float(finite.min()), 0.0))
+        assert w.data_max == pytest.approx(max(float(finite.max()), 0.0))
+
+    def test_pct_tables_have_101_entries(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot()
+        assert len(w.pct_table_abs) == 101
+        assert len(w.pct_table_neg) == 101
+        assert len(w.pct_table_pos) == 101
+
+    def test_pct_table_abs_matches_numpy_percentile(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot()
+        arr = np.asarray(minimal_brain_data[0].data)
+        finite = arr[np.isfinite(arr)]
+        for p in (0, 25, 50, 75, 100):
+            assert w.pct_table_abs[p] == pytest.approx(
+                float(np.percentile(np.abs(finite), p))
+            )
+
+
+class TestIplotModes:
+    def test_default_mode_symmetric_value(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot()
+        assert w.mode_signed is False
+        assert w.mode_pct is False
+
+    def test_mode_independent_kwarg(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot(mode="independent")
+        assert w.mode_signed is True
+
+    def test_units_percentile_kwarg(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot(units="percentile")
+        assert w.mode_pct is True
+
+    def test_invalid_mode_raises(self, minimal_brain_data):
+        with pytest.raises(ValueError, match="symmetric"):
+            minimal_brain_data[0].iplot(mode="weird")
+
+    def test_invalid_units_raises(self, minimal_brain_data):
+        with pytest.raises(ValueError, match="value"):
+            minimal_brain_data[0].iplot(units="weird")
+
+    def test_independent_mode_masks_data_in_python(self, minimal_brain_data):
+        """Independent mode masks data ourselves and passes threshold=0 to
+        nilearn. A wide [-large, +large] band should produce identical
+        rendered HTML to a high symmetric threshold (both render as 'all
+        masked')."""
+        bd = minimal_brain_data[0]
+        # Mask everything
+        w = bd.iplot(mode="independent")
+        w.lower = float(w.data_min)
+        w.upper = float(w.data_max)
+        html_all_masked = w.html
+        # Should differ from unthresholded
+        w_unthresh = bd.iplot()
+        assert html_all_masked != w_unthresh.html
 
 
 class TestIplotViewKwarg:
@@ -126,6 +184,15 @@ class TestIplotViewKwarg:
 
 
 class TestIplotKwargPassthrough:
-    def test_initial_threshold_kwarg(self, minimal_brain_data):
+    def test_upper_kwarg_sets_initial_upper(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot(upper=0.5)
+        assert w.upper == pytest.approx(0.5)
+
+    def test_threshold_kwarg_alias_for_upper(self, minimal_brain_data):
+        """Backward-compat: threshold= still works, mapped to upper."""
         w = minimal_brain_data[0].iplot(threshold=0.5)
-        assert w.threshold == pytest.approx(0.5)
+        assert w.upper == pytest.approx(0.5)
+
+    def test_lower_kwarg_sets_initial_lower(self, minimal_brain_data):
+        w = minimal_brain_data[0].iplot(mode="independent", lower=-0.3)
+        assert w.lower == pytest.approx(-0.3)

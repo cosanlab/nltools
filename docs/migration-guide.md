@@ -656,7 +656,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
-| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'surface', bg_img=…)` — *rebuilt* on `anywidget` (no `ipywidgets` extra needed). 4D BrainData now gets a volume-step slider + threshold slider in one widget. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Low** |
+| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'surface', bg_img=…)` — *rebuilt* on `anywidget` (no `ipywidgets` extra needed). New threshold panel with Value↔Percentile and Symmetric↔Independent toggles; 4D BrainData also gets a volume-step slider. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Low** |
 
 :::{note}
 `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
@@ -694,7 +694,9 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | Surface plot kwarg | `surface=True` | `view='surface'` (canonical with `view='ortho'` default) |
 | Background image kwarg | `anatomical=` | `bg_img=` (matches nilearn) |
 | 4D handling | Volume slider via `ipywidgets.IntSlider` | Volume slider built into the widget; auto-shown when 4D |
-| Threshold control | Numeric `FloatText` widget | Range slider over `[0, max(abs(data))]` |
+| Threshold control | Numeric `FloatText` widget | Threshold panel: Value↔Percentile + Symmetric↔Independent toggles, with 1–2 sliders depending on mode |
+| Asymmetric thresholds | Not supported | `mode='independent'` masks `(lower, upper)` — separate cutoffs for negatives and positives |
+| Render performance | Python re-render on every keystroke | Re-render on slider release (mouse-up) only; readouts update live in JS during drag |
 | Optional install | `nltools[interactive_plots]` (extra) | Bundled — `anywidget` is now a hard dep |
 
 **Before (v0.5.1):**
@@ -706,13 +708,18 @@ bd.iplot(anatomical=anat)     # custom background
 
 **After (v0.6.0):**
 ```python
-bd.iplot()                    # interactive ortho viewer with threshold slider
-bd.iplot(view='surface')      # surface viewer
-bd.iplot(bg_img=anat)         # custom background
+bd.iplot()                              # ortho viewer + threshold panel
+bd.iplot(view='surface')                # surface viewer
+bd.iplot(bg_img=anat)                   # custom background
+
+# Threshold panel: set initial state via kwargs (toggleable in the UI)
+bd.iplot(units='percentile', upper=2.3) # start at the value matching ~98th pctile of |x|
+bd.iplot(mode='independent',            # separate negative/positive cutoffs
+         lower=-1.0, upper=2.0)
 
 # 4D BrainData: same call, widget grows a volume-step slider automatically
 stack = BrainData([f1, f2, f3, f4, f5])
-stack.iplot()                 # threshold slider + volume slider
+stack.iplot()                           # threshold panel + volume slider
 ```
 
 The widget honors the standard `application/vnd.jupyter.widget-view+json` mimebundle, so it stays interactive when the dartbrains tutorials are rendered into Jupyter Book v2 / mystmd built sites — no static-snapshot fallback needed.
