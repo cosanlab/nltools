@@ -56,6 +56,7 @@ Examples
 
 from dataclasses import asdict as dataclass_asdict
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -274,4 +275,107 @@ class Fit:
         if not include_none:
             filtered = {k: v for k, v in filtered.items() if v is not None}
 
+        return filtered
+
+
+@dataclass(frozen=True)
+class Predict:
+    """Immutable container for prediction / MVPA decoding results.
+
+    Mirrors :class:`Fit`: frozen, all fields default to ``None``, populated
+    based on the dispatch path (``method``, ``y`` vs ``X``, ``refit``) used
+    by :meth:`BrainData.predict`. Fields not applicable to the call remain
+    ``None`` and are filtered from :meth:`available` and :meth:`asdict`.
+
+    Field groups by call shape:
+
+    **MVPA cross-validation** (``y`` provided):
+        predictions, scores, mean_score, std_score, cv_folds.
+
+    **Whole-brain decoding**:
+        weight_map, fold_weight_maps (also populated for ROI when each ROI
+        emits a coefficient vector).
+
+    **Searchlight / ROI**:
+        accuracy_map (voxel-shaped accuracy values).
+
+    **Refit on full data** (``refit=True``):
+        final_estimator, final_weight_map.
+
+    Note: encoding-model timeseries prediction (``bd.predict(X=...)``) returns
+    a ``BrainData`` directly, not a ``Predict`` — the natural container for a
+    voxel timeseries.
+
+    Attributes
+    ----------
+    predictions : ndarray, optional
+        Out-of-fold predictions in original sample order, shape (n_samples,).
+    scores : ndarray, optional
+        Per-fold score, shape (n_folds,).
+    mean_score : float, optional
+        Mean score across folds.
+    std_score : float, optional
+        Standard deviation of scores across folds.
+    cv_folds : ndarray, optional
+        Fold index per sample, shape (n_samples,).
+    accuracy_map : ndarray, optional
+        Voxel-shaped accuracy map for searchlight / ROI methods.
+    weight_map : ndarray, optional
+        Mean linear-classifier coefficients across folds, projected to voxel
+        space, shape (n_voxels,).
+    fold_weight_maps : ndarray, optional
+        Per-fold linear-classifier coefficients, shape (n_folds, n_voxels).
+    final_estimator : sklearn estimator, optional
+        Estimator refit on full data when ``refit=True``.
+    final_weight_map : ndarray, optional
+        Coefficients from the full-data refit, shape (n_voxels,).
+
+    Methods
+    -------
+    available() : list
+        Names of non-None fields (excludes private).
+    asdict(include_none=False) : dict
+        Convert to dict for serialization (private fields always excluded).
+    """
+
+    # MVPA / classification — populated when y given
+    predictions: np.ndarray | None = None
+    scores: np.ndarray | None = None
+    mean_score: float | None = None
+    std_score: float | None = None
+    cv_folds: np.ndarray | None = None
+
+    # Searchlight / ROI
+    accuracy_map: np.ndarray | None = None
+
+    # Linear-model weight maps
+    weight_map: np.ndarray | None = None
+    fold_weight_maps: np.ndarray | None = None
+
+    # refit=True
+    final_estimator: Any | None = None
+    final_weight_map: np.ndarray | None = None
+
+    def available(self) -> list:
+        """Return names of non-None fields (excludes private)."""
+        return [
+            field_name
+            for field_name in self.__dataclass_fields__
+            if not field_name.startswith("_") and getattr(self, field_name) is not None
+        ]
+
+    def asdict(self, include_none: bool = False) -> dict:
+        """Convert to dictionary.
+
+        Args:
+            include_none: If True, include fields with None values.
+                Private fields (starting with _) are always excluded.
+
+        Returns:
+            Dictionary of field names to values.
+        """
+        full_dict = dataclass_asdict(self)
+        filtered = {k: v for k, v in full_dict.items() if not k.startswith("_")}
+        if not include_none:
+            filtered = {k: v for k, v in filtered.items() if v is not None}
         return filtered

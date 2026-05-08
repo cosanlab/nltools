@@ -9,16 +9,12 @@ Classes to represent brain image data.
 import os
 import warnings  # noqa: F401
 from copy import deepcopy
-from typing import TYPE_CHECKING
 
 import numpy as np
 
 from nltools.utils import attempt_to_import
 
 from .utils import check_brain_data
-
-if TYPE_CHECKING:
-    from .pipeline import BrainDataPipeline
 
 warnings.filterwarnings("ignore", category=UserWarning, module="nilearn")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
@@ -627,52 +623,6 @@ class BrainData:
         out = deepcopy(self)
         out.data = np.array([])
         return out
-
-    def cv(
-        self,
-        k: int | None = None,
-        method: str = "kfold",
-        split_by: str | None = None,
-        groups: np.ndarray | None = None,
-        n: int = 1000,
-        random_state: int | None = None,
-    ) -> "BrainDataPipeline":
-        """Create a cross-validation pipeline for this BrainData.
-
-        Returns a Pipeline object that enables fluent, chainable transforms
-        with cross-validation. Terminal methods like .predict() execute the
-        pipeline and return results.
-
-        Args:
-            k: Number of folds (for kfold method). Defaults to 5.
-            method: CV scheme type. Options:
-                - 'kfold': k-fold cross-validation (default)
-                - 'loro': leave-one-run-out (requires split_by='runs' or groups)
-                - 'bootstrap': bootstrap with out-of-bag test sets
-                - 'permutation': permutation testing (shuffles targets)
-            split_by: Attribute name for group splits (e.g., 'runs').
-            groups: Explicit group labels for CV splits.
-            n: Number of iterations for bootstrap/permutation methods. Default 1000.
-            random_state: Random seed for reproducibility.
-
-        Returns:
-            BrainDataPipeline: A pipeline object for method chaining.
-
-        Examples:
-            >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
-            >>> result = brain.cv(method='loro', groups=run_labels).predict(y)
-        """
-        from .modeling import cv
-
-        return cv(
-            self,
-            k=k,
-            method=method,
-            split_by=split_by,
-            groups=groups,
-            n=n,
-            random_state=random_state,
-        )
 
     def decompose(self, *, method="pca", axis="voxels", n_components=None, **kwargs):
         """Decompose BrainData object.
@@ -1287,62 +1237,122 @@ class BrainData:
 
     def predict(
         self,
-        X: "np.ndarray | None" = None,
-        y: "np.ndarray | None" = None,
         *,
+        y: "np.ndarray | None" = None,
+        X: "np.ndarray | None" = None,
         method: str = "whole_brain",
-        estimator="svm",
-        cv=5,
+        model="svm",
+        cv: int = 5,
+        standardize: bool = True,
+        reduce: "str | None" = None,
+        n_components: "int | None" = None,
+        scoring: str = "auto",
+        refit: bool = False,
         groups: "np.ndarray | None" = None,
         roi_mask=None,
         radius_mm: float = 10.0,
-        scoring: str = "accuracy",
-        standardize: bool = True,
-        n_jobs: int = -1,
+        inplace: bool = False,
+        n_jobs: int = 1,
         progress_bar: bool = False,
     ):
-        """Generate predictions using fitted model OR classify patterns (MVPA).
+        """Predict voxel timeseries (encoding) or decode labels (MVPA).
 
-        Two modes:
-        1. **Timeseries prediction** (X provided): Use fitted ridge model to predict voxel responses.
-        2. **MVPA decoding** (y provided): Train a classifier to predict labels from brain patterns.
+        Dispatched by which of ``X`` or ``y`` is provided:
+
+        1. **Timeseries prediction** (``X`` provided): use a fitted ridge /
+           GLM encoding model on ``self`` to predict voxel responses.
+           Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
+           timeseries (composes directly with ``.plot()``, ``.standardize()``
+           etc.). ``inplace`` has no effect in this mode.
+        2. **MVPA decoding** (``y`` provided): train a classifier or
+           regressor with cross-validation. Returns a :class:`Predict`
+           dataclass with ``predictions``, ``scores``, ``mean_score``,
+           ``weight_map`` (linear models only), ``fold_weight_maps``, etc.
 
         Args:
-            X: Features for timeseries prediction, shape (n_samples, n_features).
-            y: Labels for MVPA decoding, shape (n_samples,).
-            method: Decoding method - 'whole_brain', 'searchlight', or 'roi'.
-            estimator: Classifier ('svm', 'logistic', 'ridge', 'lda', or sklearn estimator).
-            cv: Cross-validation specification.
-            groups: Group labels for CV.
-            roi_mask: Atlas/parcellation for ROI-based decoding.
-            radius_mm: Searchlight radius in mm (default 10.0).
-            scoring: Metric for evaluation.
-            standardize: Z-score features before classification (default True).
-            n_jobs: Number of parallel jobs (-1 = all cores).
-            progress_bar: Show progress bar for searchlight.
+            y (array-like, optional): Labels (classification) or continuous
+                targets (regression), shape ``(n_samples,)``. Triggers MVPA mode.
+            X (array-like, optional): Features for timeseries prediction,
+                shape ``(n_samples, n_features)``. Triggers encoding mode.
+            method (str): MVPA dispatch — ``'whole_brain'``, ``'searchlight'``,
+                or ``'roi'``. Whole-brain populates ``weight_map`` /
+                ``fold_weight_maps``; searchlight / ROI populate
+                ``accuracy_map`` only.
+            model (str or sklearn estimator): Algorithm. String shortcuts:
+
+                - Classification: ``'svm'`` (LinearSVC), ``'logistic'``,
+                  ``'lda'``, ``'ridge_classifier'``.
+                - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.
+
+                Or pass any sklearn estimator / Pipeline (e.g.,
+                ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``).
+            cv (int or sklearn CV splitter): ``int`` → KFold (regression) or
+                StratifiedKFold (classification); pass a splitter for custom
+                schemes (e.g., ``GroupKFold``).
+            standardize (bool): Z-score features per fold before fitting.
+                Default ``True``.
+            reduce (str, optional): Per-fold dimensionality reduction.
+                Currently only ``'pca'`` supported. Default ``None``. Weight
+                maps are back-projected through PCA to voxel space.
+            n_components (int, optional): PCA components when ``reduce='pca'``.
+            scoring (str): Sklearn scoring string. Default ``'auto'`` →
+                ``'accuracy'`` if classifier, ``'r2'`` if regressor.
+            refit (bool): If ``True``, also fit on full data after CV and
+                store ``final_estimator`` + ``final_weight_map``.
+            groups (array-like, optional): Group labels for CV splitters
+                that need them (e.g., leave-one-run-out).
+            roi_mask (Nifti1Image or path-like, optional): Atlas image for
+                ``method='roi'``.
+            radius_mm (float): Searchlight radius in mm. Default ``10.0``.
+            inplace (bool): If ``True``, populate result fields as attributes
+                on ``self`` and return ``self``. Default ``False`` returns a
+                fresh :class:`Predict`.
+            n_jobs (int): Parallel jobs for searchlight / ROI. Default ``1``;
+                searchlight on a real brain at higher ``n_jobs`` can be
+                memory-heavy.
+            progress_bar (bool): Show progress bar for searchlight / ROI.
 
         Returns:
-            BrainData: Predicted timeseries or accuracy map.
+            Predict | BrainData: ``Predict`` dataclass when ``inplace=False``;
+                ``self`` (mutated) when ``inplace=True``.
 
         Examples:
-            >>> brain_data.fit(model='ridge', X=features)
-            >>> predictions = brain_data.predict(X=new_features)
-            >>> accuracy = brain_data.predict(y=labels, method='searchlight')
+            >>> result = brain.predict(y=labels, method='whole_brain', cv=5)
+            >>> result.weight_map           # shape (n_voxels,)
+            >>> result.mean_score           # mean accuracy across folds
+
+            >>> result = brain.predict(y=labels, method='searchlight',
+            ...                        radius_mm=8.0, n_jobs=4)
+            >>> BrainData(result.accuracy_map, mask=brain.mask).plot()
+
+            Custom sklearn pipeline as model::
+
+                from sklearn.feature_selection import SelectKBest
+                from sklearn.pipeline import make_pipeline
+                from sklearn.preprocessing import StandardScaler
+                from sklearn.svm import LinearSVC
+                pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
+                                     LinearSVC())
+                result = brain.predict(y=labels, model=pipe, standardize=False)
         """
         from .prediction import predict
 
         return predict(
             self,
-            X=X,
             y=y,
+            X=X,
             method=method,
-            estimator=estimator,
+            model=model,
             cv=cv,
+            standardize=standardize,
+            reduce=reduce,
+            n_components=n_components,
+            scoring=scoring,
+            refit=refit,
             groups=groups,
             roi_mask=roi_mask,
             radius_mm=radius_mm,
-            scoring=scoring,
-            standardize=standardize,
+            inplace=inplace,
             n_jobs=n_jobs,
             progress_bar=progress_bar,
         )

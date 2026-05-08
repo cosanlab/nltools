@@ -1,531 +1,492 @@
-"""
-BrainData prediction functions.
+"""BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Standalone functions extracted from BrainData class methods for timeseries
-prediction (encoding models) and MVPA decoding (pattern classification).
+Single entry point: :func:`predict`. Returns :class:`nltools.data.fitresults.Predict`
+with fields populated based on dispatch. Mirrors :meth:`BrainData.fit` /
+:class:`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
+self with attributes, ``inplace=False`` returns the dataclass.
 """
+
+from __future__ import annotations
 
 import warnings
+from typing import Any
 
 import numpy as np
 
-from .utils import shallow_copy
+from nltools.data.fitresults import Predict
+
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
 
 
 def predict(
     bd,
-    X=None,
+    *,
     y=None,
-    method="whole_brain",
-    estimator="svm",
-    cv=5,
+    X=None,
+    method: str = "whole_brain",
+    model: Any = "svm",
+    cv: int = 5,
+    standardize: bool = True,
+    reduce: str | None = None,
+    n_components: int | None = None,
+    scoring: str = "auto",
+    refit: bool = False,
     groups=None,
     roi_mask=None,
-    radius_mm=10.0,
-    scoring="accuracy",
-    standardize=True,
-    n_jobs=-1,
-    progress_bar=False,
+    radius_mm: float = 10.0,
+    inplace: bool = False,
+    n_jobs: int = 1,
+    progress_bar: bool = False,
 ):
-    """Generate predictions using fitted model OR classify patterns (MVPA).
-
-    This method supports two prediction modes determined by which parameter
-    is provided:
-
-    1. **Timeseries prediction** (X provided): Use fitted ridge model to
-       predict voxel responses for new feature data.
-
-    2. **MVPA decoding** (y provided): Train a classifier to predict labels
-       from brain patterns using cross-validation.
-
-    Args:
-        bd: BrainData instance.
-        X (array-like, optional): Features for timeseries prediction, shape
-            (n_samples, n_features). If None and y is None, uses training
-            data from fit().
-        y (array-like, optional): Labels for MVPA decoding, shape (n_samples,).
-            If provided, performs pattern classification instead of
-            timeseries prediction.
-
-        MVPA-specific parameters (only used when y is provided):
-
-        method (str): Decoding method - 'whole_brain', 'searchlight', or 'roi'.
-        estimator (str or sklearn estimator): Classifier to use. Can be:
-            - 'svm': LinearSVC (default)
-            - 'logistic': LogisticRegression
-            - 'ridge': RidgeClassifier
-            - 'lda': LinearDiscriminantAnalysis
-            - Any sklearn-compatible estimator with fit/predict
-        cv (int or sklearn CV splitter): Cross-validation specification.
-            Int for k-fold or sklearn CV object.
-        groups (array-like, optional): Group labels for CV (e.g., run IDs
-            for leave-one-run-out).
-        roi_mask (Nifti1Image or str, optional): Atlas/parcellation for
-            ROI-based decoding.
-        radius_mm (float): searchlight radius in mm. Default: 10.0.
-        scoring (str): Metric for evaluation ('accuracy',
-            'balanced_accuracy', 'roc_auc').
-        standardize (bool): Z-score features before classification.
-            Default: True.
-        n_jobs (int): Number of parallel jobs for searchlight (-1 = all cores).
-        progress_bar (bool): Show progress bar for searchlight.
-
-    Returns:
-        BrainData: For timeseries prediction, shape (n_samples, n_voxels).
-            For MVPA, shape (1, n_voxels) with accuracy per voxel/ROI.
-
-    Raises:
-        ValueError: If both X and y are provided.
-        ValueError: If fit() has not been called (for timeseries mode).
-
-    Examples:
-        >>> # Timeseries prediction (encoding model)
-        >>> brain_data.fit(model='ridge', X=features)
-        >>> predictions = brain_data.predict(X=new_features)
-
-        >>> # MVPA decoding (pattern classification)
-        >>> # brain_data.data has shape (n_trials, n_voxels)
-        >>> accuracy = brain_data.predict(y=labels, method='searchlight')
-        >>> print(accuracy.shape)  # (1, n_voxels)
+    """Implementation of :meth:`BrainData.predict`. See class docstring for
+    full parameter documentation.
     """
-    # Validate mutually exclusive modes
     if X is not None and y is not None:
         raise ValueError(
             "Cannot specify both X and y. Use X for timeseries prediction "
             "or y for MVPA decoding."
         )
 
-    # Dispatch to appropriate mode
     if y is not None:
         return predict_mvpa(
             bd,
             y=y,
             method=method,
-            estimator=estimator,
+            model=model,
             cv=cv,
+            standardize=standardize,
+            reduce=reduce,
+            n_components=n_components,
+            scoring=scoring,
+            refit=refit,
             groups=groups,
             roi_mask=roi_mask,
             radius_mm=radius_mm,
-            scoring=scoring,
-            standardize=standardize,
+            inplace=inplace,
             n_jobs=n_jobs,
             progress_bar=progress_bar,
         )
     return predict_timeseries(bd, X=X)
 
 
-def predict_timeseries(bd, X=None):
-    """Generate timeseries predictions using fitted model.
+# ---------------------------------------------------------------------------
+# Timeseries prediction (encoding model — uses fitted ridge / glm)
+# ---------------------------------------------------------------------------
 
-    Internal function for encoding model prediction.
 
-    Args:
-        bd: BrainData instance.
-        X (array-like, optional): Features to predict on. If None, uses
-            training data.
+def predict_timeseries(bd, *, X=None):
+    """Predict voxel timeseries from a fitted encoding model.
 
-    Returns:
-        BrainData with predicted timeseries.
+    Returns a fresh ``BrainData`` whose ``.data`` is the predicted timeseries.
+    Encoding model prediction yields a brain image — the natural container is
+    ``BrainData``, so it composes directly with downstream methods (`.plot()`,
+    `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
     """
     from nltools.data import BrainData
+    from nltools.models import Glm
 
-    # Check model is fitted
+    from .utils import shallow_copy
+
     if not hasattr(bd, "model_"):
         raise ValueError(
-            "Must call fit() before predict(). "
+            "Must call fit() before predict() for timeseries prediction. "
             "Example: brain_data.fit(model='ridge', X=features)"
         )
-
     if not bd.model_.is_fitted_:
         raise ValueError("Model is not fitted")
 
-    # Use training data if X not provided
     using_training_data = X is None
     if using_training_data:
         if not hasattr(bd, "X_"):
-            raise ValueError(
-                "No training data stored. This should not happen - "
-                "please report this as a bug."
-            )
+            raise ValueError("No training data stored on BrainData")
         X = bd.X_
 
-    # Validate X
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError(f"X must be 2D, got {X.ndim}D")
 
-    # Validate number of features (handle Ridge and Glm differently)
     if hasattr(bd.model_, "n_features_in_"):
-        # Ridge model has n_features_in_
         if X.shape[1] != bd.model_.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but model was fitted with "
                 f"{bd.model_.n_features_in_} features"
             )
-    else:
-        # Glm model - check against design matrices
-        if hasattr(bd.model_, "design_matrices_") and bd.model_.design_matrices_:
-            expected_features = bd.model_.design_matrices_[0].shape[1]
-            if X.shape[1] != expected_features:
-                raise ValueError(
-                    f"X has {X.shape[1]} features, but model was fitted with "
-                    f"{expected_features} features"
-                )
-
-    # Generate predictions
-    from nltools.models import Glm
+    elif hasattr(bd.model_, "design_matrices_") and bd.model_.design_matrices_:
+        expected = bd.model_.design_matrices_[0].shape[1]
+        if X.shape[1] != expected:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but model was fitted with "
+                f"{expected} features"
+            )
 
     if isinstance(bd.model_, Glm):
-        # For GLM, check if using training data or new data
         if using_training_data:
-            # Using training data - get fitted values
-            y_pred_list = bd.model_.predict()  # Returns list of nifti images
-            # Convert to array
+            y_pred_list = bd.model_.predict()
             y_pred = BrainData(y_pred_list, mask=bd.mask).data
         else:
-            # New design matrix - not yet implemented in Glm
             raise NotImplementedError(
-                "Prediction with new design matrix not yet implemented for GLM. "
-                "Use predict() without arguments to get fitted values."
+                "Prediction with new design matrix not yet implemented for GLM."
             )
     else:
-        # Ridge and other models
         y_pred = bd.model_.predict(X)
 
-    # Wrap in BrainData
     predictions = shallow_copy(bd)
     predictions.data = y_pred
-
     return predictions
+
+
+# ---------------------------------------------------------------------------
+# MVPA decoding
+# ---------------------------------------------------------------------------
+
+
+VALID_METHODS = {"whole_brain", "searchlight", "roi"}
 
 
 def predict_mvpa(
     bd,
+    *,
     y,
-    method="whole_brain",
-    estimator="svm",
-    cv=5,
-    groups=None,
-    roi_mask=None,
-    radius_mm=10.0,
-    scoring="accuracy",
-    standardize=True,
-    n_jobs=-1,
-    progress_bar=False,
-):
-    """Perform MVPA decoding using cross-validation.
+    method: str,
+    model: Any,
+    cv,
+    standardize: bool,
+    reduce: str | None,
+    n_components: int | None,
+    scoring: str,
+    refit: bool,
+    groups,
+    roi_mask,
+    radius_mm: float,
+    inplace: bool,
+    n_jobs: int,
+    progress_bar: bool,
+) -> Predict | Any:
+    """Cross-validated decoding. Returns Predict (or self if inplace=True)."""
+    from sklearn.base import is_classifier
+    from sklearn.model_selection import KFold, StratifiedKFold
 
-    Internal function for pattern classification.
-
-    Args:
-        bd: BrainData instance.
-        y (array-like): Labels to predict, shape (n_samples,).
-        method (str): 'whole_brain', 'searchlight', or 'roi'.
-        estimator (str or sklearn estimator): Classifier (string shortcut
-            or sklearn estimator).
-        cv (int or sklearn CV splitter): Cross-validation specification.
-        groups (array-like, optional): Group labels for CV.
-        roi_mask (Nifti1Image or str, optional): Atlas for ROI-based decoding.
-        radius_mm (float): searchlight radius in mm.
-        scoring (str): Scoring metric.
-        standardize (bool): Whether to z-score features.
-        n_jobs (int): Parallel jobs for searchlight.
-        progress_bar (bool): Show progress bar.
-
-    Returns:
-        BrainData with accuracy values.
-    """
-    from sklearn.base import clone
-    from sklearn.model_selection import StratifiedKFold
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-
-    # Validate method
-    valid_methods = {"whole_brain", "searchlight", "roi"}
-    if method not in valid_methods:
-        raise ValueError(f"Invalid method: {method}. Must be one of {valid_methods}")
-
-    # Emit deprecation warning for whole_brain method suggesting fluent API
-    if method == "whole_brain":
-        warnings.warn(
-            "predict(y=labels, cv=k) is deprecated for whole-brain MVPA. "
-            "Use the fluent pipeline API instead:\n"
-            "  result = brain.cv(k=5).predict(y=labels, algorithm='svm')\n"
-            "The fluent API provides richer results (per-fold scores, predictions) "
-            "and supports preprocessing chains (.normalize(), .reduce()).",
-            DeprecationWarning,
-            stacklevel=3,
+    if method not in VALID_METHODS:
+        raise ValueError(
+            f"Invalid method: {method!r}. Must be one of {sorted(VALID_METHODS)}"
         )
+    if reduce is not None and reduce != "pca":
+        raise ValueError(f"Unknown reduce: {reduce!r}. Supported: 'pca' or None.")
 
-    # Resolve estimator
-    estimator_obj = resolve_estimator(bd, estimator)
+    resolved_model = resolve_model(model)
+    classifier = is_classifier(resolved_model)
+    scoring = resolve_scoring(scoring, classifier)
 
     # Resolve CV
     if isinstance(cv, int):
-        cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+        cv_splitter = (
+            StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+            if classifier
+            else KFold(n_splits=cv, shuffle=True, random_state=42)
+        )
+    else:
+        cv_splitter = cv
 
-    # Validate y
     y = np.asarray(y)
     if y.shape[0] != bd.shape[0]:
         raise ValueError(
             f"y has {y.shape[0]} samples but data has {bd.shape[0]} samples"
         )
 
-    # Get data as X for classification
+    pipe = build_pipeline(resolved_model, standardize, reduce, n_components)
     X_data = bd.data  # (n_samples, n_voxels)
 
-    # Build pipeline with optional standardization
-    if standardize:
-        pipe = make_pipeline(StandardScaler(), clone(estimator_obj))
-    else:
-        pipe = clone(estimator_obj)
-
-    # Dispatch by method
     if method == "whole_brain":
-        # Use Pipeline infrastructure for whole-brain MVPA
-        accuracy = mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize)
+        result = _run_whole_brain(X_data, y, pipe, cv_splitter, groups, scoring, refit)
     elif method == "searchlight":
-        accuracy = mvpa_searchlight(
-            bd, X_data, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
+        result = _run_searchlight(
+            bd,
+            X_data,
+            y,
+            pipe,
+            cv_splitter,
+            groups,
+            scoring,
+            radius_mm,
+            n_jobs,
+            progress_bar,
         )
-    elif method == "roi":
-        if roi_mask is None:
-            raise ValueError("roi_mask required for method='roi'")
-        accuracy = mvpa_roi(
-            bd, X_data, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
+    else:  # method == 'roi'
+        result = _run_roi(
+            bd,
+            X_data,
+            y,
+            pipe,
+            cv_splitter,
+            groups,
+            scoring,
+            roi_mask,
+            n_jobs,
+            progress_bar,
         )
 
-    # Wrap in BrainData
-    result = bd[0].copy() if len(bd.shape) > 1 and bd.shape[0] > 1 else bd.copy()
-    result.data = accuracy.reshape(1, -1) if accuracy.ndim == 1 else accuracy
-
+    if inplace:
+        for fname in result.available():
+            setattr(bd, fname, getattr(result, fname))
+        return bd
     return result
 
 
-def resolve_estimator(bd, estimator):
-    """Resolve string shortcut to sklearn estimator.
+# ---------------------------------------------------------------------------
+# Helpers — model / scoring / pipeline construction
+# ---------------------------------------------------------------------------
 
-    Args:
-        bd: BrainData instance (unused, kept for API consistency).
-        estimator: String shortcut or sklearn estimator object.
 
-    Returns:
-        Instantiated sklearn estimator.
-    """
+def resolve_model(model: Any):
+    """Resolve a string shortcut or pass through a sklearn estimator."""
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-    from sklearn.linear_model import LogisticRegression, RidgeClassifier
-    from sklearn.svm import LinearSVC
+    from sklearn.linear_model import Lasso, LogisticRegression, Ridge, RidgeClassifier
+    from sklearn.svm import SVR, LinearSVC
 
     shortcuts = {
+        # classification
         "svm": lambda: LinearSVC(dual="auto", max_iter=10000),
         "logistic": lambda: LogisticRegression(max_iter=1000),
-        "ridge": lambda: RidgeClassifier(),
         "lda": lambda: LinearDiscriminantAnalysis(),
+        "ridge_classifier": lambda: RidgeClassifier(),
+        # regression
+        "ridge": lambda: Ridge(),
+        "lasso": lambda: Lasso(),
+        "svr": lambda: SVR(),
     }
 
-    if isinstance(estimator, str):
-        if estimator not in shortcuts:
+    if isinstance(model, str):
+        if model not in shortcuts:
             raise ValueError(
-                f"Unknown estimator: '{estimator}'. "
-                f"Valid options: {list(shortcuts.keys())}"
+                f"Unknown model: {model!r}. Valid shortcuts: "
+                f"{sorted(shortcuts)}, or pass any sklearn estimator."
             )
-        return shortcuts[estimator]()
+        return shortcuts[model]()
 
-    # Validate sklearn API
-    if not hasattr(estimator, "fit") or not hasattr(estimator, "predict"):
+    if not (hasattr(model, "fit") and hasattr(model, "predict")):
         raise TypeError(
-            f"estimator must have fit() and predict() methods. "
-            f"Got: {type(estimator).__name__}"
+            f"model must be a string shortcut or an object with fit/predict; "
+            f"got {type(model).__name__}"
         )
+    return model
 
-    return estimator
+
+def resolve_scoring(scoring: str, classifier: bool) -> str:
+    """Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor)."""
+    if scoring == "auto":
+        return "accuracy" if classifier else "r2"
+    return scoring
 
 
-def mvpa_whole_brain(bd, X, y, pipe, cv, groups, scoring):
-    """Whole-brain MVPA - single accuracy across all voxels.
-
-    Legacy implementation using sklearn cross_val_score directly.
-    Kept for searchlight/ROI methods that still use sklearn pipelines.
-
-    Args:
-        bd: BrainData instance (unused, kept for API consistency).
-        X: Feature matrix, shape (n_samples, n_voxels).
-        y: Labels, shape (n_samples,).
-        pipe: sklearn pipeline or estimator.
-        cv: Cross-validation splitter.
-        groups: Group labels for CV.
-        scoring: Scoring metric string.
-
-    Returns:
-        np.ndarray with single mean accuracy value.
+def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
+    """Build a per-fold sklearn pipeline: optional StandardScaler → optional
+    PCA → model. If only the model is needed, returns the model itself.
     """
-    from sklearn.model_selection import cross_val_score
+    from sklearn.decomposition import PCA
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
 
-    scores = cross_val_score(pipe, X, y, cv=cv, groups=groups, scoring=scoring)
-    return np.array([np.mean(scores)])
-
-
-def mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize):
-    """Whole-brain MVPA using Pipeline infrastructure.
-
-    Delegates to the fluent pipeline API for whole-brain classification,
-    then extracts mean accuracy for backward compatibility.
-
-    Args:
-        bd: BrainData instance.
-        y: Labels to predict.
-        estimator: Estimator name ('svm', 'logistic', etc.).
-        cv: Cross-validation splitter or int.
-        groups: Group labels for CV.
-        standardize: Whether to z-score features.
-
-    Returns:
-        np.ndarray with single mean accuracy value.
-    """
-    # Map estimator names to Pipeline algorithm names
-    estimator_map = {
-        "svm": "svm",
-        "logistic": "logistic",
-        "ridge": "ridge",
-        "lda": "logistic",  # Approximate with logistic
-    }
-
-    # Get algorithm name (pass through if not in map)
-    if isinstance(estimator, str):
-        algorithm = estimator_map.get(estimator, estimator)
-    else:
-        # Custom estimator - fall back to legacy implementation
-        from sklearn.base import clone
-        from sklearn.model_selection import StratifiedKFold
-        from sklearn.pipeline import make_pipeline
-        from sklearn.preprocessing import StandardScaler
-
-        if isinstance(cv, int):
-            cv = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-        if standardize:
-            pipe = make_pipeline(StandardScaler(), clone(estimator))
-        else:
-            pipe = clone(estimator)
-        return mvpa_whole_brain(bd, bd.data, y, pipe, cv, groups, "accuracy")
-
-    # Build CV parameters from cv argument
-    if isinstance(cv, int):
-        k = cv
-    else:
-        # For sklearn CV objects, extract n_splits
-        k = getattr(cv, "n_splits", 5)
-
-    # Build and execute pipeline
-    pipeline = bd.cv(k=k, method="kfold", groups=groups)
-
-    # Add normalization if requested
+    steps = []
     if standardize:
-        pipeline = pipeline.normalize(method="zscore")
-
-    # Execute and get results
-    cv_result = pipeline.predict(y=y, algorithm=algorithm)
-
-    # Return mean accuracy as single-element array for backward compat
-    return np.array([cv_result.mean_score])
+        steps.append(StandardScaler())
+    if reduce == "pca":
+        steps.append(PCA(n_components=n_components))
+    steps.append(model)
+    return make_pipeline(*steps) if len(steps) > 1 else model
 
 
-def mvpa_searchlight(
-    bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
-):
-    """Searchlight MVPA - accuracy per voxel neighborhood.
+# ---------------------------------------------------------------------------
+# Whole-brain runner
+# ---------------------------------------------------------------------------
 
-    Args:
-        bd: BrainData instance.
-        X: Feature matrix, shape (n_samples, n_voxels).
-        y: Labels, shape (n_samples,).
-        pipe: sklearn pipeline or estimator.
-        cv: Cross-validation splitter.
-        groups: Group labels for CV.
-        scoring: Scoring metric string.
-        radius_mm: searchlight radius in mm.
-        n_jobs: Number of parallel jobs.
-        progress_bar: Whether to show progress bar.
 
-    Returns:
-        np.ndarray of accuracy values per voxel.
+def _run_whole_brain(X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
+    """Per-fold: fit pipe, score, predict OOF, extract weight_map."""
+    from sklearn.base import clone
+    from sklearn.metrics import check_scoring
+
+    n_samples = X.shape[0]
+    n_voxels = X.shape[1]
+    fold_scores: list[float] = []
+    fold_predictions = np.zeros(n_samples, dtype=float)
+    fold_idx_array = np.full(n_samples, -1, dtype=int)
+    fold_weight_maps: list[np.ndarray | None] = []
+
+    scorer = check_scoring(pipe, scoring=scoring)
+
+    for fold_idx, (train_idx, test_idx) in enumerate(_iter_split(cv, X, y, groups)):
+        fitted = clone(pipe).fit(X[train_idx], y[train_idx])
+        score = scorer(fitted, X[test_idx], y[test_idx])
+        fold_scores.append(float(score))
+        fold_predictions[test_idx] = fitted.predict(X[test_idx])
+        fold_idx_array[test_idx] = fold_idx
+        fold_weight_maps.append(_extract_weight_map(fitted, n_voxels))
+
+    scores = np.asarray(fold_scores, dtype=float)
+    weight_map, fold_weight_maps_arr = _aggregate_weight_maps(
+        fold_weight_maps, n_folds=len(fold_scores), n_voxels=n_voxels
+    )
+
+    final_estimator = None
+    final_weight_map = None
+    if refit:
+        final_estimator = clone(pipe).fit(X, y)
+        final_weight_map = _extract_weight_map(final_estimator, n_voxels)
+
+    return Predict(
+        predictions=fold_predictions,
+        scores=scores,
+        mean_score=float(scores.mean()),
+        std_score=float(scores.std()),
+        cv_folds=fold_idx_array,
+        weight_map=weight_map,
+        fold_weight_maps=fold_weight_maps_arr,
+        final_estimator=final_estimator,
+        final_weight_map=final_weight_map,
+    )
+
+
+def _iter_split(cv, X, y, groups):
+    """Wrap cv.split to handle splitters that ignore/require groups."""
+    try:
+        yield from cv.split(X, y, groups=groups)
+    except TypeError:
+        yield from cv.split(X, y)
+
+
+# ---------------------------------------------------------------------------
+# Weight-map extraction (with optional PCA back-projection)
+# ---------------------------------------------------------------------------
+
+
+def _extract_weight_map(fitted_pipe, n_voxels: int) -> np.ndarray | None:
+    """Extract a (n_voxels,) weight map from the fitted pipeline.
+
+    For multi-class linear classifiers, returns the mean across classes.
+    Back-projects through PCA when present. Returns None for non-linear
+    models (no .coef_) and emits a one-shot UserWarning.
     """
+    from sklearn.decomposition import PCA
+    from sklearn.pipeline import Pipeline
+
+    # Unwrap Pipeline / make_pipeline to find the final estimator and any
+    # preceding PCA.
+    if isinstance(fitted_pipe, Pipeline):
+        named = list(fitted_pipe.named_steps.values())
+    else:
+        named = [fitted_pipe]
+    final_est = named[-1]
+    pca_step = next((step for step in named[:-1] if isinstance(step, PCA)), None)
+
+    coef = getattr(final_est, "coef_", None)
+    if coef is None:
+        warnings.warn(
+            f"{type(final_est).__name__} has no .coef_ attribute; weight_map "
+            "is unavailable for non-linear models. Use a linear model "
+            "('svm', 'logistic', 'ridge_classifier', 'lda', 'ridge', 'lasso') "
+            "or compute permutation importances directly.",
+            UserWarning,
+            stacklevel=4,
+        )
+        return None
+
+    coef = np.asarray(coef)
+    # Collapse (n_classes, n_features) → (n_features,) by mean across classes.
+    if coef.ndim == 2:
+        coef = coef.mean(axis=0)
+    elif coef.ndim != 1:
+        return None
+
+    # Back-project through PCA if present: pca.components_.T @ coef
+    if pca_step is not None:
+        coef = pca_step.components_.T @ coef
+
+    if coef.shape[0] != n_voxels:
+        # Some estimators (e.g., SelectKBest pipelines) reduce feature count
+        # in ways we can't trivially reverse — bail out.
+        return None
+    return coef
+
+
+def _aggregate_weight_maps(
+    per_fold: list[np.ndarray | None], n_folds: int, n_voxels: int
+):
+    """Stack per-fold weight maps into (n_folds, n_voxels) and mean to
+    (n_voxels,). Returns (None, None) if any fold lacked a usable map.
+    """
+    if any(w is None for w in per_fold):
+        return None, None
+    stacked = np.vstack(per_fold)
+    if stacked.shape != (n_folds, n_voxels):
+        return None, None
+    return stacked.mean(axis=0), stacked
+
+
+# ---------------------------------------------------------------------------
+# Searchlight runner
+# ---------------------------------------------------------------------------
+
+
+def _run_searchlight(
+    bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
+) -> Predict:
+    """Per-voxel-neighborhood CV decoding. Returns Predict with accuracy_map."""
     from joblib import Parallel, delayed
     from sklearn.base import clone
     from sklearn.model_selection import cross_val_score
 
     from .neighborhoods import compute_searchlight_neighborhoods
 
-    # Get neighborhoods
     neighborhoods = compute_searchlight_neighborhoods(
         bd.mask, radius_mm=radius_mm, use_cache=True
     )
 
     def decode_sphere(center_idx, neighbor_indices):
-        """Decode within a single sphere."""
         X_sphere = X[:, neighbor_indices]
-        if X_sphere.shape[1] < 2:  # Skip tiny neighborhoods
+        if X_sphere.shape[1] < 2:
             return np.nan
         try:
             scores = cross_val_score(
                 clone(pipe), X_sphere, y, cv=cv, groups=groups, scoring=scoring
             )
-            return np.mean(scores)
+            return float(np.mean(scores))
         except Exception:
             return np.nan
 
-    # Collect all neighborhoods
     neighborhood_list = list(neighborhoods.iter_neighborhoods())
-
-    # Progress bar setup
     if progress_bar:
         try:
             from tqdm import tqdm
 
             neighborhood_list = list(
                 tqdm(
-                    neighborhood_list,
-                    desc="Searchlight",
-                    total=neighborhoods.n_voxels,
+                    neighborhood_list, desc="Searchlight", total=neighborhoods.n_voxels
                 )
             )
         except ImportError:
             pass
 
-    # Parallel execution
     if n_jobs == 1:
         accuracies = [decode_sphere(c, n) for c, n in neighborhood_list]
     else:
         accuracies = Parallel(n_jobs=n_jobs)(
             delayed(decode_sphere)(c, n) for c, n in neighborhood_list
         )
+    return Predict(accuracy_map=np.asarray(accuracies, dtype=float))
 
-    return np.array(accuracies)
+
+# ---------------------------------------------------------------------------
+# ROI runner
+# ---------------------------------------------------------------------------
 
 
-def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar):
-    """ROI-based MVPA - accuracy per ROI, projected to voxel space.
-
-    For each non-zero label in ``roi_mask``, uses all voxels within that ROI
-    as features for a cross-validated decoder. Returns a voxel-shaped array
-    where each voxel carries the accuracy of its containing ROI (voxels
-    outside any ROI are NaN).
-
-    Args:
-        bd: BrainData instance.
-        X: Feature matrix, shape (n_samples, n_voxels) — aligned to ``bd.mask``.
-        y: Labels, shape (n_samples,).
-        pipe: sklearn pipeline or estimator.
-        cv: Cross-validation splitter.
-        groups: Group labels for CV.
-        scoring: Scoring metric string.
-        roi_mask: Atlas/parcellation image or path. Resampled to ``bd.mask``
-            space with nearest-neighbor interpolation if needed.
-        n_jobs: Number of parallel jobs.
-        progress_bar: Whether to show progress bar.
-
-    Returns:
-        np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
-    """
+def _run_roi(
+    bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
+) -> Predict:
+    """Per-ROI CV decoding projected back to voxel space."""
     from pathlib import Path
 
     import nibabel as nib
@@ -535,10 +496,12 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
     from sklearn.base import clone
     from sklearn.model_selection import cross_val_score
 
+    if roi_mask is None:
+        raise ValueError("roi_mask required for method='roi'")
+
     if isinstance(roi_mask, (str, Path)):
         roi_mask = nib.load(roi_mask)
 
-    # Align roi_mask to bd.mask (nearest-neighbor for integer labels)
     if roi_mask.shape != bd.mask.shape or not np.allclose(
         roi_mask.affine, bd.mask.affine
     ):
@@ -550,8 +513,7 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
             copy_header=True,
         )
 
-    # Extract labels at the same voxels that bd.data indexes
-    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)  # (n_voxels,)
+    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)
     unique_labels = np.unique(label_vec)
     unique_labels = unique_labels[unique_labels != 0]
 
@@ -584,8 +546,7 @@ def mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
             delayed(decode_roi)(label) for label in iterator
         )
 
-    # Project ROI accuracies back to voxel space
     out = np.full(label_vec.shape, np.nan, dtype=float)
     for roi_label, acc in zip(unique_labels, per_roi):
         out[label_vec == roi_label] = acc
-    return out
+    return Predict(accuracy_map=out)

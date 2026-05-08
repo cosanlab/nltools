@@ -1,86 +1,13 @@
 """
 BrainData modeling functions.
 
-Standalone functions extracted from BrainData class methods for model fitting,
-cross-validation, GLM estimation, Ridge regression, and contrast computation.
+Standalone functions extracted from BrainData class methods for model
+fitting, GLM estimation, Ridge regression, and contrast computation.
 """
 
 import numpy as np
 
 from .utils import shallow_copy
-
-
-def cv(
-    bd,
-    k=None,
-    method="kfold",
-    split_by=None,
-    groups=None,
-    n=1000,
-    random_state=None,
-):
-    """Create a cross-validation pipeline for this BrainData.
-
-    Returns a Pipeline object that enables fluent, chainable transforms
-    with cross-validation. Terminal methods like .predict() execute the
-    pipeline and return results.
-
-    Args:
-        bd: BrainData instance.
-        k: Number of folds (for kfold method). Defaults to 5.
-        method: CV scheme type. Options:
-            - 'kfold': k-fold cross-validation (default)
-            - 'loro': leave-one-run-out (requires split_by='runs' or groups)
-            - 'bootstrap': bootstrap with out-of-bag test sets
-        split_by: Attribute name for group splits (e.g., 'runs').
-            If provided and groups is None, will try to get groups from
-            bd.X[split_by] if bd.X is a DataFrame.
-        groups: Explicit group labels for CV splits.
-        n: Number of iterations for bootstrap/permutation methods. Default 1000.
-        random_state: Random seed for reproducibility.
-
-    Returns:
-        BrainDataPipeline: A pipeline object for method chaining.
-
-    Examples:
-        >>> # Simple 5-fold CV with prediction
-        >>> result = brain.cv(k=5).predict(y, algorithm='ridge')
-        >>> print(f"Mean score: {result.mean_score:.3f}")
-
-        >>> # With preprocessing
-        >>> result = (brain
-        ...     .cv(k=5)
-        ...     .normalize()
-        ...     .reduce(n_components=50)
-        ...     .predict(y))
-
-        >>> # Leave-one-run-out CV
-        >>> result = brain.cv(method='loro', groups=run_labels).predict(y)
-
-    See Also:
-        BrainDataPipeline: For available transforms and terminal methods.
-        CVScheme: For CV scheme configuration details.
-    """
-    from nltools.pipelines.cv import CVScheme
-    from nltools.data.braindata.pipeline import BrainDataPipeline
-
-    # Handle split_by -> groups conversion
-    if groups is None and split_by is not None:
-        if hasattr(bd, "X") and bd.X is not None:
-            if hasattr(bd.X, "__getitem__") and split_by in bd.X:
-                groups = np.array(bd.X[split_by])
-
-    # Create CV scheme (CVScheme retains internal `scheme=` parameter name)
-    cv_scheme = CVScheme(
-        k=k,
-        scheme=method,
-        split_by=split_by,
-        n=n,
-        random_state=random_state,
-    )
-
-    # Create and return pipeline
-    return BrainDataPipeline(bd, cv=cv_scheme, groups=groups)
 
 
 def fit(

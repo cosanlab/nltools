@@ -12,7 +12,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Import paths** | `nltools.file_reader`, `nltools.simulator`, `nltools.external` | `nltools.io`, `nltools.data`, `nltools.algorithms` | **Moved** |
 | **GLM regression** | `.regress()` | `.fit(model='glm')` | **Deprecated (shim still works)** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
-| **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` | `.predict(X=…, y=…, method=…, estimator=…, cv=…, radius_mm=…)` | Unified API |
+| **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, method=…, model=…, cv=…, refit=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
@@ -650,7 +650,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
 | `.regress()` | `.fit(model='glm', X=design_matrix)` — deprecated shim still works, just emits a `DeprecationWarning` | **Low** |
-| `.predict(algorithm='svm')` | `.predict(y=labels, method=…, estimator='svm', …)` (updated API) | **Low** |
+| `.predict(algorithm='svm')` | `.predict(y=labels, method=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. See [Pattern 4](#pattern-4-machine-learning-classificationregression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
@@ -846,33 +846,39 @@ best_alpha = brain_data.cv_results_['best_alpha']
 ```python
 brain_data.Y = labels
 results = brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5})
+weight_map = results['weight_map']
+mean_acc = results['mcr_all'].mean()
 ```
 
 **After (v0.6.0):**
 ```python
-# Option 1: Use the unified .predict() API (recommended)
-# Timeseries prediction (encoding models)
-brain_data.predict(X=features, method='ridge', cv=5)
+# Unified MVPA API — returns a frozen `Predict` dataclass.
+result = brain_data.predict(y=labels, method='whole_brain', model='svm', cv=5)
+result.weight_map      # mean classifier coefs across folds, shape (n_voxels,)
+result.fold_weight_maps  # per-fold coefs, shape (n_folds, n_voxels)
+result.scores          # per-fold scores, shape (n_folds,)
+result.mean_score      # mean accuracy across folds (float)
+result.predictions     # OOF predictions in original sample order
+result.available()     # list non-None fields
 
-# MVPA decoding
-brain_data.predict(y=labels, method='svm', cv=5)
-
-# Option 2: Use sklearn directly (full flexibility)
-from sklearn.svm import SVC
-from sklearn.model_selection import cross_validate
-
-X = brain_data.data  # (n_samples, n_voxels)
-y = labels           # Manage separately
-clf = SVC(kernel='linear')
-cv_results = cross_validate(clf, X, y, cv=5)
+# Refit on full data for a single publishable map (instead of per-fold mean)
+result = brain_data.predict(y=labels, refit=True)
+result.final_weight_map  # weight map from full-data fit
+result.final_estimator   # the fitted sklearn estimator
 ```
 
 | Aspect | Old | New | Reason |
 |--------|-----|-----|--------|
-| API | `algorithm=` keyword | `method=` or `estimator=` | Clearer naming |
+| API | `algorithm=` | `model=` | Mirrors `bd.fit(model=)`; v0.6.0 convention |
+| Classifier shortcuts | `'svm'`, `'logistic'`, `'ridge'`, `'lda'` | `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'` (classification); `'ridge'`, `'lasso'`, `'svr'` (regression) | `'ridge'` was ambiguous; classification variant renamed |
 | CV | `cv_dict=` | `cv=` (int or sklearn splitter) | Simpler |
+| Scoring | hardcoded | `scoring='auto'` (→ `'accuracy'` for classifiers, `'r2'` for regressors) or any sklearn scoring string | More flexible |
 | Label storage | `.Y` attribute | `y=` argument | Explicit |
-| Fallback | N/A | Direct sklearn | Full flexibility |
+| Custom transforms | `brain.cv(k).normalize().reduce().pipe(t).predict()` (fluent) | Pass `model=make_pipeline(StandardScaler(), MyXform(), SVC())` | Standard sklearn pattern, no separate API to learn |
+| Return type | dict (`weight_map`, `mcr_all`, …) | `Predict` dataclass | Frozen, introspectable via `.available()` / `.asdict()` |
+| Weight map | top-level dict key | `result.weight_map` | Always present for linear models |
+
+**Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. Multi-subject hyperalignment / SRM still use a fluent pipeline on `BrainCollection` — that surface is unchanged.
 
 ---
 
@@ -1268,8 +1274,8 @@ A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollecti
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.predict`, `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.predict`, `BrainCollection.align` and the ICC/permutation helpers. The fluent pipeline (`brain.cv(k).predict(y, algorithm=…)`) keeps `algorithm` — that stays the model selector inside an already-method-scoped pipeline call. |
-| Classifier / sklearn estimator | — (was also `algorithm=`) | `estimator` | `BrainData.predict`, `BrainCollection.predict` |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.predict` (selecting `'whole_brain'`/`'searchlight'`/`'roi'`), `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.predict`, `BrainCollection.align` and the ICC/permutation helpers. |
+| Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | All four facades and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
 | Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainCollection.isc`, `.isc_test`, `.predict`, `.align`; `BrainData.predict` (searchlight), `BrainData.plot_flatmap`; `nltools.plotting.plot_surface`, `plot_flatmap`. The returned info dict from `_extract_for_isc` also renames `"radius"` → `"radius_mm"`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
 | Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations` (the rest of the facade and `BrainCollection.isc_test` / `permutation_test` / `permutation_test2` already used `n_permute`). `BrainCollection.align`'s `n_iter` stays — optimizer iterations, not permutations. |
@@ -1290,7 +1296,7 @@ adj.generate_permutations(n_perm=1000)
 adj.similarity(other, ignore_diagonal=True)  # old: include the diagonal
 
 # NEW
-brain.predict(y=labels, method='searchlight', estimator='svm', cv=5, radius_mm=10)
+brain.predict(y=labels, method='searchlight', model='svm', cv=5, radius_mm=10)
 brain.decompose(method='ica', n_components=20, axis='images', whiten=True)
 brain.plot(method='glass', upper=2.3, lower=-2.3)
 bc.isc(radius_mm=6.0, device='gpu', progress_bar=True)
@@ -1500,7 +1506,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 | `stats.py` | Function deprecated | `two_sample_permutation()` | `two_sample_permutation_test()` | Import from `inference` module |
 | `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
-| `BrainData.predict()` | API changed | `algorithm=`, `cv_dict=` | `method=`, `cv=` | Update keywords |
+| `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `model=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `model=Pipeline(...)` for custom transforms |
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
 | Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
 | Return keys | Key renamed | `null_dist` | `null_distribution` | Wrapper handles mapping |
@@ -1660,7 +1666,7 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 |---------|--------|-----------------|
 | HDF5 files from v0.5.1 (deepdish/PyTables) | ✅ Fully compatible (read path restored via h5py + hdf5plugin; no PyTables dependency) | None |
 | `.regress()` | ⚠️ Deprecated shim | Update to `.fit(model='glm')` to silence warning |
-| `.predict()` | ⚠️ API changed | Update `algorithm=` → `method=/estimator=`, `cv_dict=` → `cv=`, `radius=` → `radius_mm=` |
+| `.predict()` | ⚠️ API + return type changed | Update `algorithm=` → `model=`, `cv_dict=` → `cv=`, `radius=` → `radius_mm=`. Result is a `Predict` dataclass — replace `result['weight_map']` with `result.weight_map`. Fluent `brain.cv(...).predict(...)` removed. |
 | `.decompose()` | ⚠️ Kwargs changed | Update `algorithm=` → `method=`; signature is now keyword-only after `self` |
 | `BrainData.ttest()` | ⚠️ Signature changed | Old `threshold_dict=` kwarg gone; use `popmean=`, `permutation=`, `tail=`, `n_permute=` |
 | `.X` and `.Y` attributes | ✅ Still work | Prefer passing `X=` to `.fit()` directly |
@@ -1699,14 +1705,35 @@ with warnings.catch_warnings():
 ### Step 2: Update Predict API
 ```python
 # OLD (v0.5.1)
-brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5}, radius=10)
+results = brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5}, radius=10)
+weight_map = results['weight_map']
 
-# NEW (v0.6.0) — updated keyword names
+# NEW (v0.6.0) — updated keyword names + Predict dataclass return
 # `method` selects the prediction *mode* (whole_brain / roi / searchlight);
-# `estimator` selects the sklearn algorithm.
-brain_data.predict(y=labels, method='whole_brain', estimator='svm', cv=5)
-brain_data.predict(y=labels, method='searchlight', estimator='ridge', radius_mm=10, cv=5)
+# `model` selects the sklearn algorithm (mirrors bd.fit(model=)).
+result = brain_data.predict(y=labels, method='whole_brain', model='svm', cv=5)
+result.weight_map        # mean coefs across folds, shape (n_voxels,)
+result.scores            # per-fold scores
+result.mean_score        # mean across folds
+
+# Searchlight — populates accuracy_map (no weight_map; per-sphere classifiers)
+result = brain_data.predict(y=labels, method='searchlight',
+                            model='ridge_classifier', radius_mm=10, cv=5)
+result.accuracy_map      # voxel-shaped accuracy
+
+# Note: 'ridge' is regression-only; for classification use 'ridge_classifier'.
+# scoring='auto' (default) → 'accuracy' for classifiers, 'r2' for regressors.
+
+# Custom preprocessing chain — pass a sklearn Pipeline as model=
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import SelectKBest
+from sklearn.svm import LinearSVC
+pipe = make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())
+result = brain_data.predict(y=labels, model=pipe, standardize=False)
 ```
+
+The fluent API `brain.cv(k=5).normalize().reduce().pipe(t).predict(y, algorithm=…)` has been **removed** from `BrainData`. All four steps fold into kwargs on `bd.predict()` (`cv=`, `standardize=`, `reduce='pca'`, `n_components=`, `model=`). Multi-subject pipelines on `BrainCollection` (hyperalignment / SRM) keep their fluent API — that's where chaining still earns its keep.
 
 ### Step 3: Check for Deprecation Warnings
 ```python
