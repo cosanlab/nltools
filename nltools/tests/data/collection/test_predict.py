@@ -246,13 +246,24 @@ class TestCVPipeline:
         # And confirm the old name is gone from the public surface.
         assert not hasattr(bc_inmem.cv(method="loso"), "normalize")
 
-    @pytest.mark.xfail(
-        reason="pipeline.predict still returns BrainCollectionCVResult; the "
-        "BrainData adapter is part of the pipeline-refactor task",
-        strict=False,
-    )
     def test_cv_predict_returns_braindata(self, bc_inmem):
         """SPEC §942: bc.cv(...).predict(...) returns the same BrainData type."""
         out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
         assert isinstance(out, BrainData)
         assert hasattr(out, "cv_scores")
+        assert hasattr(out, "mean_score")
+        n_folds = bc_inmem.n_subjects
+        assert out.cv_scores.shape == (n_folds,)
+        # cv_predictions is (n_total_obs, n_voxels); n_voxels == 27 from tiny_mask.
+        assert out.cv_predictions.ndim == 2
+        assert out.cv_predictions.shape[1] == 27
+        assert isinstance(out.mean_score, float)
+
+    def test_pipeline_predict_braindata_carries_full_lineage(self, bc_inmem):
+        """fold_results must preserve test_idx/train_idx/predictions for inspection."""
+        out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
+        assert isinstance(out.fold_results, list)
+        assert len(out.fold_results) > 0
+        keys = out.fold_results[0]
+        for required in ("test_idx", "train_idx", "predictions"):
+            assert required in keys

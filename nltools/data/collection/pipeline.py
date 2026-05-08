@@ -1,8 +1,10 @@
 """Pipeline classes for BrainCollection.
 
 Provides BrainCollectionPipeline for fluent pipeline API with cross-validation,
-BrainCollectionCVResult for storing CV results, and FittedBrainCollection for
-chaining pool() after fit().
+and FittedBrainCollection for chaining pool() after fit(). CV-aware
+``predict()`` returns a ``BrainData`` with CV attributes attached
+(``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+``fold_results``, ``cv_pipeline``).
 """
 
 from __future__ import annotations
@@ -134,7 +136,7 @@ class BrainCollectionPipeline:
 
         return self._add_step(PipeStep(transformer=transformer))
 
-    def predict(self, y, algorithm: str = "ridge", **kwargs) -> BrainCollectionCVResult:
+    def predict(self, y, algorithm: str = "ridge", **kwargs):
         """Execute pipeline with CV and return prediction results.
 
         Args:
@@ -143,7 +145,9 @@ class BrainCollectionPipeline:
             **kwargs: Passed to model constructor.
 
         Returns:
-            Cross-validation results with scores and predictions.
+            ``BrainData`` carrying out-of-fold predictions plus CV attributes
+            (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+            ``fold_results``, ``cv_pipeline``).
 
         Raises:
             ValueError: If no CV context is set or if non-LOSO CV is used without groups.
@@ -155,8 +159,7 @@ class BrainCollectionPipeline:
         y = np.asarray(y)
 
         # Get data as list of numpy arrays
-        brain_data_list = self._bc.to_list()
-        subject_data = [bd.data for bd in brain_data_list]
+        subject_data = [bd.data for bd in self._bc]
 
         if self._cv.is_loso:
             return self._execute_loso(subject_data, y, algorithm, kwargs)
@@ -164,7 +167,7 @@ class BrainCollectionPipeline:
 
     def _execute_loso(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> BrainCollectionCVResult:
+    ):
         """Execute leave-one-subject-out CV.
 
         Args:
@@ -174,7 +177,7 @@ class BrainCollectionPipeline:
             model_kwargs: Kwargs passed to model constructor.
 
         Returns:
-            Cross-validation results.
+            ``BrainData`` with CV attributes attached.
         """
         from nltools.pipelines.base import FittedStack
 
@@ -244,11 +247,24 @@ class BrainCollectionPipeline:
                 }
             )
 
-        return BrainCollectionCVResult(results, self)
+        # Stitch held-out predictions into (n_total_obs, n_voxels) in
+        # original subject order. Each fold's predictions correspond to a
+        # contiguous slice of the pooled data.
+        obs_per_subj = [s.shape[0] for s in subject_data]
+        cumsum = np.cumsum([0] + obs_per_subj)
+        n_total_obs = cumsum[-1]
+        n_voxels = subject_data[0].shape[1] if subject_data[0].ndim == 2 else 1
+        cv_predictions = np.zeros((n_total_obs, n_voxels), dtype=np.float64)
+        for r in results:
+            held = r["held_out_subject"]
+            preds = np.asarray(r["predictions"]).reshape(obs_per_subj[held], -1)
+            cv_predictions[cumsum[held] : cumsum[held + 1]] = preds
+
+        return self._make_cv_braindata(results, cv_predictions)
 
     def _execute_pooled_cv(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
-    ) -> BrainCollectionCVResult:
+    ):
         """Execute CV on pooled data.
 
         Args:
@@ -305,7 +321,34 @@ class BrainCollectionPipeline:
                 }
             )
 
-        return BrainCollectionCVResult(results, self)
+        # Stitch held-out predictions back into original pooled order.
+        n_total_obs = pooled_data.shape[0]
+        n_voxels = pooled_data.shape[1] if pooled_data.ndim == 2 else 1
+        cv_predictions = np.zeros((n_total_obs, n_voxels), dtype=np.float64)
+        for r in results:
+            preds = np.asarray(r["predictions"]).reshape(len(r["test_idx"]), -1)
+            cv_predictions[r["test_idx"]] = preds
+
+        return self._make_cv_braindata(results, cv_predictions)
+
+    def _make_cv_braindata(self, results: list, cv_predictions: np.ndarray):
+        """Wrap CV fold results as a ``BrainData`` with CV attrs attached.
+
+        The CV attributes mirror what ``BrainData.predict(...)`` exposes so
+        the same downstream consumers work for both single-subject and
+        BrainCollection CV paths.
+        """
+        from nltools.data.braindata import BrainData
+
+        cv_scores = np.array([r["score"] for r in results], dtype=np.float64)
+        bd = BrainData(cv_predictions.astype(np.float32), mask=self._bc._mask)
+        bd.cv_scores = cv_scores
+        bd.cv_predictions = cv_predictions
+        bd.mean_score = float(cv_scores.mean()) if cv_scores.size else 0.0
+        bd.std_score = float(cv_scores.std()) if cv_scores.size else 0.0
+        bd.fold_results = results
+        bd.cv_pipeline = self
+        return bd
 
     def _get_model(self, algorithm: str, kwargs: dict):
         """Get sklearn model instance.
@@ -345,56 +388,6 @@ class BrainCollectionPipeline:
     def __repr__(self):
         """Return string representation."""
         return f"BrainCollectionPipeline(n_subjects={self.n_subjects}, n_steps={self.n_steps})"
-
-
-class BrainCollectionCVResult:
-    """Cross-validation results for BrainCollection pipelines.
-
-    Contains fold-by-fold results from cross-validated prediction,
-    with convenience properties for accessing scores and predictions.
-
-    Attributes:
-        fold_results: List of dictionaries with per-fold results.
-        pipeline: The pipeline that generated these results.
-        scores: Per-fold prediction scores.
-        mean_score: Mean score across all folds.
-        std_score: Standard deviation of scores.
-        n_folds: Number of CV folds.
-    """
-
-    def __init__(self, fold_results: list, pipeline: BrainCollectionPipeline):
-        """Initialize CV results.
-
-        Args:
-            fold_results: List of fold result dictionaries.
-            pipeline: The pipeline that generated these results.
-        """
-        self.fold_results = fold_results
-        self.pipeline = pipeline
-
-    @property
-    def scores(self) -> np.ndarray:
-        """Per-fold prediction scores as a numpy array."""
-        return np.array([f["score"] for f in self.fold_results])
-
-    @property
-    def mean_score(self) -> float:
-        """Mean score across folds."""
-        return float(self.scores.mean())
-
-    @property
-    def std_score(self) -> float:
-        """Standard deviation of scores."""
-        return float(self.scores.std())
-
-    @property
-    def n_folds(self) -> int:
-        """Number of cross-validation folds."""
-        return len(self.fold_results)
-
-    def __repr__(self):
-        """Return string representation."""
-        return f"BrainCollectionCVResult(n_folds={self.n_folds}, mean_score={self.mean_score:.4f})"
 
 
 class FittedBrainCollection:
