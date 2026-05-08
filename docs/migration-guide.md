@@ -656,6 +656,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
+| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'surface', bg_img=…)` — *rebuilt* on `anywidget` (no `ipywidgets` extra needed). 4D BrainData now gets a volume-step slider + threshold slider in one widget. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Low** |
 
 :::{note}
 `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
@@ -680,7 +681,43 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 
 ## Migration Patterns
 
-### Pattern 1: regress() Deprecated → Use fit(model='glm')
+(interactive-viewing)=
+### Pattern 0: Interactive viewing (`iplot`) — Rebuilt API
+
+**Status**: 🔧 **REBUILT** — `BrainData.iplot()` is back, now backed by [anywidget](https://anywidget.dev) instead of the legacy `ipywidgets` viewer. The new widget renders the same way in Jupyter, marimo, VS Code, and Jupyter Book v2 / mystmd built sites.
+
+**What changed:**
+
+| | v0.5.1 | v0.6.0 |
+|---|---|---|
+| Engine | `ipywidgets` + manual JS | `anywidget` (single ESM bundle, runs everywhere) |
+| Surface plot kwarg | `surface=True` | `view='surface'` (canonical with `view='ortho'` default) |
+| Background image kwarg | `anatomical=` | `bg_img=` (matches nilearn) |
+| 4D handling | Volume slider via `ipywidgets.IntSlider` | Volume slider built into the widget; auto-shown when 4D |
+| Threshold control | Numeric `FloatText` widget | Range slider over `[0, max(abs(data))]` |
+| Optional install | `nltools[interactive_plots]` (extra) | Bundled — `anywidget` is now a hard dep |
+
+**Before (v0.5.1):**
+```python
+bd.iplot()                    # interactive ortho viewer
+bd.iplot(surface=True)        # surface viewer
+bd.iplot(anatomical=anat)     # custom background
+```
+
+**After (v0.6.0):**
+```python
+bd.iplot()                    # interactive ortho viewer with threshold slider
+bd.iplot(view='surface')      # surface viewer
+bd.iplot(bg_img=anat)         # custom background
+
+# 4D BrainData: same call, widget grows a volume-step slider automatically
+stack = BrainData([f1, f2, f3, f4, f5])
+stack.iplot()                 # threshold slider + volume slider
+```
+
+The widget honors the standard `application/vnd.jupyter.widget-view+json` mimebundle, so it stays interactive when the dartbrains tutorials are rendered into Jupyter Book v2 / mystmd built sites — no static-snapshot fallback needed.
+
+
 
 **Status**: ⚠️ **DEPRECATED** — `.regress()` still works in v0.6.0 as a thin shim that delegates to `.fit(model='glm')` (kept for backward compatibility with dartbrains and older notebooks). It will be removed in a future release.
 

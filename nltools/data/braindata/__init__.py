@@ -1214,6 +1214,62 @@ class BrainData:
             save=save,
         )
 
+    def iplot(
+        self,
+        *,
+        view: str = "ortho",
+        threshold: float | None = None,
+        bg_img=None,
+        cut_coords=None,
+        cmap: str | None = None,
+        symmetric_cmap: bool = True,
+        **kwargs,
+    ):
+        """Interactive HTML viewer with threshold slider (and volume slider for 4D).
+
+        Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
+        ortho or surface viewer. Renders inline in Jupyter, marimo, and
+        Jupyter Book v2 / mystmd built sites.
+
+        Args:
+            view: ``"ortho"`` (default, uses ``nilearn.view_img``) or
+                ``"surface"`` (uses ``nilearn.view_img_on_surf``).
+            threshold: Initial threshold for the viewer slider. The slider
+                range is ``[0, max(abs(data))]``. Defaults to 0 (effectively
+                unthresholded).
+            bg_img: Background image (ortho only). Defaults to nilearn's MNI152.
+            cut_coords: Initial cut coordinates (ortho only).
+            cmap: Colormap name.
+            symmetric_cmap: Whether the colormap is symmetric around zero.
+            **kwargs: Forwarded to ``nilearn.view_img`` /
+                ``nilearn.view_img_on_surf``.
+
+        Returns:
+            BrainViewerWidget
+        """
+        from .widgets import BrainViewerWidget
+
+        view_kwargs: dict = {}
+        if view == "ortho":
+            view_kwargs.update(
+                bg_img=bg_img if bg_img is not None else "MNI152",
+                cut_coords=cut_coords,
+                cmap=cmap if cmap is not None else "RdBu_r",
+                symmetric_cmap=symmetric_cmap,
+            )
+        else:  # surface
+            if cmap is not None:
+                view_kwargs["cmap"] = cmap
+            view_kwargs["symmetric_cmap"] = symmetric_cmap
+        view_kwargs.update(kwargs)
+
+        return BrainViewerWidget(
+            self,
+            view=view,
+            threshold=threshold,
+            **view_kwargs,
+        )
+
     def predict(
         self,
         X: "np.ndarray | None" = None,

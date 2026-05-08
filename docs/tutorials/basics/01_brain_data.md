@@ -272,3 +272,22 @@ brains.plot(method="timeseries", figsize=(6,4));
 ```{code-cell} python3
 mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsize=(6,4));
 ```
+
+### Interactive Viewer
+
+`BrainData.iplot()` returns an interactive HTML viewer (an [`anywidget`](https://anywidget.dev) wrapping `nilearn.view_img` / `view_img_on_surf`). Drag through ortho slices, adjust the threshold slider, and — for 4D data — step through volumes with the volume slider that appears automatically.
+
+```{code-cell} python3
+# 3D: ortho viewer + threshold slider
+masked_data.iplot()
+```
+
+```{code-cell} python3
+# 4D: same call adds a volume slider
+brains[:10].iplot()
+```
+
+```{code-cell} python3
+# Surface viewer (rotate/zoom in 3D)
+masked_data.iplot(view="surface")
+```
