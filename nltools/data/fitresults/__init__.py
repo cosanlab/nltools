@@ -295,13 +295,17 @@ class Predict:
     Field shapes by dispatch:
 
     **method='whole_brain'** (with ``y``):
-        - ``predictions``: ``(n_samples,)`` ndarray, OOF predictions
+        - ``predictions``: ``(n_samples,)`` ndarray, OOF predictions from CV
         - ``scores``: ``(n_folds,)`` ndarray, per-fold score
-        - ``mean_score``: float
-        - ``std_score``: float
+        - ``mean_score``: float, mean across folds
+        - ``std_score``: float, std across folds
         - ``cv_folds``: ``(n_samples,)`` ndarray, fold index per sample
-        - ``weight_map``: BrainData ``(1, n_voxels)``, mean across folds
-        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``
+        - ``weight_map``: BrainData ``(1, n_voxels)``, ``coef_`` from one
+          model fit on the **full** ``(X, y)``. The publishable map.
+        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``, per-fold
+          ``coef_`` stack — for stability analysis (e.g., across-fold std).
+        - ``estimator``: the fitted all-data sklearn estimator (use for
+          ``.predict()`` on new data).
 
     **method='roi'** (with ``y``):
         - ``scores``: ``(n_folds, n_rois)`` ndarray
@@ -316,13 +320,17 @@ class Predict:
         - ``accuracy_map``: BrainData ``(1, n_voxels)``, sphere-centered
           accuracy at each voxel
 
-    **refit=True** (whole_brain only):
-        - ``final_estimator``: fitted sklearn estimator
-        - ``final_weight_map``: BrainData ``(1, n_voxels)``
-
     Note: encoding-model timeseries prediction (``bd.predict(X=...)``) returns
     a ``BrainData`` directly, not a ``Predict`` — the natural container for a
     voxel timeseries.
+
+    Why the all-data fit is canonical: the CV mean of per-fold ``coef_``
+    vectors doesn't correspond to any actual fitted estimator (each fold
+    saw a different subset). The all-data refit is a single, real model
+    with all the information used. CV gives the honest *score*; the refit
+    gives the publishable *map*. ``fold_weight_maps`` is still exposed for
+    stability analysis, and the CV-mean is one line away if you want it
+    (``fold_weight_maps.data.mean(axis=0)``).
 
     Methods
     -------
@@ -344,12 +352,11 @@ class Predict:
 
     # Brain-space maps — BrainData when populated by the runners
     accuracy_map: Any = None  # BrainData
-    weight_map: Any = None  # BrainData
-    fold_weight_maps: Any = None  # BrainData
+    weight_map: Any = None  # BrainData (all-data fit, the publishable map)
+    fold_weight_maps: Any = None  # BrainData (per-fold stack, stability analysis)
 
-    # refit=True
-    final_estimator: Any = None
-    final_weight_map: Any = None  # BrainData
+    # All-data fitted estimator (whole_brain only)
+    estimator: Any = None
 
     def available(self) -> list:
         """Return names of non-None fields (excludes private)."""

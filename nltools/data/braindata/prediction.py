@@ -33,7 +33,6 @@ def predict(
     reduce: str | None = None,
     n_components: int | None = None,
     scoring: str = "auto",
-    refit: bool = False,
     groups=None,
     roi_mask=None,
     radius_mm: float = 10.0,
@@ -61,7 +60,6 @@ def predict(
             reduce=reduce,
             n_components=n_components,
             scoring=scoring,
-            refit=refit,
             groups=groups,
             roi_mask=roi_mask,
             radius_mm=radius_mm,
@@ -157,7 +155,6 @@ def predict_mvpa(
     reduce: str | None,
     n_components: int | None,
     scoring: str,
-    refit: bool,
     groups,
     roi_mask,
     radius_mm: float,
@@ -201,9 +198,7 @@ def predict_mvpa(
     X_data = bd.data  # (n_samples, n_voxels)
 
     if method == "whole_brain":
-        result = _run_whole_brain(
-            bd, X_data, y, pipe, cv_splitter, groups, scoring, refit
-        )
+        result = _run_whole_brain(bd, X_data, y, pipe, cv_splitter, groups, scoring)
     elif method == "searchlight":
         result = _run_searchlight(
             bd,
@@ -327,8 +322,16 @@ def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
 # ---------------------------------------------------------------------------
 
 
-def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring, refit: bool) -> Predict:
-    """Per-fold: fit pipe, score, predict OOF, extract weight_map."""
+def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring) -> Predict:
+    """Cross-validated scoring + final fit on all data.
+
+    The CV loop produces honest scores and out-of-fold predictions. Per-fold
+    ``coef_`` vectors are stacked into ``fold_weight_maps`` for stability
+    analysis but are *not* used for the canonical ``weight_map`` — that
+    comes from a single fit on the full ``(X, y)`` (a real estimator, not
+    an aggregation of K different fold models). The CV-mean of weights is
+    one line away if anyone wants it: ``fold_weight_maps.data.mean(axis=0)``.
+    """
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
@@ -350,15 +353,14 @@ def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring, refit: bool) -> Predic
         fold_weight_maps.append(_extract_weight_map(fitted, n_voxels))
 
     scores = np.asarray(fold_scores, dtype=float)
-    weight_map_arr, fold_weight_maps_arr = _aggregate_weight_maps(
+    _, fold_weight_maps_arr = _aggregate_weight_maps(
         fold_weight_maps, n_folds=len(fold_scores), n_voxels=n_voxels
     )
 
-    final_estimator = None
-    final_weight_map_arr = None
-    if refit:
-        final_estimator = clone(pipe).fit(X, y)
-        final_weight_map_arr = _extract_weight_map(final_estimator, n_voxels)
+    # Always refit on all data — gives a single legitimate estimator and the
+    # canonical weight_map for publication / interpretation. Cost: +1 fit.
+    estimator = clone(pipe).fit(X, y)
+    weight_map_arr = _extract_weight_map(estimator, n_voxels)
 
     return Predict(
         predictions=fold_predictions,
@@ -368,8 +370,7 @@ def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring, refit: bool) -> Predic
         cv_folds=fold_idx_array,
         weight_map=_to_braindata(weight_map_arr, bd.mask),
         fold_weight_maps=_to_braindata(fold_weight_maps_arr, bd.mask),
-        final_estimator=final_estimator,
-        final_weight_map=_to_braindata(final_weight_map_arr, bd.mask),
+        estimator=estimator,
     )
 
 

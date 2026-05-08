@@ -83,7 +83,6 @@ result_wb = trials.predict(
     method="whole_brain",
     model="svm",
     cv=5,
-    refit=True,
 )
 print("Populated fields:", result_wb.available())
 ```
@@ -112,7 +111,7 @@ fig
 
 ### Where does the signal live? — the weight map
 
-For linear classifiers, `weight_map` is the **mean of per-fold `.coef_` vectors, projected back to voxel space**. It's already a `BrainData` (same mask as `trials`), so `.plot()` just works:
+`weight_map` is the publishable map: a `BrainData` of `.coef_` from a single classifier fit on **all** the data, after CV scored its generalization. Cross-validation tells you how well the model generalizes; the all-data fit gives you the model itself, with nothing held out. Same mask as `trials`, so `.plot()` just works:
 
 ```{code-cell} python
 result_wb.weight_map.plot(
@@ -127,7 +126,7 @@ result_wb.weight_map.plot(
 
 ### How stable is the map across folds?
 
-`fold_weight_maps` holds one weight vector per fold — a `BrainData` with `(n_folds, n_voxels)` data. Voxels whose sign and magnitude are consistent across folds are the trustworthy ones. A simple stability proxy is the across-fold standard deviation — low values = consistent voxel:
+The all-data fit is the publishable estimate, but it doesn't tell you *whether the same voxels would have been weighted similarly* on a different subset of trials. `fold_weight_maps` is the stack of per-fold `.coef_` vectors — a `BrainData` of shape `(n_folds, n_voxels)` — and the across-fold standard deviation is a quick stability proxy: low values mean the voxel's contribution is robust across CV splits.
 
 ```{code-cell} python
 fold_std = result_wb.fold_weight_maps.data.std(axis=0)
@@ -140,17 +139,13 @@ stability.plot(
 )
 ```
 
-### The single map you'd publish — `final_weight_map`
+### Applying the trained model to new data
 
-With `refit=True`, `predict()` runs the cross-validation **and** fits a final estimator on *all* the data. `final_estimator` is the sklearn estimator; `final_weight_map` is its coefficients projected back to voxel space (also a `BrainData`). This is the right "headline" map: CV gave us an honest accuracy, refit gives us the best-effort weight pattern.
+`estimator` is the fitted sklearn object — same one whose coefficients are in `weight_map`. Use it directly with `.predict()` on a new design matrix:
 
 ```{code-cell} python
-result_wb.final_weight_map.plot(
-    method="slices",
-    title="final_weight_map (refit on all data)",
-    cmap="RdBu_r",
-    colorbar=True,
-)
+print(type(result_wb.estimator).__name__)
+# new_predictions = result_wb.estimator.predict(new_trials.data)
 ```
 
 ## ROI decoding with the bundled k200 atlas
@@ -247,10 +242,9 @@ print(f"Populated fields  : {result_pipe.available()}")
 
 | Goal | Call | Result fields |
 |---|---|---|
-| Whole-brain accuracy + weight map | `bd.predict(y=y, method="whole_brain", model="svm", cv=K, refit=True)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map`/`fold_weight_maps`/`final_weight_map` (BrainData), `final_estimator` |
+| Whole-brain accuracy + weight map | `bd.predict(y=y, method="whole_brain", model="svm", cv=K)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map` (all-data fit, BrainData), `fold_weight_maps` (BrainData stack for stability), `estimator` (fitted sklearn) |
 | Per-region accuracy | `bd.predict(y=y, method="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` (BrainData) |
 | Custom preprocessing | `bd.predict(y=y, model=Pipeline(...), ...)` | `standardize` auto-flipped to `False`; CV fields populated, weight_map None when feature selection breaks back-projection |
-| Refit on full data | add `refit=True` | adds `final_estimator`, `final_weight_map` |
 | Result attached to `bd` | add `inplace=True` | fields become `bd.predict_*` attributes |
 
 > **Whole-brain vs ROI — what each tells you**

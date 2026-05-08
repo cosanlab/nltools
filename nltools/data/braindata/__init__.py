@@ -1247,7 +1247,6 @@ class BrainData:
         reduce: "str | None" = None,
         n_components: "int | None" = None,
         scoring: str = "auto",
-        refit: bool = False,
         groups: "np.ndarray | None" = None,
         roi_mask=None,
         radius_mm: float = 10.0,
@@ -1273,10 +1272,13 @@ class BrainData:
 
         Field shapes by ``method=``:
 
-        - **whole_brain**: ``predictions`` (n_samples,), ``scores`` (n_folds,),
-          ``mean_score`` float, ``std_score`` float, ``weight_map`` BrainData,
-          ``fold_weight_maps`` BrainData (n_folds, n_voxels). With
-          ``refit=True``: ``final_estimator``, ``final_weight_map``.
+        - **whole_brain**: ``predictions`` (n_samples,) OOF predictions,
+          ``scores`` (n_folds,), ``mean_score`` float, ``std_score`` float,
+          ``weight_map`` BrainData (``coef_`` from one fit on the **full**
+          ``(X, y)`` — the publishable map), ``fold_weight_maps`` BrainData
+          (n_folds, n_voxels) for stability analysis, ``estimator`` the
+          fitted all-data sklearn estimator (use for ``.predict()`` on new
+          data).
         - **roi**: ``scores`` (n_folds, n_rois), ``mean_score`` (n_rois,),
           ``std_score`` (n_rois,), ``roi_labels`` (n_rois,) atlas IDs in
           matching order, ``accuracy_map`` BrainData (each voxel = parcel
@@ -1287,6 +1289,14 @@ class BrainData:
         ``predict_`` prefix (e.g. ``self.predict_weight_map``,
         ``self.predict_accuracy_map``), mirroring ``bd.fit()``'s
         ``glm_*`` / ``ridge_*`` naming.
+
+        Why ``weight_map`` is the all-data refit, not the CV mean:
+        the mean of K per-fold ``coef_`` vectors doesn't correspond to
+        any actual fitted estimator (each fold saw a different subset).
+        The all-data refit is a single legitimate model with all the
+        information used. CV gives the honest *score*; the refit gives
+        the publishable *map*. The CV-mean is one line away if you want
+        it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
         Args:
             y (array-like, optional): Labels (classification) or continuous
@@ -1319,8 +1329,6 @@ class BrainData:
             n_components (int, optional): PCA components when ``reduce='pca'``.
             scoring (str): Sklearn scoring string. Default ``'auto'`` →
                 ``'accuracy'`` if classifier, ``'r2'`` if regressor.
-            refit (bool): If ``True``, also fit on full data after CV and
-                store ``final_estimator`` + ``final_weight_map``.
             groups (array-like, optional): Group labels for CV splitters
                 that need them (e.g., leave-one-run-out).
             roi_mask (Nifti1Image or path-like, optional): Atlas image for
@@ -1340,8 +1348,9 @@ class BrainData:
 
         Examples:
             >>> result = brain.predict(y=labels, method='whole_brain', cv=5)
-            >>> result.weight_map.plot()    # spatial field is BrainData
-            >>> result.mean_score           # mean accuracy across folds
+            >>> result.weight_map.plot()       # publishable map (all-data fit)
+            >>> result.mean_score              # honest CV-derived accuracy
+            >>> new_pred = result.estimator.predict(new_X)  # apply to new data
 
             >>> result = brain.predict(y=labels, method='searchlight',
             ...                        radius_mm=8.0, n_jobs=4)
@@ -1375,7 +1384,6 @@ class BrainData:
             reduce=reduce,
             n_components=n_components,
             scoring=scoring,
-            refit=refit,
             groups=groups,
             roi_mask=roi_mask,
             radius_mm=radius_mm,

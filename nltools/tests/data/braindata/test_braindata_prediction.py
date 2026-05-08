@@ -72,15 +72,16 @@ class TestWholeBrain:
         assert isinstance(result.std_score, float)
         assert result.cv_folds is not None
         assert result.cv_folds.shape == (n,)
+        # weight_map is the all-data refit (canonical), always populated for
+        # linear models — no separate refit=True opt-in.
         assert result.weight_map is not None
         assert result.weight_map.shape == (n_voxels,)
         assert result.fold_weight_maps is not None
         assert result.fold_weight_maps.shape == (3, n_voxels)
+        # All-data fitted estimator, available for .predict() on new data.
+        assert result.estimator is not None
         # whole_brain doesn't populate accuracy_map
         assert result.accuracy_map is None
-        # refit=False by default
-        assert result.final_estimator is None
-        assert result.final_weight_map is None
 
     def test_regression_with_ridge(self, sim_brain_data):
         n = sim_brain_data.shape[0]
@@ -300,30 +301,42 @@ class TestSearchlight:
         assert result.fold_weight_maps is None
 
 
-class TestRefit:
-    def test_refit_false_leaves_final_fields_none(self, sim_brain_data):
+class TestAllDataRefit:
+    """The all-data refit is always-on for whole_brain dispatch — there's no
+    ``refit=`` kwarg. ``weight_map`` is the canonical, publishable map (single
+    legitimate estimator, all the data); ``fold_weight_maps`` is the per-fold
+    stack for stability analysis; ``estimator`` is the fitted sklearn object.
+    """
+
+    def test_estimator_is_fitted_and_callable_on_new_data(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, refit=False)
-        assert result.final_estimator is None
-        assert result.final_weight_map is None
+        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        assert result.estimator is not None
+        # Linear-model estimators expose .coef_ (possibly inside a Pipeline).
+        assert hasattr(result.estimator, "named_steps") or hasattr(
+            result.estimator, "coef_"
+        )
+        # The fitted estimator must work on a new design at the same width.
+        new_X = np.random.RandomState(0).randn(4, sim_brain_data.shape[1])
+        new_pred = result.estimator.predict(new_X)
+        assert new_pred.shape == (4,)
 
-    def test_refit_true_populates_final_estimator_and_weight_map(self, sim_brain_data):
+    def test_weight_map_is_from_all_data_fit_not_cv_mean(self, sim_brain_data):
+        """``weight_map`` should match ``estimator.coef_`` (back-projected
+        through any PCA), not the across-fold average of ``fold_weight_maps``.
+        That's the whole point of dropping the ``refit`` flag.
+        """
         n = sim_brain_data.shape[0]
-        n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="svm", refit=True
-        )
-        assert result.final_estimator is not None
-        # final_estimator must be fitted (has .coef_ for linear models)
-        assert hasattr(result.final_estimator, "named_steps") or hasattr(
-            result.final_estimator, "coef_"
-        )
-        assert result.final_weight_map is not None
-        assert result.final_weight_map.shape == (n_voxels,)
+        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        # Pull coef_ from the all-data fit (no PCA in this default pipeline,
+        # so .coef_ already lives in voxel space).
+        est = result.estimator
+        coef = est.named_steps["linearsvc"].coef_.ravel()
+        np.testing.assert_allclose(result.weight_map.data, coef)
 
-    def test_refit_with_pca_back_projects_final_weight_map(self, sim_brain_data):
+    def test_pca_back_projection_works_for_weight_map(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
@@ -334,9 +347,9 @@ class TestRefit:
             cv=3,
             reduce="pca",
             n_components=n_comp,
-            refit=True,
         )
-        assert result.final_weight_map.shape == (n_voxels,)
+        # weight_map is in voxel space (back-projected through PCA), not PC space
+        assert result.weight_map.shape == (n_voxels,)
 
 
 class TestPredictMulti:
@@ -365,10 +378,8 @@ class TestBrainDataWrapping:
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="svm", refit=True
-        )
-        for field in ("weight_map", "fold_weight_maps", "final_weight_map"):
+        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        for field in ("weight_map", "fold_weight_maps"):
             obj = getattr(result, field)
             assert isinstance(obj, BrainData), f"{field} should be BrainData"
         # Same mask as the source BrainData (so .plot() composes)
@@ -376,7 +387,6 @@ class TestBrainDataWrapping:
         # Underlying numpy still accessible and has expected shapes
         assert result.weight_map.data.shape == (n_voxels,)
         assert result.fold_weight_maps.data.shape == (3, n_voxels)
-        assert result.final_weight_map.data.shape == (n_voxels,)
 
     def test_searchlight_accuracy_map_is_braindata(self, minimal_brain_data):
         from nltools.data import BrainData

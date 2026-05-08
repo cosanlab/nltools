@@ -70,18 +70,22 @@ class TestPredictCreation:
         assert result.weight_map is None
         assert result.fold_weight_maps is None
 
-    def test_refit_fields(self):
+    def test_estimator_field(self):
+        """``estimator`` holds the all-data fitted sklearn estimator. There
+        is no separate ``final_estimator`` / ``final_weight_map`` — the
+        all-data fit is canonical and ``weight_map`` is its coefficients.
+        """
         n_voxels = 1000
         from sklearn.svm import LinearSVC
 
         est = LinearSVC()
         result = Predict(
             mean_score=0.7,
-            final_estimator=est,
-            final_weight_map=np.random.randn(n_voxels),
+            estimator=est,
+            weight_map=np.random.randn(n_voxels),
         )
-        assert result.final_estimator is est
-        assert result.final_weight_map.shape == (n_voxels,)
+        assert result.estimator is est
+        assert result.weight_map.shape == (n_voxels,)
 
 
 class TestPredictImmutability:
