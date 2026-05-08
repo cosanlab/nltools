@@ -226,13 +226,32 @@ class TestPredictDispatch:
         assert isinstance(out, BrainData)
         assert hasattr(out, "cv_scores")
 
-    @pytest.mark.xfail(
-        reason="per-subject predict-after-fit needs ridge bundles; not yet wired",
-        strict=True,
-    )
-    def test_x_new_only_returns_collection(self, bc_inmem):
-        out = bc_inmem.predict(X_new=np.zeros((5, 3)))
+    def test_x_new_only_returns_collection(self, bc_ridge_fitted):
+        from pathlib import Path
+
+        # bc_ridge_fitted designs are 2-column → X_new shape (5, 2).
+        X_new = np.zeros((5, 2), dtype=np.float32)
+        out = bc_ridge_fitted.predict(X_new=X_new, n_jobs=1)
         assert isinstance(out, BrainCollection)
+        assert out.n_subjects == bc_ridge_fitted.n_subjects
+        for item in out._items:
+            assert isinstance(item, Path)
+            assert item.suffix == ".gz" or item.suffix == ".nii"
+            assert item.exists()
+        # First subject's prediction shape should be (5, 27).
+        bd0 = out[0]
+        assert bd0.data.shape == (5, 27)
+        # Sidecar carries the predict_x_new op tag.
+        import json
+
+        first = out._items[0]
+        sidecar = first.parent / (first.name[:-7] + ".json")
+        assert sidecar.exists()
+        assert json.loads(sidecar.read_text())["op"] == "predict_x_new"
+
+    def test_predict_x_new_requires_ridge_bundle(self, bc_inmem):
+        with pytest.raises(ValueError, match="ridge bundle"):
+            bc_inmem.predict(X_new=np.zeros((5, 2)))
 
 
 class TestCVPipeline:

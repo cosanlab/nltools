@@ -172,6 +172,27 @@ def tiny_design_factory():
 
 
 @pytest.fixture(scope="function")
+def bc_ridge_fitted(tiny_mask, tiny_brain_factory, tiny_design_factory, tmp_path):
+    """Path-backed BrainCollection of ridge fit bundles (.h5).
+
+    Built by fitting a ridge model with a small CV on a 3-subject collection
+    so ``.predict(X_new=...)`` has bundles to read.
+    """
+    from nltools.data import BrainCollection
+
+    brains = [tiny_brain_factory(n_obs=8, seed=i) for i in range(3)]
+    designs = [tiny_design_factory(n_obs=8, seed=10 + i) for i in range(3)]
+    bc = BrainCollection(
+        brains,
+        mask=tiny_mask,
+        designs=designs,
+        lazy=False,
+        cache_dir=tmp_path / "cache",
+    )
+    return bc.fit(model="ridge", cache=True, alpha=1.0, cv=2, n_jobs=1)
+
+
+@pytest.fixture(scope="function")
 def bc_with_designs(tiny_mask, tiny_brain_factory, tiny_design_factory, tmp_path):
     """Three-subject in-memory collection with paired DesignMatrix per item."""
     from nltools.data import BrainCollection

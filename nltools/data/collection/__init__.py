@@ -876,9 +876,48 @@ class BrainCollection:
         progress_bar: bool,
         cache: Literal["auto", True, False],
     ) -> BrainCollection:
-        """Per-subject predict-after-fit; each item is a fitted model bundle."""
-        raise NotImplementedError(
-            "predict(X_new=...) requires fitted ridge bundles; not yet wired"
+        """Per-subject predict-after-fit; each item is a fitted ridge bundle."""
+        from . import execution
+
+        # Validate eagerly so the user gets a clean message before workers
+        # spin up. Mirrors the bundle-check at _predict_group above.
+        for i, item in enumerate(self._items):
+            if not (isinstance(item, Path) and item.suffix in (".h5", ".hdf5")):
+                raise ValueError(
+                    f"item {i} is not a ridge bundle; predict(X_new=...) "
+                    f"requires items produced by .fit(model='ridge', cache=True)."
+                )
+
+        X_new_arr = np.asarray(X_new)
+        op_kwargs = {"X_new_shape": list(X_new_arr.shape)}
+        step_id = core.make_run_id()
+
+        def worker(task):
+            return execution._predict_after_fit_worker(
+                task,
+                X_new=X_new_arr,
+                step_id=step_id,
+                parent_step_id=self._step_id,
+                op_kwargs=op_kwargs,
+            )
+
+        results, step_dir, step_id = execution._apply(
+            self,
+            worker,
+            op="predict_x_new",
+            op_kwargs=op_kwargs,
+            step_id=step_id,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+        )
+        new_dirs = self._step_dirs + ([step_dir] if step_dir else [])
+        new_sources = [r if isinstance(r, Path) else None for r in results]
+        return self._clone(
+            _items=results,
+            _step_id=step_id,
+            _step_dirs=new_dirs,
+            _source_paths=new_sources,
         )
 
     # ------------------------------------------------------------------

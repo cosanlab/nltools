@@ -530,6 +530,7 @@ def write_ridge_bundle(
     out_path: Path,
     *,
     weights: np.ndarray,
+    intercept: np.ndarray,
     cv_scores: np.ndarray,
     predictions: np.ndarray,
     scores: np.ndarray,
@@ -547,7 +548,7 @@ def write_ridge_bundle(
     """Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
     Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
-    (``weights``, ``cv_scores``, ``predictions``, ``scores``).
+    (``weights``, ``intercept``, ``cv_scores``, ``predictions``, ``scores``).
     """
     import json
 
@@ -555,6 +556,7 @@ def write_ridge_bundle(
         out_path,
         datasets={
             "weights": np.asarray(weights),
+            "intercept": np.asarray(intercept),
             "cv_scores": np.asarray(cv_scores),
             "predictions": np.asarray(predictions),
             "scores": np.asarray(scores),
@@ -583,6 +585,7 @@ def read_ridge_bundle(path: Path) -> dict[str, Any]:
     try:
         out: dict[str, Any] = {
             "weights": f["weights"][:],
+            "intercept": f["intercept"][:],
             "cv_scores": f["cv_scores"][:],
             "predictions": f["predictions"][:],
             "scores": f["scores"][:],
@@ -629,6 +632,54 @@ def _bytes_to_mask(b: bytes):
     import nibabel as nib
 
     return nib.Nifti1Image.from_bytes(b)
+
+
+def _extract_ridge_bundle_data(bd) -> dict[str, Any]:
+    """Pull ridge arrays + design info off a fitted ``BrainData``.
+
+    Mirrors ``_extract_glm_bundle_data``. Pulls weights/scores/intercept
+    off the fitted model, plus held-out CV ``predictions`` and per-fold
+    ``cv_scores`` from ``bd.cv_results_`` when a CV ran.
+    """
+    import numpy as np
+
+    weights = np.asarray(bd.ridge_weights.data)  # (n_features, n_voxels)
+    scores = np.asarray(bd.ridge_scores.data).reshape(-1)  # (n_voxels,)
+    # Ridge fits store the design under bd.X_ (ndarray); GLM also sets
+    # bd.design_matrix (a DesignMatrix carrying column names).
+    X_src = getattr(bd, "design_matrix", None)
+    if X_src is None:
+        X_src = bd.X_
+    X = np.asarray(X_src)
+    if hasattr(X_src, "columns"):
+        regressor_names = list(X_src.columns)
+    else:
+        regressor_names = [f"x{i}" for i in range(X.shape[1])]
+    n_voxels = weights.shape[1] if weights.ndim == 2 else weights.shape[0]
+
+    intercept = np.asarray(getattr(bd.model_, "intercept_", 0.0))
+    if intercept.ndim == 0:
+        intercept = np.full(n_voxels, float(intercept), dtype=np.float32)
+
+    cv_results = getattr(bd, "cv_results_", None)
+    if cv_results is not None:
+        cv_scores = np.asarray(cv_results.get("scores"))
+        predictions = np.asarray(cv_results["predictions"].data)
+    else:
+        cv_scores = np.zeros((0, n_voxels), dtype=np.float32)
+        predictions = np.zeros((0, n_voxels), dtype=np.float32)
+
+    return {
+        "weights": weights.astype(np.float32),
+        "intercept": intercept.astype(np.float32),
+        "cv_scores": cv_scores.astype(np.float32),
+        "predictions": predictions.astype(np.float32),
+        "scores": scores.astype(np.float32),
+        "X": X.astype(np.float32),
+        "mask_bytes": _mask_to_bytes(bd.mask),
+        "affine": np.asarray(bd.mask.affine),
+        "regressor_names": regressor_names,
+    }
 
 
 def _extract_glm_bundle_data(bd) -> dict[str, Any]:
@@ -872,6 +923,67 @@ def _contrast_worker(
     return task.out_path
 
 
+def _predict_after_fit_worker(
+    task: _ItemTask,
+    *,
+    X_new: np.ndarray,
+    step_id: str,
+    parent_step_id: str | None,
+    op_kwargs: dict,
+):
+    """Worker for ``BC.predict(X_new=...)``: read ridge bundle, apply weights.
+
+    Each task's item is the path to a ridge fit bundle. We compute
+    ``X_new @ weights + intercept`` directly (bypassing ``BD.predict``'s
+    is_fitted check), wrap as a BrainData on the bundle's mask, and write
+    the per-subject NIfTI plus a lineage sidecar.
+    """
+    from ..braindata import BrainData as _BrainData
+
+    if not isinstance(task.item, (str, Path)) or Path(task.item).suffix not in (
+        ".h5",
+        ".hdf5",
+    ):
+        raise ValueError(
+            "predict(X_new=...) requires a ridge bundle path; got an in-memory "
+            "object. Run .fit(model='ridge', cache=True) first."
+        )
+
+    bundle = read_ridge_bundle(Path(task.item))
+    weights = bundle["weights"]  # (n_features, n_voxels)
+    intercept = bundle["intercept"]  # (n_voxels,)
+    X_new_arr = np.asarray(X_new)
+    if X_new_arr.ndim == 1:
+        X_new_arr = X_new_arr.reshape(1, -1)
+    if X_new_arr.shape[1] != weights.shape[0]:
+        raise ValueError(
+            f"X_new has {X_new_arr.shape[1]} features but ridge weights expect "
+            f"{weights.shape[0]} (regressors: {bundle['regressor_names']})."
+        )
+    y_pred = X_new_arr @ weights + intercept  # (n_obs, n_voxels)
+
+    mask = _bytes_to_mask(bundle["mask_bytes"])
+    bd = _BrainData(np.asarray(y_pred, dtype=np.float32), mask=mask)
+
+    if task.out_path is None:
+        return bd
+
+    _atomic_write_nifti(task.out_path, bd)
+    try:
+        from nltools import __version__ as _v
+    except Exception:
+        _v = ""
+    write_lineage_sidecar(
+        task.out_path,
+        step_id=step_id,
+        parent_step_id=parent_step_id,
+        op="predict_x_new",
+        op_kwargs=op_kwargs,
+        nltools_version=_v,
+    )
+    return task.out_path
+
+
 def _fit_worker(
     task: _ItemTask,
     *,
@@ -918,8 +1030,17 @@ def _fit_worker(
             nltools_version=_v,
         )
     elif model == "ridge":
-        # Ridge bundle: TODO when test coverage drives it
-        raise NotImplementedError("ridge bundle write not yet wired")
+        bundle_data = _extract_ridge_bundle_data(bd)
+        write_ridge_bundle(
+            task.out_path,
+            **bundle_data,
+            model_kwargs=model_kwargs,
+            step_id=step_id,
+            parent_step_id=parent_step_id,
+            op="fit",
+            op_kwargs=op_kwargs,
+            nltools_version=_v,
+        )
     else:
         raise ValueError(f"unknown model {model!r}")
 
