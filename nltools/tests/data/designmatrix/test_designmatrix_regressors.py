@@ -169,6 +169,70 @@ class TestDesignMatrixConvolution:
         assert "1_stim_c0" in out.columns
         assert set(out.convolved) == {"0_stim_c0", "1_stim_c0"}
 
+    def test_convolve_is_idempotent_on_already_convolved(self):
+        """Calling .convolve() again on a DM whose experimental regressors are
+        all already convolved is a no-op (with a warning), not a re-convolution.
+
+        Regression: previously convolve blindly appended ``_c0`` to every
+        non-confound column, so ``language_c0`` became ``language_c0_c0`` —
+        breaking downstream contrast strings written against the first-pass
+        names. This contract bites file-loaded DMs in particular: events.tsv
+        loads auto-convolve at construction (matching nilearn's default),
+        and tutorials commonly chain ``.add_poly().convolve()`` afterwards.
+        """
+        import warnings
+
+        dm = DesignMatrix({"stim": [1, 0, 1, 0]}, sampling_freq=1)
+        dm1 = dm.convolve()
+        # Sanity: first convolve produces the conventional _c0 suffix
+        assert "stim_c0" in dm1.columns
+        assert dm1.convolved == ["stim_c0"]
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            dm2 = dm1.convolve()
+        assert "stim_c0_c0" not in dm2.columns
+        assert "stim_c0" in dm2.columns
+        assert dm2.convolved == ["stim_c0"]
+        assert any("no-op" in str(x.message) for x in w), (
+            "Expected a no-op warning when nothing is left to convolve"
+        )
+
+    def test_convolve_refuses_explicit_already_convolved_column(self):
+        """Explicit ``columns=`` cannot name an already-convolved column.
+
+        ``_c0_c0`` has no biological meaning (HRF-shaped signal convolved
+        with another kernel ≠ any real neural/hemodynamic process), and the
+        only situations this call shape arises in practice are user typos /
+        caller bugs / ill-defined "use a different kernel" intent. Raising
+        keeps the column-name space well-defined: a column named ``stim_c{i}``
+        always means "convolved exactly once".
+        """
+        dm = DesignMatrix({"stim": [1, 0, 1, 0]}, sampling_freq=1).convolve()
+        with pytest.raises(ValueError, match="already-convolved"):
+            dm.convolve(columns=["stim_c0"], conv_func=np.array([0.5, 0.5]))
+
+    def test_convolve_partial_with_new_event_column(self):
+        """When some experimental regressors are already convolved and a fresh
+        un-convolved column is added (e.g., via ``.append()``), the next
+        ``.convolve()`` should convolve only the new one and preserve the
+        existing convolved columns + their metadata.
+        """
+        import polars as pl
+
+        dm = DesignMatrix({"stim_a": [1, 0, 0, 0]}, sampling_freq=1).convolve()
+        # Inject a fresh boxcar regressor (skipping the .append() machinery
+        # to keep this focused on .convolve()'s partial-convolve path)
+        dm_with_b = DesignMatrix(
+            dm.data.with_columns(pl.Series("stim_b", [0, 1, 0, 0])),
+            sampling_freq=1,
+            convolved=dm.convolved,
+        )
+        dm_done = dm_with_b.convolve()
+        assert "stim_a_c0" in dm_done.columns  # preserved
+        assert "stim_b_c0" in dm_done.columns  # newly convolved
+        assert set(dm_done.convolved) == {"stim_a_c0", "stim_b_c0"}
+
     def test_convolve_with_multiple_kernels(self):
         """
         Support convolution with multiple kernels (2D array).

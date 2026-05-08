@@ -64,11 +64,40 @@ def convolve(
         )
 
     # Determine which columns to convolve
+    already_convolved = set(dm.convolved)
     if columns is None:
-        # Default: all columns except polynomials
-        columns_to_convolve = get_data_columns(dm, exclude_confounds=True)
+        # Default: experimental regressors only (drop confounds & polys),
+        # idempotent over already-convolved columns — re-convolving would
+        # produce ``<col>_c0_c0``, which has no biological meaning.
+        columns_to_convolve = [
+            c
+            for c in get_data_columns(dm, exclude_confounds=True)
+            if c not in already_convolved
+        ]
+        if not columns_to_convolve:
+            warnings.warn(
+                "All experimental regressors are already convolved; "
+                ".convolve() is a no-op.",
+                stacklevel=3,
+            )
+            return dm
     else:
-        columns_to_convolve = columns
+        # Explicit columns=. Refuse names already in dm.convolved — there is
+        # no mathematically sensible "re-convolve" operation. Convolving an
+        # HRF-shaped signal with another kernel produces a doubly-blurred
+        # thing that doesn't correspond to any neural or hemodynamic process.
+        # If the user wants a different kernel, they should rebuild the DM
+        # from boxcar regressors and convolve fresh.
+        invalid = [c for c in columns if c in already_convolved]
+        if invalid:
+            raise ValueError(
+                f"Cannot re-convolve already-convolved columns: {invalid}. "
+                "Convolving an HRF-shaped signal with another kernel has no "
+                "biological meaning. To use a different kernel, drop the "
+                "convolved column, re-add the boxcar source, and call "
+                ".convolve() with the new kernel."
+            )
+        columns_to_convolve = list(columns)
 
     # Get the convolution kernel
     if isinstance(conv_func, str):
@@ -116,7 +145,10 @@ def convolve(
     # always ``<col>_c{i}``.
     new_df = dm.data.drop(columns_to_convolve).with_columns(convolved_series)
 
-    return copy_with(dm, new_df, convolved=new_convolved)
+    # Re-convolution of already-convolved columns is refused above, so any
+    # entries in ``dm.convolved`` survived in ``new_df`` untouched; just
+    # append the freshly convolved names.
+    return copy_with(dm, new_df, convolved=list(dm.convolved) + new_convolved)
 
 
 def add_poly(
