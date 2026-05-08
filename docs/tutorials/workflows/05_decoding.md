@@ -148,18 +148,18 @@ print(type(result_wb.estimator).__name__)
 # new_predictions = result_wb.estimator.predict(new_trials.data)
 ```
 
-## ROI decoding with the bundled k200 atlas
+## ROI decoding with the bundled k50 atlas
 
 The whole-brain map answers *"where do voxels contribute when one classifier sees them all together?"*. ROI decoding answers a different question: **which regions, on their own, carry enough information to discriminate?** That's a more honest "where" — each region competes only against chance, not against its neighbours.
 
-nltools ships parcellation atlases at every supported template/resolution. Our data is in 3mm default-template space (the auto-resampled output above), so we'll grab the matching k200:
+nltools ships parcellation atlases at every supported template/resolution. Our data is in 3mm default-template space (the auto-resampled output above), so we'll grab the matching k50:
 
 ```{code-cell} python
 from nltools.templates import fetch_resource
 
-atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k200.nii.gz")
+atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 atlas = BrainData(atlas_path)
-atlas.plot(method="slices", title="k200 atlas (200-region parcellation)")
+atlas.plot(method="slices", title="k50 atlas (50-region parcellation)")
 ```
 
 Pass the atlas to `predict(method="roi", roi_mask=...)`. This trains one classifier per parcel and returns a single `accuracy_map` — every voxel inside parcel *i* is filled with parcel *i*'s cross-validated accuracy. Voxels outside any parcel are `NaN`:
