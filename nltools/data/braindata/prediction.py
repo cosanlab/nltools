@@ -402,12 +402,21 @@ def _iter_split(cv, X, y, groups):
 # ---------------------------------------------------------------------------
 
 
-def _extract_weight_map(fitted_pipe, n_voxels: int) -> np.ndarray | None:
-    """Extract a (n_voxels,) weight map from the fitted pipeline.
+def _extract_weight_map(
+    fitted_pipe, n_features: int, *, quiet: bool = False
+) -> np.ndarray | None:
+    """Extract a 1-D coefficient vector from a fitted pipeline at the local
+    feature width (n_voxels for whole_brain, sphere size for searchlight,
+    parcel size for ROI).
 
     For multi-class linear classifiers, returns the mean across classes.
     Back-projects through PCA when present. Returns None for non-linear
-    models (no .coef_) and emits a one-shot UserWarning.
+    models (no ``.coef_``) or when feature selection breaks back-projection
+    (e.g., ``SelectKBest`` reduces feature count un-invertibly).
+
+    ``quiet=True`` silences the no-``.coef_`` warning — used by ROI/searchlight
+    runners that aggregate a single warning at the runner level so a
+    non-linear-model call doesn't emit one warning per parcel/sphere.
     """
     from sklearn.decomposition import PCA
     from sklearn.pipeline import Pipeline
@@ -423,14 +432,15 @@ def _extract_weight_map(fitted_pipe, n_voxels: int) -> np.ndarray | None:
 
     coef = getattr(final_est, "coef_", None)
     if coef is None:
-        warnings.warn(
-            f"{type(final_est).__name__} has no .coef_ attribute; weight_map "
-            "is unavailable for non-linear models. Use a linear model "
-            "('svm', 'logistic', 'ridge_classifier', 'lda', 'ridge', 'lasso') "
-            "or compute permutation importances directly.",
-            UserWarning,
-            stacklevel=4,
-        )
+        if not quiet:
+            warnings.warn(
+                f"{type(final_est).__name__} has no .coef_ attribute; "
+                "weight_map is unavailable for non-linear models. Use a linear "
+                "model ('svm', 'logistic', 'ridge_classifier', 'lda', 'ridge', "
+                "'lasso') or compute permutation importances directly.",
+                UserWarning,
+                stacklevel=4,
+            )
         return None
 
     coef = np.asarray(coef)
@@ -444,7 +454,7 @@ def _extract_weight_map(fitted_pipe, n_voxels: int) -> np.ndarray | None:
     if pca_step is not None:
         coef = pca_step.components_.T @ coef
 
-    if coef.shape[0] != n_voxels:
+    if coef.shape[0] != n_features:
         # Some estimators (e.g., SelectKBest pipelines) reduce feature count
         # in ways we can't trivially reverse — bail out.
         return None
@@ -528,13 +538,32 @@ def _run_searchlight(
 def _run_roi(
     bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar
 ) -> Predict:
-    """Per-ROI CV decoding. Returns Predict with:
+    """Per-ROI CV decoding with per-parcel weight maps.
+
+    Returns Predict with:
 
     - ``scores`` ``(n_folds, n_rois)``, ``mean_score`` / ``std_score``
       ``(n_rois,)`` — fold scores per parcel and their cross-fold summary.
     - ``roi_labels`` ``(n_rois,)`` — atlas integer IDs in the same order.
     - ``accuracy_map`` BrainData ``(1, n_voxels)`` — every voxel inside parcel
       *i* set to that parcel's mean accuracy (others NaN).
+    - ``weight_map`` BrainData ``(1, n_voxels)`` — per-parcel ``coef_`` vectors
+      from one all-data fit per parcel, written back into voxel space. Voxels
+      outside any parcel are NaN.
+    - ``fold_weight_maps`` BrainData ``(n_folds, n_voxels)`` — same assembly
+      per fold for stability analysis.
+    - ``estimator`` ``dict[int, sklearn estimator]`` keyed by atlas label —
+      the all-data fitted decoder for each parcel.
+
+    Weight-map assembly relies on each voxel belonging to exactly one parcel
+    (the atlas is a label image, so this is structural). Cross-parcel weight
+    magnitudes live on different X distributions so are not directly
+    comparable; within-parcel ranking is meaningful.
+
+    If any parcel's estimator can't expose ``.coef_`` (non-linear model,
+    ``SelectKBest`` pipeline), ``weight_map`` / ``fold_weight_maps`` /
+    ``estimator`` are all None for the whole call (matches whole_brain's
+    behavior for non-linear models).
     """
     from pathlib import Path
 
@@ -543,7 +572,7 @@ def _run_roi(
     from nilearn.image import resample_to_img
     from nilearn.masking import apply_mask
     from sklearn.base import clone
-    from sklearn.model_selection import cross_val_score
+    from sklearn.metrics import check_scoring
 
     if roi_mask is None:
         raise ValueError("roi_mask required for method='roi'")
@@ -567,19 +596,50 @@ def _run_roi(
     unique_labels = unique_labels[unique_labels != 0]
 
     n_folds = cv.get_n_splits(X, y, groups=groups)
+    # Pre-compute split indices once so workers see the same splits; cv objects
+    # with random_state already control this, but materializing makes the
+    # per-parcel parallel loop deterministic and pickle-safe.
+    split_indices = list(_iter_split(cv, X, y, groups))
+    scorer = check_scoring(pipe, scoring=scoring)
 
     def decode_roi(roi_label):
+        """Per-parcel: manual CV (capture per-fold scores + coefs), then
+        all-data refit. Returns a tuple summarizing one parcel's result.
+        """
         cols = label_vec == roi_label
         if not cols.any():
-            return np.full(n_folds, np.nan, dtype=float)
+            return {
+                "fold_scores": np.full(n_folds, np.nan),
+                "fold_coefs": None,
+                "estimator": None,
+                "all_data_coef": None,
+            }
         X_roi = X[:, cols]
+        n_roi_voxels = int(cols.sum())
+
+        fold_scores = []
+        fold_coefs: list[np.ndarray | None] = []
         try:
-            scores = cross_val_score(
-                clone(pipe), X_roi, y, cv=cv, groups=groups, scoring=scoring
-            )
-            return np.asarray(scores, dtype=float)
+            for train_idx, test_idx in split_indices:
+                fitted = clone(pipe).fit(X_roi[train_idx], y[train_idx])
+                fold_scores.append(float(scorer(fitted, X_roi[test_idx], y[test_idx])))
+                fold_coefs.append(_extract_weight_map(fitted, n_roi_voxels, quiet=True))
+            estimator = clone(pipe).fit(X_roi, y)
+            all_data_coef = _extract_weight_map(estimator, n_roi_voxels, quiet=True)
         except Exception:
-            return np.full(n_folds, np.nan, dtype=float)
+            return {
+                "fold_scores": np.full(n_folds, np.nan),
+                "fold_coefs": None,
+                "estimator": None,
+                "all_data_coef": None,
+            }
+
+        return {
+            "fold_scores": np.asarray(fold_scores, dtype=float),
+            "fold_coefs": fold_coefs,  # list of (n_roi_voxels,) arrays or Nones
+            "estimator": estimator,
+            "all_data_coef": all_data_coef,
+        }
 
     iterator = unique_labels
     if progress_bar:
@@ -591,26 +651,61 @@ def _run_roi(
             pass
 
     if n_jobs == 1:
-        per_roi_fold_scores = [decode_roi(label) for label in iterator]
+        per_roi = [decode_roi(label) for label in iterator]
     else:
-        per_roi_fold_scores = Parallel(n_jobs=n_jobs)(
+        per_roi = Parallel(n_jobs=n_jobs)(
             delayed(decode_roi)(label) for label in iterator
         )
 
-    # Stack: (n_rois, n_folds) → transpose to (n_folds, n_rois) for consistency
-    # with whole-brain `scores` axis-0 = folds.
-    fold_scores_per_roi = np.vstack(per_roi_fold_scores).T  # (n_folds, n_rois)
-    mean_per_roi = np.nanmean(fold_scores_per_roi, axis=0)  # (n_rois,)
-    std_per_roi = np.nanstd(fold_scores_per_roi, axis=0)  # (n_rois,)
+    # Scores: (n_folds, n_rois)
+    fold_scores_per_roi = np.vstack([r["fold_scores"] for r in per_roi]).T
+    mean_per_roi = np.nanmean(fold_scores_per_roi, axis=0)
+    std_per_roi = np.nanstd(fold_scores_per_roi, axis=0)
 
-    out = np.full(label_vec.shape, np.nan, dtype=float)
+    # accuracy_map: per-voxel mean accuracy for the parcel containing that voxel
+    acc_arr = np.full(label_vec.shape, np.nan, dtype=float)
     for roi_label, acc in zip(unique_labels, mean_per_roi):
-        out[label_vec == roi_label] = acc
+        acc_arr[label_vec == roi_label] = acc
+
+    # weight_map / fold_weight_maps: assemble per-parcel coefs back to voxel
+    # space. If any parcel couldn't expose coefs (non-linear, SelectKBest,
+    # exception), set all weight fields to None and emit a single warning —
+    # matches whole_brain's behavior of all-or-nothing.
+    weight_extraction_failed = any(
+        r["all_data_coef"] is None or r["fold_coefs"] is None for r in per_roi
+    )
+    if weight_extraction_failed:
+        # Identify a representative failed parcel for the warning text
+        warnings.warn(
+            "Could not extract per-parcel coefficients for at least one "
+            "ROI (non-linear model, SelectKBest in pipeline, or per-parcel "
+            "fit error). Setting weight_map / fold_weight_maps / estimator "
+            "to None for this call.",
+            UserWarning,
+            stacklevel=4,
+        )
+        weight_arr = None
+        fold_weight_arr = None
+        estimator_dict = None
+    else:
+        weight_arr = np.full(label_vec.shape, np.nan, dtype=float)
+        fold_weight_arr = np.full((n_folds, label_vec.shape[0]), np.nan, dtype=float)
+        for roi_label, r in zip(unique_labels, per_roi):
+            cols = label_vec == roi_label
+            weight_arr[cols] = r["all_data_coef"]
+            for f_idx in range(n_folds):
+                fold_weight_arr[f_idx, cols] = r["fold_coefs"][f_idx]
+        estimator_dict = {
+            int(label): r["estimator"] for label, r in zip(unique_labels, per_roi)
+        }
 
     return Predict(
         scores=fold_scores_per_roi,
         mean_score=mean_per_roi,
         std_score=std_per_roi,
         roi_labels=unique_labels.astype(np.int64),
-        accuracy_map=_to_braindata(out, bd.mask),
+        accuracy_map=_to_braindata(acc_arr, bd.mask),
+        weight_map=_to_braindata(weight_arr, bd.mask),
+        fold_weight_maps=_to_braindata(fold_weight_arr, bd.mask),
+        estimator=estimator_dict,
     )

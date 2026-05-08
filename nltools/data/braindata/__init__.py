@@ -1281,8 +1281,10 @@ class BrainData:
           data).
         - **roi**: ``scores`` (n_folds, n_rois), ``mean_score`` (n_rois,),
           ``std_score`` (n_rois,), ``roi_labels`` (n_rois,) atlas IDs in
-          matching order, ``accuracy_map`` BrainData (each voxel = parcel
-          mean accuracy).
+          matching order, ``accuracy_map`` / ``weight_map`` /
+          ``fold_weight_maps`` BrainData (per-parcel coefs reassembled to
+          voxel space; voxels outside the atlas = NaN), ``estimator`` dict
+          keyed by atlas label.
         - **searchlight**: ``accuracy_map`` BrainData.
 
         With ``inplace=True``, fields are attached to ``self`` with a

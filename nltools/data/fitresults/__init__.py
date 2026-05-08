@@ -315,6 +315,17 @@ class Predict:
           same order as ``mean_score`` / ``std_score`` / ``scores`` axis 1
         - ``accuracy_map``: BrainData ``(1, n_voxels)``, every voxel inside
           parcel *i* set to that parcel's mean accuracy (others NaN)
+        - ``weight_map``: BrainData ``(1, n_voxels)``, per-parcel ``coef_``
+          from each parcel's all-data fit, written back into voxel space
+          (atlas is a label image so reassembly is disjoint). Voxels outside
+          any parcel are NaN. Magnitudes across parcels are not directly
+          comparable — different parcels live on different X distributions.
+        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``
+        - ``estimator``: ``dict[int, sklearn]`` keyed by atlas label
+
+        If any parcel can't expose ``.coef_`` (non-linear model, ``SelectKBest``
+        in pipeline), ``weight_map`` / ``fold_weight_maps`` / ``estimator``
+        all collapse to ``None`` for the whole call.
 
     **method='searchlight'** (with ``y``):
         - ``accuracy_map``: BrainData ``(1, n_voxels)``, sphere-centered

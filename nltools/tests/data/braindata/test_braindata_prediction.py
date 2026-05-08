@@ -449,17 +449,84 @@ class TestROIDispatch:
         # accuracy_map is a BrainData
         assert isinstance(result.accuracy_map, BrainData)
 
-    def test_roi_leaves_whole_brain_fields_none(self, minimal_brain_data):
+    def test_roi_populates_voxel_space_weight_map(self, minimal_brain_data):
+        """Non-overlapping ROI assembles per-parcel coefs back to voxel
+        space (the atlas is a label image, so each voxel belongs to exactly
+        one parcel — disjoint reassembly). Voxels outside the atlas are NaN.
+        """
+        from nltools.data import BrainData
+
+        n = minimal_brain_data.shape[0]
+        n_voxels = minimal_brain_data.shape[1]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+
+        result = minimal_brain_data.predict(
+            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+        )
+        assert isinstance(result.weight_map, BrainData)
+        assert result.weight_map.data.shape == (n_voxels,)
+        assert isinstance(result.fold_weight_maps, BrainData)
+        assert result.fold_weight_maps.data.shape == (3, n_voxels)
+        # estimator is a dict keyed by atlas label
+        assert isinstance(result.estimator, dict)
+        assert set(result.estimator.keys()) == {1, 2}
+
+    def test_roi_weight_map_voxels_match_per_parcel_estimator_coef(
+        self, minimal_brain_data
+    ):
+        """Regression: each voxel's value in result.weight_map must equal
+        the corresponding entry of its parcel's all-data ``estimator.coef_``.
+        That's the disjoint-reassembly contract.
+        """
         n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
         result = minimal_brain_data.predict(
-            y=y, method="roi", roi_mask=atlas, cv=3, n_jobs=1
+            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
         )
+        # Recover the label vector that the runner used to assign voxels
+        from nilearn.masking import apply_mask
+
+        label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
+        weights = result.weight_map.data
+        for label, est in result.estimator.items():
+            cols = label_vec == label
+            est_coef = est.named_steps["linearsvc"].coef_.ravel()
+            np.testing.assert_allclose(weights[cols], est_coef)
+
+    def test_roi_non_linear_model_drops_weight_fields(self, minimal_brain_data):
+        """Non-linear ROI dispatch can't expose coefs → weight_map /
+        fold_weight_maps / estimator collapse to None for the whole call,
+        matching whole_brain's all-or-nothing rule. Exactly one aggregate
+        warning is emitted (not one per parcel).
+        """
+        from sklearn.svm import SVC
+        import warnings
+
+        n = minimal_brain_data.shape[0]
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        atlas = self._build_atlas(minimal_brain_data, n_rois=2)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = minimal_brain_data.predict(
+                y=y,
+                method="roi",
+                roi_mask=atlas,
+                cv=3,
+                model=SVC(kernel="rbf"),
+                n_jobs=1,
+            )
         assert result.weight_map is None
         assert result.fold_weight_maps is None
-        assert result.predictions is None
-        assert result.cv_folds is None
+        assert result.estimator is None
+        # Score fields still populated (CV ran fine, just couldn't extract weights)
+        assert result.mean_score is not None
+        # One aggregate warning, not per-parcel spam
+        msgs = [m for m in w if "weight_map" in str(m.message).lower()]
+        assert (
+            len(msgs) <= 2
+        )  # one from per-parcel quiet=True (suppressed) + one aggregate
 
 
 # ---------------------------------------------------------------------------

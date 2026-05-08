@@ -272,6 +272,8 @@ def _(mo):
     mo.md(r"""
     On `method="roi"` the score fields are repurposed for the per-parcel layout: `scores` is `(n_folds, n_rois)`, `mean_score` and `std_score` are `(n_rois,)`, and `roi_labels` carries the atlas integer IDs in the same order. `accuracy_map` is a `BrainData` brain-space view of `mean_score` — every voxel inside a parcel shows that parcel's mean accuracy.
 
+    ROI dispatch also produces `weight_map`, `fold_weight_maps`, and a per-parcel `estimator` dict. Because the atlas is a label image (each voxel belongs to exactly one parcel), per-parcel `coef_` vectors slot back into voxel space disjointly — same shape as the whole-brain map, just composed of independently-trained pieces.
+
     ### Per-region accuracy as a brain map
     """)
     return
@@ -324,6 +326,35 @@ def _(np, plt, result_roi):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### ROI weight map
+
+    `weight_map` is the same shape as the whole-brain version, but each voxel's value comes from its parcel's all-data fit. **Magnitudes are not directly comparable across parcels** — different parcels see different voxel sets, so their `coef_` distributions live on different scales. Within-parcel ranking is meaningful, and the brain-space view is right for visualizing where each region's classifier is putting its weight:
+    """)
+    return
+
+
+@app.cell
+def _(result_roi):
+    result_roi.weight_map.plot(
+        method="slices",
+        title="ROI weight map: per-parcel coefs (+ favors face, − favors house)",
+        cmap="RdBu_r",
+        colorbar=True,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Per-parcel estimators are kept in `result_roi.estimator` (a dict keyed by atlas label) — apply any one of them to new data via `result_roi.estimator[label].predict(...)`.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Plug in any sklearn estimator
 
     String shortcuts (`'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`, etc.) cover the common cases. For anything custom — feature selection, custom preprocessing, hyperparameter search — pass any sklearn estimator or `Pipeline` directly to `model=`. When `predict()` detects a `Pipeline`, it automatically flips `standardize=False` so it doesn't wrap a second `StandardScaler` around your pipeline (a one-shot warning prints to confirm):
@@ -359,7 +390,7 @@ def _(mo):
     | Goal | Call | Result fields |
     |---|---|---|
     | Whole-brain accuracy + weight map | `bd.predict(y=y, method="whole_brain", model="svm", cv=K)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map` (all-data fit, BrainData), `fold_weight_maps` (BrainData stack for stability), `estimator` (fitted sklearn) |
-    | Per-region accuracy | `bd.predict(y=y, method="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` (BrainData) |
+    | Per-region accuracy + per-parcel weights | `bd.predict(y=y, method="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` / `weight_map` / `fold_weight_maps` (BrainData), `estimator` (dict keyed by label) |
     | Custom preprocessing | `bd.predict(y=y, model=Pipeline(...), ...)` | `standardize` auto-flipped to `False`; CV fields populated, weight_map None when feature selection breaks back-projection |
     | Result attached to `bd` | add `inplace=True` | fields become `bd.predict_*` attributes |
 
