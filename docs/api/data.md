@@ -7,6 +7,7 @@ nltools data types.
 Name | Description
 ---- | -----------
 [`adjacency`](#adjacency) | This data class is for working with similarity/dissimilarity matrices
+[`atlases`](#atlases) | Atlas registry, lazy loading, and coordinate labeling.
 [`braindata`](#braindata) | NeuroLearn Brain Data
 [`collection`](#collection) | BrainCollection — multi-subject brain-data container (v0.6.0).
 [`designmatrix`](#designmatrix) | DesignMatrix - Polars-based design matrix for neuroimaging analysis
@@ -34,7 +35,7 @@ Name | Description
 #### `Adjacency`
 
 ```python
-Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
 ```
 
 Adjacency is a class to represent Adjacency matrices as a vector rather
@@ -76,6 +77,7 @@ Name | Description
 [`std`](#std) | Calculate standard deviation of Adjacency.
 [`sum`](#sum) | Calculate sum of Adjacency.
 [`threshold`](#threshold) | Threshold Adjacency instance. Provide upper and lower values or
+[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space :class:`BrainData`.
 [`to_graph`](#to_graph) | Convert Adjacency into networkx graph.  only works on
 [`to_square`](#to_square) | Convert adjacency back to square matrix format.
 [`ttest`](#ttest) | Calculate ttest across samples.
@@ -95,6 +97,7 @@ Name | Type | Description
 [`matrix_type`](#matrix_type) |  | 
 [`n_nodes`](#n_nodes) |  | Return the number of nodes in the adjacency matrix.
 [`shape`](#shape) |  | Return the logical shape of the adjacency matrix.
+[`spatial_scale`](#spatial_scale) | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
 [`vector_shape`](#vector_shape) |  | Return shape of internal vectorized representation.
 
 ##### Methods
@@ -404,7 +407,7 @@ Name | Type | Description
 ###### `similarity`
 
 ```python
-similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
+similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -565,6 +568,43 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | thresholded Adjacency instance
+
+###### `to_brain`
+
+```python
+to_brain(values, *, fill: float = np.nan)
+```
+
+Project per-matrix scalars back to voxel-space :class:`BrainData`.
+
+Requires :attr:`spatial_scale` to be set (i.e. this stack came from
+:meth:`BrainData.distance` or another spatial-scale-aware producer).
+Each entry of ``values`` is painted onto the voxels assigned to its
+corresponding parcel by ``spatial_scale.atlas`` /
+``spatial_scale.roi_labels``. Voxels outside the atlas receive
+``fill``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
+`fill` | <code>[float](#float)</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | Single image masked to ``spatial_scale.source_mask``.
+
+**Examples:**
+
+```pycon
+>>> rdms = brain.distance(metric='correlation',
+...                       spatial_scale='roi', roi_mask=atlas)
+>>> sims = rdms.similarity(model_rdm)
+>>> brain_map = rdms.to_brain(sims)
+```
 
 ###### `to_graph`
 
@@ -938,7 +978,7 @@ permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int = 
 ###### `predict`
 
 ```python
-predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, method: str = 'whole_brain', estimator: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, return_weights: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **kwargs: Literal['auto', True, False])
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', estimator: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, return_weights: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **kwargs: Literal['auto', True, False])
 ```
 
 Two distinct paths, dispatched by argument:
@@ -1074,10 +1114,10 @@ Name | Description
 [`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
 [`astype`](#astype) | Cast BrainData.data as type.
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`cluster_report`](#cluster_report) | Generate a cluster report with anatomical labels.
 [`compute_contrasts`](#compute_contrasts) | Compute contrasts from fitted GLM results.
 [`copy`](#copy) | Create a deep copy of a BrainData instance.
 [`create_empty`](#create_empty) | Create a copy of BrainData with empty data array.
-[`cv`](#cv) | Create a cross-validation pipeline for this BrainData.
 [`decompose`](#decompose) | Decompose BrainData object.
 [`detrend`](#detrend) | Remove linear trend from each voxel.
 [`distance`](#distance) | Calculate distance between images within a BrainData() instance.
@@ -1093,7 +1133,7 @@ Name | Description
 [`plot`](#plot) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
 [`plot_surf`](#plot_surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
-[`predict`](#predict) | Generate predictions using fitted model OR classify patterns (MVPA).
+[`predict`](#predict) | Predict voxel timeseries (encoding) or decode labels (MVPA).
 [`predict_multi`](#predict_multi) | Deprecated: removed in v0.6.0; will return in a future Model class.
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
 [`regions`](#regions) | Extract brain connected regions into separate regions.
@@ -1135,7 +1175,7 @@ Name | Type | Description
 ###### `align`
 
 ```python
-align(target, method = 'procrustes', axis = 0)
+align(target, method = 'procrustes', axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0)
 ```
 
 Align BrainData instance to target object using functional alignment.
@@ -1147,6 +1187,9 @@ Name | Type | Description | Default
 `target` |  | (BrainData) object to align to. | *required*
 `method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
 `axis` |  | (int) axis to align on | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'roi'`` / ``'searchlight'`` are not yet implemented (per-parcel transforms + reassembly is a follow-up slice). | <code>'whole_brain'</code>
+`roi_mask` |  | Reserved for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Reserved for ``spatial_scale='searchlight'``. | <code>10.0</code>
 
 **Returns:**
 
@@ -1266,6 +1309,36 @@ Type | Description
 >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
 ```
 
+###### `cluster_report`
+
+```python
+cluster_report(*, stat_threshold: float | None = 3.0, cluster_threshold: int = 10, two_sided: bool = True, min_distance: float = 8.0, atlas: str | Sequence[str] | None = None, prob_threshold: float = 5.0) -> ClusterReport
+```
+
+Generate a cluster report with anatomical labels.
+
+Identifies surviving clusters in the stat map (after voxel + extent
+thresholding), reports peak coordinates and sub-peaks, and labels
+each peak/cluster against one or more atlases.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold (e.g. z- or t-cutoff). ``None`` treats ``self`` as already thresholded. | <code>3.0</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>[bool](#bool)</code> | Report negative clusters separately. | <code>True</code>
+`min_distance` | <code>[float](#float)</code> | Minimum mm between sub-peaks within a cluster. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)] \| None</code> | Atlas name or list of names (see :func:`list_atlases`). Defaults to ``("harvard_oxford", "aal", "schaefer_200")``. | <code>None</code>
+`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | class:`~nltools.data.atlases.ClusterReport` with ``peaks``,
+<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
+
 ###### `compute_contrasts`
 
 ```python
@@ -1342,42 +1415,6 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | A copy of this object with an empty data array.
 
-###### `cv`
-
-```python
-cv(k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainDataPipeline
-```
-
-Create a cross-validation pipeline for this BrainData.
-
-Returns a Pipeline object that enables fluent, chainable transforms
-with cross-validation. Terminal methods like .predict() execute the
-pipeline and return results.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
-`method` | <code>[str](#str)</code> | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets - 'permutation': permutation testing (shuffles targets) | <code>'kfold'</code>
-`split_by` | <code>[str](#str) \| None</code> | Attribute name for group splits (e.g., 'runs'). | <code>None</code>
-`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Explicit group labels for CV splits. | <code>None</code>
-`n` | <code>[int](#int)</code> | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` | <code>[BrainDataPipeline](#nltools.data.braindata.pipeline.BrainDataPipeline)</code> | A pipeline object for method chaining.
-
-**Examples:**
-
-```pycon
->>> result = brain.cv(k=5).predict(y, algorithm='ridge')
->>> result = brain.cv(method='loro', groups=run_labels).predict(y)
-```
-
 ###### `decompose`
 
 ```python
@@ -1424,7 +1461,7 @@ Name | Type | Description
 ###### `distance`
 
 ```python
-distance(metric = 'euclidean', **kwargs)
+distance(metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
 ```
 
 Calculate distance between images within a BrainData() instance.
@@ -1434,12 +1471,15 @@ Calculate distance between images within a BrainData() instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist) | <code>'euclidean'</code>
+`spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per parcel and ``spatial_scale`` provenance attached for back-projection via ``Adjacency.to_brain()``. ``'searchlight'`` requires ``radius_mm`` (and is not yet implemented in this slice). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image (BrainData / Nifti1Image / path) for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`Adjacency` |  | Pairwise distance matrix.
+`Adjacency` |  | Single pairwise distance matrix for ``'whole_brain'``; stacked Adjacency (one matrix per parcel/searchlight) with ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
 
 ###### `extract_roi`
 
@@ -1664,7 +1704,7 @@ Type | Description
 ###### `mean`
 
 ```python
-mean(axis = 0)
+mean(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 ```
 
 Get mean of each voxel or image.
@@ -1673,7 +1713,9 @@ Get mean of each voxel or image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array) | <code>0</code>
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) preserves existing behavior. ``'roi'`` requires ``roi_mask`` and returns a BrainData of the same shape with each voxel painted with its parcel's mean per image (parcellation smoothing). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 
 **Returns:**
 
@@ -1684,7 +1726,7 @@ Type | Description
 ###### `median`
 
 ```python
-median(axis = 0)
+median(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 ```
 
 Get median of each voxel or image.
@@ -1693,7 +1735,9 @@ Get median of each voxel or image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array) | <code>0</code>
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's median per image). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 
 **Returns:**
 
@@ -1820,45 +1864,112 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(X: np.ndarray | None = None, y: np.ndarray | None = None, *, method: str = 'whole_brain', estimator: str = 'svm', cv: str = 5, groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False)
+predict(*, y: np.ndarray | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, progress_bar: bool = False)
 ```
 
-Generate predictions using fitted model OR classify patterns (MVPA).
+Predict voxel timeseries (encoding) or decode labels (MVPA).
 
-Two modes:
-1. **Timeseries prediction** (X provided): Use fitted ridge model to predict voxel responses.
-2. **MVPA decoding** (y provided): Train a classifier to predict labels from brain patterns.
+Dispatched by which of ``X`` or ``y`` is provided:
+
+1. **Timeseries prediction** (``X`` provided): use a fitted ridge /
+   GLM encoding model on ``self`` to predict voxel responses.
+   Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
+   timeseries (composes directly with ``.plot()``, ``.standardize()``
+   etc.). ``inplace`` has no effect in this mode.
+2. **MVPA decoding** (``y`` provided): train a classifier or
+   regressor with cross-validation. Returns a :class:`Predict`
+   dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
+   ``final_weight_map``, ``accuracy_map``) are :class:`BrainData`
+   objects so ``result.weight_map.plot()`` works directly. Drop down
+   to numpy via ``result.weight_map.data``.
+
+Field shapes by ``spatial_scale=``:
+
+- **whole_brain**: ``predictions`` (n_samples,) OOF predictions,
+  ``scores`` (n_folds,), ``mean_score`` float, ``std_score`` float,
+  ``weight_map`` BrainData (``coef_`` from one fit on the **full**
+  ``(X, y)`` — the publishable map), ``fold_weight_maps`` BrainData
+  (n_folds, n_voxels) for stability analysis, ``estimator`` the
+  fitted all-data sklearn estimator (use for ``.predict()`` on new
+  data).
+- **roi**: ``scores`` (n_folds, n_rois), ``mean_score`` (n_rois,),
+  ``std_score`` (n_rois,), ``roi_labels`` (n_rois,) atlas IDs in
+  matching order, ``accuracy_map`` / ``weight_map`` /
+  ``fold_weight_maps`` BrainData (per-parcel coefs reassembled to
+  voxel space; voxels outside the atlas = NaN), ``estimator`` dict
+  keyed by atlas label.
+- **searchlight**: ``accuracy_map`` BrainData.
+
+With ``inplace=True``, fields are attached to ``self`` with a
+``predict_`` prefix (e.g. ``self.predict_weight_map``,
+``self.predict_accuracy_map``), mirroring ``bd.fit()``'s
+``glm_*`` / ``ridge_*`` naming.
+
+Why ``weight_map`` is the all-data refit, not the CV mean:
+the mean of K per-fold ``coef_`` vectors doesn't correspond to
+any actual fitted estimator (each fold saw a different subset).
+The all-data refit is a single legitimate model with all the
+information used. CV gives the honest *score*; the refit gives
+the publishable *map*. The CV-mean is one line away if you want
+it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray) \| None</code> | Features for timeseries prediction, shape (n_samples, n_features). | <code>None</code>
-`y` | <code>[ndarray](#numpy.ndarray) \| None</code> | Labels for MVPA decoding, shape (n_samples,). | <code>None</code>
-`method` | <code>[str](#str)</code> | Decoding method - 'whole_brain', 'searchlight', or 'roi'. | <code>'whole_brain'</code>
-`estimator` |  | Classifier ('svm', 'logistic', 'ridge', 'lda', or sklearn estimator). | <code>'svm'</code>
-`cv` |  | Cross-validation specification. | <code>5</code>
-`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV. | <code>None</code>
-`roi_mask` |  | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm (default 10.0). | <code>10.0</code>
-`scoring` | <code>[str](#str)</code> | Metric for evaluation. | <code>'accuracy'</code>
-`standardize` | <code>[bool](#bool)</code> | Z-score features before classification (default True). | <code>True</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
+`y` | <code>[array](#array) - [like](#like)</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``. Triggers MVPA mode. | <code>None</code>
+`X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape ``(n_samples, n_features)``. Triggers encoding mode. | <code>None</code>
+`spatial_scale` | <code>[str](#str)</code> | MVPA dispatch — ``'whole_brain'``, ``'searchlight'``, or ``'roi'``. | <code>'whole_brain'</code>
+`model` | <code>str or sklearn estimator</code> | Algorithm. String shortcuts:<br>- Classification: ``'svm'`` (LinearSVC), ``'logistic'``,   ``'lda'``, ``'ridge_classifier'``. - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.<br>Or pass any sklearn estimator / Pipeline (e.g., ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``). When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted to ``False`` (with a warning) so we don't wrap another StandardScaler around your pipeline. Pass ``standardize=True`` explicitly to override. | <code>'svm'</code>
+`cv` | <code>int or sklearn CV splitter</code> | ``int`` → KFold (regression) or StratifiedKFold (classification); pass a splitter for custom schemes (e.g., ``GroupKFold``). | <code>5</code>
+`standardize` | <code>[bool](#bool)</code> | Z-score features per fold before fitting. Default ``True``. Auto-flipped to ``False`` when ``model`` is a sklearn ``Pipeline`` (see ``model`` above). | <code>True</code>
+`reduce` | <code>[str](#str)</code> | Per-fold dimensionality reduction. Currently only ``'pca'`` supported. Default ``None``. Weight maps are back-projected through PCA to voxel space. | <code>None</code>
+`n_components` | <code>[int](#int)</code> | PCA components when ``reduce='pca'``. | <code>None</code>
+`scoring` | <code>[str](#str)</code> | Sklearn scoring string. Default ``'auto'`` → ``'accuracy'`` if classifier, ``'r2'`` if regressor. | <code>'auto'</code>
+`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
+`inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh :class:`Predict`. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight / ROI. Default ``1``; searchlight on a real brain at higher ``n_jobs`` can be memory-heavy. | <code>1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight / ROI. | <code>False</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Predicted timeseries or accuracy map.
+Type | Description
+---- | -----------
+ | Predict | BrainData: ``Predict`` dataclass when ``inplace=False``; ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
 **Examples:**
 
 ```pycon
->>> brain_data.fit(model='ridge', X=features)
->>> predictions = brain_data.predict(X=new_features)
->>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
+>>> result = brain.predict(y=labels, spatial_scale='whole_brain', cv=5)
+>>> result.weight_map.plot()       # publishable map (all-data fit)
+>>> result.mean_score              # honest CV-derived accuracy
+>>> new_pred = result.estimator.predict(new_X)  # apply to new data
 ```
+
+```pycon
+>>> result = brain.predict(y=labels, spatial_scale='searchlight',
+...                        radius_mm=8.0, n_jobs=4)
+>>> result.accuracy_map.plot()
+```
+
+```pycon
+>>> result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
+>>> top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
+>>> result.accuracy_map.plot()  # brain-space view of the same map
+```
+
+Custom sklearn pipeline as model — standardize auto-defaults to
+False because we detect the Pipeline::
+
+    from sklearn.feature_selection import SelectKBest
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.svm import LinearSVC
+    pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
+                         LinearSVC())
+    result = brain.predict(y=labels, model=pipe)
 
 ###### `predict_multi`
 
@@ -2033,7 +2144,7 @@ Name | Type | Description
 ###### `std`
 
 ```python
-std(axis = 0)
+std(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 ```
 
 Get standard deviation of each voxel or image.
@@ -2042,7 +2153,9 @@ Get standard deviation of each voxel or image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array) | <code>0</code>
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's std per image). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 
 **Returns:**
 
@@ -3419,6 +3532,7 @@ Name | Description
 [`io`](#io) | I/O functions for Adjacency objects.
 [`modeling`](#modeling) | Standalone modeling/inference functions for Adjacency matrices.
 [`plotting`](#plotting) | Plotting functions for Adjacency matrices.
+[`spatial`](#spatial) | Spatial-scale provenance for stacked Adjacency matrices.
 [`stats`](#stats) | Standalone statistical functions for Adjacency matrices.
 [`utils`](#utils) | Shared helpers for Adjacency submodules.
 
@@ -3745,6 +3859,76 @@ Type | Description
 ---- | -----------
  | None
 
+###### `spatial`
+
+Spatial-scale provenance for stacked Adjacency matrices.
+
+When a stack of Adjacency matrices comes from a per-parcel or per-searchlight
+operation on a BrainData, attaching a :class:`SpatialScale` records the atlas,
+the parcel labels in stack order, and the source mask — enough to project
+per-matrix reductions back to a voxel-space :class:`BrainData` via
+``Adjacency.to_brain()``.
+
+See :class:`Adjacency` for the optional ``spatial_scale`` attribute, and
+:meth:`BrainData.distance` (with ``spatial_scale='roi'|'searchlight'``) for
+the canonical producer.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`SpatialScale`](#SpatialScale) | Provenance for a stacked Adjacency that came from a per-parcel or
+
+
+
+####### Classes##
+
+###### `SpatialScale`
+
+```python
+SpatialScale(atlas: BrainData, roi_labels: np.ndarray, source_mask: Nifti1Image, kind: Literal['roi', 'searchlight'] = 'roi') -> None
+```
+
+Provenance for a stacked Adjacency that came from a per-parcel or
+per-searchlight operation on a :class:`BrainData`.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`atlas`](#atlas) | <code>[BrainData](#nltools.data.BrainData)</code> | Labeled volume indicating parcel membership (or searchlight centers). One matrix in the stack per unique label.
+[`roi_labels`](#roi_labels) | <code>[ndarray](#numpy.ndarray)</code> | Integer atlas IDs in stack order. ``len(roi_labels)`` must equal the number of matrices in the stack.
+[`source_mask`](#source_mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | The brain mask the atlas/values live in. Used as the target space for back-projection in ``Adjacency.to_brain()``.
+[`kind`](#kind) | <code>[Literal](#typing.Literal)['roi', 'searchlight']</code> | Which spatial scale produced this stack — ``'roi'`` or ``'searchlight'``.
+
+
+
+######### Attributes####
+
+###### `atlas`
+
+```python
+atlas: BrainData
+```
+
+########## `kind`
+
+```python
+kind: Literal['roi', 'searchlight'] = field(default='roi')
+```
+
+########## `roi_labels`
+
+```python
+roi_labels: np.ndarray
+```
+
+########## `source_mask`
+
+```python
+source_mask: Nifti1Image
+```
+
 ###### `stats`
 
 Standalone statistical functions for Adjacency matrices.
@@ -3863,7 +4047,7 @@ Name | Type | Description
 ######## `similarity`
 
 ```python
-similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
+similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -4097,6 +4281,571 @@ Name | Type | Description
 ---- | ---- | -----------
 `bool` |  | True if data is 1-D (single matrix in vector form).
 
+#### `atlases`
+
+Atlas registry, lazy loading, and coordinate labeling.
+
+Atlases are hosted at ``huggingface.co/datasets/nltools/niftis`` under
+``atlases/`` and fetched on first use via
+:func:`nltools.templates.fetch_resource`. Cached locally afterwards.
+
+The labeling logic was adapted from
+[atlasreader](https://github.com/miykael/atlasreader) (BSD-3-Clause). Cite:
+
+> Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
+> https://doi.org/10.21105/joss.01257
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`labeling`](#labeling) | Coordinate-level atlas labeling.
+[`loading`](#loading) | Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
+[`registry`](#registry) | Static registry of atlases hosted at ``nltools/niftis/atlases``.
+[`reporting`](#reporting) | Cluster reports — peak/cluster geometry plus atlas labels.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
+[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
+[`ClusterReport`](#ClusterReport) | Result of :meth:`BrainData.cluster_report`.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
+[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
+[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+[`AtlasKind`](#AtlasKind) |  | 
+[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+##### Methods
+
+###### `cluster_report_data`
+
+```python
+cluster_report_data(bd: BrainData, *, stat_threshold: float | None = 3.0, cluster_threshold: int = 10, two_sided: bool = True, min_distance: float = 8.0, atlas: str | Sequence[str] = DEFAULT_ATLASES, prob_threshold: float = 5.0) -> tuple[pl.DataFrame, pl.DataFrame, BrainData]
+```
+
+Compute cluster report DataFrames + thresholded BrainData.
+
+Pure function — the BrainData facade :meth:`BrainData.cluster_report`
+wraps the result in a :class:`ClusterReport`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with a 3D stat map (single sample). | *required*
+`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
+`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to :func:`nilearn.reporting.get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
+`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [DataFrame](#polars.DataFrame), [BrainData](#nltools.data.BrainData)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
+
+###### `label_coords`
+
+```python
+label_coords(coords: CoordsLike, *, atlas: str | Sequence[str] = 'harvard_oxford', prob_threshold: float = 5.0) -> pl.DataFrame
+```
+
+Look up anatomical labels for a set of MNI mm coordinates.
+
+For each coordinate, returns the atlas region(s) it falls in. Works
+for both deterministic atlases (single label per coord) and
+probabilistic atlases (formatted ``"42.0% Foo; 18.0% Bar"`` strings,
+sorted by descending probability).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame with columns ``x``, ``y``, ``z`` plus one
+<code>[DataFrame](#polars.DataFrame)</code> | column per atlas. All atlas columns are ``Utf8``.
+
+###### `list_atlases`
+
+```python
+list_atlases() -> list[str]
+```
+
+Return the sorted list of registered atlas names.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with
+<code>[list](#list)[[str](#str)]</code> | func:`nltools.data.atlases.load_atlas`.
+
+###### `load_atlas`
+
+```python
+load_atlas(name: str) -> Atlas
+```
+
+Lazy-load an atlas by registry name.
+
+First call fetches the NIfTI + label CSV from
+``huggingface.co/datasets/nltools/niftis`` (cached locally
+afterwards). Subsequent calls in the same process are memoized.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`name` | <code>[str](#str)</code> | Atlas key from :func:`list_atlases`. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`An` | <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | class:`Atlas` with image, labels, and metadata loaded.
+
+
+
+##### Modules
+
+###### `labeling`
+
+Coordinate-level atlas labeling.
+
+Adapted from [atlasreader](https://github.com/miykael/atlasreader)
+(BSD-3-Clause). Cite:
+
+> Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`CoordsLike`](#CoordsLike) |  | 
+
+
+
+####### Attributes##
+
+###### `CoordsLike`
+
+```python
+CoordsLike = ArrayLike | Sequence[Sequence[float]]
+```
+
+
+
+####### Classes
+
+####### Functions##
+
+###### `label_coords`
+
+```python
+label_coords(coords: CoordsLike, *, atlas: str | Sequence[str] = 'harvard_oxford', prob_threshold: float = 5.0) -> pl.DataFrame
+```
+
+Look up anatomical labels for a set of MNI mm coordinates.
+
+For each coordinate, returns the atlas region(s) it falls in. Works
+for both deterministic atlases (single label per coord) and
+probabilistic atlases (formatted ``"42.0% Foo; 18.0% Bar"`` strings,
+sorted by descending probability).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame with columns ``x``, ``y``, ``z`` plus one
+<code>[DataFrame](#polars.DataFrame)</code> | column per atlas. All atlas columns are ``Utf8``.
+
+###### `loading`
+
+Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+
+
+
+####### Attributes
+
+####### Classes##
+
+###### `Atlas`
+
+```python
+Atlas(name: str, image: nb.Nifti1Image, labels: pl.DataFrame, kind: AtlasKind, citation: str) -> None
+```
+
+A loaded atlas — image, labels, and metadata.
+
+Constructed by :func:`load_atlas`; users normally don't instantiate
+directly.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`name`](#name) | <code>[str](#str)</code> | Registry key (e.g. ``"harvard_oxford"``).
+[`image`](#image) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
+[`labels`](#labels) | <code>[DataFrame](#polars.DataFrame)</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
+[`kind`](#kind) | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
+[`citation`](#citation) | <code>[str](#str)</code> | Short citation for the original atlas.
+
+
+
+######### Attributes####
+
+###### `citation`
+
+```python
+citation: str
+```
+
+########## `image`
+
+```python
+image: nb.Nifti1Image
+```
+
+########## `kind`
+
+```python
+kind: AtlasKind
+```
+
+########## `labels`
+
+```python
+labels: pl.DataFrame
+```
+
+########## `name`
+
+```python
+name: str
+```
+
+
+
+####### Functions##
+
+###### `load_atlas`
+
+```python
+load_atlas(name: str) -> Atlas
+```
+
+Lazy-load an atlas by registry name.
+
+First call fetches the NIfTI + label CSV from
+``huggingface.co/datasets/nltools/niftis`` (cached locally
+afterwards). Subsequent calls in the same process are memoized.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`name` | <code>[str](#str)</code> | Atlas key from :func:`list_atlases`. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`An` | <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | class:`Atlas` with image, labels, and metadata loaded.
+
+###### `registry`
+
+Static registry of atlases hosted at ``nltools/niftis/atlases``.
+
+Each entry describes an atlas's kind (deterministic vs probabilistic) and
+the citation users should cite when they use it. The actual NIfTI + label
+files are fetched lazily by :func:`nltools.data.atlases.load_atlas` via
+:func:`nltools.templates.fetch_resource`.
+
+Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
+their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+[`AtlasKind`](#AtlasKind) |  | 
+[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+
+
+####### Attributes##
+
+###### `ATLASES`
+
+```python
+ATLASES: dict[str, AtlasMetadata] = {'aal': AtlasMetadata(kind='deterministic', citation='Tzourio-Mazoyer et al. 2002, NeuroImage'), 'aicha': AtlasMetadata(kind='deterministic', citation='Joliot et al. 2015, J Neurosci Methods'), 'desikan_killiany': AtlasMetadata(kind='deterministic', citation='Desikan et al. 2006, NeuroImage (FreeSurfer license)'), 'destrieux': AtlasMetadata(kind='deterministic', citation='Destrieux et al. 2010, NeuroImage (FreeSurfer license)'), 'harvard_oxford': AtlasMetadata(kind='probabilistic', citation='Desikan et al. 2006, NeuroImage / FSL Harvard-Oxford'), 'juelich': AtlasMetadata(kind='probabilistic', citation='Eickhoff et al. 2005, NeuroImage'), 'marsatlas': AtlasMetadata(kind='deterministic', citation='Auzias et al. 2016, Hum Brain Mapp'), 'neuromorphometrics': AtlasMetadata(kind='deterministic', citation='MICCAI 2012 Multi-Atlas Labeling Challenge'), 'schaefer_200': AtlasMetadata(kind='deterministic', citation='Schaefer et al. 2018, Cereb Cortex (200-parcel, 7-network)'), 'talairach_ba': AtlasMetadata(kind='deterministic', citation='Talairach & Tournoux 1988 (Brodmann areas)'), 'talairach_gyrus': AtlasMetadata(kind='deterministic', citation='Talairach & Tournoux 1988 (gyri)')}
+```
+
+######## `AtlasKind`
+
+```python
+AtlasKind = Literal['deterministic', 'probabilistic']
+```
+
+######## `DEFAULT_ATLASES`
+
+```python
+DEFAULT_ATLASES: tuple[str, ...] = ('harvard_oxford', 'aal', 'schaefer_200')
+```
+
+
+
+####### Classes##
+
+###### `AtlasMetadata`
+
+```python
+AtlasMetadata(kind: AtlasKind, citation: str) -> None
+```
+
+Static description of a registered atlas.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`kind`](#kind) | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+[`citation`](#citation) | <code>[str](#str)</code> | Short citation string for the original atlas.
+
+
+
+######### Attributes####
+
+###### `citation`
+
+```python
+citation: str
+```
+
+########## `kind`
+
+```python
+kind: AtlasKind
+```
+
+
+
+####### Functions##
+
+###### `list_atlases`
+
+```python
+list_atlases() -> list[str]
+```
+
+Return the sorted list of registered atlas names.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with
+<code>[list](#list)[[str](#str)]</code> | func:`nltools.data.atlases.load_atlas`.
+
+###### `reporting`
+
+Cluster reports — peak/cluster geometry plus atlas labels.
+
+The peak/sub-peak geometry comes from :func:`nilearn.reporting.get_clusters_table`;
+the cluster masks and mass-weighted labels are computed locally so we can
+attribute every voxel of every cluster to one or more atlases.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`ClusterReport`](#ClusterReport) | Result of :meth:`BrainData.cluster_report`.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
+
+
+
+####### Attributes
+
+####### Classes##
+
+###### `ClusterReport`
+
+```python
+ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
+```
+
+Result of :meth:`BrainData.cluster_report`.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`peaks`](#peaks) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+[`clusters`](#clusters) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
+[`stat_img`](#stat_img) | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`plot`](#plot) | Render an overview glass brain + one slice figure per cluster.
+[`to_csv`](#to_csv) | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
+
+
+
+######### Attributes####
+
+###### `clusters`
+
+```python
+clusters: pl.DataFrame
+```
+
+########## `peaks`
+
+```python
+peaks: pl.DataFrame
+```
+
+########## `stat_img`
+
+```python
+stat_img: BrainData
+```
+
+
+
+######### Functions####
+
+###### `plot`
+
+```python
+plot(*, output_dir: str | Path | None = None) -> list[tuple[str, Any]] | None
+```
+
+Render an overview glass brain + one slice figure per cluster.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`output_dir` | <code>[str](#str) \| [Path](#pathlib.Path) \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``(label, figure)`` tuples.
+
+########## `to_csv`
+
+```python
+to_csv(output_dir: str | Path) -> None
+```
+
+Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
+
+
+
+####### Functions##
+
+###### `cluster_report_data`
+
+```python
+cluster_report_data(bd: BrainData, *, stat_threshold: float | None = 3.0, cluster_threshold: int = 10, two_sided: bool = True, min_distance: float = 8.0, atlas: str | Sequence[str] = DEFAULT_ATLASES, prob_threshold: float = 5.0) -> tuple[pl.DataFrame, pl.DataFrame, BrainData]
+```
+
+Compute cluster report DataFrames + thresholded BrainData.
+
+Pure function — the BrainData facade :meth:`BrainData.cluster_report`
+wraps the result in a :class:`ClusterReport`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with a 3D stat map (single sample). | *required*
+`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
+`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to :func:`nilearn.reporting.get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
+`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [DataFrame](#polars.DataFrame), [BrainData](#nltools.data.BrainData)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
+
 #### `braindata`
 
 NeuroLearn Brain Data
@@ -4114,9 +4863,8 @@ Name | Description
 [`io`](#io) | BrainData I/O and loading functions.
 [`modeling`](#modeling) | BrainData modeling functions.
 [`neighborhoods`](#neighborhoods) | Spatial neighborhood computation for neuroimaging analyses.
-[`pipeline`](#pipeline) | BrainData pipeline and cross-validation result classes.
 [`plotting`](#plotting) | BrainData plotting functions.
-[`prediction`](#prediction) | BrainData prediction functions.
+[`prediction`](#prediction) | BrainData prediction — timeseries (encoding) and MVPA (decoding).
 [`utils`](#utils) | Shared helpers for BrainData submodules.
 [`validation`](#validation) | Validation utilities for BrainData class.
 [`widgets`](#widgets) | Anywidget-based interactive viewer for BrainData.
@@ -4144,6 +4892,7 @@ alignment, smoothing, and other analytical operations.
 Name | Description
 ---- | -----------
 [`align`](#align) | Align BrainData instance to target object using functional alignment
+[`align_per_roi`](#align_per_roi) | Per-parcel functional alignment + voxel-space reassembly.
 [`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
 [`check_masks`](#check_masks) | Check to make sure masks are the same for each dataset and if not create a union mask
 [`decompose`](#decompose) | Decompose BrainData object
@@ -4155,6 +4904,7 @@ Name | Description
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
+[`reduce_per_roi`](#reduce_per_roi) | Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
 [`regions`](#regions) | Extract brain connected regions into separate regions.
 [`scale_data`](#scale_data) | Scale data via mean scaling.
 [`similarity`](#similarity) | Calculate similarity of BrainData() instance with single
@@ -4208,6 +4958,23 @@ Name | Type | Description
     >>> out = data.align(target, method='probabilistic_srm', n_features=None)
 - Project aligned data into original data:
     >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+
+######## `align_per_roi`
+
+```python
+align_per_roi(bd, target, *, method, axis, roi_mask)
+```
+
+Per-parcel functional alignment + voxel-space reassembly.
+
+For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
+``target`` restricted to that parcel's voxels and collects results.
+The ``transformed`` field is reassembled into a single
+:class:`BrainData` of the same shape as the input (each voxel filled
+with its parcel's transformed value per image; voxels outside any
+parcel = NaN). Per-parcel transform matrices and common-model
+objects are kept as dicts keyed by atlas label, since matrices over
+different voxel subsets can't be painted into one image.
 
 ######## `apply_mask`
 
@@ -4312,7 +5079,7 @@ Name | Type | Description
 ######## `distance`
 
 ```python
-distance(bd, metric = 'euclidean', **kwargs)
+distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
 ```
 
 Calculate distance between images within a BrainData() instance.
@@ -4323,13 +5090,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See :meth:`BrainData.distance`. | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dist` |  | (Adjacency) Outputs a 2D distance matrix.
+`dist` |  | (Adjacency) Whole-brain pairwise distance matrix, or a stacked Adjacency (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
 ######## `extract_roi`
 
@@ -4512,6 +5282,22 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Transformed BrainData instance.
+
+######## `reduce_per_roi`
+
+```python
+reduce_per_roi(bd, reducer, *, roi_mask)
+```
+
+Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
+result back to voxel space — i.e. spatial smoothing via parcellation.
+
+For each image ``i`` and each parcel ``p``, computes
+``reducer(bd.data[i, voxels-in-p])`` and assigns that scalar to every
+voxel in parcel ``p`` for image ``i``. Voxels outside any parcel get
+NaN. Output is a :class:`BrainData` of the same shape as the input.
+
+Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
 ######## `regions`
 
@@ -5539,8 +6325,8 @@ Name | Type | Description | Default
 
 BrainData modeling functions.
 
-Standalone functions extracted from BrainData class methods for model fitting,
-cross-validation, GLM estimation, Ridge regression, and contrast computation.
+Standalone functions extracted from BrainData class methods for model
+fitting, GLM estimation, Ridge regression, and contrast computation.
 
 **Methods:**
 
@@ -5548,7 +6334,6 @@ Name | Description
 ---- | -----------
 [`compute_contrasts`](#compute_contrasts) | Compute contrasts from a fitted GLM.
 [`compute_ridge_cv`](#compute_ridge_cv) | Held-out CV scores under a fixed Ridge α.
-[`cv`](#cv) | Create a cross-validation pipeline for this BrainData.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`fit_glm`](#fit_glm) | Fit GLM model and extract results (same logic as current regress()).
 [`fit_ridge`](#fit_ridge) | Fit Ridge model and extract results.
@@ -5650,66 +6435,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
-
-######## `cv`
-
-```python
-cv(bd, k = None, method = 'kfold', split_by = None, groups = None, n = 1000, random_state = None)
-```
-
-Create a cross-validation pipeline for this BrainData.
-
-Returns a Pipeline object that enables fluent, chainable transforms
-with cross-validation. Terminal methods like .predict() execute the
-pipeline and return results.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`k` |  | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
-`method` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
-`split_by` |  | Attribute name for group splits (e.g., 'runs'). If provided and groups is None, will try to get groups from bd.X[split_by] if bd.X is a DataFrame. | <code>None</code>
-`groups` |  | Explicit group labels for CV splits. | <code>None</code>
-`n` |  | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` |  | A pipeline object for method chaining.
-
-**Examples:**
-
-```pycon
->>> # Simple 5-fold CV with prediction
->>> result = brain.cv(k=5).predict(y, algorithm='ridge')
->>> print(f"Mean score: {result.mean_score:.3f}")
-```
-
-```pycon
->>> # With preprocessing
->>> result = (brain
-...     .cv(k=5)
-...     .normalize()
-...     .reduce(n_components=50)
-...     .predict(y))
-```
-
-```pycon
->>> # Leave-one-run-out CV
->>> result = brain.cv(method='loro', groups=run_labels).predict(y)
-```
-
-<details class="see-also" open markdown="1">
-<summary>See Also</summary>
-
-BrainDataPipeline: For available transforms and terminal methods.
-CVScheme: For CV scheme configuration details.
-
-</details>
 
 ######## `fit`
 
@@ -6212,273 +6937,6 @@ For a typical 2mm MNI mask (~50k voxels) with 10mm radius:
 
 </details>
 
-###### `pipeline`
-
-BrainData pipeline and cross-validation result classes.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`BrainDataCVResult`](#BrainDataCVResult) | Cross-validation results for BrainData pipelines.
-[`BrainDataPipeline`](#BrainDataPipeline) | Pipeline specialized for BrainData with CV support.
-
-
-
-####### Classes##
-
-###### `BrainDataCVResult`
-
-```python
-BrainDataCVResult(fold_results: list, pipeline: list)
-```
-
-Cross-validation results for BrainData pipelines.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`fold_results`](#fold_results) |  | 
-[`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across folds.
-[`pipeline`](#pipeline) |  | 
-[`predictions`](#predictions) | <code>[ndarray](#numpy.ndarray)</code> | All predictions in original sample order.
-[`scores`](#scores) | <code>[ndarray](#numpy.ndarray)</code> | Per-fold prediction scores as a numpy array.
-[`std_score`](#std_score) | <code>[float](#float)</code> | Standard deviation of scores.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`fold_results` | <code>[list](#list)</code> | List of dicts, one per fold, each containing 'score', 'predictions', 'train_idx', 'test_idx', and 'fitted_stack'. | *required*
-`pipeline` | <code>[BrainDataPipeline](#nltools.data.braindata.pipeline.BrainDataPipeline)</code> | The pipeline that produced these results. | *required*
-
-
-
-######### Attributes####
-
-###### `fold_results`
-
-```python
-fold_results = fold_results
-```
-
-########## `mean_score`
-
-```python
-mean_score: float
-```
-
-Mean score across folds.
-
-########## `pipeline`
-
-```python
-pipeline = pipeline
-```
-
-########## `predictions`
-
-```python
-predictions: np.ndarray
-```
-
-All predictions in original sample order.
-
-########## `scores`
-
-```python
-scores: np.ndarray
-```
-
-Per-fold prediction scores as a numpy array.
-
-########## `std_score`
-
-```python
-std_score: float
-```
-
-Standard deviation of scores.
-
-######## `BrainDataPipeline`
-
-```python
-BrainDataPipeline(brain_data, cv = None, groups = None)
-```
-
-Pipeline specialized for BrainData with CV support.
-
-Wraps the base Pipeline to handle BrainData-specific operations
-like splitting by samples and accessing the underlying data array.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`normalize`](#normalize) | Add normalization step.
-[`pipe`](#pipe) | Add custom sklearn transformer.
-[`predict`](#predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#reduce) | Add dimensionality reduction step.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`cv`](#cv) |  | Cross-validation splitter for this pipeline.
-[`data`](#data) |  | Get underlying data array.
-[`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of processing steps in this pipeline.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_data` |  | BrainData instance to build the pipeline on. | *required*
-`cv` |  | Cross-validation splitter (e.g., CVScheme instance) or None. | <code>None</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splits (e.g., run IDs for leave-one-run-out). | <code>None</code>
-
-
-
-######### Attributes####
-
-###### `cv`
-
-```python
-cv
-```
-
-Cross-validation splitter for this pipeline.
-
-**Returns:**
-
-Type | Description
----- | -----------
- | sklearn cross-validator or None: The cross-validation strategy
- | set for this pipeline, or None if not configured.
-
-########## `data`
-
-```python
-data
-```
-
-Get underlying data array.
-
-########## `n_steps`
-
-```python
-n_steps: int
-```
-
-Number of processing steps in this pipeline.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`int` | <code>[int](#int)</code> | The count of steps added to this pipeline.
-
-
-
-######### Functions####
-
-###### `normalize`
-
-```python
-normalize(method: str = 'zscore', **kwargs: str) -> BrainDataPipeline
-```
-
-Add normalization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Normalization method. Default: 'zscore'. | <code>'zscore'</code>
-`**kwargs` |  | Additional arguments passed to NormalizeStep. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` | <code>[BrainDataPipeline](#nltools.data.braindata.pipeline.BrainDataPipeline)</code> | New pipeline with the normalization step appended.
-
-########## `pipe`
-
-```python
-pipe(transformer) -> BrainDataPipeline
-```
-
-Add custom sklearn transformer.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`transformer` |  | An sklearn-compatible transformer with fit/transform methods. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` | <code>[BrainDataPipeline](#nltools.data.braindata.pipeline.BrainDataPipeline)</code> | New pipeline with the custom step appended.
-
-########## `predict`
-
-```python
-predict(y, algorithm: str = 'ridge', **kwargs: str)
-```
-
-Execute pipeline with CV and return prediction results.
-
-This is a terminal method that executes the full pipeline.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`y` |  | Target variable (labels or continuous values). | *required*
-`algorithm` | <code>[str](#str)</code> | Prediction algorithm. Options: - 'ridge': Ridge regression (continuous targets) - 'lasso': Lasso regression (continuous targets) - 'svr': Support Vector Regression (continuous targets) - 'svm': Support Vector Classification (categorical targets) | <code>'ridge'</code>
-`**kwargs` |  | Additional arguments passed to sklearn model constructor. For classification (svm), use class_weight='balanced' to handle imbalanced classes. See sklearn documentation for all options. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | BrainDataCVResult with scores, predictions, and fold information.
-
-**Examples:**
-
-Basic regression::
-
-    result = brain.cv(5).predict(continuous_y, algorithm='ridge', alpha=1.0)
-
-Classification with balanced classes::
-
-    result = brain.cv(5).predict(labels, algorithm='svm', class_weight='balanced')
-
-########## `reduce`
-
-```python
-reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> BrainDataPipeline
-```
-
-Add dimensionality reduction step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Reduction method (e.g., 'pca'). Default: 'pca'. | <code>'pca'</code>
-`n_components` | <code>[int](#int)</code> | Number of components to keep. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to ReduceStep. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` | <code>[BrainDataPipeline](#nltools.data.braindata.pipeline.BrainDataPipeline)</code> | New pipeline with the reduction step appended.
-
 ###### `plotting`
 
 BrainData plotting functions.
@@ -6632,281 +7090,100 @@ Name | Type | Description
 
 ###### `prediction`
 
-BrainData prediction functions.
+BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Standalone functions extracted from BrainData class methods for timeseries
-prediction (encoding models) and MVPA decoding (pattern classification).
+Single entry point: :func:`predict`. Returns :class:`nltools.data.fitresults.Predict`
+with fields populated based on dispatch. Mirrors :meth:`BrainData.fit` /
+:class:`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
+self with attributes, ``inplace=False`` returns the dataclass.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`mvpa_roi`](#mvpa_roi) | ROI-based MVPA - accuracy per ROI, projected to voxel space.
-[`mvpa_searchlight`](#mvpa_searchlight) | Searchlight MVPA - accuracy per voxel neighborhood.
-[`mvpa_whole_brain`](#mvpa_whole_brain) | Whole-brain MVPA - single accuracy across all voxels.
-[`mvpa_whole_brain_pipeline`](#mvpa_whole_brain_pipeline) | Whole-brain MVPA using Pipeline infrastructure.
-[`predict`](#predict) | Generate predictions using fitted model OR classify patterns (MVPA).
-[`predict_mvpa`](#predict_mvpa) | Perform MVPA decoding using cross-validation.
-[`predict_timeseries`](#predict_timeseries) | Generate timeseries predictions using fitted model.
-[`resolve_estimator`](#resolve_estimator) | Resolve string shortcut to sklearn estimator.
+[`build_pipeline`](#build_pipeline) | Build a per-fold sklearn pipeline: optional StandardScaler → optional
+[`predict`](#predict) | Implementation of :meth:`BrainData.predict`. See class docstring for
+[`predict_mvpa`](#predict_mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
+[`predict_timeseries`](#predict_timeseries) | Predict voxel timeseries from a fitted encoding model.
+[`resolve_model`](#resolve_model) | Resolve a string shortcut or pass through a sklearn estimator.
+[`resolve_scoring`](#resolve_scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`VALID_SPATIAL_SCALES`](#VALID_SPATIAL_SCALES) |  | 
 
 
+
+####### Attributes##
+
+###### `VALID_SPATIAL_SCALES`
+
+```python
+VALID_SPATIAL_SCALES = {'whole_brain', 'searchlight', 'roi'}
+```
+
+
+
+####### Classes
 
 ####### Functions##
 
-###### `mvpa_roi`
+###### `build_pipeline`
 
 ```python
-mvpa_roi(bd, X, y, pipe, cv, groups, scoring, roi_mask, n_jobs, progress_bar)
+build_pipeline(model, standardize: bool, reduce: str | None, n_components: str | None)
 ```
 
-ROI-based MVPA - accuracy per ROI, projected to voxel space.
-
-For each non-zero label in ``roi_mask``, uses all voxels within that ROI
-as features for a cross-validated decoder. Returns a voxel-shaped array
-where each voxel carries the accuracy of its containing ROI (voxels
-outside any ROI are NaN).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`X` |  | Feature matrix, shape (n_samples, n_voxels) — aligned to ``bd.mask``. | *required*
-`y` |  | Labels, shape (n_samples,). | *required*
-`pipe` |  | sklearn pipeline or estimator. | *required*
-`cv` |  | Cross-validation splitter. | *required*
-`groups` |  | Group labels for CV. | *required*
-`scoring` |  | Scoring metric string. | *required*
-`roi_mask` |  | Atlas/parcellation image or path. Resampled to ``bd.mask`` space with nearest-neighbor interpolation if needed. | *required*
-`n_jobs` |  | Number of parallel jobs. | *required*
-`progress_bar` |  | Whether to show progress bar. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
- | np.ndarray of shape (n_voxels,) with per-voxel ROI accuracy.
-
-######## `mvpa_searchlight`
-
-```python
-mvpa_searchlight(bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar)
-```
-
-Searchlight MVPA - accuracy per voxel neighborhood.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`X` |  | Feature matrix, shape (n_samples, n_voxels). | *required*
-`y` |  | Labels, shape (n_samples,). | *required*
-`pipe` |  | sklearn pipeline or estimator. | *required*
-`cv` |  | Cross-validation splitter. | *required*
-`groups` |  | Group labels for CV. | *required*
-`scoring` |  | Scoring metric string. | *required*
-`radius_mm` |  | searchlight radius in mm. | *required*
-`n_jobs` |  | Number of parallel jobs. | *required*
-`progress_bar` |  | Whether to show progress bar. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
- | np.ndarray of accuracy values per voxel.
-
-######## `mvpa_whole_brain`
-
-```python
-mvpa_whole_brain(bd, X, y, pipe, cv, groups, scoring)
-```
-
-Whole-brain MVPA - single accuracy across all voxels.
-
-Legacy implementation using sklearn cross_val_score directly.
-Kept for searchlight/ROI methods that still use sklearn pipelines.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance (unused, kept for API consistency). | *required*
-`X` |  | Feature matrix, shape (n_samples, n_voxels). | *required*
-`y` |  | Labels, shape (n_samples,). | *required*
-`pipe` |  | sklearn pipeline or estimator. | *required*
-`cv` |  | Cross-validation splitter. | *required*
-`groups` |  | Group labels for CV. | *required*
-`scoring` |  | Scoring metric string. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
- | np.ndarray with single mean accuracy value.
-
-######## `mvpa_whole_brain_pipeline`
-
-```python
-mvpa_whole_brain_pipeline(bd, y, estimator, cv, groups, standardize)
-```
-
-Whole-brain MVPA using Pipeline infrastructure.
-
-Delegates to the fluent pipeline API for whole-brain classification,
-then extracts mean accuracy for backward compatibility.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`y` |  | Labels to predict. | *required*
-`estimator` |  | Estimator name ('svm', 'logistic', etc.). | *required*
-`cv` |  | Cross-validation splitter or int. | *required*
-`groups` |  | Group labels for CV. | *required*
-`standardize` |  | Whether to z-score features. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
- | np.ndarray with single mean accuracy value.
+Build a per-fold sklearn pipeline: optional StandardScaler → optional
+PCA → model. If only the model is needed, returns the model itself.
 
 ######## `predict`
 
 ```python
-predict(bd, X = None, y = None, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
+predict(bd, *, y = None, X = None, spatial_scale: str = 'whole_brain', model: Any = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: str = None, roi_mask: str = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, progress_bar: bool = False)
 ```
 
-Generate predictions using fitted model OR classify patterns (MVPA).
-
-This method supports two prediction modes determined by which parameter
-is provided:
-
-1. **Timeseries prediction** (X provided): Use fitted ridge model to
-   predict voxel responses for new feature data.
-
-2. **MVPA decoding** (y provided): Train a classifier to predict labels
-   from brain patterns using cross-validation.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape (n_samples, n_features). If None and y is None, uses training data from fit(). | <code>None</code>
-`y` | <code>[array](#array) - [like](#like)</code> | Labels for MVPA decoding, shape (n_samples,). If provided, performs pattern classification instead of timeseries prediction. | <code>None</code>
-`MVPA-specific parameters` | <code>only used when y is provided</code> |  | *required*
-`method` | <code>[str](#str)</code> | Decoding method - 'whole_brain', 'searchlight', or 'roi'. | <code>'whole_brain'</code>
-`estimator` | <code>str or sklearn estimator</code> | Classifier to use. Can be: - 'svm': LinearSVC (default) - 'logistic': LogisticRegression - 'ridge': RidgeClassifier - 'lda': LinearDiscriminantAnalysis - Any sklearn-compatible estimator with fit/predict | <code>'svm'</code>
-`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. Int for k-fold or sklearn CV object. | <code>5</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV (e.g., run IDs for leave-one-run-out). | <code>None</code>
-`roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas/parcellation for ROI-based decoding. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. Default: 10.0. | <code>10.0</code>
-`scoring` | <code>[str](#str)</code> | Metric for evaluation ('accuracy', 'balanced_accuracy', 'roc_auc'). | <code>'accuracy'</code>
-`standardize` | <code>[bool](#bool)</code> | Z-score features before classification. Default: True. | <code>True</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs for searchlight (-1 = all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight. | <code>False</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | For timeseries prediction, shape (n_samples, n_voxels). For MVPA, shape (1, n_voxels) with accuracy per voxel/ROI.
-
-**Examples:**
-
-```pycon
->>> # Timeseries prediction (encoding model)
->>> brain_data.fit(model='ridge', X=features)
->>> predictions = brain_data.predict(X=new_features)
-```
-
-```pycon
->>> # MVPA decoding (pattern classification)
->>> # brain_data.data has shape (n_trials, n_voxels)
->>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
->>> print(accuracy.shape)  # (1, n_voxels)
-```
+Implementation of :meth:`BrainData.predict`. See class docstring for
+full parameter documentation.
 
 ######## `predict_mvpa`
 
 ```python
-predict_mvpa(bd, y, method = 'whole_brain', estimator = 'svm', cv = 5, groups = None, roi_mask = None, radius_mm = 10.0, scoring = 'accuracy', standardize = True, n_jobs = -1, progress_bar = False)
+predict_mvpa(bd, *, y, spatial_scale: str, model: Any, cv: Any, standardize: bool, reduce: str | None, n_components: int | None, scoring: str, groups: str, roi_mask: str, radius_mm: float, inplace: bool, n_jobs: int, progress_bar: bool) -> Predict | Any
 ```
 
-Perform MVPA decoding using cross-validation.
-
-Internal function for pattern classification.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`y` | <code>[array](#array) - [like](#like)</code> | Labels to predict, shape (n_samples,). | *required*
-`method` | <code>[str](#str)</code> | 'whole_brain', 'searchlight', or 'roi'. | <code>'whole_brain'</code>
-`estimator` | <code>str or sklearn estimator</code> | Classifier (string shortcut or sklearn estimator). | <code>'svm'</code>
-`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | <code>5</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV. | <code>None</code>
-`roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Atlas for ROI-based decoding. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | searchlight radius in mm. | <code>10.0</code>
-`scoring` | <code>[str](#str)</code> | Scoring metric. | <code>'accuracy'</code>
-`standardize` | <code>[bool](#bool)</code> | Whether to z-score features. | <code>True</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight. | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar. | <code>False</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | BrainData with accuracy values.
+Cross-validated decoding. Returns Predict (or self if inplace=True).
 
 ######## `predict_timeseries`
 
 ```python
-predict_timeseries(bd, X = None)
+predict_timeseries(bd, *, X = None)
 ```
 
-Generate timeseries predictions using fitted model.
+Predict voxel timeseries from a fitted encoding model.
 
-Internal function for encoding model prediction.
+Returns a fresh ``BrainData`` whose ``.data`` is the predicted timeseries.
+Encoding model prediction yields a brain image — the natural container is
+``BrainData``, so it composes directly with downstream methods (`.plot()`,
+`.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`X` | <code>[array](#array) - [like](#like)</code> | Features to predict on. If None, uses training data. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | BrainData with predicted timeseries.
-
-######## `resolve_estimator`
+######## `resolve_model`
 
 ```python
-resolve_estimator(bd, estimator)
+resolve_model(model: Any)
 ```
 
-Resolve string shortcut to sklearn estimator.
+Resolve a string shortcut or pass through a sklearn estimator.
 
-**Parameters:**
+######## `resolve_scoring`
 
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance (unused, kept for API consistency). | *required*
-`estimator` |  | String shortcut or sklearn estimator object. | *required*
+```python
+resolve_scoring(scoring: str, classifier: bool) -> str
+```
 
-**Returns:**
-
-Type | Description
----- | -----------
- | Instantiated sklearn estimator.
+Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
 
 ###### `utils`
 
@@ -8336,6 +8613,7 @@ Examples
 Name | Description
 ---- | -----------
 [`Fit`](#Fit) | Immutable container for model fitting results.
+[`Predict`](#Predict) | Immutable container for prediction / MVPA decoding results.
 
 
 
@@ -8661,6 +8939,200 @@ Examples
 ['fitted_values', 'weights']
 >>> 'scores' in fit.available()
 False
+
+###### `Predict`
+
+```python
+Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: Any = None, std_score: Any = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: Any = None, weight_map: Any = None, fold_weight_maps: Any = None, estimator: Any = None) -> None
+```
+
+Immutable container for prediction / MVPA decoding results.
+
+Mirrors :class:`Fit`: frozen, all fields default to ``None``, populated
+based on the dispatch path (``method``, ``y`` vs ``X``, ``refit``) used
+by :meth:`BrainData.predict`. Fields not applicable to the call remain
+``None`` and are filtered from :meth:`available` and :meth:`asdict`.
+
+**Brain-space outputs are :class:`BrainData` objects**, not raw arrays —
+so ``result.weight_map.plot()`` works directly. Drop down to numpy via
+``result.weight_map.data`` if needed. Non-spatial fields (``predictions``,
+``cv_folds``, scalar scores) stay as numpy.
+
+Field shapes by dispatch:
+
+**method='whole_brain'** (with ``y``):
+    - ``predictions``: ``(n_samples,)`` ndarray, OOF predictions from CV
+    - ``scores``: ``(n_folds,)`` ndarray, per-fold score
+    - ``mean_score``: float, mean across folds
+    - ``std_score``: float, std across folds
+    - ``cv_folds``: ``(n_samples,)`` ndarray, fold index per sample
+    - ``weight_map``: BrainData ``(1, n_voxels)``, ``coef_`` from one
+      model fit on the **full** ``(X, y)``. The publishable map.
+    - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``, per-fold
+      ``coef_`` stack — for stability analysis (e.g., across-fold std).
+    - ``estimator``: the fitted all-data sklearn estimator (use for
+      ``.predict()`` on new data).
+
+**method='roi'** (with ``y``):
+    - ``scores``: ``(n_folds, n_rois)`` ndarray
+    - ``mean_score``: ``(n_rois,)`` ndarray, mean across folds per parcel
+    - ``std_score``: ``(n_rois,)`` ndarray
+    - ``roi_labels``: ``(n_rois,)`` ndarray of atlas integer IDs in the
+      same order as ``mean_score`` / ``std_score`` / ``scores`` axis 1
+    - ``accuracy_map``: BrainData ``(1, n_voxels)``, every voxel inside
+      parcel *i* set to that parcel's mean accuracy (others NaN)
+    - ``weight_map``: BrainData ``(1, n_voxels)``, per-parcel ``coef_``
+      from each parcel's all-data fit, written back into voxel space
+      (atlas is a label image so reassembly is disjoint). Voxels outside
+      any parcel are NaN. Magnitudes across parcels are not directly
+      comparable — different parcels live on different X distributions.
+    - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``
+    - ``estimator``: ``dict[int, sklearn]`` keyed by atlas label
+
+    If any parcel can't expose ``.coef_`` (non-linear model, ``SelectKBest``
+    in pipeline), ``weight_map`` / ``fold_weight_maps`` / ``estimator``
+    all collapse to ``None`` for the whole call.
+
+**method='searchlight'** (with ``y``):
+    - ``accuracy_map``: BrainData ``(1, n_voxels)``, sphere-centered
+      accuracy at each voxel
+
+Note: encoding-model timeseries prediction (``bd.predict(X=...)``) returns
+a ``BrainData`` directly, not a ``Predict`` — the natural container for a
+voxel timeseries.
+
+Why the all-data fit is canonical: the CV mean of per-fold ``coef_``
+vectors doesn't correspond to any actual fitted estimator (each fold
+saw a different subset). The all-data refit is a single, real model
+with all the information used. CV gives the honest *score*; the refit
+gives the publishable *map*. ``fold_weight_maps`` is still exposed for
+stability analysis, and the CV-mean is one line away if you want it
+(``fold_weight_maps.data.mean(axis=0)``).
+
+Methods
+-------
+available() : list
+    Names of non-None fields (excludes private).
+asdict(include_none=False) : dict
+    Convert to dict for serialization (private fields always excluded).
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`asdict`](#asdict) | Convert to dictionary.
+[`available`](#available) | Return names of non-None fields (excludes private).
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`accuracy_map`](#accuracy_map) | <code>[Any](#typing.Any)</code> | 
+[`cv_folds`](#cv_folds) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+[`estimator`](#estimator) | <code>[Any](#typing.Any)</code> | 
+[`fold_weight_maps`](#fold_weight_maps) | <code>[Any](#typing.Any)</code> | 
+[`mean_score`](#mean_score) | <code>[Any](#typing.Any)</code> | 
+[`predictions`](#predictions) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+[`roi_labels`](#roi_labels) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+[`scores`](#scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+[`std_score`](#std_score) | <code>[Any](#typing.Any)</code> | 
+[`weight_map`](#weight_map) | <code>[Any](#typing.Any)</code> | 
+
+
+
+####### Attributes##
+
+###### `accuracy_map`
+
+```python
+accuracy_map: Any = None
+```
+
+######## `cv_folds`
+
+```python
+cv_folds: np.ndarray | None = None
+```
+
+######## `estimator`
+
+```python
+estimator: Any = None
+```
+
+######## `fold_weight_maps`
+
+```python
+fold_weight_maps: Any = None
+```
+
+######## `mean_score`
+
+```python
+mean_score: Any = None
+```
+
+######## `predictions`
+
+```python
+predictions: np.ndarray | None = None
+```
+
+######## `roi_labels`
+
+```python
+roi_labels: np.ndarray | None = None
+```
+
+######## `scores`
+
+```python
+scores: np.ndarray | None = None
+```
+
+######## `std_score`
+
+```python
+std_score: Any = None
+```
+
+######## `weight_map`
+
+```python
+weight_map: Any = None
+```
+
+
+
+####### Functions##
+
+###### `asdict`
+
+```python
+asdict(include_none: bool = False) -> dict
+```
+
+Convert to dictionary.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`include_none` | <code>[bool](#bool)</code> | If True, include fields with None values. Private fields (starting with _) are always excluded. | <code>False</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary of field names to values.
+
+######## `available`
+
+```python
+available() -> list
+```
+
+Return names of non-None fields (excludes private).
 
 #### `roc`
 

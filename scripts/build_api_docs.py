@@ -68,6 +68,12 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.collection.prediction", "data/collection_prediction.md"),
     ("nltools.data.collection.io", "data/collection_io.md"),
     ("nltools.data.collection.pipeline", "data/collection_pipeline.md"),
+    # --- atlases ---
+    ("nltools.data.atlases", "data/atlases.md"),
+    ("nltools.data.atlases.registry", "data/atlases_registry.md"),
+    ("nltools.data.atlases.loading", "data/atlases_loading.md"),
+    ("nltools.data.atlases.labeling", "data/atlases_labeling.md"),
+    ("nltools.data.atlases.reporting", "data/atlases_reporting.md"),
     # --- algorithms ---
     ("nltools.algorithms", "algorithms.md"),
     ("nltools.algorithms.inference", "algorithms/inference.md"),

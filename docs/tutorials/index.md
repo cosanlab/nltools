@@ -110,4 +110,9 @@ Measuring similarity of brain responses across subjects viewing naturalistic sti
 Comparing similarity structure of neural representations with theoretical models.
 :::
 
+:::{grid-item-card} Cluster Reports & Atlas Labeling
+:link: workflows/11_cluster_reports
+Summarizing thresholded stat maps with peak coordinates, sub-peaks, and anatomical labels from 11 bundled atlases.
+:::
+
 ::::

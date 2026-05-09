@@ -1,7 +1,7 @@
 ## `Adjacency`
 
 ```python
-Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
 ```
 
 Adjacency is a class to represent Adjacency matrices as a vector rather
@@ -43,6 +43,7 @@ Name | Description
 [`std`](#std) | Calculate standard deviation of Adjacency.
 [`sum`](#sum) | Calculate sum of Adjacency.
 [`threshold`](#threshold) | Threshold Adjacency instance. Provide upper and lower values or
+[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space :class:`BrainData`.
 [`to_graph`](#to_graph) | Convert Adjacency into networkx graph.  only works on
 [`to_square`](#to_square) | Convert adjacency back to square matrix format.
 [`ttest`](#ttest) | Calculate ttest across samples.
@@ -62,6 +63,7 @@ Name | Type | Description
 [`matrix_type`](#matrix_type) |  | 
 [`n_nodes`](#n_nodes) |  | Return the number of nodes in the adjacency matrix.
 [`shape`](#shape) |  | Return the logical shape of the adjacency matrix.
+[`spatial_scale`](#spatial_scale) | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
 [`vector_shape`](#vector_shape) |  | Return shape of internal vectorized representation.
 
 ### Methods
@@ -371,7 +373,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
+similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -532,6 +534,43 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | thresholded Adjacency instance
+
+#### `to_brain`
+
+```python
+to_brain(values, *, fill: float = np.nan)
+```
+
+Project per-matrix scalars back to voxel-space :class:`BrainData`.
+
+Requires :attr:`spatial_scale` to be set (i.e. this stack came from
+:meth:`BrainData.distance` or another spatial-scale-aware producer).
+Each entry of ``values`` is painted onto the voxels assigned to its
+corresponding parcel by ``spatial_scale.atlas`` /
+``spatial_scale.roi_labels``. Voxels outside the atlas receive
+``fill``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
+`fill` | <code>[float](#float)</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | Single image masked to ``spatial_scale.source_mask``.
+
+**Examples:**
+
+```pycon
+>>> rdms = brain.distance(metric='correlation',
+...                       spatial_scale='roi', roi_mask=atlas)
+>>> sims = rdms.similarity(model_rdm)
+>>> brain_map = rdms.to_brain(sims)
+```
 
 #### `to_graph`
 

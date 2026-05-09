@@ -30,6 +30,7 @@ project:
             # - file: tutorials/workflows/08_multi_subject_decoding.md
             # - file: tutorials/workflows/09_isc_analysis.md
             # - file: tutorials/workflows/10_rsa_analysis.md
+            - file: tutorials/workflows/11_cluster_reports.md
     - title: Data Classes
       children:
         - file: api/data/brain_data.md
@@ -69,6 +70,13 @@ project:
             - file: api/data/collection_prediction.md
             - file: api/data/collection_io.md
             - file: api/data/collection_pipeline.md
+        - title: Atlases
+          children:
+            - file: api/data/atlases.md
+            - file: api/data/atlases_registry.md
+            - file: api/data/atlases_loading.md
+            - file: api/data/atlases_labeling.md
+            - file: api/data/atlases_reporting.md
         - file: api/models.md
     - title: API Functions
       children:

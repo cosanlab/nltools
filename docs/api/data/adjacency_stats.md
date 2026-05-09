@@ -116,7 +116,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None)
+similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices. Default is to use spearman

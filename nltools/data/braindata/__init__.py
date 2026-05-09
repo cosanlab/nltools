@@ -8,9 +8,14 @@ Classes to represent brain image data.
 
 import os
 import warnings  # noqa: F401
+from collections.abc import Sequence
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from nltools.data.atlases import ClusterReport
 
 from nltools.utils import attempt_to_import
 
@@ -1723,6 +1728,53 @@ class BrainData:
         from .io import to_nifti
 
         return to_nifti(self)
+
+    def cluster_report(
+        self,
+        *,
+        stat_threshold: float | None = 3.0,
+        cluster_threshold: int = 10,
+        two_sided: bool = True,
+        min_distance: float = 8.0,
+        atlas: str | Sequence[str] | None = None,
+        prob_threshold: float = 5.0,
+    ) -> "ClusterReport":
+        """Generate a cluster report with anatomical labels.
+
+        Identifies surviving clusters in the stat map (after voxel + extent
+        thresholding), reports peak coordinates and sub-peaks, and labels
+        each peak/cluster against one or more atlases.
+
+        Args:
+            stat_threshold: Voxel-level threshold (e.g. z- or t-cutoff).
+                ``None`` treats ``self`` as already thresholded.
+            cluster_threshold: Minimum cluster size in voxels.
+            two_sided: Report negative clusters separately.
+            min_distance: Minimum mm between sub-peaks within a cluster.
+            atlas: Atlas name or list of names (see :func:`list_atlases`).
+                Defaults to ``("harvard_oxford", "aal", "schaefer_200")``.
+            prob_threshold: Drop probabilistic-atlas regions below this %.
+
+        Returns:
+            :class:`~nltools.data.atlases.ClusterReport` with ``peaks``,
+            ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
+        """
+        from nltools.data.atlases import (
+            DEFAULT_ATLASES,
+            ClusterReport,
+            cluster_report_data,
+        )
+
+        peaks, clusters, thr = cluster_report_data(
+            self,
+            stat_threshold=stat_threshold,
+            cluster_threshold=cluster_threshold,
+            two_sided=two_sided,
+            min_distance=min_distance,
+            atlas=DEFAULT_ATLASES if atlas is None else atlas,
+            prob_threshold=prob_threshold,
+        )
+        return ClusterReport(peaks=peaks, clusters=clusters, stat_img=thr)
 
     def transform_pairwise(self):
         """Transform data into pairwise comparisons.

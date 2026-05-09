@@ -11,6 +11,7 @@ alignment, smoothing, and other analytical operations.
 Name | Description
 ---- | -----------
 [`align`](#align) | Align BrainData instance to target object using functional alignment
+[`align_per_roi`](#align_per_roi) | Per-parcel functional alignment + voxel-space reassembly.
 [`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
 [`check_masks`](#check_masks) | Check to make sure masks are the same for each dataset and if not create a union mask
 [`decompose`](#decompose) | Decompose BrainData object
@@ -22,6 +23,7 @@ Name | Description
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
 [`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
+[`reduce_per_roi`](#reduce_per_roi) | Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
 [`regions`](#regions) | Extract brain connected regions into separate regions.
 [`scale_data`](#scale_data) | Scale data via mean scaling.
 [`similarity`](#similarity) | Calculate similarity of BrainData() instance with single
@@ -75,6 +77,23 @@ Name | Type | Description
     >>> out = data.align(target, method='probabilistic_srm', n_features=None)
 - Project aligned data into original data:
     >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+
+#### `align_per_roi`
+
+```python
+align_per_roi(bd, target, *, method, axis, roi_mask)
+```
+
+Per-parcel functional alignment + voxel-space reassembly.
+
+For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
+``target`` restricted to that parcel's voxels and collects results.
+The ``transformed`` field is reassembled into a single
+:class:`BrainData` of the same shape as the input (each voxel filled
+with its parcel's transformed value per image; voxels outside any
+parcel = NaN). Per-parcel transform matrices and common-model
+objects are kept as dicts keyed by atlas label, since matrices over
+different voxel subsets can't be painted into one image.
 
 #### `apply_mask`
 
@@ -179,7 +198,7 @@ Name | Type | Description
 #### `distance`
 
 ```python
-distance(bd, metric = 'euclidean', **kwargs)
+distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
 ```
 
 Calculate distance between images within a BrainData() instance.
@@ -190,13 +209,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See :meth:`BrainData.distance`. | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dist` |  | (Adjacency) Outputs a 2D distance matrix.
+`dist` |  | (Adjacency) Whole-brain pairwise distance matrix, or a stacked Adjacency (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
 #### `extract_roi`
 
@@ -379,6 +401,22 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Transformed BrainData instance.
+
+#### `reduce_per_roi`
+
+```python
+reduce_per_roi(bd, reducer, *, roi_mask)
+```
+
+Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
+result back to voxel space — i.e. spatial smoothing via parcellation.
+
+For each image ``i`` and each parcel ``p``, computes
+``reducer(bd.data[i, voxels-in-p])`` and assigns that scalar to every
+voxel in parcel ``p`` for image ``i``. Voxels outside any parcel get
+NaN. Output is a :class:`BrainData` of the same shape as the input.
+
+Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
 #### `regions`
 

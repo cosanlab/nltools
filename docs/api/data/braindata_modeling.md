@@ -2,8 +2,8 @@
 
 BrainData modeling functions.
 
-Standalone functions extracted from BrainData class methods for model fitting,
-cross-validation, GLM estimation, Ridge regression, and contrast computation.
+Standalone functions extracted from BrainData class methods for model
+fitting, GLM estimation, Ridge regression, and contrast computation.
 
 **Methods:**
 
@@ -11,7 +11,6 @@ Name | Description
 ---- | -----------
 [`compute_contrasts`](#compute_contrasts) | Compute contrasts from a fitted GLM.
 [`compute_ridge_cv`](#compute_ridge_cv) | Held-out CV scores under a fixed Ridge α.
-[`cv`](#cv) | Create a cross-validation pipeline for this BrainData.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`fit_glm`](#fit_glm) | Fit GLM model and extract results (same logic as current regress()).
 [`fit_ridge`](#fit_ridge) | Fit Ridge model and extract results.
@@ -113,66 +112,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
-
-#### `cv`
-
-```python
-cv(bd, k = None, method = 'kfold', split_by = None, groups = None, n = 1000, random_state = None)
-```
-
-Create a cross-validation pipeline for this BrainData.
-
-Returns a Pipeline object that enables fluent, chainable transforms
-with cross-validation. Terminal methods like .predict() execute the
-pipeline and return results.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`k` |  | Number of folds (for kfold method). Defaults to 5. | <code>None</code>
-`method` |  | CV scheme type. Options: - 'kfold': k-fold cross-validation (default) - 'loro': leave-one-run-out (requires split_by='runs' or groups) - 'bootstrap': bootstrap with out-of-bag test sets | <code>'kfold'</code>
-`split_by` |  | Attribute name for group splits (e.g., 'runs'). If provided and groups is None, will try to get groups from bd.X[split_by] if bd.X is a DataFrame. | <code>None</code>
-`groups` |  | Explicit group labels for CV splits. | <code>None</code>
-`n` |  | Number of iterations for bootstrap/permutation methods. Default 1000. | <code>1000</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainDataPipeline` |  | A pipeline object for method chaining.
-
-**Examples:**
-
-```pycon
->>> # Simple 5-fold CV with prediction
->>> result = brain.cv(k=5).predict(y, algorithm='ridge')
->>> print(f"Mean score: {result.mean_score:.3f}")
-```
-
-```pycon
->>> # With preprocessing
->>> result = (brain
-...     .cv(k=5)
-...     .normalize()
-...     .reduce(n_components=50)
-...     .predict(y))
-```
-
-```pycon
->>> # Leave-one-run-out CV
->>> result = brain.cv(method='loro', groups=run_labels).predict(y)
-```
-
-<details class="see-also" open markdown="1">
-<summary>See Also</summary>
-
-BrainDataPipeline: For available transforms and terminal methods.
-CVScheme: For CV scheme configuration details.
-
-</details>
 
 #### `fit`
 
