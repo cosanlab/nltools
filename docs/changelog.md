@@ -19,6 +19,8 @@ All notable changes to nltools are documented here.
 **Changed Signatures**
 - `BrainData.predict(algorithm=..., cv_dict=...)` → `predict(spatial_scale=..., cv=...)` (new canonical kwarg for ROI/searchlight/whole-brain dispatch — `method=` is reserved for algorithm choice across the facade)
 - `BrainData.distance(spatial_scale=...)` and `Adjacency.spatial_scale` / `to_brain()` / `similarity(project=True)` — new RSA workflow: per-ROI/searchlight RDMs back-project to voxel-space `BrainData`
+- `BrainData.align(spatial_scale='roi')` — per-parcel functional alignment with disjoint reassembly to voxel-space `BrainData`. `spatial_scale='searchlight'` raises `NotImplementedError` (overlapping spheres → no canonical reassembly)
+- `BrainData.{mean, std, median}(spatial_scale='roi')` — parcellation smoothing
 - `.shape()` is now a property: `.shape` (on both `BrainData` and `Adjacency`)
 - `.isempty()` deprecated → Use `.is_empty` property
 - `.smooth()` now returns a copy instead of mutating in-place

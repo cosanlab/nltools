@@ -1534,7 +1534,9 @@ brain_map = rdms.similarity(model_rdm, project=True, permutation_method=None)
 ```
 
 **What's added**:
-- `BrainData.distance(spatial_scale='whole_brain' | 'roi' | 'searchlight', roi_mask=, radius_mm=)` — `'whole_brain'` (default) preserves existing behavior; `'roi'` returns a stacked `Adjacency` (one RDM per parcel) with `spatial_scale` provenance attached. `'searchlight'` reserved for a follow-up.
+- `BrainData.distance(spatial_scale='whole_brain' | 'roi' | 'searchlight', roi_mask=, radius_mm=)` — `'whole_brain'` (default) preserves existing behavior; `'roi'` returns a stacked `Adjacency` (one RDM per parcel); `'searchlight'` returns a stacked `Adjacency` (one RDM per voxel center) with a synthetic 1-voxel-per-label atlas so each searchlight scalar paints to its center voxel. All three carry `spatial_scale` provenance.
+- `BrainData.align(spatial_scale='roi', roi_mask=)` — per-parcel functional alignment (procrustes / SRM); transformed data stitched back to voxel space as a `BrainData`, transforms / common-models kept as `dict[atlas_label, ndarray]`, plus per-parcel `disparity`/`scale` arrays and `roi_labels`. `spatial_scale='searchlight'` raises `NotImplementedError` (overlapping spheres make the `transformed` reassembly ill-posed — a voxel belongs to many spheres with no canonical value).
+- `BrainData.{mean, std, median}(spatial_scale='roi', roi_mask=)` — parcellation smoothing: each voxel painted with its parcel's reduction per image.
 - `Adjacency.spatial_scale: SpatialScale | None` — optional frozen dataclass carrying `(atlas, roi_labels, source_mask, kind)`. Survives shape-preserving operations (`copy`, `__getitem__` slice, `r_to_z`, `threshold`); dropped when an op collapses the stack to a single matrix.
 - `Adjacency.to_brain(values, fill=np.nan) -> BrainData` — paint per-matrix scalars onto voxel space using the attached atlas. Errors when `spatial_scale` is unset.
 - `Adjacency.similarity(other, project=True)` — sugar for `to_brain(np.array([r['correlation'] for r in similarity(...)]))`.

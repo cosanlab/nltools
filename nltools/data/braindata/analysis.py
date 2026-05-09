@@ -116,13 +116,141 @@ def distance(
         return Adjacency(dist_matrix, matrix_type="Distance")
 
     if spatial_scale == "searchlight":
-        raise NotImplementedError(
-            "spatial_scale='searchlight' for distance() is not yet "
-            "implemented; use 'roi' or 'whole_brain'."
+        return _distance_searchlight(
+            bd, metric=metric, radius_mm=radius_mm, **kwargs
         )
 
     # spatial_scale == "roi"
     return _distance_roi(bd, metric=metric, roi_mask=roi_mask, **kwargs)
+
+
+def _resolve_atlas_label_vec(bd, roi_mask):
+    """Resolve an atlas image + label vector aligned with bd.mask.
+
+    Coerces ``roi_mask`` (BrainData / Nifti / path) to a Nifti, resamples
+    to ``bd.mask`` (nearest-neighbor) if needed, and returns
+    ``(atlas_img, label_vec, unique_labels)`` for use by per-parcel
+    operations.
+    """
+    from pathlib import Path
+
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+
+    from nltools.data import BrainData
+
+    if roi_mask is None:
+        raise ValueError("roi_mask is required when spatial_scale='roi'.")
+    if isinstance(roi_mask, BrainData):
+        roi_img = roi_mask.to_nifti()
+    elif isinstance(roi_mask, (str, Path)):
+        roi_img = nib.load(str(roi_mask))
+    else:
+        roi_img = roi_mask
+
+    if roi_img.shape != bd.mask.shape or not np.allclose(
+        roi_img.affine, bd.mask.affine
+    ):
+        roi_img = resample_to_img(
+            roi_img,
+            bd.mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
+    if unique_labels.size == 0:
+        raise ValueError(
+            "roi_mask has no nonzero labels in the BrainData mask space."
+        )
+    return roi_img, label_vec, unique_labels
+
+
+def align_per_roi(bd, target, *, method, axis, roi_mask):
+    """Per-parcel functional alignment + voxel-space reassembly.
+
+    For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
+    ``target`` restricted to that parcel's voxels and collects results.
+    The ``transformed`` field is reassembled into a single
+    :class:`BrainData` of the same shape as the input (each voxel filled
+    with its parcel's transformed value per image; voxels outside any
+    parcel = NaN). Per-parcel transform matrices and common-model
+    objects are kept as dicts keyed by atlas label, since matrices over
+    different voxel subsets can't be painted into one image.
+    """
+    roi_img, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
+
+    if method == "procrustes":
+        # Need a target BrainData to slice.
+        from .utils import check_brain_data
+
+        target_bd = check_brain_data(target)
+        if target_bd.shape[-1] != bd.shape[-1]:
+            raise ValueError(
+                "For spatial_scale='roi' procrustes, target must share "
+                "the BrainData voxel axis."
+            )
+    elif method in ("probabilistic_srm", "deterministic_srm"):
+        target_bd = None  # target stays a numpy array; we don't slice it
+    else:
+        raise ValueError(
+            "method must be ['procrustes','probabilistic_srm','deterministic_srm']"
+        )
+
+    transforms: dict[int, np.ndarray] = {}
+    common_models: dict[int, np.ndarray | object] = {}
+    disparities = []
+    scales = []
+    transformed_per_parcel: list[np.ndarray] = []
+
+    for label in unique_labels:
+        cols = label_vec == label
+        sub = bd.copy()
+        sub.data = bd.data[:, cols]
+        if method == "procrustes":
+            t_sub = target_bd.copy()
+            t_sub.data = target_bd.data[:, cols]
+            sub_target = t_sub
+        else:
+            sub_target = target  # SRM common model is voxel-agnostic
+
+        sub_out = align(sub, sub_target, method=method, axis=axis)
+
+        # Accumulate
+        tf = sub_out["transformation_matrix"]
+        transforms[int(label)] = (
+            tf.data if hasattr(tf, "data") else np.asarray(tf)
+        )
+        common_models[int(label)] = sub_out.get("common_model")
+        disparities.append(float(sub_out.get("disparity", np.nan)))
+        scales.append(float(sub_out.get("scale", np.nan)))
+
+        transformed = sub_out["transformed"]
+        arr = transformed.data if hasattr(transformed, "data") else transformed
+        transformed_per_parcel.append(np.asarray(arr))
+
+    # Stitch transformed → (n_images, n_voxels) BrainData.
+    n_images = transformed_per_parcel[0].shape[0]
+    out_arr = np.full((n_images, label_vec.shape[0]), np.nan, dtype=float)
+    for label, parcel_arr in zip(unique_labels, transformed_per_parcel):
+        cols = label_vec == label
+        out_arr[:, cols] = parcel_arr
+
+    from nltools.data import BrainData
+
+    transformed_bd = BrainData(out_arr, mask=bd.mask)
+    return {
+        "transformed": transformed_bd,
+        "transformation_matrix": transforms,
+        "common_model": common_models,
+        "disparity": np.asarray(disparities, dtype=float),
+        "scale": np.asarray(scales, dtype=float),
+        "roi_labels": unique_labels,
+    }
 
 
 def reduce_per_roi(bd, reducer, *, roi_mask):
@@ -245,6 +373,51 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
         roi_labels=unique_labels,
         source_mask=bd.mask,
         kind="roi",
+    )
+    return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
+
+
+def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
+    """Compute one pairwise distance matrix per searchlight center and
+    return a stacked Adjacency with ``SpatialScale(kind='searchlight')``.
+
+    Each masked voxel is its own ``roi_label`` (1-indexed), and the
+    synthetic atlas labels each masked voxel with its own ID — so
+    ``Adjacency.to_brain(values)`` paints ``values[i]`` onto the i-th
+    masked voxel (the searchlight center).
+    """
+    import nibabel as nib
+    from scipy.spatial.distance import cdist
+
+    from nltools.data import Adjacency, BrainData
+    from nltools.data.adjacency.spatial import SpatialScale
+
+    from .neighborhoods import compute_searchlight_neighborhoods
+
+    nbrs = compute_searchlight_neighborhoods(
+        bd.mask, radius_mm=radius_mm, use_cache=True
+    )
+    n_voxels = nbrs.n_voxels
+
+    matrices = []
+    for i in range(n_voxels):
+        cols = nbrs.get_neighbors(i)
+        matrices.append(cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs))
+
+    # Synthetic atlas: each masked voxel labeled with its own integer ID
+    # (1-indexed so 0 stays "outside the atlas"). Built by writing
+    # 1..n_voxels into the mask voxels.
+    mask_arr = bd.mask.get_fdata().astype(bool)
+    atlas_arr = np.zeros(mask_arr.shape, dtype=np.int32)
+    voxel_ids = np.arange(1, n_voxels + 1, dtype=np.int32)
+    atlas_arr[mask_arr] = voxel_ids
+    atlas_img = nib.Nifti1Image(atlas_arr, bd.mask.affine, bd.mask.header)
+
+    spatial_scale = SpatialScale(
+        atlas=BrainData(atlas_img, mask=bd.mask),
+        roi_labels=voxel_ids,
+        source_mask=bd.mask,
+        kind="searchlight",
     )
     return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
 

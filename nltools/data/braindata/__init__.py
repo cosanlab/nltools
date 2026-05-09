@@ -433,13 +433,27 @@ class BrainData:
             >>> out = data.align(target, method='procrustes')
             >>> out = data.align(target, method='probabilistic_srm')
         """
-        if spatial_scale != "whole_brain":
+        if spatial_scale == "searchlight":
             raise NotImplementedError(
-                f"align(spatial_scale={spatial_scale!r}) is not yet "
-                "implemented. Per-parcel/searchlight functional alignment "
-                "requires per-region transforms and a reassembly contract; "
-                "see the v0.6.0 follow-up tracker. Use the default "
-                "spatial_scale='whole_brain' for now."
+                "align(spatial_scale='searchlight') is not implemented: "
+                "searchlight neighborhoods overlap, so a single voxel "
+                "belongs to many spheres and there is no canonical value "
+                "to put back at that voxel for the 'transformed' field. "
+                "Use spatial_scale='roi' (disjoint parcels) or "
+                "spatial_scale='whole_brain'; if you need per-sphere "
+                "transforms, iterate compute_searchlight_neighborhoods() "
+                "and call .align() yourself."
+            )
+        if spatial_scale == "roi":
+            from .analysis import align_per_roi
+
+            return align_per_roi(
+                self, target, method=method, axis=axis, roi_mask=roi_mask
+            )
+        if spatial_scale != "whole_brain":
+            raise ValueError(
+                f"spatial_scale must be one of "
+                f"{{'whole_brain', 'roi', 'searchlight'}}, got {spatial_scale!r}"
             )
         from .analysis import align
 
