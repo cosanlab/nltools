@@ -6,7 +6,13 @@ Classes to represent masks
 
 """
 
-__all__ = ["collapse_mask", "create_sphere", "expand_mask", "roi_to_brain"]
+__all__ = [
+    "collapse_mask",
+    "create_sphere",
+    "expand_mask",
+    "roi_to_brain",
+    "roi_to_brain_from_atlas",
+]
 
 import os
 import nibabel as nib
@@ -246,3 +252,116 @@ def roi_to_brain(data, mask_x):
         return out
 
     raise NotImplementedError("Only 1-D and 2-D data are supported.")
+
+
+def roi_to_brain_from_atlas(
+    values,
+    atlas,
+    source_mask,
+    *,
+    roi_labels=None,
+    fill: float = np.nan,
+):
+    """Paint per-parcel values onto voxel space using a labeled atlas.
+
+    Sibling of :func:`roi_to_brain`, but accepts a *labeled* atlas (one
+    integer label per voxel — the form carried by
+    :class:`nltools.data.adjacency.SpatialScale`), not an expanded mask
+    with one binary row per ROI. Voxels whose atlas label is not in
+    ``roi_labels`` (or whose label is 0) receive ``fill``.
+
+    Args:
+        values: 1-D array of per-parcel scalars; ``len(values)`` must match
+            ``len(roi_labels)`` (or the number of unique non-zero atlas
+            labels when ``roi_labels`` is None).
+        atlas: Labeled image — ``BrainData``, ``Nifti1Image``, or path-like.
+            Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines
+            differ.
+        source_mask: ``Nifti1Image`` (or path) defining the output voxel
+            grid. The returned ``BrainData`` is masked to this image.
+        roi_labels: Integer atlas IDs in the same order as ``values``. If
+            None, defaults to ``np.unique`` of the atlas with 0 stripped
+            (sorted ascending).
+        fill: Value for voxels not in any provided ROI. Default ``np.nan``.
+
+    Returns:
+        BrainData: Single image, masked to ``source_mask``, with each
+        in-atlas voxel set to its parcel's scalar from ``values``.
+
+    Examples:
+        >>> from nltools.mask import roi_to_brain_from_atlas
+        >>> brain_map = roi_to_brain_from_atlas(
+        ...     values=accuracies,
+        ...     atlas=atlas_img,
+        ...     source_mask=brain_mask,
+        ...     roi_labels=[1, 2, 3],
+        ... )
+    """
+    from pathlib import Path
+
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask as nilearn_apply_mask
+
+    from nltools.data import BrainData
+
+    arr = np.asarray(values)
+    if arr.ndim not in (1, 2):
+        raise ValueError(
+            f"values must be 1-D ``(n_parcels,)`` or 2-D ``(n_images, n_parcels)``; "
+            f"got shape {arr.shape}"
+        )
+
+    # Coerce atlas + source_mask to nibabel images
+    if isinstance(atlas, BrainData):
+        atlas_img = atlas.to_nifti()
+    elif isinstance(atlas, (str, Path)):
+        atlas_img = nib.load(str(atlas))
+    else:
+        atlas_img = atlas
+
+    if isinstance(source_mask, (str, Path)):
+        mask_img = nib.load(str(source_mask))
+    else:
+        mask_img = source_mask
+
+    # Resample atlas to mask space if needed (nearest-neighbor for labels)
+    if atlas_img.shape != mask_img.shape or not np.allclose(
+        atlas_img.affine, mask_img.affine
+    ):
+        atlas_img = resample_to_img(
+            atlas_img,
+            mask_img,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    # Per-mask-voxel atlas labels — same length as the BrainData voxel axis.
+    label_vec = nilearn_apply_mask(atlas_img, mask_img).astype(np.int64)
+
+    if roi_labels is None:
+        unique_labels = np.unique(label_vec)
+        unique_labels = unique_labels[unique_labels != 0]
+    else:
+        unique_labels = np.asarray(roi_labels)
+
+    n_parcels_axis = arr.shape[-1] if arr.ndim == 2 else arr.shape[0]
+    if n_parcels_axis != len(unique_labels):
+        raise ValueError(
+            f"values trailing axis ({n_parcels_axis}) must match number of "
+            f"ROI labels ({len(unique_labels)})."
+        )
+
+    if arr.ndim == 1:
+        out_arr = np.full(label_vec.shape, fill, dtype=float)
+        for label, value in zip(unique_labels, arr):
+            out_arr[label_vec == label] = value
+        return BrainData(out_arr.reshape(1, -1), mask=mask_img)
+
+    # 2-D case: shape (n_images, n_parcels) → (n_images, n_voxels) BrainData.
+    n_images = arr.shape[0]
+    out_arr = np.full((n_images, label_vec.shape[0]), fill, dtype=float)
+    for col, label in enumerate(unique_labels):
+        cols = label_vec == label
+        out_arr[:, cols] = arr[:, col : col + 1]
+    return BrainData(out_arr, mask=mask_img)

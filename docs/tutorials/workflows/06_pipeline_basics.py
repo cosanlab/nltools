@@ -42,7 +42,7 @@ print(f"Data shape: {brain.shape} (timepoints x voxels)")
 #
 # ```python
 # # Everything in one call - hard to read, hard to extend
-# result = brain.predict(y=labels, cv=5, standardize=True, method='whole_brain')
+# result = brain.predict(y=labels, cv=5, standardize=True, spatial_scale='whole_brain')
 # ```
 #
 # ### New Fluent API

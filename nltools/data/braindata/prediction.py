@@ -26,7 +26,7 @@ def predict(
     *,
     y=None,
     X=None,
-    method: str = "whole_brain",
+    spatial_scale: str = "whole_brain",
     model: Any = "svm",
     cv: int = 5,
     standardize: bool = True,
@@ -53,7 +53,7 @@ def predict(
         return predict_mvpa(
             bd,
             y=y,
-            method=method,
+            spatial_scale=spatial_scale,
             model=model,
             cv=cv,
             standardize=standardize,
@@ -141,14 +141,14 @@ def predict_timeseries(bd, *, X=None):
 # ---------------------------------------------------------------------------
 
 
-VALID_METHODS = {"whole_brain", "searchlight", "roi"}
+VALID_SPATIAL_SCALES = {"whole_brain", "searchlight", "roi"}
 
 
 def predict_mvpa(
     bd,
     *,
     y,
-    method: str,
+    spatial_scale: str,
     model: Any,
     cv,
     standardize: bool,
@@ -166,9 +166,10 @@ def predict_mvpa(
     from sklearn.base import is_classifier
     from sklearn.model_selection import KFold, StratifiedKFold
 
-    if method not in VALID_METHODS:
+    if spatial_scale not in VALID_SPATIAL_SCALES:
         raise ValueError(
-            f"Invalid method: {method!r}. Must be one of {sorted(VALID_METHODS)}"
+            f"Invalid spatial_scale: {spatial_scale!r}. "
+            f"Must be one of {sorted(VALID_SPATIAL_SCALES)}"
         )
     if reduce is not None and reduce != "pca":
         raise ValueError(f"Unknown reduce: {reduce!r}. Supported: 'pca' or None.")
@@ -197,9 +198,9 @@ def predict_mvpa(
     pipe = build_pipeline(resolved_model, standardize, reduce, n_components)
     X_data = bd.data  # (n_samples, n_voxels)
 
-    if method == "whole_brain":
+    if spatial_scale == "whole_brain":
         result = _run_whole_brain(bd, X_data, y, pipe, cv_splitter, groups, scoring)
-    elif method == "searchlight":
+    elif spatial_scale == "searchlight":
         result = _run_searchlight(
             bd,
             X_data,
@@ -212,7 +213,7 @@ def predict_mvpa(
             n_jobs,
             progress_bar,
         )
-    else:  # method == 'roi'
+    else:  # spatial_scale == 'roi'
         result = _run_roi(
             bd,
             X_data,

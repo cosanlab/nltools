@@ -73,7 +73,15 @@ def similarity(bd, image, method="correlation"):
     return compute_similarity(data2, image2, method=method)
 
 
-def distance(bd, metric="euclidean", **kwargs):
+def distance(
+    bd,
+    metric="euclidean",
+    *,
+    spatial_scale: str = "whole_brain",
+    roi_mask=None,
+    radius_mm: float = 10.0,
+    **kwargs,
+):
     """Calculate distance between images within a BrainData() instance.
 
     Args:
@@ -81,20 +89,164 @@ def distance(bd, metric="euclidean", **kwargs):
         metric: (str) type of distance metric (can use any scipy.spatial.distance
                 metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',
                 'correlation', 'hamming', 'jaccard', etc.)
+        spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
+            ``'searchlight'``. See :meth:`BrainData.distance`.
+        roi_mask: Atlas for ``spatial_scale='roi'``.
+        radius_mm: Searchlight radius for ``spatial_scale='searchlight'``.
         **kwargs: Additional arguments passed to scipy.spatial.distance.cdist.
 
     Returns:
-        dist: (Adjacency) Outputs a 2D distance matrix.
+        dist: (Adjacency) Whole-brain pairwise distance matrix, or a stacked
+            Adjacency (one per parcel/searchlight) with ``spatial_scale``
+            provenance set.
 
     """
+    valid = {"whole_brain", "roi", "searchlight"}
+    if spatial_scale not in valid:
+        raise ValueError(
+            f"spatial_scale must be one of {sorted(valid)}, got {spatial_scale!r}"
+        )
+
+    if spatial_scale == "whole_brain":
+        from scipy.spatial.distance import cdist
+
+        from nltools.data import Adjacency
+
+        dist_matrix = cdist(bd.data, bd.data, metric=metric, **kwargs)
+        return Adjacency(dist_matrix, matrix_type="Distance")
+
+    if spatial_scale == "searchlight":
+        raise NotImplementedError(
+            "spatial_scale='searchlight' for distance() is not yet "
+            "implemented; use 'roi' or 'whole_brain'."
+        )
+
+    # spatial_scale == "roi"
+    return _distance_roi(bd, metric=metric, roi_mask=roi_mask, **kwargs)
+
+
+def reduce_per_roi(bd, reducer, *, roi_mask):
+    """Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
+    result back to voxel space — i.e. spatial smoothing via parcellation.
+
+    For each image ``i`` and each parcel ``p``, computes
+    ``reducer(bd.data[i, voxels-in-p])`` and assigns that scalar to every
+    voxel in parcel ``p`` for image ``i``. Voxels outside any parcel get
+    NaN. Output is a :class:`BrainData` of the same shape as the input.
+
+    Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
+    """
+    from pathlib import Path
+
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+
+    from nltools.data import BrainData
+    from nltools.mask import roi_to_brain_from_atlas
+
+    if roi_mask is None:
+        raise ValueError("roi_mask is required when spatial_scale='roi'.")
+
+    if isinstance(roi_mask, BrainData):
+        roi_img = roi_mask.to_nifti()
+    elif isinstance(roi_mask, (str, Path)):
+        roi_img = nib.load(str(roi_mask))
+    else:
+        roi_img = roi_mask
+
+    if roi_img.shape != bd.mask.shape or not np.allclose(
+        roi_img.affine, bd.mask.affine
+    ):
+        roi_img = resample_to_img(
+            roi_img,
+            bd.mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
+    if unique_labels.size == 0:
+        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+
+    # bd.data is (n_images, n_voxels). For 1-D (single image) reshape.
+    data = bd.data
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+
+    per_parcel = np.column_stack(
+        [reducer(data[:, label_vec == label], axis=1) for label in unique_labels]
+    )  # (n_images, n_parcels)
+
+    return roi_to_brain_from_atlas(
+        per_parcel,
+        atlas=roi_img,
+        source_mask=bd.mask,
+        roi_labels=unique_labels,
+    )
+
+
+def _distance_roi(bd, *, metric, roi_mask, **kwargs):
+    """Compute one pairwise distance matrix per atlas parcel and return a
+    stacked Adjacency with ``SpatialScale`` provenance attached.
+    """
+    from pathlib import Path
+
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
     from scipy.spatial.distance import cdist
 
-    from nltools.data import Adjacency
+    from nltools.data import Adjacency, BrainData
+    from nltools.data.adjacency.spatial import SpatialScale
 
-    # Use scipy.spatial.distance.cdist directly for efficiency
-    # Computes pairwise distances between all images (rows)
-    dist_matrix = cdist(bd.data, bd.data, metric=metric, **kwargs)
-    return Adjacency(dist_matrix, matrix_type="Distance")
+    if roi_mask is None:
+        raise ValueError("roi_mask is required when spatial_scale='roi'.")
+
+    # Coerce roi_mask to a Nifti1Image aligned with bd.mask.
+    if isinstance(roi_mask, BrainData):
+        roi_img = roi_mask.to_nifti()
+    elif isinstance(roi_mask, (str, Path)):
+        roi_img = nib.load(str(roi_mask))
+    else:
+        roi_img = roi_mask
+
+    if roi_img.shape != bd.mask.shape or not np.allclose(
+        roi_img.affine, bd.mask.affine
+    ):
+        roi_img = resample_to_img(
+            roi_img,
+            bd.mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    # Per-mask-voxel atlas labels.
+    label_vec = apply_mask(roi_img, bd.mask).astype(np.int64)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
+
+    if unique_labels.size == 0:
+        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
+
+    matrices = []
+    for label in unique_labels:
+        cols = label_vec == label
+        matrices.append(
+            cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs)
+        )
+
+    spatial_scale = SpatialScale(
+        atlas=BrainData(roi_img, mask=bd.mask),
+        roi_labels=unique_labels,
+        source_mask=bd.mask,
+        kind="roi",
+    )
+    return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
 
 
 def multivariate_similarity(bd, images, method="ols"):

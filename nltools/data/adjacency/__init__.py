@@ -19,6 +19,7 @@ from nltools.utils import (
     concatenate,
 )
 
+from .spatial import SpatialScale
 from .utils import (
     apply_stat,
     import_single_data,
@@ -48,7 +49,15 @@ class Adjacency:
 
     """
 
-    def __init__(self, data=None, *, Y=None, matrix_type=None, labels=None):
+    def __init__(
+        self,
+        data=None,
+        *,
+        Y=None,
+        matrix_type=None,
+        labels=None,
+        spatial_scale: SpatialScale | None = None,
+    ):
         if matrix_type is not None and matrix_type.lower() not in [
             "distance",
             "similarity",
@@ -210,6 +219,22 @@ class Adjacency:
         else:
             raise TypeError("Make sure labels is a list or numpy array.")
 
+        # Optional spatial-scale provenance. Only valid on a stack where the
+        # number of matrices equals the number of roi_labels.
+        if spatial_scale is not None:
+            if self.is_empty or self.is_single_matrix:
+                raise ValueError(
+                    "spatial_scale requires a stack of Adjacency matrices "
+                    "(one per parcel/searchlight); got a single matrix."
+                )
+            if len(spatial_scale.roi_labels) != len(self):
+                raise ValueError(
+                    f"spatial_scale.roi_labels length "
+                    f"({len(spatial_scale.roi_labels)}) does not match the "
+                    f"number of matrices in the stack ({len(self)})."
+                )
+        self.spatial_scale: SpatialScale | None = spatial_scale
+
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
     def __add__(self, y):
@@ -225,6 +250,20 @@ class Adjacency:
             new.is_single_matrix = test_is_single_matrix(new.data)
         if not self.Y.is_empty():
             new.Y = _polars_row_select(self.Y, index)
+        # Spatial-scale provenance: preserve when the result is still a stack
+        # (subset the roi_labels to match); drop when collapsed to a single
+        # matrix — a single RDM has no per-parcel structure to back-project.
+        if self.spatial_scale is not None:
+            if new.is_single_matrix:
+                new.spatial_scale = None
+            else:
+                ss = self.spatial_scale
+                new.spatial_scale = SpatialScale(
+                    atlas=ss.atlas,
+                    roi_labels=ss.roi_labels[index],
+                    source_mask=ss.source_mask,
+                    kind=ss.kind,
+                )
         return new
 
     def __iter__(self):
@@ -644,6 +683,8 @@ class Adjacency:
         return_null=False,
         n_jobs=-1,
         random_state=None,
+        *,
+        project: bool = False,
     ):
         """
         Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -682,6 +723,7 @@ class Adjacency:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            project=project,
         )
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):
@@ -798,6 +840,59 @@ class Adjacency:
         from .stats import threshold
 
         return threshold(self, upper, lower, binarize)
+
+    def to_brain(self, values, *, fill: float = np.nan):
+        """Project per-matrix scalars back to voxel-space :class:`BrainData`.
+
+        Requires :attr:`spatial_scale` to be set (i.e. this stack came from
+        :meth:`BrainData.distance` or another spatial-scale-aware producer).
+        Each entry of ``values`` is painted onto the voxels assigned to its
+        corresponding parcel by ``spatial_scale.atlas`` /
+        ``spatial_scale.roi_labels``. Voxels outside the atlas receive
+        ``fill``.
+
+        Args:
+            values: 1-D array of length ``len(self)`` — one scalar per
+                matrix in the stack.
+            fill: Value for voxels not covered by any provided ROI label.
+                Default ``np.nan``.
+
+        Returns:
+            BrainData: Single image masked to ``spatial_scale.source_mask``.
+
+        Raises:
+            ValueError: If ``spatial_scale`` is None, or ``values`` has the
+                wrong length.
+
+        Examples:
+            >>> rdms = brain.distance(metric='correlation',
+            ...                       spatial_scale='roi', roi_mask=atlas)
+            >>> sims = rdms.similarity(model_rdm)
+            >>> brain_map = rdms.to_brain(sims)
+        """
+        from nltools.mask import roi_to_brain_from_atlas
+
+        if self.spatial_scale is None:
+            raise ValueError(
+                "to_brain() requires spatial_scale to be set on the "
+                "Adjacency. Produce this stack via a spatial-scale-aware "
+                "operation (e.g. BrainData.distance(spatial_scale='roi', "
+                "roi_mask=atlas))."
+            )
+        arr = np.asarray(values)
+        if arr.shape != (len(self),):
+            raise ValueError(
+                f"values must be 1-D with length {len(self)} (one per "
+                f"stacked matrix); got shape {arr.shape}"
+            )
+        ss = self.spatial_scale
+        return roi_to_brain_from_atlas(
+            arr,
+            atlas=ss.atlas,
+            source_mask=ss.source_mask,
+            roi_labels=ss.roi_labels,
+            fill=fill,
+        )
 
     def to_graph(self):
         """Convert Adjacency into networkx graph.  only works on

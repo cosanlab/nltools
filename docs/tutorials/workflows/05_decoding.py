@@ -120,7 +120,7 @@ def _(mo):
 def _(trials, y):
     result_wb = trials.predict(
         y=y,
-        method="whole_brain",
+        spatial_scale="whole_brain",
         model="svm",
         cv=5,
     )
@@ -246,7 +246,7 @@ def _(BrainData):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Pass the atlas to `predict(method="roi", roi_mask=...)`. This trains one classifier per parcel and returns a single `accuracy_map` — every voxel inside parcel *i* is filled with parcel *i*'s cross-validated accuracy. Voxels outside any parcel are `NaN`:
+    Pass the atlas to `predict(spatial_scale="roi", roi_mask=...)`. This trains one classifier per parcel and returns a single `accuracy_map` — every voxel inside parcel *i* is filled with parcel *i*'s cross-validated accuracy. Voxels outside any parcel are `NaN`:
     """)
     return
 
@@ -255,7 +255,7 @@ def _(mo):
 def _(atlas_path, trials, y):
     result_roi = trials.predict(
         y=y,
-        method="roi",
+        spatial_scale="roi",
         roi_mask=atlas_path,
         model="svm",
         cv=5,
@@ -270,7 +270,7 @@ def _(atlas_path, trials, y):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    On `method="roi"` the score fields are repurposed for the per-parcel layout: `scores` is `(n_folds, n_rois)`, `mean_score` and `std_score` are `(n_rois,)`, and `roi_labels` carries the atlas integer IDs in the same order. `accuracy_map` is a `BrainData` brain-space view of `mean_score` — every voxel inside a parcel shows that parcel's mean accuracy.
+    On `spatial_scale="roi"` the score fields are repurposed for the per-parcel layout: `scores` is `(n_folds, n_rois)`, `mean_score` and `std_score` are `(n_rois,)`, and `roi_labels` carries the atlas integer IDs in the same order. `accuracy_map` is a `BrainData` brain-space view of `mean_score` — every voxel inside a parcel shows that parcel's mean accuracy.
 
     ROI dispatch also produces `weight_map`, `fold_weight_maps`, and a per-parcel `estimator` dict. Because the atlas is a label image (each voxel belongs to exactly one parcel), per-parcel `coef_` vectors slot back into voxel space disjointly — same shape as the whole-brain map, just composed of independently-trained pieces.
 
@@ -374,7 +374,7 @@ def _(trials, y):
         SelectKBest(k=500),
         LinearSVC(max_iter=5000),
     )
-    result_pipe = trials.predict(y=y, method="whole_brain", cv=5, model=pipe)
+    result_pipe = trials.predict(y=y, spatial_scale="whole_brain", cv=5, model=pipe)
     print(f"500-voxel pipeline: mean accuracy = {result_pipe.mean_score:.3f}")
     print(f"Populated fields  : {result_pipe.available()}")
     return
@@ -389,8 +389,8 @@ def _(mo):
 
     | Goal | Call | Result fields |
     |---|---|---|
-    | Whole-brain accuracy + weight map | `bd.predict(y=y, method="whole_brain", model="svm", cv=K)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map` (all-data fit, BrainData), `fold_weight_maps` (BrainData stack for stability), `estimator` (fitted sklearn) |
-    | Per-region accuracy + per-parcel weights | `bd.predict(y=y, method="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` / `weight_map` / `fold_weight_maps` (BrainData), `estimator` (dict keyed by label) |
+    | Whole-brain accuracy + weight map | `bd.predict(y=y, spatial_scale="whole_brain", model="svm", cv=K)` | `predictions`, `scores` (n_folds,), scalar `mean_score`/`std_score`, `weight_map` (all-data fit, BrainData), `fold_weight_maps` (BrainData stack for stability), `estimator` (fitted sklearn) |
+    | Per-region accuracy + per-parcel weights | `bd.predict(y=y, spatial_scale="roi", roi_mask=atlas, model="svm", cv=K)` | `scores` (n_folds, n_rois), `mean_score`/`std_score` (n_rois,), `roi_labels`, `accuracy_map` / `weight_map` / `fold_weight_maps` (BrainData), `estimator` (dict keyed by label) |
     | Custom preprocessing | `bd.predict(y=y, model=Pipeline(...), ...)` | `standardize` auto-flipped to `False`; CV fields populated, weight_map None when feature selection breaks back-projection |
     | Result attached to `bd` | add `inplace=True` | fields become `bd.predict_*` attributes |
 
@@ -400,7 +400,7 @@ def _(mo):
 
     ## Next Steps
 
-    - **Searchlight**: roving sphere instead of fixed parcels — `bd.predict(method="searchlight", radius_mm=8.0)`.
+    - **Searchlight**: roving sphere instead of fixed parcels — `bd.predict(spatial_scale="searchlight", radius_mm=8.0)`.
     - **Multi-subject decoding** with leave-one-subject-out CV — see [Multi-Subject Decoding](08_multi_subject_decoding.md).
     - **Encoding models**: the inverse view — predict voxel responses from features rather than features from voxels — see [Encoding](02_encoding.md).
     - **RSA**: characterize the *structure* of representations, not just their separability — see [RSA](04_rsa.md).

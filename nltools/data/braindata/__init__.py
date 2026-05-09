@@ -401,7 +401,16 @@ class BrainData:
     # Public methods (alphabetical)
     # =========================================================================
 
-    def align(self, target, method="procrustes", axis=0):
+    def align(
+        self,
+        target,
+        method="procrustes",
+        axis=0,
+        *,
+        spatial_scale: str = "whole_brain",
+        roi_mask=None,
+        radius_mm: float = 10.0,
+    ):
         """Align BrainData instance to target object using functional alignment.
 
         Args:
@@ -409,6 +418,12 @@ class BrainData:
             method: (str) alignment method to use
                 ['probabilistic_srm','deterministic_srm','procrustes']
             axis: (int) axis to align on
+            spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
+                ``'searchlight'``. ``'roi'`` / ``'searchlight'`` are not
+                yet implemented (per-parcel transforms + reassembly is a
+                follow-up slice).
+            roi_mask: Reserved for ``spatial_scale='roi'``.
+            radius_mm: Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
             out: (dict) a dictionary containing transformed object,
@@ -418,6 +433,14 @@ class BrainData:
             >>> out = data.align(target, method='procrustes')
             >>> out = data.align(target, method='probabilistic_srm')
         """
+        if spatial_scale != "whole_brain":
+            raise NotImplementedError(
+                f"align(spatial_scale={spatial_scale!r}) is not yet "
+                "implemented. Per-parcel/searchlight functional alignment "
+                "requires per-region transforms and a reassembly contract; "
+                "see the v0.6.0 follow-up tracker. Use the default "
+                "spatial_scale='whole_brain' for now."
+            )
         from .analysis import align
 
         return align(self, target, method=method, axis=axis)
@@ -661,19 +684,47 @@ class BrainData:
 
         return detrend_data(self, method=method)
 
-    def distance(self, metric="euclidean", **kwargs):
+    def distance(
+        self,
+        metric="euclidean",
+        *,
+        spatial_scale: str = "whole_brain",
+        roi_mask=None,
+        radius_mm: float = 10.0,
+        **kwargs,
+    ):
         """Calculate distance between images within a BrainData() instance.
 
         Args:
             metric: (str) type of distance metric (can use any scipy.spatial.distance
                     metric supported by cdist)
+            spatial_scale: One of ``'whole_brain'`` (default), ``'roi'``, or
+                ``'searchlight'``. ``'whole_brain'`` returns a single
+                pairwise distance ``Adjacency`` between images. ``'roi'``
+                requires ``roi_mask`` and returns a stacked ``Adjacency``
+                with one RDM per parcel and ``spatial_scale`` provenance
+                attached for back-projection via ``Adjacency.to_brain()``.
+                ``'searchlight'`` requires ``radius_mm`` (and is not yet
+                implemented in this slice).
+            roi_mask: Atlas image (BrainData / Nifti1Image / path) for
+                ``spatial_scale='roi'``.
+            radius_mm: Searchlight radius in mm. Default 10.0.
 
         Returns:
-            Adjacency: Pairwise distance matrix.
+            Adjacency: Single pairwise distance matrix for ``'whole_brain'``;
+                stacked Adjacency (one matrix per parcel/searchlight) with
+                ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
         """
         from .analysis import distance
 
-        return distance(self, metric=metric, **kwargs)
+        return distance(
+            self,
+            metric=metric,
+            spatial_scale=spatial_scale,
+            roi_mask=roi_mask,
+            radius_mm=radius_mm,
+            **kwargs,
+        )
 
     def extract_roi(self, mask, metric="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
@@ -903,30 +954,48 @@ class BrainData:
             max_gpu_memory_gb=max_gpu_memory_gb,
         )
 
-    def mean(self, axis=0):
+    def mean(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get mean of each voxel or image.
 
         Args:
             axis: 0 = across images (default, returns BrainData),
-                1 = within images (returns array)
+                1 = within images (returns array). Ignored when
+                ``spatial_scale='roi'``.
+            spatial_scale: ``'whole_brain'`` (default) preserves existing
+                behavior. ``'roi'`` requires ``roi_mask`` and returns a
+                BrainData of the same shape with each voxel painted with
+                its parcel's mean per image (parcellation smoothing).
+            roi_mask: Atlas image for ``spatial_scale='roi'``.
 
         Returns:
             float/np.array/BrainData: Mean values.
         """
+        if spatial_scale == "roi":
+            from .analysis import reduce_per_roi
+
+            return reduce_per_roi(self, np.mean, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.mean, axis)
 
-    def median(self, axis=0):
+    def median(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get median of each voxel or image.
 
         Args:
             axis: 0 = across images (default, returns BrainData),
-                1 = within images (returns array)
+                1 = within images (returns array). Ignored when
+                ``spatial_scale='roi'``.
+            spatial_scale: ``'whole_brain'`` (default) or ``'roi'`` (paints
+                each voxel with its parcel's median per image).
+            roi_mask: Atlas image for ``spatial_scale='roi'``.
 
         Returns:
             float/np.array/BrainData: Median values.
         """
+        if spatial_scale == "roi":
+            from .analysis import reduce_per_roi
+
+            return reduce_per_roi(self, np.median, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.median, axis)
@@ -1240,7 +1309,7 @@ class BrainData:
         *,
         y: "np.ndarray | None" = None,
         X: "np.ndarray | None" = None,
-        method: str = "whole_brain",
+        spatial_scale: str = "whole_brain",
         model="svm",
         cv: int = 5,
         standardize: bool = True,
@@ -1270,7 +1339,7 @@ class BrainData:
            objects so ``result.weight_map.plot()`` works directly. Drop down
            to numpy via ``result.weight_map.data``.
 
-        Field shapes by ``method=``:
+        Field shapes by ``spatial_scale=``:
 
         - **whole_brain**: ``predictions`` (n_samples,) OOF predictions,
           ``scores`` (n_folds,), ``mean_score`` float, ``std_score`` float,
@@ -1305,8 +1374,8 @@ class BrainData:
                 targets (regression), shape ``(n_samples,)``. Triggers MVPA mode.
             X (array-like, optional): Features for timeseries prediction,
                 shape ``(n_samples, n_features)``. Triggers encoding mode.
-            method (str): MVPA dispatch — ``'whole_brain'``, ``'searchlight'``,
-                or ``'roi'``.
+            spatial_scale (str): MVPA dispatch — ``'whole_brain'``,
+                ``'searchlight'``, or ``'roi'``.
             model (str or sklearn estimator): Algorithm. String shortcuts:
 
                 - Classification: ``'svm'`` (LinearSVC), ``'logistic'``,
@@ -1334,7 +1403,7 @@ class BrainData:
             groups (array-like, optional): Group labels for CV splitters
                 that need them (e.g., leave-one-run-out).
             roi_mask (Nifti1Image or path-like, optional): Atlas image for
-                ``method='roi'``.
+                ``spatial_scale='roi'``.
             radius_mm (float): Searchlight radius in mm. Default ``10.0``.
             inplace (bool): If ``True``, populate result fields as
                 ``predict_*`` attributes on ``self`` and return ``self``.
@@ -1349,16 +1418,16 @@ class BrainData:
                 ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
         Examples:
-            >>> result = brain.predict(y=labels, method='whole_brain', cv=5)
+            >>> result = brain.predict(y=labels, spatial_scale='whole_brain', cv=5)
             >>> result.weight_map.plot()       # publishable map (all-data fit)
             >>> result.mean_score              # honest CV-derived accuracy
             >>> new_pred = result.estimator.predict(new_X)  # apply to new data
 
-            >>> result = brain.predict(y=labels, method='searchlight',
+            >>> result = brain.predict(y=labels, spatial_scale='searchlight',
             ...                        radius_mm=8.0, n_jobs=4)
             >>> result.accuracy_map.plot()
 
-            >>> result = brain.predict(y=labels, method='roi', roi_mask=atlas)
+            >>> result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
             >>> top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
             >>> result.accuracy_map.plot()  # brain-space view of the same map
 
@@ -1379,7 +1448,7 @@ class BrainData:
             self,
             y=y,
             X=X,
-            method=method,
+            spatial_scale=spatial_scale,
             model=model,
             cv=cv,
             standardize=standardize,
@@ -1547,16 +1616,24 @@ class BrainData:
 
         return standardize(self, axis=axis, method=method, verbose=verbose)
 
-    def std(self, axis=0):
+    def std(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get standard deviation of each voxel or image.
 
         Args:
             axis: 0 = across images (default, returns BrainData),
-                1 = within images (returns array)
+                1 = within images (returns array). Ignored when
+                ``spatial_scale='roi'``.
+            spatial_scale: ``'whole_brain'`` (default) or ``'roi'`` (paints
+                each voxel with its parcel's std per image).
+            roi_mask: Atlas image for ``spatial_scale='roi'``.
 
         Returns:
             float/np.array/BrainData: Standard deviation values.
         """
+        if spatial_scale == "roi":
+            from .analysis import reduce_per_roi
+
+            return reduce_per_roi(self, np.std, roi_mask=roi_mask)
         from .utils import apply_func
 
         return apply_func(self, np.std, axis)

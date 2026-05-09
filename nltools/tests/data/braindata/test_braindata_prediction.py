@@ -21,12 +21,12 @@ class TestPredictDispatch:
         with pytest.raises(ValueError, match="Cannot specify both X and y"):
             sim_brain_data.predict(X=X, y=y)
 
-    def test_invalid_method(self, sim_brain_data):
+    def test_invalid_spatial_scale(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        with pytest.raises(ValueError, match="Invalid method"):
-            sim_brain_data.predict(y=y, method="bogus")
+        with pytest.raises(ValueError, match="Invalid spatial_scale"):
+            sim_brain_data.predict(y=y, spatial_scale="bogus")
 
     def test_unknown_model_shortcut(self, sim_brain_data):
         n = sim_brain_data.shape[0]
@@ -53,7 +53,7 @@ class TestWholeBrain:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3)
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3)
 
         assert isinstance(result, Predict)
 
@@ -62,7 +62,7 @@ class TestWholeBrain:
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
 
         assert result.predictions is not None
         assert result.predictions.shape == (n,)
@@ -88,7 +88,7 @@ class TestWholeBrain:
         n_voxels = sim_brain_data.shape[1]
         y = np.random.RandomState(0).randn(n)
 
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="ridge")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="ridge")
 
         assert isinstance(result, Predict)
         assert result.weight_map.shape == (n_voxels,)
@@ -100,7 +100,7 @@ class TestWholeBrain:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="logistic"
+            y=y, spatial_scale="whole_brain", cv=3, model="logistic"
         )
         assert result.weight_map is not None
 
@@ -109,7 +109,7 @@ class TestWholeBrain:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="ridge_classifier"
+            y=y, spatial_scale="whole_brain", cv=3, model="ridge_classifier"
         )
         assert result.weight_map is not None
 
@@ -117,7 +117,7 @@ class TestWholeBrain:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="lda")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="lda")
         assert result.weight_map is not None
 
     def test_custom_sklearn_estimator(self, sim_brain_data):
@@ -127,7 +127,7 @@ class TestWholeBrain:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model=LogisticRegression(max_iter=1000)
+            y=y, spatial_scale="whole_brain", cv=3, model=LogisticRegression(max_iter=1000)
         )
         assert isinstance(result, Predict)
         assert result.weight_map is not None
@@ -148,7 +148,7 @@ class TestWholeBrain:
             LinearSVC(dual="auto", max_iter=10000),
         )
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model=pipe, standardize=False
+            y=y, spatial_scale="whole_brain", cv=3, model=pipe, standardize=False
         )
         assert isinstance(result, Predict)
         # weight_map may be None — SelectKBest masks the feature space; we
@@ -164,7 +164,7 @@ class TestWholeBrain:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             result = sim_brain_data.predict(
-                y=y, method="whole_brain", cv=3, model=SVC(kernel="rbf")
+                y=y, spatial_scale="whole_brain", cv=3, model=SVC(kernel="rbf")
             )
         assert result.weight_map is None
         assert any("weight_map" in str(warn.message) for warn in w)
@@ -180,7 +180,7 @@ class TestPreprocessing:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, standardize=True
+            y=y, spatial_scale="whole_brain", cv=3, standardize=True
         )
         assert result.weight_map is not None
 
@@ -188,7 +188,7 @@ class TestPreprocessing:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, standardize=False
+            y=y, spatial_scale="whole_brain", cv=3, standardize=False
         )
         assert result.weight_map is not None
 
@@ -199,7 +199,7 @@ class TestPreprocessing:
 
         n_comp = min(3, n_voxels - 1)
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, reduce="pca", n_components=n_comp
+            y=y, spatial_scale="whole_brain", cv=3, reduce="pca", n_components=n_comp
         )
         # weight_map must be in voxel space (back-projected through PCA), not
         # PC space
@@ -218,7 +218,7 @@ class TestScoringAuto:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="svm", scoring="auto"
+            y=y, spatial_scale="whole_brain", cv=3, model="svm", scoring="auto"
         )
         assert np.all((result.scores >= 0) & (result.scores <= 1))
 
@@ -227,7 +227,7 @@ class TestScoringAuto:
         n = sim_brain_data.shape[0]
         y = np.random.RandomState(0).randn(n)
         result = sim_brain_data.predict(
-            y=y, method="whole_brain", cv=3, model="ridge", scoring="auto"
+            y=y, spatial_scale="whole_brain", cv=3, model="ridge", scoring="auto"
         )
         # R² scores can be any float (including negative for bad fits) — just
         # confirm we got per-fold floats back
@@ -239,7 +239,7 @@ class TestScoringAuto:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = sim_brain_data.predict(
             y=y,
-            method="whole_brain",
+            spatial_scale="whole_brain",
             cv=3,
             model="svm",
             scoring="balanced_accuracy",
@@ -256,7 +256,7 @@ class TestInplace:
     def test_inplace_false_returns_predict(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3)
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3)
         assert isinstance(result, Predict)
         # inplace=False must not attach predict_* attrs to bd
         assert not hasattr(sim_brain_data, "predict_weight_map")
@@ -269,7 +269,7 @@ class TestInplace:
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, inplace=True)
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)
         assert result is sim_brain_data
         assert sim_brain_data.predict_weight_map is not None
         assert sim_brain_data.predict_weight_map.shape == (n_voxels,)
@@ -291,7 +291,7 @@ class TestSearchlight:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = minimal_brain_data.predict(
-            y=y, method="searchlight", cv=3, radius_mm=4.0, n_jobs=1
+            y=y, spatial_scale="searchlight", cv=3, radius_mm=4.0, n_jobs=1
         )
         assert isinstance(result, Predict)
         assert result.accuracy_map is not None
@@ -311,7 +311,7 @@ class TestAllDataRefit:
     def test_estimator_is_fitted_and_callable_on_new_data(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
         assert result.estimator is not None
         # Linear-model estimators expose .coef_ (possibly inside a Pipeline).
         assert hasattr(result.estimator, "named_steps") or hasattr(
@@ -329,7 +329,7 @@ class TestAllDataRefit:
         """
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
         # Pull coef_ from the all-data fit (no PCA in this default pipeline,
         # so .coef_ already lives in voxel space).
         est = result.estimator
@@ -343,7 +343,7 @@ class TestAllDataRefit:
         n_comp = min(3, n_voxels - 1)
         result = sim_brain_data.predict(
             y=y,
-            method="whole_brain",
+            spatial_scale="whole_brain",
             cv=3,
             reduce="pca",
             n_components=n_comp,
@@ -378,7 +378,7 @@ class TestBrainDataWrapping:
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, method="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
         for field in ("weight_map", "fold_weight_maps"):
             obj = getattr(result, field)
             assert isinstance(obj, BrainData), f"{field} should be BrainData"
@@ -394,7 +394,7 @@ class TestBrainDataWrapping:
         n = minimal_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         result = minimal_brain_data.predict(
-            y=y, method="searchlight", cv=3, radius_mm=4.0, n_jobs=1
+            y=y, spatial_scale="searchlight", cv=3, radius_mm=4.0, n_jobs=1
         )
         assert isinstance(result.accuracy_map, BrainData)
         assert result.accuracy_map.mask is minimal_brain_data.mask
@@ -433,7 +433,7 @@ class TestROIDispatch:
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
 
         result = minimal_brain_data.predict(
-            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
         )
         # Score fields are arrays, not scalars, on ROI dispatch
         assert result.scores is not None
@@ -462,7 +462,7 @@ class TestROIDispatch:
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
 
         result = minimal_brain_data.predict(
-            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
         )
         assert isinstance(result.weight_map, BrainData)
         assert result.weight_map.data.shape == (n_voxels,)
@@ -483,7 +483,7 @@ class TestROIDispatch:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         atlas = self._build_atlas(minimal_brain_data, n_rois=2)
         result = minimal_brain_data.predict(
-            y=y, method="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
+            y=y, spatial_scale="roi", roi_mask=atlas, cv=3, model="svm", n_jobs=1
         )
         # Recover the label vector that the runner used to assign voxels
         from nilearn.masking import apply_mask
@@ -511,7 +511,7 @@ class TestROIDispatch:
             warnings.simplefilter("always")
             result = minimal_brain_data.predict(
                 y=y,
-                method="roi",
+                spatial_scale="roi",
                 roi_mask=atlas,
                 cv=3,
                 model=SVC(kernel="rbf"),
@@ -548,7 +548,7 @@ class TestPipelineStandardizeDetect:
         pipe = make_pipeline(StandardScaler(), LinearSVC(dual="auto", max_iter=10000))
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            sim_brain_data.predict(y=y, method="whole_brain", cv=3, model=pipe)
+            sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model=pipe)
         msgs = [str(warn.message) for warn in w]
         assert any("Pipeline" in m and "standardize" in m for m in msgs), (
             f"expected pipeline-standardize warning, got: {msgs}"
@@ -569,7 +569,7 @@ class TestPipelineStandardizeDetect:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             sim_brain_data.predict(
-                y=y, method="whole_brain", cv=3, model=pipe, standardize=False
+                y=y, spatial_scale="whole_brain", cv=3, model=pipe, standardize=False
             )
         assert not any(
             "Pipeline" in str(warn.message) and "standardize" in str(warn.message)

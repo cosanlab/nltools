@@ -144,7 +144,7 @@ Name | Type | Description | Default
 `estimator` |  | Classifier - 'svm', 'logistic', 'ridge', 'lda' or sklearn estimator instance. | <code>'svm'</code>
 `cv` |  | Cross-validation strategy. If None and _run_labels exists, uses leave-one-group-out with run labels. | <code>5</code>
 `groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for GroupKFold/LeaveOneGroupOut. If None and _run_labels exists, uses stored run labels. | <code>None</code>
-`roi_mask` |  | Mask for ROI-based MVPA. Required if method='roi'. | <code>None</code>
+`roi_mask` |  | Mask for ROI-based MVPA. Required if spatial_scale='roi'. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | searchlight radius in mm (default 10.0). | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | Scoring metric (default 'accuracy'). | <code>'accuracy'</code>
 `standardize` | <code>[bool](#bool)</code> | If True, standardize features before classification. | <code>True</code>
@@ -164,13 +164,13 @@ Type | Description
 ```pycon
 >>> # MVPA workflow with run-level betas
 >>> betas = bc.fit_glm(events=events, t_r=2.0, by_run=True)
->>> accuracy = betas.predict(y=None, method='whole_brain')
+>>> accuracy = betas.predict(y=None, spatial_scale='whole_brain')
 >>> # y and groups inferred from _condition_labels, _run_labels
 ```
 
 ```pycon
 >>> # Explicit labels
->>> accuracy = betas.predict(y=labels, method='searchlight')
+>>> accuracy = betas.predict(y=labels, spatial_scale='searchlight')
 ```
 
 ```pycon

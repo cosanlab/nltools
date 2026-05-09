@@ -282,7 +282,7 @@ Type | Description
 >>> betas = bc.fit_glm(events=events_df, t_r=2.0, by_run=True)
 >>> # betas._condition_labels = ['face', 'house', 'face', 'house', ...]
 >>> # betas._run_labels = [1, 1, 2, 2, 3, 3, ...]
->>> accuracy = betas.predict(y=None, method='searchlight')
+>>> accuracy = betas.predict(y=None, spatial_scale='searchlight')
 ```
 
 ```pycon

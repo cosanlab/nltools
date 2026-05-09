@@ -12,7 +12,9 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Import paths** | `nltools.file_reader`, `nltools.simulator`, `nltools.external` | `nltools.io`, `nltools.data`, `nltools.algorithms` | **Moved** |
 | **GLM regression** | `.regress()` | `.fit(model='glm')` | **Deprecated (shim still works)** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
-| **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, method=…, model=…, cv=…, refit=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
+| **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, model=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
+| **Spatial scope kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scope) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
+| **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas).similarity(model_rdm, project=True)` — chain to a voxel-space `BrainData` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
@@ -22,7 +24,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | `BrainCollection` class | **New** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
-| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `icc_type=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity) | **Renamed** |
+| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `icc_type=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity, `spatial_scale=` for spatial scope) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
@@ -650,7 +652,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
 | `.regress()` | `.fit(model='glm', X=design_matrix)` — deprecated shim still works, just emits a `DeprecationWarning` | **Low** |
-| `.predict(algorithm='svm')` | `.predict(y=labels, method=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. See [Pattern 4](#pattern-4-machine-learning-classificationregression). | **Low** |
+| `.predict(algorithm='svm')` | `.predict(y=labels, spatial_scale=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. `spatial_scale=` selects ``'whole_brain'``, ``'roi'``, or ``'searchlight'``; `method=` is no longer overloaded. See [Pattern 4](#pattern-4-machine-learning-classificationregression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
@@ -853,7 +855,7 @@ mean_acc = results['mcr_all'].mean()
 **After (v0.6.0):**
 ```python
 # Unified MVPA API — returns a frozen `Predict` dataclass.
-result = brain_data.predict(y=labels, method='whole_brain', model='svm', cv=5)
+result = brain_data.predict(y=labels, spatial_scale='whole_brain', model='svm', cv=5)
 result.weight_map      # mean classifier coefs across folds, shape (n_voxels,)
 result.fold_weight_maps  # per-fold coefs, shape (n_folds, n_voxels)
 result.scores          # per-fold scores, shape (n_folds,)
@@ -1274,7 +1276,8 @@ A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollecti
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.predict` (selecting `'whole_brain'`/`'searchlight'`/`'roi'`), `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.predict`, `BrainCollection.align` and the ICC/permutation helpers. |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.align` and the ICC/permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
+| Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict`, `BrainData.distance`, `BrainCollection.predict` (scaffold). Companion kwargs `roi_mask=` and `radius_mm=` already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | All four facades and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
 | Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainCollection.isc`, `.isc_test`, `.predict`, `.align`; `BrainData.predict` (searchlight), `BrainData.plot_flatmap`; `nltools.plotting.plot_surface`, `plot_flatmap`. The returned info dict from `_extract_for_isc` also renames `"radius"` → `"radius_mm"`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
@@ -1296,7 +1299,7 @@ adj.generate_permutations(n_perm=1000)
 adj.similarity(other, ignore_diagonal=True)  # old: include the diagonal
 
 # NEW
-brain.predict(y=labels, method='searchlight', model='svm', cv=5, radius_mm=10)
+brain.predict(y=labels, spatial_scale='searchlight', model='svm', cv=5, radius_mm=10)
 brain.decompose(method='ica', n_components=20, axis='images', whiten=True)
 brain.plot(method='glass', upper=2.3, lower=-2.3)
 bc.isc(radius_mm=6.0, device='gpu', progress_bar=True)
@@ -1515,6 +1518,28 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 
 ## New Features
 
+### Spatial-scale-aware RSA (NEW)
+
+**Status**: ✅ NEW (v0.6.0)
+
+`BrainData.distance(spatial_scale=...)` plus `Adjacency.spatial_scale` / `to_brain()` / `similarity(project=True)` make per-ROI and per-searchlight representational similarity analysis a one-liner that ends in a voxel-space `BrainData`. The framing follows [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010): searchlight → ROI → whole brain as named points on a single spatial-scale axis.
+
+**Canonical chain**:
+
+```python
+# Per-ROI RSA: compute one RDM per parcel, score against a model RDM,
+# project the per-parcel scalars back to a voxel-space BrainData.
+rdms = brain.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas)
+brain_map = rdms.similarity(model_rdm, project=True, permutation_method=None)
+```
+
+**What's added**:
+- `BrainData.distance(spatial_scale='whole_brain' | 'roi' | 'searchlight', roi_mask=, radius_mm=)` — `'whole_brain'` (default) preserves existing behavior; `'roi'` returns a stacked `Adjacency` (one RDM per parcel) with `spatial_scale` provenance attached. `'searchlight'` reserved for a follow-up.
+- `Adjacency.spatial_scale: SpatialScale | None` — optional frozen dataclass carrying `(atlas, roi_labels, source_mask, kind)`. Survives shape-preserving operations (`copy`, `__getitem__` slice, `r_to_z`, `threshold`); dropped when an op collapses the stack to a single matrix.
+- `Adjacency.to_brain(values, fill=np.nan) -> BrainData` — paint per-matrix scalars onto voxel space using the attached atlas. Errors when `spatial_scale` is unset.
+- `Adjacency.similarity(other, project=True)` — sugar for `to_brain(np.array([r['correlation'] for r in similarity(...)]))`.
+- `nltools.mask.roi_to_brain_from_atlas(values, atlas, source_mask, roi_labels=, fill=)` — sibling of the legacy `roi_to_brain` (which takes an *expanded* mask), but operating on a labeled atlas image. Single source of truth for "paint per-parcel scalars from a labeled atlas onto voxel space."
+
 ### Compute Contrasts
 
 ```python
@@ -1711,13 +1736,13 @@ weight_map = results['weight_map']
 # NEW (v0.6.0) — updated keyword names + Predict dataclass return
 # `method` selects the prediction *mode* (whole_brain / roi / searchlight);
 # `model` selects the sklearn algorithm (mirrors bd.fit(model=)).
-result = brain_data.predict(y=labels, method='whole_brain', model='svm', cv=5)
+result = brain_data.predict(y=labels, spatial_scale='whole_brain', model='svm', cv=5)
 result.weight_map        # mean coefs across folds, shape (n_voxels,)
 result.scores            # per-fold scores
 result.mean_score        # mean across folds
 
 # Searchlight — populates accuracy_map (no weight_map; per-sphere classifiers)
-result = brain_data.predict(y=labels, method='searchlight',
+result = brain_data.predict(y=labels, spatial_scale='searchlight',
                             model='ridge_classifier', radius_mm=10, cv=5)
 result.accuracy_map      # voxel-shaped accuracy
 
@@ -1783,7 +1808,7 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 ### Should fix (deprecated or changed behavior)
 
 - [ ] Replace `.regress()` with `.fit(model='glm')` (deprecated shim still works, emits `DeprecationWarning`)
-- [ ] Update `.predict(algorithm=...)` to `.predict(method=..., estimator=..., cv=...)` (new keyword API)
+- [ ] Update `.predict(algorithm=...)` to `.predict(spatial_scale=..., model=..., cv=...)` (new keyword API; `spatial_scale=` chooses ``'whole_brain'``/``'roi'``/``'searchlight'``)
 - [ ] Update `.decompose(algorithm=...)` to `.decompose(method=...)` (same `algorithm → method` rename; signature is now keyword-only after `self`)
 - [ ] Update `.shape()` → `.shape`, `.isempty()` → `.is_empty`, `.dtype()` → `.dtype`
 - [ ] Update `.smooth()` to assign return value (returns copy now)

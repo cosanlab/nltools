@@ -195,7 +195,7 @@ Name | Type | Description
 ```pycon
 >>> # MVPA decoding (pattern classification)
 >>> # brain_data.data has shape (n_trials, n_voxels)
->>> accuracy = brain_data.predict(y=labels, method='searchlight')
+>>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
 >>> print(accuracy.shape)  # (1, n_voxels)
 ```
 

@@ -425,7 +425,7 @@ class BrainCollection:
         y: str | list | np.ndarray | None = None,
         *,
         X_new: np.ndarray | None = None,
-        method: str = "whole_brain",
+        spatial_scale: str = "whole_brain",
         estimator: str = "svm",
         cv: int | str = "loso",
         groups: str | np.ndarray | None = None,

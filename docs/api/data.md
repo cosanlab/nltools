@@ -1857,7 +1857,7 @@ Name | Type | Description
 ```pycon
 >>> brain_data.fit(model='ridge', X=features)
 >>> predictions = brain_data.predict(X=new_features)
->>> accuracy = brain_data.predict(y=labels, method='searchlight')
+>>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
 ```
 
 ###### `predict_multi`
@@ -6827,7 +6827,7 @@ Name | Type | Description
 ```pycon
 >>> # MVPA decoding (pattern classification)
 >>> # brain_data.data has shape (n_trials, n_voxels)
->>> accuracy = brain_data.predict(y=labels, method='searchlight')
+>>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
 >>> print(accuracy.shape)  # (1, n_voxels)
 ```
 

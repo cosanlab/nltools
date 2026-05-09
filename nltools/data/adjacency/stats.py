@@ -21,6 +21,8 @@ def similarity(
     return_null=False,
     n_jobs=-1,
     random_state=None,
+    *,
+    project: bool = False,
 ):
     """
     Calculate similarity between two Adjacency matrices. Default is to use spearman
@@ -146,6 +148,13 @@ def similarity(
             raise ValueError("permutation_method must be ['1d','2d', or None']")
         return data
 
+    if project and adj.spatial_scale is None:
+        raise ValueError(
+            "similarity(project=True) requires the calling Adjacency to have "
+            "a spatial_scale set (i.e. produced by a spatial-scale-aware "
+            "operation like BrainData.distance(spatial_scale='roi'))."
+        )
+
     if adj.is_single_matrix:
         if plot:
             plot_stacked_adjacency(adj, data)
@@ -185,6 +194,9 @@ def similarity(
                 random_state=random_state,
             )
         )
+    if project:
+        per_matrix = np.array([r["correlation"] for r in results])
+        return adj.to_brain(per_matrix)
     return results
 
 

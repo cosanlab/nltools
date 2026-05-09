@@ -810,7 +810,7 @@ Name | Type | Description
 ```pycon
 >>> brain_data.fit(model='ridge', X=features)
 >>> predictions = brain_data.predict(X=new_features)
->>> accuracy = brain_data.predict(y=labels, method='searchlight')
+>>> accuracy = brain_data.predict(y=labels, spatial_scale='searchlight')
 ```
 
 #### `predict_multi`
