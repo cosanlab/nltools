@@ -22,7 +22,7 @@ project:
           hidden: true
           children:
             - file: tutorials/workflows/01_glm.md
-            # - file: tutorials/workflows/04_rsa.md
+            - file: tutorials/workflows/04_rsa.md
             - file: tutorials/workflows/05_decoding.md
             # - file: tutorials/workflows/06_pipeline_basics.md
             # - file: tutorials/workflows/07_two_stage_glm.md
