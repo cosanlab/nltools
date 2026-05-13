@@ -57,9 +57,9 @@ class TestPredictSignature:
         assert sig.parameters["y"].default is None
         assert sig.parameters["X_new"].default is None
 
-    def test_default_method_is_whole_brain(self):
+    def test_default_spatial_scale_is_whole_brain(self):
         sig = inspect.signature(BrainCollection.predict)
-        assert sig.parameters["method"].default == "whole_brain"
+        assert sig.parameters["spatial_scale"].default == "whole_brain"
 
     def test_default_estimator_is_svm_default_cv_loso(self):
         sig = inspect.signature(BrainCollection.predict)
