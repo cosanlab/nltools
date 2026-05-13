@@ -75,11 +75,12 @@ def _welford(bc: BrainCollection) -> tuple[int, np.ndarray, np.ndarray]:
     ``M2`` is the sum of squared deviations; ``var = M2 / (n-1)``.
     """
     n = 0
-    mean = M2 = None
+    mean = np.empty(0, dtype=np.float64)
+    M2 = np.empty(0, dtype=np.float64)
     for x in _iter_arrays(bc):
         n += 1
         x64 = x.astype(np.float64)
-        if mean is None:
+        if n == 1:
             mean = x64.copy()
             M2 = np.zeros_like(mean)
         else:
@@ -252,7 +253,7 @@ def ttest2(
 def anova(
     bc: BrainCollection,
     groups: str | list | np.ndarray,
-) -> dict[str, BrainData]:
+) -> dict[str, BrainData | int]:
     """One-way ANOVA across subjects.
 
     ``groups`` is a metadata column name, a list, or an ndarray of length

@@ -14,11 +14,6 @@ import numpy as np
 import nibabel as nib
 import pytest
 
-# BrainCollection is being rewritten on the `collection-imp` branch; skip the
-# whole test directory here so this branch's suite isn't tied to scaffold-era
-# contracts that will change. Remove after collection-imp merges back.
-collect_ignore_glob = ["test_*.py"]
-
 
 # ---------------------------------------------------------------------------
 # Mask + data builders

@@ -11,7 +11,7 @@ import re
 import secrets
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import nibabel as nib
 import polars as pl
@@ -79,9 +79,12 @@ def resolve_mask(
     if isinstance(mask, str) and _TEMPLATE_NAME_RE.match(mask):
         from ...templates.paths import resolve_template_name
 
-        return nib.load(resolve_template_name(mask, file_type="mask"))
+        return cast(
+            "nib.Nifti1Image",
+            nib.load(resolve_template_name(mask, file_type="mask")),
+        )
     if isinstance(mask, (str, Path)):
-        return nib.load(mask)
+        return cast("nib.Nifti1Image", nib.load(mask))
     raise TypeError(f"unsupported mask type: {type(mask).__name__}")
 
 

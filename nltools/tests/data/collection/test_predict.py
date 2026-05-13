@@ -61,14 +61,10 @@ class TestPredictSignature:
         sig = inspect.signature(BrainCollection.predict)
         assert sig.parameters["spatial_scale"].default == "whole_brain"
 
-    def test_default_estimator_is_svm_default_cv_loso(self):
+    def test_default_model_is_svm_default_cv_loso(self):
         sig = inspect.signature(BrainCollection.predict)
-        assert sig.parameters["estimator"].default == "svm"
+        assert sig.parameters["model"].default == "svm"
         assert sig.parameters["cv"].default == "loso"
-
-    def test_return_weights_default_true(self):
-        sig = inspect.signature(BrainCollection.predict)
-        assert sig.parameters["return_weights"].default is True
 
 
 # ---------------------------------------------------------------------------

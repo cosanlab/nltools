@@ -214,9 +214,9 @@ class TestSignatures:
         assert "y" in params and "X_new" in params
         assert params["y"].default is None and params["X_new"].default is None
 
-    def test_predict_default_estimator_and_cv(self):
+    def test_predict_default_model_and_cv(self):
         params = self._params(BrainCollection.predict)
-        assert params["estimator"].default == "svm"
+        assert params["model"].default == "svm"
         assert params["cv"].default == "loso"
 
     def test_isc_default_method_loo(self):

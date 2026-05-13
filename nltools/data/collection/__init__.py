@@ -357,15 +357,16 @@ class BrainCollection:
 
     def filter(
         self,
-        predicate: Callable | list | np.ndarray | pl.Series | pd.Series,
+        predicate: Callable[[Any], Any] | list | np.ndarray | pl.Series | pd.Series,
     ) -> BrainCollection:
         """Filter to a subset by predicate, polars expression, or boolean array."""
         if isinstance(predicate, pl.Expr):
             return self[predicate]
 
         if callable(predicate):
+            fn: Callable[[Any], Any] = predicate
             bool_arr = np.array(
-                [bool(predicate(self._load_item(i))) for i in range(len(self))]
+                [bool(fn(self._load_item(i))) for i in range(len(self))]
             )
             return self._subset(np.where(bool_arr)[0].tolist())
 
@@ -609,7 +610,11 @@ class BrainCollection:
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
-    ) -> BrainCollection | dict[str, BrainCollection]:
+    ) -> (
+        BrainCollection
+        | dict[str, BrainCollection]
+        | dict[str, dict[str, BrainCollection]]
+    ):
         """Compute per-subject contrast maps from fit-bundle items.
 
         Returns:
@@ -718,18 +723,16 @@ class BrainCollection:
         *,
         X_new: np.ndarray | None = None,
         spatial_scale: str = "whole_brain",
-        estimator: str = "svm",
+        model: str = "svm",
         cv: int | str = "loso",
         groups: str | np.ndarray | None = None,
         roi_mask: nib.Nifti1Image | Path | str | None = None,
         radius_mm: float = 10.0,
-        scoring: str = "accuracy",
+        scoring: str = "auto",
         standardize: bool = True,
-        return_weights: bool = True,
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
-        **kwargs,
     ):  # BrainData | BrainCollection
         """Two distinct paths, dispatched by argument:
 
@@ -755,18 +758,16 @@ class BrainCollection:
         if y is not None:
             return self._predict_group(
                 y,
-                method=method,
-                estimator=estimator,
+                spatial_scale=spatial_scale,
+                model=model,
                 cv=cv,
                 groups=groups,
                 roi_mask=roi_mask,
                 radius_mm=radius_mm,
                 scoring=scoring,
                 standardize=standardize,
-                return_weights=return_weights,
                 n_jobs=n_jobs,
                 progress_bar=progress_bar,
-                **kwargs,
             )
 
         return self._predict_per_subject(
@@ -780,18 +781,16 @@ class BrainCollection:
         self,
         y,
         *,
-        method: str,
-        estimator: str,
+        spatial_scale: str,
+        model: str,
         cv,
         groups,
         roi_mask,
         radius_mm: float,
         scoring: str,
         standardize: bool,
-        return_weights: bool,
         n_jobs: int,
         progress_bar: bool,
-        **kwargs,
     ):
         """Group MVPA: subjects as samples → ``BrainData`` with CV attrs."""
         from ..braindata import BrainData
@@ -852,12 +851,11 @@ class BrainCollection:
             cv_arg = KFold(cv)
 
         # Forward to BD.predict; result is a BrainData with CV attrs attached.
-        # BD.predict signature: (X, y, *, method, estimator, cv, groups, ...)
+        # BD.predict signature: (*, y, X, spatial_scale, model, cv, ...)
         return bd.predict(
-            X=None,
             y=y_arr,
-            method=method,
-            estimator=estimator,
+            spatial_scale=spatial_scale,
+            model=model,
             cv=cv_arg,
             groups=groups_arr,
             roi_mask=roi_mask,
