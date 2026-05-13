@@ -24,43 +24,84 @@ Decoding asks **"can the spatial pattern predict the condition?"**. RSA flips th
 
 > **What is the *structure* of the patterns relative to one another?**
 
-Instead of training a classifier, we compute a **representational dissimilarity matrix (RDM)** — pairwise distances between condition patterns — and ask whether that geometry matches a hypothesis (e.g. *animates cluster together; faces are far from houses*).
+Instead of training a classifier, we compute a **representational dissimilarity matrix (RDM)** — pairwise distances between item patterns — and ask whether that geometry matches a hypothesis (e.g. *same-condition trials cluster together*).
 
 The big win: the RDM is a common currency. Once your brain patterns and your hypothesis are both expressed as RDMs, comparing them is a single correlation. The same shape can also relate brain data to behavior, model layers, or another subject — anything you can turn into a distance matrix.
 
 ```{code-cell} python
-from nltools.data import BrainData, Adjacency
+from pathlib import Path
+import json
+from nilearn.datasets import fetch_language_localizer_demo_dataset
+from nilearn.interfaces.bids import get_bids_files
+from nltools.data import BrainData, Adjacency, DesignMatrix
 ```
 
-## Load Haxby (one subject)
+## Load the language localizer dataset
 
-Same dataset as the decoding tutorial — `sub-2` viewing 8 object categories across 12 runs — auto-resampled to MNI 3mm by `BrainData`:
+We'll use the same dataset as the [GLM tutorial](01_glm.md) — preprocessed, MNI-space, 10 subjects watching alternating blocks of `language` (sentences) and `string` (consonant strings). With only two categories there's no condition-level geometry to compare, so we'll work at the **trial level**: each subject sees 12 language blocks + 12 string blocks = 24 trials, and the question becomes whether each trial's spatial pattern groups by its category.
 
 ```{code-cell} python
-from nilearn.datasets import fetch_haxby
+DATASET = fetch_language_localizer_demo_dataset(verbose=0)
+datapath = Path(DATASET["data_dir"])
 
-HAXBY = fetch_haxby(subjects=[2], verbose=0)
-brain = BrainData(HAXBY.func[0])
-labels = pd.read_csv(HAXBY.session_target[0], sep=" ")
+def get_sub_files(sub: str) -> dict:
+    """Return one subject's BOLD, events, confounds, and TR from BIDS."""
+    events = get_bids_files(datapath, file_tag="events", file_type="tsv", sub_label=sub)[0]
+    bold = get_bids_files(
+        datapath / "derivatives", file_tag="bold", file_type="nii.gz", sub_label=sub
+    )[0]
+    sidecar = get_bids_files(
+        datapath / "derivatives", file_tag="bold", file_type="json", sub_label=sub
+    )[0]
+    confounds = get_bids_files(
+        datapath / "derivatives", file_type="tsv", modality_folder="func", sub_label=sub
+    )[0]
+    return {
+        "bold": bold,
+        "events": events,
+        "confounds": confounds,
+        "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
+    }
 
-print(f"brain.shape: {brain.shape}  (TRs, voxels)")
-print(f"conditions:  {sorted(labels['labels'].unique())}")
+s1 = get_sub_files("01")
+brain = BrainData(s1["bold"])
+print(f"brain.shape: {brain.shape}  TR={s1['TR']}s")
 ```
 
-We'll work with the seven object categories (dropping `rest` and `scrambledpix`) and build one mean pattern per condition. Mean-of-TRs is a deliberately simple estimator — it's enough to surface the well-known animate / face-vs-place structure without re-doing the GLM tutorial:
+## Build a single-trial design (LSA)
+
+A standard first-level GLM collapses all `language` trials into one regressor and all `string` trials into another. For RSA we want **one pattern per trial**, so we rename each trial type to be unique — the 12-language + 12-string design becomes 24 separate regressors. This is the **Least-Squares All (LSA)** estimator:
 
 ```{code-cell} python
-conditions = ["bottle", "cat", "chair", "face", "house", "scissors", "shoe"]
+ev = pd.read_csv(s1["events"], sep="\t").sort_values("onset").reset_index(drop=True)
+ev["trial_type"] = [f"{row.trial_type}_t{i:02d}" for i, row in enumerate(ev.itertuples(), start=1)]
+trial_names = ev["trial_type"].tolist()
+trial_labels = [name.rsplit("_", 1)[0] for name in trial_names]
+print(ev.head())
+print(f"\n{len(trial_names)} trial regressors, {sum(c == 'language' for c in trial_labels)} language + {sum(c == 'string' for c in trial_labels)} string")
+```
 
-condition_patterns = []
-for cond in conditions:
-    idx = (labels["labels"] == cond).to_numpy()
-    pattern = brain[idx].data.mean(axis=0)
-    condition_patterns.append(pattern)
+Write the renamed events to a temp TSV so `DesignMatrix` can read it like any BIDS file, then build the design matrix with confounds and polynomial drift:
 
-patterns = BrainData(np.stack(condition_patterns), mask=brain.mask)
-patterns.Y = pd.DataFrame({"condition": conditions})
-print(f"patterns.shape: {patterns.shape}  (n_conditions, n_voxels)")
+```{code-cell} python
+import tempfile
+events_lsa = tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False)
+ev.to_csv(events_lsa.name, sep="\t", index=False)
+
+trials_dm = DesignMatrix(events_lsa.name, run_length=brain.shape[0], TR=s1["TR"])
+confounds_dm = DesignMatrix(s1["confounds"], run_length="infer", TR=s1["TR"])
+designmat = trials_dm.append(confounds_dm, axis=1, as_confounds=True).add_poly(2)
+print(f"Design matrix: {designmat.shape}  ({len(trial_names)} trial regressors + 6 motion + drift)")
+```
+
+Fit the GLM and take the first 24 beta maps — one whole-brain pattern per trial:
+
+```{code-cell} python
+brain.fit(X=designmat)
+n_trials = len(trial_names)
+trial_betas = brain.glm_betas[:n_trials]
+trial_betas.Y = pd.DataFrame({"trial": trial_names, "condition": trial_labels})
+print(f"trial_betas.shape: {trial_betas.shape}  (n_trials, n_voxels)")
 ```
 
 ## Compute the RDM
@@ -68,107 +109,113 @@ print(f"patterns.shape: {patterns.shape}  (n_conditions, n_voxels)")
 `BrainData.distance(metric='correlation')` returns an `Adjacency` whose entry *(i,j)* is `1 − corr(pattern_i, pattern_j)` — the canonical RSA dissimilarity:
 
 ```{code-cell} python
-rdm = patterns.distance(metric="correlation")
-rdm.labels = conditions
+rdm = trial_betas.distance(metric="correlation")
+rdm.labels = trial_names
 print(f"rdm.shape: {rdm.shape}  (matrix_type={rdm.matrix_type})")
 ```
 
 ```{code-cell} python
-fig, ax = plt.subplots(figsize=(5, 4))
-rdm.plot(vmin=0, vmax=2, cmap="RdBu_r", axes=ax)
-ax.set_title("Representational dissimilarity (1 − Pearson r)")
+fig, ax = plt.subplots(figsize=(6, 5))
+rdm.plot(cmap="RdBu_r", axes=ax)
+ax.set_title("Whole-brain trial RDM (1 − Pearson r)")
 fig
 ```
 
-For visualization it's often easier to read similarity than distance — `distance_to_similarity` flips the sign for you:
+## A categorical model
+
+Build a hypothesis RDM where same-condition pairs have distance 0 and different-condition pairs have distance 1:
 
 ```{code-cell} python
-sim = rdm.distance_to_similarity(metric="correlation")
-sim.labels = conditions
+labels_arr = np.array(trial_labels)
+model_rdm = (labels_arr[:, None] != labels_arr[None, :]).astype(float)
+category_model = Adjacency(model_rdm, matrix_type="distance", labels=trial_names)
 
-fig, ax = plt.subplots(figsize=(5, 4))
-sim.plot(vmin=-1, vmax=1, cmap="RdBu_r", axes=ax)
-ax.set_title("Pattern similarity (Pearson r)")
+fig, ax = plt.subplots(figsize=(6, 5))
+category_model.plot(vmin=0, vmax=1, cmap="RdBu_r", axes=ax)
+ax.set_title("Model RDM: same condition = 0, different = 1")
 fig
 ```
 
-## MDS — see the geometry
+The checkerboard pattern reflects the alternating block design — every trial has a different-condition neighbour on each side and same-condition partners two trials away.
 
-A 2D MDS projection of the RDM gives a quick spatial intuition for which conditions cluster:
+## Whole-brain RSA
+
+Compare the brain RDM and the model RDM. Spearman rank correlation with a Mantel-style permutation null:
 
 ```{code-cell} python
-fig, ax = plt.subplots(figsize=(5, 5))
-rdm.plot_mds(n_components=2, labels=conditions, ax=ax)
-ax.set_title("MDS of the brain RDM")
+result_wb = rdm.similarity(category_model, metric="spearman", n_permute=1000, random_state=0)
+print(f"Whole-brain RSA: rho = {result_wb['correlation']:.3f}  p = {result_wb['p']:.4f}")
+```
+
+The whole-brain trial RDM is dominated by global BOLD fluctuations and adjacent-trial autocorrelation — most voxels don't carry language-vs-string structure. The signal lives regionally, so we'll zoom in.
+
+## ROI RSA
+
+`spatial_scale='roi'` with a parcellation atlas returns *one RDM per region* — same data, sliced by ROI. We'll use the bundled k50 atlas (50 cortical ROIs in default 3mm MNI space, also used in the decoding tutorial):
+
+```{code-cell} python
+from nltools.templates import fetch_resource
+atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
+
+roi_rdms = trial_betas.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas_path)
+print(f"roi_rdms: {len(roi_rdms)} RDMs, each {roi_rdms[0].shape}")
+```
+
+Comparing each ROI's RDM to the model and projecting the correlations back to brain space is a one-liner — `project=True` returns a `BrainData` where every voxel inside ROI *k* gets ROI *k*'s correlation with the model:
+
+```{code-cell} python
+rsa_map = roi_rdms.similarity(
+    category_model, metric="spearman", permutation_method=None, project=True
+)
+print(f"rsa_map.shape: {rsa_map.shape}")
+
+rsa_map.plot(
+    method="slices",
+    title="ROI RSA: where same-condition trials cluster",
+    cmap="RdBu_r",
+    colorbar=True,
+)
+```
+
+Regions where same-condition trials are reliably more similar than between-condition trials show up bright — those are the ROIs whose representational geometry matches the categorical hypothesis.
+
+## Inspect the top ROI
+
+Pull the RDM for the best-matching ROI and look at the trial-level structure directly:
+
+```{code-cell} python
+roi_rsa = roi_rdms.similarity(
+    category_model, metric="spearman", permutation_method=None
+)
+rsa_corrs = np.array([r["correlation"] for r in roi_rsa])
+top_roi = int(np.argmax(rsa_corrs))
+print(f"Best ROI: {top_roi}  (rho = {rsa_corrs[top_roi]:.3f})")
+
+best_rdm = roi_rdms[top_roi]
+best_rdm.labels = trial_names
+
+fig, ax = plt.subplots(figsize=(6, 5))
+best_rdm.plot(cmap="RdBu_r", axes=ax)
+ax.set_title(f"Top ROI ({top_roi}): trial RDM")
 fig
 ```
 
-## Test a hypothesis: animate vs inanimate
-
-The cleanest RSA workflow is *hypothesis as RDM*. Build a model RDM where same-category pairs have distance 0 and across-category pairs have distance 1:
-
-```{code-cell} python
-animate = {"face", "cat"}
-is_animate = np.array([c in animate for c in conditions])
-animate_rdm = (is_animate[:, None] != is_animate[None, :]).astype(float)
-
-animate_model = Adjacency(animate_rdm, matrix_type="distance", labels=conditions)
-
-fig, ax = plt.subplots(figsize=(5, 4))
-animate_model.plot(vmin=0, vmax=1, cmap="RdBu_r", axes=ax)
-ax.set_title("Model RDM: animate vs inanimate")
-fig
-```
-
-Compare brain RDM and model RDM — Spearman rank correlation with a permutation null:
-
-```{code-cell} python
-result = rdm.similarity(animate_model, metric="spearman", n_permute=1000, random_state=0)
-print(f"animate vs inanimate:  rho = {result['correlation']:.3f}  p = {result['p']:.4f}")
-```
-
-## A second hypothesis: face vs house
-
-Faces and houses anchor the classic Haxby ventral-temporal story — faces drive FFA, houses drive PPA. A targeted model RDM is just a single off-diagonal entry pulled apart from the rest:
-
-```{code-cell} python
-face_house_rdm = np.zeros((len(conditions), len(conditions)))
-i, j = conditions.index("face"), conditions.index("house")
-face_house_rdm[i, j] = face_house_rdm[j, i] = 1.0
-
-face_house_model = Adjacency(face_house_rdm, matrix_type="distance", labels=conditions)
-result_fh = rdm.similarity(face_house_model, metric="spearman", n_permute=1000, random_state=0)
-print(f"face ↔ house dissim:   rho = {result_fh['correlation']:.3f}  p = {result_fh['p']:.4f}")
-```
-
-## Inspect specific pairs
-
-Sometimes you just want the numbers. `squareform()` returns the dense `n × n` array; the labels list gives row/column meaning:
-
-```{code-cell} python
-rdm_array = rdm.squareform()
-
-pairs = [("face", "house"), ("face", "cat"), ("house", "chair"), ("bottle", "scissors")]
-print("Pairwise dissimilarity (1 − r):")
-for a, b in pairs:
-    i, j = conditions.index(a), conditions.index(b)
-    print(f"  {a:<8s} ↔ {b:<8s}  {rdm_array[i, j]:.3f}")
-```
+The block structure is now visible — within-language and within-string pairs (small diagonal blocks of dark cells) are more similar than cross-condition pairs (the lighter off-diagonal blocks).
 
 ## Putting it together
 
 | Step | Call | Returns |
 |---|---|---|
-| Per-condition pattern stack | `BrainData(np.stack(means), mask=brain.mask)` | `BrainData` `(n_conditions, n_voxels)` |
-| Brain RDM | `patterns.distance(metric='correlation')` | `Adjacency` (matrix_type='distance') |
-| Flip to similarity | `rdm.distance_to_similarity(metric='correlation')` | `Adjacency` (matrix_type='similarity') |
-| MDS embedding | `rdm.plot_mds(n_components=2, labels=...)` | matplotlib axes |
+| LSA design | `DesignMatrix(events_lsa, run_length=..., TR=...)` (unique trial_types) | `DesignMatrix` (one regressor per trial) |
+| Trial-level fit | `brain.fit(X=designmat); brain.glm_betas[:n_trials]` | `BrainData` (n_trials, n_voxels) |
+| Whole-brain RDM | `trial_betas.distance(metric='correlation')` | `Adjacency` (matrix_type='distance') |
+| ROI RDMs | `trial_betas.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas)` | `Adjacency` with n_rois matrices |
 | Compare to model | `rdm.similarity(model, metric='spearman', n_permute=K)` | `dict` with `correlation`, `p` |
+| Project to brain | `roi_rdms.similarity(model, project=True)` | `BrainData` of per-voxel correlations |
 
-> **When mean-of-TRs isn't enough.** Mean patterns are a fine first pass and great for tutorials, but real RSA studies usually use **GLM betas** (or t-stats, which downweight noisy voxels). Swap the pattern-extraction step for `data.fit(model='glm', X=dm).compute_contrasts(cond)` — the rest of this tutorial stays the same. The [GLM tutorial](01_glm.md) covers that machinery.
+> **Why trial-level instead of condition-level?** With only two categories a condition-level RDM collapses to a single off-diagonal value — no geometry to compare. Trial-level betas give us 24 items and a rich 24×24 RDM. The cost is per-trial noise; the win is real hypothesis structure. When you have many conditions, mean-of-trials or per-condition GLM contrasts are the natural choice instead.
 
 ## Next Steps
 
-- **Searchlight RSA**: roving sphere — `patterns.distance(spatial_scale='searchlight', radius_mm=8.0)` returns one RDM per searchlight, ready to compare to a model RDM voxelwise.
-- **ROI RSA**: pass a parcellation — `patterns.distance(spatial_scale='roi', roi_mask=atlas)` for one RDM per region.
+- **Searchlight RSA**: roving sphere — `trial_betas.distance(spatial_scale='searchlight', radius_mm=8.0)` returns one RDM per searchlight, ready to compare to a model RDM voxelwise.
 - **Decoding view**: instead of distance structure, can a classifier separate the conditions? — see [Decoding](05_decoding.md).
