@@ -4,18 +4,6 @@
 
 **All commands must use `uv run` prefix** — bare `pytest`/`python` uses the wrong environment.
 
-## Code Search: symbex first
-
-Use `symbex` for exploring Python symbols (classes, functions, signatures, docstrings). It's far more token-efficient than reading entire files. Fall back to `Grep`/`Read` only when symbex can't get what you need.
-
-```bash
-symbex 'BrainData.fit' -s        # signature only
-symbex 'BrainData.*' -s -d       # all methods with docstrings
-symbex '*' -s nltools/stats.py   # all symbols in a file
-```
-
-If `symbex` is not found, prompt the user to install it: `uv tool install symbex`
-
 ## Project Context
 - **Branch:** `uv-cleanup` → **v0.6.0** (breaking release; API changes allowed)
 - **Task tracking**: Linear (project: `nltools`, team: `Ejolly`)
@@ -75,10 +63,6 @@ uv run poe docs-clean      # rm _build
 - Config: `docs/myst.yml` (TOC + site), `[tool.griffe2md]` in `pyproject.toml`
 - API generation script: `scripts/build_api_docs.py`
 - Tutorials: `docs/tutorials/` — MyST Markdown with `{code-cell}` directives
-
-## Sub-agents
-- Instruct to use `uv run`, `symbex`, targeted TDD, `-n auto`, log files
-- Slow tests require explicit user permission
 
 ## Testing: Red-Green TDD
 
