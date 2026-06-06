@@ -41,6 +41,7 @@ dev = [
     "ipywidgets>=8.1.7",
     "jupyter-book>=2.1.4",
     "jupytext>=1.18.1",
+    "marimo>=0.23",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
     "pytest>=8.4",
@@ -222,6 +223,29 @@ WHEEL_PID=$!
 trap "kill $WHEEL_PID 2>/dev/null" EXIT INT TERM
 cd docs && myst start --execute
 """
+
+[tool.poe.tasks.tutorials-check]
+help = "Lint tutorial marimo notebooks (static checks, no execution)"
+shell = """for nb in docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
+
+[tool.poe.tasks.tutorials-run]
+help = "Execute each tutorial marimo notebook as a script to verify it runs end-to-end"
+shell = """for nb in docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
+
+[tool.poe.tasks.tutorials-build]
+help = "Regenerate tutorial MyST-NB markdown from the marimo notebooks (single source of truth)"
+cmd = "python scripts/marimo_to_myst.py --all"
+
+[tool.poe.tasks.tutorials-clean-cache]
+help = "Clear the joblib fit cache used by the tutorial notebooks (forces recompute)"
+shell = """rm -rf .cache/tutorials docs/.cache/tutorials"""
+
+[tool.poe.tasks.tutorials]
+help = "Verify tutorial notebooks run, then regenerate their MyST markdown"
+sequence = [
+  { ref = "tutorials-run" },
+  { ref = "tutorials-build" },
+]
 
 [tool.griffe2md]
 docstring_style = "google"
