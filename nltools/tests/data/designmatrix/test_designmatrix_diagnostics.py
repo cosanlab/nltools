@@ -1,5 +1,10 @@
+import matplotlib
+
+matplotlib.use("Agg")  # headless backend for plot tests
+
 import numpy as np
 import pytest
+from nltools.data import Adjacency
 from nltools.data.designmatrix import DesignMatrix
 
 
@@ -280,3 +285,101 @@ class TestDesignMatrixUtilities:
             plt.close("all")  # Clean up
         except Exception as e:
             pytest.fail(f"plot() raised unexpected error: {e}")
+
+
+class TestDesignMatrixCorr:
+    """`.corr()` returns a labeled nltools Adjacency (similarity matrix)."""
+
+    @staticmethod
+    def _toy() -> DesignMatrix:
+        rng = np.random.default_rng(0)
+        return DesignMatrix(
+            rng.standard_normal((20, 3)), sampling_freq=1, columns=["a", "b", "c"]
+        )
+
+    def test_corr_returns_adjacency(self):
+        """corr() yields a similarity Adjacency carrying the column labels."""
+        c = self._toy().corr()
+        assert isinstance(c, Adjacency)
+        assert c.matrix_type == "similarity"
+        assert list(c.labels) == ["a", "b", "c"]
+        assert c.n_nodes == 3
+        assert c.squareform().shape == (3, 3)
+
+    def test_corr_columns_subset(self):
+        """columns= restricts the correlation to a subset of regressors."""
+        c = self._toy().corr(columns=["a", "b"])
+        assert c.n_nodes == 2
+        assert list(c.labels) == ["a", "b"]
+
+    def test_corr_spearman(self):
+        """metric='spearman' is supported alongside the default pearson."""
+        c = self._toy().corr(metric="spearman")
+        assert c.squareform().shape == (3, 3)
+
+    def test_corr_invalid_metric(self):
+        """An unknown metric raises a helpful ValueError."""
+        with pytest.raises(ValueError):
+            self._toy().corr(metric="bogus")
+
+
+class TestDesignMatrixPlotMethods:
+    """`.plot(method=...)` dispatches to matrix / timeseries / corr views."""
+
+    @staticmethod
+    def _toy() -> DesignMatrix:
+        rng = np.random.default_rng(1)
+        return DesignMatrix(
+            rng.standard_normal((20, 3)), sampling_freq=1, columns=["a", "b", "c"]
+        )
+
+    def test_plot_matrix_default(self):
+        """Default method is the SPM-style heatmap, returning a Figure."""
+        from matplotlib.figure import Figure
+
+        fig = self._toy().plot()
+        assert isinstance(fig, Figure)
+
+    def test_plot_timeseries(self):
+        """method='timeseries' draws one line per regressor column."""
+        from matplotlib.figure import Figure
+
+        fig = self._toy().plot(method="timeseries")
+        assert isinstance(fig, Figure)
+        assert len(fig.axes[0].lines) == 3
+
+    def test_plot_timeseries_columns_subset(self):
+        """columns= restricts which regressors are drawn."""
+        fig = self._toy().plot(method="timeseries", columns=["a"])
+        assert len(fig.axes[0].lines) == 1
+
+    def test_plot_timeseries_ax_overlay(self):
+        """Passing ax= overlays onto the caller's axis and returns its figure."""
+        import matplotlib.pyplot as plt
+
+        dm = self._toy()
+        _, ax = plt.subplots()
+        out = dm.plot(method="timeseries", columns=["a"], ax=ax)
+        dm.plot(method="timeseries", columns=["b"], ax=ax)
+        assert out is ax.figure
+        assert len(ax.lines) == 2
+
+    def test_plot_corr(self):
+        """method='corr' renders a correlation heatmap with a 1.0 diagonal."""
+        from matplotlib.figure import Figure
+
+        fig = self._toy().plot(method="corr")
+        assert isinstance(fig, Figure)
+        arr = np.asarray(fig.axes[0].collections[0].get_array()).reshape(3, 3)
+        assert np.allclose(np.diag(arr), 1.0)
+
+    def test_plot_invalid_method(self):
+        """An unknown method raises ValueError listing the valid options."""
+        with pytest.raises(ValueError):
+            self._toy().plot(method="bogus")
+
+    def test_plot_save(self, tmp_path):
+        """save= writes the figure to disk."""
+        out = tmp_path / "dm.png"
+        self._toy().plot(method="corr", save=str(out))
+        assert out.exists()

@@ -11,7 +11,6 @@ Name | Description
 ---- | -----------
 [`events_to_dm`](#events_to_dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
 [`load_from_file`](#load_from_file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
-[`plot_designmatrix`](#plot_designmatrix) | Visualize design matrix as heatmap (SPM-style).
 [`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
@@ -85,39 +84,6 @@ Type | Description
 <code>[DataFrame](#polars.DataFrame)</code> | Tuple of (data frame, is_events) — `is_events` signals to the
 <code>[bool](#bool)</code> | caller that the columns are experimental regressors rather than
 <code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | nuisance.
-
-#### `plot_designmatrix`
-
-```python
-plot_designmatrix(dm: DesignMatrix, figsize: tuple = (8, 6), *, rescale: bool = True, **kwargs: bool)
-```
-
-Visualize design matrix as heatmap (SPM-style).
-
-Creates a heatmap visualization of the design matrix columns.
-Uses seaborn + matplotlib under the hood.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height) in inches. Default: (8, 6). | <code>(8, 6)</code>
-`rescale` | <code>[bool](#bool)</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (matches SPM/nilearn convention). Default: True. | <code>True</code>
-`**kwargs` |  | Additional keyword arguments passed to seaborn.heatmap(). | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | matplotlib.figure.Figure: The figure containing the heatmap.
-
-**Examples:**
-
-```pycon
->>> dm = DesignMatrix(np.random.randn(100, 3), columns=['a', 'b', 'c'])
->>> plot_designmatrix(dm)
-```
 
 #### `to_numpy`
 

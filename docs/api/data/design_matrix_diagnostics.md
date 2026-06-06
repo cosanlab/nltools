@@ -7,6 +7,7 @@ Diagnostic and utility functions for DesignMatrix.
 Name | Description
 ---- | -----------
 [`clean`](#clean) | Remove highly correlated columns.
+[`corr`](#corr) | Correlation between DesignMatrix columns as an Adjacency.
 [`vif`](#vif) | Compute variance inflation factor for each column.
 
 
@@ -41,6 +42,43 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+
+#### `corr`
+
+```python
+corr(dm: DesignMatrix, *, metric: str = 'pearson', columns: list[str] | None = None) -> Adjacency
+```
+
+Correlation between DesignMatrix columns as an Adjacency.
+
+Returns the column-by-column correlation matrix wrapped in an nltools
+``Adjacency`` (``matrix_type='similarity'``) so it composes with the rest
+of the similarity-matrix tooling (``.plot()``, MDS, etc.). The Adjacency
+stores only the off-diagonal entries — self-correlation isn't a meaningful
+edge — so the unit diagonal is implicit; ``DesignMatrix.plot(method='corr')``
+restores it for display.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. Spearman is computed as Pearson on column ranks. | <code>'pearson'</code>
+`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` | <code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column names.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
+yield NaN correlations.
+
+</details>
 
 #### `vif`
 

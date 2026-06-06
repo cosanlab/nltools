@@ -60,6 +60,7 @@ project:
             - file: api/data/design_matrix_regressors.md
             - file: api/data/design_matrix_append.md
             - file: api/data/design_matrix_diagnostics.md
+            - file: api/data/design_matrix_plotting.md
             - file: api/data/design_matrix_io.md
         - title: BrainCollection
           children:

@@ -9,7 +9,73 @@ import numpy as np
 from .utils import copy_with, get_data_columns
 
 if TYPE_CHECKING:
+    from nltools.data import Adjacency
     from nltools.data.designmatrix import DesignMatrix
+
+
+def corr(
+    dm: DesignMatrix,
+    *,
+    metric: str = "pearson",
+    columns: list[str] | None = None,
+) -> Adjacency:
+    """Correlation between DesignMatrix columns as an Adjacency.
+
+    Returns the column-by-column correlation matrix wrapped in an nltools
+    ``Adjacency`` (``matrix_type='similarity'``) so it composes with the rest
+    of the similarity-matrix tooling (``.plot()``, MDS, etc.). The Adjacency
+    stores only the off-diagonal entries — self-correlation isn't a meaningful
+    edge — so the unit diagonal is implicit; ``DesignMatrix.plot(method='corr')``
+    restores it for display.
+
+    Args:
+        dm: DesignMatrix instance.
+        metric (str): ``'pearson'`` (default) or ``'spearman'``. Spearman is
+            computed as Pearson on column ranks.
+        columns (list of str, optional): Subset of columns to correlate.
+            Defaults to all columns.
+
+    Returns:
+        Adjacency: Similarity matrix whose ``labels`` are the included column
+            names.
+
+    Raises:
+        ValueError: If ``metric`` is unknown or fewer than 2 columns remain.
+
+    Notes:
+        Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
+        yield NaN correlations.
+    """
+    from nltools.data import Adjacency
+
+    valid_metrics = ("pearson", "spearman")
+    if metric not in valid_metrics:
+        raise ValueError(f"metric must be one of {valid_metrics}, got {metric!r}.")
+
+    cols = list(columns) if columns is not None else list(dm.columns)
+    if len(cols) < 2:
+        raise ValueError(
+            f"Correlation requires at least 2 columns; got {len(cols)} ({cols})."
+        )
+
+    X = dm.data.select(cols).to_numpy().astype(float)
+
+    if metric == "spearman":
+        # Spearman == Pearson on per-column ranks. Ranking column-wise (rather
+        # than scipy.stats.spearmanr) keeps a uniform n-by-n result even for
+        # the 2-column case, where spearmanr collapses to a scalar.
+        from scipy.stats import rankdata
+
+        X = np.column_stack([rankdata(X[:, i]) for i in range(X.shape[1])])
+
+    # Constant columns (zero variance) make corrcoef divide by zero -> NaN.
+    # That NaN is the intended, documented signal; silence the low-level
+    # numpy warning so it isn't surfaced as noise.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        mat = np.corrcoef(X, rowvar=False)
+    return Adjacency(
+        np.asarray(mat, dtype=float), matrix_type="similarity", labels=cols
+    )
 
 
 def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:

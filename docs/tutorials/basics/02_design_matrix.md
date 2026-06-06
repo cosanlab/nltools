@@ -81,10 +81,14 @@ The hemodynamic response function (HRF) models the sluggish BOLD signal response
 dm.convolve().plot();
 ```
 
+Use `.plot(method='timeseries')` to view regressor time courses as lines. Passing the same `ax` to a second call overlays the convolved version on top of the original:
+
 ```{code-cell} python
-import seaborn as sns
-ax = sns.lineplot(dm.data['face_A'], label='original')
-sns.lineplot(dm.convolve().data['face_A_c0'], label='convolved', ax=ax);
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(8, 4))
+dm.plot(method='timeseries', columns=['face_A'], ax=ax)
+dm.convolve().plot(method='timeseries', columns=['face_A_c0'], ax=ax);
 ```
 
 ## Creating Drift Regressors
@@ -129,10 +133,16 @@ VIF measures how much each regressor's variance is inflated by correlation with 
 dm.vif()
 ```
 
-We can also visualize a correlation matrix of columns using regular `polars` and `seaborn` commands:
+We can also visualize a correlation matrix of the columns with `.plot(method='corr')`:
 
 ```{code-cell} python
-sns.heatmap(dm.corr(), vmin=-1, vmax=1, cmap="RdBu_r", square=True, annot=True);
+dm.plot(method='corr');
+```
+
+`.corr()` itself returns an nltools `Adjacency` (a similarity matrix carrying the column labels), so you can feed it to any of the `Adjacency` tools:
+
+```{code-cell} python
+dm.corr()
 ```
 
 Let's see a degenerate design:
@@ -150,7 +160,7 @@ duplicated_dm.plot();
 Columns are perfectly correlated:
 
 ```{code-cell} python
-sns.heatmap(dm.corr(), vmin=-1, vmax=1, cmap="RdBu_r", square=True, annot=True);
+duplicated_dm.plot(method='corr');
 ```
 
 And we can't even compute VIFs (they're essentially infinite):

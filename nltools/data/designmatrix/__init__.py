@@ -592,24 +592,71 @@ class DesignMatrix:
         filled_df = self.data.fill_null(value).fill_nan(value)
         return copy_with(self, filled_df)
 
-    def plot(self, figsize: tuple = (4, 6), *, rescale: bool = True, **kwargs):
+    def plot(
+        self,
+        method: str = "matrix",
+        *,
+        columns: list[str] | None = None,
+        rescale: bool = True,
+        metric: str = "pearson",
+        ax=None,
+        figsize: tuple | None = None,
+        title: str | None = None,
+        cmap: str | None = None,
+        save: str | None = None,
+        **kwargs,
+    ):
         """
-        Visualize design matrix as heatmap (SPM-style).
+        Visualize the design matrix.
+
+        Dispatches over ``method`` (mirroring ``BrainData.plot``):
+
+        - ``'matrix'`` (default): SPM-style heatmap (rows=TRs, cols=regressors).
+        - ``'timeseries'``: overlaid line plot of regressor time courses. Pass
+          the same ``ax`` across calls to overlay multiple DesignMatrices
+          (e.g. original vs. convolved).
+        - ``'corr'``: labeled correlation heatmap of the columns (reuses
+          :meth:`corr`; diagonal restored to 1.0 for display).
 
         Args:
-            figsize (tuple, default=(8, 6)): Figure size (width, height) in inches
-            rescale (bool, default=True): If True, rescale each column by its
-                L2 norm so columns with different native magnitudes are visually
-                comparable (matches SPM/nilearn convention). Set False to plot
-                raw values.
-            **kwargs: Additional keyword arguments passed to seaborn.heatmap()
+            method (str): ``'matrix'`` | ``'timeseries'`` | ``'corr'``.
+                Default: ``'matrix'``.
+            columns (list of str, optional): Subset of columns to plot.
+                Defaults to all columns.
+            rescale (bool): ``'matrix'`` only. Rescale each column by its L2
+                norm so columns with different native magnitudes are visually
+                comparable (SPM/nilearn convention). Default: True.
+            metric (str): ``'corr'`` only. ``'pearson'`` (default) or
+                ``'spearman'``.
+            ax (matplotlib.axes.Axes, optional): Existing axis to draw on; a new
+                figure is created if omitted.
+            figsize (tuple, optional): Figure size; sensible per-method default
+                when omitted.
+            title (str, optional): Axis title.
+            cmap (str, optional): Colormap (``'matrix'`` / ``'corr'``).
+            save (str, optional): Path to save the figure.
+            **kwargs: Forwarded to the underlying plotter
+                (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``;
+                ``Axes.plot`` for ``'timeseries'``).
 
         Returns:
-            matplotlib.figure.Figure: The figure containing the heatmap.
+            matplotlib.figure.Figure: The figure containing the plot.
         """
-        from .io import plot_designmatrix
+        from .plotting import plot_designmatrix
 
-        return plot_designmatrix(self, figsize, rescale=rescale, **kwargs)
+        return plot_designmatrix(
+            self,
+            method,
+            columns=columns,
+            rescale=rescale,
+            metric=metric,
+            ax=ax,
+            figsize=figsize,
+            title=title,
+            cmap=cmap,
+            save=save,
+            **kwargs,
+        )
 
     def replace_data(
         self,
@@ -723,6 +770,30 @@ class DesignMatrix:
         from .transforms import upsample
 
         return upsample(self, target, method, **kwargs)
+
+    def corr(
+        self,
+        *,
+        metric: str = "pearson",
+        columns: list[str] | None = None,
+    ):
+        """
+        Correlation between columns as a similarity ``Adjacency``.
+
+        Args:
+            metric (str): ``'pearson'`` (default) or ``'spearman'``.
+            columns (list of str, optional): Subset of columns to correlate.
+                Defaults to all columns.
+
+        Returns:
+            Adjacency: Similarity matrix whose ``labels`` are the column names.
+                The unit diagonal is dropped (self-correlation isn't an edge);
+                use ``.plot(method='corr')`` for a heatmap with the diagonal
+                restored.
+        """
+        from .diagnostics import corr
+
+        return corr(self, metric=metric, columns=columns)
 
     def vif(self, exclude_confounds: bool = True) -> np.ndarray | None:
         """

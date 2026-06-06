@@ -69,10 +69,11 @@ Name | Description
 [`clean`](#clean) | Remove highly correlated columns.
 [`convolve`](#convolve) | Convolve columns with HRF or custom kernel.
 [`copy`](#copy) | Create a deep copy of the DesignMatrix.
+[`corr`](#corr) | Correlation between columns as a similarity ``Adjacency``.
 [`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
-[`plot`](#plot) | Visualize design matrix as heatmap (SPM-style).
+[`plot`](#plot) | Visualize the design matrix.
 [`replace_data`](#replace_data) | Replace data columns while preserving confounds and metadata.
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute sum along axis.
@@ -232,6 +233,27 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
 
+#### `corr`
+
+```python
+corr(*, metric: str = 'pearson', columns: list[str] | None = None)
+```
+
+Correlation between columns as a similarity ``Adjacency``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | Similarity matrix whose ``labels`` are the column names. The unit diagonal is dropped (self-correlation isn't an edge); use ``.plot(method='corr')`` for a heatmap with the diagonal restored.
+
 #### `downsample`
 
 ```python
@@ -296,24 +318,40 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(figsize: tuple = (4, 6), *, rescale: bool = True, **kwargs: bool)
+plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: str = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None)
 ```
 
-Visualize design matrix as heatmap (SPM-style).
+Visualize the design matrix.
+
+Dispatches over ``method`` (mirroring ``BrainData.plot``):
+
+- ``'matrix'`` (default): SPM-style heatmap (rows=TRs, cols=regressors).
+- ``'timeseries'``: overlaid line plot of regressor time courses. Pass
+  the same ``ax`` across calls to overlay multiple DesignMatrices
+  (e.g. original vs. convolved).
+- ``'corr'``: labeled correlation heatmap of the columns (reuses
+  :meth:`corr`; diagonal restored to 1.0 for display).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`figsize` | <code>tuple, default=(8, 6)</code> | Figure size (width, height) in inches | <code>(4, 6)</code>
-`rescale` | <code>bool, default=True</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (matches SPM/nilearn convention). Set False to plot raw values. | <code>True</code>
-`**kwargs` |  | Additional keyword arguments passed to seaborn.heatmap() | <code>{}</code>
+`method` | <code>[str](#str)</code> | ``'matrix'`` | ``'timeseries'`` | ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
+`columns` | <code>list of str</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`rescale` | <code>[bool](#bool)</code> | ``'matrix'`` only. Rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
+`metric` | <code>[str](#str)</code> | ``'corr'`` only. ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size; sensible per-method default when omitted. | <code>None</code>
+`title` | <code>[str](#str)</code> | Axis title. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Colormap (``'matrix'`` / ``'corr'``). | <code>None</code>
+`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
+`**kwargs` |  | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``Axes.plot`` for ``'timeseries'``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure: The figure containing the heatmap.
+ | matplotlib.figure.Figure: The figure containing the plot.
 
 #### `replace_data`
 
