@@ -85,6 +85,7 @@ nltools/resources/niftis/
 .dolt/
 *.db
 old-tutorials/
+docs/tutorials/workflows/archive
 dartbrains/
 scripts/sub-*
 nltools/tests/io_tests/legacy_fixtures/
