@@ -26,11 +26,6 @@ Creating design matrices, building task regressors, HRF convolution, and nuisanc
 Creating Adjacency objects, square vs. vector forms, thresholding, and binarizing matrices.
 :::
 
-:::{grid-item-card} BrainCollection Basics
-:link: basics/04_brain_collection
-Creating BrainCollection objects, 3-axis indexing, and group-level aggregations.
-:::
-
 ::::
 
 ### Workflows
