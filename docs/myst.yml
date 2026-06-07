@@ -40,7 +40,6 @@ project:
             - file: api/data/braindata_prediction.md
             - file: api/data/braindata_bootstrap.md
             - file: api/data/braindata_plotting.md
-            - file: api/data/braindata_pipeline.md
         - title: Adjacency
           children:
             - file: api/data/adjacency_stats.md
@@ -57,11 +56,9 @@ project:
             - file: api/data/design_matrix_io.md
         - title: BrainCollection
           children:
-            - file: api/data/collection_constructors.md
-            - file: api/data/collection_transforms.md
+            - file: api/data/collection_core.md
+            - file: api/data/collection_execution.md
             - file: api/data/collection_inference.md
-            - file: api/data/collection_modeling.md
-            - file: api/data/collection_prediction.md
             - file: api/data/collection_io.md
             - file: api/data/collection_pipeline.md
         - title: Atlases
@@ -77,7 +74,7 @@ project:
         - file: api/stats.md
         - file: api/plotting.md
         - file: api/mask.md
-        - file: api/filereader.md
+        - file: api/io.md
         - file: api/dataset.md
         - file: api/crossval.md
         - file: api/analysis.md
