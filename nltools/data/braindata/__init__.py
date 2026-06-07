@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from nltools.data.atlases import ClusterReport
+    from nltools.data.atlases import Atlas, ClusterReport
 
 from nltools.utils import attempt_to_import
 
@@ -1256,71 +1256,77 @@ class BrainData:
         self,
         *,
         view: str = "ortho",
-        mode: str = "symmetric",
-        units: str = "value",
+        threshold: float | None = None,
         lower: float | None = None,
         upper: float | None = None,
-        threshold: float | None = None,
-        bg_img=None,
-        cut_coords=None,
-        cmap: str | None = None,
-        symmetric_cmap: bool = True,
+        cmap: str = "warm",
+        bg_img: "str | bool | None" = None,
+        atlas: "str | Atlas | None" = None,
+        opacity: float = 1.0,
+        outline: float = 0.0,
         **kwargs,
     ):
-        """Interactive HTML viewer with threshold panel (and volume slider for 4D).
+        """Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 
-        Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
-        ortho or surface viewer. Renders inline in Jupyter, marimo, and
-        Jupyter Book v2 / mystmd built sites.
+        Returns a configured :class:`ipyniivue.NiiVue` widget — itself an
+        anywidget — that renders inline in a live kernel (Jupyter, marimo)
+        with live windowing (right-drag to set the threshold/contrast),
+        slice scrolling, native 4D frame scrubbing, true 3D rendering, and
+        optional nltools-atlas overlays. Static-built docs are not supported;
+        use :meth:`plot` there.
+
+        Thresholding is a divergent magnitude window: ``cal_min`` is the
+        display floor (sub-floor voxels render transparent), ``cal_max`` the
+        saturation point, with the positive limb using ``cmap`` and the
+        negative limb its mirrored partner. Precedence: ``lower``/``upper``
+        win; otherwise ``threshold`` sets the floor (ceiling auto);
+        otherwise the window is fully auto.
 
         Args:
-            view: ``"ortho"`` (default, uses ``nilearn.view_img``) or
-                ``"surface"`` (uses ``nilearn.view_img_on_surf``).
-            mode: ``"symmetric"`` (default, single ``|x| ≥ upper`` slider) or
-                ``"independent"`` (separate negative/positive cutoffs;
-                voxels in ``(lower, upper)`` are masked).
-            units: ``"value"`` (default) or ``"percentile"``. Toggleable
-                in the UI; this just sets the initial state.
-            lower: Initial negative cutoff for ``mode="independent"`` (must
-                be ≤ 0). Ignored in symmetric mode.
-            upper: Initial threshold for symmetric mode (``|x| ≥ upper``)
-                or positive cutoff for independent mode (must be ≥ 0).
-            threshold: Deprecated alias for ``upper`` (symmetric mode).
-            bg_img: Background image (ortho only). Defaults to nilearn's MNI152.
-            cut_coords: Initial cut coordinates (ortho only).
-            cmap: Colormap name.
-            symmetric_cmap: Whether the colormap is symmetric around zero.
-            **kwargs: Forwarded to ``nilearn.view_img`` /
-                ``nilearn.view_img_on_surf``.
+            view: ``"ortho"`` (default), ``"axial"``, ``"coronal"``,
+                ``"sagittal"``, or ``"render"`` (3D volume render).
+                ``"surface"`` is no longer supported — use ``"render"`` or
+                :meth:`plot_flatmap` / :meth:`plot_surf`.
+            threshold: Convenience symmetric magnitude floor (→ ``cal_min``).
+            lower: Window floor (→ ``cal_min``). Overrides ``threshold``.
+            upper: Window ceiling (→ ``cal_max``). Overrides ``threshold``.
+            cmap: niivue colormap for the positive limb (default ``"warm"``).
+                Common matplotlib names are auto-mapped with a warning.
+            bg_img: ``None``/``True`` auto-loads the matching MNI template
+                when the data is in standard space (else none); ``False``
+                disables the background; a path string uses that image.
+            atlas: Atlas overlay — a registry name (e.g. ``"aal"``), a
+                loaded :class:`Atlas`, or ``None``. Deterministic atlases
+                only; probabilistic atlases raise.
+            opacity: Stat-map (and filled-atlas) opacity in ``0..1``.
+            outline: ``> 0`` draws atlas region boundaries of that width
+                (stat map stays visible); ``0`` draws filled regions.
+            **kwargs: Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)``
+                (e.g. ``height``, ConfigOptions like ``is_colorbar``).
 
         Returns:
-            BrainViewerWidget
+            ipyniivue.NiiVue: A configured viewer widget.
         """
-        from .widgets import BrainViewerWidget
+        from .viewer import build_viewer
 
-        view_kwargs: dict = {}
-        if view == "ortho":
-            view_kwargs.update(
-                bg_img=bg_img if bg_img is not None else "MNI152",
-                cut_coords=cut_coords,
-                cmap=cmap if cmap is not None else "RdBu_r",
-                symmetric_cmap=symmetric_cmap,
-            )
-        else:  # surface
-            if cmap is not None:
-                view_kwargs["cmap"] = cmap
-            view_kwargs["symmetric_cmap"] = symmetric_cmap
-        view_kwargs.update(kwargs)
+        if lower is not None or upper is not None:
+            cal_min, cal_max = lower, upper
+        elif threshold is not None:
+            cal_min, cal_max = threshold, None
+        else:
+            cal_min, cal_max = None, None
 
-        return BrainViewerWidget(
+        return build_viewer(
             self,
             view=view,
-            mode=mode,
-            units=units,
-            lower=lower,
-            upper=upper,
-            threshold=threshold,
-            **view_kwargs,
+            cal_min=cal_min,
+            cal_max=cal_max,
+            cmap=cmap,
+            atlas=atlas,
+            bg_img=bg_img,
+            opacity=opacity,
+            outline=outline,
+            niivue_opts=kwargs,
         )
 
     def predict(

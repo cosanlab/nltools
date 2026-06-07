@@ -1,198 +1,187 @@
-"""Tests for BrainData.iplot() — anywidget-based interactive viewer.
+"""Tests for ``BrainData.iplot()`` — the niivue (ipyniivue) interactive viewer.
 
-Tier 1: 3D ortho viewer with threshold panel (symmetric/independent + value/pct).
-Tier 2: 4D viewer adds a volume slider.
-view='surface' uses nilearn.view_img_on_surf under the same widget shell.
+Headless: we assert only Python-set widget state — volume count, per-volume
+display props (cal_min/cal_max/colormap/colormap_negative/colormap_label),
+``opts.slice_type``, settable ``frame_4d``, and the frame count we derive from
+``bd.shape[0]``. Frontend-derived traits (``n_frame_4d``, crosshair/intensity/
+hover/render) are never asserted.
+
+All fast tests pass ``bg_img=False`` and use synthetic atlases: the
+identity-affine ``minimal_brain_data`` fixture counts as standard space
+(1mm), so auto-background would otherwise fetch a template from HuggingFace.
 """
 
+import nibabel as nib
 import numpy as np
+import polars as pl
 import pytest
+from ipyniivue import NiiVue, SliceType
+
+from nltools.data.atlases import Atlas
 
 
-class TestIplotReturnType:
-    def test_iplot_3d_returns_widget(self, minimal_brain_data):
-        from nltools.data.braindata.widgets import BrainViewerWidget
-
-        w = minimal_brain_data[0].iplot()
-        assert isinstance(w, BrainViewerWidget)
-        assert w.n_volumes == 1
-        assert w.has_volume_slider is False
-
-    def test_iplot_4d_returns_widget_with_volume_slider(self, minimal_brain_data):
-        from nltools.data.braindata.widgets import BrainViewerWidget
-
-        w = minimal_brain_data.iplot()
-        assert isinstance(w, BrainViewerWidget)
-        assert w.n_volumes == minimal_brain_data.shape[0]
-        assert w.has_volume_slider is True
-        assert w.volume_idx == 0
-
-    def test_iplot_initial_html_populated(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        assert isinstance(w.html, str)
-        assert len(w.html) > 1000  # nilearn HTML is large
-
-    def test_iplot_repr_mimebundle_present(self, minimal_brain_data):
-        """JB v2 / mystmd consume the widget mimebundle for interactive built docs."""
-        w = minimal_brain_data[0].iplot()
-        bundle = w._repr_mimebundle_()
-        if isinstance(bundle, tuple):
-            bundle = bundle[0]
-        # Live widget renderer
-        assert "application/vnd.jupyter.widget-view+json" in bundle
-        # Static-doc fallback (mystmd renders this when no widget manager state)
-        assert "text/html" in bundle
-        assert "iframe" in bundle["text/html"]
-        assert "srcdoc=" in bundle["text/html"]
-
-    def test_iplot_4d_static_fallback_has_volume_slider(self, minimal_brain_data):
-        """4D static-doc fallback embeds a JS-driven volume slider."""
-        # Take a small 4D slice to keep render time short
-        w = minimal_brain_data[:3].iplot()
-        bundle = w._repr_mimebundle_()
-        if isinstance(bundle, tuple):
-            bundle = bundle[0]
-        html = bundle["text/html"]
-        assert "bv-slider" in html
-        assert "type=&quot;range&quot;" in html  # escaped for outer iframe srcdoc
-        assert "addEventListener" in html  # JS swap handler is embedded
-
-    def test_iplot_4d_static_fallback_escapes_close_script(self, minimal_brain_data):
-        """The JS array of pre-rendered nilearn HTML is embedded inside an
-        outer <script> tag. Nilearn HTML contains </script> literals, so
-        without escaping `</` to `<\\/` the outer script tag terminates
-        early and the slider never wires up.
-        """
-        w = minimal_brain_data[:3].iplot()
-        bundle = w._repr_mimebundle_()
-        if isinstance(bundle, tuple):
-            bundle = bundle[0]
-        html = bundle["text/html"]
-        assert "&lt;\\/script&gt;" in html  # escaped close-tag inside JSON
+@pytest.fixture
+def det_atlas():
+    """Synthetic deterministic atlas with sparse indices (1, 2, 5)."""
+    arr = np.zeros((4, 4, 4), dtype=np.int16)
+    arr.flat[:3] = [1, 2, 5]
+    return Atlas(
+        name="synthdet",
+        image=nib.Nifti1Image(arr, np.eye(4)),
+        labels=pl.DataFrame({"index": [1, 2, 5], "name": ["a", "b", "c"]}),
+        kind="deterministic",
+        citation="synthetic",
+    )
 
 
-class TestIplotInteractivity:
-    def test_volume_change_triggers_refresh(self, minimal_brain_data):
-        w = minimal_brain_data.iplot()
-        before = w.html
-        w.volume_idx = 2
-        assert w.html != before
-
-    def test_upper_change_triggers_refresh(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        before = w.html
-        w.upper = float(w.vmax_abs * 0.5)
-        assert w.html != before
-
-    def test_lower_change_triggers_refresh_in_independent_mode(
-        self, minimal_brain_data
-    ):
-        w = minimal_brain_data[0].iplot(mode="independent")
-        before = w.html
-        # setting upper to a value > all data masks every positive voxel
-        w.upper = float(w.data_max)
-        assert w.html != before
+@pytest.fixture
+def prob_atlas():
+    """Synthetic probabilistic (4D) atlas."""
+    return Atlas(
+        name="synthprob",
+        image=nib.Nifti1Image(np.zeros((4, 4, 4, 2), np.float32), np.eye(4)),
+        labels=pl.DataFrame({"index": [0, 1], "name": ["a", "b"]}),
+        kind="probabilistic",
+        citation="synthetic",
+    )
 
 
-class TestIplotDataRange:
-    def test_data_range_reflects_data(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        arr = np.asarray(minimal_brain_data[0].data)
-        finite = arr[np.isfinite(arr)]
-        assert w.vmax_abs == pytest.approx(float(np.abs(finite).max()))
-        assert w.data_min == pytest.approx(min(float(finite.min()), 0.0))
-        assert w.data_max == pytest.approx(max(float(finite.max()), 0.0))
+class TestReturnType:
+    def test_3d_returns_niivue_one_volume(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False)
+        assert isinstance(nv, NiiVue)
+        assert len(nv.volumes) == 1
 
-    def test_pct_tables_have_101_entries(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        assert len(w.pct_table_abs) == 101
-        assert len(w.pct_table_neg) == 101
-        assert len(w.pct_table_pos) == 101
+    def test_4d_loaded_as_single_volume(self, minimal_brain_data):
+        # niivue scrubs 4D frames natively, so a stack is ONE volume.
+        nv = minimal_brain_data.iplot(bg_img=False)
+        assert len(nv.volumes) == 1
+        # The frame count we control is derived from the BrainData shape.
+        assert minimal_brain_data.shape[0] == 50
 
-    def test_pct_table_abs_matches_numpy_percentile(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        arr = np.asarray(minimal_brain_data[0].data)
-        finite = arr[np.isfinite(arr)]
-        for p in (0, 25, 50, 75, 100):
-            assert w.pct_table_abs[p] == pytest.approx(
-                float(np.percentile(np.abs(finite), p))
-            )
+    def test_default_slice_type_is_multiplanar(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False)
+        assert nv.opts.slice_type == SliceType.MULTIPLANAR
+
+    def test_frame_4d_is_settable(self, minimal_brain_data):
+        nv = minimal_brain_data.iplot(bg_img=False)
+        nv.volumes[0].frame_4d = 3
+        assert nv.volumes[0].frame_4d == 3
 
 
-class TestIplotModes:
-    def test_default_mode_symmetric_value(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        assert w.mode_signed is False
-        assert w.mode_pct is False
-
-    def test_mode_independent_kwarg(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot(mode="independent")
-        assert w.mode_signed is True
-
-    def test_units_percentile_kwarg(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot(units="percentile")
-        assert w.mode_pct is True
-
-    def test_invalid_mode_raises(self, minimal_brain_data):
-        with pytest.raises(ValueError, match="symmetric"):
-            minimal_brain_data[0].iplot(mode="weird")
-
-    def test_invalid_units_raises(self, minimal_brain_data):
-        with pytest.raises(ValueError, match="value"):
-            minimal_brain_data[0].iplot(units="weird")
-
-    def test_independent_mode_masks_data_in_python(self, minimal_brain_data):
-        """Independent mode masks data ourselves and passes threshold=0 to
-        nilearn. A wide [-large, +large] band should produce identical
-        rendered HTML to a high symmetric threshold (both render as 'all
-        masked')."""
-        bd = minimal_brain_data[0]
-        # Mask everything
-        w = bd.iplot(mode="independent")
-        w.lower = float(w.data_min)
-        w.upper = float(w.data_max)
-        html_all_masked = w.html
-        # Should differ from unthresholded
-        w_unthresh = bd.iplot()
-        assert html_all_masked != w_unthresh.html
-
-
-class TestIplotViewKwarg:
-    def test_default_view_is_ortho(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot()
-        # ortho view emits view_img HTML which mentions 'stat-map'
-        assert "stat" in w.html.lower() or "brain" in w.html.lower()
-
-    def test_view_surface_uses_view_img_on_surf(self, minimal_brain_data, monkeypatch):
-        import nltools.data.braindata.widgets as wmod
-
-        called = {"surf": 0}
-        orig_surf = wmod.view_img_on_surf
-
-        def spy_surf(*args, **kwargs):
-            called["surf"] += 1
-            return orig_surf(*args, **kwargs)
-
-        monkeypatch.setattr(wmod, "view_img_on_surf", spy_surf)
-
-        minimal_brain_data[0].iplot(view="surface")
-        assert called["surf"] >= 1
+class TestView:
+    @pytest.mark.parametrize(
+        "view,expected",
+        [
+            ("axial", SliceType.AXIAL),
+            ("coronal", SliceType.CORONAL),
+            ("sagittal", SliceType.SAGITTAL),
+            ("render", SliceType.RENDER),
+        ],
+    )
+    def test_view_sets_slice_type(self, minimal_brain_data, view, expected):
+        nv = minimal_brain_data[0].iplot(bg_img=False, view=view)
+        assert nv.opts.slice_type == expected
 
     def test_invalid_view_raises(self, minimal_brain_data):
-        with pytest.raises(ValueError, match="ortho"):
-            minimal_brain_data[0].iplot(view="glass")
+        with pytest.raises(ValueError, match="not recognized"):
+            minimal_brain_data[0].iplot(bg_img=False, view="glass")
+
+    def test_surface_raises_with_render_hint(self, minimal_brain_data):
+        with pytest.raises(ValueError, match="render"):
+            minimal_brain_data[0].iplot(bg_img=False, view="surface")
 
 
-class TestIplotKwargPassthrough:
-    def test_upper_kwarg_sets_initial_upper(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot(upper=0.5)
-        assert w.upper == pytest.approx(0.5)
+class TestThreshold:
+    def test_threshold_sets_cal_min(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3)
+        assert nv.volumes[0].cal_min == pytest.approx(2.3)
+        assert nv.volumes[0].cal_max is None
 
-    def test_threshold_kwarg_alias_for_upper(self, minimal_brain_data):
-        """Backward-compat: threshold= still works, mapped to upper."""
-        w = minimal_brain_data[0].iplot(threshold=0.5)
-        assert w.upper == pytest.approx(0.5)
+    def test_lower_upper_set_window(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
+        assert nv.volumes[0].cal_min == pytest.approx(-1.0)
+        assert nv.volumes[0].cal_max == pytest.approx(2.0)
 
-    def test_lower_kwarg_sets_initial_lower(self, minimal_brain_data):
-        w = minimal_brain_data[0].iplot(mode="independent", lower=-0.3)
-        assert w.lower == pytest.approx(-0.3)
+    def test_lower_upper_take_precedence_over_threshold(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3, upper=4.0)
+        # lower/upper win: threshold is ignored, floor stays auto (None)
+        assert nv.volumes[0].cal_min is None
+        assert nv.volumes[0].cal_max == pytest.approx(4.0)
+
+    def test_default_window_is_auto(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False)
+        assert nv.volumes[0].cal_min is None
+        assert nv.volumes[0].cal_max is None
+
+
+class TestColormap:
+    def test_default_warm_with_winter_negative(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False)
+        assert nv.volumes[0].colormap == "warm"
+        assert nv.volumes[0].colormap_negative == "winter"
+
+    def test_viridis_passthrough(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, cmap="viridis")
+        assert nv.volumes[0].colormap == "viridis"
+
+    def test_rdbu_r_maps_and_warns(self, minimal_brain_data):
+        with pytest.warns(UserWarning, match="matplotlib"):
+            nv = minimal_brain_data[0].iplot(bg_img=False, cmap="RdBu_r")
+        assert nv.volumes[0].colormap == "warm"
+
+
+class TestKwargForwarding:
+    def test_height_forwarded_to_niivue(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, height=512)
+        assert nv.height == 512
+
+    def test_config_option_forwarded_to_opts(self, minimal_brain_data):
+        nv = minimal_brain_data[0].iplot(bg_img=False, is_colorbar=False)
+        assert nv.opts.is_colorbar is False
+
+
+class TestAtlas:
+    def test_bad_atlas_type_raises(self, minimal_brain_data):
+        with pytest.raises(TypeError, match="atlas must be"):
+            minimal_brain_data[0].iplot(bg_img=False, atlas=123)
+
+    def test_probabilistic_atlas_raises(self, minimal_brain_data, prob_atlas):
+        with pytest.raises(ValueError, match="deterministic"):
+            minimal_brain_data[0].iplot(bg_img=False, atlas=prob_atlas)
+
+    def test_deterministic_atlas_adds_volume_with_lut(
+        self, minimal_brain_data, det_atlas
+    ):
+        nv = minimal_brain_data[0].iplot(bg_img=False, atlas=det_atlas)
+        assert len(nv.volumes) == 2  # statmap + atlas
+        lut = nv.volumes[-1].colormap_label
+        assert lut is not None
+        # Dense LUT length == max_index + 1 == 6 (sparse indices 1, 2, 5).
+        assert len(lut.labels) == 6
+
+    def test_outline_sets_atlas_outline(self, minimal_brain_data, det_atlas):
+        nv = minimal_brain_data[0].iplot(bg_img=False, atlas=det_atlas, outline=2.0)
+        assert nv.opts.atlas_outline == pytest.approx(2.0)
+
+    def test_filled_atlas_does_not_set_outline(self, minimal_brain_data, det_atlas):
+        nv = minimal_brain_data[0].iplot(bg_img=False, atlas=det_atlas, outline=0.0)
+        assert nv.opts.atlas_outline == 0
+
+
+@pytest.mark.slow
+class TestRealAtlasAndBackground:
+    """End-to-end paths that fetch real atlas / template files from HF."""
+
+    def test_real_aal_overlay(self, minimal_brain_data):
+        from nltools.data.atlases import load_atlas
+
+        nv = minimal_brain_data[0].iplot(bg_img=False, atlas="aal")
+        assert len(nv.volumes) == 2
+        expected = max(load_atlas("aal").labels["index"].to_list()) + 1
+        assert len(nv.volumes[-1].colormap_label.labels) == expected
+
+    def test_auto_mni_background_loads_for_standard_space(self, minimal_brain_data):
+        # Identity affine -> is_standard_space True (1mm) -> fetch MNI bg.
+        nv = minimal_brain_data[0].iplot()  # bg_img default None == auto
+        assert len(nv.volumes) == 2  # background + statmap

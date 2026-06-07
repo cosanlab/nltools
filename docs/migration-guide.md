@@ -658,7 +658,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
-| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'surface', bg_img=…)` — *rebuilt* on `anywidget` (no `ipywidgets` extra needed). New threshold panel with Value↔Percentile and Symmetric↔Independent toggles; 4D BrainData also gets a volume-step slider. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Low** |
+| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (`ipyniivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live-kernel only (Jupyter/marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
 :::{note}
 `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
@@ -684,47 +684,53 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 ## Migration Patterns
 
 (interactive-viewing)=
-### Pattern 0: Interactive viewing (`iplot`) — Rebuilt API
+### Pattern 0: Interactive viewing (`iplot`) — Rebuilt on niivue
 
-**Status**: 🔧 **REBUILT** — `BrainData.iplot()` is back, now backed by [anywidget](https://anywidget.dev) instead of the legacy `ipywidgets` viewer. The new widget renders the same way in Jupyter, marimo, VS Code, and Jupyter Book v2 / mystmd built sites.
+**Status**: 🔧 **REBUILT** — `BrainData.iplot()` now returns a configured [`ipyniivue.NiiVue`](https://github.com/niivue/ipyniivue) widget (WebGL, anywidget-based) instead of the nilearn HTML viewer. niivue gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
+
+`iplot` is **live-kernel only** (Jupyter, marimo). It does not render in statically-built docs — use `BrainData.plot()` there.
 
 **What changed:**
 
 | | v0.5.1 | v0.6.0 |
 |---|---|---|
-| Engine | `ipywidgets` + manual JS | `anywidget` (single ESM bundle, runs everywhere) |
-| Surface plot kwarg | `surface=True` | `view='surface'` (canonical with `view='ortho'` default) |
-| Background image kwarg | `anatomical=` | `bg_img=` (matches nilearn) |
-| 4D handling | Volume slider via `ipywidgets.IntSlider` | Volume slider built into the widget; auto-shown when 4D |
-| Threshold control | Numeric `FloatText` widget | Threshold panel: Value↔Percentile + Symmetric↔Independent toggles, with 1–2 sliders depending on mode |
-| Asymmetric thresholds | Not supported | `mode='independent'` masks `(lower, upper)` — separate cutoffs for negatives and positives |
-| Render performance | Python re-render on every keystroke | Re-render on slider release (mouse-up) only; readouts update live in JS during drag |
-| Optional install | `nltools[interactive_plots]` (extra) | Bundled — `anywidget` is now a hard dep |
+| Engine | nilearn `view_img` HTML in an iframe | niivue (`ipyniivue`, WebGL) |
+| Threshold control | Bespoke panel (Value↔Percentile, Symmetric↔Independent) | niivue's native windowing — right-drag to set floor/ceiling live; `threshold=`/`lower=`/`upper=` set the initial window |
+| Surface view | `view='surface'` (`view_img_on_surf`) | **removed** — niivue's 3D is volumetric. Use `view='render'`, or `plot_flatmap`/`plot_surf` for a cortical mesh |
+| Views | `'ortho'`, `'surface'` | `'ortho'`, `'axial'`, `'coronal'`, `'sagittal'`, `'render'` |
+| 4D handling | Re-render per volume; pre-render every frame for static docs | Loaded once; niivue scrubs frames natively |
+| Atlas overlay | — | `atlas='aal'` (or an `Atlas`) overlays colored regions / outlines (`outline=`) with hover labels |
+| `mode=`, `units=`, `cut_coords=`, `symmetric_cmap=` | supported | **removed** (divergent windowing is implicit) |
+| `cmap` default | `'RdBu_r'` | `'warm'` (niivue colormap; matplotlib names auto-mapped with a warning) |
+| Static docs | mimebundle + pre-rendered fallback | none — live kernel only |
 
 **Before (v0.5.1):**
 ```python
-bd.iplot()                    # interactive ortho viewer
-bd.iplot(surface=True)        # surface viewer
-bd.iplot(anatomical=anat)     # custom background
+bd.iplot()                              # interactive ortho viewer
+bd.iplot(surface=True)                  # surface viewer
+bd.iplot(anatomical=anat)               # custom background
+bd.iplot(units='percentile', upper=2.3) # percentile threshold
+bd.iplot(mode='independent', lower=-1.0, upper=2.0)
 ```
 
 **After (v0.6.0):**
 ```python
-bd.iplot()                              # ortho viewer + threshold panel
-bd.iplot(view='surface')                # surface viewer
-bd.iplot(bg_img=anat)                   # custom background
+bd.iplot()                              # ortho viewer; right-drag windows live
+bd.iplot(view='render')                 # 3D volume render (replaces view='surface')
+bd.iplot(bg_img=anat)                   # custom background; bg_img=False disables it
+bd.iplot(threshold=2.3)                 # symmetric magnitude floor (sub-threshold → transparent)
+bd.iplot(lower=-1.0, upper=2.0)         # explicit divergent window endpoints
 
-# Threshold panel: set initial state via kwargs (toggleable in the UI)
-bd.iplot(units='percentile', upper=2.3) # start at the value matching ~98th pctile of |x|
-bd.iplot(mode='independent',            # separate negative/positive cutoffs
-         lower=-1.0, upper=2.0)
+# Atlas overlays (deterministic atlases): colored regions, outlines, hover labels
+bd.iplot(atlas='aal')                   # filled regions on top of the stat map
+bd.iplot(atlas='aal', outline=2)        # region boundaries only (stat map stays visible)
 
-# 4D BrainData: same call, widget grows a volume-step slider automatically
+# 4D BrainData: same call — scrub frames with niivue's native 4D controls
 stack = BrainData([f1, f2, f3, f4, f5])
-stack.iplot()                           # threshold panel + volume slider
+stack.iplot()
 ```
 
-The widget honors the standard `application/vnd.jupyter.widget-view+json` mimebundle, so it stays interactive when the dartbrains tutorials are rendered into Jupyter Book v2 / mystmd built sites — no static-snapshot fallback needed.
+`iplot()` returns the `NiiVue` widget directly, so any `ipyniivue.NiiVue(**kwargs)` option (e.g. `height=`, `is_colorbar=`) can be passed through `iplot(...)`. For surface rendering of a cortical mesh, use `plot_flatmap`/`plot_surf` (static) — niivue's `view='render'` is a 3D volume render, not a mesh projection.
 
 
 

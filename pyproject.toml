@@ -21,6 +21,7 @@ keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "anywidget>=0.9",
     "huggingface-hub>=0.30",
+    "ipyniivue>=2.4.4",
     "nilearn>=0.12",
     "polars>=1.18",
     "pynv>=0.3",

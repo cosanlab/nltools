@@ -275,38 +275,37 @@ mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsiz
 
 ### Interactive Viewer
 
-`BrainData.iplot()` returns an interactive HTML viewer (an [`anywidget`](https://anywidget.dev) wrapping `nilearn.view_img` / `view_img_on_surf`). Drag through ortho slices, adjust thresholds with the panel above the brain, and — for 4D data — step through volumes with the volume slider that appears automatically.
+`BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer — a WebGL [`ipyniivue.NiiVue`](https://github.com/niivue/ipyniivue) widget. Right-drag to window the stat map live, scroll to move through slices, scrub 4D frames natively, render in 3D, and overlay nltools atlases with hover-to-label. It renders in a **live kernel** (Jupyter, marimo); for static figures use `plot()` (above). The snippets below are not executed when this page is built.
 
-```{code-cell} python3
-# 3D: ortho viewer + threshold panel
+```python
+# 3D ortho viewer — right-drag to window the stat map live
 masked_data.iplot()
 ```
 
-The threshold panel has two toggles you can flip at any time:
+Set the initial threshold window via kwargs. `threshold=` is a symmetric magnitude floor (sub-threshold voxels become transparent); `lower=`/`upper=` set explicit divergent window endpoints (negative limb uses a cool colormap, positive limb a warm one):
 
-- **Value ↔ Percentile** — switch between thresholding by absolute value (`|x| ≥ 2.3`) or by percentile of the data distribution (`top 5%`).
-- **Symmetric ↔ Independent** — symmetric uses one slider over `|x|`. Independent gives you separate negative and positive cutoffs, so you can see strong negative activations without also forcing the same threshold on positives.
-
-You can also set the initial state via kwargs:
-
-```{code-cell} python3
+```python
 import numpy as np
-# Start in percentile mode at the 95th percentile of |x| (the "top 5%")
+# Floor the window at the 95th percentile of |x| (the "top 5%")
 p95 = float(np.percentile(np.abs(masked_data.data), 95))
-masked_data.iplot(units="percentile", upper=p95)
+masked_data.iplot(threshold=p95)
+
+# Explicit divergent window: tighter on the negative side, looser on positives
+masked_data.iplot(lower=-0.4, upper=0.2)
 ```
 
-```{code-cell} python3
-# Independent thresholds: tighter on the negative side, looser on positives
-masked_data.iplot(mode="independent", lower=-0.4, upper=0.2)
-```
-
-```{code-cell} python3
-# 4D: same call adds a volume slider alongside the threshold panel
+```python
+# 4D: same call — scrub frames with niivue's native 4D controls
 brains[:10].iplot()
 ```
 
-```{code-cell} python3
-# Surface viewer (rotate/zoom in 3D)
-masked_data.iplot(view="surface")
+```python
+# 3D volume render (replaces the old view="surface"; for a cortical mesh use plot_surf)
+masked_data.iplot(view="render")
+```
+
+```python
+# Overlay a deterministic atlas: colored regions with hover labels.
+# outline=2 draws region boundaries so the stat map stays visible.
+masked_data.iplot(atlas="aal", outline=2)
 ```
