@@ -132,9 +132,53 @@ class TestFitBehavior:
 
 
 class TestComputeContrastsBehavior:
-    @pytest.fixture(scope="function")
-    def fitted_bc(self, bc_with_designs):
-        return bc_with_designs.fit(model="glm", cache=True, n_jobs=1)
+    @pytest.fixture(scope="class")
+    def fitted_bc(self, tmp_path_factory):
+        """One GLM fit shared across the contrast tests.
+
+        Class-scoped so the ~8 contrast tests don't each re-run the fit in
+        setup. Safe: ``compute_contrasts`` returns a copy and never mutates
+        the collection. Built self-contained (not via the function-scoped
+        ``bc_with_designs``) to avoid a fixture ScopeMismatch.
+        """
+        import nibabel as nib
+        import numpy as np
+        import pandas as pd
+
+        from nltools.data import BrainData, BrainCollection, DesignMatrix
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), affine)
+
+        n_obs = 8
+        brains = []
+        for seed in range(3):
+            rng = np.random.default_rng(seed)
+            vol = rng.standard_normal((3, 3, 3, n_obs)).astype(np.float32)
+            brains.append(BrainData(nib.Nifti1Image(vol, affine), mask=mask))
+
+        designs = []
+        for seed in range(10, 13):
+            rng = np.random.default_rng(seed)
+            t = np.linspace(0, 2 * np.pi, n_obs)
+            designs.append(
+                DesignMatrix(
+                    pd.DataFrame(
+                        {
+                            "a": np.sin(t) + 0.1 * rng.standard_normal(n_obs),
+                            "b": np.cos(t) + 0.1 * rng.standard_normal(n_obs),
+                        }
+                    ),
+                    TR=2.0,
+                )
+            )
+
+        cache_dir = tmp_path_factory.mktemp("fitted_bc") / "cache"
+        bc = BrainCollection(
+            brains, mask=mask, designs=designs, lazy=False, cache_dir=cache_dir
+        )
+        return bc.fit(model="glm", cache=True, n_jobs=1)
 
     def test_single_contrast_returns_collection(self, fitted_bc):
         out = fitted_bc.compute_contrasts("a - b", contrast_type="beta", n_jobs=1)
