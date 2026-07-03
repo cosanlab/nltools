@@ -286,6 +286,58 @@ def warn_if_resampling(bd, context=""):
         warnings.warn(msg, UserWarning, stacklevel=4)
 
 
+def mask_images(mask, imgs):
+    """Mask a list of space-aligned images with a single fitted masker.
+
+    Validates ``mask`` exactly ONCE — one ``load_mask_img`` — and reuses the
+    binarized mask across every image in ``imgs``, instead of re-running
+    nilearn's costly ``load_mask_img`` (binarization checks + ``safe_get_data``,
+    which each trigger nilearn's forced ``gc.collect``) per image.
+
+    ``nilearn.masking.apply_mask`` is exactly ``load_mask_img`` (validate) ->
+    ``new_img_like`` (build binary mask) -> ``apply_mask_fmri`` (extract), with
+    ``dtype='f'``, ``smoothing_fwhm=None``, ``ensure_finite=True``. This hoists
+    the first two out of the per-image loop and calls the lower-level
+    ``apply_mask_fmri`` (which "assumes mask_img contains only two different
+    values") per image, so the result is byte-equivalent to
+    ``np.vstack([apply_mask(im, mask) for im in imgs])`` for space-aligned data.
+
+    Images must already share ``mask``'s space (callers resample first); no
+    resampling is done here. Falls back to the per-image functional
+    ``apply_mask`` if the fast path raises for any reason.
+
+    Args:
+        mask: A ``nibabel.Nifti1Image`` boolean/binary mask.
+        imgs: List of space-aligned ``nibabel`` images to mask.
+
+    Returns:
+        ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
+    """
+    from nilearn.masking import apply_mask as nilearn_apply_mask
+
+    try:
+        return _mask_images_fast(mask, imgs)
+    except Exception:
+        # Functional fallback — one load_mask_img per image, but always correct.
+        return np.vstack([nilearn_apply_mask(im, mask) for im in imgs])
+
+
+def _mask_images_fast(mask, imgs):
+    """Validate ``mask`` once, then extract every image via ``apply_mask_fmri``.
+
+    Reproduces ``nilearn.masking.apply_mask``'s internals with the
+    validate-and-binarize step (``load_mask_img`` + ``new_img_like``) hoisted
+    out of the per-image loop. Split out so the fallback in :func:`mask_images`
+    is testable in isolation.
+    """
+    from nilearn.image import new_img_like
+    from nilearn.masking import apply_mask_fmri, load_mask_img
+
+    mask_arr, mask_affine = load_mask_img(mask)  # validate + binarize ONCE
+    binary_mask = new_img_like(mask, mask_arr, mask_affine)
+    return np.vstack([apply_mask_fmri(im, binary_mask) for im in imgs])
+
+
 def load_from_list(bd, data_list):
     """Load data from a list of BrainData objects or file paths.
 
@@ -294,7 +346,6 @@ def load_from_list(bd, data_list):
         data_list: List of BrainData objects or file paths.
     """
     import nibabel as nib
-    from nilearn.masking import apply_mask as nilearn_apply_mask
     from nltools.utils import concatenate
     from nltools.data.braindata.validation import validate_list_data
 
@@ -321,6 +372,9 @@ def load_from_list(bd, data_list):
         if first_img is not None:
             detect_and_update_mask(bd, first_img)
 
+    # Prepare (load + space-align) each item, then mask them all with a single
+    # fitted masker so the mask is validated once per call rather than per item.
+    prepared_imgs = []
     for idx, item in enumerate(data_list):
         if isinstance(item, (str, Path)):
             item_img = nib.load(str(item))
@@ -347,10 +401,12 @@ def load_from_list(bd, data_list):
                 warn_if_resampling(bd)
             item_img = _resample_to_mask(bd, item_img)
 
-        bd.data.append(nilearn_apply_mask(item_img, bd.mask))
+        prepared_imgs.append(item_img)
 
-    # vstack for nilearn 0.12+ compat (transforms 3D -> 1D instead of 3D -> 2D)
-    bd.data = np.vstack(bd.data)
+    # Byte-equivalent to per-item apply_mask + vstack, but validates the mask
+    # once (see mask_images). vstack for nilearn 0.12+ compat (transforms
+    # 3D -> 1D instead of 3D -> 2D).
+    bd.data = mask_images(bd.mask, prepared_imgs)
 
 
 def load_from_brain_data(bd, brain_data, mask=None):
