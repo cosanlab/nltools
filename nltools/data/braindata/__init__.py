@@ -17,7 +17,7 @@ import numpy as np
 if TYPE_CHECKING:
     from nltools.data.atlases import Atlas, ClusterReport
 
-from nltools.utils import attempt_to_import
+from nltools.utils import attempt_to_import, coalesced_gc
 
 from .utils import check_brain_data
 
@@ -406,6 +406,7 @@ class BrainData:
     # Public methods (alphabetical)
     # =========================================================================
 
+    @coalesced_gc()
     def align(
         self,
         target,
@@ -509,6 +510,7 @@ class BrainData:
 
         return out
 
+    @coalesced_gc()
     def apply_mask(self, mask, resample_mask_to_brain=False):
         """Mask BrainData instance using nilearn functionality.
 
@@ -671,6 +673,7 @@ class BrainData:
         out.data = np.array([])
         return out
 
+    @coalesced_gc()
     def decompose(self, *, method="pca", axis="voxels", n_components=None, **kwargs):
         """Decompose BrainData object.
 
@@ -708,6 +711,7 @@ class BrainData:
 
         return detrend_data(self, method=method)
 
+    @coalesced_gc()
     def distance(
         self,
         metric="euclidean",
@@ -750,6 +754,7 @@ class BrainData:
             **kwargs,
         )
 
+    @coalesced_gc()
     def extract_roi(self, mask, metric="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
@@ -834,6 +839,7 @@ class BrainData:
             sampling_freq=sampling_freq,
         )
 
+    @coalesced_gc()
     def fit(
         self,
         model="glm",
@@ -1363,6 +1369,7 @@ class BrainData:
             return build_controls(nv, self, cal_min=cal_min, cal_max=cal_max)
         return nv
 
+    @coalesced_gc()
     def predict(
         self,
         *,
@@ -1530,6 +1537,7 @@ class BrainData:
 
         return r_to_z(self)
 
+    @coalesced_gc()
     def regions(
         self,
         min_region_size=1350,
@@ -1629,6 +1637,7 @@ class BrainData:
 
         return scale_data(self, scale_val, axis)
 
+    @coalesced_gc()
     def similarity(self, image, method="correlation"):
         """Calculate similarity to a single BrainData or nibabel image.
 
@@ -1728,6 +1737,7 @@ class BrainData:
             self, sampling_freq=sampling_freq, target=target, target_type=target_type
         )
 
+    @coalesced_gc()
     def threshold(
         self,
         upper=None,

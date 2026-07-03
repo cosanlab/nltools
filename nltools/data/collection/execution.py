@@ -21,6 +21,8 @@ from collections.abc import Callable
 
 import numpy as np
 
+from nltools.utils import coalesced_gc
+
 from . import core
 
 if TYPE_CHECKING:
@@ -183,9 +185,15 @@ def _atomic_write_nifti(out_path: Path, bd: BrainData) -> Path:
 
 
 def _wrap_worker(fn: Callable[[_ItemTask], T], task: _ItemTask) -> T:
-    """Run ``fn(task)``, wrapping exceptions in ``BrainCollectionWorkerError``."""
+    """Run ``fn(task)``, wrapping exceptions in ``BrainCollectionWorkerError``.
+
+    The per-subject chokepoint for both the serial fast path and the loky
+    path, so ``coalesced_gc()`` here collapses nilearn's per-copy gc storm
+    inside each worker process (one real collect per item, not dozens).
+    """
     try:
-        return fn(task)
+        with coalesced_gc():
+            return fn(task)
     except BrainCollectionWorkerError:
         raise
     except Exception as e:

@@ -7,11 +7,15 @@ Cross-cutting utilities used across the nltools package.
 __all__ = [
     "all_same",
     "attempt_to_import",
+    "coalesced_gc",
     "concatenate",
     "get_resource_path",
 ]
 
 import collections
+import gc
+import os
+from contextlib import contextmanager
 from os.path import dirname, join, sep as pathsep
 
 import numpy as np
@@ -20,6 +24,46 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Cross-cutting helpers (used by multiple subsystems)
 # ---------------------------------------------------------------------------
+
+
+@contextmanager
+def coalesced_gc():
+    """Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
+
+    nilearn calls ``gc.collect()`` after every masked-array copy
+    (``_utils/niimg.py:safe_get_data``); a masking-heavy op — a GLM fit that
+    re-validates the same mask and builds several result maps — fires dozens.
+    With torch/nilearn/sklearn resident each sweep costs ~0.1s, so the storm
+    dominates the wall-clock of otherwise-trivial numerical work.
+
+    This no-ops the interim collects and runs a single real collect on exit,
+    so peak memory stays bounded to one operation's worth of cyclic garbage
+    (the ``gc.collect()`` nilearn calls is a peak-memory optimization, not a
+    correctness requirement — suppressing it only defers reclamation). Opt out
+    with ``NLTOOLS_NO_GC_COALESCE=1``.
+
+    Because ``@contextmanager`` results double as decorators, this can also be
+    used as ``@coalesced_gc()`` on an operation-boundary method.
+
+    Nesting is safe: each frame restores whatever it saved, so only the
+    outermost frame restores the real ``gc.collect`` and runs the final sweep;
+    inner frames' exit-time collect is a no-op.
+
+    Caveat: this swaps a process-global builtin. It is safe under the default
+    loky (process) worker backend — each worker has its own ``gc``. Under a
+    *threading* backend there is a brief window where a concurrent thread sees
+    the no-op collect; ``NLTOOLS_NO_GC_COALESCE=1`` is the escape hatch there.
+    """
+    if os.environ.get("NLTOOLS_NO_GC_COALESCE"):
+        yield
+        return
+    saved = gc.collect  # may already be the no-op if we're nested
+    gc.collect = lambda *a, **k: 0
+    try:
+        yield
+    finally:
+        gc.collect = saved  # only the outermost frame restores the real collect
+        gc.collect()  # no-op if still nested; one real sweep at the top
 
 
 def get_resource_path():
