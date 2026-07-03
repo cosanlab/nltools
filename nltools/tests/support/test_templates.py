@@ -443,3 +443,39 @@ class TestListResources:
         # Pick the smallest known file to keep the test fast
         path = fetch_resource("masks/fsl_bilateral_amygdala_thr0.nii.gz")
         assert os.path.exists(path)
+
+
+class TestFetchResourceMemoization:
+    """fetch_resource must resolve each file to the network at most once per
+    session — repeated calls (the common case: every default-mask BrainData
+    construction) must not re-hit HuggingFace."""
+
+    def test_repeated_fetch_does_not_rehit_network(self, monkeypatch):
+        import nltools.templates.fetch as fetch_mod
+
+        cache_clear = getattr(fetch_mod.fetch_resource, "cache_clear", None)
+        if cache_clear:
+            cache_clear()
+
+        calls: list[str] = []
+
+        def fake_download(**kwargs):
+            calls.append(kwargs["filename"])
+            return f"/fake/cache/{kwargs['filename']}"
+
+        monkeypatch.setattr("huggingface_hub.hf_hub_download", fake_download)
+
+        try:
+            p1 = fetch_mod.fetch_resource("default/2mm-MNI152-2009fsl-mask.nii.gz")
+            n_after_first = len(calls)
+            p2 = fetch_mod.fetch_resource("default/2mm-MNI152-2009fsl-mask.nii.gz")
+
+            assert p1 == p2
+            # Second call for the same relpath must add zero network downloads.
+            assert len(calls) == n_after_first
+        finally:
+            # Evict the fake ``/fake/cache/...`` path we just memoized, or every
+            # later default-mask BrainData construction reads it and fails with
+            # FileNotFoundError. The lru_cache outlives ``monkeypatch``.
+            if cache_clear:
+                cache_clear()

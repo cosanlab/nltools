@@ -31,6 +31,7 @@ _PYODIDE_CACHE_ROOT = Path("/nltools_cache") / REVISION
 _idbfs_mounted = False
 
 
+@functools.lru_cache(maxsize=None)
 def fetch_resource(relpath: str) -> str:
     """Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
@@ -44,18 +45,36 @@ def fetch_resource(relpath: str) -> str:
         Absolute path to the cached file on disk. The returned path drops
         straight into anything that takes a NIfTI path — nilearn plotting
         and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
+
+    Notes:
+        Resolution is memoized per ``relpath`` for the session — repeated
+        calls (e.g. every default-mask ``BrainData`` construction) return the
+        cached path with no work. On the first call for a file already in the
+        HF cache we resolve it with ``local_files_only=True`` so we never make
+        a network round-trip to revalidate an ETag; only a genuine cache miss
+        touches the network.
     """
     if "pyodide" in sys.modules:
         return _fetch_pyodide(relpath)
 
     from huggingface_hub import hf_hub_download
+    from huggingface_hub.utils import LocalEntryNotFoundError
 
-    return hf_hub_download(
-        repo_id=REPO_ID,
-        filename=relpath,
-        repo_type="dataset",
-        revision=REVISION,
-    )
+    try:
+        return hf_hub_download(
+            repo_id=REPO_ID,
+            filename=relpath,
+            repo_type="dataset",
+            revision=REVISION,
+            local_files_only=True,
+        )
+    except LocalEntryNotFoundError:
+        return hf_hub_download(
+            repo_id=REPO_ID,
+            filename=relpath,
+            repo_type="dataset",
+            revision=REVISION,
+        )
 
 
 @functools.lru_cache(maxsize=8)
