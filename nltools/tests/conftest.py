@@ -19,6 +19,14 @@ This module provides common fixtures used across test modules.
 # Use sim_brain_data only when you need realistic brain structure.
 """
 
+import os
+
+# Cap nested joblib/loky parallelism during tests. Collection ops default to
+# n_jobs=-1; under pytest-xdist that multiplies (xdist workers x loky procs) and
+# can exhaust RAM on smaller machines. setdefault keeps it overridable from the
+# environment (e.g. LOKY_MAX_CPU_COUNT=8 on a big box).
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", "2")
+
 import pytest
 import numpy as np
 import polars as pl
