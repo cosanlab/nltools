@@ -28,6 +28,23 @@ import nbformat
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = REPO_ROOT / "docs/jupyterlite/files"
 
+JUPYTERLITE_PACKAGES = [
+    "numpy==2.0.2",
+    "nibabel",
+    "nilearn==0.13.1",
+    "scikit-learn",
+    "scipy",
+    "pandas",
+    "polars",
+    "seaborn",
+    "matplotlib",
+    "anywidget",
+    "ipyniivue",
+    "joblib>=1.5.3",
+    "huggingface-hub",
+    "pynv",
+]
+
 # Notebooks converted by ``--all``.
 TUTORIAL_GLOBS = [
     "docs/tutorials/workflows/[0-9]*.py",
@@ -36,6 +53,25 @@ TUTORIAL_GLOBS = [
 # Same cleanup used by scripts/marimo_to_myst.py after marimo export.
 MARIMO_IMPORT_RE = re.compile(r"^\s*import\s+marimo\b.*$", re.MULTILINE)
 FORBIDDEN_CODE_RE = re.compile(r"(?:\bmarimo\b|\bmo\.|@app\.cell)")
+
+
+def jupyterlite_setup_cells() -> list[nbformat.NotebookNode]:
+    """Return the browser-kernel installation instructions and setup cell."""
+    packages = "\n".join(f"    {package!r}," for package in JUPYTERLITE_PACKAGES)
+    source = (
+        "import piplite\n\n"
+        "await piplite.install([\n"
+        f"{packages}\n"
+        "])\n"
+        'await piplite.install("nltools", deps=False)'
+    )
+    return [
+        nbformat.v4.new_markdown_cell(
+            "Run this cell first — installs nltools and dependencies into the "
+            "browser kernel (~1 min)."
+        ),
+        nbformat.v4.new_code_cell(source),
+    ]
 
 
 def rel_to_repo(path: Path) -> Path:
@@ -100,6 +136,7 @@ def convert(notebook: Path) -> Path:
         jupyter_notebook = nbformat.read(exported, as_version=4)
 
     strip_marimo_runtime(jupyter_notebook)
+    jupyter_notebook.cells = jupyterlite_setup_cells() + jupyter_notebook.cells
     validate(jupyter_notebook, notebook)
     nbformat.write(jupyter_notebook, output, version=4)
     return output

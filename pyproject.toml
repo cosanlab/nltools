@@ -219,6 +219,23 @@ shell = """python scripts/build_api_docs.py"""
 help = "Generate API docs then build MyST site"
 shell = """python scripts/build_api_docs.py && cd docs && myst build --site --execute"""
 
+[tool.poe.tasks.docs-jupyterlite]
+help = "Build the local JupyterLite tutorial bundle"
+executor = "virtualenv"
+shell = """
+UV_CACHE_DIR=/tmp/uv-cache UV_TOOL_DIR=/tmp/uv-tools uv build --wheel
+python scripts/tutorials_to_ipynb.py --all
+WHEEL=$(ls -t dist/nltools-*.whl | head -n 1)
+WHEEL=$(cd "$(dirname "$WHEEL")" && pwd)/$(basename "$WHEEL")
+UV_CACHE_DIR=/tmp/uv-cache UV_TOOL_DIR=/tmp/uv-tools \
+  uvx --with jupyterlite-pyodide-kernel==0.6.1 --with jupyter-server \
+    --with anywidget --with ipywidgets \
+    --from jupyterlite-core==0.6.4 \
+    jupyter lite build --lite-dir docs/jupyterlite \
+    --output-dir docs/_build/html/try-it-jupyterlite \
+    --piplite-wheels "$WHEEL"
+"""
+
 [tool.poe.tasks.docs-preview]
 help = "Live preview docs (myst start + CORS wheel server for in-browser Pyodide)"
 shell = """
