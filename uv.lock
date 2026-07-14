@@ -1913,6 +1913,7 @@ dependencies = [
 all = [
     { name = "h5py" },
     { name = "hdf5plugin" },
+    { name = "ipywidgets" },
     { name = "networkx" },
 ]
 graph = [
@@ -1921,6 +1922,9 @@ graph = [
 h5 = [
     { name = "h5py" },
     { name = "hdf5plugin" },
+]
+interactive-plots = [
+    { name = "ipywidgets" },
 ]
 
 [package.dev-dependencies]
@@ -1951,16 +1955,17 @@ requires-dist = [
     { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
     { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "ipyniivue", specifier = ">=2.4.4" },
+    { name = "ipywidgets", marker = "extra == 'interactive-plots'", specifier = ">=8.1.7" },
     { name = "joblib", specifier = ">=1.5.3" },
     { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.5" },
     { name = "nilearn", specifier = ">=0.12" },
-    { name = "nltools", extras = ["h5", "graph"], marker = "extra == 'all'" },
+    { name = "nltools", extras = ["h5", "graph", "interactive-plots"], marker = "extra == 'all'" },
     { name = "numpy", specifier = ">=2.0.2" },
     { name = "polars", specifier = ">=1.18" },
     { name = "pynv", specifier = ">=0.3" },
     { name = "seaborn", specifier = ">=0.13.2" },
 ]
-provides-extras = ["h5", "graph", "all"]
+provides-extras = ["h5", "graph", "interactive-plots", "all"]
 
 [package.metadata.requires-dev]
 dev = [
