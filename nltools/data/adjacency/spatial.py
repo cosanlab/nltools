@@ -1,13 +1,13 @@
 """Spatial-scale provenance for stacked Adjacency matrices.
 
 When a stack of Adjacency matrices comes from a per-parcel or per-searchlight
-operation on a BrainData, attaching a :class:`SpatialScale` records the atlas,
+operation on a BrainData, attaching a `SpatialScale` records the atlas,
 the parcel labels in stack order, and the source mask — enough to project
-per-matrix reductions back to a voxel-space :class:`BrainData` via
+per-matrix reductions back to a voxel-space `BrainData` via
 ``Adjacency.to_brain()``.
 
-See :class:`Adjacency` for the optional ``spatial_scale`` attribute, and
-:meth:`BrainData.distance` (with ``spatial_scale='roi'|'searchlight'``) for
+See `Adjacency` for the optional ``spatial_scale`` attribute, and
+`BrainData.distance` (with ``spatial_scale='roi'|'searchlight'``) for
 the canonical producer.
 """
 
@@ -29,8 +29,10 @@ _VALID_KINDS: tuple[str, ...] = ("roi", "searchlight")
 
 @dataclass(frozen=True)
 class SpatialScale:
-    """Provenance for a stacked Adjacency that came from a per-parcel or
-    per-searchlight operation on a :class:`BrainData`.
+    """Record provenance for a per-parcel or per-searchlight Adjacency stack.
+
+    The stack comes from a per-parcel or per-searchlight operation on a
+    `BrainData`.
 
     Attributes:
         atlas: Labeled volume indicating parcel membership (or searchlight

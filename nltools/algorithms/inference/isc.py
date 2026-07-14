@@ -1,5 +1,4 @@
-"""
-Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+"""Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 
 This module provides both leave-one-out (LOO) and pairwise ISC computation
 with efficient CPU-parallel and GPU-batched implementations. Follows the
@@ -141,8 +140,7 @@ def _batch_correlation_gpu(x, y):
 
 
 def _compute_loo_isc_gpu(data):
-    """
-    GPU-accelerated leave-one-out ISC computation.
+    """GPU-accelerated leave-one-out ISC computation.
 
     Batches correlation computation across voxels for significant speedup
     on large voxel-wise problems (10-30× faster than NumPy for >5K voxels).
@@ -411,8 +409,7 @@ def _batch_corrcoef_gpu(data_gpu):
 
 
 def _compute_pairwise_isc_gpu(data):
-    """
-    GPU-accelerated pairwise ISC computation.
+    """GPU-accelerated pairwise ISC computation.
 
     Batches correlation matrix computation across voxels for significant
     speedup on large voxel-wise problems.
@@ -609,8 +606,7 @@ def _permute_isc_group_numpy(
     random_state=None,
     sim_metric="correlation",
 ):
-    """
-    Single permutation: permute group labels and compute ISC difference.
+    """Single permutation: permute group labels and compute ISC difference.
 
     Implements the subject-wise permutation method from Chen et al. (2016).
     Combines the two groups, permutes group labels, then computes ISC difference

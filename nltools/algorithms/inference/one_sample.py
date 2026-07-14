@@ -1,5 +1,4 @@
-"""
-One-sample permutation test implementations.
+"""One-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the one-sample permutation test (sign-flipping test).
@@ -26,8 +25,7 @@ def _one_sample_permutation_cpu_parallel(
     random_state: int | None,
     single_feature: bool = False,
 ) -> dict:
-    """
-    One-sample permutation test using CPU parallelization with joblib.
+    """One-sample permutation test using CPU parallelization with joblib.
 
     Pre-generates all sign-flips deterministically (matching stats.py pattern),
     then parallelizes only the computation. This ensures perfect reproducibility
@@ -110,8 +108,7 @@ def _one_sample_permutation_gpu_batched(
     random_state,
     single_feature: bool = False,
 ) -> dict:
-    """
-    One-sample permutation test using GPU with automatic batching.
+    """One-sample permutation test using GPU with automatic batching.
 
     Processes permutations in batches to avoid GPU OOM. Transfers data once
     and reuses across batches for efficiency.
@@ -227,8 +224,7 @@ def one_sample_permutation_test(
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
 ) -> dict:
-    """
-    One-sample permutation test using sign-flipping.
+    """One-sample permutation test using sign-flipping.
 
     Tests whether the mean of data is significantly different from zero
     by randomly flipping the sign of each observation. This is the

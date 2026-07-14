@@ -1,5 +1,4 @@
-"""
-BrainData modeling functions.
+"""BrainData modeling functions.
 
 Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
@@ -277,7 +276,9 @@ def fit_ridge(bd, X, cv=None, **kwargs):
 
 
 def _normalize_cv(cv):
-    """Reject single-use generators and bad cv values; pass through ints and
+    """Validate and normalize a cross-validation specification.
+
+    Reject single-use generators and bad cv values; pass through ints and
     splitter objects.
 
     BrainData's CV path needs a re-iterable splitter — alpha selection
@@ -813,7 +814,7 @@ def _contrast_all_to_bd(img_dict, mask):
 
     ``effect_variance`` is stored as the (voxel-wise) standard error, i.e.
     ``sqrt(|effect_variance|)`` — matches how ``bd.glm_se`` is computed in
-    :func:`fit_glm` and what a user thinks of as "SE of the contrast".
+    `fit_glm` and what a user thinks of as "SE of the contrast".
     """
     from . import BrainData
 

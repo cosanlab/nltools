@@ -87,8 +87,7 @@ class NormalizeStep:
         axis: Axis along which to compute statistics. Default 0 (per-feature
             normalization, treating rows as samples).
 
-    Examples
-    --------
+    Examples:
     >>> import numpy as np
     >>> data = np.array([[1, 2], [3, 4], [5, 6]])
     >>> step = NormalizeStep(method='zscore')
@@ -191,8 +190,7 @@ class ReduceStep:
         n_components: Number of components to keep. If None, keeps all components.
         random_state: Random seed for reproducibility.
 
-    Examples
-    --------
+    Examples:
     >>> import numpy as np
     >>> data = np.random.randn(100, 50)
     >>> step = ReduceStep(method='pca', n_components=10)
@@ -300,8 +298,7 @@ class PipeStep:
         transformer: An sklearn-compatible transformer instance. Must have fit() and
             transform() methods. The transformer will be cloned before fitting.
 
-    Examples
-    --------
+    Examples:
     >>> from sklearn.preprocessing import StandardScaler
     >>> import numpy as np
     >>> data = np.random.randn(100, 10)
@@ -456,8 +453,7 @@ class AlignStep:
         **kwargs: Additional arguments passed to the underlying algorithm.
             For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'.
 
-    Examples
-    --------
+    Examples:
     >>> import numpy as np
     >>> # Create synthetic multi-subject data
     >>> data = [np.random.randn(100, 50) for _ in range(5)]

@@ -1,6 +1,6 @@
 ## `algorithms`
 
-External functions
+External functions.
 
 **Modules:**
 
@@ -18,10 +18,10 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
 [`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
 [`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
 
 **Methods:**
 
@@ -49,12 +49,14 @@ DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Deterministic Shared Response Model (DetSRM)
+Deterministic Shared Response Model (DetSRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -79,14 +81,14 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The Deterministic Shared Response Model is approximated using the
-Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+Block Coordinate Descent (BCD) algorithm proposed in **Chen2015**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
-complexity is :math:`O(V T)` with I - the number of iterations, V - the
+The run-time complexity is $O(I (V T K + V K^2))$ and the memory
+complexity is $O(V T)$ with I - the number of iterations, V - the
 sum of voxels from all subjects, T - the number of samples, K - the
-number of features (typically, :math:`V \gg T \gg K`), and N - the
+number of features (typically, $V \gg T \gg K$), and N - the
 number of subjects.
 
 </details>
@@ -118,8 +120,8 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`fit`](#fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 ##### Methods
@@ -130,7 +132,7 @@ Name | Description
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
-Compute the Deterministic Shared Response Model
+Compute the Deterministic Shared Response Model.
 
 **Parameters:**
 
@@ -154,7 +156,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
-Use the model to transform data to the Shared Response subspace
+Use the model to transform data to the Shared Response subspace.
 
 **Parameters:**
 
@@ -378,8 +380,6 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-Parameters
-----------
 scheme : str, default='searchlight'
     Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
     (non-overlapping parcels).
@@ -403,8 +403,6 @@ parallel : str, optional
 n_jobs : int, default=-1
     Number of jobs for CPU parallelization.
 
-Attributes
-----------
 transforms_ : Dict[int, List[np.ndarray]]
     Per-neighborhood transforms. Keys are center voxel indices,
     values are lists of transform matrices (one per subject).
@@ -417,8 +415,7 @@ n_voxels_ : int
 mask_ : Nifti1Image
     Brain mask used for fitting.
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
@@ -427,8 +424,7 @@ Examples
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 
-Notes
------
+Notes:
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
@@ -473,8 +469,6 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
     Subjects can have different numbers of samples - the underlying
@@ -482,8 +476,6 @@ data : List[np.ndarray]
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 self : LocalAlignment
     Fitted alignment model.
 
@@ -495,15 +487,11 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject.
 
@@ -520,13 +508,9 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
@@ -538,12 +522,14 @@ SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Probabilistic Shared Response Model (SRM)
+Probabilistic Shared Response Model (SRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -561,7 +547,7 @@ Name | Type | Description
 [`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
 [`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
 [`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
 [`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
@@ -571,15 +557,15 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The probabilistic Shared Response Model is approximated using the
-Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
-implementation follows the optimizations published in [Anderson2016]_.
+Expectation Maximization (EM) algorithm proposed in **Chen2015**. The
+implementation follows the optimizations published in **Anderson2016**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
-memory complexity is :math:`O(V T)` with I - the number of iterations,
+The run-time complexity is $O(I (V T K + V K^2 + K^3))$ and the
+memory complexity is $O(V T)$ with I - the number of iterations,
 V - the sum of voxels from all subjects, T - the number of samples, and
-K - the number of features (typically, :math:`V \gg T \gg K`).
+K - the number of features (typically, $V \gg T \gg K$).
 
 </details>
 
@@ -610,8 +596,8 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`fit`](#fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 ##### Methods
@@ -622,7 +608,7 @@ Name | Description
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
-Compute the probabilistic Shared Response Model
+Compute the probabilistic Shared Response Model.
 
 **Parameters:**
 
@@ -647,7 +633,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
-Use the model to transform matrix to Shared Response space
+Use the model to transform matrix to Shared Response space.
 
 **Parameters:**
 
@@ -699,11 +685,11 @@ Implement the Glover dispersion derivative :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor in seconds.
 
@@ -716,14 +702,14 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -744,7 +730,7 @@ Implement the Glover :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -754,21 +740,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response.
 
@@ -789,7 +775,7 @@ Implement the Glover time derivative :term:`HRF` (dhrf) model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -799,21 +785,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response.
 
@@ -1039,7 +1025,7 @@ Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -1049,21 +1035,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor in seconds.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -1084,7 +1070,7 @@ Implement the :term:`SPM` :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -1094,21 +1080,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 :term:`HRF` onset time, in seconds.
 
@@ -1129,7 +1115,7 @@ Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -1139,21 +1125,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -1190,10 +1176,10 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
 [`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
 [`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -1207,12 +1193,14 @@ DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Deterministic Shared Response Model (DetSRM)
+Deterministic Shared Response Model (DetSRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -1237,14 +1225,14 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The Deterministic Shared Response Model is approximated using the
-Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+Block Coordinate Descent (BCD) algorithm proposed in **Chen2015**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
-complexity is :math:`O(V T)` with I - the number of iterations, V - the
+The run-time complexity is $O(I (V T K + V K^2))$ and the memory
+complexity is $O(V T)$ with I - the number of iterations, V - the
 sum of voxels from all subjects, T - the number of samples, K - the
-number of features (typically, :math:`V \gg T \gg K`), and N - the
+number of features (typically, $V \gg T \gg K$), and N - the
 number of subjects.
 
 </details>
@@ -1276,8 +1264,8 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`fit`](#fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 
@@ -1312,7 +1300,7 @@ rand_seed = rand_seed
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
-Compute the Deterministic Shared Response Model
+Compute the Deterministic Shared Response Model.
 
 **Parameters:**
 
@@ -1336,7 +1324,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
-Use the model to transform data to the Shared Response subspace
+Use the model to transform data to the Shared Response subspace.
 
 **Parameters:**
 
@@ -1586,8 +1574,6 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-Parameters
-----------
 scheme : str, default='searchlight'
     Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
     (non-overlapping parcels).
@@ -1611,8 +1597,6 @@ parallel : str, optional
 n_jobs : int, default=-1
     Number of jobs for CPU parallelization.
 
-Attributes
-----------
 transforms_ : Dict[int, List[np.ndarray]]
     Per-neighborhood transforms. Keys are center voxel indices,
     values are lists of transform matrices (one per subject).
@@ -1625,8 +1609,7 @@ n_voxels_ : int
 mask_ : Nifti1Image
     Brain mask used for fitting.
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
@@ -1635,8 +1618,7 @@ Examples
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 
-Notes
------
+Notes:
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
@@ -1789,8 +1771,6 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
     Subjects can have different numbers of samples - the underlying
@@ -1798,8 +1778,6 @@ data : List[np.ndarray]
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 self : LocalAlignment
     Fitted alignment model.
 
@@ -1811,15 +1789,11 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject.
 
@@ -1836,13 +1810,9 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
@@ -1854,12 +1824,14 @@ SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Probabilistic Shared Response Model (SRM)
+Probabilistic Shared Response Model (SRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -1877,7 +1849,7 @@ Name | Type | Description
 [`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
 [`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
 [`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
 [`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
@@ -1887,15 +1859,15 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The probabilistic Shared Response Model is approximated using the
-Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
-implementation follows the optimizations published in [Anderson2016]_.
+Expectation Maximization (EM) algorithm proposed in **Chen2015**. The
+implementation follows the optimizations published in **Anderson2016**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
-memory complexity is :math:`O(V T)` with I - the number of iterations,
+The run-time complexity is $O(I (V T K + V K^2 + K^3))$ and the
+memory complexity is $O(V T)$ with I - the number of iterations,
 V - the sum of voxels from all subjects, T - the number of samples, and
-K - the number of features (typically, :math:`V \gg T \gg K`).
+K - the number of features (typically, $V \gg T \gg K$).
 
 </details>
 
@@ -1926,8 +1898,8 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`fit`](#fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 
@@ -1962,7 +1934,7 @@ rand_seed = rand_seed
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
-Compute the probabilistic Shared Response Model
+Compute the probabilistic Shared Response Model.
 
 **Parameters:**
 
@@ -1987,7 +1959,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
-Use the model to transform matrix to Shared Response space
+Use the model to transform matrix to Shared Response space.
 
 **Parameters:**
 
@@ -2317,8 +2289,6 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-Parameters
-----------
 scheme : str, default='searchlight'
     Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
     (non-overlapping parcels).
@@ -2342,8 +2312,6 @@ parallel : str, optional
 n_jobs : int, default=-1
     Number of jobs for CPU parallelization.
 
-Attributes
-----------
 transforms_ : Dict[int, List[np.ndarray]]
     Per-neighborhood transforms. Keys are center voxel indices,
     values are lists of transform matrices (one per subject).
@@ -2356,8 +2324,7 @@ n_voxels_ : int
 mask_ : Nifti1Image
     Brain mask used for fitting.
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
@@ -2366,8 +2333,7 @@ Examples
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 
-Notes
------
+Notes:
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
@@ -2520,8 +2486,6 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
     Subjects can have different numbers of samples - the underlying
@@ -2529,8 +2493,6 @@ data : List[np.ndarray]
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 self : LocalAlignment
     Fitted alignment model.
 
@@ -2542,15 +2504,11 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 mask : Nifti1Image
     Brain mask defining the voxel space.
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject.
 
@@ -2567,13 +2525,9 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-Parameters
-----------
 data : List[np.ndarray]
     List of subject data arrays, each shape (n_voxels, n_samples).
 
-Returns
--------
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
@@ -2629,13 +2583,12 @@ Y., & Norman, K. A. (2016, December). Enabling factor analysis on
 thousand-subject neuroimaging datasets. In Big Data (Big Data),
 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
-References
-----------
-.. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+References:
+- **Chen2015:** Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
    & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
    In Advances in Neural Information Processing Systems (pp. 460-468).
 
-.. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
+- **Anderson2016:** Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
    Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
    factor analysis on thousand-subject neuroimaging datasets. In Big Data
    (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
@@ -2658,8 +2611,8 @@ limitations under the License.
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM)
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM)
+[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
+[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -2675,12 +2628,14 @@ DetSRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Deterministic Shared Response Model (DetSRM)
+Deterministic Shared Response Model (DetSRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -2705,14 +2660,14 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The Deterministic Shared Response Model is approximated using the
-Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+Block Coordinate Descent (BCD) algorithm proposed in **Chen2015**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
-complexity is :math:`O(V T)` with I - the number of iterations, V - the
+The run-time complexity is $O(I (V T K + V K^2))$ and the memory
+complexity is $O(V T)$ with I - the number of iterations, V - the
 sum of voxels from all subjects, T - the number of samples, K - the
-number of features (typically, :math:`V \gg T \gg K`), and N - the
+number of features (typically, $V \gg T \gg K$), and N - the
 number of subjects.
 
 </details>
@@ -2744,8 +2699,8 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace
+[`fit`](#fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 
@@ -2780,7 +2735,7 @@ rand_seed = rand_seed
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
-Compute the Deterministic Shared Response Model
+Compute the Deterministic Shared Response Model.
 
 **Parameters:**
 
@@ -2804,7 +2759,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
-Use the model to transform data to the Shared Response subspace
+Use the model to transform data to the Shared Response subspace.
 
 **Parameters:**
 
@@ -2850,12 +2805,14 @@ SRM(n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
 
 Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
 
-Probabilistic Shared Response Model (SRM)
+Probabilistic Shared Response Model (SRM).
 
 Given multi-subject data, factorize it as a shared response S among all
 subjects and an orthogonal transform W per subject:
 
-.. math:: X_i \approx W_i S, \forall i=1 \dots N
+$$
+X_i \approx W_i S, \forall i=1 \dots N
+$$
 
 **Parameters:**
 
@@ -2873,7 +2830,7 @@ Name | Type | Description
 [`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
 [`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
 [`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance :math:`\rho_i^2` for each subject
+[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
 [`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
@@ -2883,15 +2840,15 @@ The number of voxels may be different between subjects. However, the
 number of samples must be the same across subjects.
 
 The probabilistic Shared Response Model is approximated using the
-Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
-implementation follows the optimizations published in [Anderson2016]_.
+Expectation Maximization (EM) algorithm proposed in **Chen2015**. The
+implementation follows the optimizations published in **Anderson2016**.
 
 This is a single node version.
 
-The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
-memory complexity is :math:`O(V T)` with I - the number of iterations,
+The run-time complexity is $O(I (V T K + V K^2 + K^3))$ and the
+memory complexity is $O(V T)$ with I - the number of iterations,
 V - the sum of voxels from all subjects, T - the number of samples, and
-K - the number of features (typically, :math:`V \gg T \gg K`).
+K - the number of features (typically, $V \gg T \gg K$).
 
 </details>
 
@@ -2922,8 +2879,8 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space
+[`fit`](#fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
 [`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
 
 
@@ -2958,7 +2915,7 @@ rand_seed = rand_seed
 fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
-Compute the probabilistic Shared Response Model
+Compute the probabilistic Shared Response Model.
 
 **Parameters:**
 
@@ -2983,7 +2940,7 @@ Name | Type | Description
 transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
-Use the model to transform matrix to Shared Response space
+Use the model to transform matrix to Shared Response space.
 
 **Parameters:**
 
@@ -3042,7 +2999,7 @@ Name | Description
 [`assert_array_almost_equal`](#assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
 [`auto_select_backend`](#auto_select_backend) | Automatically select backend based on problem size.
 [`check_gpu_available`](#check_gpu_available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a :class:`Backend` instance.
+[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
@@ -3556,12 +3513,12 @@ Name | Type | Description
 resolve_backend(parallel)
 ```
 
-Coerce a backend specifier into a :class:`Backend` instance.
+Coerce a backend specifier into a `Backend` instance.
 
 Accepts the values callers typically thread through the algorithms
 package (``None``/``"cpu"`` → numpy, ``"gpu"``/``"torch"`` → torch,
-``"numpy"``/``"auto"`` → their direct :class:`Backend` constructors).
-Existing :class:`Backend` instances are returned unchanged — this is
+``"numpy"``/``"auto"`` → their direct `Backend` constructors).
+Existing `Backend` instances are returned unchanged — this is
 the main reason to prefer ``resolve_backend`` over constructing a new
 ``Backend(...)`` at each call site: it avoids repeated device
 detection/torch imports when a backend has already been chosen upstream.
@@ -3570,7 +3527,7 @@ detection/torch imports when a backend has already been chosen upstream.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`parallel` |  | Backend specifier. One of:<br>- ``None`` or ``"cpu"``: numpy backend. - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``. - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu). - An existing :class:`Backend` instance (returned as-is). | *required*
+`parallel` |  | Backend specifier. One of:<br>- ``None`` or ``"cpu"``: numpy backend. - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``. - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu). - An existing `Backend` instance (returned as-is). | *required*
 
 **Returns:**
 
@@ -3611,11 +3568,11 @@ Implement the Glover dispersion derivative :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor in seconds.
 
@@ -3628,14 +3585,14 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -3656,7 +3613,7 @@ Implement the Glover :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -3666,21 +3623,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response.
 
@@ -3701,7 +3658,7 @@ Implement the Glover time derivative :term:`HRF` (dhrf) model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -3711,21 +3668,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response.
 
@@ -3746,7 +3703,7 @@ Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -3756,21 +3713,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor in seconds.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -3791,7 +3748,7 @@ Implement the :term:`SPM` :term:`HRF` model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -3801,21 +3758,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 :term:`HRF` onset time, in seconds.
 
@@ -3836,7 +3793,7 @@ Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 Parameters
 ----------
-t_r : :obj:`float`
+t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
@@ -3846,21 +3803,21 @@ tr:
         Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
-<summary>:obj:`int`, default=50</summary>
+<summary>`int`, default=50</summary>
 
 Temporal oversampling factor.
 
 </details>
 
 <details class="time_length-" open markdown="1">
-<summary>:obj:`float`, default=32.0</summary>
+<summary>`float`, default=32.0</summary>
 
 :term:`HRF` kernel length, in seconds.
 
 </details>
 
 <details class="onset-" open markdown="1">
-<summary>:obj:`float`, default=0.0</summary>
+<summary>`float`, default=0.0</summary>
 
 Onset of the response in seconds.
 
@@ -6853,7 +6810,7 @@ Held-out ridge predictions per CV fold under a (per-target) alpha.
 For each fold, refits ridge with the supplied alpha (per-target or
 scalar) on the training fold and predicts the held-out fold. Targets
 sharing the same alpha share an SVD of the training fold via
-:func:`_refit_banded_ridge`, so the cost scales with the number of
+`_refit_banded_ridge`, so the cost scales with the number of
 *unique* alphas, not the number of targets.
 
 Designed to be the BrainData CV layer's source of held-out predictions
@@ -7484,7 +7441,7 @@ Held-out ridge predictions per CV fold under a (per-target) alpha.
 For each fold, refits ridge with the supplied alpha (per-target or
 scalar) on the training fold and predicts the held-out fold. Targets
 sharing the same alpha share an SVD of the training fold via
-:func:`_refit_banded_ridge`, so the cost scales with the number of
+`_refit_banded_ridge`, so the cost scales with the number of
 *unique* alphas, not the number of targets.
 
 Designed to be the BrainData CV layer's source of held-out predictions

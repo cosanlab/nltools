@@ -1,0 +1,18 @@
+/* Changelog badges */
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.72em;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #fff;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.badge-feature { background-color: var(--color-tip); }
+.badge-fix { background-color: var(--color-warning); }
+.badge-improvement { background-color: var(--color-primary); }
+.badge-docs { background-color: #8b5cf6; }
+.badge-release { background-color: var(--color-hover); }

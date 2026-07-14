@@ -5,8 +5,6 @@ Pipeline infrastructure for nltools.
 This module provides a fluent API for building data processing pipelines
 with cross-validation support.
 
-Classes
--------
 Pipeline
     Base pipeline for chained transforms with optional CV.
 CVScheme
@@ -14,8 +12,7 @@ CVScheme
 FittedStack
     Collection of fitted transforms for inverse transform support.
 
-Protocols
----------
+Protocols:
 TransformStep
     Protocol for pipeline transform steps.
 FittedTransform
@@ -23,8 +20,7 @@ FittedTransform
 Terminal
     Protocol for terminal operations.
 
-Examples
---------
+Examples:
 >>> from nltools.pipelines import Pipeline, CVScheme
 >>> cv = CVScheme(scheme='kfold', k=5)
 >>> result = (
@@ -105,8 +101,7 @@ Name | Type | Description | Default
 `n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Default is -1. | <code>-1</code>
 `**kwargs` |  | Additional arguments passed to the underlying algorithm. For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'. | <code>{}</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> # Create synthetic multi-subject data
 >>> data = [np.random.randn(100, 50) for _ in range(5)]
@@ -174,8 +169,7 @@ Name | Type | Description | Default
 `fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
-Examples
---------
+Examples:
 >>> result = pipeline.predict(y)
 >>> print(f"Mean score: {result.mean_score:.4f} (+/- {result.std_score:.4f})")
 >>> all_predictions = result.predictions  # In original sample order
@@ -501,8 +495,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
-Examples
---------
+Examples:
 >>> stack = FittedStack()
 >>> stack.append(fitted_pca)
 >>> stack.append(fitted_normalize)
@@ -679,8 +672,7 @@ Name | Type | Description | Default
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> terminal = ISCTerminal(method='pairwise', n_permute=1000)
 >>> result = terminal.fit_evaluate(data_list)
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
@@ -745,8 +737,7 @@ Name | Type | Description | Default
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
 `steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
-Examples
---------
+Examples:
 >>> # LOSO CV
 >>> pipeline = MultiSubjectPipeline(subject_data, cv=CVScheme(scheme='loso'))
 >>> result = pipeline.normalize().predict(y, algorithm='svm')
@@ -807,8 +798,7 @@ Type | Description
 ---- | -----------
 <code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
-Examples
---------
+Examples:
 >>> # SRM alignment before classification
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=CVScheme(scheme='loso'))
@@ -852,8 +842,7 @@ Type | Description
 ---- | -----------
  | Result containing ISC values, p-values, and confidence intervals.
 
-Examples
---------
+Examples:
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)
 ...     .normalize()
@@ -899,23 +888,27 @@ Type | Description
 ---- | -----------
  | Cross-validation results.
 
-Examples
---------
-Basic regression with LOSO CV::
+**Examples:**
 
-    result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+Basic regression with LOSO CV:
 
-Classification with balanced classes::
+```python
+result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+```
+Classification with balanced classes:
 
-    result = pipeline.cv('loso').predict(
-        group_labels, algorithm='svm', class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    group_labels, algorithm='svm', class_weight='balanced'
+)
+```
+Logistic regression with regularization:
 
-Logistic regression with regularization::
-
-    result = pipeline.cv('loso').predict(
-        binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
+)
+```
 
 ###### `reduce`
 
@@ -951,8 +944,7 @@ Type | Description
 ---- | -----------
  | Result containing correlation coefficient and p-value.
 
-Examples
---------
+Examples:
 >>> model = np.corrcoef(conditions)  # Theoretical model
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)
@@ -1132,8 +1124,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | Normalization method: 'zscore' (subtract mean, divide by std) or 'minmax' (scale to [0, 1] range). Default is 'zscore'. | <code>'zscore'</code>
 `axis` | <code>[int](#int)</code> | Axis along which to compute statistics. Default 0 (per-feature normalization, treating rows as samples). | <code>0</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.array([[1, 2], [3, 4], [5, 6]])
 >>> step = NormalizeStep(method='zscore')
@@ -1276,8 +1267,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `transformer` | <code>[Any](#typing.Any)</code> | An sklearn-compatible transformer instance. Must have fit() and transform() methods. The transformer will be cloned before fitting. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> from sklearn.preprocessing import StandardScaler
 >>> import numpy as np
 >>> data = np.random.randn(100, 10)
@@ -1540,8 +1530,7 @@ Name | Type | Description | Default
 `fitted_state` | <code>[Any](#typing.Any) \| None</code> | Saved fitted models for repool() functionality. | <code>None</code>
 `save_path` | <code>[str](#str) \| None</code> | Path where data was saved. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> # Two-stage GLM
 >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
 >>> result = pool.fit(model='ttest', contrast='face-house')
@@ -1627,8 +1616,7 @@ Type | Description
 ---- | -----------
 <code>[StatResult](#nltools.pipelines.pool.StatResult) \| [ResultDict](#nltools.pipelines.pool.ResultDict)</code> | Statistical results. ResultDict if multiple contrasts specified.
 
-Examples
---------
+Examples:
 >>> result = pool.fit(model='ttest', contrast='face-house')
 >>> result.t_map.max()
 
@@ -1708,27 +1696,31 @@ Name | Type | Description | Default
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
-Examples
---------
-Basic classification::
+**Examples:**
 
-    >>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+Basic classification:
 
-Balanced classification for imbalanced data::
+```python
+>>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+```
+Balanced classification for imbalanced data:
 
-    >>> terminal = PredictTerminal(
-    ...     y=imbalanced_labels,
-    ...     algorithm='svm',
-    ...     kwargs={'class_weight': 'balanced'}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=imbalanced_labels,
+...     algorithm='svm',
+...     kwargs={'class_weight': 'balanced'}
+... )
+```
+Logistic regression with balanced classes:
 
-Logistic regression with balanced classes::
-
-    >>> terminal = PredictTerminal(
-    ...     y=binary_labels,
-    ...     algorithm='logistic',
-    ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=binary_labels,
+...     algorithm='logistic',
+...     kwargs={'class_weight': 'balanced', 'C': 0.1}
+... )
+```
 
 **Methods:**
 
@@ -1849,8 +1841,7 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> model = np.random.rand(10, 10)  # 10 conditions
 >>> model = (model + model.T) / 2  # Make symmetric
 >>> terminal = RSATerminal(model_rdm=model, method='spearman')
@@ -1912,8 +1903,7 @@ Name | Type | Description | Default
 `n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.random.randn(100, 50)
 >>> step = ReduceStep(method='pca', n_components=10)
@@ -2121,8 +2111,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
-Examples
---------
+Examples:
 >>> class MyStep:
 ...     invertible = True
 ...     def fit(self, data):
@@ -2170,8 +2159,7 @@ chainable transform pipelines with optional cross-validation support.
 The design follows an immutable pattern where each transform method returns
 a new Pipeline instance, enabling fluent method chaining without side effects.
 
-Example
--------
+Example:
 >>> pipeline = (
 ...     Pipeline(data, cv=kfold)
 ...     .normalize(method='zscore')
@@ -2251,8 +2239,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
-Examples
---------
+Examples:
 >>> stack = FittedStack()
 >>> stack.append(fitted_pca)
 >>> stack.append(fitted_normalize)
@@ -2684,8 +2671,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
-Examples
---------
+Examples:
 >>> class MyStep:
 ...     invertible = True
 ...     def fit(self, data):
@@ -3154,8 +3140,7 @@ Name | Type | Description | Default
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
 `steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
-Examples
---------
+Examples:
 >>> # LOSO CV
 >>> pipeline = MultiSubjectPipeline(subject_data, cv=CVScheme(scheme='loso'))
 >>> result = pipeline.normalize().predict(y, algorithm='svm')
@@ -3262,8 +3247,7 @@ Type | Description
 ---- | -----------
 <code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
-Examples
---------
+Examples:
 >>> # SRM alignment before classification
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=CVScheme(scheme='loso'))
@@ -3307,8 +3291,7 @@ Type | Description
 ---- | -----------
  | Result containing ISC values, p-values, and confidence intervals.
 
-Examples
---------
+Examples:
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)
 ...     .normalize()
@@ -3354,23 +3337,27 @@ Type | Description
 ---- | -----------
  | Cross-validation results.
 
-Examples
---------
-Basic regression with LOSO CV::
+**Examples:**
 
-    result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+Basic regression with LOSO CV:
 
-Classification with balanced classes::
+```python
+result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+```
+Classification with balanced classes:
 
-    result = pipeline.cv('loso').predict(
-        group_labels, algorithm='svm', class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    group_labels, algorithm='svm', class_weight='balanced'
+)
+```
+Logistic regression with regularization:
 
-Logistic regression with regularization::
-
-    result = pipeline.cv('loso').predict(
-        binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
+)
+```
 
 ######## `reduce`
 
@@ -3406,8 +3393,7 @@ Type | Description
 ---- | -----------
  | Result containing correlation coefficient and p-value.
 
-Examples
---------
+Examples:
 >>> model = np.corrcoef(conditions)  # Theoretical model
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)
@@ -3463,8 +3449,7 @@ Name | Type | Description | Default
 `fitted_state` | <code>[Any](#typing.Any) \| None</code> | Saved fitted models for repool() functionality. | <code>None</code>
 `save_path` | <code>[str](#str) \| None</code> | Path where data was saved. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> # Two-stage GLM
 >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
 >>> result = pool.fit(model='ttest', contrast='face-house')
@@ -3630,8 +3615,7 @@ Type | Description
 ---- | -----------
 <code>[StatResult](#nltools.pipelines.pool.StatResult) \| [ResultDict](#nltools.pipelines.pool.ResultDict)</code> | Statistical results. ResultDict if multiple contrasts specified.
 
-Examples
---------
+Examples:
 >>> result = pool.fit(model='ttest', contrast='face-house')
 >>> result.t_map.max()
 
@@ -3871,8 +3855,7 @@ Name | Type | Description | Default
 `fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
-Examples
---------
+Examples:
 >>> result = pipeline.predict(y)
 >>> print(f"Mean score: {result.mean_score:.4f} (+/- {result.std_score:.4f})")
 >>> all_predictions = result.predictions  # In original sample order
@@ -4410,8 +4393,7 @@ Name | Type | Description | Default
 `n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Default is -1. | <code>-1</code>
 `**kwargs` |  | Additional arguments passed to the underlying algorithm. For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'. | <code>{}</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> # Create synthetic multi-subject data
 >>> data = [np.random.randn(100, 50) for _ in range(5)]
@@ -4914,8 +4896,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | Normalization method: 'zscore' (subtract mean, divide by std) or 'minmax' (scale to [0, 1] range). Default is 'zscore'. | <code>'zscore'</code>
 `axis` | <code>[int](#int)</code> | Axis along which to compute statistics. Default 0 (per-feature normalization, treating rows as samples). | <code>0</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.array([[1, 2], [3, 4], [5, 6]])
 >>> step = NormalizeStep(method='zscore')
@@ -5002,8 +4983,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `transformer` | <code>[Any](#typing.Any)</code> | An sklearn-compatible transformer instance. Must have fit() and transform() methods. The transformer will be cloned before fitting. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> from sklearn.preprocessing import StandardScaler
 >>> import numpy as np
 >>> data = np.random.randn(100, 10)
@@ -5097,8 +5077,7 @@ Name | Type | Description | Default
 `n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.random.randn(100, 50)
 >>> step = ReduceStep(method='pca', n_components=10)
@@ -5223,8 +5202,7 @@ Name | Type | Description | Default
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> terminal = ISCTerminal(method='pairwise', n_permute=1000)
 >>> result = terminal.fit_evaluate(data_list)
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
@@ -5322,27 +5300,31 @@ Name | Type | Description | Default
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
-Examples
---------
-Basic classification::
+**Examples:**
 
-    >>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+Basic classification:
 
-Balanced classification for imbalanced data::
+```python
+>>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+```
+Balanced classification for imbalanced data:
 
-    >>> terminal = PredictTerminal(
-    ...     y=imbalanced_labels,
-    ...     algorithm='svm',
-    ...     kwargs={'class_weight': 'balanced'}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=imbalanced_labels,
+...     algorithm='svm',
+...     kwargs={'class_weight': 'balanced'}
+... )
+```
+Logistic regression with balanced classes:
 
-Logistic regression with balanced classes::
-
-    >>> terminal = PredictTerminal(
-    ...     y=binary_labels,
-    ...     algorithm='logistic',
-    ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=binary_labels,
+...     algorithm='logistic',
+...     kwargs={'class_weight': 'balanced', 'C': 0.1}
+... )
+```
 
 **Methods:**
 
@@ -5451,8 +5433,7 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> model = np.random.rand(10, 10)  # 10 conditions
 >>> model = (model + model.T) / 2  # Make symmetric
 >>> terminal = RSATerminal(model_rdm=model, method='spearman')

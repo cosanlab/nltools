@@ -8,7 +8,7 @@ Name | Description
 ---- | -----------
 [`clean`](#clean) | Remove highly correlated columns.
 [`corr`](#corr) | Correlation between DesignMatrix columns as an Adjacency.
-[`vif`](#vif) | Compute variance inflation factor for each column.
+[`vif`](#vif) | Compute the variance inflation factor for each column.
 
 
 
@@ -86,7 +86,7 @@ yield NaN correlations.
 vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None
 ```
 
-Compute variance inflation factor for each column.
+Compute the variance inflation factor for each column.
 
 Uses diagonal elements of inverted correlation matrix
 (same method as Matlab and R).

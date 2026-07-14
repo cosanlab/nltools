@@ -4,9 +4,9 @@
 BrainData(data = None, *, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
 ```
 
-BrainData is a class to represent neuroimaging data in python as a vector
-rather than a 3-dimensional matrix. This makes it easier to perform data
-manipulation and analyses.
+Represent neuroimaging data as vectors instead of three-dimensional matrices.
+
+This representation makes it easier to perform data manipulation and analyses.
 
 **Parameters:**
 
@@ -39,21 +39,19 @@ Name | Description
 [`find_spikes`](#find_spikes) | Identify spikes from Time Series Data.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient.
-[`iplot`](#iplot) | Interactive HTML viewer with threshold panel (and volume slider for 4D).
+[`iplot`](#iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 [`mean`](#mean) | Get mean of each voxel or image.
 [`median`](#median) | Get median of each voxel or image.
-[`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
+[`multivariate_similarity`](#multivariate_similarity) | Predict a BrainData spatial distribution from a linear combination.
 [`plot`](#plot) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
 [`plot_surf`](#plot_surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 [`predict`](#predict) | Predict voxel timeseries (encoding) or decode labels (MVPA).
-[`predict_multi`](#predict_multi) | Deprecated: removed in v0.6.0; will return in a future Model class.
-[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
+[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
 [`regions`](#regions) | Extract brain connected regions into separate regions.
-[`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
 [`resample_to`](#resample_to) | Resample BrainData to match target image or resolution.
 [`scale`](#scale) | Scale data via mean scaling.
-[`similarity`](#similarity) | Calculate similarity of BrainData() instance with single
+[`similarity`](#similarity) | Calculate similarity to a single BrainData or nibabel image.
 [`smooth`](#smooth) | Apply spatial smoothing using nilearn smooth_img().
 [`standardize`](#standardize) | Standardize BrainData() instance.
 [`std`](#std) | Get standard deviation of each voxel or image.
@@ -64,7 +62,7 @@ Name | Description
 [`transform_pairwise`](#transform_pairwise) | Transform data into pairwise comparisons.
 [`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
-[`upload_neurovault`](#upload_neurovault) | Upload Data to Neurovault.  Will add any columns in self.X to image
+[`upload_neurovault`](#upload_neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
 
@@ -242,14 +240,14 @@ Name | Type | Description | Default
 `cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
 `two_sided` | <code>[bool](#bool)</code> | Report negative clusters separately. | <code>True</code>
 `min_distance` | <code>[float](#float)</code> | Minimum mm between sub-peaks within a cluster. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)] \| None</code> | Atlas name or list of names (see :func:`list_atlases`). Defaults to ``("harvard_oxford", "aal", "schaefer_200")``. | <code>None</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)] \| None</code> | Atlas name or list of names (see `list_atlases`). Defaults to ``("harvard_oxford", "aal", "schaefer_200")``. | <code>None</code>
 `prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | class:`~nltools.data.atlases.ClusterReport` with ``peaks``,
+<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | `ClusterReport` with ``peaks``,
 <code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
 
 #### `compute_contrasts`
@@ -531,7 +529,7 @@ attributes are populated — one map per design-matrix column:
 
 ``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
 regressor ``i`` only. For contrasts across regressors
-(``"A - B"``, ``[1, -1, 0, ...]``) use :meth:`compute_contrasts` —
+(``"A - B"``, ``[1, -1, 0, ...]``) use `compute_contrasts` —
 you cannot correctly combine these per-regressor maps by hand
 because t-statistic arithmetic requires the off-diagonal elements
 of the parameter covariance matrix, which are not stored. Pass
@@ -583,36 +581,45 @@ Name | Type | Description
 #### `iplot`
 
 ```python
-iplot(*, view: str = 'ortho', mode: str = 'symmetric', units: str = 'value', lower: float | None = None, upper: float | None = None, threshold: float | None = None, bg_img: float | None = None, cut_coords: float | None = None, cmap: str | None = None, symmetric_cmap: bool = True, **kwargs: bool)
+iplot(*, view: str = 'ortho', threshold: float | None = None, lower: float | None = None, upper: float | None = None, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, **kwargs: float)
 ```
 
-Interactive HTML viewer with threshold panel (and volume slider for 4D).
+Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 
-Returns a `BrainViewerWidget` (anywidget) wrapping nilearn's HTML
-ortho or surface viewer. Renders inline in Jupyter, marimo, and
-Jupyter Book v2 / mystmd built sites.
+Returns a configured `NiiVue` widget — itself an
+anywidget — that renders inline in a live kernel (Jupyter, marimo)
+with live windowing (right-drag to set the threshold/contrast),
+slice scrolling, native 4D frame scrubbing, true 3D rendering, and
+optional nltools-atlas overlays. Static-built docs are not supported;
+use `plot` there.
+
+Thresholding is a divergent magnitude window: ``cal_min`` is the
+display floor (sub-floor voxels render transparent), ``cal_max`` the
+saturation point, with the positive limb using ``cmap`` and the
+negative limb its mirrored partner. Precedence: ``lower``/``upper``
+win; otherwise ``threshold`` sets the floor (ceiling auto);
+otherwise the window is fully auto.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`view` | <code>[str](#str)</code> | ``"ortho"`` (default, uses ``nilearn.view_img``) or ``"surface"`` (uses ``nilearn.view_img_on_surf``). | <code>'ortho'</code>
-`mode` | <code>[str](#str)</code> | ``"symmetric"`` (default, single ``|x| ≥ upper`` slider) or ``"independent"`` (separate negative/positive cutoffs; voxels in ``(lower, upper)`` are masked). | <code>'symmetric'</code>
-`units` | <code>[str](#str)</code> | ``"value"`` (default) or ``"percentile"``. Toggleable in the UI; this just sets the initial state. | <code>'value'</code>
-`lower` | <code>[float](#float) \| None</code> | Initial negative cutoff for ``mode="independent"`` (must be ≤ 0). Ignored in symmetric mode. | <code>None</code>
-`upper` | <code>[float](#float) \| None</code> | Initial threshold for symmetric mode (``|x| ≥ upper``) or positive cutoff for independent mode (must be ≥ 0). | <code>None</code>
-`threshold` | <code>[float](#float) \| None</code> | Deprecated alias for ``upper`` (symmetric mode). | <code>None</code>
-`bg_img` |  | Background image (ortho only). Defaults to nilearn's MNI152. | <code>None</code>
-`cut_coords` |  | Initial cut coordinates (ortho only). | <code>None</code>
-`cmap` | <code>[str](#str) \| None</code> | Colormap name. | <code>None</code>
-`symmetric_cmap` | <code>[bool](#bool)</code> | Whether the colormap is symmetric around zero. | <code>True</code>
-`**kwargs` |  | Forwarded to ``nilearn.view_img`` / ``nilearn.view_img_on_surf``. | <code>{}</code>
+`view` | <code>[str](#str)</code> | ``"ortho"`` (default), ``"axial"``, ``"coronal"``, ``"sagittal"``, or ``"render"`` (3D volume render). ``"surface"`` is no longer supported — use ``"render"`` or `plot_flatmap` / `plot_surf`. | <code>'ortho'</code>
+`threshold` | <code>[float](#float) \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). | <code>None</code>
+`lower` | <code>[float](#float) \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. | <code>None</code>
+`upper` | <code>[float](#float) \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
+`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
+`atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
+`opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
+`outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
+`**kwargs` |  | Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | BrainViewerWidget
+ | ipyniivue.NiiVue: A configured viewer widget.
 
 #### `mean`
 
@@ -664,8 +671,9 @@ Type | Description
 multivariate_similarity(images, method = 'ols')
 ```
 
-Predict spatial distribution of BrainData() instance from linear
-combination of other BrainData() instances or Nibabel images.
+Predict a BrainData spatial distribution from a linear combination.
+
+The predictors may be other BrainData instances or nibabel images.
 
 **Parameters:**
 
@@ -763,7 +771,7 @@ plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsav
 
 Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 
-Facade over :func:`nltools.plotting.plot_surf`. See that function's
+Facade over `plot_surf`. See that function's
 docstring for the full argument reference. Notable defaults:
 ``surface="pial"``, ``zoom=1.2``, ``transparency="auto"`` (uses
 this instance's ``.mask``).
@@ -790,9 +798,9 @@ Dispatched by which of ``X`` or ``y`` is provided:
    timeseries (composes directly with ``.plot()``, ``.standardize()``
    etc.). ``inplace`` has no effect in this mode.
 2. **MVPA decoding** (``y`` provided): train a classifier or
-   regressor with cross-validation. Returns a :class:`Predict`
+   regressor with cross-validation. Returns a `Predict`
    dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
-   ``final_weight_map``, ``accuracy_map``) are :class:`BrainData`
+   ``final_weight_map``, ``accuracy_map``) are `BrainData`
    objects so ``result.weight_map.plot()`` works directly. Drop down
    to numpy via ``result.weight_map.data``.
 
@@ -842,7 +850,7 @@ Name | Type | Description | Default
 `groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
-`inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh :class:`Predict`. | <code>False</code>
+`inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight / ROI. Default ``1``; searchlight on a real brain at higher ``n_jobs`` can be memory-heavy. | <code>1</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight / ROI. | <code>False</code>
 
@@ -874,27 +882,17 @@ Type | Description
 ```
 
 Custom sklearn pipeline as model — standardize auto-defaults to
-False because we detect the Pipeline::
-
-    from sklearn.feature_selection import SelectKBest
-    from sklearn.pipeline import make_pipeline
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.svm import LinearSVC
-    pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
-                         LinearSVC())
-    result = brain.predict(y=labels, model=pipe)
-
-#### `predict_multi`
+False because we detect the Pipeline:
 
 ```python
-predict_multi(*args, **kwargs)
+from sklearn.feature_selection import SelectKBest
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import LinearSVC
+pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
+                     LinearSVC())
+result = brain.predict(y=labels, model=pipe)
 ```
-
-Deprecated: removed in v0.6.0; will return in a future Model class.
-
-Per the v0.6 migration guide, the multi-method MVPA wrapper has
-been removed. Use :meth:`predict` for whole-brain MVPA, or compose
-sklearn estimators directly via the new Model API.
 
 #### `r_to_z`
 
@@ -902,8 +900,7 @@ sklearn estimators directly via the new Model API.
 r_to_z()
 ```
 
-Apply Fisher's r to z transformation to each element of the data
-object.
+Apply Fisher's r-to-z transformation to each data element.
 
 #### `regions`
 
@@ -927,17 +924,6 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance with extracted ROIs as data.
-
-#### `regress`
-
-```python
-regress(design_matrix = None, method = 'ols', mode = None)
-```
-
-Deprecated: Use fit(model='glm', X=design_matrix) instead.
-
-.. deprecated:: 0.6.0
-    Use :meth:`fit` with ``model='glm'`` instead.
 
 #### `resample_to`
 
@@ -996,8 +982,7 @@ Name | Type | Description
 similarity(image, method = 'correlation')
 ```
 
-Calculate similarity of BrainData() instance with single
-BrainData or Nibabel image.
+Calculate similarity to a single BrainData or nibabel image.
 
 **Parameters:**
 
@@ -1187,7 +1172,7 @@ contrast maps) with shape ``(n_samples, n_voxels)``.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via :func:`nltools.stats.one_sample_permutation_test`. | <code>False</code>
+`permutation` |  | If True, use sign-flip permutation test via `one_sample_permutation_test`. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
 `tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
@@ -1244,8 +1229,10 @@ Name | Type | Description
 upload_neurovault(access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
 ```
 
-Upload Data to Neurovault.  Will add any columns in self.X to image
-    metadata. Index will be used as image name.
+Upload BrainData images and metadata to NeuroVault.
+
+Adds any columns in ``self.X`` to image metadata. The index is used as
+the image name.
 
 **Parameters:**
 

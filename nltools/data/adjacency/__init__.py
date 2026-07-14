@@ -1,6 +1,4 @@
-"""
-This data class is for working with similarity/dissimilarity matrices
-"""
+"""Provide data structures for working with similarity and dissimilarity matrices."""
 
 from copy import deepcopy
 from pathlib import Path
@@ -34,7 +32,8 @@ MAX_INT = np.iinfo(np.int32).max
 
 
 class Adjacency:
-    """
+    """Represent adjacency matrices in vectorized form.
+
     Adjacency is a class to represent Adjacency matrices as a vector rather
     than a 2-dimensional matrix. This makes it easier to perform data
     manipulation and analyses.
@@ -374,7 +373,7 @@ class Adjacency:
     # ── Public methods (alphabetical) ───────────────────────────────────
 
     def append(self, data):
-        """Append data to Adjacency instance
+        """Append data to an Adjacency instance.
 
         Args:
             data:  (Adjacency) Adjacency instance to append
@@ -526,8 +525,7 @@ class Adjacency:
         raise ValueError("Matrix is not a distance matrix.")
 
     def generate_permutations(self, n_permute, random_state=None):
-        """
-        Generate n_permute permutated versions of Adjacency in a lazy fashion.
+        """Generate permuted versions of an Adjacency instance lazily.
 
         Args:
             n_permute (int): number of permutations
@@ -568,7 +566,7 @@ class Adjacency:
         return apply_stat(self, np.nanmedian, axis)
 
     def plot(self, limit=3, axes=None, *args, **kwargs):
-        """Create Heatmap of Adjacency Matrix
+        """Create a heatmap of an Adjacency matrix.
 
         Can pass in any sns.heatmap argument
 
@@ -581,7 +579,7 @@ class Adjacency:
         return plot_adjacency(self, limit, axes, *args, **kwargs)
 
     def plot_label_distance(self, labels=None, ax=None):
-        """Create a violin plot indicating within and between label distance
+        """Create a violin plot of within- and between-label distances.
 
         Args:
             labels (np.array):  numpy array of labels to plot
@@ -608,7 +606,7 @@ class Adjacency:
         *args,
         **kwargs,
     ):
-        """Plot Multidimensional Scaling
+        """Plot multidimensional scaling.
 
         Args:
             n_components: (int) Number of dimensions to project (can be 2 or 3)
@@ -642,14 +640,13 @@ class Adjacency:
     def plot_silhouette(
         self, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
     ):
-        """Create a silhouette plot"""
+        """Create a silhouette plot."""
         from .stats import plot_silhouette
 
         return plot_silhouette(self, labels, ax, permutation_test, n_permute, **kwargs)
 
     def r_to_z(self):
-        """Apply Fisher's r to z transformation to each element of the data
-        object."""
+        """Apply Fisher's r-to-z transformation to each data element."""
         from .stats import r_to_z
 
         return r_to_z(self)
@@ -686,9 +683,9 @@ class Adjacency:
         *,
         project: bool = False,
     ):
-        """
-        Calculate similarity between two Adjacency matrices. Default is to use spearman
-        correlation and permutation test.
+        """Calculate similarity between two Adjacency matrices.
+
+        The default uses Spearman correlation and a permutation test.
 
         Args:
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
@@ -764,7 +761,7 @@ class Adjacency:
         return social_relations_model(self, summarize_results, nan_replace)
 
     def squareform(self):
-        """Convert adjacency back to squareform"""
+        """Convert adjacency data back to square form."""
         if self.issymmetric:
             if self.is_single_matrix:
                 return squareform(self.data)
@@ -817,10 +814,11 @@ class Adjacency:
         return apply_stat(self, np.nansum, axis)
 
     def threshold(self, upper=None, lower=None, binarize=False):
-        """Threshold Adjacency instance. Provide upper and lower values or
-           percentages to perform two-sided thresholding. Binarize will return
-           a mask image respecting thresholds if provided, otherwise respecting
-           every non-zero value.
+        """Threshold an Adjacency instance.
+
+        Provide upper and lower values or percentages to perform two-sided
+        thresholding. Binarize will return a mask image respecting thresholds
+        if provided, otherwise respecting every non-zero value.
 
         Args:
             upper: (float or str) Upper cutoff for thresholding. If string
@@ -842,10 +840,10 @@ class Adjacency:
         return threshold(self, upper, lower, binarize)
 
     def to_brain(self, values, *, fill: float = np.nan):
-        """Project per-matrix scalars back to voxel-space :class:`BrainData`.
+        """Project per-matrix scalars back to voxel-space `BrainData`.
 
-        Requires :attr:`spatial_scale` to be set (i.e. this stack came from
-        :meth:`BrainData.distance` or another spatial-scale-aware producer).
+        Requires `spatial_scale` to be set (i.e. this stack came from
+        `BrainData.distance` or another spatial-scale-aware producer).
         Each entry of ``values`` is painted onto the voxels assigned to its
         corresponding parcel by ``spatial_scale.atlas`` /
         ``spatial_scale.roi_labels``. Voxels outside the atlas receive
@@ -895,8 +893,10 @@ class Adjacency:
         )
 
     def to_graph(self):
-        """Convert Adjacency into networkx graph.  only works on
-        single_matrix for now."""
+        """Convert a single Adjacency matrix into a NetworkX graph.
+
+        This currently works only for ``single_matrix``.
+        """
         from .io import to_graph
 
         return to_graph(self)
@@ -904,7 +904,7 @@ class Adjacency:
     def to_square(self):
         """Convert adjacency back to square matrix format.
 
-        This is an alias for :meth:`squareform`.
+        This is an alias for `squareform`.
 
         Returns:
             np.ndarray or list: Square matrix representation. Returns a list
@@ -962,7 +962,7 @@ class Adjacency:
         return write(self, file_name, method)
 
     def z_to_r(self):
-        """Convert z score back into r value for each element of data object"""
+        """Convert each z score back into an r value."""
         from .stats import z_to_r
 
         return z_to_r(self)

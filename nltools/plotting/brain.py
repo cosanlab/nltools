@@ -37,8 +37,7 @@ def plot_interactive_brain(
     anatomical=None,
     **kwargs,
 ):
-    """
-    This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+    """Create an interactive brain visualization with nilearn.
 
     Args:
         brain (nltools.BrainData): a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume)

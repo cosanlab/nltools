@@ -52,8 +52,7 @@ class CVResult:
         fold_results: Results from each CV fold.
         pipeline: The pipeline that produced these results.
 
-    Examples
-    --------
+    Examples:
     >>> result = pipeline.predict(y)
     >>> print(f"Mean score: {result.mean_score:.4f} (+/- {result.std_score:.4f})")
     >>> all_predictions = result.predictions  # In original sample order

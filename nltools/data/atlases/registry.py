@@ -2,8 +2,8 @@
 
 Each entry describes an atlas's kind (deterministic vs probabilistic) and
 the citation users should cite when they use it. The actual NIfTI + label
-files are fetched lazily by :func:`nltools.data.atlases.load_atlas` via
-:func:`nltools.templates.fetch_resource`.
+files are fetched lazily by `load_atlas` via
+`fetch_resource`.
 
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
@@ -88,6 +88,6 @@ def list_atlases() -> list[str]:
 
     Returns:
         Sorted list of atlas names usable with
-        :func:`nltools.data.atlases.load_atlas`.
+        `load_atlas`.
     """
     return sorted(ATLASES.keys())

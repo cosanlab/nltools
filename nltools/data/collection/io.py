@@ -165,9 +165,10 @@ def load(
     bc: BrainCollection,
     indices: list[int] | None = None,
 ) -> BrainCollection:
-    """Materialize path-backed items into ``BrainData``. Mutates ``bc`` in place.
+    """Materialize path-backed items into ``BrainData``.
 
-    The only mutation method besides ``unload`` — does not allocate a step
+    Mutates ``bc`` in place. This is the only mutation method besides
+    ``unload`` and does not allocate a step
     subdir, does not write to disk, does not produce a new identity.
     """
     raise NotImplementedError("scaffold")
@@ -177,9 +178,10 @@ def unload(
     bc: BrainCollection,
     indices: list[int] | None = None,
 ) -> BrainCollection:
-    """Drop in-memory data for items that have backing paths. Mutates in place.
+    """Drop in-memory data for items that have backing paths.
 
-    No-op for items that don't have a backing path (would lose data).
+    Mutates in place. This is a no-op for items that don't have a backing path
+    because dropping them would lose data.
     """
     raise NotImplementedError("scaffold")
 

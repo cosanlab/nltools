@@ -1,5 +1,4 @@
-"""
-Matrix permutation test implementations (Mantel test).
+"""Matrix permutation test implementations (Mantel test).
 
 This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
@@ -56,8 +55,7 @@ def _compute_matrix_correlation(
     include_diag: bool = False,
     metric: str = "pearson",
 ) -> float:
-    """
-    Compute correlation between elements of two matrices.
+    """Compute correlation between elements of two matrices.
 
     Args:
         matrix1 (np.ndarray): First square matrix (n×n)
@@ -92,8 +90,7 @@ def _compute_matrix_correlation(
 
 
 def _compute_cross_correlation(matrix1: np.ndarray, matrix2: np.ndarray) -> np.ndarray:
-    """
-    Compute cross-correlation between columns (features) of two matrices.
+    """Compute cross-correlation between columns (features) of two matrices.
 
     This function computes the correlation between each column of matrix1
     with each column of matrix2. Useful for computing connectivity matrices
@@ -148,8 +145,7 @@ def _matrix_permutation_cpu_parallel(
     n_jobs: int,
     random_state: int | None,
 ) -> dict:
-    """
-    Matrix permutation test using CPU parallelization with joblib.
+    """Matrix permutation test using CPU parallelization with joblib.
 
     Pre-generates seeds deterministically, then parallelizes permutation
     computation. This ensures perfect reproducibility across runs.
@@ -466,8 +462,7 @@ def distance_correlation(
     bias_corrected: bool = True,
     ttest: bool = False,
 ) -> dict:
-    """
-    Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+    """Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
 
     Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected
     version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2

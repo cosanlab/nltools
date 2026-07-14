@@ -1,6 +1,4 @@
-"""
-External functions
-"""
+"""External functions."""
 
 __all__ = [
     "SRM",

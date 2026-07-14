@@ -1,6 +1,6 @@
-"""
-NeuroLearn datasets
-===================
+"""Dataset download and example-data utilities.
+
+# NeuroLearn datasets
 
 Functions to help download datasets from Neurovault and other sources.
 

@@ -3,8 +3,7 @@
 This module provides a fluent API for building data processing pipelines
 with cross-validation support.
 
-Classes
--------
+Classes:
 Pipeline
     Base pipeline for chained transforms with optional CV.
 CVScheme
@@ -12,8 +11,7 @@ CVScheme
 FittedStack
     Collection of fitted transforms for inverse transform support.
 
-Protocols
----------
+Protocols:
 TransformStep
     Protocol for pipeline transform steps.
 FittedTransform
@@ -21,8 +19,7 @@ FittedTransform
 Terminal
     Protocol for terminal operations.
 
-Examples
---------
+Examples:
 >>> from nltools.pipelines import Pipeline, CVScheme
 >>> cv = CVScheme(scheme='kfold', k=5)
 >>> result = (

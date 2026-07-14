@@ -1,8 +1,8 @@
 """BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Single entry point: :func:`predict`. Returns :class:`nltools.data.fitresults.Predict`
-with fields populated based on dispatch. Mirrors :meth:`BrainData.fit` /
-:class:`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
+Single entry point: `predict`. Returns `Predict`
+with fields populated based on dispatch. Mirrors `BrainData.fit` /
+`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
 self with attributes, ``inplace=False`` returns the dataclass.
 """
 
@@ -40,8 +40,10 @@ def predict(
     n_jobs: int = 1,
     progress_bar: bool = False,
 ):
-    """Implementation of :meth:`BrainData.predict`. See class docstring for
-    full parameter documentation.
+    """Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
+
+    Implements `BrainData.predict`. See the class docstring for full parameter
+    documentation.
     """
     if X is not None and y is not None:
         raise ValueError(
@@ -235,7 +237,9 @@ def predict_mvpa(
 
 
 def _resolve_standardize_for_model(resolved_model, standardize: bool) -> bool:
-    """Auto-default ``standardize=False`` when the user passes a sklearn
+    """Resolve standardization for user-provided scikit-learn pipelines.
+
+    Auto-default ``standardize=False`` when the user passes a sklearn
     ``Pipeline`` as ``model=``. Pipelines are an explicit "I'm taking control
     of preprocessing" signal — silently wrapping another StandardScaler around
     them double-scales features. Users can opt back in with ``standardize=True``
@@ -302,8 +306,10 @@ def resolve_scoring(scoring: str, classifier: bool) -> str:
 
 
 def build_pipeline(model, standardize: bool, reduce: str | None, n_components):
-    """Build a per-fold sklearn pipeline: optional StandardScaler → optional
-    PCA → model. If only the model is needed, returns the model itself.
+    """Build a per-fold scikit-learn preprocessing and model pipeline.
+
+    The pipeline contains an optional StandardScaler, optional PCA, and the
+    model. If only the model is needed, returns the model itself.
     """
     from sklearn.decomposition import PCA
     from sklearn.pipeline import make_pipeline
@@ -406,8 +412,9 @@ def _iter_split(cv, X, y, groups):
 def _extract_weight_map(
     fitted_pipe, n_features: int, *, quiet: bool = False
 ) -> np.ndarray | None:
-    """Extract a 1-D coefficient vector from a fitted pipeline at the local
-    feature width (n_voxels for whole_brain, sphere size for searchlight,
+    """Extract a one-dimensional coefficient vector from a fitted pipeline.
+
+    The vector uses the local feature width (n_voxels for whole_brain, sphere size for searchlight,
     parcel size for ROI).
 
     For multi-class linear classifiers, returns the mean across classes.
@@ -465,8 +472,10 @@ def _extract_weight_map(
 def _aggregate_weight_maps(
     per_fold: list[np.ndarray | None], n_folds: int, n_voxels: int
 ):
-    """Stack per-fold weight maps into (n_folds, n_voxels) and mean to
-    (n_voxels,). Returns (None, None) if any fold lacked a usable map.
+    """Aggregate per-fold weight maps into their voxelwise mean.
+
+    Stacks maps into (n_folds, n_voxels) and averages to (n_voxels,).
+    Returns (None, None) if any fold lacked a usable map.
     """
     if any(w is None for w in per_fold):
         return None, None
@@ -604,8 +613,10 @@ def _run_roi(
     scorer = check_scoring(pipe, scoring=scoring)
 
     def decode_roi(roi_label):
-        """Per-parcel: manual CV (capture per-fold scores + coefs), then
-        all-data refit. Returns a tuple summarizing one parcel's result.
+        """Run cross-validation and an all-data refit for one atlas parcel.
+
+        Captures per-fold scores and coefficients, then returns a tuple
+        summarizing the parcel's result.
         """
         cols = label_vec == roi_label
         if not cols.any():

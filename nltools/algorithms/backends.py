@@ -1,5 +1,4 @@
-"""
-Backend abstraction for CPU/GPU operations.
+"""Backend abstraction for CPU/GPU operations.
 
 Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for
 linear algebra operations. Enables transparent acceleration while
@@ -17,8 +16,7 @@ _already_warned_float64 = [False]
 
 
 class Backend:
-    """
-    Backend abstraction for numerical operations.
+    """Backend abstraction for numerical operations.
 
     Provides a unified interface for NumPy and PyTorch operations,
     enabling transparent GPU acceleration when available.
@@ -48,14 +46,14 @@ class Backend:
             )
 
     def _init_numpy(self):
-        """Initialize NumPy backend"""
+        """Initialize NumPy backend."""
         self.name = "numpy"
         self.device = "cpu"
         self.xp = np
         self._torch_device = None
 
     def _init_torch(self):
-        """Initialize PyTorch backend with device detection"""
+        """Initialize PyTorch backend with device detection."""
         try:
             import torch
         except ImportError:
@@ -96,7 +94,7 @@ class Backend:
         return self.device in ("cuda", "mps")
 
     def _init_auto(self):
-        """Automatically select best backend"""
+        """Automatically select best backend."""
         import importlib.util
 
         # Check if PyTorch is available without importing it
@@ -108,8 +106,7 @@ class Backend:
             self._init_numpy()
 
     def to_device(self, arr: np.ndarray):
-        """
-        Transfer array to backend device.
+        """Transfer array to backend device.
 
         Args:
             arr (np.ndarray): Input numpy array
@@ -139,8 +136,7 @@ class Backend:
         return tensor.to(self._torch_device)
 
     def to_numpy(self, arr):
-        """
-        Convert array back to NumPy.
+        """Convert array back to NumPy.
 
         Args:
             arr (np.ndarray or torch.Tensor): Array to convert
@@ -159,8 +155,7 @@ class Backend:
         return arr
 
     def svd(self, X, full_matrices=False):
-        """
-        Compute Singular Value Decomposition.
+        """Compute Singular Value Decomposition.
 
         Args:
             X (array): Input matrix (n_samples, n_features)
@@ -202,8 +197,7 @@ class Backend:
         return torch.linalg.svd(X, full_matrices=full_matrices)
 
     def matmul(self, A, B):
-        """
-        Matrix multiplication.
+        """Matrix multiplication.
 
         Args:
             A (array): First matrix
@@ -563,12 +557,12 @@ class Backend:
 
 
 def resolve_backend(parallel):
-    """Coerce a backend specifier into a :class:`Backend` instance.
+    """Coerce a backend specifier into a `Backend` instance.
 
     Accepts the values callers typically thread through the algorithms
     package (``None``/``"cpu"`` → numpy, ``"gpu"``/``"torch"`` → torch,
-    ``"numpy"``/``"auto"`` → their direct :class:`Backend` constructors).
-    Existing :class:`Backend` instances are returned unchanged — this is
+    ``"numpy"``/``"auto"`` → their direct `Backend` constructors).
+    Existing `Backend` instances are returned unchanged — this is
     the main reason to prefer ``resolve_backend`` over constructing a new
     ``Backend(...)`` at each call site: it avoids repeated device
     detection/torch imports when a backend has already been chosen upstream.
@@ -579,7 +573,7 @@ def resolve_backend(parallel):
             - ``None`` or ``"cpu"``: numpy backend.
             - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``.
             - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu).
-            - An existing :class:`Backend` instance (returned as-is).
+            - An existing `Backend` instance (returned as-is).
 
     Returns:
         Backend: Resolved backend instance.
@@ -669,8 +663,7 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
 
 
 def check_gpu_available() -> tuple[bool, dict[str, Any]]:
-    """
-    Check if GPU acceleration is available.
+    """Check if GPU acceleration is available.
 
     Returns:
         tuple: (available, info) where:
@@ -709,8 +702,7 @@ def check_gpu_available() -> tuple[bool, dict[str, Any]]:
 
 
 def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend:
-    """
-    Automatically select backend based on problem size.
+    """Automatically select backend based on problem size.
 
     Uses heuristics to decide between NumPy (CPU) and PyTorch (GPU)
     based on the computational workload. Small problems use NumPy

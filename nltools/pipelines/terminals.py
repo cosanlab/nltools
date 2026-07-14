@@ -35,27 +35,30 @@ class PredictTerminal:
             ``C`` for regularization strength (svm, logistic), ``alpha`` for
             regularization strength (ridge, lasso, elastic).
 
-    Examples
-    --------
-    Basic classification::
+    Examples:
+        Basic classification:
 
+        ```python
         >>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+        ```
+        Balanced classification for imbalanced data:
 
-    Balanced classification for imbalanced data::
-
+        ```python
         >>> terminal = PredictTerminal(
         ...     y=imbalanced_labels,
         ...     algorithm='svm',
         ...     kwargs={'class_weight': 'balanced'}
         ... )
+        ```
+        Logistic regression with balanced classes:
 
-    Logistic regression with balanced classes::
-
+        ```python
         >>> terminal = PredictTerminal(
         ...     y=binary_labels,
         ...     algorithm='logistic',
         ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
         ... )
+        ```
     """
 
     y: NDArray
@@ -186,8 +189,7 @@ class ISCTerminal:
         parallel: Parallelization method: 'cpu' (default), 'gpu', or None.
         kwargs: Additional arguments passed to isc_permutation_test.
 
-    Examples
-    --------
+    Examples:
     >>> terminal = ISCTerminal(method='pairwise', n_permute=1000)
     >>> result = terminal.fit_evaluate(data_list)
     >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
@@ -294,8 +296,7 @@ class RSATerminal:
         n_permute: Number of permutations for p-value computation. Default is 5000.
         kwargs: Additional arguments passed to correlation computation.
 
-    Examples
-    --------
+    Examples:
     >>> model = np.random.rand(10, 10)  # 10 conditions
     >>> model = (model + model.T) / 2  # Make symmetric
     >>> terminal = RSATerminal(model_rdm=model, method='spearman')

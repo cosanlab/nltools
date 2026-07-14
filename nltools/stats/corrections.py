@@ -11,8 +11,9 @@ __all__ = [
 
 
 def fdr(p, q=0.05):
-    """Determine FDR threshold given a p value array and desired false
-    discovery rate q. Written by Tal Yarkoni
+    """Determine an FDR threshold for an array of p-values.
+
+    Uses the desired false discovery rate ``q``. Written by Tal Yarkoni.
 
     Args:
         p: (np.array) vector of p-values
@@ -40,7 +41,11 @@ def fdr(p, q=0.05):
 
 
 def holm_bonf(p, alpha=0.05):
-    """Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+    """Compute Holm-Bonferroni-corrected p-values.
+
+    This step-down procedure applies iteratively less correction to the highest
+    p-values. It is a bit more conservative than FDR, but much more powerful than
+    vanilla Bonferroni correction.
 
     Args:
         p: (np.array) vector of p-values

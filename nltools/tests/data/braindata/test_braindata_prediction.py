@@ -62,7 +62,9 @@ class TestWholeBrain:
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+        )
 
         assert result.predictions is not None
         assert result.predictions.shape == (n,)
@@ -88,7 +90,9 @@ class TestWholeBrain:
         n_voxels = sim_brain_data.shape[1]
         y = np.random.RandomState(0).randn(n)
 
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="ridge")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="ridge"
+        )
 
         assert isinstance(result, Predict)
         assert result.weight_map.shape == (n_voxels,)
@@ -117,7 +121,9 @@ class TestWholeBrain:
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="lda")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="lda"
+        )
         assert result.weight_map is not None
 
     def test_custom_sklearn_estimator(self, sim_brain_data):
@@ -127,7 +133,10 @@ class TestWholeBrain:
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
 
         result = sim_brain_data.predict(
-            y=y, spatial_scale="whole_brain", cv=3, model=LogisticRegression(max_iter=1000)
+            y=y,
+            spatial_scale="whole_brain",
+            cv=3,
+            model=LogisticRegression(max_iter=1000),
         )
         assert isinstance(result, Predict)
         assert result.weight_map is not None
@@ -269,7 +278,9 @@ class TestInplace:
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, inplace=True
+        )
         assert result is sim_brain_data
         assert sim_brain_data.predict_weight_map is not None
         assert sim_brain_data.predict_weight_map.shape == (n_voxels,)
@@ -311,7 +322,9 @@ class TestAllDataRefit:
     def test_estimator_is_fitted_and_callable_on_new_data(self, sim_brain_data):
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+        )
         assert result.estimator is not None
         # Linear-model estimators expose .coef_ (possibly inside a Pipeline).
         assert hasattr(result.estimator, "named_steps") or hasattr(
@@ -329,7 +342,9 @@ class TestAllDataRefit:
         """
         n = sim_brain_data.shape[0]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+        )
         # Pull coef_ from the all-data fit (no PCA in this default pipeline,
         # so .coef_ already lives in voxel space).
         est = result.estimator
@@ -378,7 +393,9 @@ class TestBrainDataWrapping:
         n = sim_brain_data.shape[0]
         n_voxels = sim_brain_data.shape[1]
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
-        result = sim_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, model="svm")
+        result = sim_brain_data.predict(
+            y=y, spatial_scale="whole_brain", cv=3, model="svm"
+        )
         for field in ("weight_map", "fold_weight_maps"):
             obj = getattr(result, field)
             assert isinstance(obj, BrainData), f"{field} should be BrainData"

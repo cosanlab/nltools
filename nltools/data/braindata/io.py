@@ -1,5 +1,4 @@
-"""
-BrainData I/O and loading functions.
+"""BrainData I/O and loading functions.
 
 Standalone functions extracted from BrainData class methods for mask initialization,
 data loading (from files, lists, URLs, HDF5, other BrainData objects), resampling,
@@ -764,7 +763,8 @@ def upload_neurovault(
     os.makedirs(tmp_dir)
 
     def add_image_to_collection(api, collection, dat, tmp_dir, index_id=0, **kwargs):
-        """Upload image to collection
+        """Upload an image to a NeuroVault collection.
+
         Args:
             api: pynv Client instance
             collection: collection information

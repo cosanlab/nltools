@@ -1,5 +1,4 @@
-"""
-HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
+"""HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
 
 Hyperalignment finds a common representational space across subjects by iteratively
 refining pairwise Procrustes transformations. Unlike simple alignment, hyperalignment

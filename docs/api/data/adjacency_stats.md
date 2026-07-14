@@ -1,6 +1,6 @@
 ## `stats`
 
-Standalone statistical functions for Adjacency matrices.
+Provide standalone statistical functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 
@@ -9,12 +9,12 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 Name | Description
 ---- | -----------
 [`cluster_summary`](#cluster_summary) | This function provides summaries of clusters within Adjacency matrices.
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot indicating within and between label distance
+[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
 [`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
 [`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data object.
-[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices. Default is to use spearman
+[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
 [`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
-[`threshold`](#threshold) | Threshold Adjacency instance. Provide upper and lower values or
+[`threshold`](#threshold) | Threshold an Adjacency instance.
 [`ttest`](#ttest) | Calculate ttest across samples.
 [`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
 
@@ -54,7 +54,7 @@ Name | Type | Description
 plot_label_distance(adj, labels = None, ax = None)
 ```
 
-Create a violin plot indicating within and between label distance
+Create a violin plot of within- and between-label distances.
 
 **Parameters:**
 
@@ -119,8 +119,9 @@ Name | Type | Description
 similarity(adj, data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
-Calculate similarity between two Adjacency matrices. Default is to use spearman
-correlation and permutation test.
+Calculate similarity between two Adjacency matrices.
+
+The default uses Spearman correlation and a permutation test.
 
 **Parameters:**
 
@@ -173,10 +174,11 @@ Name | Type | Description
 threshold(adj, upper = None, lower = None, binarize = False)
 ```
 
-Threshold Adjacency instance. Provide upper and lower values or
-   percentages to perform two-sided thresholding. Binarize will return
-   a mask image respecting thresholds if provided, otherwise respecting
-   every non-zero value.
+Threshold an Adjacency instance.
+
+Provide upper and lower values or percentages to perform two-sided
+thresholding. Binarize will return a mask image respecting thresholds if
+provided, otherwise respecting every non-zero value.
 
 **Parameters:**
 

@@ -1,5 +1,4 @@
-"""
-Time-series permutation test implementations.
+"""Time-series permutation test implementations.
 
 This module provides GPU-accelerated implementations of time-series
 permutation tests that preserve temporal structure:
@@ -38,8 +37,7 @@ def circle_shift(
     shift_amount: int | np.ndarray | None = None,
     random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
-    """
-    Circular shift for time-series data.
+    """Circular shift for time-series data.
 
     Performs a circular shift that preserves autocorrelation structure.
     Useful for permutation tests on autocorrelated time series (e.g., fMRI).
@@ -107,8 +105,7 @@ def phase_randomize(
     backend: str | None = None,
     random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
-    """
-    FFT-based phase randomization for time-series data.
+    """FFT-based phase randomization for time-series data.
 
     Preserves the power spectrum (autocorrelation) but destroys nonlinear
     temporal structure by randomizing Fourier phases. Used to test whether
@@ -202,8 +199,7 @@ def _circle_shift_gpu_batched(
     shift_amounts: "torch.Tensor",
     backend: Backend,
 ) -> "torch.Tensor":
-    """
-    GPU-accelerated batched circular shift for time-series data.
+    """GPU-accelerated batched circular shift for time-series data.
 
     Processes multiple shifts simultaneously for efficiency. This is much faster
     than calling _circle_shift_gpu multiple times sequentially.
@@ -247,8 +243,7 @@ def _circle_shift_gpu(
     shift_amount: int | np.ndarray,
     backend: Backend,
 ) -> "np.ndarray | torch.Tensor":
-    """
-    GPU-accelerated circular shift for time-series data.
+    """GPU-accelerated circular shift for time-series data.
 
     Uses PyTorch advanced indexing for efficient batched circular shifts.
     Supports both 1D and 2D data.
@@ -301,8 +296,7 @@ def _phase_randomize_gpu(
     backend: Backend,
     random_state,
 ) -> np.ndarray:
-    """
-    GPU-accelerated FFT-based phase randomization.
+    """GPU-accelerated FFT-based phase randomization.
 
     Uses PyTorch FFT for efficient GPU computation. Preserves power spectrum
     exactly by randomizing phases while maintaining conjugate symmetry.
@@ -375,8 +369,7 @@ def _phase_randomize_gpu_batched(
     backend: Backend,
     random_state,
 ) -> "torch.Tensor":
-    """
-    GPU-accelerated batched FFT-based phase randomization.
+    """GPU-accelerated batched FFT-based phase randomization.
 
     Processes multiple phase randomizations simultaneously for efficiency.
     Much faster than calling _phase_randomize_gpu multiple times sequentially.
@@ -453,8 +446,7 @@ def _timeseries_correlation_permutation_gpu_batched(
     max_gpu_memory_gb: float,
     random_state,
 ) -> dict:
-    """
-    Time-series correlation permutation test using GPU with automatic batching.
+    """Time-series correlation permutation test using GPU with automatic batching.
 
     Processes permutations in batches to avoid GPU OOM. Transfers data once
     and reuses across batches for efficiency.
@@ -607,8 +599,7 @@ def timeseries_correlation_permutation_test(
     return_null: bool = False,
     random_state: int | np.random.RandomState | None = None,
 ) -> dict:
-    """
-    Time-series correlation permutation test.
+    """Time-series correlation permutation test.
 
     Unlike standard permutation tests that shuffle data independently,
     this test uses time-series-aware permutation methods that preserve

@@ -15,7 +15,6 @@ Name | Description
 [`fit_glm`](#fit_glm) | Fit GLM model and extract results (same logic as current regress()).
 [`fit_ridge`](#fit_ridge) | Fit Ridge model and extract results.
 [`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
-[`regress`](#regress) | Deprecated: Use fit(model='glm', X=design_matrix) instead.
 [`to_fit_dataclass`](#to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
 [`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
@@ -257,23 +256,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | np.array: Numeric contrast vector
-
-#### `regress`
-
-```python
-regress(bd, design_matrix = None, method = 'ols', mode = None)
-```
-
-Deprecated: Use fit(model='glm', X=design_matrix) instead.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`design_matrix` |  | Design matrix (unused, raises error). | <code>None</code>
-`method` |  | Noise model (unused, raises error). | <code>'ols'</code>
-`mode` |  | Mode (unused, raises error). | <code>None</code>
 
 #### `to_fit_dataclass`
 

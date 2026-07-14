@@ -39,7 +39,7 @@ def _as_ndarray(data, name="data"):
 def _bootstrap_isc(
     similarity_matrix, metric="median", exclude_self_corr=True, random_state=None
 ):
-    """Helper function to compute bootstrapped ISC from Adjacency Instance
+    """Helper function to compute bootstrapped ISC from Adjacency Instance.
 
     This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
 
@@ -179,7 +179,9 @@ def isc(
 
 
 def _compute_isc_group(group1, group2, metric="median"):
-    """Helper function to compute intersubject correlation difference between two groups from either:
+    """Compute the intersubject correlation difference between two groups.
+
+    Accepts either:
     1) an observations by subjects array
     2) or an Adjacency instance of a similarity matrix.
 
@@ -239,7 +241,7 @@ def _compute_isc_group(group1, group2, metric="median"):
 
 
 def _permute_isc_group(similarity_matrix, group, metric="median", random_state=None):
-    """Helper function to compute ISC differences between groups from Adjacency instance
+    """Helper function to compute ISC differences between groups from Adjacency instance.
 
     This function implements the subject-wise permutation method discussed in Chen et al., 2016.
 
@@ -406,7 +408,7 @@ def isc_group(
 
 
 def isfc(data, method="average", n_jobs=-1):
-    """Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
+    """Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
 
     This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
     For each subject, compute the cross-correlation between each voxel/roi
@@ -484,7 +486,7 @@ def isfc(data, method="average", n_jobs=-1):
 
 
 def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
-    """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+    """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean

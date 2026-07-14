@@ -125,7 +125,7 @@ def label_coords(
     Args:
         coords: ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``.
             A single coord like ``(-42, -22, 56)`` is also accepted.
-        atlas: Atlas name or list of names from :func:`list_atlases`.
+        atlas: Atlas name or list of names from `list_atlases`.
             One column is added to the output per atlas.
         prob_threshold: For probabilistic atlases only — drop regions
             with probability (in percent units) below this threshold.

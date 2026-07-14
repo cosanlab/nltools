@@ -1,6 +1,6 @@
 ## `regressors`
 
-Standalone regressor functions for DesignMatrix.
+Provide standalone regressor functions for DesignMatrix.
 
 Each function takes a DesignMatrix as its first argument (`dm`) and returns
 a new DesignMatrix with the requested transformation applied.
@@ -9,9 +9,9 @@ a new DesignMatrix with the requested transformation applied.
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions (high-pass filter).
+[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
 [`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
-[`convolve`](#convolve) | Convolve columns with HRF or custom kernel.
+[`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
 
 
 
@@ -25,7 +25,7 @@ Name | Description
 add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
 ```
 
-Add discrete cosine transform basis functions (high-pass filter).
+Add discrete cosine transform basis functions for high-pass filtering.
 
 **Parameters:**
 
@@ -34,7 +34,7 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add DCT basis to. | *required*
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
-`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in :func:`add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -70,7 +70,7 @@ Name | Type | Description
 convolve(dm: DesignMatrix, conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
 ```
 
-Convolve columns with HRF or custom kernel.
+Convolve columns with an HRF or custom kernel.
 
 **Parameters:**
 

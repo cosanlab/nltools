@@ -79,8 +79,7 @@ def corr(
 
 
 def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
-    """
-    Compute variance inflation factor for each column.
+    """Compute the variance inflation factor for each column.
 
     Uses diagonal elements of inverted correlation matrix
     (same method as Matlab and R).
@@ -149,8 +148,7 @@ def clean(
     thresh: float = 0.95,
     verbose: bool = True,
 ) -> DesignMatrix:
-    """
-    Remove highly correlated columns.
+    """Remove highly correlated columns.
 
     Removes columns with correlation >= threshold. Keeps first instance
     of correlated pair, drops duplicates.

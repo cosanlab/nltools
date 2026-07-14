@@ -1,5 +1,4 @@
-"""
-Standalone modeling/inference functions for Adjacency matrices.
+"""Provide standalone modeling and inference functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 """
@@ -312,7 +311,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     import scipy.stats as scipy_stats
 
     def mean_square_between(x1, x2=None, df="standard"):
-        """Calculate between dyad variance"""
+        """Calculate between-dyad variance."""
 
         if df == "standard":
             n = len(x1)
@@ -329,7 +328,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         return np.nansum((x1 - np.nanmean(x1)) ** 2) / df
 
     def mean_square_within(x1, x2, df="standard"):
-        """Calculate within dyad variance"""
+        """Calculate within-dyad variance."""
 
         if df == "standard":
             n = len(x1)
@@ -342,7 +341,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         return np.nansum((x1 - x2) ** 2) / (2 * df)
 
     def estimate_person_effect(n, x1_mean, x2_mean, grand_mean):
-        """Calculate effect for actor, partner, and relationship"""
+        """Calculate actor, partner, and relationship effects."""
         return (
             ((n - 1) ** 2 / (n * (n - 2))) * x1_mean
             + ((n - 1) / (n * (n - 2))) * x2_mean
@@ -350,12 +349,12 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         )
 
     def estimate_person_variance(x, ms_b, ms_w):
-        """Calculate variance of a specific dyad member (e.g., actor, partner)"""
+        """Calculate variance for a specific dyad member, such as actor or partner."""
         n = len(x)
         return mean_square_between(x) - (ms_b / (2 * (n - 2))) - (ms_w / (2 * n))
 
     def estimate_srm(data):
-        """Estimate Social Relations Model from a Single Matrix"""
+        """Estimate a Social Relations Model from a single matrix."""
 
         if not data.is_single_matrix:
             raise ValueError(
@@ -439,7 +438,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         )
 
     def summarize_srm_results(results):
-        """Summarize results of SRM"""
+        """Summarize Social Relations Model results."""
 
         def estimate_srm_stats(results, var_name, tailed=1):
             """Compute mean estimate, standard error, t-statistic, and p-value for an SRM variance component.
@@ -562,7 +561,7 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         print("\n")
 
     def replace_missing(data):
-        """Replace missing data with row/column means and return new data and missing coordinates"""
+        """Replace missing data with row and column means and return missing coordinates."""
 
         def fix_missing(data):
             """Replace NaN off-diagonal entries with the mean of their row and column.
@@ -610,8 +609,9 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
 
 
 def generate_permutations(adj, n_permute, random_state=None):
-    """
-    Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+    """Generate permuted versions of an Adjacency instance lazily.
+
+    This is useful for iterative comparisons.
 
     Args:
         adj: (Adjacency) Adjacency instance

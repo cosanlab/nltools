@@ -39,8 +39,7 @@ Name | Type | Description | Default
 `parallel` | <code>[str](#str)</code> | Parallelization method: 'cpu' (default), 'gpu', or None. | <code>'cpu'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to isc_permutation_test. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> terminal = ISCTerminal(method='pairwise', n_permute=1000)
 >>> result = terminal.fit_evaluate(data_list)
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
@@ -102,27 +101,31 @@ Name | Type | Description | Default
 `algorithm` | <code>[str](#str)</code> | Prediction algorithm. Regression options: 'ridge' (default, L2), 'lasso' (L1), 'elastic' (L1+L2), 'svr' (kernel-based), 'rf' (random forest, auto-detected). Classification options: 'svm' (kernel-based), 'logistic' (linear), 'rf' (auto-detected for discrete y). | <code>'ridge'</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to the sklearn model constructor. Common kwargs: ``class_weight='balanced'`` for imbalanced classification, ``C`` for regularization strength (svm, logistic), ``alpha`` for regularization strength (ridge, lasso, elastic). | <code>[dict](#dict)()</code>
 
-Examples
---------
-Basic classification::
+**Examples:**
 
-    >>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+Basic classification:
 
-Balanced classification for imbalanced data::
+```python
+>>> terminal = PredictTerminal(y=labels, algorithm='svm', kwargs={'C': 1.0})
+```
+Balanced classification for imbalanced data:
 
-    >>> terminal = PredictTerminal(
-    ...     y=imbalanced_labels,
-    ...     algorithm='svm',
-    ...     kwargs={'class_weight': 'balanced'}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=imbalanced_labels,
+...     algorithm='svm',
+...     kwargs={'class_weight': 'balanced'}
+... )
+```
+Logistic regression with balanced classes:
 
-Logistic regression with balanced classes::
-
-    >>> terminal = PredictTerminal(
-    ...     y=binary_labels,
-    ...     algorithm='logistic',
-    ...     kwargs={'class_weight': 'balanced', 'C': 0.1}
-    ... )
+```python
+>>> terminal = PredictTerminal(
+...     y=binary_labels,
+...     algorithm='logistic',
+...     kwargs={'class_weight': 'balanced', 'C': 0.1}
+... )
+```
 
 **Methods:**
 
@@ -207,8 +210,7 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | Number of permutations for p-value computation. Default is 5000. | <code>5000</code>
 `kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Additional arguments passed to correlation computation. | <code>[dict](#dict)()</code>
 
-Examples
---------
+Examples:
 >>> model = np.random.rand(10, 10)  # 10 conditions
 >>> model = (model + model.T) / 2  # Make symmetric
 >>> terminal = RSATerminal(model_rdm=model, method='spearman')

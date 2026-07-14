@@ -1,5 +1,4 @@
-"""
-nltools.stats — Statistical utilities for neuroimaging analysis.
+"""nltools.stats — Statistical utilities for neuroimaging analysis.
 
 This package provides standalone statistical functions organized into
 focused submodules:
@@ -11,9 +10,11 @@ focused submodules:
 - **alignment**: Data alignment (SRM, Procrustes, state alignment)
 - **intersubject**: ISC, ISFC, ISPS
 
-All public functions are re-exported here for convenience::
+All public functions are re-exported here for convenience:
 
-    from nltools.stats import fdr, zscore, isc  # all work
+```python
+from nltools.stats import fdr, zscore, isc  # all work
+```
 """
 
 from .corrections import fdr, holm_bonf, threshold, multi_threshold

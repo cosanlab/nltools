@@ -1,5 +1,4 @@
-"""
-nltools.plotting — Visualization utilities for neuroimaging analysis.
+"""nltools.plotting — Visualization utilities for neuroimaging analysis.
 
 This package provides standalone plotting functions organized into
 focused submodules:
@@ -9,9 +8,11 @@ focused submodules:
 - **prediction**: Model output plots (ROC, SVM margin, regression, logistic)
 - **decomposition**: ICA/PCA component viewer
 
-All public functions are re-exported here for convenience::
+All public functions are re-exported here for convenience:
 
-    from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
+```python
+from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
+```
 """
 
 from .brain import (

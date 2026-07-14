@@ -914,7 +914,7 @@ def cross_val_predict_ridge(
     For each fold, refits ridge with the supplied alpha (per-target or
     scalar) on the training fold and predicts the held-out fold. Targets
     sharing the same alpha share an SVD of the training fold via
-    :func:`_refit_banded_ridge`, so the cost scales with the number of
+    `_refit_banded_ridge`, so the cost scales with the number of
     *unique* alphas, not the number of targets.
 
     Designed to be the BrainData CV layer's source of held-out predictions

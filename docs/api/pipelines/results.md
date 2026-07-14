@@ -37,8 +37,7 @@ Name | Type | Description | Default
 `fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | Results from each CV fold. | *required*
 `pipeline` | <code>[Any](#typing.Any)</code> | The pipeline that produced these results. | *required*
 
-Examples
---------
+Examples:
 >>> result = pipeline.predict(y)
 >>> print(f"Mean score: {result.mean_score:.4f} (+/- {result.std_score:.4f})")
 >>> all_predictions = result.predictions  # In original sample order

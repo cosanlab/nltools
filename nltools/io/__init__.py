@@ -1,5 +1,4 @@
-"""
-nltools I/O utilities.
+"""nltools I/O utilities.
 
 HDF5 serialization for neuroimaging data types.
 """

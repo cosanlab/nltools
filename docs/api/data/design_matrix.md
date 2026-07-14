@@ -4,7 +4,10 @@
 DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover')
 ```
 
-Polars-based design matrix for experimental designs in neuroimaging.
+Represent experimental designs for neuroimaging with Polars.
+
+This is a Polars-based design matrix for experimental designs in
+neuroimaging.
 
 Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
 Uses composition pattern (not subclassing) for clean metadata preservation.
@@ -63,27 +66,27 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions (high-pass filter).
+[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
 [`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
 [`append`](#append) | Concatenate design matrices.
 [`clean`](#clean) | Remove highly correlated columns.
-[`convolve`](#convolve) | Convolve columns with HRF or custom kernel.
+[`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
 [`copy`](#copy) | Create a deep copy of the DesignMatrix.
-[`corr`](#corr) | Correlation between columns as a similarity ``Adjacency``.
-[`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
+[`corr`](#corr) | Calculate column correlations as a similarity ``Adjacency``.
+[`downsample`](#downsample) | Reduce temporal resolution using Polars-native operations.
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize the design matrix.
 [`replace_data`](#replace_data) | Replace data columns while preserving confounds and metadata.
 [`standardize`](#standardize) | Standardize columns using the specified method.
-[`sum`](#sum) | Compute sum along axis.
-[`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
+[`sum`](#sum) | Compute the sum along an axis.
+[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
-[`upsample`](#upsample) | Increase temporal resolution to target frequency.
-[`vif`](#vif) | Compute variance inflation factor for each column.
+[`upsample`](#upsample) | Increase temporal resolution to a target frequency.
+[`vif`](#vif) | Compute the variance inflation factor for each column.
 [`with_columns`](#with_columns) | Add or replace columns via Polars expressions.
 [`write`](#write) | Write DesignMatrix to file.
-[`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
+[`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
 
 Passing another ``DesignMatrix`` returns a copy: ``data``,
 ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
@@ -107,7 +110,7 @@ is anything other than an events file.
 add_dct_basis(duration: float = 180, drop: int = 0, *, include_constant: bool = True) -> DesignMatrix
 ```
 
-Add discrete cosine transform basis functions (high-pass filter).
+Add discrete cosine transform basis functions for high-pass filtering.
 
 **Parameters:**
 
@@ -115,7 +118,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
-`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in :meth:`add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -199,7 +202,7 @@ Name | Type | Description
 convolve(conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
 ```
 
-Convolve columns with HRF or custom kernel.
+Convolve columns with an HRF or custom kernel.
 
 Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
 the kernel index, ``0`` for a single 1-D kernel). The source columns
@@ -239,7 +242,7 @@ Name | Type | Description
 corr(*, metric: str = 'pearson', columns: list[str] | None = None)
 ```
 
-Correlation between columns as a similarity ``Adjacency``.
+Calculate column correlations as a similarity ``Adjacency``.
 
 **Parameters:**
 
@@ -260,7 +263,7 @@ Name | Type | Description
 downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
 ```
 
-Reduce temporal resolution to target frequency using Polars-native operations.
+Reduce temporal resolution using Polars-native operations.
 
 **Parameters:**
 
@@ -330,7 +333,7 @@ Dispatches over ``method`` (mirroring ``BrainData.plot``):
   the same ``ax`` across calls to overlay multiple DesignMatrices
   (e.g. original vs. convolved).
 - ``'corr'``: labeled correlation heatmap of the columns (reuses
-  :meth:`corr`; diagonal restored to 1.0 for display).
+  `corr`; diagonal restored to 1.0 for display).
 
 **Parameters:**
 
@@ -401,7 +404,7 @@ Name | Type | Description
 sum(axis: int = 0) -> pl.Series
 ```
 
-Compute sum along axis.
+Compute the sum along an axis.
 
 **Parameters:**
 
@@ -421,7 +424,7 @@ Type | Description
 to_numpy() -> np.ndarray
 ```
 
-Convert DesignMatrix to numpy array.
+Convert a DesignMatrix to a NumPy array.
 
 **Returns:**
 
@@ -449,7 +452,7 @@ Type | Description
 upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
 ```
 
-Increase temporal resolution to target frequency.
+Increase temporal resolution to a target frequency.
 
 **Parameters:**
 
@@ -470,7 +473,7 @@ Name | Type | Description
 vif(exclude_confounds: bool = True) -> np.ndarray | None
 ```
 
-Compute variance inflation factor for each column.
+Compute the variance inflation factor for each column.
 
 **Parameters:**
 
@@ -492,7 +495,7 @@ with_columns(*exprs, **named_exprs) -> DesignMatrix
 
 Add or replace columns via Polars expressions.
 
-Mirrors :meth:`polars.DataFrame.with_columns`. Named kwargs become
+Mirrors `DataFrame.with_columns`. Named kwargs become
 named columns; positional ``pl.Expr`` arguments are accepted as-is
 (including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
 with metadata preserved; new columns are *not* auto-tagged as
@@ -538,7 +541,7 @@ Name | Type | Description | Default
 zscore(columns: list[str] | None = None) -> DesignMatrix
 ```
 
-Z-score standardize columns (mean=0, std=1).
+Z-score standardize columns to mean zero and unit variance.
 
 **Parameters:**
 

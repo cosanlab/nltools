@@ -1,5 +1,4 @@
-"""
-Pipeline base infrastructure for nltools.
+"""Pipeline base infrastructure for nltools.
 
 This module provides the foundational classes and protocols for building
 chainable transform pipelines with optional cross-validation support.
@@ -7,8 +6,7 @@ chainable transform pipelines with optional cross-validation support.
 The design follows an immutable pattern where each transform method returns
 a new Pipeline instance, enabling fluent method chaining without side effects.
 
-Example
--------
+Example:
 >>> pipeline = (
 ...     Pipeline(data, cv=kfold)
 ...     .normalize(method='zscore')
@@ -46,8 +44,7 @@ DataType = TypeVar("DataType")
 
 @runtime_checkable
 class FittedTransform(Protocol):
-    """
-    Protocol for fitted transform objects.
+    """Protocol for fitted transform objects.
 
     A fitted transform holds the learned parameters from fitting on training
     data and can apply the transformation to new data.
@@ -85,8 +82,7 @@ class FittedTransform(Protocol):
 
 @runtime_checkable
 class TransformStep(Protocol):
-    """
-    Protocol for pipeline transform steps.
+    """Protocol for pipeline transform steps.
 
     A transform step defines a transformation that can be fitted to data.
     Steps are added to a Pipeline and executed sequentially during CV.
@@ -94,8 +90,7 @@ class TransformStep(Protocol):
     Attributes:
         invertible: Whether this transform supports inverse_transform.
 
-    Examples
-    --------
+    Examples:
     >>> class MyStep:
     ...     invertible = True
     ...     def fit(self, data):
@@ -118,8 +113,7 @@ class TransformStep(Protocol):
 
 @runtime_checkable
 class CVScheme(Protocol):
-    """
-    Protocol for cross-validation schemes.
+    """Protocol for cross-validation schemes.
 
     Compatible with scikit-learn CV splitters and custom implementations.
 
@@ -141,8 +135,7 @@ class CVScheme(Protocol):
 
 @runtime_checkable
 class Terminal(Protocol):
-    """
-    Protocol for terminal operations that end a pipeline.
+    """Protocol for terminal operations that end a pipeline.
 
     Terminals perform the final computation (e.g., prediction, similarity)
     and produce results for each CV fold.
@@ -178,8 +171,7 @@ class Terminal(Protocol):
 
 @dataclass
 class FittedStack:
-    """
-    Collection of fitted transforms for inverse transform support.
+    """Collection of fitted transforms for inverse transform support.
 
     Maintains the sequence of fitted transforms from a pipeline execution,
     enabling inverse transformation back to the original data space.
@@ -187,8 +179,7 @@ class FittedStack:
     Attributes:
         steps: Ordered list of fitted transforms.
 
-    Examples
-    --------
+    Examples:
     >>> stack = FittedStack()
     >>> stack.append(fitted_pca)
     >>> stack.append(fitted_normalize)
@@ -251,8 +242,7 @@ class FittedStack:
 
 @dataclass
 class Pipeline:
-    """
-    Base pipeline for chained transforms with optional cross-validation.
+    """Base pipeline for chained transforms with optional cross-validation.
 
     Pipelines enable fluent, chainable data transformations that are executed
     within a cross-validation framework. Each transform method returns a new

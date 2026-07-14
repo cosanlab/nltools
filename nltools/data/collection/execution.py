@@ -223,9 +223,10 @@ def write_glm_bundle(
 
 
 def read_glm_bundle(path: Path) -> dict[str, Any]:
-    """Read a GLM bundle. Validates ``bundle_schema_version``.
+    """Read and validate a GLM bundle.
 
-    Schema-version mismatch raises with a migration message; nltools-version
+    Validates ``bundle_schema_version``. A schema-version mismatch raises with
+    a migration message; nltools-version
     mismatch logs a warning but does not refuse — bundles are usually
     forward-compatible within a minor version.
     """
@@ -259,7 +260,10 @@ def write_ridge_bundle(
 
 
 def read_ridge_bundle(path: Path) -> dict[str, Any]:
-    """Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``."""
+    """Read a ridge bundle.
+
+    Uses the same schema and version handling as ``read_glm_bundle``.
+    """
     raise NotImplementedError("scaffold")
 
 

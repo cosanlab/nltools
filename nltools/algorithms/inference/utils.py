@@ -1,5 +1,4 @@
-"""
-Utility functions for permutation testing.
+"""Utility functions for permutation testing.
 
 This module contains shared helper functions used across different
 permutation test implementations.
@@ -32,8 +31,7 @@ def _compute_pvalue(
     null_dist: np.ndarray,
     tail: int | str = 2,
 ) -> np.ndarray:
-    """
-    Calculate p-values from observed statistic and null distribution.
+    """Calculate p-values from observed statistic and null distribution.
 
     Computes the proportion of null distribution values as extreme or more
     extreme than the observed statistic, using the correction factor approach
@@ -116,8 +114,7 @@ def _auto_batch_size(
     n_features: int,
     max_memory_gb: float = 4.0,
 ) -> tuple[int, int]:
-    """
-    Automatically determine batch size to avoid GPU OOM.
+    """Automatically determine batch size to avoid GPU OOM.
 
     Calculates how many permutations can be processed simultaneously
     without exceeding the memory budget. The bottleneck is the
@@ -177,8 +174,7 @@ def _auto_n_jobs_cpu(
     min_jobs: int = 1,
     max_jobs: int | None = None,
 ) -> int:
-    """
-    Automatically determine optimal number of CPU workers to avoid memory exhaustion.
+    """Automatically determine optimal number of CPU workers to avoid memory exhaustion.
 
     Calculates how many parallel workers can safely process permutations given
     available memory. Each worker process needs to serialize (pickle) data,
@@ -259,8 +255,7 @@ def _verify_n_jobs_memory_constraint(
     min_jobs: int = 1,
     warn_threshold: float = 0.2,
 ) -> int:
-    """
-    Verify memory constraint for explicitly requested n_jobs.
+    """Verify memory constraint for explicitly requested n_jobs.
 
     Ensures that requested number of workers doesn't exceed memory budget.
     If memory constraint is violated, reduces n_jobs and optionally warns.
@@ -358,8 +353,7 @@ def _verify_n_jobs_memory_constraint(
 
 
 def _estimate_data_size_mb(data: np.ndarray) -> float:
-    """
-    Estimate memory size of data array in MB.
+    """Estimate memory size of data array in MB.
 
     Accounts for numpy array overhead and dtype.
 

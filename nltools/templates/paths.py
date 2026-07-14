@@ -2,7 +2,7 @@
 
 Resolves logical (template, resolution, file_type) tuples to local paths.
 Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
-:mod:`nltools.templates.fetch`.
+`nltools.templates.fetch`.
 """
 
 import re

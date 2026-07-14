@@ -1,6 +1,6 @@
-"""
-NeuroLearn Mask Classes
-=======================
+"""Utilities for creating and manipulating brain masks.
+
+# NeuroLearn Mask Classes
 
 Classes to represent masks
 
@@ -23,7 +23,7 @@ from nilearn.masking import intersect_masks
 
 
 def create_sphere(coordinates, radius=5, mask=None):
-    """Generate a set of spheres in the brain mask space
+    """Generate spheres in brain-mask space.
 
     Args:
         radius: vector of radius.  Will create multiple spheres if
@@ -46,7 +46,7 @@ def create_sphere(coordinates, radius=5, mask=None):
         mask = nib.load(get_brainspace().mask)
 
     def sphere(r, p, mask):
-        """create a sphere of given radius at some point p in the brain mask
+        """Create a sphere with a given radius and center in the brain mask.
 
         Args:
             r: radius of the sphere
@@ -97,7 +97,7 @@ def create_sphere(coordinates, radius=5, mask=None):
 
 
 def expand_mask(mask, custom_mask=None):
-    """expand a mask with multiple integers into separate binary masks
+    """Expand an integer-labeled mask into separate binary masks.
 
     Args:
         mask: nibabel or BrainData instance
@@ -124,8 +124,9 @@ def expand_mask(mask, custom_mask=None):
 
 
 def collapse_mask(mask, auto_label=True, custom_mask=None):
-    """collapse separate masks into one mask with multiple integers
-        overlapping areas are ignored
+    """Collapse separate masks into one integer-labeled mask.
+
+    Overlapping areas are ignored.
 
     Args:
         mask: nibabel or BrainData instance
@@ -264,9 +265,9 @@ def roi_to_brain_from_atlas(
 ):
     """Paint per-parcel values onto voxel space using a labeled atlas.
 
-    Sibling of :func:`roi_to_brain`, but accepts a *labeled* atlas (one
+    Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one
     integer label per voxel — the form carried by
-    :class:`nltools.data.adjacency.SpatialScale`), not an expanded mask
+    `SpatialScale`), not an expanded mask
     with one binary row per ROI. Voxels whose atlas label is not in
     ``roi_labels`` (or whose label is 0) receive ``fill``.
 

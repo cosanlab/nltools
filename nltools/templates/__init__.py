@@ -6,20 +6,26 @@ the top of a notebook) and all subsequent operations pick it up
 automatically.
 
 Examples:
-    Set the global brain space::
+    Set the global brain space:
 
+    ```python
         import nltools
         nltools.set_brainspace(template="fmriprep", resolution=2)
+    ```
 
-    Inspect the current configuration::
+    Inspect the current configuration:
 
+    ```python
         cfg = nltools.get_brainspace()
         print(cfg.mask)
+    ```
 
-    Scope a change to a block::
+    Scope a change to a block:
 
+    ```python
         with nltools.with_brainspace(resolution=1):
             brain = BrainData(...)
+    ```
 """
 
 from .config import (

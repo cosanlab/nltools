@@ -4,8 +4,8 @@ Static registry of atlases hosted at ``nltools/niftis/atlases``.
 
 Each entry describes an atlas's kind (deterministic vs probabilistic) and
 the citation users should cite when they use it. The actual NIfTI + label
-files are fetched lazily by :func:`nltools.data.atlases.load_atlas` via
-:func:`nltools.templates.fetch_resource`.
+files are fetched lazily by `load_atlas` via
+`fetch_resource`.
 
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
@@ -45,5 +45,5 @@ Return the sorted list of registered atlas names.
 Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with
-<code>[list](#list)[[str](#str)]</code> | func:`nltools.data.atlases.load_atlas`.
+<code>[list](#list)[[str](#str)]</code> | `load_atlas`.
 

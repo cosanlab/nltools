@@ -10,9 +10,11 @@ focused submodules:
 - **prediction**: Model output plots (ROC, SVM margin, regression, logistic)
 - **decomposition**: ICA/PCA component viewer
 
-All public functions are re-exported here for convenience::
+All public functions are re-exported here for convenience:
 
-    from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
+```python
+from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
+```
 
 **Modules:**
 
@@ -27,15 +29,15 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis
+[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis.
 [`plot_between_label_distance`](#plot_between_label_distance) | Heatmap of average pairwise distance between every label pair.
-[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane
+[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane.
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot_interactive_brain) | This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+[`plot_interactive_brain`](#plot_interactive_brain) | Create an interactive brain visualization with nilearn.
 [`plot_mean_label_distance`](#plot_mean_label_distance) | Violin plot of within- vs between-label distances.
-[`plot_probability`](#plot_probability) | Plot Classification Probability
-[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity
-[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot
+[`plot_probability`](#plot_probability) | Plot Classification Probability.
+[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot.
 [`plot_silhouette`](#plot_silhouette) | Silhouette plot indicating between- vs within-label distance.
 [`plot_stacked_adjacency`](#plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
 [`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
@@ -50,7 +52,7 @@ Name | Description
 component_viewer(output, tr = 2.0)
 ```
 
-This a function to interactively view the results of a decomposition analysis
+This a function to interactively view the results of a decomposition analysis.
 
 **Parameters:**
 
@@ -96,7 +98,7 @@ Type | Description
 plot_dist_from_hyperplane(stats_output)
 ```
 
-Plot SVM Classification Distance from Hyperplane
+Plot SVM Classification Distance from Hyperplane.
 
 **Parameters:**
 
@@ -202,7 +204,7 @@ High resolution for publication:
 plot_interactive_brain(brain, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
 ```
 
-This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+Create an interactive brain visualization with nilearn.
 
 **Parameters:**
 
@@ -253,7 +255,7 @@ Type | Description
 plot_probability(stats_output)
 ```
 
-Plot Classification Probability
+Plot Classification Probability.
 
 **Parameters:**
 
@@ -273,7 +275,7 @@ Name | Type | Description
 plot_roc(fpr, tpr)
 ```
 
-Plot 1-Specificity by Sensitivity
+Plot 1-Specificity by Sensitivity.
 
 **Parameters:**
 
@@ -294,7 +296,7 @@ Name | Type | Description
 plot_scatter(stats_output)
 ```
 
-Plot Prediction Scatterplot
+Plot Prediction Scatterplot.
 
 **Parameters:**
 
@@ -551,7 +553,7 @@ Brain visualization — surface plots, flatmaps, and interactive viewers.
 Name | Description
 ---- | -----------
 [`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot_interactive_brain) | This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+[`plot_interactive_brain`](#plot_interactive_brain) | Create an interactive brain visualization with nilearn.
 [`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 ##### Methods
@@ -648,7 +650,7 @@ High resolution for publication:
 plot_interactive_brain(brain, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
 ```
 
-This function leverages nilearn's new javascript based brain viewer functions to create interactive plotting functionality.
+Create an interactive brain visualization with nilearn.
 
 **Parameters:**
 
@@ -719,7 +721,7 @@ ICA/PCA component viewer — interactive decomposition explorer.
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis
+[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis.
 
 ##### Methods
 
@@ -729,7 +731,7 @@ Name | Description
 component_viewer(output, tr = 2.0)
 ```
 
-This a function to interactively view the results of a decomposition analysis
+This a function to interactively view the results of a decomposition analysis.
 
 **Parameters:**
 
@@ -746,10 +748,10 @@ Model output visualization — ROC, SVM margin, regression, and logistic plots.
 
 Name | Description
 ---- | -----------
-[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane
-[`plot_probability`](#plot_probability) | Plot Classification Probability
-[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity
-[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot
+[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane.
+[`plot_probability`](#plot_probability) | Plot Classification Probability.
+[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot.
 
 
 
@@ -761,7 +763,7 @@ Name | Description
 plot_dist_from_hyperplane(stats_output)
 ```
 
-Plot SVM Classification Distance from Hyperplane
+Plot SVM Classification Distance from Hyperplane.
 
 **Parameters:**
 
@@ -781,7 +783,7 @@ Name | Type | Description
 plot_probability(stats_output)
 ```
 
-Plot Classification Probability
+Plot Classification Probability.
 
 **Parameters:**
 
@@ -801,7 +803,7 @@ Name | Type | Description
 plot_roc(fpr, tpr)
 ```
 
-Plot 1-Specificity by Sensitivity
+Plot 1-Specificity by Sensitivity.
 
 **Parameters:**
 
@@ -822,7 +824,7 @@ Name | Type | Description
 plot_scatter(stats_output)
 ```
 
-Plot Prediction Scatterplot
+Plot Prediction Scatterplot.
 
 **Parameters:**
 

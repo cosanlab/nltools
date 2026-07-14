@@ -39,13 +39,12 @@ Y., & Norman, K. A. (2016, December). Enabling factor analysis on
 thousand-subject neuroimaging datasets. In Big Data (Big Data),
 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
-References
-----------
-.. [Chen2015] Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+References:
+- **Chen2015:** Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
    & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
    In Advances in Neural Information Processing Systems (pp. 460-468).
 
-.. [Anderson2016] Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
+- **Anderson2016:** Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
    Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
    factor analysis on thousand-subject neuroimaging datasets. In Big Data
    (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
@@ -101,7 +100,7 @@ def _init_w_transforms(
 
     Returns:
         w (list of array, element i has shape=[voxels_i, features]):
-            The initialized orthogonal transforms (mappings) :math:`W_i` for each
+            The initialized orthogonal transforms (mappings) $W_i$ for each
             subject.
         voxels (list of int):
             A list with the number of voxels per subject.
@@ -135,12 +134,14 @@ def _init_w_transforms(
 
 
 class SRM(BaseEstimator, TransformerMixin):
-    """Probabilistic Shared Response Model (SRM)
+    """Probabilistic Shared Response Model (SRM).
 
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
 
-    .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
+    $$
+    X_i \\approx W_i S, \\forall i=1 \\dots N
+    $$
 
     Args:
         n_iter (int, default=10): Number of iterations to run the algorithm.
@@ -157,7 +158,7 @@ class SRM(BaseEstimator, TransformerMixin):
         mu_ (list of array, element i has shape=[voxels_i]):
             The voxel means over the samples for each subject.
         rho2_ (array, shape=[subjects]):
-            The estimated noise variance :math:`\\rho_i^2` for each subject
+            The estimated noise variance $\\rho_i^2$ for each subject
         random_state_ (`RandomState`):
             Random number generator initialized using rand_seed
 
@@ -166,15 +167,15 @@ class SRM(BaseEstimator, TransformerMixin):
         number of samples must be the same across subjects.
 
         The probabilistic Shared Response Model is approximated using the
-        Expectation Maximization (EM) algorithm proposed in [Chen2015]_. The
-        implementation follows the optimizations published in [Anderson2016]_.
+        Expectation Maximization (EM) algorithm proposed in **Chen2015**. The
+        implementation follows the optimizations published in **Anderson2016**.
 
         This is a single node version.
 
-        The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
-        memory complexity is :math:`O(V T)` with I - the number of iterations,
+        The run-time complexity is $O(I (V T K + V K^2 + K^3))$ and the
+        memory complexity is $O(V T)$ with I - the number of iterations,
         V - the sum of voxels from all subjects, T - the number of samples, and
-        K - the number of features (typically, :math:`V \\gg T \\gg K`).
+        K - the number of features (typically, $V \\gg T \\gg K$).
 
     Examples:
         Basic multi-subject SRM fitting:
@@ -214,7 +215,7 @@ class SRM(BaseEstimator, TransformerMixin):
         max_gpu_memory_gb: float = 4.0,
         pad_samples: bool = True,
     ) -> "SRM":
-        """Compute the probabilistic Shared Response Model
+        """Compute the probabilistic Shared Response Model.
 
         Args:
             X (list of 2D arrays, element i has shape=[voxels_i, samples]):
@@ -304,7 +305,7 @@ class SRM(BaseEstimator, TransformerMixin):
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray | None]:
-        """Use the model to transform matrix to Shared Response space
+        """Use the model to transform matrix to Shared Response space.
 
         Args:
             X (list of 2D arrays, element i has shape=[voxels_i, samples_i]):
@@ -403,7 +404,7 @@ class SRM(BaseEstimator, TransformerMixin):
             mu (list of array, element i has shape=[voxels_i]):
                 Voxel means over samples, per subject.
             rho2 (array, shape=[subjects]):
-                Noise variance :math:`\\rho^2` per subject.
+                Noise variance $\\rho^2$ per subject.
             trace_xtx (array, shape=[subjects]):
                 The squared Frobenius norm of the demeaned data in `x`.
         """
@@ -438,7 +439,7 @@ class SRM(BaseEstimator, TransformerMixin):
         wt_invpsi_x,
         samples,
     ):
-        """Calculate the log-likelihood function
+        """Calculate the log-likelihood function.
 
         Likelihood computation:
             - Uses Cholesky decomposition for numerical stability (avoids direct matrix inversion)
@@ -455,9 +456,9 @@ class SRM(BaseEstimator, TransformerMixin):
             chol_sigma_s (array, shape=[features, features]):
                 Cholesky factorization of the matrix Sigma_S
             trace_xt_invsigma2_x (float):
-                Trace of :math:`\\sum_i (||X_i||_F^2/\\rho_i^2)`
+                Trace of $\\sum_i (||X_i||_F^2/\\rho_i^2)$
             inv_sigma_s_rhos (array, shape=[features, features]):
-                Inverse of :math:`(\\Sigma_S + \\sum_i(1/\\rho_i^2) * I)`
+                Inverse of $(\\Sigma_S + \\sum_i(1/\\rho_i^2) * I)$
             wt_invpsi_x (array, shape=[features, samples]):
             samples (int): The total number of samples in the data.
 
@@ -491,13 +492,13 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Args:
             Xi (array, shape=[voxels, timepoints]):
-                The fMRI data :math:`X_i` for aligning the subject.
+                The fMRI data $X_i$ for aligning the subject.
             S (array, shape=[features, timepoints]):
                 The shared response.
 
         Returns:
             Wi (array, shape=[voxels, features]):
-                The orthogonal transform (mapping) :math:`W_i` for the subject.
+                The orthogonal transform (mapping) $W_i$ for the subject.
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -543,14 +544,14 @@ class SRM(BaseEstimator, TransformerMixin):
 
         Returns:
             sigma_s (array, shape=[features, features]):
-                The covariance :math:`\\Sigma_s` of the shared response Normal
+                The covariance $\\Sigma_s$ of the shared response Normal
                 distribution.
             w (list of array, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) :math:`W_i` for each subject.
+                The orthogonal transforms (mappings) $W_i$ for each subject.
             mu (list of array, element i has shape=[voxels_i]):
-                The voxel means :math:`\\mu_i` over the samples for each subject.
+                The voxel means $\\mu_i$ over the samples for each subject.
             rho2 (array, shape=[subjects]):
-                The estimated noise variance :math:`\\rho_i^2` for each subject
+                The estimated noise variance $\\rho_i^2$ for each subject
             s (array, shape=[features, samples]):
                 The shared response.
         """
@@ -717,12 +718,14 @@ class SRM(BaseEstimator, TransformerMixin):
 
 
 class DetSRM(BaseEstimator, TransformerMixin):
-    """Deterministic Shared Response Model (DetSRM)
+    """Deterministic Shared Response Model (DetSRM).
 
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
 
-    .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
+    $$
+    X_i \\approx W_i S, \\forall i=1 \\dots N
+    $$
 
     Args:
         n_iter (int, default=10): Number of iterations to run the algorithm.
@@ -742,14 +745,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
         number of samples must be the same across subjects.
 
         The Deterministic Shared Response Model is approximated using the
-        Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+        Block Coordinate Descent (BCD) algorithm proposed in **Chen2015**.
 
         This is a single node version.
 
-        The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
-        complexity is :math:`O(V T)` with I - the number of iterations, V - the
+        The run-time complexity is $O(I (V T K + V K^2))$ and the memory
+        complexity is $O(V T)$ with I - the number of iterations, V - the
         sum of voxels from all subjects, T - the number of samples, K - the
-        number of features (typically, :math:`V \\gg T \\gg K`), and N - the
+        number of features (typically, $V \\gg T \\gg K$), and N - the
         number of subjects.
 
     Examples:
@@ -788,7 +791,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
     ) -> "DetSRM":
-        """Compute the Deterministic Shared Response Model
+        """Compute the Deterministic Shared Response Model.
 
         Args:
             X (list of 2D arrays, element i has shape=[voxels_i, samples]):
@@ -850,7 +853,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray]:
-        """Use the model to transform data to the Shared Response subspace
+        """Use the model to transform data to the Shared Response subspace.
 
         Args:
             X (list of 2D arrays, element i has shape=[voxels_i, samples_i]):
@@ -923,13 +926,13 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return s
 
     def _objective_function(self, data, w, s):
-        """Calculate the objective function
+        """Calculate the objective function.
 
         Args:
             data (list of 2D arrays, element i has shape=[voxels_i, samples]):
                 Each element in the list contains the fMRI data of one subject.
             w (list of 2D arrays, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) :math:`W_i` for each subject.
+                The orthogonal transforms (mappings) $W_i$ for each subject.
             s (array, shape=[features, samples]):
                 The shared response
 
@@ -944,13 +947,13 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return objective * 0.5 / data[0].shape[1]
 
     def _compute_shared_response(self, data, w):
-        """Compute the shared response S
+        """Compute the shared response S.
 
         Args:
             data (list of 2D arrays, element i has shape=[voxels_i, samples]):
                 Each element in the list contains the fMRI data of one subject.
             w (list of 2D arrays, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) :math:`W_i` for each subject.
+                The orthogonal transforms (mappings) $W_i$ for each subject.
 
         Returns:
             s (array, shape=[features, samples]):
@@ -975,13 +978,13 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Args:
             Xi (array, shape=[voxels, timepoints]):
-                The fMRI data :math:`X_i` for aligning the subject.
+                The fMRI data $X_i$ for aligning the subject.
             S (array, shape=[features, timepoints]):
                 The shared response.
 
         Returns:
             Wi (array, shape=[voxels, features]):
-                The orthogonal transform (mapping) :math:`W_i` for the subject.
+                The orthogonal transform (mapping) $W_i$ for the subject.
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -1027,7 +1030,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Returns:
             w (list of array, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) :math:`W_i` for each subject.
+                The orthogonal transforms (mappings) $W_i$ for each subject.
             s (array, shape=[features, samples]):
                 The shared response.
         """

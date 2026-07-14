@@ -9,10 +9,10 @@ and returns a new DesignMatrix via `copy_with(dm,...)`.
 
 Name | Description
 ---- | -----------
-[`downsample`](#downsample) | Reduce temporal resolution to target frequency using Polars-native operations.
+[`downsample`](#downsample) | Reduce temporal resolution using Polars-native operations.
 [`standardize`](#standardize) | Standardize columns using the specified method.
-[`upsample`](#upsample) | Increase temporal resolution to target frequency using Polars-native interpolation.
-[`zscore`](#zscore) | Z-score standardize columns (mean=0, std=1).
+[`upsample`](#upsample) | Increase temporal resolution using Polars-native interpolation.
+[`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
 
 
 
@@ -26,7 +26,7 @@ Name | Description
 downsample(dm: DesignMatrix, target: float, **kwargs: float) -> DesignMatrix
 ```
 
-Reduce temporal resolution to target frequency using Polars-native operations.
+Reduce temporal resolution using Polars-native operations.
 
 **Parameters:**
 
@@ -88,7 +88,7 @@ Name | Type | Description
 upsample(dm: DesignMatrix, target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
 ```
 
-Increase temporal resolution to target frequency using Polars-native interpolation.
+Increase temporal resolution using Polars-native interpolation.
 
 **Parameters:**
 
@@ -118,7 +118,7 @@ Name | Type | Description
 zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix
 ```
 
-Z-score standardize columns (mean=0, std=1).
+Z-score standardize columns to mean zero and unit variance.
 
 **Parameters:**
 

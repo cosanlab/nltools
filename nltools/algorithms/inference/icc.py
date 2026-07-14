@@ -1,5 +1,4 @@
-"""
-Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
+"""Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 
 This module provides GPU-accelerated and CPU-parallel implementations
 for computing ICC across many voxels in neuroimaging data.
@@ -41,8 +40,7 @@ def compute_icc_voxelwise(
     max_gpu_memory_gb: float = 4.0,
     backend: Backend | None = None,
 ) -> np.ndarray:
-    """
-    Compute voxel-wise ICC across many voxels.
+    """Compute voxel-wise ICC across many voxels.
 
     This function computes ICC for each voxel independently, making it
     highly parallelizable. Supports GPU acceleration for large voxel counts.
@@ -131,8 +129,7 @@ def _compute_icc_cpu(
     use_parallel: bool,
     max_memory_gb: float = 8.0,
 ) -> np.ndarray:
-    """
-    CPU-based ICC computation (single-threaded or parallel).
+    """CPU-based ICC computation (single-threaded or parallel).
 
     Args:
         Y: Data array, shape (n_subjects, n_sessions, n_voxels)
@@ -197,8 +194,7 @@ def _compute_icc_cpu(
 
 
 def _compute_icc_vectorized(Y: np.ndarray, icc_type: str) -> np.ndarray:
-    """
-    Vectorized ICC computation for all voxels simultaneously.
+    """Vectorized ICC computation for all voxels simultaneously.
 
     Uses broadcasting to compute ICC for all voxels at once.
     More memory-efficient than GPU but slower for large voxel counts.
@@ -260,8 +256,7 @@ def _compute_icc_gpu(
     max_gpu_memory_gb: float,
     backend: Backend,
 ) -> np.ndarray:
-    """
-    GPU-accelerated ICC computation using PyTorch.
+    """GPU-accelerated ICC computation using PyTorch.
 
     Processes voxels in batches to fit within GPU memory budget.
 
@@ -312,8 +307,7 @@ def _compute_icc_gpu(
 
 
 def _compute_icc_gpu_batch(Y_batch: "torch.Tensor", icc_type: str) -> "torch.Tensor":
-    """
-    Compute ICC for a batch of voxels on GPU.
+    """Compute ICC for a batch of voxels on GPU.
 
     Args:
         Y_batch: Data tensor, shape (n_subjects, n_sessions, batch_size)
@@ -368,8 +362,7 @@ def _compute_icc_gpu_batch(Y_batch: "torch.Tensor", icc_type: str) -> "torch.Ten
 
 
 def _compute_single_icc(Y: np.ndarray, icc_type: str) -> float:
-    """
-    Compute ICC for a single voxel (2D array).
+    """Compute ICC for a single voxel (2D array).
 
     Args:
         Y: Data array, shape (n_subjects, n_sessions)

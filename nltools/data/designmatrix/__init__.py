@@ -1,5 +1,4 @@
-"""
-DesignMatrix - Polars-based design matrix for neuroimaging analysis
+"""Provide a Polars-based design matrix for neuroimaging analysis.
 
 Efficient design matrix implementation using Polars for fast DataFrame operations.
 Provides HRF convolution, resampling, polynomial regressors, and diagnostic tools.
@@ -33,8 +32,10 @@ def _is_pandas_dataframe(obj) -> bool:
 
 
 class DesignMatrix:
-    """
-    Polars-based design matrix for experimental designs in neuroimaging.
+    """Represent experimental designs for neuroimaging with Polars.
+
+    This is a Polars-based design matrix for experimental designs in
+    neuroimaging.
 
     Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
     Uses composition pattern (not subclassing) for clean metadata preservation.
@@ -232,8 +233,9 @@ class DesignMatrix:
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
     def __array__(self, dtype=None) -> np.ndarray:
-        """
-        Numpy array interface - enables np.array(design_matrix) and np.asarray().
+        """Provide the NumPy array interface.
+
+        This enables ``np.array(design_matrix)`` and ``np.asarray()``.
 
         Args:
             dtype (numpy dtype, optional): Desired data type for the array
@@ -251,8 +253,7 @@ class DesignMatrix:
         return sorted(set(super().__dir__()) | set(dir(self.data)))
 
     def __eq__(self, other) -> bool:
-        """
-        Check equality with another DesignMatrix.
+        """Check equality with another DesignMatrix.
 
         Compares data frames only (ignores metadata like sampling_freq, convolved,
         confounds, and multi).
@@ -285,8 +286,7 @@ class DesignMatrix:
             ) from None
 
     def __getitem__(self, key: str | list[str]) -> pl.Series | DesignMatrix:
-        """
-        Access columns.
+        """Access columns.
 
         dm['col'] returns Series
         dm[['col1', 'col2']] returns DesignMatrix
@@ -320,8 +320,7 @@ class DesignMatrix:
         key: str,
         value: int | float | list | np.ndarray | pl.Series | pl.Expr,
     ):
-        """
-        Set column values.
+        """Set column values.
 
         dm['col'] = 0                            # Broadcast scalar
         dm['col'] = [1, 2, 3]                    # Array assignment
@@ -413,15 +412,14 @@ class DesignMatrix:
         *,
         include_constant: bool = True,
     ) -> DesignMatrix:
-        """
-        Add discrete cosine transform basis functions (high-pass filter).
+        """Add discrete cosine transform basis functions for high-pass filtering.
 
         Args:
             duration (float): Filter duration in seconds. Default: 180.
             drop (int): Number of low-frequency bases to drop. Default: 0.
             include_constant (bool): If True, also add a constant/intercept
                 column named ``cosine_0`` (analogous to ``poly_0`` in
-                :meth:`add_poly`). The underlying DCT basis drops the constant
+                `add_poly`). The underlying DCT basis drops the constant
                 per SPM convention; set False to match SPM behavior.
                 Default: True.
 
@@ -433,8 +431,7 @@ class DesignMatrix:
         return add_dct_basis(self, duration, drop, include_constant=include_constant)
 
     def add_poly(self, order: int = 0, include_lower: bool = True) -> DesignMatrix:
-        """
-        Add Legendre polynomial drift terms.
+        """Add Legendre polynomial drift terms.
 
         Args:
             order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...).
@@ -460,8 +457,7 @@ class DesignMatrix:
         as_confounds: bool = False,
         verbose: bool = False,
     ) -> DesignMatrix:
-        """
-        Concatenate design matrices.
+        """Concatenate design matrices.
 
         Args:
             dm (DesignMatrix or list of DesignMatrix): Design matrix/matrices to append.
@@ -502,8 +498,7 @@ class DesignMatrix:
         thresh: float = 0.95,
         verbose: bool = True,
     ) -> DesignMatrix:
-        """
-        Remove highly correlated columns.
+        """Remove highly correlated columns.
 
         Args:
             fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
@@ -523,8 +518,7 @@ class DesignMatrix:
         conv_func: str | np.ndarray = "hrf",
         columns: list[str] | None = None,
     ) -> DesignMatrix:
-        """
-        Convolve columns with HRF or custom kernel.
+        """Convolve columns with an HRF or custom kernel.
 
         Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
         the kernel index, ``0`` for a single 1-D kernel). The source columns
@@ -544,8 +538,7 @@ class DesignMatrix:
         return convolve(self, conv_func, columns)
 
     def copy(self) -> DesignMatrix:
-        """
-        Create a deep copy of the DesignMatrix.
+        """Create a deep copy of the DesignMatrix.
 
         Returns:
             DesignMatrix: Copy of the current DesignMatrix
@@ -554,8 +547,7 @@ class DesignMatrix:
         return copy_with(self, cloned_df)
 
     def downsample(self, target: float, method: str = "mean", **kwargs) -> DesignMatrix:
-        """
-        Reduce temporal resolution to target frequency using Polars-native operations.
+        """Reduce temporal resolution using Polars-native operations.
 
         Args:
             target (float): Target sampling frequency in Hz (must be < current sampling_freq)
@@ -606,8 +598,7 @@ class DesignMatrix:
         save: str | None = None,
         **kwargs,
     ):
-        """
-        Visualize the design matrix.
+        """Visualize the design matrix.
 
         Dispatches over ``method`` (mirroring ``BrainData.plot``):
 
@@ -616,7 +607,7 @@ class DesignMatrix:
           the same ``ax`` across calls to overlay multiple DesignMatrices
           (e.g. original vs. convolved).
         - ``'corr'``: labeled correlation heatmap of the columns (reuses
-          :meth:`corr`; diagonal restored to 1.0 for display).
+          `corr`; diagonal restored to 1.0 for display).
 
         Args:
             method (str): ``'matrix'`` | ``'timeseries'`` | ``'corr'``.
@@ -663,8 +654,7 @@ class DesignMatrix:
         data: np.ndarray,
         column_names: list[str] | None = None,
     ) -> DesignMatrix:
-        """
-        Replace data columns while preserving confounds and metadata.
+        """Replace data columns while preserving confounds and metadata.
 
         Args:
             data (ndarray): New data array (must match number of rows in current DesignMatrix)
@@ -719,8 +709,7 @@ class DesignMatrix:
         return standardize(self, columns, method)
 
     def sum(self, axis: int = 0) -> pl.Series:
-        """
-        Compute sum along axis.
+        """Compute the sum along an axis.
 
         Args:
             axis (int, default=0): 0: sum down columns, 1: sum across rows.
@@ -736,8 +725,7 @@ class DesignMatrix:
         raise ValueError(f"axis must be 0 or 1, got {axis}")
 
     def to_numpy(self) -> np.ndarray:
-        """
-        Convert DesignMatrix to numpy array.
+        """Convert a DesignMatrix to a NumPy array.
 
         Returns:
             np.ndarray: 2D array with shape (n_samples, n_columns)
@@ -757,8 +745,7 @@ class DesignMatrix:
         return to_pandas(self)
 
     def upsample(self, target: float, method: str = "linear", **kwargs) -> DesignMatrix:
-        """
-        Increase temporal resolution to target frequency.
+        """Increase temporal resolution to a target frequency.
 
         Args:
             target (float): Target sampling frequency in Hz (must be > current sampling_freq)
@@ -777,8 +764,7 @@ class DesignMatrix:
         metric: str = "pearson",
         columns: list[str] | None = None,
     ):
-        """
-        Correlation between columns as a similarity ``Adjacency``.
+        """Calculate column correlations as a similarity ``Adjacency``.
 
         Args:
             metric (str): ``'pearson'`` (default) or ``'spearman'``.
@@ -796,8 +782,7 @@ class DesignMatrix:
         return corr(self, metric=metric, columns=columns)
 
     def vif(self, exclude_confounds: bool = True) -> np.ndarray | None:
-        """
-        Compute variance inflation factor for each column.
+        """Compute the variance inflation factor for each column.
 
         Args:
             exclude_confounds (bool): Skip confound/nuisance columns. Default: True.
@@ -813,7 +798,7 @@ class DesignMatrix:
     def with_columns(self, *exprs, **named_exprs) -> DesignMatrix:
         """Add or replace columns via Polars expressions.
 
-        Mirrors :meth:`polars.DataFrame.with_columns`. Named kwargs become
+        Mirrors `DataFrame.with_columns`. Named kwargs become
         named columns; positional ``pl.Expr`` arguments are accepted as-is
         (including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
         with metadata preserved; new columns are *not* auto-tagged as
@@ -866,8 +851,7 @@ class DesignMatrix:
         return write(self, file_name, sep)
 
     def zscore(self, columns: list[str] | None = None) -> DesignMatrix:
-        """
-        Z-score standardize columns (mean=0, std=1).
+        """Z-score standardize columns to mean zero and unit variance.
 
         Args:
             columns (list of str, optional): Columns to standardize. If None,

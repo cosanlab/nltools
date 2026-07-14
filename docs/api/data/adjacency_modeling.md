@@ -1,6 +1,6 @@
 ## `modeling`
 
-Standalone modeling/inference functions for Adjacency matrices.
+Provide standalone modeling and inference functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 
@@ -10,7 +10,7 @@ Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`regress`](#regress) | Run a regression on an adjacency instance.
 [`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
 
@@ -87,7 +87,9 @@ Name | Type | Description
 generate_permutations(adj, n_permute, random_state = None)
 ```
 
-Generate n_permute permutated versions of Adjacency in a lazy fashion. Useful for iterating against.
+Generate permuted versions of an Adjacency instance lazily.
+
+This is useful for iterative comparisons.
 
 **Parameters:**
 

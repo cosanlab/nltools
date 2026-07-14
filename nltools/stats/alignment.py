@@ -16,7 +16,9 @@ from ..algorithms.alignment import SRM, DetSRM
 
 
 def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):
-    """Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
+    """Align subject data into a common response model.
+
+    This function is a convenience wrapper around `HyperAlignment` and `SRM` classes.
 
     Can be used to hyperalign source data to target data using
     Hyperalignment from Dartmouth (i.e., procrustes transformation; see
@@ -218,16 +220,19 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
 
 def procrustes(data1, data2):
-    """Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
+    """Perform a Procrustes similarity analysis on two data sets.
+
+    For more comprehensive Procrustes-based alignment tasks, use
+    `HyperAlignment` and `align()` instead.
 
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
     two identically sized matrices, procrustes standardizes both such that:
-    - :math:`tr(AA^{T}) = 1`.
+    - $tr(AA^{T}) = 1$.
     - Both sets of points are centered around the origin.
     Procrustes then applies the optimal transform to the second
     matrix (including scaling/dilation, rotations, and reflections) to minimize
-    :math:`M^{2}=\\sum(data1-data2)^{2}`, or the sum of the squares of the
+    $M^{2}=\\sum(data1-data2)^{2}$, or the sum of the squares of the
     pointwise differences between the two input datasets.
     This function was not designed to handle datasets with different numbers of
     datapoints (rows).  If two data sets have different dimensionality
@@ -249,9 +254,9 @@ def procrustes(data1, data2):
             A standardized version of `data1`.
         mtx2 : array_like
             The orientation of `data2` that best fits `data1`. Centered, but not
-            necessarily :math:`tr(AA^{T}) = 1`.
+            necessarily $tr(AA^{T}) = 1$.
         disparity : float
-            :math:`M^{2}` as defined above.
+            $M^{2}$ as defined above.
         R : (N, N) ndarray
             The matrix solution of the orthogonal Procrustes problem.
             Minimizes the Frobenius norm of dot(data1, R) - data2, subject to
@@ -307,7 +312,14 @@ def procrustes(data1, data2):
 def procrustes_distance(
     mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_state=None
 ):
-    """Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+    """Test matrix similarity using Procrustes superposition.
+
+    Matrices need to match in size on their first dimension only, as the smaller
+    matrix on the second dimension will be padded with zeros. After aligning two
+    matrices using the Procrustes transformation, use the computed disparity
+    between them (sum of squared error of elements) as a similarity metric.
+    Shuffle the rows of one of the matrices and recompute the disparity to perform
+    inference (Peres-Neto & Jackson, 2001).
 
     Args:
         mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
@@ -360,7 +372,10 @@ def align_states(
     return_index=False,
     replace_zero_variance=False,
 ):
-    """Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
+    """Align state weight maps by minimizing pairwise distance between group states.
+
+    This function uses the Hungarian algorithm for state alignment, which is
+    different from aligning multiple subjects' data.
 
     Args:
         reference: (np.array) reference pattern x state matrix

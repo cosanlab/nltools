@@ -4,6 +4,8 @@
 Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
 ```
 
+Represent adjacency matrices in vectorized form.
+
 Adjacency is a class to represent Adjacency matrices as a vector rather
 than a 2-dimensional matrix. This makes it easier to perform data
 manipulation and analyses.
@@ -21,34 +23,34 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Append data to Adjacency instance
+[`append`](#append) | Append data to an Adjacency instance.
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_summary`](#cluster_summary) | Provide summaries of clusters within Adjacency matrices.
 [`copy`](#copy) | Create a copy of Adjacency object.
 [`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
 [`distance_to_similarity`](#distance_to_similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate_permutations) | Generate n_permute permutated versions of Adjacency in a lazy fashion.
+[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`mean`](#mean) | Calculate mean of Adjacency.
 [`median`](#median) | Calculate median of Adjacency.
-[`plot`](#plot) | Create Heatmap of Adjacency Matrix
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot indicating within and between label distance
-[`plot_mds`](#plot_mds) | Plot Multidimensional Scaling
-[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot
-[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
+[`plot`](#plot) | Create a heatmap of an Adjacency matrix.
+[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
+[`plot_mds`](#plot_mds) | Plot multidimensional scaling.
+[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
+[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
 [`regress`](#regress) | Run a regression on an adjacency instance.
-[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices. Default is to use spearman
+[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
 [`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
-[`squareform`](#squareform) | Convert adjacency back to squareform
+[`squareform`](#squareform) | Convert adjacency data back to square form.
 [`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
 [`std`](#std) | Calculate standard deviation of Adjacency.
 [`sum`](#sum) | Calculate sum of Adjacency.
-[`threshold`](#threshold) | Threshold Adjacency instance. Provide upper and lower values or
-[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space :class:`BrainData`.
-[`to_graph`](#to_graph) | Convert Adjacency into networkx graph.  only works on
+[`threshold`](#threshold) | Threshold an Adjacency instance.
+[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space `BrainData`.
+[`to_graph`](#to_graph) | Convert a single Adjacency matrix into a NetworkX graph.
 [`to_square`](#to_square) | Convert adjacency back to square matrix format.
 [`ttest`](#ttest) | Calculate ttest across samples.
 [`write`](#write) | Write out Adjacency object to csv file.
-[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object
+[`z_to_r`](#z_to_r) | Convert each z score back into an r value.
 
 **Attributes:**
 
@@ -74,7 +76,7 @@ Name | Type | Description
 append(data)
 ```
 
-Append data to Adjacency instance
+Append data to an Adjacency instance.
 
 **Parameters:**
 
@@ -208,7 +210,7 @@ Name | Type | Description
 generate_permutations(n_permute, random_state = None)
 ```
 
-Generate n_permute permutated versions of Adjacency in a lazy fashion.
+Generate permuted versions of an Adjacency instance lazily.
 
 **Parameters:**
 
@@ -277,7 +279,7 @@ Type | Description
 plot(limit = 3, axes = None, *args, **kwargs)
 ```
 
-Create Heatmap of Adjacency Matrix
+Create a heatmap of an Adjacency matrix.
 
 Can pass in any sns.heatmap argument
 
@@ -294,7 +296,7 @@ Name | Type | Description | Default
 plot_label_distance(labels = None, ax = None)
 ```
 
-Create a violin plot indicating within and between label distance
+Create a violin plot of within- and between-label distances.
 
 **Parameters:**
 
@@ -314,7 +316,7 @@ Name | Type | Description
 plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
 ```
 
-Plot Multidimensional Scaling
+Plot multidimensional scaling.
 
 **Parameters:**
 
@@ -336,7 +338,7 @@ Name | Type | Description | Default
 plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
-Create a silhouette plot
+Create a silhouette plot.
 
 #### `r_to_z`
 
@@ -344,8 +346,7 @@ Create a silhouette plot
 r_to_z()
 ```
 
-Apply Fisher's r to z transformation to each element of the data
-object.
+Apply Fisher's r-to-z transformation to each data element.
 
 #### `regress`
 
@@ -376,8 +377,9 @@ Name | Type | Description
 similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
 ```
 
-Calculate similarity between two Adjacency matrices. Default is to use spearman
-correlation and permutation test.
+Calculate similarity between two Adjacency matrices.
+
+The default uses Spearman correlation and a permutation test.
 
 **Parameters:**
 
@@ -447,7 +449,7 @@ Type | Description
 squareform()
 ```
 
-Convert adjacency back to squareform
+Convert adjacency data back to square form.
 
 #### `stats_label_distance`
 
@@ -516,10 +518,11 @@ Type | Description
 threshold(upper = None, lower = None, binarize = False)
 ```
 
-Threshold Adjacency instance. Provide upper and lower values or
-   percentages to perform two-sided thresholding. Binarize will return
-   a mask image respecting thresholds if provided, otherwise respecting
-   every non-zero value.
+Threshold an Adjacency instance.
+
+Provide upper and lower values or percentages to perform two-sided
+thresholding. Binarize will return a mask image respecting thresholds
+if provided, otherwise respecting every non-zero value.
 
 **Parameters:**
 
@@ -541,10 +544,10 @@ Name | Type | Description
 to_brain(values, *, fill: float = np.nan)
 ```
 
-Project per-matrix scalars back to voxel-space :class:`BrainData`.
+Project per-matrix scalars back to voxel-space `BrainData`.
 
-Requires :attr:`spatial_scale` to be set (i.e. this stack came from
-:meth:`BrainData.distance` or another spatial-scale-aware producer).
+Requires `spatial_scale` to be set (i.e. this stack came from
+`BrainData.distance` or another spatial-scale-aware producer).
 Each entry of ``values`` is painted onto the voxels assigned to its
 corresponding parcel by ``spatial_scale.atlas`` /
 ``spatial_scale.roi_labels``. Voxels outside the atlas receive
@@ -578,8 +581,9 @@ Name | Type | Description
 to_graph()
 ```
 
-Convert Adjacency into networkx graph.  only works on
-single_matrix for now.
+Convert a single Adjacency matrix into a NetworkX graph.
+
+This currently works only for ``single_matrix``.
 
 #### `to_square`
 
@@ -589,7 +593,7 @@ to_square()
 
 Convert adjacency back to square matrix format.
 
-This is an alias for :meth:`squareform`.
+This is an alias for `squareform`.
 
 **Returns:**
 
@@ -644,5 +648,5 @@ Name | Type | Description | Default
 z_to_r()
 ```
 
-Convert z score back into r value for each element of data object
+Convert each z score back into an r value.
 

@@ -10,26 +10,26 @@ alignment, smoothing, and other analytical operations.
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Align BrainData instance to target object using functional alignment
+[`align`](#align) | Align a BrainData instance to a target using functional alignment.
 [`align_per_roi`](#align_per_roi) | Per-parcel functional alignment + voxel-space reassembly.
 [`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
-[`check_masks`](#check_masks) | Check to make sure masks are the same for each dataset and if not create a union mask
-[`decompose`](#decompose) | Decompose BrainData object
-[`detrend_data`](#detrend_data) | Remove linear trend from each voxel
+[`check_masks`](#check_masks) | Ensure two datasets use compatible masks, creating a union mask if needed.
+[`decompose`](#decompose) | Decompose a BrainData object.
+[`detrend_data`](#detrend_data) | Remove the linear trend from each voxel.
 [`distance`](#distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 [`filter_data`](#filter_data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes_data`](#find_spikes_data) | Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
-[`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient for data within
-[`multivariate_similarity`](#multivariate_similarity) | Predict spatial distribution of BrainData() instance from linear
-[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data
-[`reduce_per_roi`](#reduce_per_roi) | Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
+[`find_spikes_data`](#find_spikes_data) | Identify spikes from time-series data; see `find_spikes`.
+[`icc`](#icc) | Calculate voxelwise intraclass correlations for BrainData.
+[`multivariate_similarity`](#multivariate_similarity) | Predict a BrainData spatial distribution from a linear combination.
+[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
+[`reduce_per_roi`](#reduce_per_roi) | Apply a reducer within each parcel and paint results back to voxel space.
 [`regions`](#regions) | Extract brain connected regions into separate regions.
 [`scale_data`](#scale_data) | Scale data via mean scaling.
-[`similarity`](#similarity) | Calculate similarity of BrainData() instance with single
-[`smooth`](#smooth) | Apply spatial smoothing using nilearn smooth_img()
+[`similarity`](#similarity) | Calculate similarity to a single BrainData or nibabel image.
+[`smooth`](#smooth) | Apply spatial smoothing using nilearn's ``smooth_img``.
 [`standardize`](#standardize) | Standardize BrainData() instance.
-[`temporal_resample`](#temporal_resample) | Resample BrainData timeseries to a new target frequency or number of samples
+[`temporal_resample`](#temporal_resample) | Resample a BrainData time series to a target frequency or sample count.
 [`threshold_data`](#threshold_data) | Threshold BrainData instance with optional cluster filtering.
 [`transform_pairwise_data`](#transform_pairwise_data) | Transform BrainData into pairwise comparisons.
 [`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
@@ -44,7 +44,7 @@ Name | Description
 align(bd, target, method = 'procrustes', axis = 0)
 ```
 
-Align BrainData instance to target object using functional alignment
+Align a BrainData instance to a target using functional alignment.
 
 Alignment type can be hyperalignment or Shared Response Model. When
 using hyperalignment, `target` image can be another subject or an
@@ -89,7 +89,7 @@ Per-parcel functional alignment + voxel-space reassembly.
 For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
 ``target`` restricted to that parcel's voxels and collects results.
 The ``transformed`` field is reassembled into a single
-:class:`BrainData` of the same shape as the input (each voxel filled
+`BrainData` of the same shape as the input (each voxel filled
 with its parcel's transformed value per image; voxels outside any
 parcel = NaN). Per-parcel transform matrices and common-model
 objects are kept as dicts keyed by atlas label, since matrices over
@@ -135,7 +135,7 @@ Cython-optimized code with better validation and memory management.
 check_masks(bd, image)
 ```
 
-Check to make sure masks are the same for each dataset and if not create a union mask
+Ensure two datasets use compatible masks, creating a union mask if needed.
 
 **Parameters:**
 
@@ -156,7 +156,7 @@ Name | Type | Description
 decompose(bd, *, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
-Decompose BrainData object
+Decompose a BrainData object.
 
 **Parameters:**
 
@@ -180,7 +180,7 @@ Name | Type | Description
 detrend_data(bd, method = 'linear')
 ```
 
-Remove linear trend from each voxel
+Remove the linear trend from each voxel.
 
 **Parameters:**
 
@@ -209,7 +209,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See :meth:`BrainData.distance`. | <code>'whole_brain'</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
 `roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
@@ -298,7 +298,7 @@ nilearn.signal.clean documentation for all available options
 find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = None, sampling_freq = None)
 ```
 
-Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
+Identify spikes from time-series data; see `find_spikes`.
 
 #### `icc`
 
@@ -306,8 +306,7 @@ Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`.
 icc(bd, n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
 ```
 
-Calculate voxel-wise intraclass correlation coefficient for data within
-    BrainData class.
+Calculate voxelwise intraclass correlations for BrainData.
 
 Computes ICC for each voxel independently, making it highly parallelizable.
 Supports GPU acceleration for large voxel counts.
@@ -364,8 +363,9 @@ subject2_session1, ...]
 multivariate_similarity(bd, images, method = 'ols')
 ```
 
-Predict spatial distribution of BrainData() instance from linear
-combination of other BrainData() instances or Nibabel images
+Predict a BrainData spatial distribution from a linear combination.
+
+The predictors may be other BrainData instances or nibabel images.
 
 **Parameters:**
 
@@ -387,8 +387,7 @@ Name | Type | Description
 r_to_z(bd)
 ```
 
-Apply Fisher's r to z transformation to each element of the data
-object.
+Apply Fisher's r-to-z transformation to each data element.
 
 **Parameters:**
 
@@ -408,13 +407,15 @@ Name | Type | Description
 reduce_per_roi(bd, reducer, *, roi_mask)
 ```
 
-Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
-result back to voxel space — i.e. spatial smoothing via parcellation.
+Apply a reducer within each parcel and paint results back to voxel space.
+
+This performs spatial smoothing via parcellation using a reducer such as
+``np.mean``.
 
 For each image ``i`` and each parcel ``p``, computes
 ``reducer(bd.data[i, voxels-in-p])`` and assigns that scalar to every
 voxel in parcel ``p`` for image ``i``. Voxels outside any parcel get
-NaN. Output is a :class:`BrainData` of the same shape as the input.
+NaN. Output is a `BrainData` of the same shape as the input.
 
 Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
@@ -494,8 +495,7 @@ Name | Type | Description
 similarity(bd, image, method = 'correlation')
 ```
 
-Calculate similarity of BrainData() instance with single
-BrainData or Nibabel image
+Calculate similarity to a single BrainData or nibabel image.
 
 **Parameters:**
 
@@ -517,7 +517,7 @@ Type | Description
 smooth(bd, fwhm)
 ```
 
-Apply spatial smoothing using nilearn smooth_img()
+Apply spatial smoothing using nilearn's ``smooth_img``.
 
 **Parameters:**
 
@@ -560,6 +560,8 @@ Name | Type | Description
 ```python
 temporal_resample(bd, sampling_freq = None, target = None, target_type = 'hz')
 ```
+
+Resample a BrainData time series to a target frequency or sample count.
 
 Resample BrainData timeseries to a new target frequency or number of samples
 using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.

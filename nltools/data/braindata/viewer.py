@@ -1,24 +1,24 @@
 """ipyniivue (niivue) interactive viewer for BrainData.
 
-:func:`build_viewer` returns a configured :class:`ipyniivue.NiiVue` — a
+`build_viewer` returns a configured `NiiVue` — a
 WebGL brain viewer with live windowing (right-drag), slice scrolling,
 native 4D frame scrubbing, true 3D rendering, and optional nltools-atlas
 overlays (colored regions / outlines / hover labels). Live-kernel only
-(Jupyter, marimo); static docs keep using :meth:`BrainData.plot`.
+(Jupyter, marimo); static docs keep using `BrainData.plot`.
 
 The module is split functional-core / imperative-shell:
 
-- Pure helpers (:func:`resolve_cmap`, :func:`divergent_partner`,
-  :func:`slice_type_for`, :func:`qualitative_colors`,
-  :func:`atlas_to_label_lut`, :func:`resolve_background`,
-  :func:`bd_to_volume`) translate BrainData / :class:`Atlas` state into the
+- Pure helpers (`resolve_cmap`, `divergent_partner`,
+  `slice_type_for`, `qualitative_colors`,
+  `atlas_to_label_lut`, `resolve_background`,
+  `bd_to_volume`) translate BrainData / `Atlas` state into the
   vocabulary niivue understands.
-- :func:`build_viewer` is the thin assembler that constructs the widget,
+- `build_viewer` is the thin assembler that constructs the widget,
   loads the volume stack, and applies the display settings.
 
 niivue formatting deliberately lives here, not in
 ``nltools/data/atlases/`` — the atlas package stays niivue-agnostic and
-only exposes the generic :class:`Atlas` dataclass.
+only exposes the generic `Atlas` dataclass.
 """
 
 from __future__ import annotations
@@ -161,14 +161,14 @@ _VIEW_TO_SLICE: dict[str, SliceType] = {
 
 
 def slice_type_for(view: str) -> SliceType:
-    """Map a ``view`` string to a niivue :class:`SliceType`.
+    """Map a ``view`` string to a niivue `SliceType`.
 
     Args:
         view: One of ``"ortho"``, ``"axial"``, ``"coronal"``,
             ``"sagittal"``, ``"render"``.
 
     Returns:
-        The matching :class:`ipyniivue.SliceType`.
+        The matching `SliceType`.
 
     Raises:
         ValueError: For ``view="surface"`` (dropped — niivue's 3D render is
@@ -230,15 +230,15 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
     The LUT arrays are dense (length ``max_index + 1``) because niivue
     indexes them by integer voxel value. Index 0 and any gap indices are
     transparent (``A=0``, empty label); each present region gets a color
-    from :func:`qualitative_colors` (assigned in table-enumeration order, so
+    from `qualitative_colors` (assigned in table-enumeration order, so
     colors stay stable under sparse / non-contiguous indices) and its name.
 
     Args:
-        atlas: A loaded deterministic :class:`Atlas`.
+        atlas: A loaded deterministic `Atlas`.
 
     Returns:
         ``{"R", "G", "B", "A", "labels"}`` dict suitable for
-        :meth:`ipyniivue.Volume.set_colormap_label`.
+        `set_colormap_label`.
 
     Raises:
         ValueError: If ``atlas`` is probabilistic (4D) — threshold it to a
@@ -267,7 +267,7 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
 
 
 def _coerce_atlas(atlas: str | Atlas | None) -> Atlas | None:
-    """Resolve the ``atlas`` argument to an :class:`Atlas` or ``None``."""
+    """Resolve the ``atlas`` argument to an `Atlas` or ``None``."""
     if atlas is None:
         return None
     if isinstance(atlas, Atlas):
@@ -326,7 +326,7 @@ def bd_to_volume(
     cal_max: float | None,
     opacity: float,
 ) -> Volume:
-    """Build a niivue :class:`Volume` from a BrainData stat map.
+    """Build a niivue `Volume` from a BrainData stat map.
 
     The 3D (``bd[0]``) or 4D (a stack) image is loaded **once** as a single
     volume — niivue scrubs 4D frames natively, so there is no per-frame
@@ -346,7 +346,7 @@ def bd_to_volume(
         opacity: Volume opacity in ``0..1``.
 
     Returns:
-        A configured :class:`ipyniivue.Volume`.
+        A configured `Volume`.
     """
     vol = Volume(
         name=name,
@@ -380,7 +380,7 @@ def build_viewer(
     outline: float = 0.0,
     niivue_opts: dict | None = None,
 ) -> NiiVue:
-    """Assemble a configured :class:`ipyniivue.NiiVue` for a BrainData.
+    """Assemble a configured `NiiVue` for a BrainData.
 
     Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
     so its outlines/opacity keep the stat map readable), loads it, applies
@@ -388,19 +388,19 @@ def build_viewer(
 
     Args:
         bd: BrainData to view.
-        view: See :func:`slice_type_for`.
+        view: See `slice_type_for`.
         cal_min: Window floor (threshold), or ``None`` for auto.
         cal_max: Window ceiling, or ``None`` for auto.
         cmap: Positive colormap (niivue or matplotlib name).
-        atlas: Atlas name, :class:`Atlas`, or ``None``.
-        bg_img: See :func:`resolve_background`.
+        atlas: Atlas name, `Atlas`, or ``None``.
+        bg_img: See `resolve_background`.
         opacity: Stat-map (and filled-atlas) opacity.
         outline: ``> 0`` draws atlas region boundaries of that width;
             ``0`` draws filled regions.
         niivue_opts: Extra kwargs forwarded verbatim to ``NiiVue(**opts)``.
 
     Returns:
-        A configured :class:`ipyniivue.NiiVue` ready to display.
+        A configured `NiiVue` ready to display.
     """
     cmap_resolved = resolve_cmap(cmap)
     cmap_negative = divergent_partner(cmap_resolved)

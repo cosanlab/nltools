@@ -185,7 +185,10 @@ class BrainCollection:
         mask: nib.Nifti1Image | Path | str,
         cache_dir: Path | str | None = "./.nltools_cache",
     ) -> BrainCollection:
-        """Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0."""
+        """Read a collection written by ``write()``.
+
+        This does not recover from cache subdirectories in v0.6.0.
+        """
         return io.read(cls, directory, mask=mask, cache_dir=cache_dir)
 
     # ------------------------------------------------------------------
@@ -198,7 +201,10 @@ class BrainCollection:
 
     @property
     def n_voxels(self) -> int:
-        """Voxel count from the mask. Raises if mask is unset."""
+        """Return the voxel count from the mask.
+
+        Raises if the mask is unset.
+        """
         raise NotImplementedError("scaffold")
 
     @property
@@ -246,7 +252,10 @@ class BrainCollection:
         return len(self._items)
 
     def __iter__(self) -> Iterator:  # Iterator[BrainData]
-        """Yield each item as a ``BrainData``. Loads paths lazily."""
+        """Yield each item as a ``BrainData``.
+
+        Paths are loaded lazily.
+        """
         raise NotImplementedError("scaffold")
 
     def __getitem__(self, key) -> Any:  # BrainData | BrainCollection
@@ -439,11 +448,11 @@ class BrainCollection:
         cache: Literal["auto", True, False] = "auto",
         **kwargs,
     ):  # BrainData | BrainCollection
-        """Two distinct paths, dispatched by argument:
+        """Dispatch prediction according to the provided target argument.
 
-          ``y=`` only    → group MVPA (subjects as samples) → ``BrainData``
-          ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
-          both / neither → raise
+        - ``y=`` only → group MVPA (subjects as samples) → ``BrainData``
+        - ``X_new=`` only → per-subject predict-after-fit → ``BrainCollection``
+        - both / neither → raise
 
         ``predict(y=...)`` requires single-map-per-subject items (run
         ``compute_contrasts(...)`` first if you have GLM/ridge bundles).
@@ -635,7 +644,10 @@ class BrainCollection:
         n: int = 1000,
         random_state: int | None = None,
     ) -> BrainCollectionPipeline:
-        """Build a CV pipeline for cross-subject prediction. See ``pipeline.py``."""
+        """Build a cross-validation pipeline for cross-subject prediction.
+
+        See ``pipeline.py`` for details.
+        """
         raise NotImplementedError("scaffold")
 
     # ------------------------------------------------------------------
@@ -674,11 +686,17 @@ class BrainCollection:
     # ------------------------------------------------------------------
 
     def load(self, indices: list[int] | None = None) -> BrainCollection:
-        """Materialize path-backed items in place. Returns ``self`` for chaining."""
+        """Materialize path-backed items in place.
+
+        Returns ``self`` for chaining.
+        """
         return io.load(self, indices)
 
     def unload(self, indices: list[int] | None = None) -> BrainCollection:
-        """Drop in-memory data for items with backing paths. Returns ``self``."""
+        """Drop in-memory data for items with backing paths.
+
+        Returns ``self``.
+        """
         return io.unload(self, indices)
 
     def steps(self) -> list[Path]:
@@ -739,7 +757,10 @@ class BrainCollection:
     # ------------------------------------------------------------------
 
     def __del__(self) -> None:
-        """No-op. Cache cleanup is always explicit (``bc.cleanup()``)."""
+        """Perform no cleanup during finalization.
+
+        Cache cleanup is always explicit via ``bc.cleanup()``.
+        """
         return
 
     def __repr__(self) -> str:

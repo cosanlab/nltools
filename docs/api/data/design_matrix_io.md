@@ -1,6 +1,6 @@
 ## `io`
 
-DesignMatrix I/O and visualization functions.
+Provide DesignMatrix I/O and visualization functions.
 
 Standalone functions extracted from DesignMatrix methods.
 Each takes a DesignMatrix instance (`dm`) as its first argument.
@@ -11,7 +11,7 @@ Name | Description
 ---- | -----------
 [`events_to_dm`](#events_to_dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
 [`load_from_file`](#load_from_file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
-[`to_numpy`](#to_numpy) | Convert DesignMatrix to numpy array.
+[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
 [`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
 [`write_h5`](#write_h5) | Write DesignMatrix to HDF5 file with metadata.
@@ -91,7 +91,7 @@ Type | Description
 to_numpy(dm: DesignMatrix) -> np.ndarray
 ```
 
-Convert DesignMatrix to numpy array.
+Convert a DesignMatrix to a NumPy array.
 
 Returns data columns as 2D numpy array (rows x columns).
 Column order is preserved from DataFrame.

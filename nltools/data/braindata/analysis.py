@@ -1,5 +1,4 @@
-"""
-BrainData analysis functions.
+"""BrainData analysis functions.
 
 Standalone functions extracted from BrainData class methods for similarity,
 distance, masking, ROI extraction, ICC, filtering, thresholding, decomposition,
@@ -13,7 +12,7 @@ from .utils import shallow_copy
 
 
 def check_masks(bd, image):
-    """Check to make sure masks are the same for each dataset and if not create a union mask
+    """Ensure two datasets use compatible masks, creating a union mask if needed.
 
     Args:
         bd: BrainData instance
@@ -39,8 +38,7 @@ def check_masks(bd, image):
 
 
 def similarity(bd, image, method="correlation"):
-    """Calculate similarity of BrainData() instance with single
-    BrainData or Nibabel image
+    """Calculate similarity to a single BrainData or nibabel image.
 
     Args:
         bd: BrainData instance.
@@ -90,7 +88,7 @@ def distance(
                 metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',
                 'correlation', 'hamming', 'jaccard', etc.)
         spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
-            ``'searchlight'``. See :meth:`BrainData.distance`.
+            ``'searchlight'``. See `BrainData.distance`.
         roi_mask: Atlas for ``spatial_scale='roi'``.
         radius_mm: Searchlight radius for ``spatial_scale='searchlight'``.
         **kwargs: Additional arguments passed to scipy.spatial.distance.cdist.
@@ -116,9 +114,7 @@ def distance(
         return Adjacency(dist_matrix, matrix_type="Distance")
 
     if spatial_scale == "searchlight":
-        return _distance_searchlight(
-            bd, metric=metric, radius_mm=radius_mm, **kwargs
-        )
+        return _distance_searchlight(bd, metric=metric, radius_mm=radius_mm, **kwargs)
 
     # spatial_scale == "roi"
     return _distance_roi(bd, metric=metric, roi_mask=roi_mask, **kwargs)
@@ -164,9 +160,7 @@ def _resolve_atlas_label_vec(bd, roi_mask):
     unique_labels = np.unique(label_vec)
     unique_labels = unique_labels[unique_labels != 0]
     if unique_labels.size == 0:
-        raise ValueError(
-            "roi_mask has no nonzero labels in the BrainData mask space."
-        )
+        raise ValueError("roi_mask has no nonzero labels in the BrainData mask space.")
     return roi_img, label_vec, unique_labels
 
 
@@ -176,7 +170,7 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
     For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
     ``target`` restricted to that parcel's voxels and collects results.
     The ``transformed`` field is reassembled into a single
-    :class:`BrainData` of the same shape as the input (each voxel filled
+    `BrainData` of the same shape as the input (each voxel filled
     with its parcel's transformed value per image; voxels outside any
     parcel = NaN). Per-parcel transform matrices and common-model
     objects are kept as dicts keyed by atlas label, since matrices over
@@ -222,9 +216,7 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
         # Accumulate
         tf = sub_out["transformation_matrix"]
-        transforms[int(label)] = (
-            tf.data if hasattr(tf, "data") else np.asarray(tf)
-        )
+        transforms[int(label)] = tf.data if hasattr(tf, "data") else np.asarray(tf)
         common_models[int(label)] = sub_out.get("common_model")
         disparities.append(float(sub_out.get("disparity", np.nan)))
         scales.append(float(sub_out.get("scale", np.nan)))
@@ -254,13 +246,15 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
 
 def reduce_per_roi(bd, reducer, *, roi_mask):
-    """Apply ``reducer`` (e.g. ``np.mean``) within each parcel and paint the
-    result back to voxel space — i.e. spatial smoothing via parcellation.
+    """Apply a reducer within each parcel and paint results back to voxel space.
+
+    This performs spatial smoothing via parcellation using a reducer such as
+    ``np.mean``.
 
     For each image ``i`` and each parcel ``p``, computes
     ``reducer(bd.data[i, voxels-in-p])`` and assigns that scalar to every
     voxel in parcel ``p`` for image ``i``. Voxels outside any parcel get
-    NaN. Output is a :class:`BrainData` of the same shape as the input.
+    NaN. Output is a `BrainData` of the same shape as the input.
 
     Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
     """
@@ -318,8 +312,9 @@ def reduce_per_roi(bd, reducer, *, roi_mask):
 
 
 def _distance_roi(bd, *, metric, roi_mask, **kwargs):
-    """Compute one pairwise distance matrix per atlas parcel and return a
-    stacked Adjacency with ``SpatialScale`` provenance attached.
+    """Compute a pairwise distance matrix for each atlas parcel.
+
+    Returns a stacked Adjacency with ``SpatialScale`` provenance attached.
     """
     from pathlib import Path
 
@@ -378,8 +373,9 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
 
 
 def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
-    """Compute one pairwise distance matrix per searchlight center and
-    return a stacked Adjacency with ``SpatialScale(kind='searchlight')``.
+    """Compute a pairwise distance matrix for each searchlight center.
+
+    Returns a stacked Adjacency with ``SpatialScale(kind='searchlight')``.
 
     Each masked voxel is its own ``roi_label`` (1-indexed), and the
     synthetic atlas labels each masked voxel with its own ID — so
@@ -402,7 +398,9 @@ def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
     matrices = []
     for i in range(n_voxels):
         cols = nbrs.get_neighbors(i)
-        matrices.append(cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs))
+        matrices.append(
+            cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs)
+        )
 
     # Synthetic atlas: each masked voxel labeled with its own integer ID
     # (1-indexed so 0 stays "outside the atlas"). Built by writing
@@ -423,8 +421,9 @@ def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
 
 
 def multivariate_similarity(bd, images, method="ols"):
-    """Predict spatial distribution of BrainData() instance from linear
-    combination of other BrainData() instances or Nibabel images
+    """Predict a BrainData spatial distribution from a linear combination.
+
+    The predictors may be other BrainData instances or nibabel images.
 
     Args:
         bd: BrainData instance of data to be applied
@@ -661,8 +660,7 @@ def icc(
     n_jobs=-1,
     max_gpu_memory_gb=4.0,
 ):
-    """Calculate voxel-wise intraclass correlation coefficient for data within
-        BrainData class.
+    """Calculate voxelwise intraclass correlations for BrainData.
 
     Computes ICC for each voxel independently, making it highly parallelizable.
     Supports GPU acceleration for large voxel counts.
@@ -739,7 +737,7 @@ def icc(
 
 
 def detrend_data(bd, method="linear"):
-    """Remove linear trend from each voxel
+    """Remove the linear trend from each voxel.
 
     Args:
         bd: BrainData instance.
@@ -761,8 +759,7 @@ def detrend_data(bd, method="linear"):
 
 
 def r_to_z(bd):
-    """Apply Fisher's r to z transformation to each element of the data
-    object.
+    """Apply Fisher's r-to-z transformation to each data element.
 
     Args:
         bd: BrainData instance.
@@ -1130,7 +1127,7 @@ def transform_pairwise_data(bd):
 
 
 def decompose(bd, *, method="pca", axis="voxels", n_components=None, **kwargs):
-    """Decompose BrainData object
+    """Decompose a BrainData object.
 
     Args:
         bd: BrainData instance.
@@ -1178,7 +1175,7 @@ def decompose(bd, *, method="pca", axis="voxels", n_components=None, **kwargs):
 
 
 def align(bd, target, method="procrustes", axis=0):
-    """Align BrainData instance to target object using functional alignment
+    """Align a BrainData instance to a target using functional alignment.
 
     Alignment type can be hyperalignment or Shared Response Model. When
     using hyperalignment, `target` image can be another subject or an
@@ -1275,7 +1272,7 @@ def align(bd, target, method="procrustes", axis=0):
 
 
 def smooth(bd, fwhm):
-    """Apply spatial smoothing using nilearn smooth_img()
+    """Apply spatial smoothing using nilearn's ``smooth_img``.
 
     Args:
         bd: BrainData instance.
@@ -1314,7 +1311,7 @@ def find_spikes_data(
     TR=None,
     sampling_freq=None,
 ):
-    """Identify spikes from Time Series Data — see :func:`nltools.stats.find_spikes`."""
+    """Identify spikes from time-series data; see `find_spikes`."""
     from nltools.stats import find_spikes
 
     return find_spikes(
@@ -1327,7 +1324,8 @@ def find_spikes_data(
 
 
 def temporal_resample(bd, sampling_freq=None, target=None, target_type="hz"):
-    """
+    """Resample a BrainData time series to a target frequency or sample count.
+
     Resample BrainData timeseries to a new target frequency or number of samples
     using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
     This function can up- or down-sample data.

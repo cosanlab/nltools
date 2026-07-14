@@ -1,6 +1,4 @@
-"""
-Cross-Validation Data Classes
-=============================
+"""Provide cross-validation data classes.
 
 Scikit-learn compatible classes for performing various
 types of cross-validation
@@ -15,8 +13,9 @@ import numpy as np
 
 
 class KFoldStratified(_BaseKFold):
-    """K-Folds cross validation iterator which stratifies continuous data
-    (unlike scikit-learn equivalent).
+    """Stratify continuous targets across K-fold cross-validation.
+
+    Unlike the scikit-learn equivalent, this iterator stratifies continuous data.
 
     Provides train/test indices to split data in train test sets. Split
     dataset into k consecutive folds while ensuring that same subject is

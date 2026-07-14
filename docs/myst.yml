@@ -119,6 +119,7 @@ site:
   options:
     logo: ''
     logo_text: nltools
+    style: ./_static/custom.css
     folders: true
     output_matplotlib_strings: remove
   template: book-theme

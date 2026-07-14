@@ -12,7 +12,7 @@ import seaborn as sns
 
 
 def plot_dist_from_hyperplane(stats_output):
-    """Plot SVM Classification Distance from Hyperplane
+    """Plot SVM Classification Distance from Hyperplane.
 
     Args:
         stats_output: a pandas file with prediction output
@@ -45,7 +45,7 @@ def plot_dist_from_hyperplane(stats_output):
 
 
 def plot_scatter(stats_output):
-    """Plot Prediction Scatterplot
+    """Plot Prediction Scatterplot.
 
     Args:
         stats_output: a pandas file with prediction output
@@ -66,7 +66,7 @@ def plot_scatter(stats_output):
 
 
 def plot_probability(stats_output):
-    """Plot Classification Probability
+    """Plot Classification Probability.
 
     Args:
         stats_output: a pandas file with prediction output
@@ -86,7 +86,7 @@ def plot_probability(stats_output):
 
 
 def plot_roc(fpr, tpr):
-    """Plot 1-Specificity by Sensitivity
+    """Plot 1-Specificity by Sensitivity.
 
     Args:
         fpr: false positive rate from Roc.calculate

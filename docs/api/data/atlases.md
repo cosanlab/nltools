@@ -4,7 +4,7 @@ Atlas registry, lazy loading, and coordinate labeling.
 
 Atlases are hosted at ``huggingface.co/datasets/nltools/niftis`` under
 ``atlases/`` and fetched on first use via
-:func:`nltools.templates.fetch_resource`. Cached locally afterwards.
+`fetch_resource`. Cached locally afterwards.
 
 The labeling logic was adapted from
 [atlasreader](https://github.com/miykael/atlasreader) (BSD-3-Clause). Cite:
@@ -27,7 +27,7 @@ Name | Description
 ---- | -----------
 [`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
 [`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
-[`ClusterReport`](#ClusterReport) | Result of :meth:`BrainData.cluster_report`.
+[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
@@ -89,8 +89,8 @@ cluster_report_data(bd: BrainData, *, stat_threshold: float | None = 3.0, cluste
 
 Compute cluster report DataFrames + thresholded BrainData.
 
-Pure function — the BrainData facade :meth:`BrainData.cluster_report`
-wraps the result in a :class:`ClusterReport`.
+Pure function — the BrainData facade `BrainData.cluster_report`
+wraps the result in a `ClusterReport`.
 
 **Parameters:**
 
@@ -100,8 +100,8 @@ Name | Type | Description | Default
 `stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
 `cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
 `two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
-`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to :func:`nilearn.reporting.get_clusters_table`. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
+`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
 `prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
 
 **Returns:**
@@ -128,7 +128,7 @@ sorted by descending probability).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
 `prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
 
 **Returns:**
@@ -151,7 +151,7 @@ Return the sorted list of registered atlas names.
 Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with
-<code>[list](#list)[[str](#str)]</code> | func:`nltools.data.atlases.load_atlas`.
+<code>[list](#list)[[str](#str)]</code> | `load_atlas`.
 
 #### `load_atlas`
 
@@ -169,13 +169,13 @@ afterwards). Subsequent calls in the same process are memoized.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`name` | <code>[str](#str)</code> | Atlas key from :func:`list_atlases`. | *required*
+`name` | <code>[str](#str)</code> | Atlas key from `list_atlases`. | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`An` | <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | class:`Atlas` with image, labels, and metadata loaded.
+Type | Description
+---- | -----------
+<code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
 
 
 
@@ -222,7 +222,7 @@ sorted by descending probability).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
 `prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
 
 **Returns:**
@@ -266,13 +266,13 @@ afterwards). Subsequent calls in the same process are memoized.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`name` | <code>[str](#str)</code> | Atlas key from :func:`list_atlases`. | *required*
+`name` | <code>[str](#str)</code> | Atlas key from `list_atlases`. | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`An` | <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | class:`Atlas` with image, labels, and metadata loaded.
+Type | Description
+---- | -----------
+<code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
 
 #### `registry`
 
@@ -280,8 +280,8 @@ Static registry of atlases hosted at ``nltools/niftis/atlases``.
 
 Each entry describes an atlas's kind (deterministic vs probabilistic) and
 the citation users should cite when they use it. The actual NIfTI + label
-files are fetched lazily by :func:`nltools.data.atlases.load_atlas` via
-:func:`nltools.templates.fetch_resource`.
+files are fetched lazily by `load_atlas` via
+`fetch_resource`.
 
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
@@ -321,13 +321,13 @@ Return the sorted list of registered atlas names.
 Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with
-<code>[list](#list)[[str](#str)]</code> | func:`nltools.data.atlases.load_atlas`.
+<code>[list](#list)[[str](#str)]</code> | `load_atlas`.
 
 #### `reporting`
 
 Cluster reports — peak/cluster geometry plus atlas labels.
 
-The peak/sub-peak geometry comes from :func:`nilearn.reporting.get_clusters_table`;
+The peak/sub-peak geometry comes from `get_clusters_table`;
 the cluster masks and mass-weighted labels are computed locally so we can
 attribute every voxel of every cluster to one or more atlases.
 
@@ -335,7 +335,7 @@ attribute every voxel of every cluster to one or more atlases.
 
 Name | Description
 ---- | -----------
-[`ClusterReport`](#ClusterReport) | Result of :meth:`BrainData.cluster_report`.
+[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
@@ -353,8 +353,8 @@ cluster_report_data(bd: BrainData, *, stat_threshold: float | None = 3.0, cluste
 
 Compute cluster report DataFrames + thresholded BrainData.
 
-Pure function — the BrainData facade :meth:`BrainData.cluster_report`
-wraps the result in a :class:`ClusterReport`.
+Pure function — the BrainData facade `BrainData.cluster_report`
+wraps the result in a `ClusterReport`.
 
 **Parameters:**
 
@@ -364,8 +364,8 @@ Name | Type | Description | Default
 `stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
 `cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
 `two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
-`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to :func:`nilearn.reporting.get_clusters_table`. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from :func:`list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
+`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
 `prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
 
 **Returns:**

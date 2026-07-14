@@ -1,5 +1,4 @@
-"""
-Correlation permutation test implementations.
+"""Correlation permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of correlation permutation tests for assessing statistical significance
@@ -20,8 +19,7 @@ if TYPE_CHECKING:
 
 
 def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
-    """
-    Compute Pearson correlation coefficient(s).
+    """Compute Pearson correlation coefficient(s).
 
     Args:
         x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
@@ -60,8 +58,7 @@ def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
 
 
 def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
-    """
-    Compute Spearman rank correlation coefficient(s).
+    """Compute Spearman rank correlation coefficient(s).
 
     Spearman correlation is the Pearson correlation of the rank-transformed data.
     It measures monotonic (not necessarily linear) relationships.
@@ -114,8 +111,7 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
 
 
 def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
-    """
-    Compute Kendall rank correlation coefficient(s).
+    """Compute Kendall rank correlation coefficient(s).
 
     Kendall tau correlation measures ordinal association based on concordant
     and discordant pairs. More robust than Spearman for small samples or
@@ -160,8 +156,7 @@ def _correlation_permutation_cpu_parallel(
     random_state: int | None,
     single_feature: bool = False,
 ) -> dict:
-    """
-    Correlation permutation test using CPU parallelization with joblib.
+    """Correlation permutation test using CPU parallelization with joblib.
 
     Memory-efficient implementation that processes one permutation per worker.
     Randomly shuffles data1 and computes correlation with data2.
@@ -258,8 +253,7 @@ def _correlation_permutation_cpu_parallel(
 def _rank_transform_gpu(
     data: "torch.Tensor", dim: int = -1, method: str = "average"
 ) -> "torch.Tensor":
-    """
-    GPU-accelerated rank transformation using PyTorch.
+    """GPU-accelerated rank transformation using PyTorch.
 
     Computes ranks using the "average" method for tied ranks, matching
     scipy.stats.rankdata behavior. This is used for Spearman correlation.
@@ -364,8 +358,7 @@ def _correlation_permutation_gpu_batched(
     random_state,
     single_feature: bool = False,
 ) -> dict:
-    """
-    Correlation permutation test using GPU with automatic batching.
+    """Correlation permutation test using GPU with automatic batching.
 
     Processes permutations in batches to avoid GPU OOM. Transfers data once
     and reuses across batches for efficiency.
@@ -636,8 +629,7 @@ def correlation_permutation_test(
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
 ) -> dict:
-    """
-    Correlation permutation test.
+    """Correlation permutation test.
 
     Tests whether the correlation between data1 and data2 is significantly
     different from zero by randomly permuting data1 and computing correlations.

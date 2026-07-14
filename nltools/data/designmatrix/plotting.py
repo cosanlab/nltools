@@ -36,7 +36,7 @@ def plot_designmatrix(
 ):
     """Visualize a DesignMatrix, dispatching over ``method``.
 
-    See :meth:`DesignMatrix.plot` for the full argument documentation.
+    See `DesignMatrix.plot` for the full argument documentation.
 
     Returns:
         matplotlib.figure.Figure: The figure containing the plot.
@@ -193,7 +193,7 @@ def plot_corr(
 ):
     """Render a labeled correlation heatmap of the columns.
 
-    Reuses :meth:`DesignMatrix.corr`, which returns a similarity ``Adjacency``
+    Reuses `DesignMatrix.corr`, which returns a similarity ``Adjacency``
     with the unit diagonal dropped; the diagonal is restored to ``1.0`` here so
     the heatmap reads as a standard correlation matrix.
 

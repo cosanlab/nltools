@@ -148,9 +148,7 @@ class TestDistanceSearchlight:
         )
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
-        model = Adjacency(
-            np.abs(rng.standard_normal((n, n))), matrix_type="distance"
-        )
+        model = Adjacency(np.abs(rng.standard_normal((n, n))), matrix_type="distance")
         brain_map = rdms.similarity(
             model, project=True, permutation_method=None, metric="spearman"
         )

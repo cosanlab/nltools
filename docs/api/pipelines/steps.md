@@ -52,8 +52,7 @@ Name | Type | Description | Default
 `n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Default is -1. | <code>-1</code>
 `**kwargs` |  | Additional arguments passed to the underlying algorithm. For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'. | <code>{}</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> # Create synthetic multi-subject data
 >>> data = [np.random.randn(100, 50) for _ in range(5)]
@@ -410,8 +409,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | Normalization method: 'zscore' (subtract mean, divide by std) or 'minmax' (scale to [0, 1] range). Default is 'zscore'. | <code>'zscore'</code>
 `axis` | <code>[int](#int)</code> | Axis along which to compute statistics. Default 0 (per-feature normalization, treating rows as samples). | <code>0</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.array([[1, 2], [3, 4], [5, 6]])
 >>> step = NormalizeStep(method='zscore')
@@ -474,8 +472,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `transformer` | <code>[Any](#typing.Any)</code> | An sklearn-compatible transformer instance. Must have fit() and transform() methods. The transformer will be cloned before fitting. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> from sklearn.preprocessing import StandardScaler
 >>> import numpy as np
 >>> data = np.random.randn(100, 10)
@@ -543,8 +540,7 @@ Name | Type | Description | Default
 `n_components` | <code>[int](#int) \| None</code> | Number of components to keep. If None, keeps all components. | <code>None</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
-Examples
---------
+Examples:
 >>> import numpy as np
 >>> data = np.random.randn(100, 50)
 >>> step = ReduceStep(method='pca', n_components=10)

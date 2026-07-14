@@ -17,7 +17,7 @@ __all__ = [
 
 
 def fisher_r_to_z(r):
-    """Use Fisher transformation to convert correlation to z score
+    """Use Fisher transformation to convert correlation to z score.
 
     Args:
         r: correlation coefficient(s)
@@ -34,12 +34,13 @@ def fisher_r_to_z(r):
 
 
 def fisher_z_to_r(z):
-    """Use Fisher transformation to convert correlation to z score"""
+    """Use Fisher transformation to convert correlation to z score."""
     return np.tanh(z)
 
 
 def transform_pairwise(X, y):
-    """Transforms data into pairs with balanced labels for ranking
+    """Transform data into pairs with balanced labels for ranking.
+
     Transforms a n-class ranking problem into a two-class classification
     problem. Subclasses implementing particular strategies for choosing
     pairs should override this method.

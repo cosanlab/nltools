@@ -54,37 +54,58 @@ def concat(bc: BrainCollection) -> BrainData:
 
 
 def mean(bc: BrainCollection) -> BrainData:
-    """Mean across subjects (leading axis). Streams from path-backed input."""
+    """Compute the mean across subjects along the leading axis.
+
+    Streams from path-backed input.
+    """
     raise NotImplementedError("scaffold")
 
 
 def std(bc: BrainCollection) -> BrainData:
-    """Std across subjects. Streams via Welford; ddof=1 by default."""
+    """Compute the standard deviation across subjects.
+
+    Streams via Welford with ``ddof=1`` by default.
+    """
     raise NotImplementedError("scaffold")
 
 
 def var(bc: BrainCollection) -> BrainData:
-    """Variance across subjects. Streams via Welford; ddof=1 by default."""
+    """Compute the variance across subjects.
+
+    Streams via Welford with ``ddof=1`` by default.
+    """
     raise NotImplementedError("scaffold")
 
 
 def median(bc: BrainCollection) -> BrainData:
-    """Median across subjects. Not streaming-friendly — materializes."""
+    """Compute the median across subjects.
+
+    This materializes the data because the operation is not streaming-friendly.
+    """
     raise NotImplementedError("scaffold")
 
 
 def sum_(bc: BrainCollection) -> BrainData:
-    """Sum across subjects. Streams."""
+    """Compute the sum across subjects.
+
+    This operation streams.
+    """
     raise NotImplementedError("scaffold")
 
 
 def min_(bc: BrainCollection) -> BrainData:
-    """Per-voxel min across subjects. Streams."""
+    """Compute the per-voxel minimum across subjects.
+
+    This operation streams.
+    """
     raise NotImplementedError("scaffold")
 
 
 def max_(bc: BrainCollection) -> BrainData:
-    """Per-voxel max across subjects. Streams."""
+    """Compute the per-voxel maximum across subjects.
+
+    This operation streams.
+    """
     raise NotImplementedError("scaffold")
 
 

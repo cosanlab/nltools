@@ -2,7 +2,7 @@
 
 Atlases are hosted at ``huggingface.co/datasets/nltools/niftis`` under
 ``atlases/`` and fetched on first use via
-:func:`nltools.templates.fetch_resource`. Cached locally afterwards.
+`fetch_resource`. Cached locally afterwards.
 
 The labeling logic was adapted from
 [atlasreader](https://github.com/miykael/atlasreader) (BSD-3-Clause). Cite:

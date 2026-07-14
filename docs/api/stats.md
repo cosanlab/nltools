@@ -12,9 +12,11 @@ focused submodules:
 - **alignment**: Data alignment (SRM, Procrustes, state alignment)
 - **intersubject**: ISC, ISFC, ISPS
 
-All public functions are re-exported here for convenience::
+All public functions are re-exported here for convenience:
 
-    from nltools.stats import fdr, zscore, isc  # all work
+```python
+from nltools.stats import fdr, zscore, isc  # all work
+```
 
 **Modules:**
 
@@ -33,9 +35,9 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
-[`align_states`](#align_states) | Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
-[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval
+[`align`](#align) | Align subject data into a common response model.
+[`align_states`](#align_states) | Align state weight maps by minimizing pairwise distance between group states.
+[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval.
 [`circle_shift`](#circle_shift) | Circular shift for time-series data.
 [`compute_icc`](#compute_icc) | Compute intraclass correlation coefficient (ICC).
 [`compute_multivariate_similarity`](#compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
@@ -44,26 +46,26 @@ Name | Description
 [`distance_correlation`](#distance_correlation) | Distance correlation for multivariate dependence.
 [`double_center`](#double_center) | Double-center a distance matrix.
 [`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
-[`fdr`](#fdr) | Determine FDR threshold given a p value array and desired false
+[`fdr`](#fdr) | Determine an FDR threshold for an array of p-values.
 [`find_spikes`](#find_spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
-[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
-[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score
-[`holm_bonf`](#holm_bonf) | Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score.
+[`holm_bonf`](#holm_bonf) | Compute Holm-Bonferroni-corrected p-values.
 [`isc`](#isc) | Compute pairwise intersubject correlation from observations by subjects array.
 [`isc_group`](#isc_group) | Compute difference in intersubject correlation between groups.
-[`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
-[`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
-[`make_cosine_basis`](#make_cosine_basis) | Create a series of cosine basis functions for a discrete cosine
+[`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
+[`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+[`make_cosine_basis`](#make_cosine_basis) | Create basis functions for a discrete cosine transform.
 [`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test).
 [`multi_threshold`](#multi_threshold) | Threshold test image by multiple p-values from p image.
 [`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
 [`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`procrustes`](#procrustes) | Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
-[`procrustes_distance`](#procrustes_distance) | Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+[`procrustes`](#procrustes) | Perform a Procrustes similarity analysis on two data sets.
+[`procrustes_distance`](#procrustes_distance) | Test matrix similarity using Procrustes superposition.
 [`regress`](#regress) | Fit an OLS regression of ``Y`` on ``X``.
 [`threshold`](#threshold) | Threshold test image by p-value from p image.
 [`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`transform_pairwise`](#transform_pairwise) | Transforms data into pairs with balanced labels for ranking
+[`transform_pairwise`](#transform_pairwise) | Transform data into pairs with balanced labels for ranking.
 [`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 [`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
 [`u_center`](#u_center) | U-center a distance matrix.
@@ -81,7 +83,9 @@ Name | Description
 align(data, method = 'deterministic_srm', n_features = None, axis = 0, *args, **kwargs)
 ```
 
-Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
+Align subject data into a common response model.
+
+This function is a convenience wrapper around `HyperAlignment` and `SRM` classes.
 
 Can be used to hyperalign source data to target data using
 Hyperalignment from Dartmouth (i.e., procrustes transformation; see
@@ -122,7 +126,10 @@ Name | Type | Description
 align_states(reference, target, metric = 'correlation', return_index = False, replace_zero_variance = False)
 ```
 
-Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
+Align state weight maps by minimizing pairwise distance between group states.
+
+This function uses the Hungarian algorithm for state alignment, which is
+different from aligning multiple subjects' data.
 
 **Parameters:**
 
@@ -143,7 +150,7 @@ Returns:
 calc_bpm(beat_interval, sampling_freq)
 ```
 
-Calculate instantaneous BPM from beat to beat interval
+Calculate instantaneous BPM from beat to beat interval.
 
 **Parameters:**
 
@@ -319,7 +326,7 @@ Name | Type | Description | Default
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Second variable, shape ``(n_samples,)``. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
@@ -422,8 +429,9 @@ Name | Type | Description
 fdr(p, q = 0.05)
 ```
 
-Determine FDR threshold given a p value array and desired false
-discovery rate q. Written by Tal Yarkoni
+Determine an FDR threshold for an array of p-values.
+
+Uses the desired false discovery rate ``q``. Written by Tal Yarkoni.
 
 **Parameters:**
 
@@ -473,7 +481,7 @@ Name | Type | Description
 fisher_r_to_z(r)
 ```
 
-Use Fisher transformation to convert correlation to z score
+Use Fisher transformation to convert correlation to z score.
 
 **Parameters:**
 
@@ -500,7 +508,7 @@ Clips r values to (-1, 1) range to avoid invalid arctanh inputs
 fisher_z_to_r(z)
 ```
 
-Use Fisher transformation to convert correlation to z score
+Use Fisher transformation to convert correlation to z score.
 
 #### `holm_bonf`
 
@@ -508,7 +516,11 @@ Use Fisher transformation to convert correlation to z score
 holm_bonf(p, alpha = 0.05)
 ```
 
-Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+Compute Holm-Bonferroni-corrected p-values.
+
+This step-down procedure applies iteratively less correction to the highest
+p-values. It is a bit more conservative than FDR, but much more powerful than
+vanilla Bonferroni correction.
 
 **Parameters:**
 
@@ -642,7 +654,7 @@ Name | Type | Description
 isfc(data, method = 'average', n_jobs = -1)
 ```
 
-Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
+Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
 
 This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
 For each subject, compute the cross-correlation between each voxel/roi
@@ -680,7 +692,7 @@ Type | Description
 isps(data, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
 ```
 
-Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
 This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
 timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
@@ -731,11 +743,12 @@ Type | Description
 make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale = True, drop = 0)
 ```
 
-Create a series of cosine basis functions for a discrete cosine
-    transform. Based off of implementation in spm_filter and spm_dctmtx
-    because scipy dct can only apply transforms but not return the basis
-    functions. Like SPM, does not add constant (i.e. intercept), but does
-    retain first basis (i.e. sigmoidal/linear drift)
+Create basis functions for a discrete cosine transform.
+
+Based on the implementation in ``spm_filter`` and ``spm_dctmtx`` because
+scipy DCT can only apply transforms but not return the basis functions. Like
+SPM, this does not add a constant (i.e. intercept), but does retain the first
+basis (i.e. sigmoidal/linear drift).
 
 **Parameters:**
 
@@ -774,7 +787,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `how` | <code>[str](#str)</code> | Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``. | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Whether to include diagonal elements. | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
@@ -895,16 +908,19 @@ Type | Description
 procrustes(data1, data2)
 ```
 
-Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
+Perform a Procrustes similarity analysis on two data sets.
+
+For more comprehensive Procrustes-based alignment tasks, use
+`HyperAlignment` and `align()` instead.
 
 Each input matrix is a set of points or vectors (the rows of the matrix).
 The dimension of the space is the number of columns of each matrix. Given
 two identically sized matrices, procrustes standardizes both such that:
-- :math:`tr(AA^{T}) = 1`.
+- $tr(AA^{T}) = 1$.
 - Both sets of points are centered around the origin.
 Procrustes then applies the optimal transform to the second
 matrix (including scaling/dilation, rotations, and reflections) to minimize
-:math:`M^{2}=\sum(data1-data2)^{2}`, or the sum of the squares of the
+$M^{2}=\sum(data1-data2)^{2}$, or the sum of the squares of the
 pointwise differences between the two input datasets.
 This function was not designed to handle datasets with different numbers of
 datapoints (rows).  If two data sets have different dimensionality
@@ -923,8 +939,8 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `mtx1` |  | array_like A standardized version of `data1`.
-`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily :math:`tr(AA^{T}) = 1`.
-`disparity` |  | float :math:`M^{2}` as defined above.
+`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
+`disparity` |  | float $M^{2}$ as defined above.
 `R` |  | (N, N) ndarray The matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of dot(data1, R) - data2, subject to dot(R.T, R) == I.
 `scale` |  | float Sum of the singular values of ``dot(data1.T, data2)``.
 
@@ -934,7 +950,14 @@ Name | Type | Description
 procrustes_distance(mat1, mat2, n_permute = 5000, tail = 2, n_jobs = -1, random_state = None)
 ```
 
-Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+Test matrix similarity using Procrustes superposition.
+
+Matrices need to match in size on their first dimension only, as the smaller
+matrix on the second dimension will be padded with zeros. After aligning two
+matrices using the Procrustes transformation, use the computed disparity
+between them (sum of squared error of elements) as a similarity metric.
+Shuffle the rows of one of the matrices and recompute the disparity to perform
+inference (Peres-Neto & Jackson, 2001).
 
 **Parameters:**
 
@@ -1071,7 +1094,8 @@ Lancaster et al. (2018). Surrogate data for hypothesis testing.
 transform_pairwise(X, y)
 ```
 
-Transforms data into pairs with balanced labels for ranking
+Transform data into pairs with balanced labels for ranking.
+
 Transforms a n-class ranking problem into a two-class classification
 problem. Subclasses implementing particular strategies for choosing
 pairs should override this method.
@@ -1133,7 +1157,7 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data, shape ``(n1,)`` or ``(n1, n_features)``. | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data, shape ``(n2,)`` or ``(n2, n_features)``. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
@@ -1247,10 +1271,10 @@ Data alignment — SRM, Procrustes, and state alignment.
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
-[`align_states`](#align_states) | Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
-[`procrustes`](#procrustes) | Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
-[`procrustes_distance`](#procrustes_distance) | Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+[`align`](#align) | Align subject data into a common response model.
+[`align_states`](#align_states) | Align state weight maps by minimizing pairwise distance between group states.
+[`procrustes`](#procrustes) | Perform a Procrustes similarity analysis on two data sets.
+[`procrustes_distance`](#procrustes_distance) | Test matrix similarity using Procrustes superposition.
 
 
 
@@ -1264,7 +1288,9 @@ Name | Description
 align(data, method = 'deterministic_srm', n_features = None, axis = 0, *args, **kwargs)
 ```
 
-Align subject data into a common response model. This function is a convenience wrapper around `HyperAlignment` and `SRM` classes
+Align subject data into a common response model.
+
+This function is a convenience wrapper around `HyperAlignment` and `SRM` classes.
 
 Can be used to hyperalign source data to target data using
 Hyperalignment from Dartmouth (i.e., procrustes transformation; see
@@ -1305,7 +1331,10 @@ Name | Type | Description
 align_states(reference, target, metric = 'correlation', return_index = False, replace_zero_variance = False)
 ```
 
-Align state weight maps using hungarian algorithm by minimizing pairwise distance between group states.This function uses the Hungarian algorithm for state alignment, which is different from aligning multiple subjects' data.
+Align state weight maps by minimizing pairwise distance between group states.
+
+This function uses the Hungarian algorithm for state alignment, which is
+different from aligning multiple subjects' data.
 
 **Parameters:**
 
@@ -1326,16 +1355,19 @@ Returns:
 procrustes(data1, data2)
 ```
 
-Procrustes analysis, a similarity test for two data sets. For more comprehensive procrustes-based alignment tasks, use `HyperAlignment` and `align()` instead.
+Perform a Procrustes similarity analysis on two data sets.
+
+For more comprehensive Procrustes-based alignment tasks, use
+`HyperAlignment` and `align()` instead.
 
 Each input matrix is a set of points or vectors (the rows of the matrix).
 The dimension of the space is the number of columns of each matrix. Given
 two identically sized matrices, procrustes standardizes both such that:
-- :math:`tr(AA^{T}) = 1`.
+- $tr(AA^{T}) = 1$.
 - Both sets of points are centered around the origin.
 Procrustes then applies the optimal transform to the second
 matrix (including scaling/dilation, rotations, and reflections) to minimize
-:math:`M^{2}=\sum(data1-data2)^{2}`, or the sum of the squares of the
+$M^{2}=\sum(data1-data2)^{2}$, or the sum of the squares of the
 pointwise differences between the two input datasets.
 This function was not designed to handle datasets with different numbers of
 datapoints (rows).  If two data sets have different dimensionality
@@ -1354,8 +1386,8 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `mtx1` |  | array_like A standardized version of `data1`.
-`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily :math:`tr(AA^{T}) = 1`.
-`disparity` |  | float :math:`M^{2}` as defined above.
+`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
+`disparity` |  | float $M^{2}$ as defined above.
 `R` |  | (N, N) ndarray The matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of dot(data1, R) - data2, subject to dot(R.T, R) == I.
 `scale` |  | float Sum of the singular values of ``dot(data1.T, data2)``.
 
@@ -1365,7 +1397,14 @@ Name | Type | Description
 procrustes_distance(mat1, mat2, n_permute = 5000, tail = 2, n_jobs = -1, random_state = None)
 ```
 
-Use procrustes super-position to perform a similarity test between 2 matrices. Matrices need to match in size on their first dimension only, as the smaller matrix on the second dimension will be padded with zeros. After aligning two matrices using the procrustes transformation, use the computed disparity between them (sum of squared error of elements) as a similarity metric. Shuffle the rows of one of the matrices and recompute the disparity to perform inference (Peres-Neto & Jackson, 2001).
+Test matrix similarity using Procrustes superposition.
+
+Matrices need to match in size on their first dimension only, as the smaller
+matrix on the second dimension will be padded with zeros. After aligning two
+matrices using the Procrustes transformation, use the computed disparity
+between them (sum of squared error of elements) as a similarity metric.
+Shuffle the rows of one of the matrices and recompute the disparity to perform
+inference (Peres-Neto & Jackson, 2001).
 
 **Parameters:**
 
@@ -1392,8 +1431,8 @@ Multiple comparison corrections and thresholding.
 
 Name | Description
 ---- | -----------
-[`fdr`](#fdr) | Determine FDR threshold given a p value array and desired false
-[`holm_bonf`](#holm_bonf) | Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+[`fdr`](#fdr) | Determine an FDR threshold for an array of p-values.
+[`holm_bonf`](#holm_bonf) | Compute Holm-Bonferroni-corrected p-values.
 [`multi_threshold`](#multi_threshold) | Threshold test image by multiple p-values from p image.
 [`threshold`](#threshold) | Threshold test image by p-value from p image.
 
@@ -1407,8 +1446,9 @@ Name | Description
 fdr(p, q = 0.05)
 ```
 
-Determine FDR threshold given a p value array and desired false
-discovery rate q. Written by Tal Yarkoni
+Determine an FDR threshold for an array of p-values.
+
+Uses the desired false discovery rate ``q``. Written by Tal Yarkoni.
 
 **Parameters:**
 
@@ -1429,7 +1469,11 @@ Name | Type | Description
 holm_bonf(p, alpha = 0.05)
 ```
 
-Compute corrected p-values based on the Holm-Bonferroni method, i.e. step-down procedure applying iteratively less correction to highest p-values. A bit more conservative than fdr, but much more powerful thanvanilla bonferroni.
+Compute Holm-Bonferroni-corrected p-values.
+
+This step-down procedure applies iteratively less correction to the highest
+p-values. It is a bit more conservative than FDR, but much more powerful than
+vanilla Bonferroni correction.
 
 **Parameters:**
 
@@ -1523,9 +1567,9 @@ Name | Description
 [`compute_icc`](#compute_icc) | Compute intraclass correlation coefficient (ICC).
 [`compute_multivariate_similarity`](#compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
 [`compute_similarity`](#compute_similarity) | Compute similarity between two data arrays.
-[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score
-[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score
-[`transform_pairwise`](#transform_pairwise) | Transforms data into pairs with balanced labels for ranking
+[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score.
+[`transform_pairwise`](#transform_pairwise) | Transform data into pairs with balanced labels for ranking.
 
 
 
@@ -1653,7 +1697,7 @@ Type | Description
 fisher_r_to_z(r)
 ```
 
-Use Fisher transformation to convert correlation to z score
+Use Fisher transformation to convert correlation to z score.
 
 **Parameters:**
 
@@ -1680,7 +1724,7 @@ Clips r values to (-1, 1) range to avoid invalid arctanh inputs
 fisher_z_to_r(z)
 ```
 
-Use Fisher transformation to convert correlation to z score
+Use Fisher transformation to convert correlation to z score.
 
 ###### `transform_pairwise`
 
@@ -1688,7 +1732,8 @@ Use Fisher transformation to convert correlation to z score
 transform_pairwise(X, y)
 ```
 
-Transforms data into pairs with balanced labels for ranking
+Transform data into pairs with balanced labels for ranking.
+
 Transforms a n-class ranking problem into a two-class classification
 problem. Subclasses implementing particular strategies for choosing
 pairs should override this method.
@@ -1724,8 +1769,8 @@ Name | Description
 ---- | -----------
 [`isc`](#isc) | Compute pairwise intersubject correlation from observations by subjects array.
 [`isc_group`](#isc_group) | Compute difference in intersubject correlation between groups.
-[`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
-[`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+[`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
+[`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
 
 
@@ -1850,7 +1895,7 @@ Name | Type | Description
 isfc(data, method = 'average', n_jobs = -1)
 ```
 
-Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices
+Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
 
 This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
 For each subject, compute the cross-correlation between each voxel/roi
@@ -1888,7 +1933,7 @@ Type | Description
 isps(data, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
 ```
 
-Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array)
+Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
 This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
 timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
@@ -2098,7 +2143,7 @@ Name | Type | Description | Default
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Second variable, shape ``(n_samples,)``. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
@@ -2192,7 +2237,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``. | <code>'pearson'</code>
 `how` | <code>[str](#str)</code> | Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``. | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Whether to include diagonal elements. | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'`` or ``None``; GPU not supported). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
@@ -2337,7 +2382,7 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data, shape ``(n1,)`` or ``(n1, n_features)``. | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data, shape ``(n2,)`` or ``(n2, n_features)``. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default 5000). | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see :func:`one_sample_permutation_test`). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test sidedness (see `one_sample_permutation_test`). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the full null distribution. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``). | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | CPU cores for ``parallel='cpu'`` (default −1 = all). | <code>-1</code>
@@ -2380,8 +2425,8 @@ Standalone OLS regression on numpy arrays.
 
 Pedagogical helper used in tutorials and notebooks where callers want a
 ``(b, se, t, p, df, res)`` tuple from a design matrix ``X`` and response
-``Y`` without constructing a :class:`BrainData` or :class:`Glm`. For
-4D neuroimaging data use :meth:`BrainData.fit` with ``model='glm'``.
+``Y`` without constructing a `BrainData` or `Glm`. For
+4D neuroimaging data use `BrainData.fit` with ``model='glm'``.
 
 **Methods:**
 
@@ -2433,9 +2478,9 @@ Temporal signal processing — resampling, filtering, and basis functions.
 
 Name | Description
 ---- | -----------
-[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval
+[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval.
 [`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
-[`make_cosine_basis`](#make_cosine_basis) | Create a series of cosine basis functions for a discrete cosine
+[`make_cosine_basis`](#make_cosine_basis) | Create basis functions for a discrete cosine transform.
 [`upsample`](#upsample) | Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
 
@@ -2448,7 +2493,7 @@ Name | Description
 calc_bpm(beat_interval, sampling_freq)
 ```
 
-Calculate instantaneous BPM from beat to beat interval
+Calculate instantaneous BPM from beat to beat interval.
 
 **Parameters:**
 
@@ -2493,11 +2538,12 @@ Name | Type | Description
 make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale = True, drop = 0)
 ```
 
-Create a series of cosine basis functions for a discrete cosine
-    transform. Based off of implementation in spm_filter and spm_dctmtx
-    because scipy dct can only apply transforms but not return the basis
-    functions. Like SPM, does not add constant (i.e. intercept), but does
-    retain first basis (i.e. sigmoidal/linear drift)
+Create basis functions for a discrete cosine transform.
+
+Based on the implementation in ``spm_filter`` and ``spm_dctmtx`` because
+scipy DCT can only apply transforms but not return the basis functions. Like
+SPM, this does not add a constant (i.e. intercept), but does retain the first
+basis (i.e. sigmoidal/linear drift).
 
 **Parameters:**
 

@@ -10,7 +10,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 |----------|--------------|--------------|--------|
 | **Class names** | `Brain_Data`, `Design_Matrix` | `BrainData`, `DesignMatrix` | **Renamed** |
 | **Import paths** | `nltools.file_reader`, `nltools.simulator`, `nltools.external` | `nltools.io`, `nltools.data`, `nltools.algorithms` | **Moved** |
-| **GLM regression** | `.regress()` | `.fit(model='glm')` | **Deprecated (shim still works)** |
+| **GLM regression** | `BrainData.regress()` | `.fit(model='glm', X=…)` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, model=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
 | **Spatial scope kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scope) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
@@ -18,23 +18,22 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
-| **Properties** | `.shape()`, `.isempty()` | `.shape`, `.is_empty` | Changed |
+| **Properties** | Method-style shape/empty checks | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
 | **HyperAlignment** | Via `align()` only | `HyperAlignment` class | New |
-| **Multi-subject** | `Brain_Collection` | `BrainCollection` class | **New** |
+| **Multi-subject** | `Brain_Collection` | `BrainCollection` redesign | **Not yet available (scaffold)** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `icc_type=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity, `spatial_scale=` for spatial scope) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
-| **Parallel flag** | `parallel='cpu'\|'gpu'\|None` (BrainCollection) | `device='cpu'\|'gpu'`, `n_jobs=…` | **Split** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
-| **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surface`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
+| **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surf`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
-| **`nltools.prefs`** | `from nltools.prefs import MNI_Template` | `from nltools.templates import MNI_Template` + `set_brainspace()` | **Moved** |
+| **`nltools.prefs`** | Stateful template singleton | `set_brainspace()` / `get_brainspace()` / `with_brainspace()` | **Removed** |
 | **Neurovault helpers** | `download_collection`, `get_collection_image_metadata` | `fetch_neurovault_collection` | **Removed** |
 
 ---
@@ -49,14 +48,12 @@ All data classes now follow PEP 8 naming conventions. The old names are **not av
 |---------------|--------------|
 | `Brain_Data` | `BrainData` |
 | `Design_Matrix` | `DesignMatrix` |
-| `Brain_Collection` | `BrainCollection` |
 
 **Find and replace in your codebase:**
 ```bash
 # sed/sd commands for bulk rename
 sd 'Brain_Data' 'BrainData' **/*.py **/*.ipynb
 sd 'Design_Matrix' 'DesignMatrix' **/*.py **/*.ipynb
-sd 'Brain_Collection' 'BrainCollection' **/*.py **/*.ipynb
 ```
 
 **Import examples:**
@@ -85,7 +82,7 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 | `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
 | `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
-| `from nltools.stats import regress` | **Removed** | Use `BrainData.fit(model='glm')` |
+| `from nltools.stats import regress` | **Still available** | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed |
 
 **Example migrations:**
 ```python
@@ -111,7 +108,7 @@ dm = dm_boxcar.convolve()  # convolve later, after manipulating regressors
 
 # In-memory events DataFrame? Use the helper directly (always boxcar — caller convolves):
 from nltools.data.designmatrix.io import events_to_dm
-dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
+dm_data = events_to_dm(events_frame, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
 
 # OLD: get_anatomical (removed entirely)
@@ -130,7 +127,8 @@ from nltools import Simulator, SimulateGrid
 
 **Unchanged imports** (these still work as before):
 - `from nltools.stats import fdr, fisher_r_to_z, zscore, find_spikes, threshold`
-- `from nltools.stats import one_sample_permutation` (deprecated wrapper, still works)
+- `from nltools.stats import regress` (standalone OLS helper; distinct from the removed `BrainData.regress()`)
+- `from nltools.stats import one_sample_permutation_test` (also available from `nltools.algorithms.inference`)
 - `from nltools.plotting import component_viewer`
 - `from nltools.mask import roi_to_brain, expand_mask, create_sphere`
 - `from nltools.data import Adjacency` (name unchanged)
@@ -178,7 +176,7 @@ if result.ndim == 1:
 
 **Other dependency updates in v0.6.0:**
 - Python >= 3.11 (dropped 3.10 support)
-- polars >= 1.35 (from 0.20)
+- polars >= 1.18 (from 0.20)
 - h5py >= 3.15 (from 3.13)
 - pytest >= 8.4 (from 8.3)
 
@@ -210,7 +208,7 @@ DesignMatrix now uses Polars DataFrames internally instead of pandas. This provi
 - pandas inputs to `.downsample()`, `.upsample()`, and the internal outlier transform. Pass Polars or NumPy instead.
 
 **What's changed:**
-- Internal storage is Polars (`._df` attribute)
+- Internal storage is Polars (`.data` attribute)
 - Faster operations via Polars vectorization
 - Column access returns Polars Series (not pandas Series)
 
@@ -230,7 +228,7 @@ corr = np.corrcoef(dm['col1'].to_numpy(), dm['col2'].to_numpy())[0, 1]  # ✅
 dm['col1'].corr(dm['col2'])  # ❌ Polars Series has no .corr() method
 
 # Saving to CSV (access underlying Polars DataFrame)
-dm._df.write_csv('/path/to/file.csv')  # ✅ Polars way
+dm.data.write_csv('/path/to/file.csv')  # ✅ Polars way
 dm.to_csv('/path/to/file.csv')         # ❌ Method doesn't exist
 
 # Loading from CSV
@@ -239,7 +237,7 @@ dm = DesignMatrix(pl.read_csv('/path/to/file.csv'), sampling_freq=0.5)
 ```
 
 **What's the same:**
-- `.shape`, `.columns`, `.empty` properties work identically
+- `.shape` and `.columns` work identically; use `.is_empty` to test emptiness
 - `.fillna()`, `.drop()`, `.zscore()` methods work identically
 - `.append()`, `.convolve()`, `.upsample()`, `.downsample()` work identically
 - `.vif()`, `.clean()` methods work identically
@@ -250,9 +248,11 @@ dm = DesignMatrix(pl.read_csv('/path/to/file.csv'), sampling_freq=0.5)
 dm.loc[10:15, 'ConditionA'] = 1
 
 # NEW (Polars-style) - use direct column assignment
-dm['ConditionA'] = pl.when(pl.arange(0, len(dm)).is_between(10, 15))
-                     .then(1)
-                     .otherwise(dm['ConditionA'])
+dm['ConditionA'] = (
+    pl.when(pl.arange(0, len(dm)).is_between(10, 15))
+    .then(1)
+    .otherwise(dm['ConditionA'])
+)
 
 # Or for simple cases, convert to numpy and back
 arr = dm.to_numpy()
@@ -292,10 +292,10 @@ brain_data.fit(model='glm', X=dm)  # Automatic conversion to pandas for nilearn
 **For pandas compatibility:**
 ```python
 # Convert to pandas when needed
-pd_df = dm._to_pandas()
+pandas_design = dm.to_pandas()
 
 # Use with legacy code expecting pandas
-nilearn_glm.fit(fmri_img, design_matrices=[pd_df])
+nilearn_glm.fit(fmri_img, design_matrices=[pandas_design])
 ```
 
 **Adjacency.regress() compatibility:**
@@ -349,7 +349,7 @@ Constructor rules for the file-path branch:
 ```python
 from nltools.data.designmatrix.io import events_to_dm
 
-dm_data = events_to_dm(events_df, run_length=200, sampling_freq=0.5)
+dm_data = events_to_dm(events_frame, run_length=200, sampling_freq=0.5)
 dm = DesignMatrix(dm_data, sampling_freq=0.5).convolve()
 ```
 
@@ -469,7 +469,7 @@ The error message points to the canonical replacement:
 ```text
 AttributeError: DesignMatrix.confounds is read-only. Pass `confounds=...` to the
 constructor, or use `.append(other_dm, axis=1, as_confounds=True)` /
-`.append(raw_df, axis=1)` (raw frames are auto-marked) to register confound regressors.
+`.append(raw_frame, axis=1)` (raw frames are auto-marked) to register confound regressors.
 ```
 
 (designmatrix-copy-constructor)=
@@ -477,7 +477,7 @@ constructor, or use `.append(other_dm, axis=1, as_confounds=True)` /
 
 **Status**: ✅ NEW (v0.6.0) — additive, no migration required
 
-Passing a `DesignMatrix` to the constructor returns an independent copy with `data`, `sampling_freq`, `convolved`, `confounds`, and `multi` carried over. Explicit kwargs override inherited values. This matches the pandas `pd.DataFrame(other_df)` idiom and short-circuits the v0.5.1 "wrap it again to reset metadata" pattern (which dropped metadata on the floor).
+Passing a `DesignMatrix` to the constructor returns an independent copy with `data`, `sampling_freq`, `convolved`, `confounds`, and `multi` carried over. Explicit kwargs override inherited values. This matches the pandas `pd.DataFrame(other_frame)` idiom and short-circuits the v0.5.1 "wrap it again to reset metadata" pattern (which dropped metadata on the floor).
 
 ```python
 copy = DesignMatrix(dm)                          # full copy, all metadata preserved
@@ -518,7 +518,7 @@ dm_fir.convolved           # ['face_c0', 'face_c1', 'face_c2']
 
 **Why**: deterministic column names regardless of kernel rank, and a fix for a metadata-drift bug where 2-D-kernel `convolve()` recorded pre-suffix names that didn't exist in the dataframe — `.append(..., axis=0)`'s rename map silently skipped them and `dm.convolved` ended up referring to ghost columns.
 
-## Breaking Changes
+## BrainData and Adjacency API Changes
 
 (braindata-mask-handling)=
 ### BrainData Mask Handling
@@ -571,7 +571,7 @@ If you use a **custom mask** (not a built-in template), you must pass the same m
 ```python
 # Custom ROI mask — 50,000 voxels
 brain = BrainData(nifti_file, mask='my_roi.nii.gz')
-brain.to_nifti('/tmp/brain.nii.gz')
+brain.write('/tmp/brain.nii.gz')
 
 # ❌ WRONG: auto-detection picks a built-in template → shape mismatch
 reloaded = BrainData('/tmp/brain.nii.gz')
@@ -585,7 +585,7 @@ This is **not** an issue when using the default auto-detected templates, since t
 **Best practice** when using custom masks — save both, or use HDF5:
 ```python
 # Option 1: Save mask separately
-brain.to_nifti('/tmp/brain.nii.gz')
+brain.write('/tmp/brain.nii.gz')
 brain.mask.to_filename('/tmp/mask.nii.gz')
 
 # Option 2: Use HDF5 (preserves mask automatically)
@@ -631,8 +631,8 @@ print(stacked.vector_shape)  # (2, 45)
 - `.n_nodes` → Number of nodes in the matrix
 - `.vector_shape` → Shape of internal vectorized storage
 
-**Deprecated**:
-- `.square_shape()` → Use `.shape` instead (will be removed in v0.7.0)
+**Removed**:
+- The old square-shape helper has no v0.6.0 alias; use `.shape` instead.
 
 **Threshold API**: Uses `lower`/`upper` keywords, not `threshold`:
 ```python
@@ -640,9 +640,9 @@ print(stacked.vector_shape)  # (2, 45)
 adj.threshold(threshold=0.3)  # TypeError: unexpected keyword argument
 
 # ✅ CORRECT
-adj.threshold(lower=0.3)       # Keep values >= 0.3
-adj.threshold(upper=0.5)       # Keep values <= 0.5
-adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
+adj.threshold(upper=0.3)       # Keep values >= 0.3
+adj.threshold(lower=0.5)       # Keep values <= 0.5
+adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 ```
 
 ---
@@ -651,7 +651,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
-| `.regress()` | `.fit(model='glm', X=design_matrix)` — deprecated shim still works, just emits a `DeprecationWarning` | **Low** |
+| `BrainData.regress()` | `.fit(model='glm', X=design_matrix)` — the old method is removed and raises `NotImplementedError` | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, spatial_scale=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. `spatial_scale=` selects ``'whole_brain'``, ``'roi'``, or ``'searchlight'``; `method=` is no longer overloaded. See [Pattern 4](#pattern-4-machine-learning-classificationregression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
@@ -668,7 +668,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 
 | Class | Status | Alternative |
 |-------|--------|-------------|
-| `Brain_Collection` | Replaced | Use `BrainCollection` (new in v0.6.0) |
+| `Brain_Collection` | Removed | `BrainCollection` is being redesigned and is currently an unavailable scaffold |
 | `Model` | Removed | Will return in v0.7.0+ |
 
 ### 3. Attributes
@@ -677,7 +677,7 @@ adj.threshold(lower='90%')     # Keep top 10% (percentile threshold)
 |-----------|--------|-------------|
 | `.X` | Still works | Pass `X=` to `.fit()` directly (preferred) |
 | `.Y` | Still works | Manage labels separately (preferred) |
-| `.isempty` | Deprecated | Use `.is_empty` instead |
+| Old empty-state attribute | Removed | Use `.is_empty` instead |
 
 ---
 
@@ -734,9 +734,11 @@ stack.iplot()
 
 
 
-**Status**: ⚠️ **DEPRECATED** — `.regress()` still works in v0.6.0 as a thin shim that delegates to `.fit(model='glm')` (kept for backward compatibility with dartbrains and older notebooks). It will be removed in a future release.
+### Pattern 1: GLM Regression
 
-The preferred API is the unified `.fit(model='glm')`.
+**Status**: ⚠️ **REMOVED** — `BrainData.regress()` raises `NotImplementedError` in v0.6.0. It does not warn or delegate to another implementation.
+
+Use the unified `.fit(model='glm', X=...)` API instead.
 
 **Before (v0.5.1):**
 ```python
@@ -787,7 +789,7 @@ brain_data.model_         # Fitted Glm model instance
 | API style | Dict return | Sklearn-style attributes | Composable, familiar |
 | Design matrix | Stored as `.X` | Passed as argument | Explicit, clearer |
 | Results | Dict with keys | BrainData attributes | Type-safe, chainable |
-| Status | Primary API | Deprecated shim (still callable) | Clear migration path |
+| Status | Primary API | Removed; use `.fit(model='glm', X=...)` | Clear migration path |
 
 ---
 
@@ -812,7 +814,7 @@ predictions = brain_data.predict(X=new_features)
 | Feature | Before | After | Benefit |
 |---------|--------|-------|---------|
 | API | Manual sklearn | Integrated `.fit()` | Convenient |
-| GPU support | Manual setup | `backend='gpu'` | Automatic |
+| GPU support | Manual setup | GPU-enabled solver | Automatic |
 | CV support | Manual | `cv=5` parameter | Built-in |
 | Alpha selection | Manual grid search | `alpha='auto'` | Automatic |
 
@@ -862,17 +864,13 @@ mean_acc = results['mcr_all'].mean()
 ```python
 # Unified MVPA API — returns a frozen `Predict` dataclass.
 result = brain_data.predict(y=labels, spatial_scale='whole_brain', model='svm', cv=5)
-result.weight_map      # mean classifier coefs across folds, shape (n_voxels,)
+result.weight_map        # full-data refit coefficients (BrainData)
+result.estimator         # fitted full-data sklearn estimator
 result.fold_weight_maps  # per-fold coefs, shape (n_folds, n_voxels)
 result.scores          # per-fold scores, shape (n_folds,)
 result.mean_score      # mean accuracy across folds (float)
 result.predictions     # OOF predictions in original sample order
 result.available()     # list non-None fields
-
-# Refit on full data for a single publishable map (instead of per-fold mean)
-result = brain_data.predict(y=labels, refit=True)
-result.final_weight_map  # weight map from full-data fit
-result.final_estimator   # the fitted sklearn estimator
 ```
 
 | Aspect | Old | New | Reason |
@@ -884,9 +882,9 @@ result.final_estimator   # the fitted sklearn estimator
 | Label storage | `.Y` attribute | `y=` argument | Explicit |
 | Custom transforms | `brain.cv(k).normalize().reduce().pipe(t).predict()` (fluent) | Pass `model=make_pipeline(StandardScaler(), MyXform(), SVC())` | Standard sklearn pattern, no separate API to learn |
 | Return type | dict (`weight_map`, `mcr_all`, …) | `Predict` dataclass | Frozen, introspectable via `.available()` / `.asdict()` |
-| Weight map | top-level dict key | `result.weight_map` | Always present for linear models |
+| Weight map | top-level dict key | `result.weight_map` | Full-data refit coefficients for linear models; per-fold coefficients are in `result.fold_weight_maps` |
 
-**Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. Multi-subject hyperalignment / SRM still use a fluent pipeline on `BrainCollection` — that surface is unchanged.
+**Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. This does not affect the separate `nltools.pipelines.Pipeline.pipe()` API.
 
 ---
 
@@ -921,21 +919,21 @@ result = brain_data.smooth(5.0).standardize()
 **Before (v0.5.1):**
 ```python
 shape = brain_data.shape()
-is_empty = brain_data.isempty()
+# Empty-state check used the removed pre-v0.6 accessor.
 dtype = brain_data.dtype()
 ```
 
 **After (v0.6.0):**
 ```python
 shape = brain_data.shape       # No parentheses
-is_empty = brain_data.is_empty # No parentheses (note: .isempty is deprecated)
+is_empty = brain_data.is_empty # No parentheses; the old attribute was removed
 dtype = brain_data.dtype       # No parentheses
 ```
 
 | Method | Old | New | Reason |
 |--------|-----|-----|--------|
 | `.shape()` | Method call | `.shape` property | No computation |
-| `.isempty()` | Method call | `.is_empty` property | No computation |
+| Old empty-state accessor | Method call | `.is_empty` property | No computation |
 | `.dtype()` | Method call | `.dtype` property | No computation |
 
 ---
@@ -1080,7 +1078,7 @@ from nltools.stats import isc, isc_group, isfc
 
 result = isc(data, n_samples=1000)
 result = isc_group(group1, group2, n_samples=1000)
-result = isfc(data, n_permute=1000)
+result = isfc(data)
 ```
 
 **New API** (recommended):
@@ -1089,7 +1087,7 @@ from nltools.algorithms.inference import (
     isc_permutation_test,
     isc_group_permutation_test,
 )
-from nltools.stats import isfc  # Still available, now uses inference module
+from nltools.stats import isfc  # Functional connectivity only; no permutation test
 
 # ISC - single group
 result = isc_permutation_test(data, n_permute=1000)
@@ -1098,15 +1096,15 @@ result = isc_permutation_test(data, n_permute=1000)
 result = isc_group_permutation_test(group1, group2, n_permute=1000)
 
 # ISFC - functional connectivity
-result = isfc(data, n_permute=1000)  # Now uses inference module internally
+result = isfc(data)
 ```
 
 **Key Changes**:
 - `isc()` → `isc_permutation_test()` (parameter name: `n_samples` → `n_permute`)
 - `isc_group()` → `isc_group_permutation_test()` (parameter name: `n_samples` → `n_permute`)
-- `isfc()` unchanged (still `isfc()`, but now uses inference module internally)
-- Return keys: `null_dist` → `null_distribution` (wrapper handles mapping)
-- GPU acceleration available with `parallel="gpu"` or `backend="torch"`
+- `isfc()` remains a functional-connectivity calculation and does not perform permutation inference
+- Legacy `nltools.stats` ISC wrappers expose `null_distribution`; direct `nltools.algorithms.inference` functions expose `null_dist`
+- GPU acceleration is available to direct inference functions with `parallel="gpu"`
 - CPU parallelization available with `parallel="cpu"` and `n_jobs=-1`
 
 **Performance**: 4-8× CPU speedup, 10-100× GPU speedup
@@ -1114,7 +1112,7 @@ result = isfc(data, n_permute=1000)  # Now uses inference module internally
 #### Removed Functions
 
 **Functions Removed** (use alternatives):
-- `regress()` → Use `nltools.models.Glm` or `BrainData.fit(model='glm')`
+- `BrainData.regress()` → Use `BrainData.fit(model='glm', X=...)`. The standalone `nltools.stats.regress(X, Y)` OLS helper remains available.
 - `regress_permutation()` → Use inference module permutation tests
 - `correlation()` → Use `correlation_permutation_test()` from inference module
 - `pearson()` → Use `scipy.stats.pearsonr` or `correlation_permutation_test()`
@@ -1191,10 +1189,10 @@ boot = brain.bootstrap(stat='mean', n_samples=5000)
 from nltools.algorithms.inference import OnlineBootstrapStats
 
 # Direct usage (numpy arrays)
-stats = OnlineBootstrapStats()
+stats = OnlineBootstrapStats(shape=samples[0].shape)
 for sample in samples:
     stats.update(sample)
-result = stats.get_statistics()
+result = stats.get_results()
 ```
 
 ---
@@ -1218,9 +1216,9 @@ result = one_sample_permutation_test(data, n_permute=1000)
 
 # GPU (automatic batching)
 result = one_sample_permutation_test(
-    data, 
-    n_permute=1000, 
-    backend='torch',
+    data,
+    n_permute=1000,
+    parallel='gpu',
     max_gpu_memory_gb=4.0  # Memory budget
 )
 
@@ -1228,7 +1226,7 @@ result = one_sample_permutation_test(
 result = one_sample_permutation_test(
     data,
     n_permute=1000,
-    backend=None,  # or 'auto'
+    parallel='cpu',
     n_jobs=-1  # Use all cores
 )
 ```
@@ -1251,17 +1249,17 @@ See the [GPU-Accelerated Statistical Inference](#new-feature-gpu-accelerated-sta
 from nltools.algorithms import SRM, DetSRM
 
 # Probabilistic SRM
-model = SRM(n_components=50, n_iter=10)
+model = SRM(features=50, n_iter=10)
 model.fit(subjects)             # List of (n_voxels, n_timepoints) arrays
 aligned = model.transform(subjects)  # Project to shared space
 
 # Deterministic SRM (faster, no noise model)
-det_model = DetSRM(n_components=50, n_iter=10)
+det_model = DetSRM(features=50, n_iter=10)
 det_model.fit(subjects)
 aligned = det_model.transform(subjects)
 
 # Align a new subject to existing shared space
-new_aligned, rotation, disparity, scale = model.transform_subject(new_data)
+rotation = model.transform_subject(new_data)
 ```
 
 | Aspect | Before | After | Benefit |
@@ -1276,19 +1274,18 @@ new_aligned, rotation, disparity, scale = model.transform_subject(new_data)
 
 **Status**: ✅ Complete (v0.6.0). No aliases kept for the old spellings — callers using the legacy names will hit a `TypeError: unexpected keyword argument`.
 
-A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollection`, `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `CLAUDE.md` (section "API Conventions"); the table below is the migration mapping for callers.
+A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `CLAUDE.md` (section "API Conventions"); the table below is the migration mapping for callers.
 
 ### Renamed kwargs
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | All four facades. Hits include `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, `BrainCollection.fit`, `BrainCollection.align` and the ICC/permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
-| Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict`, `BrainData.distance`, `BrainCollection.predict` (scaffold). Companion kwargs `roi_mask=` and `radius_mm=` already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the ICC/permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
+| Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
-| Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | All four facades and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
-| Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainCollection.isc`, `.isc_test`, `.predict`, `.align`; `BrainData.predict` (searchlight), `BrainData.plot_flatmap`; `nltools.plotting.plot_surface`, `plot_flatmap`. The returned info dict from `_extract_for_isc` also renames `"radius"` → `"radius_mm"`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
-| Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations` (the rest of the facade and `BrainCollection.isc_test` / `permutation_test` / `permutation_test2` already used `n_permute`). `BrainCollection.align`'s `n_iter` stays — optimizer iterations, not permutations. |
-| GPU/CPU selection + parallelism | `parallel='cpu'\|'gpu'\|None` | `device='cpu'\|'gpu'` **and** `n_jobs` (use `n_jobs=1` for single-threaded) | `BrainCollection.permutation_test`, `.permutation_test2`, `.isc`, `.isc_test`, `.align`. Returned dict key `'parallel'` → `'device'`. |
+| Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
+| Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainData.predict` (searchlight), `BrainData.plot_flatmap`, `nltools.plotting.plot_surf`, and `plot_flatmap`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
+| Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations`. |
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
 
@@ -1299,8 +1296,6 @@ A sweep of the four data-class facades (`BrainData`, `Adjacency`, `BrainCollecti
 brain.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_folds': 5}, radius=10)
 brain.decompose(algorithm='ica', n_components=20, axis='images', whiten=True)
 brain.plot(kind='glass', thr_upper=2.3, thr_lower=-2.3)
-bc.isc(radius=6.0, parallel='gpu', show_progress=True)
-bc.isc_test(n_permute=5000, parallel='cpu')
 adj.generate_permutations(n_perm=1000)
 adj.similarity(other, ignore_diagonal=True)  # old: include the diagonal
 
@@ -1308,8 +1303,6 @@ adj.similarity(other, ignore_diagonal=True)  # old: include the diagonal
 brain.predict(y=labels, spatial_scale='searchlight', model='svm', cv=5, radius_mm=10)
 brain.decompose(method='ica', n_components=20, axis='images', whiten=True)
 brain.plot(method='glass', upper=2.3, lower=-2.3)
-bc.isc(radius_mm=6.0, device='gpu', progress_bar=True)
-bc.isc_test(n_permute=5000, device='cpu')
 adj.generate_permutations(n_permute=1000)
 adj.similarity(other, include_diag=False)     # explicit + now the default for directed
 ```
@@ -1331,7 +1324,7 @@ Internal `**kwargs` catch-alls have been removed from user-facing methods that d
 - `BrainData.bootstrap`: `backend`, `max_gpu_memory_gb`
 - `BrainData.ttest`, `Adjacency.ttest`: `n_permute`, `tail`, `return_null`, `n_jobs`, `random_state`
 - `Adjacency.similarity`: `tail`, `return_null`, `n_jobs`, `random_state`
-- `BrainData.cv`, `BrainCollection.cv`: `n` (iterations for bootstrap/permutation schemes)
+- `BrainData.cv`: `n` (iterations for bootstrap/permutation schemes)
 
 **Dead `*args` / `**kwargs` dropped entirely**:
 - `BrainData.align` (never used internally)
@@ -1340,26 +1333,25 @@ Internal `**kwargs` catch-alls have been removed from user-facing methods that d
 
 ### Keyword-only (`*`) marker after the primary data arg
 
-All four data-class `__init__` methods now require keyword arguments after the first positional data arg. Methods with many optional kwargs also enforce keyword-only.
+The implemented data-class `__init__` methods require keyword arguments after the first positional data arg. Methods with many optional kwargs also enforce keyword-only.
 
 ```python
 # OLD — these relied on positional order
-brain = BrainData(data, Y_vec, X_df, mask_img)                  # positional Y/X/mask
+brain = BrainData(data, Y_vec, design_frame, mask_img)          # positional Y/X/mask
 adj = Adjacency(vec, "directed")                                # was actually binding to Y, not matrix_type!
 
 # NEW — positional-only up to the primary data arg; rest must be keyword
-brain = BrainData(data, Y=Y_vec, X=X_df, mask=mask_img)
+brain = BrainData(data, Y=Y_vec, X=design_frame, mask=mask_img)
 adj = Adjacency(vec, matrix_type="directed")
 ```
 
 Affected:
 - `BrainData.__init__` — keyword-only after `data` (covers `Y`, `X`, `mask`, `masker`, `h5_compression`, `verbose`, `resample`, `interpolation`)
 - `Adjacency.__init__` — keyword-only after `data` (`Y`, `matrix_type`, `labels`); unused `**kwargs` also dropped
-- `BrainCollection.__init__` — keyword-only after `items, mask` (`metadata`, `lazy`)
 - `DesignMatrix.__init__` — already had the `*` marker
 - `DesignMatrix.append` — keyword-only after `dm`
 - `Adjacency.bootstrap` — keyword-only after `stat`
-- `BrainData.predict`, `BrainCollection.fit`, `BrainCollection.predict` — keyword-only after the required positionals
+- `BrainData.predict` — keyword-only after the required positionals
 
 The `*` marker prevents classes of bug that the old implicit-positional API allowed — e.g. `Adjacency(data, "directed")` used to silently bind `"directed"` to the `Y` parameter.
 
@@ -1377,7 +1369,6 @@ This is a **position-only** break — callers passing these as keywords are unaf
 - `BrainData.fit` — `progress_bar` now trails `scale`/`scale_value`
 - `Adjacency.bootstrap` — `percentiles` now precedes `n_jobs`/`random_state`
 - `Adjacency.plot_mds` — `n_jobs` moved to the end (after `ax`)
-- `BrainCollection.standardize` — `verbose` now precedes `n_jobs`/`progress_bar`
 
 ---
 
@@ -1387,7 +1378,7 @@ This is a **position-only** break — callers passing these as keywords are unaf
 
 | Old name | New name |
 |---|---|
-| `surface_plot` | `plot_surface` |
+| `surface_plot` | `plot_surf` |
 | `dist_from_hyperplane_plot` | `plot_dist_from_hyperplane` |
 | `scatterplot` | `plot_scatter` |
 | `probability_plot` | `plot_probability` |
@@ -1403,7 +1394,7 @@ from nltools.plotting import surface_plot, scatterplot, roc_plot
 dm.heatmap()
 
 # NEW
-from nltools.plotting import plot_surface, plot_scatter, plot_roc
+from nltools.plotting import plot_surf, plot_scatter, plot_roc
 dm.plot()
 ```
 
@@ -1424,15 +1415,13 @@ vec = apply_mask(img, brain.mask)
 img_out = unmask(vec, brain.mask)
 ```
 
-**`nltools.prefs` module** — replaced by `nltools.templates`. The old stateful `MNI_Template_Factory` singleton is gone; use the functional config API instead.
+**`nltools.prefs` module** — replaced by `nltools.templates`. The old stateful template singleton is gone; use the functional config API instead.
 
 ```python
 # OLD
-from nltools.prefs import MNI_Template
-MNI_Template["resolution"] = "3mm"
+# Stateful configuration through nltools.prefs
 
 # NEW
-from nltools.templates import MNI_Template         # same class, new location
 import nltools
 nltools.set_brainspace(template="default", resolution=3)
 
@@ -1477,7 +1466,7 @@ mask = BrainData(fetch_resource("masks/k50_2mm.nii.gz"))         # nltools
 
 Avoid the v0.5.1-era `BrainData('https://...nii.gz').to_nifti()` round-trip
 when the goal is just to feed a remote NIfTI to nilearn — it parses the
-file into nltools' internal Polars frame and immediately reverses the
+file into nltools' internal masked NumPy array and immediately reverses the
 process. `fetch_resource(...)` returns a path nilearn accepts directly.
 
 `list_resources()` requires `huggingface_hub` and is unavailable in
@@ -1508,17 +1497,17 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 
 | Component | Change | Old API | New API | Migration Path |
 |-----------|--------|---------|---------|----------------|
-| `stats.py` | Function removed | `regress()` | `nltools.models.Glm` | Use `BrainData.fit(model='glm')` |
+| `BrainData` | Method removed | `BrainData.regress()` | `BrainData.fit(model='glm', X=...)` | Update BrainData call sites; standalone `nltools.stats.regress(X, Y)` remains available |
 | `stats.py` | Function removed | `correlation()` | `correlation_permutation_test()` | Import from `inference` module |
 | `stats.py` | Function removed | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
-| `stats.py` | Function deprecated | `one_sample_permutation()` | `one_sample_permutation_test()` | Import from `inference` module |
-| `stats.py` | Function deprecated | `two_sample_permutation()` | `two_sample_permutation_test()` | Import from `inference` module |
+| `stats.py` | Function removed | Unsuffixed one-sample permutation wrapper | `one_sample_permutation_test()` | Import from `nltools.stats` or `nltools.algorithms.inference` |
+| `stats.py` | Function removed | Unsuffixed two-sample permutation wrapper | `two_sample_permutation_test()` | Import from `nltools.stats` or `nltools.algorithms.inference` |
 | `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
 | `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `model=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `model=Pipeline(...)` for custom transforms |
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
 | Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
-| Return keys | Key renamed | `null_dist` | `null_distribution` | Wrapper handles mapping |
+| Return keys | API-specific | Direct inference: `null_dist` | Legacy `stats.*` wrapper: `null_distribution` | Use the key exposed by the API layer you call |
 
 ---
 
@@ -1580,93 +1569,9 @@ best_alpha = brain_data.cv_results_['best_alpha']
 alpha_scores = brain_data.cv_results_['alpha_scores']
 ```
 
-### BrainCollection: Multi-Subject Data Container (NEW)
+### BrainCollection
 
-**Status**: ✅ NEW (v0.6.0)
-
-`BrainCollection` is a new class for working with multi-subject neuroimaging data. It provides a unified interface for group-level analyses including encoding models, GLM workflows, and inter-subject correlation.
-
-**Key Features**:
-- **3-axis indexing**: `(n_images, n_observations, n_voxels)` semantics
-- **Lazy loading**: Memory-efficient for large multi-subject datasets
-- **Group inference**: t-tests, permutation tests, ANOVA
-- **Encoding models**: `fit_ridge()`, `fit_glm()`, `predict()`
-- **ISC analysis**: `isc()`, `isc_test()` for naturalistic neuroimaging
-- **Transformations**: `map()`, `filter()`, aggregations across axes
-
-**Basic Usage**:
-```python
-from nltools.data import BrainData, BrainCollection
-from nltools.datasets import fetch_haxby
-
-# Load multi-subject data
-data, _ = fetch_haxby(n_subjects=5)
-bc = BrainCollection(data, mask=data[0].mask)
-
-# 3-axis indexing
-first_subject = bc[0]              # BrainData
-timepoint_10 = bc[:, 10]           # BrainCollection
-subset = bc[:, :, :1000]           # BrainCollection
-
-# Group statistics
-group_mean = bc.mean(axis=0)       # Mean across subjects -> BrainData
-subject_means = bc.mean(axis=1)    # Mean across time -> BrainCollection
-
-# Group inference
-t_stat, p_val = subject_means.ttest()
-```
-
-**Encoding Models**:
-```python
-import numpy as np
-
-# Fit ridge regression for each subject
-X = np.random.randn(bc[0].shape[0], 10)  # (timepoints, features)
-result = bc.fit_ridge(X=X, cv=3)
-
-# Access weights for group-level inference
-# weights[:, feature_idx, :] -> BrainCollection of that feature's weights
-```
-
-**ISC (Inter-Subject Correlation)**:
-```python
-# Compute ISC with leave-one-out method
-isc_result = bc.isc(method="loo")
-print(f"Mean ISC: {isc_result['isc'].data.mean():.3f}")
-
-# ISC with permutation testing
-isc_test_result = bc.isc_test(method="loo", n_permute=1000)
-significant = (isc_test_result['p'].data < 0.05).sum()
-```
-
-**GLM Workflow**:
-```python
-import pandas as pd
-
-# Create events DataFrame
-events = pd.DataFrame({
-    "onset": [0, 10, 20, 30],
-    "duration": [5, 5, 5, 5],
-    "trial_type": ["A", "B", "A", "B"],
-})
-
-# Fit first-level GLM for each subject
-betas = bc.fit_glm(events=events, t_r=2.0)
-
-# Compute contrasts
-contrast = betas.compute_contrasts("A - B")
-
-# Group-level inference
-t_stat, p_val = contrast.ttest()
-```
-
-**Construction Methods**:
-| Method | Description |
-|--------|-------------|
-| `BrainCollection(data, mask)` | From list of BrainData or paths |
-| `BrainCollection.from_glob(pattern, mask)` | From glob pattern |
-| `BrainCollection.from_bids(layout, mask)` | From pybids BIDSLayout |
-| `BrainCollection.from_stacked(brain_data, axis)` | Split stacked BrainData |
+`BrainCollection` is being redesigned for v0.6.0 as a parallel/lazy iterator of `BrainData` with a single `.fit()`, first-class `(BrainData, DesignMatrix)` pairing, and disk-cached parallel operations. It is **not yet available** in this release—the class is currently a scaffold. Migration guidance will be added once the facade lands. See `nltools/data/collection/SPEC.md`.
 
 ### Niimg-like inputs in analysis functions
 
@@ -1698,12 +1603,12 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 | Feature | Status | Action Required |
 |---------|--------|-----------------|
 | HDF5 files from v0.5.1 (deepdish/PyTables) | ✅ Fully compatible (read path restored via h5py + hdf5plugin; no PyTables dependency) | None |
-| `.regress()` | ⚠️ Deprecated shim | Update to `.fit(model='glm')` to silence warning |
+| `BrainData.regress()` | ❌ Removed | Use `.fit(model='glm', X=...)` |
 | `.predict()` | ⚠️ API + return type changed | Update `algorithm=` → `model=`, `cv_dict=` → `cv=`, `radius=` → `radius_mm=`. Result is a `Predict` dataclass — replace `result['weight_map']` with `result.weight_map`. Fluent `brain.cv(...).predict(...)` removed. |
 | `.decompose()` | ⚠️ Kwargs changed | Update `algorithm=` → `method=`; signature is now keyword-only after `self` |
 | `BrainData.ttest()` | ⚠️ Signature changed | Old `threshold_dict=` kwarg gone; use `popmean=`, `permutation=`, `tail=`, `n_permute=` |
 | `.X` and `.Y` attributes | ✅ Still work | Prefer passing `X=` to `.fit()` directly |
-| `.isempty` | ⚠️ Deprecated | Use `.is_empty` instead |
+| Old empty-state attribute | ❌ Removed | Use `.is_empty` instead |
 | `.smooth()` return value | ⚠️ Changed behavior | Assign to new variable |
 | `BrainData.nifti_masker` | ❌ Removed | Use `nilearn.masking.apply_mask(img, bd.mask)` / `unmask(vec, bd.mask)` |
 | `nltools.prefs` module | ❌ Removed | Import from `nltools.templates`; use `set_brainspace()` / `with_brainspace()` |
@@ -1712,27 +1617,20 @@ Unsupported types now raise `TypeError` (with a clearer message) instead of the 
 
 | Feature | v0.6.0 Status | v0.7.0 Status |
 |---------|---------------|---------------|
-| `.regress()` | ⚠️ Deprecated shim (still callable, emits warning) | ❌ Removed |
-| `.isempty` | ⚠️ Deprecated (use `.is_empty`) | May be removed |
+| `BrainData.regress()` | ❌ Removed | ❌ Removed |
+| Old empty-state attribute | ❌ Removed (use `.is_empty`) | ❌ Removed |
 | `.X` and `.Y` | Still works | ⚠️ May be deprecated |
 | In-place `.smooth()` | Changed (returns copy) | N/A |
-| Legacy kwarg aliases (`algorithm=`, `show_progress=`, `radius=`, `n_perm=`, `parallel=`, `thr_upper=`, `thr_lower=`, `kind=`, `ignore_diagonal=`) | ❌ Removed — no aliases kept | N/A |
+| Legacy data-facade kwarg aliases (`algorithm=`, `show_progress=`, `radius=`, `n_perm=`, `thr_upper=`, `thr_lower=`, `kind=`, `ignore_diagonal=`) | ❌ Removed — no aliases kept | N/A |
 
 ---
 
 ## Testing Your Migration
 
-### Step 1: Check for Deprecated Methods
+### Step 1: Replace Removed Methods
 ```python
-import warnings
-
-with warnings.catch_warnings():
-    warnings.simplefilter("error", DeprecationWarning)
-    try:
-        brain_data.regress(design_matrix)
-    except DeprecationWarning as e:
-        print(f"Method deprecated: {e}")
-        # Update to: brain_data.fit(model='glm', X=design_matrix)
+# BrainData.regress() was removed; it does not emit a deprecation warning.
+brain_data.fit(model='glm', X=design_matrix)
 ```
 
 ### Step 2: Update Predict API
@@ -1742,10 +1640,12 @@ results = brain_data.predict(algorithm='svm', cv_dict={'type': 'kfolds', 'n_fold
 weight_map = results['weight_map']
 
 # NEW (v0.6.0) — updated keyword names + Predict dataclass return
-# `method` selects the prediction *mode* (whole_brain / roi / searchlight);
+# `spatial_scale` selects the prediction mode (whole_brain / roi / searchlight);
 # `model` selects the sklearn algorithm (mirrors bd.fit(model=)).
 result = brain_data.predict(y=labels, spatial_scale='whole_brain', model='svm', cv=5)
-result.weight_map        # mean coefs across folds, shape (n_voxels,)
+result.weight_map        # full-data refit coefficients (BrainData)
+result.estimator         # fitted full-data sklearn estimator
+result.fold_weight_maps  # per-fold coefficients
 result.scores            # per-fold scores
 result.mean_score        # mean across folds
 
@@ -1766,21 +1666,18 @@ pipe = make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())
 result = brain_data.predict(y=labels, model=pipe, standardize=False)
 ```
 
-The fluent API `brain.cv(k=5).normalize().reduce().pipe(t).predict(y, algorithm=…)` has been **removed** from `BrainData`. All four steps fold into kwargs on `bd.predict()` (`cv=`, `standardize=`, `reduce='pca'`, `n_components=`, `model=`). Multi-subject pipelines on `BrainCollection` (hyperalignment / SRM) keep their fluent API — that's where chaining still earns its keep.
+The fluent API `brain.cv(k=5).normalize().reduce().pipe(t).predict(y, algorithm=…)` has been **removed** from `BrainData`. All four steps fold into kwargs on `bd.predict()` (`cv=`, `standardize=`, `reduce='pca'`, `n_components=`, `model=`). The separate `nltools.pipelines.Pipeline.pipe()` API remains available.
 
-### Step 3: Check for Deprecation Warnings
+### Step 3: Replace Removed Empty-State Access
 ```python
-import warnings
-warnings.filterwarnings('default', category=DeprecationWarning)
-
-brain_data.isempty   # Deprecated - use .is_empty instead
+is_empty = brain_data.is_empty
 ```
 
 ### Step 4: Update Properties
 ```python
 # Search your codebase for:
 # - .shape()
-# - .isempty()  or .isempty
+# - the old empty-state method or attribute
 # - .dtype()
 
 # Replace with:
@@ -1799,26 +1696,25 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 - [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf)` (HRF-convolved by default; pass `hrf_model=None` for boxcar). For in-memory DataFrames use `events_to_dm(...)` from `nltools.data.designmatrix.io` (always boxcar). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
 - [ ] Replace any direct `dm.convolved = …` / `dm.confounds = …` assignments with the constructor kwargs (`convolved=`, `confounds=`) or with `.append(other, axis=1)` — the attributes are now read-only properties. See [DesignMatrix .convolved / .confounds are read-only](#designmatrix-confounds-readonly).
-- [ ] Replace `pd.concat([dm.to_pandas(), confounds_df], axis=1) → DesignMatrix(...)` with `dm.append(confounds_df, axis=1)` (raw DataFrames are auto-marked as confounds; metadata is preserved).
+- [ ] Replace `pd.concat([dm.to_pandas(), confounds_frame], axis=1) → DesignMatrix(...)` with `dm.append(confounds_frame, axis=1)` (raw DataFrames are auto-marked as confounds; metadata is preserved).
 - [ ] Update column lookups after `.convolve()`: `dm_conv["stim"]` → `dm_conv["stim_c0"]`. Includes `compute_contrasts("A - B")` strings → `compute_contrasts("A_c0 - B_c0")`. See [DesignMatrix.convolve() always suffixes](#designmatrix-convolve-suffix).
 - [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
-- [ ] Update `from nltools.prefs import MNI_Template` → `from nltools.templates import MNI_Template`
+- [ ] Replace stateful `nltools.prefs` template configuration with `set_brainspace()` / `get_brainspace()` / `with_brainspace()`
 - [ ] Remove `from nltools.utils import get_anatomical` — use `nilearn.datasets.load_mni152_template()`
-- [ ] Remove `from nltools.stats import regress` — use `BrainData.fit(model='glm')`
+- [ ] Replace `BrainData.regress()` with `BrainData.fit(model='glm', X=...)`; keep standalone `nltools.stats.regress(X, Y)` call sites if you use that OLS helper
 - [ ] Drop the `threshold_dict=` kwarg on `BrainData.ttest()` (signature changed — now `popmean=`, `permutation=`, `tail=`, `n_permute=`)
 - [ ] Replace `brain.nifti_masker.transform(img)` → `nilearn.masking.apply_mask(img, brain.mask)` (same for `inverse_transform` → `unmask`)
 - [ ] Replace `download_collection` / `get_collection_image_metadata` → `fetch_neurovault_collection`
-- [ ] Rename any kwargs still using legacy spellings: `algorithm=` → `method=`/`estimator=`, `show_progress=` → `progress_bar=`, `radius=` → `radius_mm=`, `n_perm=` → `n_permute=`, `parallel=` → `device=`, `ignore_diagonal=True` → `include_diag=False`, `thr_upper=`/`thr_lower=` → `upper=`/`lower=`, `kind=` → `method=` (see "v0.6.0 Kwarg Standardization" below)
-- [ ] Rename any positional-kwarg calls to `__init__`: `BrainData/Adjacency/BrainCollection/DesignMatrix` constructors now require keyword arguments after the first positional data arg
-- [ ] Rename module-level plotting callers: `surface_plot` → `plot_surface`, `scatterplot` → `plot_scatter`, `roc_plot` → `plot_roc`, `probability_plot` → `plot_probability`, `dist_from_hyperplane_plot` → `plot_dist_from_hyperplane`, `adjacency.plot(...)` (module fn) → `plot_adjacency`, `DesignMatrix.heatmap()` → `DesignMatrix.plot()`
+- [ ] Rename any kwargs still using legacy spellings: `algorithm=` → `method=`/`model=`, `show_progress=` → `progress_bar=`, `radius=` → `radius_mm=`, `n_perm=` → `n_permute=`, `ignore_diagonal=True` → `include_diag=False`, `thr_upper=`/`thr_lower=` → `upper=`/`lower=`, `kind=` → `method=` (see "v0.6.0 Kwarg Standardization" below)
+- [ ] Rename any positional-kwarg calls to `__init__`: implemented `BrainData`/`Adjacency`/`DesignMatrix` constructors now require keyword arguments after the first positional data arg
+- [ ] Rename module-level plotting callers: `surface_plot` → `plot_surf`, `scatterplot` → `plot_scatter`, `roc_plot` → `plot_roc`, `probability_plot` → `plot_probability`, `dist_from_hyperplane_plot` → `plot_dist_from_hyperplane`, `adjacency.plot(...)` (module fn) → `plot_adjacency`, `DesignMatrix.heatmap()` → `DesignMatrix.plot()`
 
 ### Should fix (deprecated or changed behavior)
 
-- [ ] Replace `.regress()` with `.fit(model='glm')` (deprecated shim still works, emits `DeprecationWarning`)
 - [ ] Update `.predict(algorithm=...)` to `.predict(spatial_scale=..., model=..., cv=...)` (new keyword API; `spatial_scale=` chooses ``'whole_brain'``/``'roi'``/``'searchlight'``)
 - [ ] Update `.decompose(algorithm=...)` to `.decompose(method=...)` (same `algorithm → method` rename; signature is now keyword-only after `self`)
-- [ ] Update `.shape()` → `.shape`, `.isempty()` → `.is_empty`, `.dtype()` → `.dtype`
+- [ ] Update `.shape()` → `.shape`, old empty-state access → `.is_empty`, and `.dtype()` → `.dtype`
 - [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Remove any `DesignMatrix.reset_index()` calls (pandas-compat no-op; removed)
@@ -1832,7 +1728,6 @@ brain_data.isempty   # Deprecated - use .is_empty instead
 - [ ] Replace `stats.correlation()` with `correlation_permutation_test()` from inference module
 - [ ] Replace `stats.pearson()` with `scipy.stats.pearsonr` or `correlation_permutation_test()`
 - [ ] Consider using `fit(inplace=False)` for immutable results and serialization
-- [ ] Consider using `BrainCollection` for multi-subject analyses (new in v0.6.0)
 - [ ] Consider using `SRM` / `DetSRM` for shared response modeling (new in v0.6.0)
 - [ ] Test with `DeprecationWarning` filters to catch remaining issues
 
@@ -1868,27 +1763,7 @@ nltools v0.6.0 introduces a comprehensive GPU-accelerated inference module for p
 
 ### Migration from nltools.stats
 
-**Old API** (nltools.stats):
-```python
-from nltools.stats import (
-    one_sample_permutation,
-    two_sample_permutation,
-    correlation_permutation,
-    matrix_permutation
-)
-
-# One-sample test
-result = one_sample_permutation(data, n_permute=5000)
-
-# Two-sample test
-result = two_sample_permutation(data1, data2, n_permute=5000)
-
-# Correlation test
-result = correlation_permutation(x, y, n_permute=5000, metric='pearson')
-
-# Matrix permutation (Mantel test)
-result = matrix_permutation(matrix1, matrix2, n_permute=5000)
-```
+The old unsuffixed permutation wrappers are removed. Add the `_test` suffix and import the resulting names from either `nltools.stats` or `nltools.algorithms.inference`.
 
 **New API** (nltools.algorithms.inference):
 ```python
@@ -1904,7 +1779,7 @@ from nltools.algorithms.inference import (
 result = one_sample_permutation_test(
     data,
     n_permute=5000,
-    backend='torch',  # Use GPU (optional, defaults to CPU-parallel)
+    parallel='gpu',
     random_state=42
 )
 
@@ -1913,7 +1788,7 @@ result = two_sample_permutation_test(
     data1, data2,
     n_permute=5000,
     tail='two',  # 'two', 'upper', or 'lower'
-    backend='torch'
+    parallel='gpu'
 )
 
 # Correlation test with multiple metrics
@@ -1921,7 +1796,7 @@ result = correlation_permutation_test(
     x, y,
     n_permute=5000,
     metric='spearman',  # 'pearson', 'spearman', or 'kendall'
-    backend='torch'
+    parallel='gpu'
 )
 
 # Matrix permutation with extraction modes
@@ -1938,7 +1813,7 @@ result = isc_permutation_test(
     n_permute=5000,
     summary_statistic='pairwise',  # 'pairwise' or 'leave-one-out'
     method='bootstrap',  # 'bootstrap', 'circle_shift', or 'phase_randomize'
-    backend='torch'
+    parallel='gpu'
 )
 ```
 
@@ -1989,28 +1864,25 @@ result = isc_permutation_test(
     n_permute=5000,
     summary_statistic='leave-one-out',  # or 'pairwise'
     method='bootstrap',
-    backend='torch'
+    parallel='gpu'
 )
 
-# Returns:
-# - statistic: Observed ISC
+# Direct inference returns:
+# - isc: Observed ISC
 # - p: P-values
-# - null_distribution: Null ISC values (if return_null=True)
+# - null_dist: Null ISC values (if return_null=True)
 ```
 
-**3. Backend Options**
+**3. Parallel Options**
 ```python
 # CPU-parallel (default, memory-efficient)
-result = one_sample_permutation_test(data, backend=None)
+result = one_sample_permutation_test(data, parallel='cpu')
 
 # GPU-batched (10-100× faster for large problems)
-result = one_sample_permutation_test(data, backend='torch')
+result = one_sample_permutation_test(data, parallel='gpu')
 
-# NumPy (simple, single-threaded)
-result = one_sample_permutation_test(data, backend='numpy')
-
-# Auto-select (chooses best available)
-result = one_sample_permutation_test(data, backend='auto')
+# Serial execution
+result = one_sample_permutation_test(data, parallel=None)
 ```
 
 ### Key Improvements
@@ -2035,9 +1907,8 @@ result = one_sample_permutation_test(data, backend='auto')
 
 ### Migration Checklist
 
-- [ ] Replace `nltools.stats` imports with `nltools.algorithms.inference`
-- [ ] Update function names (add `_test` suffix)
-- [ ] Add `backend='torch'` for GPU acceleration (optional)
+- [ ] Update unsuffixed permutation function names by adding the `_test` suffix; import them from `nltools.stats` or `nltools.algorithms.inference`
+- [ ] Add `parallel='gpu'` for GPU acceleration (optional)
 - [ ] Update `metric` parameter for correlation tests
 - [ ] Use `method='circle_shift'` or `method='phase_randomize'` for time series
 - [ ] Consider using ISC for multi-subject analyses
@@ -2047,17 +1918,10 @@ result = one_sample_permutation_test(data, backend='auto')
 
 **v0.6.0** (current):
 - ✅ New inference module available
-- ⚠️ stats.py functions still work (no warnings yet)
-- ✅ Both APIs coexist for migration period
+- ✅ Suffixed `*_permutation_test` functions are exported from both `nltools.stats` and `nltools.algorithms.inference`
+- ❌ Unsuffixed permutation wrapper names are removed
 
-**v0.6.1** (planned):
-- ⚠️ Add deprecation warnings to stats.py functions
-- ⚠️ Point users to new inference module
-- ✅ Update all internal uses to new API
-
-**v0.7.0** (future):
-- ❌ Remove stats.py permutation functions
-- ✅ Only inference module available
+Future migration guidance will follow the APIs available in those releases.
 
 ---
 

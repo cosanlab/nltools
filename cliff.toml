@@ -1,0 +1,84 @@
+# git-cliff configuration for the nltools changelog
+# https://git-cliff.org/docs/configuration/
+
+[changelog]
+header = """
+# Changelog\n
+All notable changes to nltools are documented here.\n
+"""
+
+body = """
+{%- if version %}
+## {{ version | trim_start_matches(pat="v") }} ({{ timestamp | date(format="%Y-%m-%d") }})
+{% else %}
+## Unreleased
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | split(pat=">") | last }}
+{% for commit in commits -%}
+{% if group is containing("Features") -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}<span class="badge badge-feature">Feature</span> {{ commit.message | split(pat="\n") | first | trim }}
+{% elif group is containing("Bug Fixes") -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}<span class="badge badge-fix">Bug Fix</span> {{ commit.message | split(pat="\n") | first | trim }}
+{% elif group is containing("Improvements") -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}<span class="badge badge-improvement">Improvement</span> {{ commit.message | split(pat="\n") | first | trim }}
+{% elif group is containing("Documentation") -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}<span class="badge badge-docs">Docs</span> {{ commit.message | split(pat="\n") | first | trim }}
+{% elif group is containing("Release") -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}<span class="badge badge-release">Release</span> {{ commit.message | split(pat="\n") | first | trim }}
+{% else -%}
+- {% if commit.breaking %}⚠ **Breaking** {% endif %}{{ commit.message | split(pat="\n") | first | trim }}
+{% endif -%}
+{%- if commit.body -%}
+{%- for line in commit.body | split(pat="\n") -%}
+{%- set trimmed = line | trim -%}
+{%- if trimmed is matching("^BREAKING:") %}
+    - **Breaking:** {{ trimmed | trim_start_matches(pat="BREAKING:") | trim }}
+{%- endif -%}
+{%- endfor %}
+{% endif -%}
+{% endfor -%}
+{% endfor %}
+"""
+
+footer = ""
+trim = false
+postprocessors = [
+  # Collapse triple+ newlines to double (one blank line max)
+  { pattern = "\n{3,}", replace = "\n\n" },
+  # Remove stray blank lines between list entries (but not before sub-bullets)
+  { pattern = "\n\n(- (?:⚠ \\*\\*Breaking\\*\\* )?<span)", replace = "\n$1" },
+  # Escape @-tokens (e.g. @pytest.mark.slow) so MyST doesn't parse them as citations
+  { pattern = "@([A-Za-z_])", replace = "\\@$1" },
+]
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+filter_commits = true
+sort_commits = "oldest"
+tag_pattern = "v[0-9].*"
+
+# Preprocessors run on raw messages before conventional-commit parsing.
+commit_preprocessors = [
+  # Strip Linear issue references: (EJO-233), (EJO-233/234), (EJO-229, EJO-230)
+  { pattern = ' \(EJO-[^)]+\)', replace = "" },
+]
+
+# Order matters: first match wins. The `<n>` prefixes force section ordering
+# (group_by sorts alphabetically); the body template strips them from headings.
+commit_parsers = [
+  { message = "^feat", group = "<1>Features" },
+  { message = "^refactor", group = "<2>Improvements" },
+  { message = "^perf", group = "<2>Improvements" },
+  { message = "^improve", group = "<2>Improvements" },
+  { message = "^fix", group = "<3>Bug Fixes" },
+  { message = "^docs", group = "<4>Documentation" },
+  { message = "^release", group = "<5>Release" },
+
+  { message = "^chore", skip = true },
+  { message = "^test", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^style", skip = true },
+  { message = "^build", skip = true },
+]

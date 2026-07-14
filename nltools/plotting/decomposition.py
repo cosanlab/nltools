@@ -19,7 +19,7 @@ ipywidgets = attempt_to_import(
 
 
 def component_viewer(output, tr=2.0):
-    """This a function to interactively view the results of a decomposition analysis
+    """This a function to interactively view the results of a decomposition analysis.
 
     Args:
         output: (dict) output dictionary from running BrainData.decompose()
@@ -32,7 +32,7 @@ def component_viewer(output, tr=2.0):
         )
 
     def component_inspector(component, threshold):
-        """This a function to be used with ipywidgets to interactively view a decomposition analysis
+        """This a function to be used with ipywidgets to interactively view a decomposition analysis.
 
         Make sure you have tr and output assigned to variables.
 

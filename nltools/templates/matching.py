@@ -49,7 +49,7 @@ def match_resolution(
             exactly match the selected template.
 
     Returns:
-        A :class:`TemplateMatch`.
+        A `TemplateMatch`.
 
     Raises:
         ValueError: If detected resolution is outside a reasonable range.

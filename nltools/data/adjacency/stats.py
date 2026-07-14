@@ -1,5 +1,4 @@
-"""
-Standalone statistical functions for Adjacency matrices.
+"""Provide standalone statistical functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 """
@@ -24,9 +23,9 @@ def similarity(
     *,
     project: bool = False,
 ):
-    """
-    Calculate similarity between two Adjacency matrices. Default is to use spearman
-    correlation and permutation test.
+    """Calculate similarity between two Adjacency matrices.
+
+    The default uses Spearman correlation and a permutation test.
 
     Args:
         adj (Adjacency): Adjacency instance.
@@ -131,7 +130,7 @@ def similarity(
     def _convert_data_similarity(
         data, permutation_method=None, include_diag=include_diag
     ):
-        """Helper function to convert data correctly"""
+        """Convert data to the representation required for similarity."""
         if (permutation_method is None) or (permutation_method == "1d"):
             if not include_diag and (not data.issymmetric):
                 d = data.squareform()
@@ -233,10 +232,11 @@ def z_to_r(adj):
 
 
 def threshold(adj, upper=None, lower=None, binarize=False):
-    """Threshold Adjacency instance. Provide upper and lower values or
-       percentages to perform two-sided thresholding. Binarize will return
-       a mask image respecting thresholds if provided, otherwise respecting
-       every non-zero value.
+    """Threshold an Adjacency instance.
+
+    Provide upper and lower values or percentages to perform two-sided
+    thresholding. Binarize will return a mask image respecting thresholds if
+    provided, otherwise respecting every non-zero value.
 
     Args:
         adj (Adjacency): Adjacency instance
@@ -367,7 +367,7 @@ def _label_distance_long(adj, labels):
 
 
 def plot_label_distance(adj, labels=None, ax=None):
-    """Create a violin plot indicating within and between label distance
+    """Create a violin plot of within- and between-label distances.
 
     Args:
         adj (Adjacency): Adjacency instance (must be a single matrix)

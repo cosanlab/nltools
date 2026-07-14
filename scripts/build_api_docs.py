@@ -14,12 +14,32 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCS_API = PROJECT_ROOT / "docs" / "api"
+
+
+def _griffe2md_argv() -> list[str]:
+    """Build the argv prefix for invoking griffe2md, robust to PATH and shebangs.
+
+    poe's shell tasks don't reliably propagate the uv venv's bin dir onto PATH,
+    and a relocated venv (e.g. synced across machines) can leave the console
+    script with a stale shebang so exec-ing it directly fails. Running the console
+    script *through* the current interpreter sidesteps both: the shebang line is
+    ignored and no PATH lookup is needed. Fall back to a bare name if not found.
+    """
+    candidate = Path(sys.executable).parent / "griffe2md"
+    if candidate.exists():
+        return [sys.executable, str(candidate)]
+    resolved = shutil.which("griffe2md")
+    return [resolved] if resolved else ["griffe2md"]
+
+
+GRIFFE2MD = _griffe2md_argv()
 
 # (import_path, output_path relative to docs/api/)
 # Matches the existing myst.yml TOC structure.
@@ -98,12 +118,66 @@ MODULES: list[tuple[str, str]] = [
 ]
 
 
+def _strip_rst_roles(text: str) -> str:
+    """Convert any residual RST cross-reference roles to Markdown code spans.
+
+    Docstrings are standardized to Google-style Markdown (no RST), but this is a
+    safety net so stray ``:func:`x```-style roles never leak into rendered docs.
+    Drops the role name, any ``~`` prefix, and the module path, keeping the short
+    symbol (``Class.method`` when the penultimate segment is capitalized).
+    """
+
+    def repl(m: re.Match) -> str:
+        target = m.group(2).lstrip("~")
+        parts = target.split(".")
+        if len(parts) >= 2 and parts[-2][:1].isupper():
+            short = ".".join(parts[-2:])
+        else:
+            short = parts[-1]
+        return f"`{short}`"
+
+    return re.sub(r":(func|meth|class|attr|obj|mod|data|exc|ref):`([^`]+)`", repl, text)
+
+
+def _remove_deprecated_members(text: str) -> str:
+    """Hide deprecated methods from the generated API reference.
+
+    Self-targeting: only removes members whose docstring summary begins with
+    ``Deprecated``. Deprecations are documented in the migration guide, not the
+    API reference. Removes both the Methods summary-table row and the detail
+    section. Deprecated *parameter aliases* (table rows like ``threshold``) are
+    untouched — they are not method rows and their bodies don't open with
+    ``Deprecated:`` after a signature fence.
+    """
+    # Drop Methods summary-table rows: [`name`](#anchor) | Deprecated...
+    text = re.sub(
+        r"^\[`\w+`\]\(#[\w.]+\) \| Deprecated.*\n",
+        "",
+        text,
+        flags=re.MULTILINE,
+    )
+    # Drop detail sections whose body opens with "Deprecated:" right after the
+    # signature code fence. Section spans "#### `name`" to the next heading/EOF.
+    def _drop(m: re.Match) -> str:
+        body = m.group(0)
+        return "" if re.search(r"```\n+Deprecated:", body) else body
+
+    return re.sub(
+        r"^#### `\w+`\n.*?(?=^#### |^### |^## |\Z)",
+        _drop,
+        text,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+
 def postprocess(text: str) -> str:
     """Fix griffe2md output quirks.
 
     - Insert newline between concatenated headings (e.g. ``### Attributes#### foo``)
     - Shorten dotpath anchors in summary table links to match short heading IDs
     - Rename 'Functions' summary/category heading to 'Methods' for class pages
+    - Strip any residual RST roles (safety net over docstring standardization)
+    - Hide deprecated members (documented in the migration guide instead)
     """
     # Fix concatenated headings: "### Foo#### Bar" -> "### Foo\n\n#### Bar"
     text = re.sub(r"(#{2,6} .+?)(#{2,6} )", r"\1\n\n\2", text)
@@ -132,6 +206,10 @@ def postprocess(text: str) -> str:
         flags=re.MULTILINE | re.DOTALL,
     )
 
+    # Hide deprecated members and strip any residual RST roles (safety net).
+    text = _remove_deprecated_members(text)
+    text = _strip_rst_roles(text)
+
     return text
 
 
@@ -139,7 +217,7 @@ def generate(module: str, output: Path) -> bool:
     """Run griffe2md for a single module and write to output path."""
     output.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
-        ["griffe2md", module, "-o", str(output)],
+        [*GRIFFE2MD, module, "-o", str(output)],
         capture_output=True,
         text=True,
     )

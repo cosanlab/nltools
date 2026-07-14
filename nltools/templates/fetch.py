@@ -37,7 +37,7 @@ def fetch_resource(relpath: str) -> str:
     Args:
         relpath: Path within the dataset repo, e.g.
             ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or
-            ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources`
+            ``'masks/k88_parcel_names.csv'``. Use `list_resources`
             to enumerate what's available.
 
     Returns:
@@ -72,7 +72,7 @@ def _list_repo_files_cached(repo_id: str, revision: str) -> tuple[str, ...]:
 def list_resources(prefix: str | None = None) -> list[str]:
     """List files available in the ``nltools/niftis`` HF dataset.
 
-    Companion to :func:`fetch_resource` — surfaces what's downloadable
+    Companion to `fetch_resource` — surfaces what's downloadable
     without forcing users to remember relpath strings or visit the HF
     web UI.
 
@@ -82,12 +82,12 @@ def list_resources(prefix: str | None = None) -> list[str]:
             ``str.startswith``.
 
     Returns:
-        Sorted list of relative paths usable with :func:`fetch_resource`.
+        Sorted list of relative paths usable with `fetch_resource`.
 
     Notes:
         Hits the HF API once per session (cached). Not available in
         Pyodide — browser-deployed code should know its paths in advance
-        and pre-seed via :func:`seed_resources`.
+        and pre-seed via `seed_resources`.
     """
     if "pyodide" in sys.modules:
         raise RuntimeError(
@@ -104,10 +104,10 @@ def list_resources(prefix: str | None = None) -> list[str]:
 async def seed_resources(relpaths: list[str]) -> None:
     """Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
-    No-op outside Pyodide — :func:`fetch_resource` does its own lazy download
+    No-op outside Pyodide — `fetch_resource` does its own lazy download
     via ``huggingface_hub`` there. In Pyodide this must be called (and
-    awaited) before any code path that calls :func:`fetch_resource`,
-    :func:`resolve_paths`, or :func:`resolve_template_name` synchronously.
+    awaited) before any code path that calls `fetch_resource`,
+    `resolve_paths`, or `resolve_template_name` synchronously.
 
     The cache is backed by IndexedDB, so files persist across page reloads.
     The first call per session mounts IDBFS and pulls any prior data;

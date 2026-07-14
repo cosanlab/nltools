@@ -1,5 +1,4 @@
-"""
-DesignMatrix I/O and visualization functions.
+"""Provide DesignMatrix I/O and visualization functions.
 
 Standalone functions extracted from DesignMatrix methods.
 Each takes a DesignMatrix instance (`dm`) as its first argument.
@@ -152,8 +151,7 @@ def to_pandas(dm: DesignMatrix):
 
 
 def to_numpy(dm: DesignMatrix) -> np.ndarray:
-    """
-    Convert DesignMatrix to numpy array.
+    """Convert a DesignMatrix to a NumPy array.
 
     Returns data columns as 2D numpy array (rows x columns).
     Column order is preserved from DataFrame.

@@ -14,7 +14,7 @@ from scipy.signal import butter, filtfilt
 
 
 def calc_bpm(beat_interval, sampling_freq):
-    """Calculate instantaneous BPM from beat to beat interval
+    """Calculate instantaneous BPM from beat to beat interval.
 
     Args:
         beat_interval: (int) number of samples in between each beat
@@ -162,11 +162,12 @@ def upsample(
 
 
 def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, drop=0):
-    """Create a series of cosine basis functions for a discrete cosine
-        transform. Based off of implementation in spm_filter and spm_dctmtx
-        because scipy dct can only apply transforms but not return the basis
-        functions. Like SPM, does not add constant (i.e. intercept), but does
-        retain first basis (i.e. sigmoidal/linear drift)
+    """Create basis functions for a discrete cosine transform.
+
+    Based on the implementation in ``spm_filter`` and ``spm_dctmtx`` because
+    scipy DCT can only apply transforms but not return the basis functions. Like
+    SPM, this does not add a constant (i.e. intercept), but does retain the first
+    basis (i.e. sigmoidal/linear drift).
 
     Args:
         nsamples (int): number of observations (e.g. TRs)
@@ -222,7 +223,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
 
 
 def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis=0, order=5):
-    """Apply a bandpass butterworth filter with zero-phase filtering
+    """Apply a bandpass butterworth filter with zero-phase filtering.
 
     Args:
         data: (np.array)
@@ -241,7 +242,7 @@ def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis=0, order=5):
 
 
 def _phase_mean_angle(phase_angles):
-    """Compute mean phase angle using circular statistics
+    """Compute mean phase angle using circular statistics.
 
     Can take 1D (observation for a single feature) or 2D (observation x feature) signals
 
@@ -265,7 +266,7 @@ def _phase_mean_angle(phase_angles):
 
 
 def _phase_vector_length(phase_angles):
-    """Compute vector length of phase angles using circular statistics
+    """Compute vector length of phase angles using circular statistics.
 
     Can take 1D (observation for a single feature) or 2D (observation x feature) signals
 
@@ -291,7 +292,7 @@ def _phase_vector_length(phase_angles):
 
 
 def _phase_rayleigh_p(phase_angles):
-    """Compute the p-value of the phase_angles using the Rayleigh statistic
+    """Compute the p-value of the phase_angles using the Rayleigh statistic.
 
     Note: this test assumes every time point is independent, which is unlikely to be true in a timeseries with autocorrelation
 

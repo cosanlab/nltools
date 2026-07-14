@@ -108,7 +108,7 @@ def two_sample_permutation_test(
         data1: Group 1 data, shape ``(n1,)`` or ``(n1, n_features)``.
         data2: Group 2 data, shape ``(n2,)`` or ``(n2, n_features)``.
         n_permute: Number of permutations (default 5000).
-        tail: Test sidedness (see :func:`one_sample_permutation_test`).
+        tail: Test sidedness (see `one_sample_permutation_test`).
         return_null: If True, include the full null distribution.
         parallel: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
         n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
@@ -158,7 +158,7 @@ def correlation_permutation_test(
         data2: Second variable, shape ``(n_samples,)``.
         n_permute: Number of permutations (default 5000).
         metric: Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``.
-        tail: Test sidedness (see :func:`one_sample_permutation_test`).
+        tail: Test sidedness (see `one_sample_permutation_test`).
         return_null: If True, include the full null distribution.
         parallel: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
         n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
@@ -328,7 +328,7 @@ def matrix_permutation_test(
         metric: Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``.
         how: Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``.
         include_diag: Whether to include diagonal elements.
-        tail: Test sidedness (see :func:`one_sample_permutation_test`).
+        tail: Test sidedness (see `one_sample_permutation_test`).
         parallel: Parallelization backend (``'cpu'`` or ``None``; GPU not supported).
         n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
         return_null: If True, include the full null distribution.

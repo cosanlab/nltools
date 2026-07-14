@@ -1,5 +1,4 @@
-"""
-Standalone regressor functions for DesignMatrix.
+"""Provide standalone regressor functions for DesignMatrix.
 
 Each function takes a DesignMatrix as its first argument (`dm`) and returns
 a new DesignMatrix with the requested transformation applied.
@@ -24,8 +23,7 @@ def convolve(
     conv_func: str | np.ndarray = "hrf",
     columns: list[str] | None = None,
 ) -> DesignMatrix:
-    """
-    Convolve columns with HRF or custom kernel.
+    """Convolve columns with an HRF or custom kernel.
 
     Args:
         dm: DesignMatrix to convolve.
@@ -156,8 +154,7 @@ def add_poly(
     order: int = 0,
     include_lower: bool = True,
 ) -> DesignMatrix:
-    """
-    Add Legendre polynomial drift terms.
+    """Add Legendre polynomial drift terms.
 
     Args:
         dm: DesignMatrix to add polynomials to.
@@ -248,15 +245,14 @@ def add_dct_basis(
     drop: int = 0,
     include_constant: bool = True,
 ) -> DesignMatrix:
-    """
-    Add discrete cosine transform basis functions (high-pass filter).
+    """Add discrete cosine transform basis functions for high-pass filtering.
 
     Args:
         dm: DesignMatrix to add DCT basis to.
         duration (float): Filter duration in seconds. Default: 180.
         drop (int): Number of low-frequency bases to drop. Default: 0.
         include_constant (bool): If True, also add a constant/intercept column
-            named ``cosine_0`` (analogous to ``poly_0`` in :func:`add_poly`).
+            named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`).
             The underlying DCT basis drops the constant per SPM convention;
             set False to match SPM behavior. Default: True.
 

@@ -37,8 +37,7 @@ Name | Type | Description | Default
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for CV splits (e.g., run labels). | <code>None</code>
 `steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | Transform steps to apply. | <code>[list](#list)()</code>
 
-Examples
---------
+Examples:
 >>> # LOSO CV
 >>> pipeline = MultiSubjectPipeline(subject_data, cv=CVScheme(scheme='loso'))
 >>> result = pipeline.normalize().predict(y, algorithm='svm')
@@ -99,8 +98,7 @@ Type | Description
 ---- | -----------
 <code>[MultiSubjectPipeline](#nltools.pipelines.multi_subject.MultiSubjectPipeline)</code> | New pipeline with alignment step added.
 
-Examples
---------
+Examples:
 >>> # SRM alignment before classification
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=CVScheme(scheme='loso'))
@@ -144,8 +142,7 @@ Type | Description
 ---- | -----------
  | Result containing ISC values, p-values, and confidence intervals.
 
-Examples
---------
+Examples:
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)
 ...     .normalize()
@@ -191,23 +188,27 @@ Type | Description
 ---- | -----------
  | Cross-validation results.
 
-Examples
---------
-Basic regression with LOSO CV::
+**Examples:**
 
-    result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+Basic regression with LOSO CV:
 
-Classification with balanced classes::
+```python
+result = pipeline.cv('loso').predict(subject_labels, algorithm='ridge')
+```
+Classification with balanced classes:
 
-    result = pipeline.cv('loso').predict(
-        group_labels, algorithm='svm', class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    group_labels, algorithm='svm', class_weight='balanced'
+)
+```
+Logistic regression with regularization:
 
-Logistic regression with regularization::
-
-    result = pipeline.cv('loso').predict(
-        binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
-    )
+```python
+result = pipeline.cv('loso').predict(
+    binary_labels, algorithm='logistic', C=0.1, class_weight='balanced'
+)
+```
 
 ###### `reduce`
 
@@ -243,8 +244,7 @@ Type | Description
 ---- | -----------
  | Result containing correlation coefficient and p-value.
 
-Examples
---------
+Examples:
 >>> model = np.corrcoef(conditions)  # Theoretical model
 >>> result = (
 ...     MultiSubjectPipeline(data=subjects, cv=None)

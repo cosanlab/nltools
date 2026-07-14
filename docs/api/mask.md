@@ -1,7 +1,8 @@
 ## `mask`
 
-NeuroLearn Mask Classes
-=======================
+Utilities for creating and manipulating brain masks.
+
+# NeuroLearn Mask Classes
 
 Classes to represent masks
 
@@ -9,9 +10,9 @@ Classes to represent masks
 
 Name | Description
 ---- | -----------
-[`collapse_mask`](#collapse_mask) | collapse separate masks into one mask with multiple integers
-[`create_sphere`](#create_sphere) | Generate a set of spheres in the brain mask space
-[`expand_mask`](#expand_mask) | expand a mask with multiple integers into separate binary masks
+[`collapse_mask`](#collapse_mask) | Collapse separate masks into one integer-labeled mask.
+[`create_sphere`](#create_sphere) | Generate spheres in brain-mask space.
+[`expand_mask`](#expand_mask) | Expand an integer-labeled mask into separate binary masks.
 [`roi_to_brain`](#roi_to_brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
 [`roi_to_brain_from_atlas`](#roi_to_brain_from_atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
 
@@ -25,8 +26,9 @@ Name | Description
 collapse_mask(mask, auto_label = True, custom_mask = None)
 ```
 
-collapse separate masks into one mask with multiple integers
-    overlapping areas are ignored
+Collapse separate masks into one integer-labeled mask.
+
+Overlapping areas are ignored.
 
 **Parameters:**
 
@@ -47,7 +49,7 @@ Name | Type | Description
 create_sphere(coordinates, radius = 5, mask = None)
 ```
 
-Generate a set of spheres in the brain mask space
+Generate spheres in brain-mask space.
 
 **Parameters:**
 
@@ -62,7 +64,7 @@ Name | Type | Description | Default
 expand_mask(mask, custom_mask = None)
 ```
 
-expand a mask with multiple integers into separate binary masks
+Expand an integer-labeled mask into separate binary masks.
 
 **Parameters:**
 
@@ -113,9 +115,9 @@ roi_to_brain_from_atlas(values, atlas, source_mask, *, roi_labels = None, fill: 
 
 Paint per-parcel values onto voxel space using a labeled atlas.
 
-Sibling of :func:`roi_to_brain`, but accepts a *labeled* atlas (one
+Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one
 integer label per voxel — the form carried by
-:class:`nltools.data.adjacency.SpatialScale`), not an expanded mask
+`SpatialScale`), not an expanded mask
 with one binary row per ROI. Voxels whose atlas label is not in
 ``roi_labels`` (or whose label is 0) receive ``fill``.
 

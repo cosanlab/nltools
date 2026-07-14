@@ -2,8 +2,8 @@
 
 Pedagogical helper used in tutorials and notebooks where callers want a
 ``(b, se, t, p, df, res)`` tuple from a design matrix ``X`` and response
-``Y`` without constructing a :class:`BrainData` or :class:`Glm`. For
-4D neuroimaging data use :meth:`BrainData.fit` with ``model='glm'``.
+``Y`` without constructing a `BrainData` or `Glm`. For
+4D neuroimaging data use `BrainData.fit` with ``model='glm'``.
 """
 
 from __future__ import annotations

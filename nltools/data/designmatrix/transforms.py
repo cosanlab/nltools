@@ -18,8 +18,7 @@ if TYPE_CHECKING:
 
 
 def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
-    """
-    Z-score standardize columns (mean=0, std=1).
+    """Z-score standardize columns to mean zero and unit variance.
 
     Args:
         dm: DesignMatrix instance to transform.
@@ -99,8 +98,7 @@ def standardize(
 
 
 def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
-    """
-    Reduce temporal resolution to target frequency using Polars-native operations.
+    """Reduce temporal resolution using Polars-native operations.
 
     Args:
         dm: DesignMatrix instance to transform.
@@ -180,8 +178,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
 def upsample(
     dm: DesignMatrix, target: float, method: str = "linear", **kwargs
 ) -> DesignMatrix:
-    """
-    Increase temporal resolution to target frequency using Polars-native interpolation.
+    """Increase temporal resolution using Polars-native interpolation.
 
     Args:
         dm: DesignMatrix instance to transform.

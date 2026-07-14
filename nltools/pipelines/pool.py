@@ -41,8 +41,7 @@ class PooledData:
         fitted_state: Saved fitted models for repool() functionality.
         save_path: Path where data was saved.
 
-    Examples
-    --------
+    Examples:
     >>> # Two-stage GLM
     >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
     >>> result = pool.fit(model='ttest', contrast='face-house')
@@ -107,8 +106,7 @@ class PooledData:
         Returns:
             Statistical results. ResultDict if multiple contrasts specified.
 
-        Examples
-        --------
+        Examples:
         >>> result = pool.fit(model='ttest', contrast='face-house')
         >>> result.t_map.max()
 

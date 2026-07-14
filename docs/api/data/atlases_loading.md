@@ -32,11 +32,11 @@ afterwards). Subsequent calls in the same process are memoized.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`name` | <code>[str](#str)</code> | Atlas key from :func:`list_atlases`. | *required*
+`name` | <code>[str](#str)</code> | Atlas key from `list_atlases`. | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`An` | <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | class:`Atlas` with image, labels, and metadata loaded.
+Type | Description
+---- | -----------
+<code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
 

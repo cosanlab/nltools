@@ -19,7 +19,7 @@ Name | Description
 [`assert_array_almost_equal`](#assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
 [`auto_select_backend`](#auto_select_backend) | Automatically select backend based on problem size.
 [`check_gpu_available`](#check_gpu_available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a :class:`Backend` instance.
+[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
@@ -519,12 +519,12 @@ Name | Type | Description
 resolve_backend(parallel)
 ```
 
-Coerce a backend specifier into a :class:`Backend` instance.
+Coerce a backend specifier into a `Backend` instance.
 
 Accepts the values callers typically thread through the algorithms
 package (``None``/``"cpu"`` → numpy, ``"gpu"``/``"torch"`` → torch,
-``"numpy"``/``"auto"`` → their direct :class:`Backend` constructors).
-Existing :class:`Backend` instances are returned unchanged — this is
+``"numpy"``/``"auto"`` → their direct `Backend` constructors).
+Existing `Backend` instances are returned unchanged — this is
 the main reason to prefer ``resolve_backend`` over constructing a new
 ``Backend(...)`` at each call site: it avoids repeated device
 detection/torch imports when a backend has already been chosen upstream.
@@ -533,7 +533,7 @@ detection/torch imports when a backend has already been chosen upstream.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`parallel` |  | Backend specifier. One of:<br>- ``None`` or ``"cpu"``: numpy backend. - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``. - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu). - An existing :class:`Backend` instance (returned as-is). | *required*
+`parallel` |  | Backend specifier. One of:<br>- ``None`` or ``"cpu"``: numpy backend. - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``. - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu). - An existing `Backend` instance (returned as-is). | *required*
 
 **Returns:**
 

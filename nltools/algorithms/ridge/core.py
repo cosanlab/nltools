@@ -1,5 +1,4 @@
-"""
-Ridge regression algorithms using SVD decomposition.
+"""Ridge regression algorithms using SVD decomposition.
 
 This module implements ridge regression using Singular Value Decomposition (SVD),
 which provides numerical stability and efficiency for high-dimensional problems.
@@ -52,8 +51,7 @@ def ridge_svd(
     # Random state (last) - not used but kept for consistency
     random_state: int | None = None,
 ) -> np.ndarray:
-    """
-    Solve ridge regression using Singular Value Decomposition.
+    """Solve ridge regression using Singular Value Decomposition.
 
     This function implements ridge regression using SVD, which provides
     numerical stability and efficiency for high-dimensional problems.
@@ -195,8 +193,7 @@ def ridge_cv(
     # Random state (last)
     random_state: int | None = None,
 ) -> dict:
-    """
-    Ridge regression with cross-validation for hyperparameter selection.
+    """Ridge regression with cross-validation for hyperparameter selection.
 
     Performs k-fold cross-validation to select the best alpha parameter,
     then fits a final model on all data using the selected alpha.

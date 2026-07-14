@@ -1,5 +1,4 @@
-"""
-Standalone functions for DesignMatrix concatenation operations.
+"""Provide standalone DesignMatrix concatenation functions.
 
 These functions implement the append/concatenation logic extracted from
 DesignMatrix methods, following the "functional core" pattern.
@@ -84,8 +83,7 @@ def append(
     as_confounds: bool = False,
     verbose: bool = False,
 ) -> DesignMatrix:
-    """
-    Concatenate design matrices.
+    """Concatenate design matrices.
 
     Args:
         dm (DesignMatrix): The base design matrix.
@@ -164,8 +162,7 @@ def append_horizontal(
     fill_na: int | float | None,
     as_confounds: bool = False,
 ) -> DesignMatrix:
-    """
-    Horizontal concatenation (axis=1) - add columns from other matrices.
+    """Concatenate matrices horizontally by adding columns.
 
     Args:
         dm: Base DesignMatrix instance.
@@ -236,8 +233,7 @@ def append_vertical(
     fill_na: int | float | None,
     verbose: bool,
 ) -> DesignMatrix:
-    """
-    Vertical concatenation (axis=0) - stack rows, with optional confound separation.
+    """Concatenate matrices vertically with optional confound separation.
 
     Args:
         dm: Base DesignMatrix instance.
@@ -275,8 +271,7 @@ def append_vertical(
 
 
 def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
-    """
-    Match columns against pattern with wildcard support.
+    """Match columns against a pattern with wildcard support.
 
     Args:
         columns (list of str): Column names to search.
@@ -298,8 +293,7 @@ def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
 
 
 def get_starting_run_idx(dm: DesignMatrix) -> int:
-    """
-    Determine next run index for multi-run appending.
+    """Determine the next run index for multi-run appending.
 
     Args:
         dm: DesignMatrix instance to inspect.
@@ -327,8 +321,7 @@ def identify_columns_to_separate(
     all_dms: list[DesignMatrix],
     unique_cols: list[str] | None,
 ) -> set:
-    """
-    Identify which columns need run-specific separation.
+    """Identify columns that need run-specific separation.
 
     Args:
         dm (DesignMatrix): The base design matrix (used for context only).
@@ -368,8 +361,7 @@ def append_vertical_with_separation(
     fill_na: int | float | None,
     verbose: bool,
 ) -> DesignMatrix:
-    """
-    Vertical concatenation with automatic confound separation.
+    """Concatenate vertically with automatic confound separation.
 
     Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
     active only in their respective runs (sparse representation).

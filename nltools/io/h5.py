@@ -1,5 +1,4 @@
-"""
-HDF5 I/O utilities for nltools data types.
+"""HDF5 I/O utilities for nltools data types.
 
 Shared serialization logic for BrainData and Adjacency objects.
 """

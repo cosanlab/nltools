@@ -1,6 +1,6 @@
 ## `append`
 
-Standalone functions for DesignMatrix concatenation operations.
+Provide standalone DesignMatrix concatenation functions.
 
 These functions implement the append/concatenation logic extracted from
 DesignMatrix methods, following the "functional core" pattern.
@@ -10,12 +10,12 @@ DesignMatrix methods, following the "functional core" pattern.
 Name | Description
 ---- | -----------
 [`append`](#append) | Concatenate design matrices.
-[`append_horizontal`](#append_horizontal) | Horizontal concatenation (axis=1) - add columns from other matrices.
-[`append_vertical`](#append_vertical) | Vertical concatenation (axis=0) - stack rows, with optional confound separation.
-[`append_vertical_with_separation`](#append_vertical_with_separation) | Vertical concatenation with automatic confound separation.
-[`get_starting_run_idx`](#get_starting_run_idx) | Determine next run index for multi-run appending.
-[`identify_columns_to_separate`](#identify_columns_to_separate) | Identify which columns need run-specific separation.
-[`match_column_pattern`](#match_column_pattern) | Match columns against pattern with wildcard support.
+[`append_horizontal`](#append_horizontal) | Concatenate matrices horizontally by adding columns.
+[`append_vertical`](#append_vertical) | Concatenate matrices vertically with optional confound separation.
+[`append_vertical_with_separation`](#append_vertical_with_separation) | Concatenate vertically with automatic confound separation.
+[`get_starting_run_idx`](#get_starting_run_idx) | Determine the next run index for multi-run appending.
+[`identify_columns_to_separate`](#identify_columns_to_separate) | Identify columns that need run-specific separation.
+[`match_column_pattern`](#match_column_pattern) | Match columns against a pattern with wildcard support.
 
 
 
@@ -56,7 +56,7 @@ Name | Type | Description
 append_horizontal(dm: DesignMatrix, to_append: list[DesignMatrix], fill_na: int | float | None, as_confounds: bool = False) -> DesignMatrix
 ```
 
-Horizontal concatenation (axis=1) - add columns from other matrices.
+Concatenate matrices horizontally by adding columns.
 
 **Parameters:**
 
@@ -79,7 +79,7 @@ Name | Type | Description
 append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
 ```
 
-Vertical concatenation (axis=0) - stack rows, with optional confound separation.
+Concatenate matrices vertically with optional confound separation.
 
 **Parameters:**
 
@@ -104,7 +104,7 @@ Name | Type | Description
 append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
 ```
 
-Vertical concatenation with automatic confound separation.
+Concatenate vertically with automatic confound separation.
 
 Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
 active only in their respective runs (sparse representation).
@@ -131,7 +131,7 @@ Name | Type | Description
 get_starting_run_idx(dm: DesignMatrix) -> int
 ```
 
-Determine next run index for multi-run appending.
+Determine the next run index for multi-run appending.
 
 **Parameters:**
 
@@ -151,7 +151,7 @@ Name | Type | Description
 identify_columns_to_separate(dm: DesignMatrix, all_dms: list[DesignMatrix], unique_cols: list[str] | None) -> set
 ```
 
-Identify which columns need run-specific separation.
+Identify columns that need run-specific separation.
 
 **Parameters:**
 
@@ -173,7 +173,7 @@ Name | Type | Description
 match_column_pattern(columns: list[str], pattern: str) -> list[str]
 ```
 
-Match columns against pattern with wildcard support.
+Match columns against a pattern with wildcard support.
 
 **Parameters:**
 

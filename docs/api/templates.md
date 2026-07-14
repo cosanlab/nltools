@@ -9,20 +9,26 @@ automatically.
 
 **Examples:**
 
-Set the global brain space::
+Set the global brain space:
 
+```python
     import nltools
     nltools.set_brainspace(template="fmriprep", resolution=2)
+```
 
-Inspect the current configuration::
+Inspect the current configuration:
 
+```python
     cfg = nltools.get_brainspace()
     print(cfg.mask)
+```
 
-Scope a change to a block::
+Scope a change to a block:
 
+```python
     with nltools.with_brainspace(resolution=1):
         brain = BrainData(...)
+```
 
 **Modules:**
 
@@ -91,7 +97,7 @@ Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources` to enumerate what's available. | *required*
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use `list_resources` to enumerate what's available. | *required*
 
 **Returns:**
 
@@ -172,7 +178,7 @@ list_resources(prefix: str | None = None) -> list[str]
 
 List files available in the ``nltools/niftis`` HF dataset.
 
-Companion to :func:`fetch_resource` — surfaces what's downloadable
+Companion to `fetch_resource` — surfaces what's downloadable
 without forcing users to remember relpath strings or visit the HF
 web UI.
 
@@ -186,14 +192,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with :func:`fetch_resource`.
+<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with `fetch_resource`.
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
 Hits the HF API once per session (cached). Not available in
 Pyodide — browser-deployed code should know its paths in advance
-and pre-seed via :func:`seed_resources`.
+and pre-seed via `seed_resources`.
 
 </details>
 
@@ -218,9 +224,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`A` | <code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | class:`TemplateMatch`.
+Type | Description
+---- | -----------
+<code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | A `TemplateMatch`.
 
 #### `reset_brainspace`
 
@@ -282,10 +288,10 @@ seed_resources(relpaths: list[str]) -> None
 
 Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
-No-op outside Pyodide — :func:`fetch_resource` does its own lazy download
+No-op outside Pyodide — `fetch_resource` does its own lazy download
 via ``huggingface_hub`` there. In Pyodide this must be called (and
-awaited) before any code path that calls :func:`fetch_resource`,
-:func:`resolve_paths`, or :func:`resolve_template_name` synchronously.
+awaited) before any code path that calls `fetch_resource`,
+`resolve_paths`, or `resolve_template_name` synchronously.
 
 The cache is backed by IndexedDB, so files persist across page reloads.
 The first call per session mounts IDBFS and pulls any prior data;
@@ -483,7 +489,7 @@ Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use :func:`list_resources` to enumerate what's available. | *required*
+`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use `list_resources` to enumerate what's available. | *required*
 
 **Returns:**
 
@@ -501,7 +507,7 @@ list_resources(prefix: str | None = None) -> list[str]
 
 List files available in the ``nltools/niftis`` HF dataset.
 
-Companion to :func:`fetch_resource` — surfaces what's downloadable
+Companion to `fetch_resource` — surfaces what's downloadable
 without forcing users to remember relpath strings or visit the HF
 web UI.
 
@@ -515,14 +521,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with :func:`fetch_resource`.
+<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with `fetch_resource`.
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
 Hits the HF API once per session (cached). Not available in
 Pyodide — browser-deployed code should know its paths in advance
-and pre-seed via :func:`seed_resources`.
+and pre-seed via `seed_resources`.
 
 </details>
 
@@ -534,10 +540,10 @@ seed_resources(relpaths: list[str]) -> None
 
 Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
-No-op outside Pyodide — :func:`fetch_resource` does its own lazy download
+No-op outside Pyodide — `fetch_resource` does its own lazy download
 via ``huggingface_hub`` there. In Pyodide this must be called (and
-awaited) before any code path that calls :func:`fetch_resource`,
-:func:`resolve_paths`, or :func:`resolve_template_name` synchronously.
+awaited) before any code path that calls `fetch_resource`,
+`resolve_paths`, or `resolve_template_name` synchronously.
 
 The cache is backed by IndexedDB, so files persist across page reloads.
 The first call per session mounts IDBFS and pulls any prior data;
@@ -645,9 +651,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`A` | <code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | class:`TemplateMatch`.
+Type | Description
+---- | -----------
+<code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | A `TemplateMatch`.
 
 #### `paths`
 
@@ -655,7 +661,7 @@ Pure path-resolution helpers for MNI template files.
 
 Resolves logical (template, resolution, file_type) tuples to local paths.
 Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
-:mod:`nltools.templates.fetch`.
+`nltools.templates.fetch`.
 
 **Methods:**
 

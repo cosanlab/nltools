@@ -1,5 +1,4 @@
-"""
-GPU-accelerated statistical inference for neuroimaging.
+"""GPU-accelerated statistical inference for neuroimaging.
 
 This module provides fast permutation testing and bootstrap resampling using
 optional GPU acceleration via PyTorch. When GPU is unavailable, efficiently

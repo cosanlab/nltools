@@ -1,6 +1,4 @@
-"""
-NeuroLearn Utilities
-====================
+"""Provide cross-cutting utilities for nltools.
 
 Cross-cutting utilities used across the nltools package.
 
@@ -84,7 +82,7 @@ def all_same(items):
 
 
 def concatenate(data):
-    """Concatenate a list of BrainData() or Adjacency() objects"""
+    """Concatenate a list of BrainData() or Adjacency() objects."""
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are passing a list of objects.")

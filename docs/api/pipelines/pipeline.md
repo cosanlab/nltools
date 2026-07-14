@@ -8,8 +8,7 @@ chainable transform pipelines with optional cross-validation support.
 The design follows an immutable pattern where each transform method returns
 a new Pipeline instance, enabling fluent method chaining without side effects.
 
-Example
--------
+Example:
 >>> pipeline = (
 ...     Pipeline(data, cv=kfold)
 ...     .normalize(method='zscore')
@@ -67,8 +66,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
-Examples
---------
+Examples:
 >>> stack = FittedStack()
 >>> stack.append(fitted_pca)
 >>> stack.append(fitted_normalize)
@@ -442,8 +440,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
-Examples
---------
+Examples:
 >>> class MyStep:
 ...     invertible = True
 ...     def fit(self, data):

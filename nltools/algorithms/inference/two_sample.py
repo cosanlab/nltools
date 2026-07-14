@@ -1,5 +1,4 @@
-"""
-Two-sample permutation test implementations.
+"""Two-sample permutation test implementations.
 
 This module provides CPU-parallel and GPU-batched implementations
 of the two-sample permutation test (group permutation test).
@@ -28,8 +27,7 @@ def _two_sample_permutation_cpu_parallel(
     random_state: int | None,
     single_feature: bool = False,
 ) -> dict:
-    """
-    Two-sample permutation test using CPU parallelization with joblib.
+    """Two-sample permutation test using CPU parallelization with joblib.
 
     Memory-efficient implementation that processes one permutation per worker.
     Randomly shuffles group labels and computes mean difference.
@@ -119,8 +117,7 @@ def _two_sample_permutation_gpu_batched(
     random_state,
     single_feature: bool = False,
 ) -> dict:
-    """
-    Two-sample permutation test using GPU with automatic batching.
+    """Two-sample permutation test using GPU with automatic batching.
 
     Processes permutations in batches to avoid GPU OOM. Transfers data once
     and reuses across batches for efficiency.
@@ -264,8 +261,7 @@ def two_sample_permutation_test(
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
 ) -> dict:
-    """
-    Two-sample permutation test using group label shuffling.
+    """Two-sample permutation test using group label shuffling.
 
     Tests whether two independent groups have different means by randomly
     permuting group labels. This is the permutation test equivalent of an

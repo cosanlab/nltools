@@ -15,7 +15,7 @@ from .registry import ATLASES, AtlasKind
 class Atlas:
     """A loaded atlas — image, labels, and metadata.
 
-    Constructed by :func:`load_atlas`; users normally don't instantiate
+    Constructed by `load_atlas`; users normally don't instantiate
     directly.
 
     Attributes:
@@ -46,10 +46,10 @@ def load_atlas(name: str) -> Atlas:
     afterwards). Subsequent calls in the same process are memoized.
 
     Args:
-        name: Atlas key from :func:`list_atlases`.
+        name: Atlas key from `list_atlases`.
 
     Returns:
-        An :class:`Atlas` with image, labels, and metadata loaded.
+        An `Atlas` with image, labels, and metadata loaded.
 
     Raises:
         ValueError: If ``name`` isn't a registered atlas.

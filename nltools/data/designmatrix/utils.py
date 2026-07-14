@@ -45,8 +45,7 @@ def copy_with(
     new_df: pl.DataFrame,
     **metadata_updates,
 ) -> DesignMatrix:
-    """
-    Create new DesignMatrix with updated data/metadata.
+    """Create a new DesignMatrix with updated data and metadata.
 
     This is the core pattern for immutable transformations.
     All methods that transform data should use this helper.
@@ -101,8 +100,7 @@ def get_metadata(dm: DesignMatrix) -> dict:
 
 
 def get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[str]:
-    """
-    Get column names, optionally excluding confound regressors.
+    """Get column names, optionally excluding confound regressors.
 
     This helper reduces code duplication across methods that need to
     distinguish between experimental regressors and nuisance/confound columns

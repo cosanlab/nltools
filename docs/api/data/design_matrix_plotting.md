@@ -31,7 +31,7 @@ plot_corr(dm: DesignMatrix, *, columns: list[str] | None = None, metric: str = '
 
 Render a labeled correlation heatmap of the columns.
 
-Reuses :meth:`DesignMatrix.corr`, which returns a similarity ``Adjacency``
+Reuses `DesignMatrix.corr`, which returns a similarity ``Adjacency``
 with the unit diagonal dropped; the diagonal is restored to ``1.0`` here so
 the heatmap reads as a standard correlation matrix.
 
@@ -63,7 +63,7 @@ plot_designmatrix(dm: DesignMatrix, method: str = 'matrix', *, columns: list[str
 
 Visualize a DesignMatrix, dispatching over ``method``.
 
-See :meth:`DesignMatrix.plot` for the full argument documentation.
+See `DesignMatrix.plot` for the full argument documentation.
 
 **Returns:**
 

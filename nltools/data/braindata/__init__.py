@@ -1,6 +1,6 @@
-"""
-NeuroLearn Brain Data
-=====================
+"""Represent brain image data with the BrainData class.
+
+# NeuroLearn Brain Data
 
 Classes to represent brain image data.
 
@@ -32,9 +32,9 @@ __all__ = ["BrainData"]
 
 
 class BrainData:
-    """BrainData is a class to represent neuroimaging data in python as a vector
-    rather than a 3-dimensional matrix. This makes it easier to perform data
-    manipulation and analyses.
+    """Represent neuroimaging data as vectors instead of three-dimensional matrices.
+
+    This representation makes it easier to perform data manipulation and analyses.
 
     Args:
         data: Neuroimaging data. Can be:
@@ -903,7 +903,7 @@ class BrainData:
 
             ``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
             regressor ``i`` only. For contrasts across regressors
-            (``"A - B"``, ``[1, -1, 0, ...]``) use :meth:`compute_contrasts` —
+            (``"A - B"``, ``[1, -1, 0, ...]``) use `compute_contrasts` —
             you cannot correctly combine these per-regressor maps by hand
             because t-statistic arithmetic requires the off-diagonal elements
             of the parameter covariance matrix, which are not stored. Pass
@@ -1020,8 +1020,9 @@ class BrainData:
         return apply_func(self, np.median, axis)
 
     def multivariate_similarity(self, images, method="ols"):
-        """Predict spatial distribution of BrainData() instance from linear
-        combination of other BrainData() instances or Nibabel images.
+        """Predict a BrainData spatial distribution from a linear combination.
+
+        The predictors may be other BrainData instances or nibabel images.
 
         Args:
             images: BrainData instance of weight map
@@ -1206,7 +1207,7 @@ class BrainData:
     ):
         """Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 
-        Facade over :func:`nltools.plotting.plot_surf`. See that function's
+        Facade over `plot_surf`. See that function's
         docstring for the full argument reference. Notable defaults:
         ``surface="pial"``, ``zoom=1.2``, ``transparency="auto"`` (uses
         this instance's ``.mask``).
@@ -1268,12 +1269,12 @@ class BrainData:
     ):
         """Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 
-        Returns a configured :class:`ipyniivue.NiiVue` widget — itself an
+        Returns a configured `NiiVue` widget — itself an
         anywidget — that renders inline in a live kernel (Jupyter, marimo)
         with live windowing (right-drag to set the threshold/contrast),
         slice scrolling, native 4D frame scrubbing, true 3D rendering, and
         optional nltools-atlas overlays. Static-built docs are not supported;
-        use :meth:`plot` there.
+        use `plot` there.
 
         Thresholding is a divergent magnitude window: ``cal_min`` is the
         display floor (sub-floor voxels render transparent), ``cal_max`` the
@@ -1286,7 +1287,7 @@ class BrainData:
             view: ``"ortho"`` (default), ``"axial"``, ``"coronal"``,
                 ``"sagittal"``, or ``"render"`` (3D volume render).
                 ``"surface"`` is no longer supported — use ``"render"`` or
-                :meth:`plot_flatmap` / :meth:`plot_surf`.
+                `plot_flatmap` / `plot_surf`.
             threshold: Convenience symmetric magnitude floor (→ ``cal_min``).
             lower: Window floor (→ ``cal_min``). Overrides ``threshold``.
             upper: Window ceiling (→ ``cal_max``). Overrides ``threshold``.
@@ -1296,7 +1297,7 @@ class BrainData:
                 when the data is in standard space (else none); ``False``
                 disables the background; a path string uses that image.
             atlas: Atlas overlay — a registry name (e.g. ``"aal"``), a
-                loaded :class:`Atlas`, or ``None``. Deterministic atlases
+                loaded `Atlas`, or ``None``. Deterministic atlases
                 only; probabilistic atlases raise.
             opacity: Stat-map (and filled-atlas) opacity in ``0..1``.
             outline: ``> 0`` draws atlas region boundaries of that width
@@ -1358,9 +1359,9 @@ class BrainData:
            timeseries (composes directly with ``.plot()``, ``.standardize()``
            etc.). ``inplace`` has no effect in this mode.
         2. **MVPA decoding** (``y`` provided): train a classifier or
-           regressor with cross-validation. Returns a :class:`Predict`
+           regressor with cross-validation. Returns a `Predict`
            dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
-           ``final_weight_map``, ``accuracy_map``) are :class:`BrainData`
+           ``final_weight_map``, ``accuracy_map``) are `BrainData`
            objects so ``result.weight_map.plot()`` works directly. Drop down
            to numpy via ``result.weight_map.data``.
 
@@ -1432,7 +1433,7 @@ class BrainData:
             radius_mm (float): Searchlight radius in mm. Default ``10.0``.
             inplace (bool): If ``True``, populate result fields as
                 ``predict_*`` attributes on ``self`` and return ``self``.
-                Default ``False`` returns a fresh :class:`Predict`.
+                Default ``False`` returns a fresh `Predict`.
             n_jobs (int): Parallel jobs for searchlight / ROI. Default ``1``;
                 searchlight on a real brain at higher ``n_jobs`` can be
                 memory-heavy.
@@ -1457,15 +1458,17 @@ class BrainData:
             >>> result.accuracy_map.plot()  # brain-space view of the same map
 
             Custom sklearn pipeline as model — standardize auto-defaults to
-            False because we detect the Pipeline::
+            False because we detect the Pipeline:
 
-                from sklearn.feature_selection import SelectKBest
-                from sklearn.pipeline import make_pipeline
-                from sklearn.preprocessing import StandardScaler
-                from sklearn.svm import LinearSVC
-                pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
-                                     LinearSVC())
-                result = brain.predict(y=labels, model=pipe)
+            ```python
+            from sklearn.feature_selection import SelectKBest
+            from sklearn.pipeline import make_pipeline
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.svm import LinearSVC
+            pipe = make_pipeline(StandardScaler(), SelectKBest(k=500),
+                                 LinearSVC())
+            result = brain.predict(y=labels, model=pipe)
+            ```
         """
         from .prediction import predict
 
@@ -1489,8 +1492,7 @@ class BrainData:
         )
 
     def r_to_z(self):
-        """Apply Fisher's r to z transformation to each element of the data
-        object."""
+        """Apply Fisher's r-to-z transformation to each data element."""
         from .analysis import r_to_z
 
         return r_to_z(self)
@@ -1527,8 +1529,8 @@ class BrainData:
     def regress(self, design_matrix=None, method="ols", mode=None):
         """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
-        .. deprecated:: 0.6.0
-            Use :meth:`fit` with ``model='glm'`` instead.
+        **Deprecated:** Since version 0.6.0. Use `fit` with ``model='glm'``
+        instead.
         """
         from .modeling import regress
 
@@ -1543,7 +1545,7 @@ class BrainData:
         """Deprecated: removed in v0.6.0; will return in a future Model class.
 
         Per the v0.6 migration guide, the multi-method MVPA wrapper has
-        been removed. Use :meth:`predict` for whole-brain MVPA, or compose
+        been removed. Use `predict` for whole-brain MVPA, or compose
         sklearn estimators directly via the new Model API.
         """
         raise NotImplementedError(
@@ -1595,8 +1597,7 @@ class BrainData:
         return scale_data(self, scale_val, axis)
 
     def similarity(self, image, method="correlation"):
-        """Calculate similarity of BrainData() instance with single
-        BrainData or Nibabel image.
+        """Calculate similarity to a single BrainData or nibabel image.
 
         Args:
             image: (BrainData, nifti) image to evaluate similarity
@@ -1757,12 +1758,12 @@ class BrainData:
             cluster_threshold: Minimum cluster size in voxels.
             two_sided: Report negative clusters separately.
             min_distance: Minimum mm between sub-peaks within a cluster.
-            atlas: Atlas name or list of names (see :func:`list_atlases`).
+            atlas: Atlas name or list of names (see `list_atlases`).
                 Defaults to ``("harvard_oxford", "aal", "schaefer_200")``.
             prob_threshold: Drop probabilistic-atlas regions below this %.
 
         Returns:
-            :class:`~nltools.data.atlases.ClusterReport` with ``peaks``,
+            `ClusterReport` with ``peaks``,
             ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
         """
         from nltools.data.atlases import (
@@ -1811,7 +1812,7 @@ class BrainData:
         Args:
             popmean: Population mean to test against. Default 0.0.
             permutation: If True, use sign-flip permutation test via
-                :func:`nltools.stats.one_sample_permutation_test`.
+                `one_sample_permutation_test`.
             n_permute: Number of permutations (used only when
                 ``permutation=True``). Default 5000.
             tail: Tail of the test (1 or 2). Default 2.
@@ -1888,8 +1889,10 @@ class BrainData:
         img_modality=None,
         **kwargs,
     ):
-        """Upload Data to Neurovault.  Will add any columns in self.X to image
-            metadata. Index will be used as image name.
+        """Upload BrainData images and metadata to NeuroVault.
+
+        Adds any columns in ``self.X`` to image metadata. The index is used as
+        the image name.
 
         Args:
             access_token: (str, Required) Neurovault api access token

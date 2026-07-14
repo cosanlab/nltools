@@ -16,17 +16,17 @@ Name | Description
 [`concat`](#concat) | Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
 [`isc`](#isc) | Inter-subject correlation.
 [`isc_test`](#isc_test) | Permutation/bootstrap inference on ISC.
-[`max_`](#max_) | Per-voxel max across subjects. Streams.
-[`mean`](#mean) | Mean across subjects (leading axis). Streams from path-backed input.
-[`median`](#median) | Median across subjects. Not streaming-friendly — materializes.
-[`min_`](#min_) | Per-voxel min across subjects. Streams.
+[`max_`](#max_) | Compute the per-voxel maximum across subjects.
+[`mean`](#mean) | Compute the mean across subjects along the leading axis.
+[`median`](#median) | Compute the median across subjects.
+[`min_`](#min_) | Compute the per-voxel minimum across subjects.
 [`permutation_test`](#permutation_test) | Sign-flipping permutation test across subjects.
 [`permutation_test2`](#permutation_test2) | Two-sample permutation test between two collections.
-[`std`](#std) | Std across subjects. Streams via Welford; ddof=1 by default.
-[`sum_`](#sum_) | Sum across subjects. Streams.
+[`std`](#std) | Compute the standard deviation across subjects.
+[`sum_`](#sum_) | Compute the sum across subjects.
 [`ttest`](#ttest) | One-sample t-test across subjects.
 [`ttest2`](#ttest2) | Two-sample t-test between two collections.
-[`var`](#var) | Variance across subjects. Streams via Welford; ddof=1 by default.
+[`var`](#var) | Compute the variance across subjects.
 
 
 
@@ -95,7 +95,9 @@ Permutation/bootstrap inference on ISC.
 max_(bc: BrainCollection) -> BrainData
 ```
 
-Per-voxel max across subjects. Streams.
+Compute the per-voxel maximum across subjects.
+
+This operation streams.
 
 #### `mean`
 
@@ -103,7 +105,9 @@ Per-voxel max across subjects. Streams.
 mean(bc: BrainCollection) -> BrainData
 ```
 
-Mean across subjects (leading axis). Streams from path-backed input.
+Compute the mean across subjects along the leading axis.
+
+Streams from path-backed input.
 
 #### `median`
 
@@ -111,7 +115,9 @@ Mean across subjects (leading axis). Streams from path-backed input.
 median(bc: BrainCollection) -> BrainData
 ```
 
-Median across subjects. Not streaming-friendly — materializes.
+Compute the median across subjects.
+
+This materializes the data because the operation is not streaming-friendly.
 
 #### `min_`
 
@@ -119,7 +125,9 @@ Median across subjects. Not streaming-friendly — materializes.
 min_(bc: BrainCollection) -> BrainData
 ```
 
-Per-voxel min across subjects. Streams.
+Compute the per-voxel minimum across subjects.
+
+This operation streams.
 
 #### `permutation_test`
 
@@ -146,7 +154,9 @@ Two-sample permutation test between two collections.
 std(bc: BrainCollection) -> BrainData
 ```
 
-Std across subjects. Streams via Welford; ddof=1 by default.
+Compute the standard deviation across subjects.
+
+Streams via Welford with ``ddof=1`` by default.
 
 #### `sum_`
 
@@ -154,7 +164,9 @@ Std across subjects. Streams via Welford; ddof=1 by default.
 sum_(bc: BrainCollection) -> BrainData
 ```
 
-Sum across subjects. Streams.
+Compute the sum across subjects.
+
+This operation streams.
 
 #### `ttest`
 
@@ -181,5 +193,7 @@ Two-sample t-test between two collections.
 var(bc: BrainCollection) -> BrainData
 ```
 
-Variance across subjects. Streams via Welford; ddof=1 by default.
+Compute the variance across subjects.
+
+Streams via Welford with ``ddof=1`` by default.
 

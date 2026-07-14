@@ -2,17 +2,17 @@
 
 BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Single entry point: :func:`predict`. Returns :class:`nltools.data.fitresults.Predict`
-with fields populated based on dispatch. Mirrors :meth:`BrainData.fit` /
-:class:`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
+Single entry point: `predict`. Returns `Predict`
+with fields populated based on dispatch. Mirrors `BrainData.fit` /
+`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
 self with attributes, ``inplace=False`` returns the dataclass.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`build_pipeline`](#build_pipeline) | Build a per-fold sklearn pipeline: optional StandardScaler → optional
-[`predict`](#predict) | Implementation of :meth:`BrainData.predict`. See class docstring for
+[`build_pipeline`](#build_pipeline) | Build a per-fold scikit-learn preprocessing and model pipeline.
+[`predict`](#predict) | Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
 [`predict_mvpa`](#predict_mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
 [`predict_timeseries`](#predict_timeseries) | Predict voxel timeseries from a fitted encoding model.
 [`resolve_model`](#resolve_model) | Resolve a string shortcut or pass through a sklearn estimator.
@@ -32,8 +32,10 @@ Name | Type | Description
 build_pipeline(model, standardize: bool, reduce: str | None, n_components: str | None)
 ```
 
-Build a per-fold sklearn pipeline: optional StandardScaler → optional
-PCA → model. If only the model is needed, returns the model itself.
+Build a per-fold scikit-learn preprocessing and model pipeline.
+
+The pipeline contains an optional StandardScaler, optional PCA, and the
+model. If only the model is needed, returns the model itself.
 
 #### `predict`
 
@@ -41,8 +43,10 @@ PCA → model. If only the model is needed, returns the model itself.
 predict(bd, *, y = None, X = None, spatial_scale: str = 'whole_brain', model: Any = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: str = None, roi_mask: str = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, progress_bar: bool = False)
 ```
 
-Implementation of :meth:`BrainData.predict`. See class docstring for
-full parameter documentation.
+Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
+
+Implements `BrainData.predict`. See the class docstring for full parameter
+documentation.
 
 #### `predict_mvpa`
 

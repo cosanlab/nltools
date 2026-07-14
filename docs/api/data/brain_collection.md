@@ -39,7 +39,7 @@ Name | Description
 [`cleanup_all`](#cleanup_all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
 [`compute_contrasts`](#compute_contrasts) | Compute per-subject contrast maps from fit-bundle items.
 [`concat`](#concat) | 
-[`cv`](#cv) | Build a CV pipeline for cross-subject prediction. See ``pipeline.py``.
+[`cv`](#cv) | Build a cross-validation pipeline for cross-subject prediction.
 [`detrend`](#detrend) | 
 [`filter`](#filter) | Filter to a subset by predicate, mask, or boolean Series.
 [`fit`](#fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
@@ -49,7 +49,7 @@ Name | Description
 [`isc`](#isc) | 
 [`isc_test`](#isc_test) | 
 [`iter_pairs`](#iter_pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
-[`load`](#load) | Materialize path-backed items in place. Returns ``self`` for chaining.
+[`load`](#load) | Materialize path-backed items in place.
 [`map`](#map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 [`max`](#max) | 
 [`mean`](#mean) | 
@@ -58,8 +58,8 @@ Name | Description
 [`min`](#min) | 
 [`permutation_test`](#permutation_test) | 
 [`permutation_test2`](#permutation_test2) | 
-[`predict`](#predict) | Two distinct paths, dispatched by argument:
-[`read`](#read) | Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+[`predict`](#predict) | Dispatch prediction according to the provided target argument.
+[`read`](#read) | Read a collection written by ``write()``.
 [`resample`](#resample) | 
 [`smooth`](#smooth) | 
 [`standardize`](#standardize) | 
@@ -70,7 +70,7 @@ Name | Description
 [`transform_designs`](#transform_designs) | Map a function over paired ``DesignMatrix``es.
 [`ttest`](#ttest) | 
 [`ttest2`](#ttest2) | 
-[`unload`](#unload) | Drop in-memory data for items with backing paths. Returns ``self``.
+[`unload`](#unload) | Drop in-memory data for items with backing paths.
 [`var`](#var) | 
 [`write`](#write) | 
 
@@ -84,7 +84,7 @@ Name | Type | Description
 [`mask`](#mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
 [`metadata`](#metadata) | <code>[DataFrame](#polars.DataFrame)</code> | 
 [`n_subjects`](#n_subjects) | <code>[int](#int)</code> | 
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Return the voxel count from the mask.
 [`shape`](#shape) | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
@@ -163,7 +163,9 @@ concat() -> BrainData
 cv(*, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainCollectionPipeline
 ```
 
-Build a CV pipeline for cross-subject prediction. See ``pipeline.py``.
+Build a cross-validation pipeline for cross-subject prediction.
+
+See ``pipeline.py`` for details.
 
 #### `detrend`
 
@@ -241,7 +243,9 @@ Yield ``(BrainData, DesignMatrix | None)`` pairs.
 load(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Materialize path-backed items in place. Returns ``self`` for chaining.
+Materialize path-backed items in place.
+
+Returns ``self`` for chaining.
 
 #### `map`
 
@@ -299,11 +303,11 @@ permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int = 
 predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', estimator: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'accuracy', standardize: bool = True, return_weights: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **kwargs: Literal['auto', True, False])
 ```
 
-Two distinct paths, dispatched by argument:
+Dispatch prediction according to the provided target argument.
 
-  ``y=`` only    → group MVPA (subjects as samples) → ``BrainData``
-  ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
-  both / neither → raise
+- ``y=`` only → group MVPA (subjects as samples) → ``BrainData``
+- ``X_new=`` only → per-subject predict-after-fit → ``BrainCollection``
+- both / neither → raise
 
 ``predict(y=...)`` requires single-map-per-subject items (run
 ``compute_contrasts(...)`` first if you have GLM/ridge bundles).
@@ -314,7 +318,9 @@ Two distinct paths, dispatched by argument:
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+Read a collection written by ``write()``.
+
+This does not recover from cache subdirectories in v0.6.0.
 
 #### `resample`
 
@@ -389,7 +395,9 @@ ttest2(other: BrainCollection, *, equal_var: bool = True) -> dict
 unload(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Drop in-memory data for items with backing paths. Returns ``self``.
+Drop in-memory data for items with backing paths.
+
+Returns ``self``.
 
 #### `var`
 

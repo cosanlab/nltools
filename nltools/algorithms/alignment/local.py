@@ -307,8 +307,7 @@ class LocalAlignment:
     Learns alignment transforms within local neighborhoods (searchlight spheres
     or parcels) and applies center-only aggregation to preserve orthogonality.
 
-    Parameters
-    ----------
+    Args:
     scheme : str, default='searchlight'
         Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
         (non-overlapping parcels).
@@ -332,8 +331,7 @@ class LocalAlignment:
     n_jobs : int, default=-1
         Number of jobs for CPU parallelization.
 
-    Attributes
-    ----------
+    Attributes:
     transforms_ : Dict[int, List[np.ndarray]]
         Per-neighborhood transforms. Keys are center voxel indices,
         values are lists of transform matrices (one per subject).
@@ -346,8 +344,7 @@ class LocalAlignment:
     mask_ : Nifti1Image
         Brain mask used for fitting.
 
-    Examples
-    --------
+    Examples:
     >>> import numpy as np
     >>> from nltools.algorithms.alignment import LocalAlignment
     >>> # Create synthetic multi-subject data (voxels, samples)
@@ -356,8 +353,7 @@ class LocalAlignment:
     >>> la.fit(data, mask)
     >>> aligned = la.transform(data)
 
-    Notes
-    -----
+    Notes:
     Based on Bazeille et al. 2021 "An empirical evaluation of functional
     alignment using inter-subject decoding". Center-only aggregation is
     used to preserve local orthogonality of transforms.
@@ -513,8 +509,7 @@ class LocalAlignment:
     def fit(self, data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment:
         """Fit local alignment on multi-subject data.
 
-        Parameters
-        ----------
+        Args:
         data : List[np.ndarray]
             List of subject data arrays, each shape (n_voxels, n_samples).
             Subjects can have different numbers of samples - the underlying
@@ -522,8 +517,7 @@ class LocalAlignment:
         mask : Nifti1Image
             Brain mask defining the voxel space.
 
-        Returns
-        -------
+        Returns:
         self : LocalAlignment
             Fitted alignment model.
         """
@@ -651,13 +645,11 @@ class LocalAlignment:
 
         For piecewise scheme: all voxels in each parcel use the same transform.
 
-        Parameters
-        ----------
+        Args:
         data : List[np.ndarray]
             List of subject data arrays, each shape (n_voxels, n_samples).
 
-        Returns
-        -------
+        Returns:
         List[np.ndarray]
             Aligned data for each subject, shape (n_voxels, n_samples).
         """
@@ -748,15 +740,13 @@ class LocalAlignment:
     ) -> list[np.ndarray]:
         """Fit alignment and transform data in one step.
 
-        Parameters
-        ----------
+        Args:
         data : List[np.ndarray]
             List of subject data arrays, each shape (n_voxels, n_samples).
         mask : Nifti1Image
             Brain mask defining the voxel space.
 
-        Returns
-        -------
+        Returns:
         List[np.ndarray]
             Aligned data for each subject.
         """

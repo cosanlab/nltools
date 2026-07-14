@@ -282,12 +282,12 @@ class Fit:
 class Predict:
     """Immutable container for prediction / MVPA decoding results.
 
-    Mirrors :class:`Fit`: frozen, all fields default to ``None``, populated
+    Mirrors `Fit`: frozen, all fields default to ``None``, populated
     based on the dispatch path (``method``, ``y`` vs ``X``, ``refit``) used
-    by :meth:`BrainData.predict`. Fields not applicable to the call remain
-    ``None`` and are filtered from :meth:`available` and :meth:`asdict`.
+    by `BrainData.predict`. Fields not applicable to the call remain
+    ``None`` and are filtered from `available` and `asdict`.
 
-    **Brain-space outputs are :class:`BrainData` objects**, not raw arrays —
+    **Brain-space outputs are `BrainData` objects**, not raw arrays —
     so ``result.weight_map.plot()`` works directly. Drop down to numpy via
     ``result.weight_map.data`` if needed. Non-spatial fields (``predictions``,
     ``cv_folds``, scalar scores) stay as numpy.

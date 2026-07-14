@@ -1,6 +1,6 @@
 """Cluster reports — peak/cluster geometry plus atlas labels.
 
-The peak/sub-peak geometry comes from :func:`nilearn.reporting.get_clusters_table`;
+The peak/sub-peak geometry comes from `get_clusters_table`;
 the cluster masks and mass-weighted labels are computed locally so we can
 attribute every voxel of every cluster to one or more atlases.
 """
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class ClusterReport:
-    """Result of :meth:`BrainData.cluster_report`.
+    """Result of `BrainData.cluster_report`.
 
     Attributes:
         peaks: Polars DataFrame, one row per peak (incl. sub-peaks). Columns
@@ -355,8 +355,8 @@ def cluster_report_data(
 ) -> tuple[pl.DataFrame, pl.DataFrame, "BrainData"]:
     """Compute cluster report DataFrames + thresholded BrainData.
 
-    Pure function — the BrainData facade :meth:`BrainData.cluster_report`
-    wraps the result in a :class:`ClusterReport`.
+    Pure function — the BrainData facade `BrainData.cluster_report`
+    wraps the result in a `ClusterReport`.
 
     Args:
         bd: BrainData with a 3D stat map (single sample).
@@ -366,8 +366,8 @@ def cluster_report_data(
         cluster_threshold: Minimum cluster size in voxels.
         two_sided: Report negative clusters as separate clusters.
         min_distance: Minimum distance (mm) between sub-peaks. Passed to
-            :func:`nilearn.reporting.get_clusters_table`.
-        atlas: Atlas name or list of names from :func:`list_atlases`.
+            `get_clusters_table`.
+        atlas: Atlas name or list of names from `list_atlases`.
         prob_threshold: Drop probabilistic-atlas regions below this %.
 
     Returns:

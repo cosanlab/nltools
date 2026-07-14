@@ -58,11 +58,33 @@ uv run poe docs-generate   # regenerate API docs only
 uv run poe docs-build      # generate + myst build --site
 uv run poe docs-preview    # myst start (live preview)
 uv run poe docs-clean      # rm _build
+uv run poe changelog       # regenerate docs/changelog.md from git history (git-cliff)
+uv run poe release         # full release: bump version, build, smoke-test, changelog, tag, publish
 ```
 
 - Config: `docs/myst.yml` (TOC + site), `[tool.griffe2md]` in `pyproject.toml`
-- API generation script: `scripts/build_api_docs.py`
+- API generation script: `scripts/build_api_docs.py` (postprocess: strips residual RST roles,
+  hides deprecated members, fixes griffe heading quirks)
+- Changelog: `cliff.toml` (git-cliff config) → `docs/changelog.md`; badge CSS in `docs/_static/custom.css`
+- Release: `scripts/release.py` (uv/poe workflow); version lives ONLY in `pyproject.toml`
 - Tutorials: `docs/tutorials/` — MyST Markdown with `{code-cell}` directives
+
+### Docstring style — Google-style Markdown, NO RST
+
+Docstrings are consumed by `griffe2md` + mystmd. **RST syntax does not render and leaks into the
+docs.** Write Google-style sections with Markdown inline formatting:
+
+- **Sections:** `Args:` / `Returns:` / `Raises:` / `Examples:` / `Note:` (not RST field lists like
+  `:param x:` / `:returns:`).
+- **Cross-references:** plain Markdown code spans — `` `BrainData.distance` ``, `` `list_atlases` `` —
+  **never** RST roles (`` :meth:`...` ``, `` :func:`...` ``, `` :class:`...` ``).
+- **Code blocks:** fenced ```` ```python ```` blocks, not RST `::` literal blocks.
+- **Inline literals:** single or double backticks both render fine (`` `x` `` or `` ``x`` ``).
+- **First line = summary:** griffe uses the first physical line as the one-line summary in tables.
+  Keep it a complete, standalone sentence (≤120 chars, ends with a period); put detail in a
+  following paragraph. Avoid summaries that wrap mid-phrase or run two sentences together.
+- Deprecated members: start the docstring with `Deprecated:` — they are auto-hidden from the API
+  reference (documented in the migration guide instead).
 
 ## Testing: Red-Green TDD
 
@@ -82,17 +104,17 @@ Always write or identify a **failing test first**, then implement the minimal co
 
 ```bash
 # Targeted TDD (preferred during development):
-uv run pytest nltools/tests/shell/test_brain_data.py::TestBrainData::test_fit -xvs
+uv run pytest nltools/tests/data/braindata -xvs
 uv run pytest -k "ridge and cv" -x
 
+# Per-class / per-module suites (poe wrappers):
+uv run poe test-braindata      # (also: test-adjacency, test-designmatrix, test-collection)
+uv run poe test-stats          # (also: test-core, test-models, test-io, test-plotting, test-support)
+
 # Default (non-slow, parallel):
-uv run pytest -n auto
+uv run poe test                # == pytest -n auto
+uv run poe test-all            # everything incl. slow + integration (ask first)
 
-# By directory:
-uv run pytest nltools/tests/shell/ -n auto -x
-
-# All including slow (ask first):
-uv run pytest -m "" -n auto
-
-# Tests live in: shell/ (data classes), core/ (algorithms/stats), support/ (utilities), data/ (fixtures)
+# Tests live in nltools/tests/: data/ (the four data classes), stats/, core/ (algorithms),
+# models/ (GLM/ridge/base), io_tests/, plotting/, support/, integration/, fixtures/
 ```

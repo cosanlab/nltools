@@ -13,10 +13,10 @@ def check_brain_data(data, mask=None):
     """Return *data* as a BrainData, coercing Niimg-like inputs if needed.
 
     If *data* is already a BrainData, the optional *mask* is applied via
-    :meth:`BrainData.apply_mask`.  Otherwise *data* is passed through
-    :class:`BrainData`, which dispatches on type (file path, list of paths,
+    `BrainData.apply_mask`.  Otherwise *data* is passed through
+    `BrainData`, which dispatches on type (file path, list of paths,
     URL, h5, ``nib.Nifti1Image``).  Unsupported types raise ``TypeError`` from
-    :func:`validate_data_type`.
+    `validate_data_type`.
     """
     from . import BrainData
 
