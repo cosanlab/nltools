@@ -113,6 +113,17 @@ def strip_marimo_runtime(notebook: nbformat.NotebookNode) -> None:
     notebook.cells = cells
 
 
+def assign_deterministic_ids(notebook: nbformat.NotebookNode) -> None:
+    """Give every cell a stable id so regenerating a notebook is a git no-op.
+
+    ``marimo export`` and ``nbformat.v4.new_*_cell`` both mint random cell ids,
+    so an unchanged tutorial otherwise produces a different ``.ipynb`` on every
+    build. Index-based ids are deterministic and unique within the notebook.
+    """
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"cell-{index:02d}"
+
+
 def validate(notebook: nbformat.NotebookNode, source: Path) -> None:
     """Reject code cells that still depend on the marimo runtime."""
     for index, cell in enumerate(notebook.cells):
@@ -138,6 +149,7 @@ def convert(notebook: Path) -> Path:
     strip_marimo_runtime(jupyter_notebook)
     jupyter_notebook.cells = jupyterlite_setup_cells() + jupyter_notebook.cells
     validate(jupyter_notebook, notebook)
+    assign_deterministic_ids(jupyter_notebook)
     nbformat.write(jupyter_notebook, output, version=4)
     return output
 
