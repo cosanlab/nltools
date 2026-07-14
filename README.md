@@ -35,7 +35,8 @@ git clone https://github.com/cosanlab/nltools
 uv sync  
 ```
 
-- Build docs: `uv run poe docs-build` 
+- Build docs (including the local JupyterLite bundle): `uv run poe docs-build`
+- Build JupyterLite for `cosanlab.github.io/nltools/`: `uv run poe docs-jupyterlite-pages`
 - Preview built-docs: `uv run poe docs-preview` 
 - Run linting: `uv run poe lint`
 - Run all tests: `uv run pytest`
