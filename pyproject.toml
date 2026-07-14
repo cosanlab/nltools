@@ -219,12 +219,31 @@ shell = """python scripts/build_api_docs.py"""
 help = "Build MyST site data and static HTML after API docs have been generated"
 shell = """cd docs && myst build --site --html --execute"""
 
+[tool.poe.tasks.docs-site-pages]
+help = "Build MyST site for the /nltools/ GitHub Pages subpath"
+shell = """
+set -eu
+cd docs
+BASE_URL=/nltools myst build --site --html --execute
+# MyST does not apply BASE_URL to literal TOC url entries.
+find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/try-it-jupyterlite/}{/nltools/try-it-jupyterlite/}g' {} +
+find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/try-it-jupyterlite/}{/nltools/try-it-jupyterlite/}g' {} +
+"""
+
 [tool.poe.tasks.docs-build]
 help = "Generate API docs, build MyST, then add the local JupyterLite bundle"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
   { ref = "docs-jupyterlite" },
+]
+
+[tool.poe.tasks.docs-build-pages]
+help = "Generate API docs and build the MyST site plus JupyterLite for GitHub Pages"
+sequence = [
+  { ref = "docs-generate" },
+  { ref = "docs-site-pages" },
+  { ref = "docs-jupyterlite-pages" },
 ]
 
 [tool.poe.tasks.docs-jupyterlite]

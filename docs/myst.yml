@@ -8,7 +8,7 @@ project:
   toc:
     - file: index.md
     - title: Try it live
-      url: try-it-jupyterlite/lab/index.html
+      url: /try-it-jupyterlite/lab/index.html
     - file: migration-guide.md
       title: v0.6.0 Migration Guide
     - file: tutorials/index
