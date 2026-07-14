@@ -34,7 +34,7 @@ def _(mo):
         r"""
     **How it works.** Both approaches operate on the same patterns; they differ in the question. Decoding fits a classifier across voxels and scores it on held-out data. RSA turns patterns into a distance matrix (the RDM) and correlates that geometry with a model RDM. The `spatial_scale=` switch is shared: whole-brain uses every voxel jointly, ROI runs the analysis per parcel, and searchlight sweeps a roving sphere.
 
-    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both.
+    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both. JupyterLite loads a trimmed copy of the same subject so the workflow remains practical in a browser.
     """
     )
     return
@@ -49,11 +49,11 @@ def _():
     from joblib import Memory
 
     from nltools.data import Adjacency, BrainData
-    from nltools.templates import fetch_resource
+    from nltools.templates import fetch_resource, seed_resources
 
     memory = Memory(".cache/tutorials", verbose=0)
     warnings.filterwarnings("ignore", message="Cannot detect name collisions")
-    return Adjacency, BrainData, Memory, fetch_resource, memory, np, pd
+    return Adjacency, BrainData, Memory, fetch_resource, memory, np, pd, seed_resources
 
 
 @app.cell(hide_code=True)
@@ -69,10 +69,37 @@ def _(mo):
 
 
 @app.cell
-def _(BrainData, memory, np, pd):
+async def _(BrainData, fetch_resource, memory, np, pd, seed_resources):
+    import sys
+
     from nilearn.datasets import fetch_haxby
 
-    HAXBY = fetch_haxby(subjects=[2], verbose=0)
+    IN_PYODIDE = sys.platform == "emscripten"
+
+    if IN_PYODIDE:
+        from sklearn.utils import Bunch
+
+        mvpa_resources = [
+            "tutorials/mvpa/bold.nii.gz",
+            "tutorials/mvpa/labels.txt",
+            # Ancillary resources the analysis/plots fetch — must be pre-seeded in Pyodide.
+            # Both 2mm (BrainData default brainspace) and 3mm (atlas + slice plots) are used.
+            "masks/default/3mm-MNI152-2009fsl-k50.nii.gz",  # ROI + RSA atlas
+            "default/2mm-MNI152-2009fsl-mask.nii.gz",
+            "default/2mm-MNI152-2009fsl-brain.nii.gz",
+            "default/2mm-MNI152-2009fsl-T1.nii.gz",
+            "default/3mm-MNI152-2009fsl-mask.nii.gz",
+            "default/3mm-MNI152-2009fsl-brain.nii.gz",
+            "default/3mm-MNI152-2009fsl-T1.nii.gz",
+        ]
+        await seed_resources(mvpa_resources)
+        HAXBY = Bunch(
+            func=[fetch_resource("tutorials/mvpa/bold.nii.gz")],
+            session_target=[fetch_resource("tutorials/mvpa/labels.txt")],
+        )
+    else:
+        HAXBY = fetch_haxby(subjects=[2], verbose=0)
+
     LABELS = pd.read_csv(HAXBY.session_target[0], sep=r"\s+")["labels"].to_numpy()
 
     @memory.cache

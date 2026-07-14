@@ -61,33 +61,81 @@ def _(mo):
         r"""
     ## How to do it
 
-    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV.
+    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV. In JupyterLite, the same analysis uses a trimmed copy of the eight subjects fitted below so it can run entirely in the browser.
     """
     )
     return
 
 
 @app.cell
-def _():
+async def _():
     import json
+    import sys
     from pathlib import Path
 
     from nilearn.datasets import fetch_language_localizer_demo_dataset
     from nilearn.interfaces.bids import get_bids_files
+    from nltools.templates import fetch_resource, seed_resources
 
-    DATASET = fetch_language_localizer_demo_dataset(verbose=0)
-    DATA_DIR = Path(DATASET["data_dir"])
+    IN_PYODIDE = sys.platform == "emscripten"
 
-    def get_sub_files(sub: str) -> dict:
-        """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
-        derivatives = DATA_DIR / "derivatives"
-        sidecar = get_bids_files(derivatives, file_tag="bold", file_type="json", sub_label=sub)[0]
-        return {
-            "bold": get_bids_files(derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub)[0],
-            "events": get_bids_files(DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub)[0],
-            "confounds": get_bids_files(derivatives, file_type="tsv", modality_folder="func", sub_label=sub)[0],
-            "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
-        }
+    if IN_PYODIDE:
+        _pyodide_subjects = [f"{_subject:02d}" for _subject in range(1, 9)]
+
+        def _resource_paths(sub: str) -> dict:
+            stem = f"sub-{sub}_task-languagelocalizer"
+            return {
+                "bold": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.nii.gz",
+                "sidecar": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.json",
+                "confounds": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-confounds_regressors.tsv",
+                "events": f"tutorials/glm/sub-{sub}/func/{stem}_events.tsv",
+            }
+
+        _glm_resources = [
+            _relpath
+            for _sub in _pyodide_subjects
+            for _relpath in _resource_paths(_sub).values()
+        ] + [
+            # MNI templates the resample + slice plots fetch — pre-seed in Pyodide.
+            # Both 2mm (BrainData default brainspace) and 3mm are covered.
+            "default/2mm-MNI152-2009fsl-mask.nii.gz",
+            "default/2mm-MNI152-2009fsl-brain.nii.gz",
+            "default/2mm-MNI152-2009fsl-T1.nii.gz",
+            "default/3mm-MNI152-2009fsl-mask.nii.gz",
+            "default/3mm-MNI152-2009fsl-brain.nii.gz",
+            "default/3mm-MNI152-2009fsl-T1.nii.gz",
+        ]
+        await seed_resources(_glm_resources)
+
+        _pyodide_files = {}
+        for _sub in _pyodide_subjects:
+            _relpaths = _resource_paths(_sub)
+            _sidecar = fetch_resource(_relpaths["sidecar"])
+            _pyodide_files[_sub] = {
+                "bold": fetch_resource(_relpaths["bold"]),
+                "events": fetch_resource(_relpaths["events"]),
+                "confounds": fetch_resource(_relpaths["confounds"]),
+                "TR": json.loads(Path(_sidecar).read_text())["RepetitionTime"],
+            }
+
+        def get_sub_files(sub: str) -> dict:
+            """Resolve one subject's trimmed browser-ready tutorial files."""
+            return _pyodide_files[sub]
+
+    else:
+        DATASET = fetch_language_localizer_demo_dataset(verbose=0)
+        DATA_DIR = Path(DATASET["data_dir"])
+
+        def get_sub_files(sub: str) -> dict:
+            """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
+            derivatives = DATA_DIR / "derivatives"
+            sidecar = get_bids_files(derivatives, file_tag="bold", file_type="json", sub_label=sub)[0]
+            return {
+                "bold": get_bids_files(derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub)[0],
+                "events": get_bids_files(DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub)[0],
+                "confounds": get_bids_files(derivatives, file_type="tsv", modality_folder="func", sub_label=sub)[0],
+                "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
+            }
 
     return (get_sub_files,)
 
