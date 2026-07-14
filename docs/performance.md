@@ -2,6 +2,10 @@
 
 This guide provides detailed performance benchmarks and recommendations for choosing between CPU (NumPy) and GPU (PyTorch) backends in nltools algorithms.
 
+:::{note} Benchmark provenance
+The numbers below were generated on the environment reported under [Benchmark Results](#benchmark-results) (macOS 23.6.0, Python 3.10.17, NumPy 2.2.6, PyTorch 2.9.0). They are **not** re-run on each doc build and no timestamped result artifact is committed alongside them, so treat them as indicative rather than current — absolute timings will drift with hardware and library versions. Regenerate with `uv run python benchmarks/benchmarking.py` to get numbers for your own setup.
+:::
+
 ---
 
 ## Why Performance Matters for Neuroimaging
@@ -346,4 +350,4 @@ y = np.random.randn(n_samples).astype(np.float32)
 
 **Note on MPS Performance**: These benchmarks run on Apple Silicon with MPS backend. PyTorch's SVD operation is not yet fully optimized for MPS and falls back to CPU, limiting speedup compared to CUDA GPUs. On NVIDIA GPUs with CUDA, expect significantly higher speedups (10-30x for large problems).
 
-*To regenerate benchmarks on your system:* `uv run python benchmarks/benchmark_ridge.py`
+*To regenerate benchmarks on your system:* `uv run python benchmarks/benchmarking.py`
