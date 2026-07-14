@@ -150,8 +150,9 @@ def _remove_deprecated_members(text: str) -> str:
     ``Deprecated:`` after a signature fence.
     """
     # Drop Methods summary-table rows: [`name`](#anchor) | Deprecated...
+    # (anchors are slugified by now, so the char class must include `-`.)
     text = re.sub(
-        r"^\[`\w+`\]\(#[\w.]+\) \| Deprecated.*\n",
+        r"^\[`\w+`\]\(#[\w.-]+\) \| Deprecated.*\n",
         "",
         text,
         flags=re.MULTILINE,
@@ -170,6 +171,36 @@ def _remove_deprecated_members(text: str) -> str:
     )
 
 
+def _myst_slug(heading_text: str) -> str:
+    """Reproduce mystmd's implicit heading-id slug for a heading's text.
+
+    Lowercase, drop inline formatting, and collapse any run of non-alphanumeric
+    characters to a single hyphen (so ``\`one_sample_permutation_test\``` -> id
+    ``one-sample-permutation-test``, matching what mystmd records in its xref).
+    """
+    plain = re.sub(r"[`*]", "", heading_text)
+    return re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-")
+
+
+def _delink_dangling_anchors(text: str) -> str:
+    """De-link summary-table links whose target heading isn't on the page.
+
+    Every generated link is same-page (``[\`name\`](#slug)``). After we remove
+    the Attributes detail section and deprecated members, some summary links point
+    at headings that no longer exist. Rather than leave a dangling reference, drop
+    the link wrapper and keep the name as a plain code span.
+    """
+    slugs = {
+        _myst_slug(m.group(1))
+        for m in re.finditer(r"^#{1,6}\s+(.+?)\s*$", text, flags=re.MULTILINE)
+    }
+
+    def repl(m: re.Match) -> str:
+        return m.group(0) if m.group(2) in slugs else f"`{m.group(1)}`"
+
+    return re.sub(r"\[`([^`]+)`\]\(#([\w.-]+)\)", repl, text)
+
+
 def postprocess(text: str) -> str:
     """Fix griffe2md output quirks.
 
@@ -182,13 +213,17 @@ def postprocess(text: str) -> str:
     # Fix concatenated headings: "### Foo#### Bar" -> "### Foo\n\n#### Bar"
     text = re.sub(r"(#{2,6} .+?)(#{2,6} )", r"\1\n\n\2", text)
 
-    # Shorten anchor links: (#pkg.mod.Class.method) -> (#method)
-    # Only in summary table rows: [`name`](#full.dotpath.name)
-    text = re.sub(
-        r"\[`(\w+)`\]\(#[\w.]+\.(\w+)\)",
-        r"[`\1`](#\2)",
-        text,
-    )
+    # Shorten summary-table anchor links to the member's MyST heading id.
+    # griffe2md emits full-dotpath anchors, e.g. [`foo_bar`](#pkg.mod.foo_bar),
+    # but mystmd slugifies heading text (lowercase, `_` -> `-`), so the rendered
+    # heading `#### \`foo_bar\`` gets id `foo-bar`. Match that slug or every member
+    # whose name has an underscore or capital letter yields a dangling link.
+    def _shorten_anchor(m: re.Match) -> str:
+        name = m.group(2)
+        slug = name.lower().replace("_", "-")
+        return f"[`{m.group(1)}`](#{slug})"
+
+    text = re.sub(r"\[`(\w+)`\]\(#[\w.]+\.(\w+)\)", _shorten_anchor, text)
 
     # Rename "Functions" to "Methods" in category headings and summary labels
     text = re.sub(r"^(#{2,6}) Functions$", r"\1 Methods", text, flags=re.MULTILINE)
@@ -209,6 +244,9 @@ def postprocess(text: str) -> str:
     # Hide deprecated members and strip any residual RST roles (safety net).
     text = _remove_deprecated_members(text)
     text = _strip_rst_roles(text)
+
+    # Final pass: drop summary links whose target heading was removed above.
+    text = _delink_dangling_anchors(text)
 
     return text
 

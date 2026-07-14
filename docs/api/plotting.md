@@ -29,18 +29,18 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis.
-[`plot_between_label_distance`](#plot_between_label_distance) | Heatmap of average pairwise distance between every label pair.
-[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane.
-[`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot_interactive_brain) | Create an interactive brain visualization with nilearn.
-[`plot_mean_label_distance`](#plot_mean_label_distance) | Violin plot of within- vs between-label distances.
-[`plot_probability`](#plot_probability) | Plot Classification Probability.
-[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity.
-[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot.
-[`plot_silhouette`](#plot_silhouette) | Silhouette plot indicating between- vs within-label distance.
-[`plot_stacked_adjacency`](#plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
-[`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
+[`component_viewer`](#component-viewer) | This a function to interactively view the results of a decomposition analysis.
+[`plot_between_label_distance`](#plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
+[`plot_dist_from_hyperplane`](#plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
+[`plot_flatmap`](#plot-flatmap) | Plot brain data on cortical flatmap.
+[`plot_interactive_brain`](#plot-interactive-brain) | Create an interactive brain visualization with nilearn.
+[`plot_mean_label_distance`](#plot-mean-label-distance) | Violin plot of within- vs between-label distances.
+[`plot_probability`](#plot-probability) | Plot Classification Probability.
+[`plot_roc`](#plot-roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plot-scatter) | Plot Prediction Scatterplot.
+[`plot_silhouette`](#plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
+[`plot_stacked_adjacency`](#plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
+[`plot_surf`](#plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 
 
@@ -422,10 +422,10 @@ Adjacency matrix visualization — stacked plots, distance, and silhouette.
 
 Name | Description
 ---- | -----------
-[`plot_between_label_distance`](#plot_between_label_distance) | Heatmap of average pairwise distance between every label pair.
-[`plot_mean_label_distance`](#plot_mean_label_distance) | Violin plot of within- vs between-label distances.
-[`plot_silhouette`](#plot_silhouette) | Silhouette plot indicating between- vs within-label distance.
-[`plot_stacked_adjacency`](#plot_stacked_adjacency) | Create stacked adjacency to illustrate similarity.
+[`plot_between_label_distance`](#plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
+[`plot_mean_label_distance`](#plot-mean-label-distance) | Violin plot of within- vs between-label distances.
+[`plot_silhouette`](#plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
+[`plot_stacked_adjacency`](#plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
 
 
 
@@ -552,9 +552,9 @@ Brain visualization — surface plots, flatmaps, and interactive viewers.
 
 Name | Description
 ---- | -----------
-[`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot_interactive_brain) | Create an interactive brain visualization with nilearn.
-[`plot_surf`](#plot_surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
+[`plot_flatmap`](#plot-flatmap) | Plot brain data on cortical flatmap.
+[`plot_interactive_brain`](#plot-interactive-brain) | Create an interactive brain visualization with nilearn.
+[`plot_surf`](#plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 ##### Methods
 
@@ -721,7 +721,7 @@ ICA/PCA component viewer — interactive decomposition explorer.
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component_viewer) | This a function to interactively view the results of a decomposition analysis.
+[`component_viewer`](#component-viewer) | This a function to interactively view the results of a decomposition analysis.
 
 ##### Methods
 
@@ -748,10 +748,10 @@ Model output visualization — ROC, SVM margin, regression, and logistic plots.
 
 Name | Description
 ---- | -----------
-[`plot_dist_from_hyperplane`](#plot_dist_from_hyperplane) | Plot SVM Classification Distance from Hyperplane.
-[`plot_probability`](#plot_probability) | Plot Classification Probability.
-[`plot_roc`](#plot_roc) | Plot 1-Specificity by Sensitivity.
-[`plot_scatter`](#plot_scatter) | Plot Prediction Scatterplot.
+[`plot_dist_from_hyperplane`](#plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
+[`plot_probability`](#plot-probability) | Plot Classification Probability.
+[`plot_roc`](#plot-roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plot-scatter) | Plot Prediction Scatterplot.
 
 
 

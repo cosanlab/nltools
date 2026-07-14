@@ -9,10 +9,10 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`convert_bootstrap_results_to_adjacency`](#convert-bootstrap-results-to-adjacency) | Convert bootstrap results dictionary to Adjacency format.
+[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`regress`](#regress) | Run a regression on an adjacency instance.
-[`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
+[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
 
 
 

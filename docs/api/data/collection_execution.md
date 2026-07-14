@@ -11,23 +11,23 @@ through ``_apply`` here.
 
 Name | Description
 ---- | -----------
-[`BrainCollectionWorkerError`](#BrainCollectionWorkerError) | Raised in the parent process when a worker fails inside ``_apply``.
-[`tqdm_joblib`](#tqdm_joblib) | Context manager that updates a tqdm bar as joblib workers complete.
+`BrainCollectionWorkerError` | Raised in the parent process when a worker fails inside ``_apply``.
+`tqdm_joblib` | Context manager that updates a tqdm bar as joblib workers complete.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`read_glm_bundle`](#read_glm_bundle) | Read and validate a GLM bundle.
-[`read_ridge_bundle`](#read_ridge_bundle) | Read a ridge bundle.
-[`write_glm_bundle`](#write_glm_bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
-[`write_ridge_bundle`](#write_ridge_bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
+[`read_glm_bundle`](#read-glm-bundle) | Read and validate a GLM bundle.
+[`read_ridge_bundle`](#read-ridge-bundle) | Read a ridge bundle.
+[`write_glm_bundle`](#write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+[`write_ridge_bundle`](#write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`BUNDLE_SCHEMA_VERSION`](#BUNDLE_SCHEMA_VERSION) |  | 
+`BUNDLE_SCHEMA_VERSION` |  | 
 
 ### Methods
 

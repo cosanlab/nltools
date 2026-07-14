@@ -9,6 +9,6 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#EPSILON) |  | 
+`EPSILON` |  | 
 
 ### Methods

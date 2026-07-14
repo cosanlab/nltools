@@ -10,16 +10,16 @@ dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
 Name | Description
 ---- | -----------
-[`plot_corr`](#plot_corr) | Render a labeled correlation heatmap of the columns.
-[`plot_designmatrix`](#plot_designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
-[`plot_matrix`](#plot_matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
-[`plot_timeseries`](#plot_timeseries) | Plot regressor time courses as overlaid lines.
+[`plot_corr`](#plot-corr) | Render a labeled correlation heatmap of the columns.
+[`plot_designmatrix`](#plot-designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
+[`plot_matrix`](#plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
+[`plot_timeseries`](#plot-timeseries) | Plot regressor time courses as overlaid lines.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`VALID_PLOT_METHODS`](#VALID_PLOT_METHODS) |  | 
+`VALID_PLOT_METHODS` |  | 
 
 ### Methods
 

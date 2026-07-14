@@ -8,7 +8,7 @@ Name | Description
 ---- | -----------
 [`adjacency`](#adjacency) | Provide data structures for working with similarity and dissimilarity matrices.
 [`atlases`](#atlases) | Atlas registry, lazy loading, and coordinate labeling.
-[`braindata`](#braindata) | Represent brain image data with the BrainData class.
+`braindata` | Represent brain image data with the BrainData class.
 [`collection`](#collection) | BrainCollection — multi-subject brain-data container (v0.6.0).
 [`designmatrix`](#designmatrix) | Provide a Polars-based design matrix for neuroimaging analysis.
 [`fitresults`](#fitresults) | Immutable container for model fitting results.
@@ -19,14 +19,14 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`Adjacency`](#Adjacency) | Represent adjacency matrices in vectorized form.
-[`BrainCollection`](#BrainCollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
-[`BrainData`](#BrainData) | Represent neuroimaging data as vectors instead of three-dimensional matrices.
-[`DesignMatrix`](#DesignMatrix) | Represent experimental designs for neuroimaging with Polars.
-[`Fit`](#Fit) | Immutable container for model fitting results.
-[`Roc`](#Roc) | Roc Class
-[`SimulateGrid`](#SimulateGrid) | Simulate 2D grid data for testing statistical methods.
-[`Simulator`](#Simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
+[`Adjacency`](#adjacency) | Represent adjacency matrices in vectorized form.
+[`BrainCollection`](#braincollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
+`BrainData` | Represent neuroimaging data as vectors instead of three-dimensional matrices.
+[`DesignMatrix`](#designmatrix) | Represent experimental designs for neuroimaging with Polars.
+[`Fit`](#fit) | Immutable container for model fitting results.
+[`Roc`](#roc) | Roc Class
+[`SimulateGrid`](#simulategrid) | Simulate 2D grid data for testing statistical methods.
+[`Simulator`](#simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
 
 
@@ -59,48 +59,48 @@ Name | Description
 ---- | -----------
 [`append`](#append) | Append data to an Adjacency instance.
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`cluster_summary`](#cluster_summary) | Provide summaries of clusters within Adjacency matrices.
+[`cluster_summary`](#cluster-summary) | Provide summaries of clusters within Adjacency matrices.
 [`copy`](#copy) | Create a copy of Adjacency object.
 [`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
-[`distance_to_similarity`](#distance_to_similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`distance_to_similarity`](#distance-to-similarity) | Convert distance matrix to similarity matrix.
+[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`mean`](#mean) | Calculate mean of Adjacency.
 [`median`](#median) | Calculate median of Adjacency.
 [`plot`](#plot) | Create a heatmap of an Adjacency matrix.
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
-[`plot_mds`](#plot_mds) | Plot multidimensional scaling.
-[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
-[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
+[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_mds`](#plot-mds) | Plot multidimensional scaling.
+[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regress`](#regress) | Run a regression on an adjacency instance.
 [`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
+[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
 [`squareform`](#squareform) | Convert adjacency data back to square form.
-[`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
+[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
 [`std`](#std) | Calculate standard deviation of Adjacency.
 [`sum`](#sum) | Calculate sum of Adjacency.
 [`threshold`](#threshold) | Threshold an Adjacency instance.
-[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space `BrainData`.
-[`to_graph`](#to_graph) | Convert a single Adjacency matrix into a NetworkX graph.
-[`to_square`](#to_square) | Convert adjacency back to square matrix format.
+[`to_brain`](#to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
+[`to_graph`](#to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
+[`to_square`](#to-square) | Convert adjacency back to square matrix format.
 [`ttest`](#ttest) | Calculate ttest across samples.
 [`write`](#write) | Write out Adjacency object to csv file.
-[`z_to_r`](#z_to_r) | Convert each z score back into an r value.
+[`z_to_r`](#z-to-r) | Convert each z score back into an r value.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Y`](#Y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+`Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
 [`data`](#data) |  | 
-[`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-[`is_single_matrix`](#is_single_matrix) |  | 
-[`issymmetric`](#issymmetric) |  | 
-[`labels`](#labels) |  | 
-[`matrix_type`](#matrix_type) |  | 
-[`n_nodes`](#n_nodes) |  | Return the number of nodes in the adjacency matrix.
-[`shape`](#shape) |  | Return the logical shape of the adjacency matrix.
-[`spatial_scale`](#spatial_scale) | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
-[`vector_shape`](#vector_shape) |  | Return shape of internal vectorized representation.
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
 
 ##### Methods
 
@@ -722,28 +722,28 @@ Name | Description
 [`anova`](#anova) | 
 [`apply`](#apply) | Call ``BrainData.<method>(*args, **kwargs)`` on every item in parallel.
 [`cleanup`](#cleanup) | Remove ``cache_root`` and invalidate every clone derived from ``self``.
-[`cleanup_all`](#cleanup_all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
-[`compute_contrasts`](#compute_contrasts) | Compute per-subject contrast maps from fit-bundle items.
+[`cleanup_all`](#cleanup-all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
+[`compute_contrasts`](#compute-contrasts) | Compute per-subject contrast maps from fit-bundle items.
 [`concat`](#concat) | 
 [`cv`](#cv) | Build a cross-validation pipeline for cross-subject prediction.
 [`detrend`](#detrend) | 
 [`filter`](#filter) | Filter to a subset by predicate, mask, or boolean Series.
 [`fit`](#fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
-[`from_bids`](#from_bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
-[`from_glob`](#from_glob) | 
-[`from_paths`](#from_paths) | 
+[`from_bids`](#from-bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+[`from_glob`](#from-glob) | 
+[`from_paths`](#from-paths) | 
 [`isc`](#isc) | 
-[`isc_test`](#isc_test) | 
-[`iter_pairs`](#iter_pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
+[`isc_test`](#isc-test) | 
+[`iter_pairs`](#iter-pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
 [`load`](#load) | Materialize path-backed items in place.
 [`map`](#map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 [`max`](#max) | 
 [`mean`](#mean) | 
 [`median`](#median) | 
-[`memory_estimate`](#memory_estimate) | 
+[`memory_estimate`](#memory-estimate) | 
 [`min`](#min) | 
-[`permutation_test`](#permutation_test) | 
-[`permutation_test2`](#permutation_test2) | 
+[`permutation_test`](#permutation-test) | 
+[`permutation_test2`](#permutation-test2) | 
 [`predict`](#predict) | Dispatch prediction according to the provided target argument.
 [`read`](#read) | Read a collection written by ``write()``.
 [`resample`](#resample) | 
@@ -753,7 +753,7 @@ Name | Description
 [`steps`](#steps) | List step subdirs under ``cache_root``, oldest to newest (lex-sorted).
 [`sum`](#sum) | 
 [`threshold`](#threshold) | 
-[`transform_designs`](#transform_designs) | Map a function over paired ``DesignMatrix``es.
+[`transform_designs`](#transform-designs) | Map a function over paired ``DesignMatrix``es.
 [`ttest`](#ttest) | 
 [`ttest2`](#ttest2) | 
 [`unload`](#unload) | Drop in-memory data for items with backing paths.
@@ -764,14 +764,14 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cache_root`](#cache_root) | <code>[Path](#pathlib.Path)</code> | 
-[`designs`](#designs) | <code>[list](#list)</code> | 
-[`is_loaded`](#is_loaded) | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-[`mask`](#mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
-[`metadata`](#metadata) | <code>[DataFrame](#polars.DataFrame)</code> | 
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | 
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Return the voxel count from the mask.
-[`shape`](#shape) | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+`cache_root` | <code>[Path](#pathlib.Path)</code> | 
+`designs` | <code>[list](#list)</code> | 
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | 
+`n_subjects` | <code>[int](#int)</code> | 
+`n_voxels` | <code>[int](#int)</code> | Return the voxel count from the mask.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
 ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
@@ -1127,10 +1127,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`sampling_freq`](#sampling_freq) | <code>[float](#float) or None</code> | Sampling frequency in Hz
-[`convolved`](#convolved) | <code>list of str</code> | Columns that have been convolved
-[`confounds`](#confounds) | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
-[`multi`](#multi) | <code>[bool](#bool)</code> | True if created from multi-run concatenation
+`sampling_freq` | <code>[float](#float) or None</code> | Sampling frequency in Hz
+`convolved` | <code>list of str</code> | Columns that have been convolved
+`confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
+`multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
 
 **Examples:**
 
@@ -1165,8 +1165,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
+[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
 [`append`](#append) | Concatenate design matrices.
 [`clean`](#clean) | Remove highly correlated columns.
 [`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
@@ -1176,14 +1176,14 @@ Name | Description
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize the design matrix.
-[`replace_data`](#replace_data) | Replace data columns while preserving confounds and metadata.
+[`replace_data`](#replace-data) | Replace data columns while preserving confounds and metadata.
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute the sum along an axis.
-[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
+[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`upsample`](#upsample) | Increase temporal resolution to a target frequency.
 [`vif`](#vif) | Compute the variance inflation factor for each column.
-[`with_columns`](#with_columns) | Add or replace columns via Polars expressions.
+[`with_columns`](#with-columns) | Add or replace columns via Polars expressions.
 [`write`](#write) | Write DesignMatrix to file.
 [`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
 
@@ -1795,20 +1795,20 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`betas`](#betas) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_alpha_scores`](#cv_alpha_scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_best_alpha`](#cv_best_alpha) | <code>[float](#float) \| None</code> | 
-[`cv_folds`](#cv_folds) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_mean_score`](#cv_mean_score) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_predictions`](#cv_predictions) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_scores`](#cv_scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`fitted_values`](#fitted_values) | <code>[ndarray](#numpy.ndarray)</code> | 
-[`p_values`](#p_values) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`r2`](#r2) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`residuals`](#residuals) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`scores`](#scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`se`](#se) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`t_stats`](#t_stats) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`weights`](#weights) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_alpha_scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_best_alpha` | <code>[float](#float) \| None</code> | 
+`cv_folds` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_mean_score` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_predictions` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`fitted_values` | <code>[ndarray](#numpy.ndarray)</code> | 
+`p_values` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`r2` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`residuals` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`se` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`t_stats` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`weights` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
 
 ##### Methods
 
@@ -1913,10 +1913,10 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`binary_outcome`](#binary_outcome) |  | 
-[`forced_choice`](#forced_choice) |  | 
-[`input_values`](#input_values) |  | 
-[`threshold_type`](#threshold_type) |  | 
+[`binary_outcome`](#binary-outcome) |  | 
+`forced_choice` |  | 
+`input_values` |  | 
+`threshold_type` |  | 
 
 ##### Methods
 
@@ -2003,10 +2003,10 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 [`data`](#data) |  | The simulated data array of shape (n_subjects, grid_width, grid_width).
-[`t_values`](#t_values) |  | T-statistic values after fitting.
-[`p_values`](#p_values) |  | P-values after fitting.
-[`thresholded`](#thresholded) |  | Thresholded statistical map.
-[`isfit`](#isfit) |  | Whether fit() has been called.
+`t_values` |  | T-statistic values after fitting.
+`p_values` |  | P-values after fitting.
+`thresholded` |  | Thresholded statistical map.
+`isfit` |  | Whether fit() has been called.
 
 **Examples:**
 
@@ -2021,12 +2021,12 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_signal`](#add_signal) | Add rectangular signal to self.data
-[`create_mask`](#create_mask) | Create a mask for where the signal is located in grid.
+[`add_signal`](#add-signal) | Add rectangular signal to self.data
+[`create_mask`](#create-mask) | Create a mask for where the signal is located in grid.
 [`fit`](#fit) | Run ttest on self.data
-[`plot_grid_simulation`](#plot_grid_simulation) | Create a plot of the simulations
-[`run_multiple_simulations`](#run_multiple_simulations) | This method will run multiple simulations to calculate overall false positive rate
-[`threshold_simulation`](#threshold_simulation) | Threshold simulation
+[`plot_grid_simulation`](#plot-grid-simulation) | Create a plot of the simulations
+[`run_multiple_simulations`](#run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
+[`threshold_simulation`](#threshold-simulation) | Threshold simulation
 
 ##### Methods
 
@@ -2117,9 +2117,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`output_dir`](#output_dir) |  | Output directory path.
-[`random_state`](#random_state) |  | Random state for reproducible simulations.
+[`brain_mask`](#brain-mask) |  | The brain mask image used for simulation.
+`output_dir` |  | Output directory path.
+`random_state` |  | Random state for reproducible simulations.
 
 **Examples:**
 
@@ -2134,14 +2134,14 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`create_cov_data`](#create_cov_data) | create continuous simulated data with covariance
-[`create_data`](#create_data) | create simulated data with integers
-[`create_ncov_data`](#create_ncov_data) | create continuous simulated data with covariance
+[`create_cov_data`](#create-cov-data) | create continuous simulated data with covariance
+[`create_data`](#create-data) | create simulated data with integers
+[`create_ncov_data`](#create-ncov-data) | create continuous simulated data with covariance
 [`gaussian`](#gaussian) | create a 3D gaussian signal normalized to a given intensity
-[`n_spheres`](#n_spheres) | generate a set of spheres in the brain mask space
-[`normal_noise`](#normal_noise) | produce a normal noise distribution for all all points in the brain mask
+[`n_spheres`](#n-spheres) | generate a set of spheres in the brain mask space
+[`normal_noise`](#normal-noise) | produce a normal noise distribution for all all points in the brain mask
 [`sphere`](#sphere) | create a sphere of given radius at some point p in the brain mask
-[`to_nifti`](#to_nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+[`to_nifti`](#to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
 
 ##### Methods
 
@@ -2306,14 +2306,14 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`Adjacency`](#Adjacency) | Represent adjacency matrices in vectorized form.
+[`Adjacency`](#adjacency) | Represent adjacency matrices in vectorized form.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#MAX_INT) |  | 
-[`nx`](#nx) |  | 
+`MAX_INT` |  | 
+`nx` |  | 
 
 ##### Methods
 
@@ -2327,7 +2327,7 @@ I/O functions for Adjacency objects.
 
 Name | Description
 ---- | -----------
-[`to_graph`](#to_graph) | Convert Adjacency into networkx graph.
+[`to_graph`](#to-graph) | Convert Adjacency into networkx graph.
 [`write`](#write) | Write out Adjacency object to csv file.
 
 
@@ -2383,10 +2383,10 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_adjacency`](#convert_bootstrap_results_to_adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
+`convert_bootstrap_results_to_adjacency` | Convert bootstrap results dictionary to Adjacency format.
+[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`regress`](#regress) | Run a regression on an adjacency instance.
-[`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
+[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
 
 
 
@@ -2567,8 +2567,8 @@ Plotting functions for Adjacency matrices.
 
 Name | Description
 ---- | -----------
-[`plot_adjacency`](#plot_adjacency) | Create Heatmap of Adjacency Matrix.
-[`plot_mds`](#plot_mds) | Plot Multidimensional Scaling.
+[`plot_adjacency`](#plot-adjacency) | Create Heatmap of Adjacency Matrix.
+[`plot_mds`](#plot-mds) | Plot Multidimensional Scaling.
 
 
 
@@ -2645,7 +2645,7 @@ the canonical producer.
 
 Name | Description
 ---- | -----------
-[`SpatialScale`](#SpatialScale) | Record provenance for a per-parcel or per-searchlight Adjacency stack.
+[`SpatialScale`](#spatialscale) | Record provenance for a per-parcel or per-searchlight Adjacency stack.
 
 
 
@@ -2667,9 +2667,9 @@ The stack comes from a per-parcel or per-searchlight operation on a
 Name | Type | Description
 ---- | ---- | -----------
 [`atlas`](#atlas) | <code>[BrainData](#nltools.data.BrainData)</code> | Labeled volume indicating parcel membership (or searchlight centers). One matrix in the stack per unique label.
-[`roi_labels`](#roi_labels) | <code>[ndarray](#numpy.ndarray)</code> | Integer atlas IDs in stack order. ``len(roi_labels)`` must equal the number of matrices in the stack.
-[`source_mask`](#source_mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | The brain mask the atlas/values live in. Used as the target space for back-projection in ``Adjacency.to_brain()``.
-[`kind`](#kind) | <code>[Literal](#typing.Literal)['roi', 'searchlight']</code> | Which spatial scale produced this stack — ``'roi'`` or ``'searchlight'``.
+`roi_labels` | <code>[ndarray](#numpy.ndarray)</code> | Integer atlas IDs in stack order. ``len(roi_labels)`` must equal the number of matrices in the stack.
+`source_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | The brain mask the atlas/values live in. Used as the target space for back-projection in ``Adjacency.to_brain()``.
+`kind` | <code>[Literal](#typing.Literal)['roi', 'searchlight']</code> | Which spatial scale produced this stack — ``'roi'`` or ``'searchlight'``.
 
 
 
@@ -2709,15 +2709,15 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 
 Name | Description
 ---- | -----------
-[`cluster_summary`](#cluster_summary) | This function provides summaries of clusters within Adjacency matrices.
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
-[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
-[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data object.
+[`cluster_summary`](#cluster-summary) | This function provides summaries of clusters within Adjacency matrices.
+[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#r-to-z) | Apply Fisher's r to z transformation to each element of the data object.
 [`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
+[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
 [`threshold`](#threshold) | Threshold an Adjacency instance.
 [`ttest`](#ttest) | Calculate ttest across samples.
-[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
+[`z_to_r`](#z-to-r) | Convert z score back into r value for each element of data object.
 
 
 
@@ -2953,10 +2953,10 @@ public API.
 
 Name | Description
 ---- | -----------
-[`apply_stat`](#apply_stat) | Apply a statistical function along an axis.
-[`import_single_data`](#import_single_data) | Import and validate a single adjacency data matrix.
-[`perform_arithmetic`](#perform_arithmetic) | Perform arithmetic operation with validation.
-[`test_is_single_matrix`](#test_is_single_matrix) | Check whether data represents a single matrix (1-D vector).
+[`apply_stat`](#apply-stat) | Apply a statistical function along an axis.
+`import_single_data` | Import and validate a single adjacency data matrix.
+`perform_arithmetic` | Perform arithmetic operation with validation.
+`test_is_single_matrix` | Check whether data represents a single matrix (1-D vector).
 
 
 
@@ -3080,26 +3080,26 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
-[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
-[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
+[`Atlas`](#atlas) | A loaded atlas — image, labels, and metadata.
+[`AtlasMetadata`](#atlasmetadata) | Static description of a registered atlas.
+[`ClusterReport`](#clusterreport) | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
-[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
-[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
-[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
+[`label_coords`](#label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
+[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-[`AtlasKind`](#AtlasKind) |  | 
-[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+[`ATLASES`](#atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ##### Methods
 
@@ -3216,13 +3216,13 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 Name | Description
 ---- | -----------
-[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`label_coords`](#label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CoordsLike`](#CoordsLike) |  | 
+[`CoordsLike`](#coordslike) |  | 
 
 
 
@@ -3276,13 +3276,13 @@ Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
 
 Name | Description
 ---- | -----------
-[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
+[`Atlas`](#atlas) | A loaded atlas — image, labels, and metadata.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
 
 
 
@@ -3305,10 +3305,10 @@ directly.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`name`](#name) | <code>[str](#str)</code> | Registry key (e.g. ``"harvard_oxford"``).
-[`image`](#image) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
-[`labels`](#labels) | <code>[DataFrame](#polars.DataFrame)</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
-[`kind`](#kind) | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
+`name` | <code>[str](#str)</code> | Registry key (e.g. ``"harvard_oxford"``).
+`image` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
+`labels` | <code>[DataFrame](#polars.DataFrame)</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
+`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
 [`citation`](#citation) | <code>[str](#str)</code> | Short citation for the original atlas.
 
 
@@ -3389,21 +3389,21 @@ their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
 Name | Description
 ---- | -----------
-[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
+[`AtlasMetadata`](#atlasmetadata) | Static description of a registered atlas.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
+[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-[`AtlasKind`](#AtlasKind) |  | 
-[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+[`ATLASES`](#atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 
 
@@ -3443,7 +3443,7 @@ Static description of a registered atlas.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kind`](#kind) | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
 [`citation`](#citation) | <code>[str](#str)</code> | Short citation string for the original atlas.
 
 
@@ -3493,13 +3493,13 @@ attribute every voxel of every cluster to one or more atlases.
 
 Name | Description
 ---- | -----------
-[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
+[`ClusterReport`](#clusterreport) | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
+[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
 
 
 
@@ -3519,16 +3519,16 @@ Result of `BrainData.cluster_report`.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`peaks`](#peaks) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
 [`clusters`](#clusters) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
-[`stat_img`](#stat_img) | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+`stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
 
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`plot`](#plot) | Render an overview glass brain + one slice figure per cluster.
-[`to_csv`](#to_csv) | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
+`to_csv` | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 
 
@@ -3639,25 +3639,25 @@ See ``SPEC.md`` for the full design contract.
 
 Name | Description
 ---- | -----------
-[`core`](#core) | Module-level helpers for BrainCollection.
-[`execution`](#execution) | Parallel execution machinery for BrainCollection.
-[`inference`](#inference) | Group-level reductions and cross-subject ops for BrainCollection.
+`core` | Module-level helpers for BrainCollection.
+`execution` | Parallel execution machinery for BrainCollection.
+`inference` | Group-level reductions and cross-subject ops for BrainCollection.
 [`io`](#io) | IO and constructors for BrainCollection.
-[`pipeline`](#pipeline) | Pipeline classes for BrainCollection.
+`pipeline` | Pipeline classes for BrainCollection.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`BrainCollection`](#BrainCollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
-[`BrainCollectionPipeline`](#BrainCollectionPipeline) | Pipeline for BrainCollection with multi-subject CV support.
-[`BrainCollectionWorkerError`](#BrainCollectionWorkerError) | Raised in the parent process when a worker fails inside ``_apply``.
+[`BrainCollection`](#braincollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
+`BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
+`BrainCollectionWorkerError` | Raised in the parent process when a worker fails inside ``_apply``.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`BUNDLE_SCHEMA_VERSION`](#BUNDLE_SCHEMA_VERSION) |  | 
+`BUNDLE_SCHEMA_VERSION` |  | 
 
 ##### Methods
 
@@ -3675,12 +3675,12 @@ DesignMatrix methods, following the "functional core" pattern.
 Name | Description
 ---- | -----------
 [`append`](#append) | Concatenate design matrices.
-[`append_horizontal`](#append_horizontal) | Concatenate matrices horizontally by adding columns.
-[`append_vertical`](#append_vertical) | Concatenate matrices vertically with optional confound separation.
-[`append_vertical_with_separation`](#append_vertical_with_separation) | Concatenate vertically with automatic confound separation.
-[`get_starting_run_idx`](#get_starting_run_idx) | Determine the next run index for multi-run appending.
-[`identify_columns_to_separate`](#identify_columns_to_separate) | Identify columns that need run-specific separation.
-[`match_column_pattern`](#match_column_pattern) | Match columns against a pattern with wildcard support.
+`append_horizontal` | Concatenate matrices horizontally by adding columns.
+`append_vertical` | Concatenate matrices vertically with optional confound separation.
+`append_vertical_with_separation` | Concatenate vertically with automatic confound separation.
+`get_starting_run_idx` | Determine the next run index for multi-run appending.
+`identify_columns_to_separate` | Identify columns that need run-specific separation.
+`match_column_pattern` | Match columns against a pattern with wildcard support.
 
 
 
@@ -3970,12 +3970,12 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
-[`events_to_dm`](#events_to_dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
-[`load_from_file`](#load_from_file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
-[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
+[`events_to_dm`](#events-to-dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
+`load_from_file` | Read a TSV/CSV into the frame a DesignMatrix wraps.
+[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
-[`write_h5`](#write_h5) | Write DesignMatrix to HDF5 file with metadata.
+`write_h5` | Write DesignMatrix to HDF5 file with metadata.
 
 
 
@@ -4185,16 +4185,16 @@ dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
 Name | Description
 ---- | -----------
-[`plot_corr`](#plot_corr) | Render a labeled correlation heatmap of the columns.
-[`plot_designmatrix`](#plot_designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
-[`plot_matrix`](#plot_matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
-[`plot_timeseries`](#plot_timeseries) | Plot regressor time courses as overlaid lines.
+[`plot_corr`](#plot-corr) | Render a labeled correlation heatmap of the columns.
+`plot_designmatrix` | Visualize a DesignMatrix, dispatching over ``method``.
+`plot_matrix` | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
+`plot_timeseries` | Plot regressor time courses as overlaid lines.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`VALID_PLOT_METHODS`](#VALID_PLOT_METHODS) |  | 
+[`VALID_PLOT_METHODS`](#valid-plot-methods) |  | 
 
 
 
@@ -4328,8 +4328,8 @@ a new DesignMatrix with the requested transformation applied.
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
+[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
 [`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
 
 
@@ -4581,16 +4581,16 @@ public API.
 
 Name | Description
 ---- | -----------
-[`copy_with`](#copy_with) | Create a new DesignMatrix with updated data and metadata.
-[`df_passthrough`](#df_passthrough) | Resolve ``name`` on ``dm.data``; re-wrap DataFrame results for allowlisted methods.
-[`get_data_columns`](#get_data_columns) | Get column names, optionally excluding confound regressors.
-[`get_metadata`](#get_metadata) | Extract metadata as dict (for copying).
+[`copy_with`](#copy-with) | Create a new DesignMatrix with updated data and metadata.
+`df_passthrough` | Resolve ``name`` on ``dm.data``; re-wrap DataFrame results for allowlisted methods.
+`get_data_columns` | Get column names, optionally excluding confound regressors.
+`get_metadata` | Extract metadata as dict (for copying).
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`WRAP_AS_DESIGNMATRIX`](#WRAP_AS_DESIGNMATRIX) |  | 
+[`WRAP_AS_DESIGNMATRIX`](#wrap-as-designmatrix) |  | 
 
 
 
@@ -4752,8 +4752,8 @@ Examples
 
 Name | Description
 ---- | -----------
-[`Fit`](#Fit) | Immutable container for model fitting results.
-[`Predict`](#Predict) | Immutable container for prediction / MVPA decoding results.
+[`Fit`](#fit) | Immutable container for model fitting results.
+[`Predict`](#predict) | Immutable container for prediction / MVPA decoding results.
 
 
 
@@ -4900,20 +4900,20 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`betas`](#betas) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_alpha_scores`](#cv_alpha_scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_best_alpha`](#cv_best_alpha) | <code>[float](#float) \| None</code> | 
-[`cv_folds`](#cv_folds) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_mean_score`](#cv_mean_score) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_predictions`](#cv_predictions) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`cv_scores`](#cv_scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`fitted_values`](#fitted_values) | <code>[ndarray](#numpy.ndarray)</code> | 
-[`p_values`](#p_values) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`r2`](#r2) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`residuals`](#residuals) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`scores`](#scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`se`](#se) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`t_stats`](#t_stats) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`weights`](#weights) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_alpha_scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_best_alpha` | <code>[float](#float) \| None</code> | 
+`cv_folds` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_mean_score` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_predictions` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`cv_scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`fitted_values` | <code>[ndarray](#numpy.ndarray)</code> | 
+`p_values` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`r2` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`residuals` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`se` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`t_stats` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`weights` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
 
 
 
@@ -5167,16 +5167,16 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`accuracy_map`](#accuracy_map) | <code>[Any](#typing.Any)</code> | 
-[`cv_folds`](#cv_folds) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`estimator`](#estimator) | <code>[Any](#typing.Any)</code> | 
-[`fold_weight_maps`](#fold_weight_maps) | <code>[Any](#typing.Any)</code> | 
-[`mean_score`](#mean_score) | <code>[Any](#typing.Any)</code> | 
-[`predictions`](#predictions) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`roi_labels`](#roi_labels) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`scores`](#scores) | <code>[ndarray](#numpy.ndarray) \| None</code> | 
-[`std_score`](#std_score) | <code>[Any](#typing.Any)</code> | 
-[`weight_map`](#weight_map) | <code>[Any](#typing.Any)</code> | 
+[`accuracy_map`](#accuracy-map) | <code>[Any](#typing.Any)</code> | 
+`cv_folds` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`estimator` | <code>[Any](#typing.Any)</code> | 
+`fold_weight_maps` | <code>[Any](#typing.Any)</code> | 
+`mean_score` | <code>[Any](#typing.Any)</code> | 
+`predictions` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`roi_labels` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
+`std_score` | <code>[Any](#typing.Any)</code> | 
+`weight_map` | <code>[Any](#typing.Any)</code> | 
 
 
 
@@ -5285,7 +5285,7 @@ machine-learning analyses on imaging data
 
 Name | Description
 ---- | -----------
-[`Roc`](#Roc) | Roc Class
+[`Roc`](#roc) | Roc Class
 
 
 
@@ -5325,10 +5325,10 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`binary_outcome`](#binary_outcome) |  | 
-[`forced_choice`](#forced_choice) |  | 
-[`input_values`](#input_values) |  | 
-[`threshold_type`](#threshold_type) |  | 
+[`binary_outcome`](#binary-outcome) |  | 
+`forced_choice` |  | 
+`input_values` |  | 
+`threshold_type` |  | 
 
 
 
@@ -5431,8 +5431,8 @@ Tools to simulate multivariate data.
 
 Name | Description
 ---- | -----------
-[`SimulateGrid`](#SimulateGrid) | Simulate 2D grid data for testing statistical methods.
-[`Simulator`](#Simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
+[`SimulateGrid`](#simulategrid) | Simulate 2D grid data for testing statistical methods.
+[`Simulator`](#simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
 
 
@@ -5467,10 +5467,10 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 [`data`](#data) |  | The simulated data array of shape (n_subjects, grid_width, grid_width).
-[`t_values`](#t_values) |  | T-statistic values after fitting.
-[`p_values`](#p_values) |  | P-values after fitting.
-[`thresholded`](#thresholded) |  | Thresholded statistical map.
-[`isfit`](#isfit) |  | Whether fit() has been called.
+`t_values` |  | T-statistic values after fitting.
+`p_values` |  | P-values after fitting.
+`thresholded` |  | Thresholded statistical map.
+`isfit` |  | Whether fit() has been called.
 
 **Examples:**
 
@@ -5485,12 +5485,12 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_signal`](#add_signal) | Add rectangular signal to self.data
-[`create_mask`](#create_mask) | Create a mask for where the signal is located in grid.
+[`add_signal`](#add-signal) | Add rectangular signal to self.data
+[`create_mask`](#create-mask) | Create a mask for where the signal is located in grid.
 [`fit`](#fit) | Run ttest on self.data
-[`plot_grid_simulation`](#plot_grid_simulation) | Create a plot of the simulations
-[`run_multiple_simulations`](#run_multiple_simulations) | This method will run multiple simulations to calculate overall false positive rate
-[`threshold_simulation`](#threshold_simulation) | Threshold simulation
+[`plot_grid_simulation`](#plot-grid-simulation) | Create a plot of the simulations
+[`run_multiple_simulations`](#run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
+[`threshold_simulation`](#threshold-simulation) | Threshold simulation
 
 
 
@@ -5671,9 +5671,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`output_dir`](#output_dir) |  | Output directory path.
-[`random_state`](#random_state) |  | Random state for reproducible simulations.
+[`brain_mask`](#brain-mask) |  | The brain mask image used for simulation.
+`output_dir` |  | Output directory path.
+`random_state` |  | Random state for reproducible simulations.
 
 **Examples:**
 
@@ -5688,14 +5688,14 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`create_cov_data`](#create_cov_data) | create continuous simulated data with covariance
-[`create_data`](#create_data) | create simulated data with integers
-[`create_ncov_data`](#create_ncov_data) | create continuous simulated data with covariance
+[`create_cov_data`](#create-cov-data) | create continuous simulated data with covariance
+[`create_data`](#create-data) | create simulated data with integers
+[`create_ncov_data`](#create-ncov-data) | create continuous simulated data with covariance
 [`gaussian`](#gaussian) | create a 3D gaussian signal normalized to a given intensity
-[`n_spheres`](#n_spheres) | generate a set of spheres in the brain mask space
-[`normal_noise`](#normal_noise) | produce a normal noise distribution for all all points in the brain mask
+[`n_spheres`](#n-spheres) | generate a set of spheres in the brain mask space
+[`normal_noise`](#normal-noise) | produce a normal noise distribution for all all points in the brain mask
 [`sphere`](#sphere) | create a sphere of given radius at some point p in the brain mask
-[`to_nifti`](#to_nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+[`to_nifti`](#to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
 
 
 

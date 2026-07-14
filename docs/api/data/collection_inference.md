@@ -15,15 +15,15 @@ Name | Description
 [`anova`](#anova) | One-way ANOVA across subjects.
 [`concat`](#concat) | Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
 [`isc`](#isc) | Inter-subject correlation.
-[`isc_test`](#isc_test) | Permutation/bootstrap inference on ISC.
-[`max_`](#max_) | Compute the per-voxel maximum across subjects.
+[`isc_test`](#isc-test) | Permutation/bootstrap inference on ISC.
+`max_` | Compute the per-voxel maximum across subjects.
 [`mean`](#mean) | Compute the mean across subjects along the leading axis.
 [`median`](#median) | Compute the median across subjects.
-[`min_`](#min_) | Compute the per-voxel minimum across subjects.
-[`permutation_test`](#permutation_test) | Sign-flipping permutation test across subjects.
-[`permutation_test2`](#permutation_test2) | Two-sample permutation test between two collections.
+`min_` | Compute the per-voxel minimum across subjects.
+[`permutation_test`](#permutation-test) | Sign-flipping permutation test across subjects.
+[`permutation_test2`](#permutation-test2) | Two-sample permutation test between two collections.
 [`std`](#std) | Compute the standard deviation across subjects.
-[`sum_`](#sum_) | Compute the sum across subjects.
+`sum_` | Compute the sum across subjects.
 [`ttest`](#ttest) | One-sample t-test across subjects.
 [`ttest2`](#ttest2) | Two-sample t-test between two collections.
 [`var`](#var) | Compute the variance across subjects.

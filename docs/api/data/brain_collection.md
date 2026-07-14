@@ -36,28 +36,28 @@ Name | Description
 [`anova`](#anova) | 
 [`apply`](#apply) | Call ``BrainData.<method>(*args, **kwargs)`` on every item in parallel.
 [`cleanup`](#cleanup) | Remove ``cache_root`` and invalidate every clone derived from ``self``.
-[`cleanup_all`](#cleanup_all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
-[`compute_contrasts`](#compute_contrasts) | Compute per-subject contrast maps from fit-bundle items.
+[`cleanup_all`](#cleanup-all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
+[`compute_contrasts`](#compute-contrasts) | Compute per-subject contrast maps from fit-bundle items.
 [`concat`](#concat) | 
 [`cv`](#cv) | Build a cross-validation pipeline for cross-subject prediction.
 [`detrend`](#detrend) | 
 [`filter`](#filter) | Filter to a subset by predicate, mask, or boolean Series.
 [`fit`](#fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
-[`from_bids`](#from_bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
-[`from_glob`](#from_glob) | 
-[`from_paths`](#from_paths) | 
+[`from_bids`](#from-bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+[`from_glob`](#from-glob) | 
+[`from_paths`](#from-paths) | 
 [`isc`](#isc) | 
-[`isc_test`](#isc_test) | 
-[`iter_pairs`](#iter_pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
+[`isc_test`](#isc-test) | 
+[`iter_pairs`](#iter-pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
 [`load`](#load) | Materialize path-backed items in place.
 [`map`](#map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 [`max`](#max) | 
 [`mean`](#mean) | 
 [`median`](#median) | 
-[`memory_estimate`](#memory_estimate) | 
+[`memory_estimate`](#memory-estimate) | 
 [`min`](#min) | 
-[`permutation_test`](#permutation_test) | 
-[`permutation_test2`](#permutation_test2) | 
+[`permutation_test`](#permutation-test) | 
+[`permutation_test2`](#permutation-test2) | 
 [`predict`](#predict) | Dispatch prediction according to the provided target argument.
 [`read`](#read) | Read a collection written by ``write()``.
 [`resample`](#resample) | 
@@ -67,7 +67,7 @@ Name | Description
 [`steps`](#steps) | List step subdirs under ``cache_root``, oldest to newest (lex-sorted).
 [`sum`](#sum) | 
 [`threshold`](#threshold) | 
-[`transform_designs`](#transform_designs) | Map a function over paired ``DesignMatrix``es.
+[`transform_designs`](#transform-designs) | Map a function over paired ``DesignMatrix``es.
 [`ttest`](#ttest) | 
 [`ttest2`](#ttest2) | 
 [`unload`](#unload) | Drop in-memory data for items with backing paths.
@@ -78,14 +78,14 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cache_root`](#cache_root) | <code>[Path](#pathlib.Path)</code> | 
-[`designs`](#designs) | <code>[list](#list)</code> | 
-[`is_loaded`](#is_loaded) | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-[`mask`](#mask) | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
-[`metadata`](#metadata) | <code>[DataFrame](#polars.DataFrame)</code> | 
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | 
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Return the voxel count from the mask.
-[`shape`](#shape) | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+`cache_root` | <code>[Path](#pathlib.Path)</code> | 
+`designs` | <code>[list](#list)</code> | 
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | 
+`n_subjects` | <code>[int](#int)</code> | 
+`n_voxels` | <code>[int](#int)</code> | Return the voxel count from the mask.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
 ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.

@@ -10,11 +10,11 @@ Classes to represent masks
 
 Name | Description
 ---- | -----------
-[`collapse_mask`](#collapse_mask) | Collapse separate masks into one integer-labeled mask.
-[`create_sphere`](#create_sphere) | Generate spheres in brain-mask space.
-[`expand_mask`](#expand_mask) | Expand an integer-labeled mask into separate binary masks.
-[`roi_to_brain`](#roi_to_brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
-[`roi_to_brain_from_atlas`](#roi_to_brain_from_atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
+[`collapse_mask`](#collapse-mask) | Collapse separate masks into one integer-labeled mask.
+[`create_sphere`](#create-sphere) | Generate spheres in brain-mask space.
+[`expand_mask`](#expand-mask) | Expand an integer-labeled mask into separate binary masks.
+[`roi_to_brain`](#roi-to-brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
+[`roi_to_brain_from_atlas`](#roi-to-brain-from-atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
 
 
 

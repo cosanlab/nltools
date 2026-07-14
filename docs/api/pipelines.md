@@ -36,7 +36,7 @@ Name | Description
 ---- | -----------
 [`base`](#base) | Pipeline base infrastructure for nltools.
 [`cv`](#cv) | Cross-validation scheme configuration for nltools pipelines.
-[`multi_subject`](#multi_subject) | Multi-subject pipeline for cross-subject analyses.
+[`multi_subject`](#multi-subject) | Multi-subject pipeline for cross-subject analyses.
 [`pool`](#pool) | Pool infrastructure for multi-subject aggregation.
 [`results`](#results) | Result containers for nltools pipelines.
 [`steps`](#steps) | Transform steps for nltools pipelines.
@@ -46,31 +46,31 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#AlignStep) | Cross-subject alignment via SRM or HyperAlignment.
-[`CVResult`](#CVResult) | Cross-validation result container.
-[`CVScheme`](#CVScheme) | Protocol for cross-validation schemes.
-[`CVSchemeImpl`](#CVSchemeImpl) | Cross-validation scheme configuration.
-[`FittedAlign`](#FittedAlign) | Fitted alignment model.
-[`FittedStack`](#FittedStack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#FittedTransform) | Protocol for fitted transform objects.
-[`FoldResult`](#FoldResult) | Result from a single CV fold.
-[`ISCResult`](#ISCResult) | Result from ISC terminal computation.
-[`ISCTerminal`](#ISCTerminal) | ISC terminal for multi-subject pipelines.
-[`MultiSubjectPipeline`](#MultiSubjectPipeline) | Pipeline for multi-subject neuroimaging analyses.
-[`NestedCVScheme`](#NestedCVScheme) | Nested cross-validation for hyperparameter tuning.
-[`NormalizeStep`](#NormalizeStep) | Normalization transform step.
-[`PermutationResult`](#PermutationResult) | Result from permutation testing.
-[`PipeStep`](#PipeStep) | Wrapper for sklearn-compatible transformers.
-[`Pipeline`](#Pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`PooledData`](#PooledData) | Aggregated data from multiple subjects.
-[`PredictTerminal`](#PredictTerminal) | Prediction/classification terminal for CV pipelines.
-[`RSAResult`](#RSAResult) | Result from RSA terminal computation.
-[`RSATerminal`](#RSATerminal) | RSA terminal for multi-subject pipelines.
-[`ReduceStep`](#ReduceStep) | Dimensionality reduction step.
-[`ResultDict`](#ResultDict) | Dictionary of StatResults, one per contrast.
-[`StatResult`](#StatResult) | Result of statistical test.
-[`Terminal`](#Terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#TransformStep) | Protocol for pipeline transform steps.
+[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`CVResult`](#cvresult) | Cross-validation result container.
+[`CVScheme`](#cvscheme) | Protocol for cross-validation schemes.
+[`CVSchemeImpl`](#cvschemeimpl) | Cross-validation scheme configuration.
+[`FittedAlign`](#fittedalign) | Fitted alignment model.
+[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
+[`FoldResult`](#foldresult) | Result from a single CV fold.
+[`ISCResult`](#iscresult) | Result from ISC terminal computation.
+[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
+[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
+[`NormalizeStep`](#normalizestep) | Normalization transform step.
+[`PermutationResult`](#permutationresult) | Result from permutation testing.
+[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
+[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`PooledData`](#pooleddata) | Aggregated data from multiple subjects.
+[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
+[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
+[`ReduceStep`](#reducestep) | Dimensionality reduction step.
+[`ResultDict`](#resultdict) | Dictionary of StatResults, one per contrast.
+[`StatResult`](#statresult) | Result of statistical test.
+[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
 
 
 
@@ -122,12 +122,12 @@ Name | Type | Description
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
 [`kwargs`](#kwargs) |  | 
 [`method`](#method) |  | 
-[`n_features`](#n_features) |  | 
-[`n_iter`](#n_iter) |  | 
-[`n_jobs`](#n_jobs) |  | 
-[`new_subject`](#new_subject) |  | 
-[`parallel`](#parallel) |  | 
-[`scheme`](#scheme) |  | 
+`n_features` |  | 
+`n_iter` |  | 
+`n_jobs` |  | 
+`new_subject` |  | 
+`parallel` |  | 
+`scheme` |  | 
 
 ##### Methods
 
@@ -178,21 +178,21 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Map predictions back through inverse transforms.
+[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
 [`summary`](#summary) | Return formatted summary string.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
-[`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
-[`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
-[`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
+[`fold_results`](#fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`is_fully_invertible`](#is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
+`mean_score` | <code>[float](#float)</code> | Mean score across all folds.
+`n_folds` | <code>[int](#int)</code> | Number of cross-validation folds.
 [`pipeline`](#pipeline) | <code>[Any](#typing.Any)</code> | 
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
-[`scores`](#scores) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
-[`std_score`](#std_score) | <code>[float](#float)</code> | Standard deviation of scores across folds.
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
+`scores` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
+`std_score` | <code>[float](#float)</code> | Standard deviation of scores across folds.
 
 ##### Methods
 
@@ -329,20 +329,20 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_splits`](#n_splits) | Return number of splits.
+[`n_splits`](#n-splits) | Return number of splits.
 [`split`](#split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#is_loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-[`is_loso`](#is_loso) | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-[`k`](#k) | <code>[int](#int) \| None</code> | 
-[`n`](#n) | <code>[int](#int)</code> | 
-[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
-[`scheme`](#scheme) | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
-[`split_by`](#split_by) | <code>[str](#str) \| None</code> | 
+[`is_loro`](#is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 
@@ -402,17 +402,17 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
+`model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
 [`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-[`new_subject_method`](#new_subject_method) | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
+`new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse alignment (only for full-rank hyperalignment).
+[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
 [`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform_new_subject) | Align a new subject not in training (for LOSO).
+[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
 
 ##### Methods
 
@@ -506,7 +506,7 @@ Examples:
 Name | Description
 ---- | -----------
 [`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse_transform) | Apply inverse transforms in reverse order.
+[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
 
 ##### Methods
 
@@ -573,7 +573,7 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Apply the inverse transformation to data.
+[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
 [`transform`](#transform) | Apply the learned transformation to data.
 
 
@@ -635,11 +635,11 @@ enabling result aggregation and inverse transforms.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`score`](#score) | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
-[`train_idx`](#train_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
-[`test_idx`](#test_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
-[`fitted_stack`](#fitted_stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
+`score` | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
+`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
+`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
+[`fitted_stack`](#fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
 
 ##### Methods
 
@@ -681,7 +681,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
@@ -689,9 +689,9 @@ Name | Type | Description
 ---- | ---- | -----------
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`metric`](#metric) | <code>[str](#str)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
-[`parallel`](#parallel) | <code>[str](#str)</code> | 
+`metric` | <code>[str](#str)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
+`parallel` | <code>[str](#str)</code> | 
 
 ##### Methods
 
@@ -763,10 +763,10 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
-[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
-[`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
+`n_steps` | <code>[int](#int)</code> | Number of transform steps.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
 [`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 ##### Methods
@@ -1007,8 +1007,8 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n_inner_splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n_outer_splits) | Return number of outer splits.
+[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
 [`split`](#split) | Generate nested cross-validation splits.
 
 **Attributes:**
@@ -1016,7 +1016,7 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`inner`](#inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
-[`outer`](#outer) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+`outer` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 
 ##### Methods
 
@@ -1189,10 +1189,10 @@ where higher is better, like R2 or accuracy).
 
 Name | Type | Description
 ---- | ---- | -----------
-[`observed`](#observed) | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
-[`null_distribution`](#null_distribution) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
-[`p_value`](#p_value) | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
-[`n_permutations`](#n_permutations) | <code>[int](#int)</code> | Number of permutations performed.
+`observed` | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
+`null_distribution` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
+`p_value` | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
+[`n_permutations`](#n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
 
 **Examples:**
 
@@ -1214,7 +1214,7 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from_scores) | Create PermutationResult from observed result and null scores.
+[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
 [`summary`](#summary) | Return formatted summary string.
 
 ##### Methods
@@ -1341,7 +1341,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`_is_lazy`](#_is_lazy) | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
+`_is_lazy` | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
 
 **Examples:**
 
@@ -1553,17 +1553,17 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition_names) | <code>[list](#list)[[str](#str)] \| None</code> | 
-[`data`](#data) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`fitted_state`](#fitted_state) | <code>[Any](#typing.Any) \| None</code> | 
-[`mask`](#mask) | <code>[Any](#typing.Any) \| None</code> | 
-[`n_conditions`](#n_conditions) | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
-[`param`](#param) | <code>[str](#str)</code> | 
-[`save_path`](#save_path) | <code>[str](#str) \| None</code> | 
-[`shape`](#shape) | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
-[`subject_ids`](#subject_ids) | <code>[list](#list)[[str](#str)] \| None</code> | 
+[`condition_names`](#condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
+`data` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`fitted_state` | <code>[Any](#typing.Any) \| None</code> | 
+`mask` | <code>[Any](#typing.Any) \| None</code> | 
+`n_conditions` | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
+`n_voxels` | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
+`param` | <code>[str](#str)</code> | 
+`save_path` | <code>[str](#str) \| None</code> | 
+`shape` | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
+`subject_ids` | <code>[list](#list)[[str](#str)] \| None</code> | 
 
 ##### Methods
 
@@ -1726,8 +1726,8 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with_y) | Create copy with different target variable.
+[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#with-y) | Create copy with different target variable.
 
 **Attributes:**
 
@@ -1735,7 +1735,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`algorithm`](#algorithm) | <code>[str](#str)</code> | 
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`y` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 ##### Methods
 
@@ -1799,11 +1799,11 @@ Holds representational similarity analysis correlation and p-value.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`correlation`](#correlation) | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
-[`p_value`](#p_value) | <code>[float](#float)</code> | P-value from permutation test.
+`correlation` | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
+`p_value` | <code>[float](#float)</code> | P-value from permutation test.
 [`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
 [`method`](#method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
-[`n_conditions`](#n_conditions) | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
+`n_conditions` | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
 
 **Methods:**
 
@@ -1851,7 +1851,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
@@ -1859,8 +1859,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
+`model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
 
 ##### Methods
 
@@ -1924,8 +1924,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
-[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
+`n_components` | <code>[int](#int) \| None</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
 
 ##### Methods
 
@@ -1961,7 +1961,7 @@ Provides convenience methods for batch operations.
 
 Name | Description
 ---- | -----------
-[`threshold_all`](#threshold_all) | Apply thresholding to all results.
+[`threshold_all`](#threshold-all) | Apply thresholding to all results.
 
 
 
@@ -2003,17 +2003,17 @@ Holds statistical maps and provides thresholding utilities.
 Name | Description
 ---- | -----------
 [`threshold`](#threshold) | Apply multiple comparison correction.
-[`to_nifti`](#to_nifti) | Save as NIfTI file.
+[`to_nifti`](#to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 [`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
-[`df`](#df) | <code>[int](#int) \| None</code> | 
-[`f_map`](#f_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
-[`p_map`](#p_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
-[`t_map`](#t_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`df` | <code>[int](#int) \| None</code> | 
+`f_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`p_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`t_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 
 ##### Methods
 
@@ -2066,7 +2066,7 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
@@ -2171,12 +2171,12 @@ Example:
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#CVScheme) | Protocol for cross-validation schemes.
-[`FittedStack`](#FittedStack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#FittedTransform) | Protocol for fitted transform objects.
-[`Pipeline`](#Pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`Terminal`](#Terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#TransformStep) | Protocol for pipeline transform steps.
+[`CVScheme`](#cvscheme) | Protocol for cross-validation schemes.
+[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
+[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
 
 
 
@@ -2250,7 +2250,7 @@ Examples:
 Name | Description
 ---- | -----------
 [`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse_transform) | Apply inverse transforms in reverse order.
+[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
 
 
 
@@ -2343,7 +2343,7 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Apply the inverse transformation to data.
+[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
 [`transform`](#transform) | Apply the learned transformation to data.
 
 
@@ -2415,7 +2415,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`_is_lazy`](#_is_lazy) | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
+`_is_lazy` | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
 
 **Examples:**
 
@@ -2626,7 +2626,7 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
@@ -2728,14 +2728,14 @@ strategies used across nltools analysis pipelines.
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#CVScheme) | Cross-validation scheme configuration.
-[`NestedCVScheme`](#NestedCVScheme) | Nested cross-validation for hyperparameter tuning.
+[`CVScheme`](#cvscheme) | Cross-validation scheme configuration.
+[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CVSchemeType`](#CVSchemeType) |  | 
+[`CVSchemeType`](#cvschemetype) |  | 
 
 
 
@@ -2807,20 +2807,20 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_splits`](#n_splits) | Return number of splits.
+[`n_splits`](#n-splits) | Return number of splits.
 [`split`](#split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#is_loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-[`is_loso`](#is_loso) | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-[`k`](#k) | <code>[int](#int) \| None</code> | 
-[`n`](#n) | <code>[int](#int)</code> | 
-[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
-[`scheme`](#scheme) | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
-[`split_by`](#split_by) | <code>[str](#str) \| None</code> | 
+[`is_loro`](#is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
 
 
 
@@ -2984,8 +2984,8 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n_inner_splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n_outer_splits) | Return number of outer splits.
+[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
 [`split`](#split) | Generate nested cross-validation splits.
 
 **Attributes:**
@@ -2993,7 +2993,7 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`inner`](#inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
-[`outer`](#outer) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+`outer` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 
 
 
@@ -3112,7 +3112,7 @@ supporting leave-one-subject-out (LOSO) and run-based CV schemes.
 
 Name | Description
 ---- | -----------
-[`MultiSubjectPipeline`](#MultiSubjectPipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
 
 
 
@@ -3166,10 +3166,10 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
-[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
-[`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
+`n_steps` | <code>[int](#int)</code> | Number of transform steps.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
 [`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 
@@ -3416,9 +3416,9 @@ it is executed lazily, and pool() triggers execution and aggregation.
 
 Name | Description
 ---- | -----------
-[`PooledData`](#PooledData) | Aggregated data from multiple subjects.
-[`ResultDict`](#ResultDict) | Dictionary of StatResults, one per contrast.
-[`StatResult`](#StatResult) | Result of statistical test.
+[`PooledData`](#pooleddata) | Aggregated data from multiple subjects.
+[`ResultDict`](#resultdict) | Dictionary of StatResults, one per contrast.
+[`StatResult`](#statresult) | Result of statistical test.
 
 
 
@@ -3472,17 +3472,17 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition_names) | <code>[list](#list)[[str](#str)] \| None</code> | 
-[`data`](#data) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`fitted_state`](#fitted_state) | <code>[Any](#typing.Any) \| None</code> | 
-[`mask`](#mask) | <code>[Any](#typing.Any) \| None</code> | 
-[`n_conditions`](#n_conditions) | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
-[`param`](#param) | <code>[str](#str)</code> | 
-[`save_path`](#save_path) | <code>[str](#str) \| None</code> | 
-[`shape`](#shape) | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
-[`subject_ids`](#subject_ids) | <code>[list](#list)[[str](#str)] \| None</code> | 
+[`condition_names`](#condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
+`data` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`fitted_state` | <code>[Any](#typing.Any) \| None</code> | 
+`mask` | <code>[Any](#typing.Any) \| None</code> | 
+`n_conditions` | <code>[int](#int) \| None</code> | Number of conditions (None if single-condition).
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the pooled dataset (first dimension of data).
+`n_voxels` | <code>[int](#int)</code> | Number of voxels (last dimension of data array).
+`param` | <code>[str](#str)</code> | 
+`save_path` | <code>[str](#str) \| None</code> | 
+`shape` | <code>[tuple](#tuple)</code> | Shape of the pooled data array as (n_subjects[, n_conditions], n_voxels).
+`subject_ids` | <code>[list](#list)[[str](#str)] \| None</code> | 
 
 
 
@@ -3688,7 +3688,7 @@ Provides convenience methods for batch operations.
 
 Name | Description
 ---- | -----------
-[`threshold_all`](#threshold_all) | Apply thresholding to all results.
+[`threshold_all`](#threshold-all) | Apply thresholding to all results.
 
 
 
@@ -3730,17 +3730,17 @@ Holds statistical maps and provides thresholding utilities.
 Name | Description
 ---- | -----------
 [`threshold`](#threshold) | Apply multiple comparison correction.
-[`to_nifti`](#to_nifti) | Save as NIfTI file.
+[`to_nifti`](#to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 [`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
-[`df`](#df) | <code>[int](#int) \| None</code> | 
-[`f_map`](#f_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
-[`p_map`](#p_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
-[`t_map`](#t_map) | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`df` | <code>[int](#int) \| None</code> | 
+`f_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`p_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
+`t_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 
 
 
@@ -3827,11 +3827,11 @@ including cross-validation results and per-fold information.
 
 Name | Description
 ---- | -----------
-[`CVResult`](#CVResult) | Cross-validation result container.
-[`FoldResult`](#FoldResult) | Result from a single CV fold.
-[`ISCResult`](#ISCResult) | Result from ISC terminal computation.
-[`PermutationResult`](#PermutationResult) | Result from permutation testing.
-[`RSAResult`](#RSAResult) | Result from RSA terminal computation.
+[`CVResult`](#cvresult) | Cross-validation result container.
+[`FoldResult`](#foldresult) | Result from a single CV fold.
+[`ISCResult`](#iscresult) | Result from ISC terminal computation.
+[`PermutationResult`](#permutationresult) | Result from permutation testing.
+[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
 
 
 
@@ -3864,21 +3864,21 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Map predictions back through inverse transforms.
+[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
 [`summary`](#summary) | Return formatted summary string.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
-[`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
-[`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
-[`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
+[`fold_results`](#fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`is_fully_invertible`](#is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
+`mean_score` | <code>[float](#float)</code> | Mean score across all folds.
+`n_folds` | <code>[int](#int)</code> | Number of cross-validation folds.
 [`pipeline`](#pipeline) | <code>[Any](#typing.Any)</code> | 
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
-[`scores`](#scores) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
-[`std_score`](#std_score) | <code>[float](#float)</code> | Standard deviation of scores across folds.
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
+`scores` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
+`std_score` | <code>[float](#float)</code> | Standard deviation of scores across folds.
 
 
 
@@ -4005,11 +4005,11 @@ enabling result aggregation and inverse transforms.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`score`](#score) | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
-[`train_idx`](#train_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
-[`test_idx`](#test_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
-[`fitted_stack`](#fitted_stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
+`score` | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
+`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
+`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
+[`fitted_stack`](#fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
 
 
 
@@ -4061,11 +4061,11 @@ from the ISC permutation test.
 Name | Type | Description
 ---- | ---- | -----------
 [`isc`](#isc) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | ISC values. Scalar for single-feature or (n_voxels,) for voxel-wise ISC.
-[`p`](#p) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | P-values (Phipson-Smyth corrected).
+`p` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | P-values (Phipson-Smyth corrected).
 [`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
 [`method`](#method) | <code>[str](#str)</code> | ISC method used ('pairwise' or 'leave-one-out').
-[`metric`](#metric) | <code>[str](#str)</code> | Summary metric used ('median' or 'mean').
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the analysis.
+`metric` | <code>[str](#str)</code> | Summary metric used ('median' or 'mean').
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the analysis.
 
 **Methods:**
 
@@ -4144,10 +4144,10 @@ where higher is better, like R2 or accuracy).
 
 Name | Type | Description
 ---- | ---- | -----------
-[`observed`](#observed) | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
-[`null_distribution`](#null_distribution) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
-[`p_value`](#p_value) | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
-[`n_permutations`](#n_permutations) | <code>[int](#int)</code> | Number of permutations performed.
+`observed` | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
+`null_distribution` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
+`p_value` | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
+[`n_permutations`](#n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
 
 **Examples:**
 
@@ -4169,7 +4169,7 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from_scores) | Create PermutationResult from observed result and null scores.
+[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
 [`summary`](#summary) | Return formatted summary string.
 
 
@@ -4281,11 +4281,11 @@ Holds representational similarity analysis correlation and p-value.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`correlation`](#correlation) | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
-[`p_value`](#p_value) | <code>[float](#float)</code> | P-value from permutation test.
+`correlation` | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
+`p_value` | <code>[float](#float)</code> | P-value from permutation test.
 [`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
 [`method`](#method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
-[`n_conditions`](#n_conditions) | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
+`n_conditions` | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
 
 **Methods:**
 
@@ -4355,14 +4355,14 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#AlignStep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#FittedAlign) | Fitted alignment model.
-[`FittedNormalize`](#FittedNormalize) | Fitted normalization transform.
-[`FittedPipe`](#FittedPipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#FittedReduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#NormalizeStep) | Normalization transform step.
-[`PipeStep`](#PipeStep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#ReduceStep) | Dimensionality reduction step.
+[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`FittedAlign`](#fittedalign) | Fitted alignment model.
+[`FittedNormalize`](#fittednormalize) | Fitted normalization transform.
+[`FittedPipe`](#fittedpipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#fittedreduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#normalizestep) | Normalization transform step.
+[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#reducestep) | Dimensionality reduction step.
 
 
 
@@ -4414,12 +4414,12 @@ Name | Type | Description
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
 [`kwargs`](#kwargs) |  | 
 [`method`](#method) |  | 
-[`n_features`](#n_features) |  | 
-[`n_iter`](#n_iter) |  | 
-[`n_jobs`](#n_jobs) |  | 
-[`new_subject`](#new_subject) |  | 
-[`parallel`](#parallel) |  | 
-[`scheme`](#scheme) |  | 
+`n_features` |  | 
+`n_iter` |  | 
+`n_jobs` |  | 
+`new_subject` |  | 
+`parallel` |  | 
+`scheme` |  | 
 
 
 
@@ -4525,17 +4525,17 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
+`model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
 [`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-[`new_subject_method`](#new_subject_method) | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
+`new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse alignment (only for full-rank hyperalignment).
+[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
 [`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform_new_subject) | Align a new subject not in training (for LOSO).
+[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
 
 
 
@@ -4641,14 +4641,14 @@ the transformation to new data.
 Name | Type | Description
 ---- | ---- | -----------
 [`mean`](#mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
-[`std`](#std) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
+`std` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
 [`method`](#method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse normalization.
+[`inverse_transform`](#inverse-transform) | Reverse normalization.
 [`transform`](#transform) | Apply normalization to data.
 
 
@@ -4737,7 +4737,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Apply inverse transform if supported.
+[`inverse_transform`](#inverse-transform) | Apply inverse transform if supported.
 [`transform`](#transform) | Apply the fitted transformer.
 
 
@@ -4808,14 +4808,14 @@ Holds the fitted sklearn model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
+`model` | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
 [`method`](#method) | <code>[str](#str)</code> | The reduction method used.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse dimensionality reduction (reconstruct original space).
+[`inverse_transform`](#inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
 [`transform`](#transform) | Apply dimensionality reduction.
 
 
@@ -5098,8 +5098,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
 [`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
-[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
+`n_components` | <code>[int](#int) \| None</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
 
 
 
@@ -5173,9 +5173,9 @@ within cross-validation folds.
 
 Name | Description
 ---- | -----------
-[`ISCTerminal`](#ISCTerminal) | ISC terminal for multi-subject pipelines.
-[`PredictTerminal`](#PredictTerminal) | Prediction/classification terminal for CV pipelines.
-[`RSATerminal`](#RSATerminal) | RSA terminal for multi-subject pipelines.
+[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
+[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
 
 
 
@@ -5211,7 +5211,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
@@ -5219,9 +5219,9 @@ Name | Type | Description
 ---- | ---- | -----------
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`metric`](#metric) | <code>[str](#str)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
-[`parallel`](#parallel) | <code>[str](#str)</code> | 
+`metric` | <code>[str](#str)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
+`parallel` | <code>[str](#str)</code> | 
 
 
 
@@ -5330,8 +5330,8 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with_y) | Create copy with different target variable.
+[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#with-y) | Create copy with different target variable.
 
 **Attributes:**
 
@@ -5339,7 +5339,7 @@ Name | Type | Description
 ---- | ---- | -----------
 [`algorithm`](#algorithm) | <code>[str](#str)</code> | 
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`y` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 
 
@@ -5443,7 +5443,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
@@ -5451,8 +5451,8 @@ Name | Type | Description
 ---- | ---- | -----------
 [`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 [`method`](#method) | <code>[str](#str)</code> | 
-[`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
+`model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
 
 
 

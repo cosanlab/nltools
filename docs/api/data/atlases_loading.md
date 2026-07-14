@@ -6,13 +6,13 @@ Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
 
 Name | Description
 ---- | -----------
-[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
+`Atlas` | A loaded atlas — image, labels, and metadata.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
 
 ### Methods
 

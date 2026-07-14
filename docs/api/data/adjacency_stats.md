@@ -8,15 +8,15 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 
 Name | Description
 ---- | -----------
-[`cluster_summary`](#cluster_summary) | This function provides summaries of clusters within Adjacency matrices.
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
-[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
-[`r_to_z`](#r_to_z) | Apply Fisher's r to z transformation to each element of the data object.
+[`cluster_summary`](#cluster-summary) | This function provides summaries of clusters within Adjacency matrices.
+[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#r-to-z) | Apply Fisher's r to z transformation to each element of the data object.
 [`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
+[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
 [`threshold`](#threshold) | Threshold an Adjacency instance.
 [`ttest`](#ttest) | Calculate ttest across samples.
-[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
+[`z_to_r`](#z-to-r) | Convert z score back into r value for each element of data object.
 
 
 

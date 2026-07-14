@@ -78,12 +78,9 @@ def fit(
             If ``inplace=False``, returns Fit dataclass with results.
 
     Attributes:
-        The following are set on bd when ``inplace=True``:
-
-        ``model_`` (BaseModel): Fitted model instance (Ridge, Glm, etc.)
-        ``X_`` (ndarray): Training data X, stored for predict() default
-        ``cv_results_`` (dict, optional): Cross-validation results dict with keys 'scores',
-        'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
+        model_ (BaseModel): Fitted model instance (Ridge, Glm, etc.). Set on bd when ``inplace=True``.
+        X_ (ndarray): Training data X, stored for predict() default.
+        cv_results_ (dict, optional): Cross-validation results dict with keys 'scores', 'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
         glm_betas (BrainData, optional): Beta coefficients (for model='glm')
         glm_t (BrainData, optional): T-statistics (for model='glm')
         glm_p (BrainData, optional): P-values (for model='glm')

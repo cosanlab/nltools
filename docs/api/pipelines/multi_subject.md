@@ -9,7 +9,7 @@ supporting leave-one-subject-out (LOSO) and run-based CV schemes.
 
 Name | Description
 ---- | -----------
-[`MultiSubjectPipeline`](#MultiSubjectPipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
 
 
 
@@ -62,12 +62,12 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
-[`data`](#data) | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
-[`groups`](#groups) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
-[`n_steps`](#n_steps) | <code>[int](#int)</code> | Number of transform steps.
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
+`cv` | <code>[Any](#typing.Any) \| None</code> | 
+`data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
+`n_steps` | <code>[int](#int)</code> | Number of transform steps.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
+`steps` | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 ##### Methods
 

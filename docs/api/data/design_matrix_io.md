@@ -9,12 +9,12 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
-[`events_to_dm`](#events_to_dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
-[`load_from_file`](#load_from_file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
-[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
+[`events_to_dm`](#events-to-dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
+[`load_from_file`](#load-from-file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
+[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#write) | Write DesignMatrix to file.
-[`write_h5`](#write_h5) | Write DesignMatrix to HDF5 file with metadata.
+[`write_h5`](#write-h5) | Write DesignMatrix to HDF5 file with metadata.
 
 
 

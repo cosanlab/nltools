@@ -11,13 +11,13 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 Name | Description
 ---- | -----------
-[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`label_coords`](#label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CoordsLike`](#CoordsLike) |  | 
+`CoordsLike` |  | 
 
 ### Methods
 

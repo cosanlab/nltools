@@ -20,12 +20,12 @@ Example:
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#CVScheme) | Protocol for cross-validation schemes.
-[`FittedStack`](#FittedStack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#FittedTransform) | Protocol for fitted transform objects.
-[`Pipeline`](#Pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`Terminal`](#Terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#TransformStep) | Protocol for pipeline transform steps.
+`CVScheme` | Protocol for cross-validation schemes.
+[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
+[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
 
 ##### Methods
 
@@ -64,7 +64,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+`steps` | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -77,7 +77,7 @@ Examples:
 Name | Description
 ---- | -----------
 [`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse_transform) | Apply inverse transforms in reverse order.
+[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
 
 ##### Methods
 
@@ -144,7 +144,7 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Apply the inverse transformation to data.
+[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
 [`transform`](#transform) | Apply the learned transformation to data.
 
 
@@ -216,7 +216,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`_is_lazy`](#_is_lazy) | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
+`_is_lazy` | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
 
 **Examples:**
 
@@ -395,7 +395,7 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
@@ -438,7 +438,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+`invertible` | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples:
 >>> class MyStep:

@@ -10,21 +10,21 @@ writing, and uploading.
 
 Name | Description
 ---- | -----------
-[`check_space_match`](#check_space_match) | Check if data and mask are in same space.
-[`detect_and_update_mask`](#detect_and_update_mask) | Detect best matching template from data and update mask if mask was None.
-[`detect_space`](#detect_space) | Detect if mask is in MNI space or native space.
-[`get_interpolation`](#get_interpolation) | Get the interpolation method to use for a given image.
-[`initialize_mask`](#initialize_mask) | Initialize the mask image.
-[`load_from_brain_data`](#load_from_brain_data) | Load data from another BrainData object.
-[`load_from_file`](#load_from_file) | Load data from file path or nibabel object.
-[`load_from_h5`](#load_from_h5) | Load data from HDF5 file.
-[`load_from_list`](#load_from_list) | Load data from a list of BrainData objects or file paths.
-[`load_from_url`](#load_from_url) | Load data from URL.
-[`resample_to`](#resample_to) | Resample BrainData to match target image or resolution.
-[`to_nifti`](#to_nifti) | Convert BrainData instance to a nibabel NIfTI image.
-[`upload_neurovault`](#upload_neurovault) | Upload data to NeuroVault.
-[`warn_if_resampling`](#warn_if_resampling) | Warn about resampling if verbose=True and resample=True.
-[`write_brain_data`](#write_brain_data) | Write out BrainData object to Nifti or HDF5 File.
+[`check_space_match`](#check-space-match) | Check if data and mask are in same space.
+[`detect_and_update_mask`](#detect-and-update-mask) | Detect best matching template from data and update mask if mask was None.
+[`detect_space`](#detect-space) | Detect if mask is in MNI space or native space.
+[`get_interpolation`](#get-interpolation) | Get the interpolation method to use for a given image.
+[`initialize_mask`](#initialize-mask) | Initialize the mask image.
+[`load_from_brain_data`](#load-from-brain-data) | Load data from another BrainData object.
+[`load_from_file`](#load-from-file) | Load data from file path or nibabel object.
+[`load_from_h5`](#load-from-h5) | Load data from HDF5 file.
+[`load_from_list`](#load-from-list) | Load data from a list of BrainData objects or file paths.
+[`load_from_url`](#load-from-url) | Load data from URL.
+[`resample_to`](#resample-to) | Resample BrainData to match target image or resolution.
+[`to_nifti`](#to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
+[`upload_neurovault`](#upload-neurovault) | Upload data to NeuroVault.
+[`warn_if_resampling`](#warn-if-resampling) | Warn about resampling if verbose=True and resample=True.
+[`write_brain_data`](#write-brain-data) | Write out BrainData object to Nifti or HDF5 File.
 
 
 

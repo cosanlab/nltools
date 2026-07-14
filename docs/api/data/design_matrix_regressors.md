@@ -9,8 +9,8 @@ a new DesignMatrix with the requested transformation applied.
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
+[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
 [`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
 
 

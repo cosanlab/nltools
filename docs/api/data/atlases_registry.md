@@ -14,21 +14,21 @@ their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
 Name | Description
 ---- | -----------
-[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
+`AtlasMetadata` | Static description of a registered atlas.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
+[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-[`AtlasKind`](#AtlasKind) |  | 
-[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+`ATLASES` | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ### Methods
 

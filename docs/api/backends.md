@@ -10,16 +10,16 @@ maintaining NumPy-first development.
 
 Name | Description
 ---- | -----------
-[`Backend`](#Backend) | Backend abstraction for numerical operations.
+[`Backend`](#backend) | Backend abstraction for numerical operations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`assert_array_almost_equal`](#assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
-[`auto_select_backend`](#auto_select_backend) | Automatically select backend based on problem size.
-[`check_gpu_available`](#check_gpu_available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a `Backend` instance.
+[`assert_array_almost_equal`](#assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#auto-select-backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#check-gpu-available) | Check if GPU acceleration is available.
+[`resolve_backend`](#resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
@@ -46,33 +46,33 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`name`](#name) | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-[`device`](#device) | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
-[`xp`](#xp) | <code>[module](#module)</code> | Array library module (numpy or torch)
+`name` | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+`device` | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
+`xp` | <code>[module](#module)</code> | Array library module (numpy or torch)
 
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`asarray`](#asarray) | Convert input to a backend array.
-[`asarray_like`](#asarray_like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
-[`check_arrays`](#check_arrays) | Coerce all inputs to the same dtype (and device) as the first.
+[`asarray_like`](#asarray-like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
+[`check_arrays`](#check-arrays) | Coerce all inputs to the same dtype (and device) as the first.
 [`concatenate`](#concatenate) | Concatenate arrays along an axis.
 [`copy`](#copy) | Return an independent copy of the array.
-[`dtype_to_str`](#dtype_to_str) | Normalize a dtype (numpy, torch, or string) to its string name.
-[`expand_dims`](#expand_dims) | Insert a new axis.
+[`dtype_to_str`](#dtype-to-str) | Normalize a dtype (numpy, torch, or string) to its string name.
+[`expand_dims`](#expand-dims) | Insert a new axis.
 [`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in the flattened array.
 [`full`](#full) | Create array filled with *fill_value*.
-[`full_like`](#full_like) | Create array filled with *fill_value*, optionally with a different shape.
+[`full_like`](#full-like) | Create array filled with *fill_value*, optionally with a different shape.
 [`matmul`](#matmul) | Matrix multiplication.
-[`ones_like`](#ones_like) | Create ones array, optionally with a different shape.
+[`ones_like`](#ones-like) | Create ones array, optionally with a different shape.
 [`sort`](#sort) | Sort along an axis, returning values only.
 [`svd`](#svd) | Compute Singular Value Decomposition.
-[`to_cpu`](#to_cpu) | Transfer array to CPU. No-op for numpy.
-[`to_device`](#to_device) | Transfer array to backend device.
-[`to_gpu`](#to_gpu) | Transfer array to GPU. No-op for numpy.
-[`to_numpy`](#to_numpy) | Convert array back to NumPy.
-[`zeros_like`](#zeros_like) | Create zeros array, optionally with a different shape.
+[`to_cpu`](#to-cpu) | Transfer array to CPU. No-op for numpy.
+[`to_device`](#to-device) | Transfer array to backend device.
+[`to_gpu`](#to-gpu) | Transfer array to GPU. No-op for numpy.
+[`to_numpy`](#to-numpy) | Convert array back to NumPy.
+[`zeros_like`](#zeros-like) | Create zeros array, optionally with a different shape.
 
 ##### Methods
 

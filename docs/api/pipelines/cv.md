@@ -9,14 +9,14 @@ strategies used across nltools analysis pipelines.
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#CVScheme) | Cross-validation scheme configuration.
-[`NestedCVScheme`](#NestedCVScheme) | Nested cross-validation for hyperparameter tuning.
+`CVScheme` | Cross-validation scheme configuration.
+[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CVSchemeType`](#CVSchemeType) |  | 
+`CVSchemeType` |  | 
 
 ##### Methods
 
@@ -116,16 +116,16 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n_inner_splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n_outer_splits) | Return number of outer splits.
+[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
 [`split`](#split) | Generate nested cross-validation splits.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`inner`](#inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
-[`outer`](#outer) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+`inner` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+`outer` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 
 ##### Methods
 

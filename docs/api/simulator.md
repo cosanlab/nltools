@@ -9,8 +9,8 @@ Tools to simulate multivariate data.
 
 Name | Description
 ---- | -----------
-[`SimulateGrid`](#SimulateGrid) | Simulate 2D grid data for testing statistical methods.
-[`Simulator`](#Simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
+[`SimulateGrid`](#simulategrid) | Simulate 2D grid data for testing statistical methods.
+[`Simulator`](#simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
 
 
@@ -44,11 +44,11 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`data`](#data) |  | The simulated data array of shape (n_subjects, grid_width, grid_width).
-[`t_values`](#t_values) |  | T-statistic values after fitting.
-[`p_values`](#p_values) |  | P-values after fitting.
-[`thresholded`](#thresholded) |  | Thresholded statistical map.
-[`isfit`](#isfit) |  | Whether fit() has been called.
+`data` |  | The simulated data array of shape (n_subjects, grid_width, grid_width).
+`t_values` |  | T-statistic values after fitting.
+`p_values` |  | P-values after fitting.
+`thresholded` |  | Thresholded statistical map.
+`isfit` |  | Whether fit() has been called.
 
 **Examples:**
 
@@ -63,12 +63,12 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_signal`](#add_signal) | Add rectangular signal to self.data
-[`create_mask`](#create_mask) | Create a mask for where the signal is located in grid.
+[`add_signal`](#add-signal) | Add rectangular signal to self.data
+[`create_mask`](#create-mask) | Create a mask for where the signal is located in grid.
 [`fit`](#fit) | Run ttest on self.data
-[`plot_grid_simulation`](#plot_grid_simulation) | Create a plot of the simulations
-[`run_multiple_simulations`](#run_multiple_simulations) | This method will run multiple simulations to calculate overall false positive rate
-[`threshold_simulation`](#threshold_simulation) | Threshold simulation
+[`plot_grid_simulation`](#plot-grid-simulation) | Create a plot of the simulations
+[`run_multiple_simulations`](#run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
+[`threshold_simulation`](#threshold-simulation) | Threshold simulation
 
 ##### Methods
 
@@ -159,9 +159,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`brain_mask`](#brain_mask) |  | The brain mask image used for simulation.
-[`output_dir`](#output_dir) |  | Output directory path.
-[`random_state`](#random_state) |  | Random state for reproducible simulations.
+`brain_mask` |  | The brain mask image used for simulation.
+`output_dir` |  | Output directory path.
+`random_state` |  | Random state for reproducible simulations.
 
 **Examples:**
 
@@ -176,14 +176,14 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`create_cov_data`](#create_cov_data) | create continuous simulated data with covariance
-[`create_data`](#create_data) | create simulated data with integers
-[`create_ncov_data`](#create_ncov_data) | create continuous simulated data with covariance
+[`create_cov_data`](#create-cov-data) | create continuous simulated data with covariance
+[`create_data`](#create-data) | create simulated data with integers
+[`create_ncov_data`](#create-ncov-data) | create continuous simulated data with covariance
 [`gaussian`](#gaussian) | create a 3D gaussian signal normalized to a given intensity
-[`n_spheres`](#n_spheres) | generate a set of spheres in the brain mask space
-[`normal_noise`](#normal_noise) | produce a normal noise distribution for all all points in the brain mask
+[`n_spheres`](#n-spheres) | generate a set of spheres in the brain mask space
+[`normal_noise`](#normal-noise) | produce a normal noise distribution for all all points in the brain mask
 [`sphere`](#sphere) | create a sphere of given radius at some point p in the brain mask
-[`to_nifti`](#to_nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+[`to_nifti`](#to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
 
 ##### Methods
 

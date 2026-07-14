@@ -28,10 +28,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`sampling_freq`](#sampling_freq) | <code>[float](#float) or None</code> | Sampling frequency in Hz
-[`convolved`](#convolved) | <code>list of str</code> | Columns that have been convolved
-[`confounds`](#confounds) | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
-[`multi`](#multi) | <code>[bool](#bool)</code> | True if created from multi-run concatenation
+`sampling_freq` | <code>[float](#float) or None</code> | Sampling frequency in Hz
+`convolved` | <code>list of str</code> | Columns that have been convolved
+`confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
+`multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
 
 **Examples:**
 
@@ -66,8 +66,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add_dct_basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add_poly) | Add Legendre polynomial drift terms.
+[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
 [`append`](#append) | Concatenate design matrices.
 [`clean`](#clean) | Remove highly correlated columns.
 [`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
@@ -77,14 +77,14 @@ Name | Description
 [`drop`](#drop) | Drop specified columns.
 [`fillna`](#fillna) | Fill NaN/null values with specified value.
 [`plot`](#plot) | Visualize the design matrix.
-[`replace_data`](#replace_data) | Replace data columns while preserving confounds and metadata.
+[`replace_data`](#replace-data) | Replace data columns while preserving confounds and metadata.
 [`standardize`](#standardize) | Standardize columns using the specified method.
 [`sum`](#sum) | Compute the sum along an axis.
-[`to_numpy`](#to_numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to_pandas) | Convert DesignMatrix to pandas DataFrame.
+[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`upsample`](#upsample) | Increase temporal resolution to a target frequency.
 [`vif`](#vif) | Compute the variance inflation factor for each column.
-[`with_columns`](#with_columns) | Add or replace columns via Polars expressions.
+[`with_columns`](#with-columns) | Add or replace columns via Polars expressions.
 [`write`](#write) | Write DesignMatrix to file.
 [`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
 

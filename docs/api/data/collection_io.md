@@ -10,12 +10,12 @@ crosses the disk boundary lives here.
 
 Name | Description
 ---- | -----------
-[`discover_bids`](#discover_bids) | Walk the BIDS dataset and return aligned per-item lists.
-[`from_bids`](#from_bids) | Build a ``BrainCollection`` from a BIDS dataset.
-[`from_glob`](#from_glob) | Build a collection by globbing for BOLD images (and optionally designs).
-[`from_paths`](#from_paths) | Build a collection from explicit lists of brain (and design) paths.
+[`discover_bids`](#discover-bids) | Walk the BIDS dataset and return aligned per-item lists.
+[`from_bids`](#from-bids) | Build a ``BrainCollection`` from a BIDS dataset.
+[`from_glob`](#from-glob) | Build a collection by globbing for BOLD images (and optionally designs).
+[`from_paths`](#from-paths) | Build a collection from explicit lists of brain (and design) paths.
 [`load`](#load) | Materialize path-backed items into ``BrainData``.
-[`memory_estimate`](#memory_estimate) | Human-readable RAM estimate if every item were loaded.
+[`memory_estimate`](#memory-estimate) | Human-readable RAM estimate if every item were loaded.
 [`read`](#read) | Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
 [`unload`](#unload) | Drop in-memory data for items that have backing paths.
 [`write`](#write) | Write a clean, portable copy of ``bc`` outside the cache root.

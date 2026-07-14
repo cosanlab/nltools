@@ -25,9 +25,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 

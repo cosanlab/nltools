@@ -14,14 +14,14 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#AlignStep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#FittedAlign) | Fitted alignment model.
-[`FittedNormalize`](#FittedNormalize) | Fitted normalization transform.
-[`FittedPipe`](#FittedPipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#FittedReduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#NormalizeStep) | Normalization transform step.
-[`PipeStep`](#PipeStep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#ReduceStep) | Dimensionality reduction step.
+[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`FittedAlign`](#fittedalign) | Fitted alignment model.
+[`FittedNormalize`](#fittednormalize) | Fitted normalization transform.
+[`FittedPipe`](#fittedpipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#fittedreduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#normalizestep) | Normalization transform step.
+[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#reducestep) | Dimensionality reduction step.
 
 
 
@@ -70,15 +70,15 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-[`kwargs`](#kwargs) |  | 
-[`method`](#method) |  | 
-[`n_features`](#n_features) |  | 
-[`n_iter`](#n_iter) |  | 
-[`n_jobs`](#n_jobs) |  | 
-[`new_subject`](#new_subject) |  | 
-[`parallel`](#parallel) |  | 
-[`scheme`](#scheme) |  | 
+`invertible` | <code>[bool](#bool)</code> | Check if alignment is invertible.
+`kwargs` |  | 
+`method` |  | 
+`n_features` |  | 
+`n_iter` |  | 
+`n_jobs` |  | 
+`new_subject` |  | 
+`parallel` |  | 
+`scheme` |  | 
 
 ##### Methods
 
@@ -116,17 +116,17 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-[`new_subject_method`](#new_subject_method) | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
+`model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
+`method` | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
+`new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse alignment (only for full-rank hyperalignment).
+[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
 [`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform_new_subject) | Align a new subject not in training (for LOSO).
+[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
 
 ##### Methods
 
@@ -207,15 +207,15 @@ the transformation to new data.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`mean`](#mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
-[`std`](#std) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
-[`method`](#method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
+`mean` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
+`std` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
+`method` | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse normalization.
+[`inverse_transform`](#inverse-transform) | Reverse normalization.
 [`transform`](#transform) | Apply normalization to data.
 
 ##### Methods
@@ -274,13 +274,13 @@ Holds a fitted sklearn transformer and delegates transform calls to it.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
+`transformer` | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Apply inverse transform if supported.
+[`inverse_transform`](#inverse-transform) | Apply inverse transform if supported.
 [`transform`](#transform) | Apply the fitted transformer.
 
 ##### Methods
@@ -339,14 +339,14 @@ Holds the fitted sklearn model and applies transformations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`model`](#model) | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
-[`method`](#method) | <code>[str](#str)</code> | The reduction method used.
+`model` | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
+`method` | <code>[str](#str)</code> | The reduction method used.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Reverse dimensionality reduction (reconstruct original space).
+[`inverse_transform`](#inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
 [`transform`](#transform) | Apply dimensionality reduction.
 
 ##### Methods
@@ -429,9 +429,9 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#axis) | <code>[int](#int)</code> | 
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+`axis` | <code>[int](#int)</code> | 
+`invertible` | <code>[bool](#bool)</code> | 
+`method` | <code>[str](#str)</code> | 
 
 ##### Methods
 
@@ -493,8 +493,8 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+`transformer` | <code>[Any](#typing.Any)</code> | 
 
 ##### Methods
 
@@ -559,10 +559,10 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#method) | <code>[str](#str)</code> | 
-[`n_components`](#n_components) | <code>[int](#int) \| None</code> | 
-[`random_state`](#random_state) | <code>[int](#int) \| None</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+`method` | <code>[str](#str)</code> | 
+`n_components` | <code>[int](#int) \| None</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
 
 ##### Methods
 

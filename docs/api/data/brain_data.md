@@ -24,62 +24,62 @@ Name | Description
 ---- | -----------
 [`align`](#align) | Align BrainData instance to target object using functional alignment.
 [`append`](#append) | Append data to BrainData instance.
-[`apply_mask`](#apply_mask) | Mask BrainData instance using nilearn functionality.
+[`apply_mask`](#apply-mask) | Mask BrainData instance using nilearn functionality.
 [`astype`](#astype) | Cast BrainData.data as type.
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`cluster_report`](#cluster_report) | Generate a cluster report with anatomical labels.
-[`compute_contrasts`](#compute_contrasts) | Compute contrasts from fitted GLM results.
+[`cluster_report`](#cluster-report) | Generate a cluster report with anatomical labels.
+[`compute_contrasts`](#compute-contrasts) | Compute contrasts from fitted GLM results.
 [`copy`](#copy) | Create a deep copy of a BrainData instance.
-[`create_empty`](#create_empty) | Create a copy of BrainData with empty data array.
+[`create_empty`](#create-empty) | Create a copy of BrainData with empty data array.
 [`decompose`](#decompose) | Decompose BrainData object.
 [`detrend`](#detrend) | Remove linear trend from each voxel.
 [`distance`](#distance) | Calculate distance between images within a BrainData() instance.
-[`extract_roi`](#extract_roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+[`extract_roi`](#extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 [`filter`](#filter) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes`](#find_spikes) | Identify spikes from Time Series Data.
+[`find_spikes`](#find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#fit) | Fit a model to brain imaging data.
 [`icc`](#icc) | Calculate voxel-wise intraclass correlation coefficient.
 [`iplot`](#iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 [`mean`](#mean) | Get mean of each voxel or image.
 [`median`](#median) | Get median of each voxel or image.
-[`multivariate_similarity`](#multivariate_similarity) | Predict a BrainData spatial distribution from a linear combination.
+[`multivariate_similarity`](#multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
 [`plot`](#plot) | Plot BrainData instance using nilearn visualization or matplotlib.
-[`plot_flatmap`](#plot_flatmap) | Plot brain data on cortical flatmap.
-[`plot_surf`](#plot_surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
+[`plot_flatmap`](#plot-flatmap) | Plot brain data on cortical flatmap.
+[`plot_surf`](#plot-surf) | Render this BrainData on fsaverage surfaces as a tight 2×2 montage.
 [`predict`](#predict) | Predict voxel timeseries (encoding) or decode labels (MVPA).
-[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
+[`r_to_z`](#r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regions`](#regions) | Extract brain connected regions into separate regions.
-[`resample_to`](#resample_to) | Resample BrainData to match target image or resolution.
+[`resample_to`](#resample-to) | Resample BrainData to match target image or resolution.
 [`scale`](#scale) | Scale data via mean scaling.
 [`similarity`](#similarity) | Calculate similarity to a single BrainData or nibabel image.
 [`smooth`](#smooth) | Apply spatial smoothing using nilearn smooth_img().
 [`standardize`](#standardize) | Standardize BrainData() instance.
 [`std`](#std) | Get standard deviation of each voxel or image.
 [`sum`](#sum) | Get sum of each voxel or image.
-[`temporal_resample`](#temporal_resample) | Resample BrainData timeseries to a new target frequency or number of samples.
+[`temporal_resample`](#temporal-resample) | Resample BrainData timeseries to a new target frequency or number of samples.
 [`threshold`](#threshold) | Threshold BrainData instance with optional cluster filtering.
-[`to_nifti`](#to_nifti) | Convert BrainData Instance into Nifti Object.
-[`transform_pairwise`](#transform_pairwise) | Transform data into pairwise comparisons.
+[`to_nifti`](#to-nifti) | Convert BrainData Instance into Nifti Object.
+[`transform_pairwise`](#transform-pairwise) | Transform data into pairwise comparisons.
 [`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
-[`upload_neurovault`](#upload_neurovault) | Upload BrainData images and metadata to NeuroVault.
+[`upload_neurovault`](#upload-neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#write) | Write out BrainData object to Nifti or HDF5 File.
-[`z_to_r`](#z_to_r) | Convert z score back into r value for each element of data object.
+[`z_to_r`](#z-to-r) | Convert z score back into r value for each element of data object.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`X`](#X) |  | Design matrix / per-image covariates as a polars DataFrame.
-[`Y`](#Y) |  | Per-image targets as a polars DataFrame.
-[`data`](#data) |  | 
-[`design_matrix`](#design_matrix) |  | 
-[`dtype`](#dtype) |  | Get data type of BrainData.data.
-[`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
-[`masker`](#masker) |  | 
-[`shape`](#shape) |  | Get images by voxels shape.
-[`size`](#size) |  | Total number of elements in BrainData.data (numpy convention).
-[`verbose`](#verbose) |  | 
+`X` |  | Design matrix / per-image covariates as a polars DataFrame.
+`Y` |  | Per-image targets as a polars DataFrame.
+`data` |  | 
+`design_matrix` |  | 
+`dtype` |  | Get data type of BrainData.data.
+`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
+`masker` |  | 
+`shape` |  | Get images by voxels shape.
+`size` |  | Total number of elements in BrainData.data (numpy convention).
+`verbose` |  | 
 
 ### Methods
 

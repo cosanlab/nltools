@@ -6,7 +6,7 @@ I/O functions for Adjacency objects.
 
 Name | Description
 ---- | -----------
-[`to_graph`](#to_graph) | Convert Adjacency into networkx graph.
+[`to_graph`](#to-graph) | Convert Adjacency into networkx graph.
 [`write`](#write) | Write out Adjacency object to csv file.
 
 

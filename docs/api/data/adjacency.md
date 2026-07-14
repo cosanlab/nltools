@@ -25,48 +25,48 @@ Name | Description
 ---- | -----------
 [`append`](#append) | Append data to an Adjacency instance.
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`cluster_summary`](#cluster_summary) | Provide summaries of clusters within Adjacency matrices.
+[`cluster_summary`](#cluster-summary) | Provide summaries of clusters within Adjacency matrices.
 [`copy`](#copy) | Create a copy of Adjacency object.
 [`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
-[`distance_to_similarity`](#distance_to_similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate_permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`distance_to_similarity`](#distance-to-similarity) | Convert distance matrix to similarity matrix.
+[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`mean`](#mean) | Calculate mean of Adjacency.
 [`median`](#median) | Calculate median of Adjacency.
 [`plot`](#plot) | Create a heatmap of an Adjacency matrix.
-[`plot_label_distance`](#plot_label_distance) | Create a violin plot of within- and between-label distances.
-[`plot_mds`](#plot_mds) | Plot multidimensional scaling.
-[`plot_silhouette`](#plot_silhouette) | Create a silhouette plot.
-[`r_to_z`](#r_to_z) | Apply Fisher's r-to-z transformation to each data element.
+[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_mds`](#plot-mds) | Plot multidimensional scaling.
+[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regress`](#regress) | Run a regression on an adjacency instance.
 [`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`social_relations_model`](#social_relations_model) | Estimate the social relations model from a matrix for a round-robin design.
+[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
 [`squareform`](#squareform) | Convert adjacency data back to square form.
-[`stats_label_distance`](#stats_label_distance) | Calculate permutation tests on within and between label distance.
+[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
 [`std`](#std) | Calculate standard deviation of Adjacency.
 [`sum`](#sum) | Calculate sum of Adjacency.
 [`threshold`](#threshold) | Threshold an Adjacency instance.
-[`to_brain`](#to_brain) | Project per-matrix scalars back to voxel-space `BrainData`.
-[`to_graph`](#to_graph) | Convert a single Adjacency matrix into a NetworkX graph.
-[`to_square`](#to_square) | Convert adjacency back to square matrix format.
+[`to_brain`](#to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
+[`to_graph`](#to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
+[`to_square`](#to-square) | Convert adjacency back to square matrix format.
 [`ttest`](#ttest) | Calculate ttest across samples.
 [`write`](#write) | Write out Adjacency object to csv file.
-[`z_to_r`](#z_to_r) | Convert each z score back into an r value.
+[`z_to_r`](#z-to-r) | Convert each z score back into an r value.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Y`](#Y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
-[`data`](#data) |  | 
-[`is_empty`](#is_empty) | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-[`is_single_matrix`](#is_single_matrix) |  | 
-[`issymmetric`](#issymmetric) |  | 
-[`labels`](#labels) |  | 
-[`matrix_type`](#matrix_type) |  | 
-[`n_nodes`](#n_nodes) |  | Return the number of nodes in the adjacency matrix.
-[`shape`](#shape) |  | Return the logical shape of the adjacency matrix.
-[`spatial_scale`](#spatial_scale) | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
-[`vector_shape`](#vector_shape) |  | Return shape of internal vectorized representation.
+`Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+`data` |  | 
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
 
 ### Methods
 

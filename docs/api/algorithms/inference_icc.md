@@ -29,7 +29,7 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
 ### Methods
 

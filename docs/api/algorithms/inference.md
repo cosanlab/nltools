@@ -75,9 +75,9 @@ Name | Description
 [`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 [`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 [`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#one_sample) | One-sample permutation test implementations.
+[`one_sample`](#one-sample) | One-sample permutation test implementations.
 [`timeseries`](#timeseries) | Time-series permutation test implementations.
-[`two_sample`](#two_sample) | Two-sample permutation test implementations.
+[`two_sample`](#two-sample) | Two-sample permutation test implementations.
 [`utils`](#utils) | Utility functions for permutation testing.
 [`validation`](#validation) | Shared validation utilities for algorithms module.
 
@@ -85,25 +85,25 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
-[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double_center) | Double center a 2d array.
-[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double-center) | Double center a 2d array.
+[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
@@ -144,20 +144,20 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get_results) | Compute final bootstrap statistics.
+[`get_results`](#get-results) | Compute final bootstrap statistics.
 [`update`](#update) | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#M2) |  | 
-[`mean`](#mean) |  | 
-[`n`](#n) |  | 
-[`percentiles`](#percentiles) |  | 
-[`samples`](#samples) |  | 
-[`save_samples`](#save_samples) |  | 
-[`shape`](#shape) |  | 
+`M2` |  | 
+`mean` |  | 
+`n` |  | 
+`percentiles` |  | 
+`samples` |  | 
+`save_samples` |  | 
+`shape` |  | 
 
 ##### Methods
 
@@ -1072,14 +1072,14 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
+`FITTED_METHODS` |  | 
+`SIMPLE_METHODS` |  | 
 
 ##### Methods
 
@@ -1095,7 +1095,7 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
 
 ##### Methods
 
@@ -1208,7 +1208,7 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
 ##### Methods
 
@@ -1306,8 +1306,8 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 ##### Methods
 
@@ -1489,16 +1489,16 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double_center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#MAX_INT) |  | 
+`MAX_INT` |  | 
 
 ##### Methods
 
@@ -1706,7 +1706,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
@@ -1811,9 +1811,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 
@@ -2012,7 +2012,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 
@@ -2104,7 +2104,7 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#EPSILON) |  | 
+`EPSILON` |  | 
 
 ##### Methods
 
@@ -2132,23 +2132,23 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#validate_alpha) | Validate regularization parameter alpha.
-[`validate_array_shape`](#validate_array_shape) | Validate array dimensionality.
-[`validate_array_shape_range`](#validate_array_shape_range) | Validate array dimensionality is within a range.
-[`validate_bootstrap_data`](#validate_bootstrap_data) | Validate input data for bootstrapping.
-[`validate_bootstrap_method`](#validate_bootstrap_method) | Validate bootstrap method name.
-[`validate_how_parameter`](#validate_how_parameter) | Validate 'how' parameter for matrix operations.
-[`validate_isc_parameters`](#validate_isc_parameters) | Validate ISC parameter values.
-[`validate_metric_parameter`](#validate_metric_parameter) | Validate metric parameter.
-[`validate_n_samples`](#validate_n_samples) | Validate number of samples.
-[`validate_parallel_parameter`](#validate_parallel_parameter) | Validate parallel parameter.
-[`validate_parallel_parameter_matrix`](#validate_parallel_parameter_matrix) | Validate parallel parameter for matrix operations.
-[`validate_percentiles`](#validate_percentiles) | Validate percentile values for confidence intervals.
-[`validate_same_first_dimension`](#validate_same_first_dimension) | Validate two arrays have same first dimension.
-[`validate_same_shape`](#validate_same_shape) | Validate two arrays have same shape.
-[`validate_shape_compatibility`](#validate_shape_compatibility) | Validate that X and y have compatible shapes for regression.
-[`validate_square_matrix`](#validate_square_matrix) | Validate matrix is square.
-[`validate_tail_parameter`](#validate_tail_parameter) | Validate and normalize tail parameter.
+[`validate_alpha`](#validate-alpha) | Validate regularization parameter alpha.
+[`validate_array_shape`](#validate-array-shape) | Validate array dimensionality.
+[`validate_array_shape_range`](#validate-array-shape-range) | Validate array dimensionality is within a range.
+[`validate_bootstrap_data`](#validate-bootstrap-data) | Validate input data for bootstrapping.
+[`validate_bootstrap_method`](#validate-bootstrap-method) | Validate bootstrap method name.
+[`validate_how_parameter`](#validate-how-parameter) | Validate 'how' parameter for matrix operations.
+[`validate_isc_parameters`](#validate-isc-parameters) | Validate ISC parameter values.
+[`validate_metric_parameter`](#validate-metric-parameter) | Validate metric parameter.
+[`validate_n_samples`](#validate-n-samples) | Validate number of samples.
+[`validate_parallel_parameter`](#validate-parallel-parameter) | Validate parallel parameter.
+[`validate_parallel_parameter_matrix`](#validate-parallel-parameter-matrix) | Validate parallel parameter for matrix operations.
+[`validate_percentiles`](#validate-percentiles) | Validate percentile values for confidence intervals.
+[`validate_same_first_dimension`](#validate-same-first-dimension) | Validate two arrays have same first dimension.
+[`validate_same_shape`](#validate-same-shape) | Validate two arrays have same shape.
+[`validate_shape_compatibility`](#validate-shape-compatibility) | Validate that X and y have compatible shapes for regression.
+[`validate_square_matrix`](#validate-square-matrix) | Validate matrix is square.
+[`validate_tail_parameter`](#validate-tail-parameter) | Validate and normalize tail parameter.
 
 
 

@@ -30,13 +30,13 @@ is deterministic and can be cached for reuse across analyses.
 
 Name | Description
 ---- | -----------
-[`SphereNeighborhoods`](#SphereNeighborhoods) | Precomputed sphere neighborhoods for a brain mask.
+[`SphereNeighborhoods`](#sphereneighborhoods) | Precomputed sphere neighborhoods for a brain mask.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_searchlight_neighborhoods`](#compute_searchlight_neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
+[`compute_searchlight_neighborhoods`](#compute-searchlight-neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
 
 
 
@@ -58,10 +58,10 @@ iteration over neighborhoods for searchlight-style analyses.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`adjacency`](#adjacency) | <code>[csr_matrix](#scipy.sparse.csr_matrix)</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
-[`mask_hash`](#mask_hash) | <code>[str](#str)</code> | Hash of the source mask for validation
-[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | Radius in millimeters
-[`n_voxels`](#n_voxels) | <code>[int](#int)</code> | Number of voxels in the mask
+`adjacency` | <code>[csr_matrix](#scipy.sparse.csr_matrix)</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
+`mask_hash` | <code>[str](#str)</code> | Hash of the source mask for validation
+`radius_mm` | <code>[float](#float)</code> | Radius in millimeters
+`n_voxels` | <code>[int](#int)</code> | Number of voxels in the mask
 
 <details class="example" open markdown="1">
 <summary>Example</summary>
@@ -79,9 +79,9 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`get_neighborhood_size`](#get_neighborhood_size) | Get the number of voxels in a neighborhood.
-[`get_neighbors`](#get_neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
-[`iter_neighborhoods`](#iter_neighborhoods) | Iterate over all neighborhoods.
+[`get_neighborhood_size`](#get-neighborhood-size) | Get the number of voxels in a neighborhood.
+[`get_neighbors`](#get-neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
+[`iter_neighborhoods`](#iter-neighborhoods) | Iterate over all neighborhoods.
 
 ##### Methods
 

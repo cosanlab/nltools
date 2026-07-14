@@ -9,7 +9,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 

@@ -10,9 +10,9 @@ chaining pool() after fit().
 
 Name | Description
 ---- | -----------
-[`BrainCollectionCVResult`](#BrainCollectionCVResult) | Cross-validation results for BrainCollection pipelines.
-[`BrainCollectionPipeline`](#BrainCollectionPipeline) | Pipeline for BrainCollection with multi-subject CV support.
-[`FittedBrainCollection`](#FittedBrainCollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
+[`BrainCollectionCVResult`](#braincollectioncvresult) | Cross-validation results for BrainCollection pipelines.
+`BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
+[`FittedBrainCollection`](#fittedbraincollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
 
 
 
@@ -33,12 +33,12 @@ with convenience properties for accessing scores and predictions.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) |  | List of dictionaries with per-fold results.
+`fold_results` |  | List of dictionaries with per-fold results.
 [`pipeline`](#pipeline) |  | The pipeline that generated these results.
-[`scores`](#scores) | <code>[ndarray](#numpy.ndarray)</code> | Per-fold prediction scores.
-[`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
-[`std_score`](#std_score) | <code>[float](#float)</code> | Standard deviation of scores.
-[`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of CV folds.
+`scores` | <code>[ndarray](#numpy.ndarray)</code> | Per-fold prediction scores.
+`mean_score` | <code>[float](#float)</code> | Mean score across all folds.
+`std_score` | <code>[float](#float)</code> | Standard deviation of scores.
+`n_folds` | <code>[int](#int)</code> | Number of CV folds.
 
 **Parameters:**
 
@@ -175,9 +175,9 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`betas`](#betas) | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Convenience accessor for beta coefficients from a GLM fit.
-[`n_subjects`](#n_subjects) | <code>[int](#int)</code> | Number of subjects in the fitted collection.
-[`results`](#results) | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Access the fitted results directly.
+`betas` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Convenience accessor for beta coefficients from a GLM fit.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the fitted collection.
+`results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Access the fitted results directly.
 
 ##### Methods
 

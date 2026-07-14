@@ -9,11 +9,11 @@ step-directory naming. No class state lives here.
 
 Name | Description
 ---- | -----------
-[`coerce_metadata`](#coerce_metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
-[`make_run_id`](#make_run_id) | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
-[`make_step_dirname`](#make_step_dirname) | Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
-[`resolve_cache_dir`](#resolve_cache_dir) | Resolve ``cache_dir`` per the spec's precedence rules.
-[`resolve_mask`](#resolve_mask) | Resolve a mask spec into a Nifti1Image.
+[`coerce_metadata`](#coerce-metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
+[`make_run_id`](#make-run-id) | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+[`make_step_dirname`](#make-step-dirname) | Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+[`resolve_cache_dir`](#resolve-cache-dir) | Resolve ``cache_dir`` per the spec's precedence rules.
+[`resolve_mask`](#resolve-mask) | Resolve a mask spec into a Nifti1Image.
 
 
 

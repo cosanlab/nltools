@@ -12,30 +12,30 @@ Name | Description
 [`inference`](#inference) | GPU-accelerated statistical inference for neuroimaging.
 [`random`](#random) | Shared random state utilities for algorithms module.
 [`ridge`](#ridge) | Ridge regression algorithms and utilities.
-[`shape_utils`](#shape_utils) | Shared shape manipulation utilities for algorithms module.
+[`shape_utils`](#shape-utils) | Shared shape manipulation utilities for algorithms module.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
-[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
-[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
+[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
+[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`glover_dispersion_derivative`](#glover_dispersion_derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
-[`glover_hrf`](#glover_hrf) | Implement the Glover :term:`HRF` model.
-[`glover_time_derivative`](#glover_time_derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
-[`spm_dispersion_derivative`](#spm_dispersion_derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
-[`spm_hrf`](#spm_hrf) | Implement the :term:`SPM` :term:`HRF` model.
-[`spm_time_derivative`](#spm_time_derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
+[`glover_dispersion_derivative`](#glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
+[`glover_hrf`](#glover-hrf) | Implement the Glover :term:`HRF` model.
+[`glover_time_derivative`](#glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
+[`spm_dispersion_derivative`](#spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
+[`spm_hrf`](#spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
+[`spm_time_derivative`](#spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 
 
@@ -70,9 +70,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -122,7 +122,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the Deterministic Shared Response Model.
 [`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 ##### Methods
 
@@ -223,10 +223,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
+`w_` | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+`s_` | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+`disparity_` | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+`scale_` | <code>list of float</code> | Scale factors for each subject.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -291,7 +291,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit hyperalignment model to data.
 [`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform_subject) | Align a new subject to the common space.
+[`transform_subject`](#transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -434,7 +434,7 @@ used to preserve local orthogonality of transforms.
 Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
@@ -442,22 +442,22 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
-[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
-[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
-[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
-[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
+`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+`mask_` | <code>[Any](#typing.Any) \| None</code> | 
+`max_memory_gb` | <code>[float](#float)</code> | 
+`method` | <code>[str](#str)</code> | 
+`n_features` | <code>[int](#int) \| None</code> | 
+`n_iter` | <code>[int](#int)</code> | 
+`n_jobs` | <code>[int](#int)</code> | 
+`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
+`n_voxels_` | <code>[int](#int) \| None</code> | 
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`parallel` | <code>[str](#str) \| None</code> | 
+`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
+`radius_mm` | <code>[float](#float)</code> | 
+`scheme` | <code>[str](#str)</code> | 
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 ##### Methods
 
@@ -543,12 +543,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
-[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`sigma_s_` | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+`mu_` | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+`rho2_` | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -598,7 +598,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the probabilistic Shared Response Model.
 [`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 ##### Methods
 
@@ -1176,10 +1176,10 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
-[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
-[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
+[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
+[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -1214,9 +1214,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1266,7 +1266,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the Deterministic Shared Response Model.
 [`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -1391,10 +1391,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
+`w_` | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+`s_` | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+`disparity_` | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+`scale_` | <code>list of float</code> | Scale factors for each subject.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1459,7 +1459,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit hyperalignment model to data.
 [`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform_subject) | Align a new subject to the common space.
+[`transform_subject`](#transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -1628,7 +1628,7 @@ used to preserve local orthogonality of transforms.
 Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
@@ -1636,22 +1636,22 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
-[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
-[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
-[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
-[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
+`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+`mask_` | <code>[Any](#typing.Any) \| None</code> | 
+`max_memory_gb` | <code>[float](#float)</code> | 
+`method` | <code>[str](#str)</code> | 
+`n_features` | <code>[int](#int) \| None</code> | 
+`n_iter` | <code>[int](#int)</code> | 
+`n_jobs` | <code>[int](#int)</code> | 
+`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
+`n_voxels_` | <code>[int](#int) \| None</code> | 
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`parallel` | <code>[str](#str) \| None</code> | 
+`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
+`radius_mm` | <code>[float](#float)</code> | 
+`scheme` | <code>[str](#str)</code> | 
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -1845,12 +1845,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
-[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`sigma_s_` | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+`mu_` | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+`rho2_` | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1900,7 +1900,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the probabilistic Shared Response Model.
 [`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2052,7 +2052,7 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`HyperAlignment`](#HyperAlignment) | Hyperalignment using iterative Procrustes alignment.
+[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
 
 
 
@@ -2087,10 +2087,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
-[`s_`](#s_) | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
-[`disparity_`](#disparity_) | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
-[`scale_`](#scale_) | <code>list of float</code> | Scale factors for each subject.
+`w_` | <code>list of ndarray, element i has shape=[features_i, features]</code> | The transformation matrices (rotation + reflection) for each subject.
+`s_` | <code>ndarray, shape=[features, samples]</code> | The aligned common template (shared response).
+`disparity_` | <code>list of float</code> | Disparity (sum of squared differences) for each subject.
+`scale_` | <code>list of float</code> | Scale factors for each subject.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -2155,7 +2155,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit hyperalignment model to data.
 [`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform_subject) | Align a new subject to the common space.
+[`transform_subject`](#transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -2270,7 +2270,7 @@ Uses center-only aggregation to preserve orthogonality of local transforms.
 
 Name | Description
 ---- | -----------
-[`LocalAlignment`](#LocalAlignment) | Local (neighborhood-based) functional alignment across subjects.
+[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
 
 
 
@@ -2343,7 +2343,7 @@ used to preserve local orthogonality of transforms.
 Name | Description
 ---- | -----------
 [`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit_transform) | Fit alignment and transform data in one step.
+[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#transform) | Apply local transforms to data.
 
 **Attributes:**
@@ -2351,22 +2351,22 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 [`aggregation`](#aggregation) | <code>[str](#str)</code> | 
-[`backend_`](#backend_) | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-[`mask_`](#mask_) | <code>[Any](#typing.Any) \| None</code> | 
-[`max_memory_gb`](#max_memory_gb) | <code>[float](#float)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
-[`n_features`](#n_features) | <code>[int](#int) \| None</code> | 
-[`n_iter`](#n_iter) | <code>[int](#int)</code> | 
-[`n_jobs`](#n_jobs) | <code>[int](#int)</code> | 
-[`n_neighborhoods_batch`](#n_neighborhoods_batch) | <code>[int](#int) \| None</code> | 
-[`n_voxels_`](#n_voxels_) | <code>[int](#int) \| None</code> | 
-[`neighborhoods_`](#neighborhoods_) | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`parallel`](#parallel) | <code>[str](#str) \| None</code> | 
-[`parcellation`](#parcellation) | <code>[Any](#typing.Any) \| None</code> | 
-[`radius_mm`](#radius_mm) | <code>[float](#float)</code> | 
-[`scheme`](#scheme) | <code>[str](#str)</code> | 
-[`template_`](#template_) | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-[`transforms_`](#transforms_) | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
+`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
+`mask_` | <code>[Any](#typing.Any) \| None</code> | 
+`max_memory_gb` | <code>[float](#float)</code> | 
+`method` | <code>[str](#str)</code> | 
+`n_features` | <code>[int](#int) \| None</code> | 
+`n_iter` | <code>[int](#int)</code> | 
+`n_jobs` | <code>[int](#int)</code> | 
+`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
+`n_voxels_` | <code>[int](#int) \| None</code> | 
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`parallel` | <code>[str](#str) \| None</code> | 
+`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
+`radius_mm` | <code>[float](#float)</code> | 
+`scheme` | <code>[str](#str)</code> | 
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -2611,8 +2611,8 @@ limitations under the License.
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#DetSRM) | Deterministic Shared Response Model (DetSRM).
-[`SRM`](#SRM) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
+[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -2649,9 +2649,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -2701,7 +2701,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the Deterministic Shared Response Model.
 [`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2826,12 +2826,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`w_`](#w_) | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
-[`s_`](#s_) | <code>array, shape=[features, samples]</code> | The shared response.
-[`sigma_s_`](#sigma_s_) | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
-[`mu_`](#mu_) | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
-[`rho2_`](#rho2_) | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
-[`random_state_`](#random_state_) | <code>`RandomState`</code> | Random number generator initialized using rand_seed
+`w_` | <code>list of array, element i has shape=[voxels_i, features]</code> | The orthogonal transforms (mappings) for each subject.
+`s_` | <code>array, shape=[features, samples]</code> | The shared response.
+`sigma_s_` | <code>array, shape=[features, features]</code> | The covariance of the shared response Normal distribution.
+`mu_` | <code>list of array, element i has shape=[voxels_i]</code> | The voxel means over the samples for each subject.
+`rho2_` | <code>array, shape=[subjects]</code> | The estimated noise variance $\rho_i^2$ for each subject
+`random_state_` | <code>`RandomState`</code> | Random number generator initialized using rand_seed
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -2881,7 +2881,7 @@ Name | Description
 ---- | -----------
 [`fit`](#fit) | Compute the probabilistic Shared Response Model.
 [`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform_subject) | Transform a new subject using the existing model.
+[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2990,16 +2990,16 @@ maintaining NumPy-first development.
 
 Name | Description
 ---- | -----------
-[`Backend`](#Backend) | Backend abstraction for numerical operations.
+[`Backend`](#backend) | Backend abstraction for numerical operations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`assert_array_almost_equal`](#assert_array_almost_equal) | Test array equality with automatic precision adjustment for MPS backend.
-[`auto_select_backend`](#auto_select_backend) | Automatically select backend based on problem size.
-[`check_gpu_available`](#check_gpu_available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve_backend) | Coerce a backend specifier into a `Backend` instance.
+[`assert_array_almost_equal`](#assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#auto-select-backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#check-gpu-available) | Check if GPU acceleration is available.
+[`resolve_backend`](#resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
@@ -3026,33 +3026,33 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`name`](#name) | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-[`device`](#device) | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
-[`xp`](#xp) | <code>[module](#module)</code> | Array library module (numpy or torch)
+`name` | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+`device` | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
+`xp` | <code>[module](#module)</code> | Array library module (numpy or torch)
 
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`asarray`](#asarray) | Convert input to a backend array.
-[`asarray_like`](#asarray_like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
-[`check_arrays`](#check_arrays) | Coerce all inputs to the same dtype (and device) as the first.
-[`concatenate`](#concatenate) | Concatenate arrays along an axis.
-[`copy`](#copy) | Return an independent copy of the array.
-[`dtype_to_str`](#dtype_to_str) | Normalize a dtype (numpy, torch, or string) to its string name.
-[`expand_dims`](#expand_dims) | Insert a new axis.
-[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in the flattened array.
-[`full`](#full) | Create array filled with *fill_value*.
-[`full_like`](#full_like) | Create array filled with *fill_value*, optionally with a different shape.
-[`matmul`](#matmul) | Matrix multiplication.
-[`ones_like`](#ones_like) | Create ones array, optionally with a different shape.
-[`sort`](#sort) | Sort along an axis, returning values only.
-[`svd`](#svd) | Compute Singular Value Decomposition.
-[`to_cpu`](#to_cpu) | Transfer array to CPU. No-op for numpy.
-[`to_device`](#to_device) | Transfer array to backend device.
-[`to_gpu`](#to_gpu) | Transfer array to GPU. No-op for numpy.
-[`to_numpy`](#to_numpy) | Convert array back to NumPy.
-[`zeros_like`](#zeros_like) | Create zeros array, optionally with a different shape.
+`asarray_like` | Convert *x* to an array matching *ref*'s dtype (and device for torch).
+`check_arrays` | Coerce all inputs to the same dtype (and device) as the first.
+`concatenate` | Concatenate arrays along an axis.
+`copy` | Return an independent copy of the array.
+`dtype_to_str` | Normalize a dtype (numpy, torch, or string) to its string name.
+`expand_dims` | Insert a new axis.
+`flatnonzero` | Return indices of non-zero elements in the flattened array.
+`full` | Create array filled with *fill_value*.
+`full_like` | Create array filled with *fill_value*, optionally with a different shape.
+`matmul` | Matrix multiplication.
+`ones_like` | Create ones array, optionally with a different shape.
+`sort` | Sort along an axis, returning values only.
+`svd` | Compute Singular Value Decomposition.
+`to_cpu` | Transfer array to CPU. No-op for numpy.
+`to_device` | Transfer array to backend device.
+`to_gpu` | Transfer array to GPU. No-op for numpy.
+`to_numpy` | Convert array back to NumPy.
+`zeros_like` | Create zeros array, optionally with a different shape.
 
 
 
@@ -3547,12 +3547,12 @@ nilearn ships canonical SPM and Glover HRFs (and their derivatives) under
 
 Name | Description
 ---- | -----------
-[`glover_dispersion_derivative`](#glover_dispersion_derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
-[`glover_hrf`](#glover_hrf) | Implement the Glover :term:`HRF` model.
-[`glover_time_derivative`](#glover_time_derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
-[`spm_dispersion_derivative`](#spm_dispersion_derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
-[`spm_hrf`](#spm_hrf) | Implement the :term:`SPM` :term:`HRF` model.
-[`spm_time_derivative`](#spm_time_derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
+[`glover_dispersion_derivative`](#glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
+[`glover_hrf`](#glover-hrf) | Implement the Glover :term:`HRF` model.
+[`glover_time_derivative`](#glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
+[`spm_dispersion_derivative`](#spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
+[`spm_hrf`](#spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
+[`spm_time_derivative`](#spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 
 
@@ -3905,9 +3905,9 @@ Name | Description
 [`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
 [`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 [`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#one_sample) | One-sample permutation test implementations.
+[`one_sample`](#one-sample) | One-sample permutation test implementations.
 [`timeseries`](#timeseries) | Time-series permutation test implementations.
-[`two_sample`](#two_sample) | Two-sample permutation test implementations.
+[`two_sample`](#two-sample) | Two-sample permutation test implementations.
 [`utils`](#utils) | Utility functions for permutation testing.
 [`validation`](#validation) | Shared validation utilities for algorithms module.
 
@@ -3915,25 +3915,25 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
-[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double_center) | Double center a 2d array.
-[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double-center) | Double center a 2d array.
+[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
@@ -3974,20 +3974,20 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get_results) | Compute final bootstrap statistics.
-[`update`](#update) | Update statistics with a new bootstrap sample.
+[`get_results`](#get-results) | Compute final bootstrap statistics.
+`update` | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#M2) |  | 
-[`mean`](#mean) |  | 
-[`n`](#n) |  | 
-[`percentiles`](#percentiles) |  | 
-[`samples`](#samples) |  | 
-[`save_samples`](#save_samples) |  | 
-[`shape`](#shape) |  | 
+[`M2`](#m2) |  | 
+`mean` |  | 
+`n` |  | 
+`percentiles` |  | 
+`samples` |  | 
+`save_samples` |  | 
+`shape` |  | 
 
 
 
@@ -4950,14 +4950,14 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
+[`FITTED_METHODS`](#fitted-methods) |  | 
+`SIMPLE_METHODS` |  | 
 
 
 
@@ -5014,20 +5014,20 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get_results) | Compute final bootstrap statistics.
-[`update`](#update) | Update statistics with a new bootstrap sample.
+[`get_results`](#get-results) | Compute final bootstrap statistics.
+`update` | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#M2) |  | 
-[`mean`](#mean) |  | 
-[`n`](#n) |  | 
-[`percentiles`](#percentiles) |  | 
-[`samples`](#samples) |  | 
-[`save_samples`](#save_samples) |  | 
-[`shape`](#shape) |  | 
+[`M2`](#m2) |  | 
+`mean` |  | 
+`n` |  | 
+`percentiles` |  | 
+`samples` |  | 
+`save_samples` |  | 
+`shape` |  | 
 
 
 
@@ -5180,7 +5180,7 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
 
 
 
@@ -5299,7 +5299,7 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#compute_icc_voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
 
 
@@ -5403,8 +5403,8 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 
 
@@ -5590,16 +5590,16 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double_center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#MAX_INT) |  | 
+[`MAX_INT`](#max-int) |  | 
 
 
 
@@ -5819,7 +5819,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
@@ -5924,9 +5924,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 
@@ -6125,7 +6125,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 
@@ -6217,7 +6217,7 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#EPSILON) |  | 
+[`EPSILON`](#epsilon) |  | 
 
 
 
@@ -6257,23 +6257,23 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#validate_alpha) | Validate regularization parameter alpha.
-[`validate_array_shape`](#validate_array_shape) | Validate array dimensionality.
-[`validate_array_shape_range`](#validate_array_shape_range) | Validate array dimensionality is within a range.
-[`validate_bootstrap_data`](#validate_bootstrap_data) | Validate input data for bootstrapping.
-[`validate_bootstrap_method`](#validate_bootstrap_method) | Validate bootstrap method name.
-[`validate_how_parameter`](#validate_how_parameter) | Validate 'how' parameter for matrix operations.
-[`validate_isc_parameters`](#validate_isc_parameters) | Validate ISC parameter values.
-[`validate_metric_parameter`](#validate_metric_parameter) | Validate metric parameter.
-[`validate_n_samples`](#validate_n_samples) | Validate number of samples.
-[`validate_parallel_parameter`](#validate_parallel_parameter) | Validate parallel parameter.
-[`validate_parallel_parameter_matrix`](#validate_parallel_parameter_matrix) | Validate parallel parameter for matrix operations.
-[`validate_percentiles`](#validate_percentiles) | Validate percentile values for confidence intervals.
-[`validate_same_first_dimension`](#validate_same_first_dimension) | Validate two arrays have same first dimension.
-[`validate_same_shape`](#validate_same_shape) | Validate two arrays have same shape.
-[`validate_shape_compatibility`](#validate_shape_compatibility) | Validate that X and y have compatible shapes for regression.
-[`validate_square_matrix`](#validate_square_matrix) | Validate matrix is square.
-[`validate_tail_parameter`](#validate_tail_parameter) | Validate and normalize tail parameter.
+[`validate_alpha`](#validate-alpha) | Validate regularization parameter alpha.
+`validate_array_shape` | Validate array dimensionality.
+`validate_array_shape_range` | Validate array dimensionality is within a range.
+`validate_bootstrap_data` | Validate input data for bootstrapping.
+`validate_bootstrap_method` | Validate bootstrap method name.
+`validate_how_parameter` | Validate 'how' parameter for matrix operations.
+`validate_isc_parameters` | Validate ISC parameter values.
+`validate_metric_parameter` | Validate metric parameter.
+`validate_n_samples` | Validate number of samples.
+`validate_parallel_parameter` | Validate parallel parameter.
+`validate_parallel_parameter_matrix` | Validate parallel parameter for matrix operations.
+`validate_percentiles` | Validate percentile values for confidence intervals.
+`validate_same_first_dimension` | Validate two arrays have same first dimension.
+`validate_same_shape` | Validate two arrays have same shape.
+`validate_shape_compatibility` | Validate that X and y have compatible shapes for regression.
+`validate_square_matrix` | Validate matrix is square.
+`validate_tail_parameter` | Validate and normalize tail parameter.
 
 
 
@@ -6591,10 +6591,10 @@ Example:
 
 Name | Description
 ---- | -----------
-[`generate_bootstrap_indices`](#generate_bootstrap_indices) | Generate bootstrap indices deterministically for resampling.
-[`generate_seeds`](#generate_seeds) | Generate random seeds for deterministic parallelization.
-[`generate_sign_flips`](#generate_sign_flips) | Generate random sign-flip matrix for one-sample permutation tests.
-[`get_random_state`](#get_random_state) | Get RandomState instance from seed.
+[`generate_bootstrap_indices`](#generate-bootstrap-indices) | Generate bootstrap indices deterministically for resampling.
+[`generate_seeds`](#generate-seeds) | Generate random seeds for deterministic parallelization.
+[`generate_sign_flips`](#generate-sign-flips) | Generate random sign-flip matrix for one-sample permutation tests.
+[`get_random_state`](#get-random-state) | Get RandomState instance from seed.
 
 
 
@@ -6788,12 +6788,12 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`cross_val_predict_ridge`](#cross_val_predict_ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
-[`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
-[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
-[`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
+[`cross_val_predict_ridge`](#cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
+[`generate_dirichlet_samples`](#generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
+[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
+[`solve_banded_ridge_cv`](#solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#solve-ridge-cv) | Solve ridge regression with cross-validation.
 
 
 
@@ -7262,8 +7262,8 @@ himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
 
 Name | Description
 ---- | -----------
-[`ridge_cv`](#ridge_cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge_svd) | Solve ridge regression using Singular Value Decomposition.
+[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
 
 
 
@@ -7422,9 +7422,9 @@ Follows himalaya's implementation patterns:
 
 Name | Description
 ---- | -----------
-[`cross_val_predict_ridge`](#cross_val_predict_ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
-[`solve_banded_ridge_cv`](#solve_banded_ridge_cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#solve_ridge_cv) | Solve ridge regression with cross-validation.
+[`cross_val_predict_ridge`](#cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
+[`solve_banded_ridge_cv`](#solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#solve-ridge-cv) | Solve ridge regression with cross-validation.
 
 
 
@@ -7674,7 +7674,7 @@ following himalaya's implementation patterns.
 
 Name | Description
 ---- | -----------
-[`generate_dirichlet_samples`](#generate_dirichlet_samples) | Generate samples from a Dirichlet distribution.
+[`generate_dirichlet_samples`](#generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
 
 
 
@@ -7755,10 +7755,10 @@ Example:
 
 Name | Description
 ---- | -----------
-[`batch_or_skip`](#batch_or_skip) | Apply batch or skip if dimension is 1.
-[`ensure_2d`](#ensure_2d) | Ensure array is 2D, adding dimension if needed.
-[`extract_triangle_elements`](#extract_triangle_elements) | Extract triangle elements from square matrix.
-[`permute_matrix_symmetric`](#permute_matrix_symmetric) | Apply symmetric row+column permutation to square matrix.
+[`batch_or_skip`](#batch-or-skip) | Apply batch or skip if dimension is 1.
+[`ensure_2d`](#ensure-2d) | Ensure array is 2D, adding dimension if needed.
+[`extract_triangle_elements`](#extract-triangle-elements) | Extract triangle elements from square matrix.
+[`permute_matrix_symmetric`](#permute-matrix-symmetric) | Apply symmetric row+column permutation to square matrix.
 
 
 

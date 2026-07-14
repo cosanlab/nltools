@@ -36,39 +36,39 @@ Name | Description
 Name | Description
 ---- | -----------
 [`align`](#align) | Align subject data into a common response model.
-[`align_states`](#align_states) | Align state weight maps by minimizing pairwise distance between group states.
-[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval.
-[`circle_shift`](#circle_shift) | Circular shift for time-series data.
-[`compute_icc`](#compute_icc) | Compute intraclass correlation coefficient (ICC).
-[`compute_multivariate_similarity`](#compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
-[`compute_similarity`](#compute_similarity) | Compute similarity between two data arrays.
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
-[`distance_correlation`](#distance_correlation) | Distance correlation for multivariate dependence.
-[`double_center`](#double_center) | Double-center a distance matrix.
+[`align_states`](#align-states) | Align state weight maps by minimizing pairwise distance between group states.
+[`calc_bpm`](#calc-bpm) | Calculate instantaneous BPM from beat to beat interval.
+[`circle_shift`](#circle-shift) | Circular shift for time-series data.
+[`compute_icc`](#compute-icc) | Compute intraclass correlation coefficient (ICC).
+[`compute_multivariate_similarity`](#compute-multivariate-similarity) | Compute multivariate similarity via OLS regression.
+[`compute_similarity`](#compute-similarity) | Compute similarity between two data arrays.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#distance-correlation) | Distance correlation for multivariate dependence.
+[`double_center`](#double-center) | Double-center a distance matrix.
 [`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 [`fdr`](#fdr) | Determine an FDR threshold for an array of p-values.
-[`find_spikes`](#find_spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
-[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score.
-[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score.
-[`holm_bonf`](#holm_bonf) | Compute Holm-Bonferroni-corrected p-values.
+[`find_spikes`](#find-spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
+[`fisher_r_to_z`](#fisher-r-to-z) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#fisher-z-to-r) | Use Fisher transformation to convert correlation to z score.
+[`holm_bonf`](#holm-bonf) | Compute Holm-Bonferroni-corrected p-values.
 [`isc`](#isc) | Compute pairwise intersubject correlation from observations by subjects array.
-[`isc_group`](#isc_group) | Compute difference in intersubject correlation between groups.
+[`isc_group`](#isc-group) | Compute difference in intersubject correlation between groups.
 [`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
 [`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
-[`make_cosine_basis`](#make_cosine_basis) | Create basis functions for a discrete cosine transform.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test).
-[`multi_threshold`](#multi_threshold) | Threshold test image by multiple p-values from p image.
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#phase_randomize) | FFT-based phase randomization for time-series data.
+[`make_cosine_basis`](#make-cosine-basis) | Create basis functions for a discrete cosine transform.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test).
+[`multi_threshold`](#multi-threshold) | Threshold test image by multiple p-values from p image.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
 [`procrustes`](#procrustes) | Perform a Procrustes similarity analysis on two data sets.
-[`procrustes_distance`](#procrustes_distance) | Test matrix similarity using Procrustes superposition.
+[`procrustes_distance`](#procrustes-distance) | Test matrix similarity using Procrustes superposition.
 [`regress`](#regress) | Fit an OLS regression of ``Y`` on ``X``.
 [`threshold`](#threshold) | Threshold test image by p-value from p image.
-[`timeseries_correlation_permutation_test`](#timeseries_correlation_permutation_test) | Time-series correlation permutation test.
-[`transform_pairwise`](#transform_pairwise) | Transform data into pairs with balanced labels for ranking.
+[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`transform_pairwise`](#transform-pairwise) | Transform data into pairs with balanced labels for ranking.
 [`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
-[`two_sample_permutation_test`](#two_sample_permutation_test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#u_center) | U-center a distance matrix.
+[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#u-center) | U-center a distance matrix.
 [`upsample`](#upsample) | Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 [`winsorize`](#winsorize) | Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 [`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
@@ -1272,9 +1272,9 @@ Data alignment — SRM, Procrustes, and state alignment.
 Name | Description
 ---- | -----------
 [`align`](#align) | Align subject data into a common response model.
-[`align_states`](#align_states) | Align state weight maps by minimizing pairwise distance between group states.
+[`align_states`](#align-states) | Align state weight maps by minimizing pairwise distance between group states.
 [`procrustes`](#procrustes) | Perform a Procrustes similarity analysis on two data sets.
-[`procrustes_distance`](#procrustes_distance) | Test matrix similarity using Procrustes superposition.
+[`procrustes_distance`](#procrustes-distance) | Test matrix similarity using Procrustes superposition.
 
 
 
@@ -1432,8 +1432,8 @@ Multiple comparison corrections and thresholding.
 Name | Description
 ---- | -----------
 [`fdr`](#fdr) | Determine an FDR threshold for an array of p-values.
-[`holm_bonf`](#holm_bonf) | Compute Holm-Bonferroni-corrected p-values.
-[`multi_threshold`](#multi_threshold) | Threshold test image by multiple p-values from p image.
+[`holm_bonf`](#holm-bonf) | Compute Holm-Bonferroni-corrected p-values.
+[`multi_threshold`](#multi-threshold) | Threshold test image by multiple p-values from p image.
 [`threshold`](#threshold) | Threshold test image by p-value from p image.
 
 
@@ -1564,12 +1564,12 @@ Similarity metrics, correlation, and reliability (ICC).
 
 Name | Description
 ---- | -----------
-[`compute_icc`](#compute_icc) | Compute intraclass correlation coefficient (ICC).
-[`compute_multivariate_similarity`](#compute_multivariate_similarity) | Compute multivariate similarity via OLS regression.
-[`compute_similarity`](#compute_similarity) | Compute similarity between two data arrays.
-[`fisher_r_to_z`](#fisher_r_to_z) | Use Fisher transformation to convert correlation to z score.
-[`fisher_z_to_r`](#fisher_z_to_r) | Use Fisher transformation to convert correlation to z score.
-[`transform_pairwise`](#transform_pairwise) | Transform data into pairs with balanced labels for ranking.
+[`compute_icc`](#compute-icc) | Compute intraclass correlation coefficient (ICC).
+[`compute_multivariate_similarity`](#compute-multivariate-similarity) | Compute multivariate similarity via OLS regression.
+[`compute_similarity`](#compute-similarity) | Compute similarity between two data arrays.
+[`fisher_r_to_z`](#fisher-r-to-z) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#fisher-z-to-r) | Use Fisher transformation to convert correlation to z score.
+[`transform_pairwise`](#transform-pairwise) | Transform data into pairs with balanced labels for ranking.
 
 
 
@@ -1768,7 +1768,7 @@ Intersubject correlation, functional connectivity, and phase synchrony.
 Name | Description
 ---- | -----------
 [`isc`](#isc) | Compute pairwise intersubject correlation from observations by subjects array.
-[`isc_group`](#isc_group) | Compute difference in intersubject correlation between groups.
+[`isc_group`](#isc-group) | Compute difference in intersubject correlation between groups.
 [`isfc`](#isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
 [`isps`](#isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
@@ -1986,7 +1986,7 @@ Outlier detection, robust statistics, and data normalization.
 
 Name | Description
 ---- | -----------
-[`find_spikes`](#find_spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
+[`find_spikes`](#find-spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 [`trim`](#trim) | Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 [`winsorize`](#winsorize) | Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 [`zscore`](#zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
@@ -2478,9 +2478,9 @@ Temporal signal processing — resampling, filtering, and basis functions.
 
 Name | Description
 ---- | -----------
-[`calc_bpm`](#calc_bpm) | Calculate instantaneous BPM from beat to beat interval.
+[`calc_bpm`](#calc-bpm) | Calculate instantaneous BPM from beat to beat interval.
 [`downsample`](#downsample) | Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
-[`make_cosine_basis`](#make_cosine_basis) | Create basis functions for a discrete cosine transform.
+[`make_cosine_basis`](#make-cosine-basis) | Create basis functions for a discrete cosine transform.
 [`upsample`](#upsample) | Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
 

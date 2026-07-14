@@ -8,10 +8,10 @@ Cross-cutting utilities used across the nltools package.
 
 Name | Description
 ---- | -----------
-[`all_same`](#all_same) | Check if all items in a sequence are equal to the first item.
-[`attempt_to_import`](#attempt_to_import) | Attempt to import an optional dependency, returning None if unavailable.
+[`all_same`](#all-same) | Check if all items in a sequence are equal to the first item.
+[`attempt_to_import`](#attempt-to-import) | Attempt to import an optional dependency, returning None if unavailable.
 [`concatenate`](#concatenate) | Concatenate a list of BrainData() or Adjacency() objects.
-[`get_resource_path`](#get_resource_path) | Get path to nltools resource directory.
+[`get_resource_path`](#get-resource-path) | Get path to nltools resource directory.
 
 ### Methods
 

@@ -6,8 +6,8 @@ Plotting functions for Adjacency matrices.
 
 Name | Description
 ---- | -----------
-[`plot_adjacency`](#plot_adjacency) | Create Heatmap of Adjacency Matrix.
-[`plot_mds`](#plot_mds) | Plot Multidimensional Scaling.
+[`plot_adjacency`](#plot-adjacency) | Create Heatmap of Adjacency Matrix.
+[`plot_mds`](#plot-mds) | Plot Multidimensional Scaling.
 
 
 

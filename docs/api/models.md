@@ -16,9 +16,9 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`BaseModel`](#BaseModel) | Abstract base class for all nltools models.
-[`Glm`](#Glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
-[`Ridge`](#Ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+[`BaseModel`](#basemodel) | Abstract base class for all nltools models.
+[`Glm`](#glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Ridge`](#ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
 
 
@@ -43,9 +43,9 @@ Follows scikit-learn API conventions:
 
 Name | Type | Description
 ---- | ---- | -----------
-[`n_features_in_`](#n_features_in_) | <code>[int](#int)</code> | Number of features seen during fit
-[`n_samples_`](#n_samples_) | <code>[int](#int)</code> | Number of samples seen during fit
-[`is_fitted_`](#is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+`n_features_in_` | <code>[int](#int)</code> | Number of features seen during fit
+`n_samples_` | <code>[int](#int)</code> | Number of samples seen during fit
+`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
 
 **Methods:**
 
@@ -147,7 +147,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_fitted_`](#is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -213,7 +213,7 @@ For advanced use cases, access the internal FirstLevelModel via the
 
 Name | Description
 ---- | -----------
-[`compute_contrast`](#compute_contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`compute_contrast`](#compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#fit) | Fit GLM to fMRI data.
 [`predict`](#predict) | Generate predictions from fitted GLM.
 [`score`](#score) | Return mean R² across voxels and runs.
@@ -413,11 +413,11 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`coef_`](#coef_) | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
-[`alpha_`](#alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
-[`cv_scores_`](#cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
-[`deltas_`](#deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-[`backend_`](#backend_) | <code>[Backend](#Backend)</code> | Backend instance used for computation
+`coef_` | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
+`alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
+`cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
+`deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
+`backend_` | <code>[Backend](#Backend)</code> | Backend instance used for computation
 
 **Examples:**
 
@@ -531,7 +531,7 @@ Provides sklearn-compatible API for neuroimaging analysis.
 
 Name | Description
 ---- | -----------
-[`BaseModel`](#BaseModel) | Abstract base class for all nltools models.
+[`BaseModel`](#basemodel) | Abstract base class for all nltools models.
 
 
 
@@ -556,9 +556,9 @@ Follows scikit-learn API conventions:
 
 Name | Type | Description
 ---- | ---- | -----------
-[`n_features_in_`](#n_features_in_) | <code>[int](#int)</code> | Number of features seen during fit
-[`n_samples_`](#n_samples_) | <code>[int](#int)</code> | Number of samples seen during fit
-[`is_fitted_`](#is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+`n_features_in_` | <code>[int](#int)</code> | Number of features seen during fit
+`n_samples_` | <code>[int](#int)</code> | Number of samples seen during fit
+`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
 
 **Methods:**
 
@@ -654,7 +654,7 @@ Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
 
 Name | Description
 ---- | -----------
-[`Glm`](#Glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Glm`](#glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
 
 
 
@@ -688,7 +688,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_fitted_`](#is_fitted_) | <code>[bool](#bool)</code> | Whether the model has been fitted
+`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -754,7 +754,7 @@ For advanced use cases, access the internal FirstLevelModel via the
 
 Name | Description
 ---- | -----------
-[`compute_contrast`](#compute_contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`compute_contrast`](#compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#fit) | Fit GLM to fMRI data.
 [`predict`](#predict) | Generate predictions from fitted GLM.
 [`score`](#score) | Return mean R² across voxels and runs.
@@ -1030,7 +1030,7 @@ Supports both regular ridge (single feature space) and banded ridge
 
 Name | Description
 ---- | -----------
-[`Ridge`](#Ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+[`Ridge`](#ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
 
 
@@ -1075,11 +1075,11 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`coef_`](#coef_) | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
-[`alpha_`](#alpha_) | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
-[`cv_scores_`](#cv_scores_) | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
-[`deltas_`](#deltas_) | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-[`backend_`](#backend_) | <code>[Backend](#Backend)</code> | Backend instance used for computation
+`coef_` | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
+`alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
+`cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
+`deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
+`backend_` | <code>[Backend](#Backend)</code> | Backend instance used for computation
 
 **Examples:**
 

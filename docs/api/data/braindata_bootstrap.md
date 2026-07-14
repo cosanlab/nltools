@@ -7,7 +7,7 @@ Bootstrap functions extracted from BrainData methods.
 Name | Description
 ---- | -----------
 [`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_brain_data`](#convert_bootstrap_results_to_brain_data) | Convert bootstrap results dictionary to BrainData format.
+[`convert_bootstrap_results_to_brain_data`](#convert-bootstrap-results-to-brain-data) | Convert bootstrap results dictionary to BrainData format.
 
 
 

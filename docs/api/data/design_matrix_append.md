@@ -10,12 +10,12 @@ DesignMatrix methods, following the "functional core" pattern.
 Name | Description
 ---- | -----------
 [`append`](#append) | Concatenate design matrices.
-[`append_horizontal`](#append_horizontal) | Concatenate matrices horizontally by adding columns.
-[`append_vertical`](#append_vertical) | Concatenate matrices vertically with optional confound separation.
-[`append_vertical_with_separation`](#append_vertical_with_separation) | Concatenate vertically with automatic confound separation.
-[`get_starting_run_idx`](#get_starting_run_idx) | Determine the next run index for multi-run appending.
-[`identify_columns_to_separate`](#identify_columns_to_separate) | Identify columns that need run-specific separation.
-[`match_column_pattern`](#match_column_pattern) | Match columns against a pattern with wildcard support.
+[`append_horizontal`](#append-horizontal) | Concatenate matrices horizontally by adding columns.
+[`append_vertical`](#append-vertical) | Concatenate matrices vertically with optional confound separation.
+[`append_vertical_with_separation`](#append-vertical-with-separation) | Concatenate vertically with automatic confound separation.
+[`get_starting_run_idx`](#get-starting-run-idx) | Determine the next run index for multi-run appending.
+[`identify_columns_to_separate`](#identify-columns-to-separate) | Identify columns that need run-specific separation.
+[`match_column_pattern`](#match-column-pattern) | Match columns against a pattern with wildcard support.
 
 
 

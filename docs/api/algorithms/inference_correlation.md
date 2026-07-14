@@ -10,7 +10,7 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation_permutation_test) | Correlation permutation test.
+[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
 
 ### Methods
 

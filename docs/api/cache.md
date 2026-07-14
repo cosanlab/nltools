@@ -31,15 +31,15 @@ neighborhoods, ISC, and SRM.
 
 Name | Description
 ---- | -----------
-[`CacheManager`](#CacheManager) | Manages disk-based caching for expensive computations.
+[`CacheManager`](#cachemanager) | Manages disk-based caching for expensive computations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`clear_cache`](#clear_cache) | Clear the nltools cache.
-[`get_cache_dir`](#get_cache_dir) | Get the nltools cache directory.
-[`hash_mask`](#hash_mask) | Compute a stable hash for a NIfTI mask image.
+[`clear_cache`](#clear-cache) | Clear the nltools cache.
+[`get_cache_dir`](#get-cache-dir) | Get the nltools cache directory.
+[`hash_mask`](#hash-mask) | Compute a stable hash for a NIfTI mask image.
 
 
 
@@ -85,8 +85,8 @@ Name | Description
 [`clear`](#clear) | Clear all cached files in this category.
 [`delete`](#delete) | Delete a cached file.
 [`exists`](#exists) | Check if a cache key exists.
-[`get_path`](#get_path) | Get the file path for a cache key.
-[`list_keys`](#list_keys) | List all cached keys in this category.
+[`get_path`](#get-path) | Get the file path for a cache key.
+[`list_keys`](#list-keys) | List all cached keys in this category.
 [`load`](#load) | Load cached data.
 [`save`](#save) | Save arrays to cache.
 
@@ -94,8 +94,8 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cache_dir`](#cache_dir) |  | 
-[`category`](#category) |  | 
+`cache_dir` |  | 
+`category` |  | 
 
 ##### Methods
 

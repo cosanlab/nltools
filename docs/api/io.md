@@ -14,9 +14,9 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`is_h5_path`](#is_h5_path) | Check if a file path indicates an HDF5 file.
-[`load_brain_data_h5`](#load_brain_data_h5) | Load BrainData from HDF5 file.
-[`to_h5`](#to_h5) | Save BrainData or Adjacency objects to HDF5 files.
+[`is_h5_path`](#is-h5-path) | Check if a file path indicates an HDF5 file.
+[`load_brain_data_h5`](#load-brain-data-h5) | Load BrainData from HDF5 file.
+[`to_h5`](#to-h5) | Save BrainData or Adjacency objects to HDF5 files.
 
 
 
@@ -112,9 +112,9 @@ Shared serialization logic for BrainData and Adjacency objects.
 
 Name | Description
 ---- | -----------
-[`is_h5_path`](#is_h5_path) | Check if a file path indicates an HDF5 file.
-[`load_brain_data_h5`](#load_brain_data_h5) | Load BrainData from HDF5 file.
-[`to_h5`](#to_h5) | Save BrainData or Adjacency objects to HDF5 files.
+[`is_h5_path`](#is-h5-path) | Check if a file path indicates an HDF5 file.
+[`load_brain_data_h5`](#load-brain-data-h5) | Load BrainData from HDF5 file.
+[`to_h5`](#to-h5) | Save BrainData or Adjacency objects to HDF5 files.
 
 
 

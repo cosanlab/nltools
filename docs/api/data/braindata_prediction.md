@@ -11,18 +11,18 @@ self with attributes, ``inplace=False`` returns the dataclass.
 
 Name | Description
 ---- | -----------
-[`build_pipeline`](#build_pipeline) | Build a per-fold scikit-learn preprocessing and model pipeline.
+[`build_pipeline`](#build-pipeline) | Build a per-fold scikit-learn preprocessing and model pipeline.
 [`predict`](#predict) | Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
-[`predict_mvpa`](#predict_mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
-[`predict_timeseries`](#predict_timeseries) | Predict voxel timeseries from a fitted encoding model.
-[`resolve_model`](#resolve_model) | Resolve a string shortcut or pass through a sklearn estimator.
-[`resolve_scoring`](#resolve_scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
+[`predict_mvpa`](#predict-mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
+[`predict_timeseries`](#predict-timeseries) | Predict voxel timeseries from a fitted encoding model.
+[`resolve_model`](#resolve-model) | Resolve a string shortcut or pass through a sklearn estimator.
+[`resolve_scoring`](#resolve-scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`VALID_SPATIAL_SCALES`](#VALID_SPATIAL_SCALES) |  | 
+`VALID_SPATIAL_SCALES` |  | 
 
 ### Methods
 

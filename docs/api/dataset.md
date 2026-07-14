@@ -10,11 +10,11 @@ Functions to help download datasets from Neurovault and other sources.
 
 Name | Description
 ---- | -----------
-[`download_nifti`](#download_nifti) | Download an image from a URL to a nifti file.
-[`fetch_emotion_ratings`](#fetch_emotion_ratings) | Download and load emotion rating dataset from Neurovault.
-[`fetch_neurovault_collection`](#fetch_neurovault_collection) | Download images and metadata from a Neurovault collection.
-[`fetch_pain`](#fetch_pain) | Download and load pain dataset from Neurovault.
-[`load_haxby_example`](#load_haxby_example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
+[`download_nifti`](#download-nifti) | Download an image from a URL to a nifti file.
+[`fetch_emotion_ratings`](#fetch-emotion-ratings) | Download and load emotion rating dataset from Neurovault.
+[`fetch_neurovault_collection`](#fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
+[`fetch_pain`](#fetch-pain) | Download and load pain dataset from Neurovault.
+[`load_haxby_example`](#load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
 
 

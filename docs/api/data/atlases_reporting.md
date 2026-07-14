@@ -10,13 +10,13 @@ attribute every voxel of every cluster to one or more atlases.
 
 Name | Description
 ---- | -----------
-[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
+`ClusterReport` | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
+[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
 
 ##### Methods
 

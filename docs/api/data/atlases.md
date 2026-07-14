@@ -25,26 +25,26 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
-[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
-[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
+`Atlas` | A loaded atlas — image, labels, and metadata.
+`AtlasMetadata` | Static description of a registered atlas.
+`ClusterReport` | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
-[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
-[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
-[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
+[`label_coords`](#label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
+[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-[`AtlasKind`](#AtlasKind) |  | 
-[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+[`ATLASES`](#atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ##### Methods
 
@@ -194,13 +194,13 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 Name | Description
 ---- | -----------
-[`label_coords`](#label_coords) | Look up anatomical labels for a set of MNI mm coordinates.
+[`label_coords`](#label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CoordsLike`](#CoordsLike) |  | 
+`CoordsLike` |  | 
 
 ##### Methods
 
@@ -240,13 +240,13 @@ Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
 
 Name | Description
 ---- | -----------
-[`Atlas`](#Atlas) | A loaded atlas — image, labels, and metadata.
+`Atlas` | A loaded atlas — image, labels, and metadata.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`load_atlas`](#load_atlas) | Lazy-load an atlas by registry name.
+[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
 
 ##### Methods
 
@@ -290,21 +290,21 @@ their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
 Name | Description
 ---- | -----------
-[`AtlasMetadata`](#AtlasMetadata) | Static description of a registered atlas.
+`AtlasMetadata` | Static description of a registered atlas.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`list_atlases`](#list_atlases) | Return the sorted list of registered atlas names.
+[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`ATLASES`](#ATLASES) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-[`AtlasKind`](#AtlasKind) |  | 
-[`DEFAULT_ATLASES`](#DEFAULT_ATLASES) | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+[`ATLASES`](#atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ##### Methods
 
@@ -335,13 +335,13 @@ attribute every voxel of every cluster to one or more atlases.
 
 Name | Description
 ---- | -----------
-[`ClusterReport`](#ClusterReport) | Result of `BrainData.cluster_report`.
+`ClusterReport` | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster_report_data) | Compute cluster report DataFrames + thresholded BrainData.
+[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
 
 ##### Methods
 

@@ -6,16 +6,16 @@ BrainData plotting functions.
 
 Name | Description
 ---- | -----------
-[`auto_select_colormap`](#auto_select_colormap) | Auto-select colormap based on data characteristics.
-[`plot_brain`](#plot_brain) | Plot BrainData instance using nilearn visualization or matplotlib.
-[`plot_flatmap_brain`](#plot_flatmap_brain) | Plot brain data on cortical flatmap.
-[`prepare_save_paths`](#prepare_save_paths) | Prepare save paths for multiple plot outputs.
+[`auto_select_colormap`](#auto-select-colormap) | Auto-select colormap based on data characteristics.
+[`plot_brain`](#plot-brain) | Plot BrainData instance using nilearn visualization or matplotlib.
+[`plot_flatmap_brain`](#plot-flatmap-brain) | Plot brain data on cortical flatmap.
+[`prepare_save_paths`](#prepare-save-paths) | Prepare save paths for multiple plot outputs.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`DEFAULT_SLICE_CUT_COORDS`](#DEFAULT_SLICE_CUT_COORDS) |  | 
+`DEFAULT_SLICE_CUT_COORDS` |  | 
 
 ### Methods
 

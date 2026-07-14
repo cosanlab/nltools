@@ -10,9 +10,9 @@ within cross-validation folds.
 
 Name | Description
 ---- | -----------
-[`ISCTerminal`](#ISCTerminal) | ISC terminal for multi-subject pipelines.
-[`PredictTerminal`](#PredictTerminal) | Prediction/classification terminal for CV pipelines.
-[`RSATerminal`](#RSATerminal) | RSA terminal for multi-subject pipelines.
+[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
+[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
 
 
 
@@ -48,17 +48,17 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
-[`metric`](#metric) | <code>[str](#str)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
-[`parallel`](#parallel) | <code>[str](#str)</code> | 
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+`method` | <code>[str](#str)</code> | 
+`metric` | <code>[str](#str)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
+`parallel` | <code>[str](#str)</code> | 
 
 ##### Methods
 
@@ -131,16 +131,16 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with_y) | Create copy with different target variable.
+[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#with-y) | Create copy with different target variable.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`y`](#y) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`algorithm` | <code>[str](#str)</code> | 
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+`y` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 ##### Methods
 
@@ -220,16 +220,16 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit_evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
-[`model_rdm`](#model_rdm) | <code>[NDArray](#numpy.typing.NDArray)</code> | 
-[`n_permute`](#n_permute) | <code>[int](#int)</code> | 
+`kwargs` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+`method` | <code>[str](#str)</code> | 
+`model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
+`n_permute` | <code>[int](#int)</code> | 
 
 ##### Methods
 

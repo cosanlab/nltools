@@ -9,7 +9,7 @@ machine-learning analyses on imaging data
 
 Name | Description
 ---- | -----------
-[`Roc`](#Roc) | Roc Class
+[`Roc`](#roc) | Roc Class
 
 
 
@@ -49,10 +49,10 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`binary_outcome`](#binary_outcome) |  | 
-[`forced_choice`](#forced_choice) |  | 
-[`input_values`](#input_values) |  | 
-[`threshold_type`](#threshold_type) |  | 
+`binary_outcome` |  | 
+`forced_choice` |  | 
+`input_values` |  | 
+`threshold_type` |  | 
 
 ##### Methods
 

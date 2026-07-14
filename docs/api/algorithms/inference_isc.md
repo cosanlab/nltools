@@ -42,8 +42,8 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc_group_permutation_test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc_permutation_test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 ### Methods
 

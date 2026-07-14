@@ -6,14 +6,14 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#OnlineBootstrapStats) | Memory-efficient online statistics aggregator for bootstrap samples.
+`OnlineBootstrapStats` | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#FITTED_METHODS) |  | 
-[`SIMPLE_METHODS`](#SIMPLE_METHODS) |  | 
+`FITTED_METHODS` |  | 
+`SIMPLE_METHODS` |  | 
 
 ##### Methods
 

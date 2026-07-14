@@ -9,13 +9,13 @@ fitting, GLM estimation, Ridge regression, and contrast computation.
 
 Name | Description
 ---- | -----------
-[`compute_contrasts`](#compute_contrasts) | Compute contrasts from a fitted GLM.
-[`compute_ridge_cv`](#compute_ridge_cv) | Held-out CV scores under a fixed Ridge α.
+[`compute_contrasts`](#compute-contrasts) | Compute contrasts from a fitted GLM.
+[`compute_ridge_cv`](#compute-ridge-cv) | Held-out CV scores under a fixed Ridge α.
 [`fit`](#fit) | Fit a model to brain imaging data.
-[`fit_glm`](#fit_glm) | Fit GLM model and extract results (same logic as current regress()).
-[`fit_ridge`](#fit_ridge) | Fit Ridge model and extract results.
-[`parse_contrast_string`](#parse_contrast_string) | Parse a contrast string into a numeric contrast vector.
-[`to_fit_dataclass`](#to_fit_dataclass) | Convert BrainData fit results to Fit dataclass.
+[`fit_glm`](#fit-glm) | Fit GLM model and extract results (same logic as current regress()).
+[`fit_ridge`](#fit-ridge) | Fit Ridge model and extract results.
+[`parse_contrast_string`](#parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
+[`to_fit_dataclass`](#to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
 [`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
@@ -152,20 +152,19 @@ Type | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`The`](#The) | <code>following are set on bd when ``inplace=True``</code> | 
-[```model_```](#nltools.data.braindata.modeling.fit.``model_``) | <code>[BaseModel](#BaseModel)</code> | Fitted model instance (Ridge, Glm, etc.)
-[```X_```](#nltools.data.braindata.modeling.fit.``X_``) | <code>[ndarray](#ndarray)</code> | Training data X, stored for predict() default
-[```cv_results_```](#nltools.data.braindata.modeling.fit.``cv_results_``) | <code>[dict](#dict)</code> | Cross-validation results dict with keys 'scores',
-[`glm_betas`](#glm_betas) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
-[`glm_t`](#glm_t) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
-[`glm_p`](#glm_p) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
-[`glm_se`](#glm_se) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
-[`glm_residual`](#glm_residual) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
-[`glm_predicted`](#glm_predicted) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
-[`glm_r2`](#glm_r2) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
-[`ridge_weights`](#ridge_weights) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
-[`ridge_fitted_values`](#ridge_fitted_values) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
-[`ridge_scores`](#ridge_scores) | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
+`model_` | <code>[BaseModel](#BaseModel)</code> | Fitted model instance (Ridge, Glm, etc.). Set on bd when ``inplace=True``.
+`X_` | <code>[ndarray](#ndarray)</code> | Training data X, stored for predict() default.
+`cv_results_` | <code>[dict](#dict)</code> | Cross-validation results dict with keys 'scores', 'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
+`glm_betas` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
+`glm_t` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
+`glm_p` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
+`glm_se` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
+`glm_residual` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
+`glm_predicted` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
+`glm_r2` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
+`ridge_weights` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
+`ridge_fitted_values` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
+`ridge_scores` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
 
 **Examples:**
 

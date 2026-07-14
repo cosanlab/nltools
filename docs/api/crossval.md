@@ -9,7 +9,7 @@ types of cross-validation
 
 Name | Description
 ---- | -----------
-[`KFoldStratified`](#KFoldStratified) | Stratify continuous targets across K-fold cross-validation.
+[`KFoldStratified`](#kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
 
 
 

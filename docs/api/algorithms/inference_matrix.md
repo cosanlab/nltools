@@ -10,16 +10,16 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance_correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double_center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix_permutation_test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u_center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#MAX_INT) |  | 
+`MAX_INT` |  | 
 
 ### Methods
 

@@ -9,11 +9,11 @@ including cross-validation results and per-fold information.
 
 Name | Description
 ---- | -----------
-[`CVResult`](#CVResult) | Cross-validation result container.
-[`FoldResult`](#FoldResult) | Result from a single CV fold.
-[`ISCResult`](#ISCResult) | Result from ISC terminal computation.
-[`PermutationResult`](#PermutationResult) | Result from permutation testing.
-[`RSAResult`](#RSAResult) | Result from RSA terminal computation.
+[`CVResult`](#cvresult) | Cross-validation result container.
+[`FoldResult`](#foldresult) | Result from a single CV fold.
+`ISCResult` | Result from ISC terminal computation.
+[`PermutationResult`](#permutationresult) | Result from permutation testing.
+[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
 
 
 
@@ -46,21 +46,21 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse_transform) | Map predictions back through inverse transforms.
+[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
 [`summary`](#summary) | Return formatted summary string.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold_results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
-[`is_fully_invertible`](#is_fully_invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
-[`mean_score`](#mean_score) | <code>[float](#float)</code> | Mean score across all folds.
-[`n_folds`](#n_folds) | <code>[int](#int)</code> | Number of cross-validation folds.
-[`pipeline`](#pipeline) | <code>[Any](#typing.Any)</code> | 
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
-[`scores`](#scores) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
-[`std_score`](#std_score) | <code>[float](#float)</code> | Standard deviation of scores across folds.
+`fold_results` | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+`is_fully_invertible` | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
+`mean_score` | <code>[float](#float)</code> | Mean score across all folds.
+`n_folds` | <code>[int](#int)</code> | Number of cross-validation folds.
+`pipeline` | <code>[Any](#typing.Any)</code> | 
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
+`scores` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
+`std_score` | <code>[float](#float)</code> | Standard deviation of scores across folds.
 
 ##### Methods
 
@@ -118,11 +118,11 @@ enabling result aggregation and inverse transforms.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`score`](#score) | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
-[`predictions`](#predictions) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
-[`train_idx`](#train_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
-[`test_idx`](#test_idx) | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
-[`fitted_stack`](#fitted_stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
+`score` | <code>[float](#float)</code> | Model score on test set (e.g., R² or accuracy).
+`predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
+`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
+`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
+`fitted_stack` | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
 
 ##### Methods
 
@@ -153,10 +153,10 @@ where higher is better, like R2 or accuracy).
 
 Name | Type | Description
 ---- | ---- | -----------
-[`observed`](#observed) | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
-[`null_distribution`](#null_distribution) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
-[`p_value`](#p_value) | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
-[`n_permutations`](#n_permutations) | <code>[int](#int)</code> | Number of permutations performed.
+`observed` | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
+`null_distribution` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
+`p_value` | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
+`n_permutations` | <code>[int](#int)</code> | Number of permutations performed.
 
 **Examples:**
 
@@ -178,7 +178,7 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from_scores) | Create PermutationResult from observed result and null scores.
+[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
 [`summary`](#summary) | Return formatted summary string.
 
 ##### Methods
@@ -228,11 +228,11 @@ Holds representational similarity analysis correlation and p-value.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`correlation`](#correlation) | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
-[`p_value`](#p_value) | <code>[float](#float)</code> | P-value from permutation test.
-[`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
-[`method`](#method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
-[`n_conditions`](#n_conditions) | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
+`correlation` | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
+`p_value` | <code>[float](#float)</code> | P-value from permutation test.
+`ci` | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
+`method` | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
+`n_conditions` | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
 
 **Methods:**
 

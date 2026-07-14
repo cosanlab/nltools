@@ -9,7 +9,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one_sample_permutation_test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
