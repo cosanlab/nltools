@@ -40,7 +40,10 @@ async function main() {
 import micropip
 await micropip.install([
     "nibabel",
-    "nilearn",
+    // nilearn 0.14+ requires packaging>=26, exceeding the packaging 24.2 bundled by
+    // Pyodide 0.27 (the version JupyterLite's pinned kernel ships). Pin to the last
+    // 0.13.x that resolves in-browser.
+    "nilearn==0.13.1",
     "polars",
     "pynv",
     "seaborn",

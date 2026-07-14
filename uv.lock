@@ -1955,7 +1955,7 @@ requires-dist = [
     { name = "networkx", marker = "extra == 'graph'", specifier = ">=3.5" },
     { name = "nilearn", specifier = ">=0.12" },
     { name = "nltools", extras = ["h5", "graph"], marker = "extra == 'all'" },
-    { name = "numpy", specifier = ">=2.4.4" },
+    { name = "numpy", specifier = ">=2.0.2" },
     { name = "polars", specifier = ">=1.18" },
     { name = "pynv", specifier = ">=0.3" },
     { name = "seaborn", specifier = ">=0.13.2" },
