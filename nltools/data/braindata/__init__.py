@@ -1265,16 +1265,23 @@ class BrainData:
         atlas: "str | Atlas | None" = None,
         opacity: float = 1.0,
         outline: float = 0.0,
+        colorbar: bool = True,
+        controls: bool = True,
         **kwargs,
     ):
         """Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 
-        Returns a configured `NiiVue` widget — itself an
-        anywidget — that renders inline in a live kernel (Jupyter, marimo)
-        with live windowing (right-drag to set the threshold/contrast),
-        slice scrolling, native 4D frame scrubbing, true 3D rendering, and
-        optional nltools-atlas overlays. Static-built docs are not supported;
-        use `plot` there.
+        Renders inline in a live kernel (Jupyter, marimo) with live windowing
+        (right-drag to set the threshold/contrast), slice scrolling, native 4D
+        frame scrubbing, true 3D rendering, a stat-map colorbar, and optional
+        nltools-atlas overlays. Static-built docs are not supported; use
+        `plot` there.
+
+        By default (``controls=True``) the return value is an
+        `ipywidgets.VBox` stacking a threshold slider above the viewer; access
+        the underlying `NiiVue` via its ``.viewer`` attribute and the slider
+        via ``.threshold_slider``. Pass ``controls=False`` to get the bare
+        `NiiVue` widget instead.
 
         Thresholding is a divergent magnitude window: ``cal_min`` is the
         display floor (sub-floor voxels render transparent), ``cal_max`` the
@@ -1302,13 +1309,21 @@ class BrainData:
             opacity: Stat-map (and filled-atlas) opacity in ``0..1``.
             outline: ``> 0`` draws atlas region boundaries of that width
                 (stat map stays visible); ``0`` draws filled regions.
+            colorbar: Show the stat-map colorbar (default ``True``). An
+                explicit ``is_colorbar`` kwarg overrides this.
+            controls: Wrap the viewer in a `VBox` with an interactive
+                threshold slider (default ``True``). ``False`` returns the
+                bare `NiiVue`. Requires the ``ipywidgets`` optional
+                dependency when ``True``.
             **kwargs: Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)``
                 (e.g. ``height``, ConfigOptions like ``is_colorbar``).
 
         Returns:
-            ipyniivue.NiiVue: A configured viewer widget.
+            ipywidgets.VBox with ``.viewer`` (the `NiiVue`) and
+            ``.threshold_slider`` when ``controls=True``; otherwise the bare
+            ``ipyniivue.NiiVue`` widget.
         """
-        from .viewer import build_viewer
+        from .viewer import build_controls, build_viewer
 
         if lower is not None or upper is not None:
             cal_min, cal_max = lower, upper
@@ -1317,7 +1332,7 @@ class BrainData:
         else:
             cal_min, cal_max = None, None
 
-        return build_viewer(
+        nv = build_viewer(
             self,
             view=view,
             cal_min=cal_min,
@@ -1327,8 +1342,21 @@ class BrainData:
             bg_img=bg_img,
             opacity=opacity,
             outline=outline,
+            colorbar=colorbar,
             niivue_opts=kwargs,
         )
+        if controls:
+            try:
+                import ipywidgets  # noqa: F401
+            except ModuleNotFoundError as exc:
+                raise ModuleNotFoundError(
+                    "iplot(controls=True) requires the optional dependency "
+                    "`ipywidgets`. Install it with `uv add ipywidgets` (or "
+                    "`pip install 'nltools[interactive_plots]'`), or call "
+                    "iplot(controls=False) for the bare viewer."
+                ) from exc
+            return build_controls(nv, self, cal_min=cal_min, cal_max=cal_max)
+        return nv
 
     def predict(
         self,

@@ -19,7 +19,15 @@ from nltools.data.braindata.viewer import (
     resolve_background,
     resolve_cmap,
     slice_type_for,
+    threshold_slider_bounds,
 )
+
+
+class _FakeBD:
+    """Minimal stand-in exposing just the ``.data`` attribute the helper reads."""
+
+    def __init__(self, data):
+        self.data = np.asarray(data, dtype=float)
 
 
 def _atlas(indices, names, *, kind="deterministic"):
@@ -139,6 +147,58 @@ class TestSliceTypeFor:
     def test_surface_raises_with_render_hint(self):
         with pytest.raises(ValueError, match="render"):
             slice_type_for("surface")
+
+
+class TestThresholdSliderBounds:
+    def test_bounds_span_finite_data(self):
+        lo, hi, vlo, vhi, step = threshold_slider_bounds(
+            _FakeBD([-3.0, 0.0, 4.0]), cal_min=None, cal_max=None
+        )
+        assert lo == pytest.approx(-3.0)
+        assert hi == pytest.approx(4.0)
+        # No requested window -> handles sit at the data extremes.
+        assert vlo == pytest.approx(-3.0)
+        assert vhi == pytest.approx(4.0)
+        assert step == pytest.approx(7.0 / 200.0)
+
+    def test_ignores_nonfinite(self):
+        lo, hi, *_ = threshold_slider_bounds(
+            _FakeBD([np.nan, -2.0, np.inf, 5.0]), cal_min=None, cal_max=None
+        )
+        assert lo == pytest.approx(-2.0)
+        assert hi == pytest.approx(5.0)
+
+    def test_requested_window_sets_handles(self):
+        _, _, vlo, vhi, _ = threshold_slider_bounds(
+            _FakeBD([-3.0, 4.0]), cal_min=1.0, cal_max=3.0
+        )
+        assert vlo == pytest.approx(1.0)
+        assert vhi == pytest.approx(3.0)
+
+    def test_requested_window_widens_bounds(self):
+        # A window outside the data range widens the bounds so the handles land
+        # exactly where requested rather than being clamped to the extremes.
+        lo, hi, vlo, vhi, _ = threshold_slider_bounds(
+            _FakeBD([-3.0, 4.0]), cal_min=-99.0, cal_max=99.0
+        )
+        assert lo == pytest.approx(-99.0)
+        assert hi == pytest.approx(99.0)
+        assert vlo == pytest.approx(-99.0)
+        assert vhi == pytest.approx(99.0)
+
+    def test_empty_data_falls_back(self):
+        lo, hi, vlo, vhi, step = threshold_slider_bounds(
+            _FakeBD([]), cal_min=None, cal_max=None
+        )
+        assert (lo, hi) == (0.0, 1.0)
+        assert step > 0
+
+    def test_constant_data_widens_upper_bound(self):
+        lo, hi, *_ = threshold_slider_bounds(
+            _FakeBD([2.0, 2.0, 2.0]), cal_min=None, cal_max=None
+        )
+        assert lo == pytest.approx(2.0)
+        assert hi == pytest.approx(3.0)  # lo + 1 so the range is non-degenerate
 
 
 class TestResolveBackground:

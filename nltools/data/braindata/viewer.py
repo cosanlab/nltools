@@ -378,6 +378,7 @@ def build_viewer(
     bg_img: str | bool | None = None,
     opacity: float = 1.0,
     outline: float = 0.0,
+    colorbar: bool = True,
     niivue_opts: dict | None = None,
 ) -> NiiVue:
     """Assemble a configured `NiiVue` for a BrainData.
@@ -397,6 +398,9 @@ def build_viewer(
         opacity: Stat-map (and filled-atlas) opacity.
         outline: ``> 0`` draws atlas region boundaries of that width;
             ``0`` draws filled regions.
+        colorbar: Show the stat-map colorbar (the ``cmap`` scale). Only the
+            stat map carries a colorbar; the background and atlas overlays are
+            suppressed. An explicit ``is_colorbar`` in ``niivue_opts`` wins.
         niivue_opts: Extra kwargs forwarded verbatim to ``NiiVue(**opts)``.
 
     Returns:
@@ -424,7 +428,10 @@ def build_viewer(
 
     volumes: list[Volume] = []
     if bg_path is not None:
-        volumes.append(Volume(path=bg_path, name="background", colormap="gray"))
+        bg_vol = Volume(path=bg_path, name="background", colormap="gray")
+        # Only the stat map should carry a colorbar; the anatomical scale is noise.
+        bg_vol.colorbar_visible = False
+        volumes.append(bg_vol)
     volumes.append(statmap)
     if atlas_obj is not None:
         atlas_vol = Volume(
@@ -433,11 +440,122 @@ def build_viewer(
             opacity=float(opacity),
         )
         atlas_vol.set_colormap_label(atlas_lut)
+        # Region labels aren't a continuous scale, so suppress their colorbar.
+        atlas_vol.colorbar_visible = False
         volumes.append(atlas_vol)
 
-    nv = NiiVue(**(niivue_opts or {}))
+    # Enable the global colorbar unless the caller overrode is_colorbar directly.
+    opts = dict(niivue_opts or {})
+    opts.setdefault("is_colorbar", bool(colorbar))
+    nv = NiiVue(**opts)
     nv.load_volumes(volumes)
     if atlas_obj is not None and outline > 0:
         nv.set_atlas_outline(float(outline))
     nv.set_slice_type(slice_type)
     return nv
+
+
+# --------------------------------------------------------------------------- #
+# Interactive threshold controls (imperative shell)
+# --------------------------------------------------------------------------- #
+
+
+def threshold_slider_bounds(
+    bd, *, cal_min: float | None, cal_max: float | None
+) -> tuple[float, float, float, float, float]:
+    """Compute ``(min, max, value_low, value_high, step)`` for a threshold slider.
+
+    The slider spans the BrainData's finite value range, widened as needed to
+    include an explicit ``cal_min``/``cal_max`` so the requested window is
+    always representable (never silently clamped). Its initial handles sit at
+    ``cal_min``/``cal_max`` when given, else at the data extremes.
+
+    Args:
+        bd: The BrainData being viewed.
+        cal_min: Requested window floor, or ``None``.
+        cal_max: Requested window ceiling, or ``None``.
+
+    Returns:
+        ``(lo_bound, hi_bound, value_low, value_high, step)`` — all floats.
+    """
+    import numpy as np
+
+    data = np.asarray(bd.data, dtype=float)
+    finite = data[np.isfinite(data)]
+    if finite.size == 0:
+        lo_bound, hi_bound = 0.0, 1.0
+    else:
+        lo_bound, hi_bound = float(finite.min()), float(finite.max())
+
+    # Widen the range to include an explicitly requested window so its handles
+    # land exactly where asked rather than being clamped to the data extremes.
+    extras = [float(x) for x in (cal_min, cal_max) if x is not None]
+    if extras:
+        lo_bound = min(lo_bound, *extras)
+        hi_bound = max(hi_bound, *extras)
+    if lo_bound == hi_bound:
+        hi_bound = lo_bound + 1.0
+
+    value_low = float(cal_min) if cal_min is not None else lo_bound
+    value_high = float(cal_max) if cal_max is not None else hi_bound
+    step = (hi_bound - lo_bound) / 200.0 or 0.01
+    return lo_bound, hi_bound, value_low, value_high, step
+
+
+def build_controls(nv: NiiVue, bd, *, cal_min: float | None, cal_max: float | None):
+    """Wrap a `NiiVue` in a `VBox` with a live threshold slider.
+
+    The returned container stacks a `FloatRangeSlider` above the viewer; the
+    slider drives the stat-map volume's ``cal_min``/``cal_max`` window (the
+    discoverable in-notebook equivalent of niivue's right-drag windowing).
+    The niivue widget is exposed as ``.viewer`` and the slider as
+    ``.threshold_slider`` for programmatic access.
+
+    When the caller passed no ``cal_min``/``cal_max``, the volume window is
+    left on niivue auto until the slider is first moved, so the default
+    display matches ``controls=False``.
+
+    Args:
+        nv: The assembled viewer (from `build_viewer`).
+        bd: The BrainData being viewed (source of the slider range).
+        cal_min: Window floor the caller requested, or ``None`` for auto.
+        cal_max: Window ceiling the caller requested, or ``None`` for auto.
+
+    Returns:
+        An `ipywidgets.VBox` with ``.viewer`` and ``.threshold_slider`` set.
+
+    Note:
+        Requires ``ipywidgets``; `BrainData.iplot` guards that at the boundary
+        (raising a friendly install hint) before delegating here.
+    """
+    from ipywidgets import FloatRangeSlider, Layout, VBox
+
+    statmap = next((v for v in nv.volumes if v.name == "statmap"), None)
+    if statmap is None:  # pragma: no cover - build_viewer always adds statmap
+        return nv
+
+    lo, hi, vlo, vhi, step = threshold_slider_bounds(
+        bd, cal_min=cal_min, cal_max=cal_max
+    )
+    slider = FloatRangeSlider(
+        value=(vlo, vhi),
+        min=lo,
+        max=hi,
+        step=step,
+        description="Threshold",
+        continuous_update=True,
+        readout_format=".2f",
+        layout=Layout(width="90%"),
+    )
+
+    def _sync(_change):
+        low, high = slider.value
+        statmap.cal_min = float(low)
+        statmap.cal_max = float(high)
+
+    slider.observe(_sync, names="value")
+
+    box = VBox([slider, nv])
+    box.viewer = nv
+    box.threshold_slider = slider
+    return box
