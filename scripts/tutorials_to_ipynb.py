@@ -40,6 +40,7 @@ JUPYTERLITE_PACKAGES = [
     "matplotlib",
     "anywidget",
     "ipyniivue",
+    "ipywidgets",  # optional extra for installs; required here for iplot()'s slider
     "joblib>=1.5.3",
     "huggingface-hub",
     "pynv",

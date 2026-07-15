@@ -581,17 +581,22 @@ Name | Type | Description
 #### `iplot`
 
 ```python
-iplot(*, view: str = 'ortho', threshold: float | None = None, lower: float | None = None, upper: float | None = None, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, **kwargs: float)
+iplot(*, view: str = 'ortho', threshold: float | None = None, lower: float | None = None, upper: float | None = None, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
 ```
 
 Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 
-Returns a configured `NiiVue` widget — itself an
-anywidget — that renders inline in a live kernel (Jupyter, marimo)
-with live windowing (right-drag to set the threshold/contrast),
-slice scrolling, native 4D frame scrubbing, true 3D rendering, and
-optional nltools-atlas overlays. Static-built docs are not supported;
-use `plot` there.
+Renders inline in a live kernel (Jupyter, marimo) with live windowing
+(right-drag to set the threshold/contrast), slice scrolling, native 4D
+frame scrubbing, true 3D rendering, a stat-map colorbar, and optional
+nltools-atlas overlays. Static-built docs are not supported; use
+`plot` there.
+
+By default (``controls=True``) the return value is an
+`ipywidgets.VBox` stacking a threshold slider above the viewer; access
+the underlying `NiiVue` via its ``.viewer`` attribute and the slider
+via ``.threshold_slider``. Pass ``controls=False`` to get the bare
+`NiiVue` widget instead.
 
 Thresholding is a divergent magnitude window: ``cal_min`` is the
 display floor (sub-floor voxels render transparent), ``cal_max`` the
@@ -613,13 +618,17 @@ Name | Type | Description | Default
 `atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
 `opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
 `outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
+`colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (default ``True``). An explicit ``is_colorbar`` kwarg overrides this. | <code>True</code>
+`controls` | <code>[bool](#bool)</code> | Wrap the viewer in a `VBox` with an interactive threshold slider (default ``True``). ``False`` returns the bare `NiiVue`. Requires the ``ipywidgets`` optional dependency when ``True``. | <code>True</code>
 `**kwargs` |  | Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | ipyniivue.NiiVue: A configured viewer widget.
+ | ipywidgets.VBox with ``.viewer`` (the `NiiVue`) and
+ | ``.threshold_slider`` when ``controls=True``; otherwise the bare
+ | ``ipyniivue.NiiVue`` widget.
 
 #### `mean`
 

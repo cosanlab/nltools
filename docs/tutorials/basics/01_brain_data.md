@@ -275,11 +275,16 @@ mean_brain.plot(method="histogram", title="Voxel Intensity Distribution", figsiz
 
 ### Interactive Viewer
 
-`BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer — a WebGL [`ipyniivue.NiiVue`](https://github.com/niivue/ipyniivue) widget. Right-drag to window the stat map live, scroll to move through slices, scrub 4D frames natively, render in 3D, and overlay nltools atlases with hover-to-label. It renders in a **live kernel** (Jupyter, marimo); for static figures use `plot()` (above). The snippets below are not executed when this page is built.
+`BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer built on a WebGL [`ipyniivue.NiiVue`](https://github.com/niivue/ipyniivue) widget. By default it renders a **threshold slider stacked above the viewer** (an `ipywidgets.VBox`), with the stat-map colorbar shown. Drag the slider — or right-drag on the image — to window the stat map live; scroll to move through slices, scrub 4D frames natively, render in 3D, and overlay nltools atlases with hover-to-label. It renders in a **live kernel** (Jupyter, marimo); for static figures use `plot()` (above). The snippets below are not executed when this page is built.
+
+The default (`controls=True`) needs the optional `ipywidgets` dependency (`pip install 'nltools[interactive_plots]'`). Pass `controls=False` for the bare `NiiVue` (no extra dependency), and `colorbar=False` to hide the colorbar. When `controls=True`, the returned box exposes the underlying widget as `.viewer` and the slider as `.threshold_slider`.
 
 ```python
-# 3D ortho viewer — right-drag to window the stat map live
-masked_data.iplot()
+# 3D ortho viewer with a threshold slider + colorbar
+ui = masked_data.iplot()
+ui.viewer            # the underlying ipyniivue.NiiVue, for programmatic access
+
+masked_data.iplot(controls=False)   # bare NiiVue (no ipywidgets needed)
 ```
 
 Set the initial threshold window via kwargs. `threshold=` is a symmetric magnitude floor (sub-threshold voxels become transparent); `lower=`/`upper=` set explicit divergent window endpoints (negative limb uses a cool colormap, positive limb a warm one):

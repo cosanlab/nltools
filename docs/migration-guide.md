@@ -686,7 +686,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 (interactive-viewing)=
 ### Pattern 0: Interactive viewing (`iplot`) — Rebuilt on niivue
 
-**Status**: 🔧 **REBUILT** — `BrainData.iplot()` now returns a configured [`ipyniivue.NiiVue`](https://github.com/niivue/ipyniivue) widget (WebGL, anywidget-based) instead of the nilearn HTML viewer. niivue gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
+**Status**: 🔧 **REBUILT** — `BrainData.iplot()` is now a WebGL [niivue](https://github.com/niivue/ipyniivue) viewer (anywidget-based) instead of the nilearn HTML viewer. By default it returns an `ipywidgets.VBox` pairing a **threshold slider** with the viewer and shows the **stat-map colorbar**; niivue also gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
 
 `iplot` is **live-kernel only** (Jupyter, marimo). It does not render in statically-built docs — use `BrainData.plot()` there.
 
@@ -695,7 +695,9 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | | v0.5.1 | v0.6.0 |
 |---|---|---|
 | Engine | nilearn `view_img` HTML in an iframe | niivue (`ipyniivue`, WebGL) |
-| Threshold control | Bespoke panel (Value↔Percentile, Symmetric↔Independent) | niivue's native windowing — right-drag to set floor/ceiling live; `threshold=`/`lower=`/`upper=` set the initial window |
+| Threshold control | Bespoke panel (Value↔Percentile, Symmetric↔Independent) | An `ipywidgets` threshold slider (`controls=True`, default) plus niivue's right-drag windowing; `threshold=`/`lower=`/`upper=` set the initial window |
+| Colorbar | On | On by default (`colorbar=False` to hide); only the stat map carries one |
+| Return value | `ipyniivue.NiiVue` | `ipywidgets.VBox` (slider + viewer) by default, with `.viewer`/`.threshold_slider`; `controls=False` returns the bare `NiiVue` |
 | Surface view | `view='surface'` (`view_img_on_surf`) | **removed** — niivue's 3D is volumetric. Use `view='render'`, or `plot_flatmap`/`plot_surf` for a cortical mesh |
 | Views | `'ortho'`, `'surface'` | `'ortho'`, `'axial'`, `'coronal'`, `'sagittal'`, `'render'` |
 | 4D handling | Re-render per volume; pre-render every frame for static docs | Loaded once; niivue scrubs frames natively |
@@ -728,9 +730,14 @@ bd.iplot(atlas='aal', outline=2)        # region boundaries only (stat map stays
 # 4D BrainData: same call — scrub frames with niivue's native 4D controls
 stack = BrainData([f1, f2, f3, f4, f5])
 stack.iplot()
+
+# Return value: a VBox (threshold slider + viewer) with the colorbar shown
+ui = bd.iplot()                         # ui.viewer is the ipyniivue.NiiVue
+bd.iplot(controls=False)                # bare NiiVue (no ipywidgets needed)
+bd.iplot(colorbar=False)                # hide the stat-map colorbar
 ```
 
-`iplot()` returns the `NiiVue` widget directly, so any `ipyniivue.NiiVue(**kwargs)` option (e.g. `height=`, `is_colorbar=`) can be passed through `iplot(...)`. For surface rendering of a cortical mesh, use `plot_flatmap`/`plot_surf` (static) — niivue's `view='render'` is a 3D volume render, not a mesh projection.
+By default (`controls=True`) `iplot()` returns an `ipywidgets.VBox` stacking a threshold slider above the viewer, exposing the niivue widget as `.viewer` and the slider as `.threshold_slider`; this needs the optional `ipywidgets` dependency (`pip install 'nltools[interactive_plots]'`). Pass `controls=False` for the bare `NiiVue` with no extra dependency. Any `ipyniivue.NiiVue(**kwargs)` option (e.g. `height=`, `is_colorbar=`) still passes through `iplot(...)`. For surface rendering of a cortical mesh, use `plot_flatmap`/`plot_surf` (static) — niivue's `view='render'` is a 3D volume render, not a mesh projection.
 
 
 
