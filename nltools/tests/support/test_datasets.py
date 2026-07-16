@@ -122,6 +122,45 @@ class TestIntegration:
             pytest.skip(f"Integration test skipped due to network error: {e}")
 
 
+class TestFetchPain:
+    """HF-backed pain dataset loader."""
+
+    def test_pain_resources_manifest(self):
+        """PAIN_RESOURCES is the metadata CSV + a full 28x3 image grid."""
+        from nltools.datasets import PAIN_RESOURCES
+
+        assert PAIN_RESOURCES[0] == "datasets/pain/metadata.csv"
+        images = PAIN_RESOURCES[1:]
+        assert len(images) == 84  # 28 subjects x 3 pain levels
+        assert all(f.endswith(".nii.gz") for f in images)
+        # deterministic grid, sorted subject-major then low/medium/high
+        assert images[0] == "datasets/pain/sub-01_pain-low.nii.gz"
+        assert images[-1] == "datasets/pain/sub-28_pain-high.nii.gz"
+
+    @pytest.mark.slow
+    def test_fetch_pain_from_hf(self):
+        """Downloads the real dataset from HF and returns a populated BrainData."""
+        from nltools.datasets import fetch_pain
+
+        try:
+            brain = fetch_pain()
+        except Exception as e:
+            pytest.skip(f"Skipped due to network error: {e}")
+
+        assert isinstance(brain, BrainData)
+        assert brain.shape[0] == 84
+        assert {
+            "filename",
+            "SubjectID",
+            "PainLevel",
+            "PainIntensity",
+            "Age",
+            "Sex",
+        }.issubset(brain.X.columns)
+        assert brain.X["SubjectID"].n_unique() == 28
+        assert sorted(brain.X["PainLevel"].unique().to_list()) == [1, 2, 3]
+
+
 class TestLoadHaxbyExample:
     """Offline synthetic Haxby dataset for tutorials / Pyodide."""
 

@@ -2,11 +2,17 @@
 
 # NeuroLearn datasets
 
-Functions to help download datasets from Neurovault and other sources.
+Functions to help download example datasets. The curated example datasets
+(`fetch_pain`) are hosted on the ``nltools/niftis`` Hugging Face dataset and
+resolve through the same `fetch_resource` / `seed_resources` machinery as the
+MNI templates and atlases, so they work both on a normal Python kernel and in
+Pyodide / JupyterLite (pre-seed with `seed_resources` there). Arbitrary
+Neurovault collections are still available via `fetch_neurovault_collection`.
 
 """
 
 __all__ = [
+    "PAIN_RESOURCES",
     "download_nifti",
     "fetch_emotion_ratings",
     "fetch_neurovault_collection",
@@ -17,6 +23,7 @@ __all__ = [
 from pathlib import Path
 from nltools.data import BrainData, DesignMatrix
 from nltools.data.designmatrix.io import events_to_dm
+from nltools.templates import fetch_resource
 
 # Core dependencies
 from nilearn.datasets import fetch_neurovault_ids
@@ -26,6 +33,24 @@ try:
     import requests
 except ImportError:
     requests = None
+
+# Curated pain dataset hosted on the ``nltools/niftis`` HF dataset. The 84
+# images form a complete 28-subject x 3-pain-level grid; filenames are
+# deterministic so the full resource list can be enumerated without a
+# network round-trip (needed to pre-seed the Pyodide cache).
+_PAIN_DIR = "datasets/pain"
+_PAIN_LEVELS = ("low", "medium", "high")
+PAIN_RESOURCES: list[str] = [f"{_PAIN_DIR}/metadata.csv"] + [
+    f"{_PAIN_DIR}/sub-{sub:02d}_pain-{level}.nii.gz"
+    for sub in range(1, 29)
+    for level in _PAIN_LEVELS
+]
+"""Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
+
+Pass to `nltools.templates.seed_resources` before calling `fetch_pain` in
+Pyodide / JupyterLite, where synchronous downloads are unavailable:
+``await seed_resources(PAIN_RESOURCES)``.
+"""
 
 
 def download_nifti(url, data_dir=None):
@@ -107,31 +132,37 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         raise RuntimeError(f"Failed to download collection {collection_id}: {e}")
 
 
-def fetch_pain(data_dir=None, verbose=1):
-    """Download and load pain dataset from Neurovault.
+def fetch_pain(verbose=0):
+    """Download and load the pain dataset from the nltools HF dataset.
 
-    This downloads the Chang et al. (2015) pain dataset from Neurovault collection 504.
+    Loads the Chang et al. (2015) pain-perception study: 28 subjects x 3
+    stimulus-intensity conditions = 84 whole-brain contrast images, with a
+    curated metadata table (`SubjectID`, `PainLevel`, `PainIntensity`, `Age`,
+    `Sex`, provenance `neurovault_id` / `name`).
+
+    Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
+    locally on first use, so this works on a normal Python kernel with no extra
+    setup. In Pyodide / JupyterLite, pre-seed the cache first:
+    ``await seed_resources(PAIN_RESOURCES)``.
 
     Args:
-        data_dir (str, optional): Path of the data directory. Used to force data
-            storage in a specified location. Default: None
-        verbose (int, optional): Verbosity level. Default: 1
+        verbose (int, optional): Verbosity passed to `BrainData` while loading.
+            Default: 0
 
     Returns:
-        BrainData: BrainData object with downloaded data. X=metadata
+        BrainData: `BrainData` with the 84 images; `X` holds the metadata table.
 
     References:
         Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
         A sensitive and specific neural signature for picture-induced negative affect.
         PLoS biology, 13(6), e1002180.
     """
-    collection_id = 504
+    import polars as pl
 
     try:
-        metadata, files = fetch_neurovault_collection(
-            collection_id=collection_id, data_dir=data_dir, verbose=verbose
-        )
-        return BrainData(data=files, X=metadata, verbose=0)
+        metadata = pl.read_csv(fetch_resource(f"{_PAIN_DIR}/metadata.csv"))
+        files = [fetch_resource(f"{_PAIN_DIR}/{fn}") for fn in metadata["filename"]]
+        return BrainData(data=files, X=metadata, verbose=verbose)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch pain dataset: {e}")
