@@ -4,12 +4,13 @@
 Low-level pipeline primitives used by `BrainCollection`.
 
 These are the building blocks that back `BrainCollectionPipeline`: transform
-steps (`NormalizeStep`, `ReduceStep`, `PipeStep`, `AlignStep`), the fitted-stack
-container (`FittedStack`), the pooled-data aggregator (`PooledData`), and the
-transform protocols. The standalone fluent `Pipeline` / `MultiSubjectPipeline`
-orchestration was removed in v0.6.0 — multi-subject CV now lives on
-`BrainCollection` (`.cv().standardize().reduce().predict()`) and custom
-single-dataset preprocessing uses `model=make_pipeline(...)` on `BrainData.predict`.
+steps (`NormalizeStep`, `ReduceStep`, `PipeStep`), the fitted-stack container
+(`FittedStack`), the pooled-data aggregator (`PooledData`), the cross-validation
+scheme (`CVScheme`), and the transform protocols. This package is internal; the
+standalone fluent `Pipeline` / `MultiSubjectPipeline` orchestration was removed in
+v0.6.0 — multi-subject CV now lives on `BrainCollection`
+(`.cv().standardize().reduce().predict()`) and custom single-dataset
+preprocessing uses `model=make_pipeline(...)` on `BrainData.predict`.
 
 **Modules:**
 
@@ -24,9 +25,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#pipelines-alignstep) | Cross-subject alignment via SRM or HyperAlignment.
-[`CVScheme`](#pipelines-cvscheme) | Protocol for cross-validation schemes.
-[`FittedAlign`](#pipelines-fittedalign) | Fitted alignment model.
+[`CVScheme`](#pipelines-cvscheme) | Cross-validation scheme configuration.
 [`FittedStack`](#pipelines-fittedstack) | Collection of fitted transforms for inverse transform support.
 [`FittedTransform`](#pipelines-fittedtransform) | Protocol for fitted transform objects.
 [`NormalizeStep`](#pipelines-normalizestep) | Normalization transform step.
@@ -35,223 +34,129 @@ Name | Description
 [`ReduceStep`](#pipelines-reducestep) | Dimensionality reduction step.
 [`ResultDict`](#pipelines-resultdict) | Dictionary of StatResults, one per contrast.
 [`StatResult`](#pipelines-statresult) | Result of statistical test.
-[`Terminal`](#pipelines-terminal) | Protocol for terminal operations that end a pipeline.
 [`TransformStep`](#pipelines-transformstep) | Protocol for pipeline transform steps.
 
 
 
 ### Classes
 
-(pipelines-alignstep)=
-#### `AlignStep`
+(pipelines-cvscheme)=
+#### `CVScheme`
 
 ```python
-AlignStep(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', n_iter: int = 10, parallel: str | None = 'cpu', n_jobs: int = -1, **kwargs: int)
+CVScheme(k: int | None = None, scheme: CVSchemeType = 'kfold', split_by: str | None = None, n: int = 1000, random_state: int | None = None) -> None
 ```
 
-Cross-subject alignment via SRM or HyperAlignment.
+Cross-validation scheme configuration.
 
-Wraps existing SRM and HyperAlignment algorithms for use in pipelines.
-Currently supports 'global' scheme only. Searchlight/piecewise schemes
-require LocalAlignment (nltools-boll epic).
+Supports multiple CV strategies:
+- kfold: k-fold cross-validation
+- loso: leave-one-subject-out (for multi-subject)
+- loro: leave-one-run-out
+- bootstrap: bootstrap resampling
+- permutation: permutation testing (shuffles targets)
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Alignment method: 'srm' or 'hyperalignment'. Default is 'srm'. | <code>'srm'</code>
-`scheme` | <code>[str](#str)</code> | Spatial scheme. Currently only 'global' is supported. 'searchlight' and 'piecewise' require LocalAlignment. | <code>'global'</code>
-`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None for hyperalignment (full rank). | <code>50</code>
-`new_subject` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV. Default is 'procrustes'. | <code>'procrustes'</code>
-`n_iter` | <code>[int](#int)</code> | Number of iterations for SRM (or 2 for hyperalignment). Default is 10. | <code>10</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization: 'cpu', 'gpu', or None. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Default is -1. | <code>-1</code>
-`**kwargs` |  | Additional arguments passed to the underlying algorithm. For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'. | <code>{}</code>
+`k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'. | <code>'kfold'</code>
+`split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
+`n` | <code>[int](#int)</code> | Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000. | <code>1000</code>
+`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
-Examples:
->>> import numpy as np
->>> # Create synthetic multi-subject data
->>> data = [np.random.randn(100, 50) for _ in range(5)]
->>> step = AlignStep(method='srm', n_features=10)
->>> fitted = step.fit(data)
->>> aligned = fitted.transform(data)
+**Examples:**
+
+```pycon
+>>> # 5-fold cross-validation
+>>> cv = CVScheme(scheme='kfold', k=5)
+>>> for train_idx, test_idx in cv.split(data):
+...     # train and evaluate model
+...     pass
+```
+
+```pycon
+>>> # Leave-one-subject-out
+>>> cv = CVScheme(scheme='loso', split_by='subjects')
+>>> for train_idx, test_idx in cv.split(data, groups=subject_ids):
+...     pass
+```
+
+```pycon
+>>> # Bootstrap with 500 iterations
+>>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
+```
+
+```pycon
+>>> # Permutation testing with 1000 permutations
+>>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
+```
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#pipelines-fit) | Fit alignment model on list of subject data.
+[`n_splits`](#pipelines-n-splits) | Return number of splits.
+[`split`](#pipelines-split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-`kwargs` |  | 
-[`method`](#pipelines-method) |  | 
-`n_features` |  | 
-`n_iter` |  | 
-`n_jobs` |  | 
-`new_subject` |  | 
-`parallel` |  | 
-`scheme` |  | 
+[`is_loro`](#pipelines-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 
-(pipelines-fit)=
-###### `fit`
+(pipelines-n-splits)=
+###### `n_splits`
 
 ```python
-fit(data: list[np.ndarray]) -> FittedAlign
+n_splits(data: Any = None, groups: NDArray[np.intp] | None = None) -> int
 ```
 
-Fit alignment model on list of subject data.
+Return number of splits.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Each array has shape (n_voxels, n_samples) or (n_samples, n_voxels). Will be transposed if needed to match algorithm expectations. | *required*
+`data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[FittedAlign](#nltools.pipelines.steps.FittedAlign)</code> | Fitted alignment model.
-
-(pipelines-cvscheme)=
-#### `CVScheme`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for cross-validation schemes.
-
-Compatible with scikit-learn CV splitters and custom implementations.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`split`](#pipelines-split) | Generate train/test index splits.
-
-
-
-##### Methods
+<code>[int](#int)</code> | Number of splits/folds that will be generated.
 
 (pipelines-split)=
 ###### `split`
 
 ```python
-split(data: Any) -> Any
+split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
 ```
 
-Generate train/test index splits.
+Generate train/test indices for each fold.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to split (used to determine n_samples). | *required*
+`data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
-
-(pipelines-fittedalign)=
-#### `FittedAlign`
-
-```python
-FittedAlign(model: Any, method: str, new_subject_method: str = 'procrustes') -> None
-```
-
-Fitted alignment model.
-
-Holds a fitted SRM or HyperAlignment model and applies transformations.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#pipelines-method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-`new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`inverse_transform`](#pipelines-inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#pipelines-transform) | Transform subjects that were in training.
-[`transform_new_subject`](#pipelines-transform-new-subject) | Align a new subject not in training (for LOSO).
-
-##### Methods
-
-(pipelines-inverse-transform)=
-###### `inverse_transform`
-
-```python
-inverse_transform(data: list[np.ndarray]) -> list[np.ndarray]
-```
-
-Reverse alignment (only for full-rank hyperalignment).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Data in original subject-specific space, shape (n_samples, n_features).
-
-(pipelines-transform)=
-###### `transform`
-
-```python
-transform(data: list[np.ndarray]) -> list[np.ndarray]
-```
-
-Transform subjects that were in training.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_samples, n_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features).
-
-(pipelines-transform-new-subject)=
-###### `transform_new_subject`
-
-```python
-transform_new_subject(data: np.ndarray) -> np.ndarray
-```
-
-Align a new subject not in training (for LOSO).
-
-Uses transform_subject() which fits a new transform for the held-out subject.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data for the new subject, shape (n_samples, n_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
+<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
 
 (pipelines-fittedstack)=
 #### `FittedStack`
@@ -301,6 +206,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fitted_step` | <code>[FittedTransform](#nltools.pipelines.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
+(pipelines-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -378,6 +284,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Data in original space.
 
+(pipelines-transform)=
 ###### `transform`
 
 ```python
@@ -443,6 +350,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-fit)=
 ###### `fit`
 
 ```python
@@ -855,51 +763,6 @@ Name | Type | Description | Default
 `path` | <code>[str](#str)</code> | Output path. | *required*
 `mask` |  | Mask to use for reconstruction. | <code>None</code>
 
-(pipelines-terminal)=
-#### `Terminal`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for terminal operations that end a pipeline.
-
-Terminals perform the final computation (e.g., prediction, similarity)
-and produce results for each CV fold.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit_evaluate`](#pipelines-fit-evaluate) | Fit on training data and evaluate on test data.
-
-
-
-##### Methods
-
-(pipelines-fit-evaluate)=
-###### `fit_evaluate`
-
-```python
-fit_evaluate(train_data: Any, test_data: Any, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: FittedStack) -> Any
-```
-
-Fit on training data and evaluate on test data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`train_data` | <code>[Any](#typing.Any)</code> | Transformed training data. | *required*
-`test_data` | <code>[Any](#typing.Any)</code> | Transformed test data. | *required*
-`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original training indices. | *required*
-`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original test indices. | *required*
-`fitted_stack` | <code>[FittedStack](#nltools.pipelines.base.FittedStack)</code> | Stack of fitted transforms for inverse transform support. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
-
 (pipelines-transformstep)=
 #### `TransformStep`
 
@@ -959,68 +822,23 @@ Type | Description
 
 Low-level pipeline primitives for nltools.
 
-Defines the transform protocols (`TransformStep`, `FittedTransform`, `CVScheme`,
-`Terminal`) and `FittedStack`, the container that records fitted transforms so a
-stack can be inverted. These primitives back `BrainCollectionPipeline`; the
-standalone fluent `Pipeline` orchestrator was removed in v0.6.0 in favor of
-`BrainCollection`'s native `.cv().standardize().reduce().predict()`.
+Defines the transform protocols (`TransformStep`, `FittedTransform`) and
+`FittedStack`, the container that records fitted transforms so a stack can be
+inverted. These primitives back `BrainCollectionPipeline`; the standalone fluent
+`Pipeline` orchestrator was removed in v0.6.0 in favor of `BrainCollection`'s
+native `.cv().standardize().reduce().predict()`.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#pipelines-cvscheme) | Protocol for cross-validation schemes.
 [`FittedStack`](#pipelines-fittedstack) | Collection of fitted transforms for inverse transform support.
 [`FittedTransform`](#pipelines-fittedtransform) | Protocol for fitted transform objects.
-[`Terminal`](#pipelines-terminal) | Protocol for terminal operations that end a pipeline.
 [`TransformStep`](#pipelines-transformstep) | Protocol for pipeline transform steps.
 
-**Attributes:**
 
-Name | Type | Description
----- | ---- | -----------
-`DataType` |  | 
-`T` |  | 
 
 ##### Classes
-
-###### `CVScheme`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for cross-validation schemes.
-
-Compatible with scikit-learn CV splitters and custom implementations.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`split`](#pipelines-split) | Generate train/test index splits.
-
-
-
-####### Functions##
-
-###### `split`
-
-```python
-split(data: Any) -> Any
-```
-
-Generate train/test index splits.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to split (used to determine n_samples). | *required*
-
-**Yields:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
 
 ###### `FittedStack`
 
@@ -1190,49 +1008,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
-
-###### `Terminal`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for terminal operations that end a pipeline.
-
-Terminals perform the final computation (e.g., prediction, similarity)
-and produce results for each CV fold.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit_evaluate`](#pipelines-fit-evaluate) | Fit on training data and evaluate on test data.
-
-
-
-####### Functions##
-
-###### `fit_evaluate`
-
-```python
-fit_evaluate(train_data: Any, test_data: Any, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: FittedStack) -> Any
-```
-
-Fit on training data and evaluate on test data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`train_data` | <code>[Any](#typing.Any)</code> | Transformed training data. | *required*
-`test_data` | <code>[Any](#typing.Any)</code> | Transformed test data. | *required*
-`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original training indices. | *required*
-`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original test indices. | *required*
-`fitted_stack` | <code>[FittedStack](#nltools.pipelines.base.FittedStack)</code> | Stack of fitted transforms for inverse transform support. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
 
 ###### `TransformStep`
 
@@ -1456,7 +1231,6 @@ split_by: str | None = None
 
 ####### Functions##
 
-(pipelines-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -1907,8 +1681,6 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#pipelines-alignstep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#pipelines-fittedalign) | Fitted alignment model.
 [`FittedNormalize`](#pipelines-fittednormalize) | Fitted normalization transform.
 [`FittedPipe`](#pipelines-fittedpipe) | Fitted sklearn transformer wrapper.
 [`FittedReduce`](#pipelines-fittedreduce) | Fitted dimensionality reduction transform.
@@ -1919,264 +1691,6 @@ Name | Description
 
 
 ##### Classes
-
-###### `AlignStep`
-
-```python
-AlignStep(method: str = 'srm', scheme: str = 'global', n_features: int | None = 50, new_subject: str = 'procrustes', n_iter: int = 10, parallel: str | None = 'cpu', n_jobs: int = -1, **kwargs: int)
-```
-
-Cross-subject alignment via SRM or HyperAlignment.
-
-Wraps existing SRM and HyperAlignment algorithms for use in pipelines.
-Currently supports 'global' scheme only. Searchlight/piecewise schemes
-require LocalAlignment (nltools-boll epic).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Alignment method: 'srm' or 'hyperalignment'. Default is 'srm'. | <code>'srm'</code>
-`scheme` | <code>[str](#str)</code> | Spatial scheme. Currently only 'global' is supported. 'searchlight' and 'piecewise' require LocalAlignment. | <code>'global'</code>
-`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None for hyperalignment (full rank). | <code>50</code>
-`new_subject` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV. Default is 'procrustes'. | <code>'procrustes'</code>
-`n_iter` | <code>[int](#int)</code> | Number of iterations for SRM (or 2 for hyperalignment). Default is 10. | <code>10</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization: 'cpu', 'gpu', or None. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Default is -1. | <code>-1</code>
-`**kwargs` |  | Additional arguments passed to the underlying algorithm. For SRM: 'rand_seed'. For HyperAlignment: 'auto_pad'. | <code>{}</code>
-
-Examples:
->>> import numpy as np
->>> # Create synthetic multi-subject data
->>> data = [np.random.randn(100, 50) for _ in range(5)]
->>> step = AlignStep(method='srm', n_features=10)
->>> fitted = step.fit(data)
->>> aligned = fitted.transform(data)
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#pipelines-fit) | Fit alignment model on list of subject data.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-`kwargs` |  | 
-[`method`](#pipelines-method) |  | 
-`n_features` |  | 
-`n_iter` |  | 
-`n_jobs` |  | 
-`new_subject` |  | 
-`parallel` |  | 
-`scheme` |  | 
-
-
-
-####### Attributes##
-
-###### `invertible`
-
-```python
-invertible: bool
-```
-
-Check if alignment is invertible.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[bool](#bool)</code> | True if method is hyperalignment (full-rank orthogonal transforms).
-
-######## `kwargs`
-
-```python
-kwargs = kwargs
-```
-
-######## `method`
-
-```python
-method = method
-```
-
-######## `n_features`
-
-```python
-n_features = n_features
-```
-
-######## `n_iter`
-
-```python
-n_iter = n_iter
-```
-
-######## `n_jobs`
-
-```python
-n_jobs = n_jobs
-```
-
-######## `new_subject`
-
-```python
-new_subject = new_subject
-```
-
-######## `parallel`
-
-```python
-parallel = parallel
-```
-
-######## `scheme`
-
-```python
-scheme = scheme
-```
-
-
-
-####### Functions##
-
-###### `fit`
-
-```python
-fit(data: list[np.ndarray]) -> FittedAlign
-```
-
-Fit alignment model on list of subject data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Each array has shape (n_voxels, n_samples) or (n_samples, n_voxels). Will be transposed if needed to match algorithm expectations. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedAlign](#nltools.pipelines.steps.FittedAlign)</code> | Fitted alignment model.
-
-###### `FittedAlign`
-
-```python
-FittedAlign(model: Any, method: str, new_subject_method: str = 'procrustes') -> None
-```
-
-Fitted alignment model.
-
-Holds a fitted SRM or HyperAlignment model and applies transformations.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#pipelines-method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
-`new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`inverse_transform`](#pipelines-inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#pipelines-transform) | Transform subjects that were in training.
-[`transform_new_subject`](#pipelines-transform-new-subject) | Align a new subject not in training (for LOSO).
-
-
-
-####### Attributes##
-
-(pipelines-method)=
-###### `method`
-
-```python
-method: str
-```
-
-######## `model`
-
-```python
-model: Any
-```
-
-######## `new_subject_method`
-
-```python
-new_subject_method: str = 'procrustes'
-```
-
-
-
-####### Functions##
-
-###### `inverse_transform`
-
-```python
-inverse_transform(data: list[np.ndarray]) -> list[np.ndarray]
-```
-
-Reverse alignment (only for full-rank hyperalignment).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Data in original subject-specific space, shape (n_samples, n_features).
-
-######## `transform`
-
-```python
-transform(data: list[np.ndarray]) -> list[np.ndarray]
-```
-
-Transform subjects that were in training.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_samples, n_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features).
-
-######## `transform_new_subject`
-
-```python
-transform_new_subject(data: np.ndarray) -> np.ndarray
-```
-
-Align a new subject not in training (for LOSO).
-
-Uses transform_subject() which fits a new transform for the held-out subject.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data for the new subject, shape (n_samples, n_features). Pipeline convention is (samples, features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
 
 (pipelines-fittednormalize)=
 ###### `FittedNormalize`
@@ -2380,6 +1894,7 @@ Name | Description
 
 ####### Attributes##
 
+(pipelines-method)=
 ###### `method`
 
 ```python

@@ -1,31 +1,16 @@
 """Low-level pipeline primitives for nltools.
 
-Defines the transform protocols (`TransformStep`, `FittedTransform`, `CVScheme`,
-`Terminal`) and `FittedStack`, the container that records fitted transforms so a
-stack can be inverted. These primitives back `BrainCollectionPipeline`; the
-standalone fluent `Pipeline` orchestrator was removed in v0.6.0 in favor of
-`BrainCollection`'s native `.cv().standardize().reduce().predict()`.
+Defines the transform protocols (`TransformStep`, `FittedTransform`) and
+`FittedStack`, the container that records fitted transforms so a stack can be
+inverted. These primitives back `BrainCollectionPipeline`; the standalone fluent
+`Pipeline` orchestrator was removed in v0.6.0 in favor of `BrainCollection`'s
+native `.cv().standardize().reduce().predict()`.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Protocol,
-    TypeVar,
-    runtime_checkable,
-)
-
-import numpy as np
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
-# Type variables for generic transform support
-T = TypeVar("T")
-DataType = TypeVar("DataType")
+from typing import Any, Protocol, runtime_checkable
 
 
 # =============================================================================
@@ -98,59 +83,6 @@ class TransformStep(Protocol):
 
         Returns:
             Fitted transform object that can transform new data.
-        """
-        ...
-
-
-@runtime_checkable
-class CVScheme(Protocol):
-    """Protocol for cross-validation schemes.
-
-    Compatible with scikit-learn CV splitters and custom implementations.
-
-    """
-
-    def split(
-        self, data: Any
-    ) -> Any:  # Returns Iterator[Tuple[ndarray, ndarray]] but protocol is lenient
-        """Generate train/test index splits.
-
-        Args:
-            data: Data to split (used to determine n_samples).
-
-        Yields:
-            Tuple of (train_idx, test_idx) arrays of indices for each fold.
-        """
-        ...
-
-
-@runtime_checkable
-class Terminal(Protocol):
-    """Protocol for terminal operations that end a pipeline.
-
-    Terminals perform the final computation (e.g., prediction, similarity)
-    and produce results for each CV fold.
-    """
-
-    def fit_evaluate(
-        self,
-        train_data: Any,
-        test_data: Any,
-        train_idx: NDArray[np.intp],
-        test_idx: NDArray[np.intp],
-        fitted_stack: FittedStack,
-    ) -> Any:
-        """Fit on training data and evaluate on test data.
-
-        Args:
-            train_data: Transformed training data.
-            test_data: Transformed test data.
-            train_idx: Original training indices.
-            test_idx: Original test indices.
-            fitted_stack: Stack of fitted transforms for inverse transform support.
-
-        Returns:
-            Fold result (structure depends on terminal type).
         """
         ...
 

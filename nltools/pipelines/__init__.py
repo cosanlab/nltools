@@ -1,29 +1,24 @@
 """Low-level pipeline primitives used by `BrainCollection`.
 
 These are the building blocks that back `BrainCollectionPipeline`: transform
-steps (`NormalizeStep`, `ReduceStep`, `PipeStep`, `AlignStep`), the fitted-stack
-container (`FittedStack`), the pooled-data aggregator (`PooledData`), and the
-transform protocols. The standalone fluent `Pipeline` / `MultiSubjectPipeline`
-orchestration was removed in v0.6.0 — multi-subject CV now lives on
-`BrainCollection` (`.cv().standardize().reduce().predict()`) and custom
-single-dataset preprocessing uses `model=make_pipeline(...)` on `BrainData.predict`.
+steps (`NormalizeStep`, `ReduceStep`, `PipeStep`), the fitted-stack container
+(`FittedStack`), the pooled-data aggregator (`PooledData`), the cross-validation
+scheme (`CVScheme`), and the transform protocols. This package is internal; the
+standalone fluent `Pipeline` / `MultiSubjectPipeline` orchestration was removed in
+v0.6.0 — multi-subject CV now lives on `BrainCollection`
+(`.cv().standardize().reduce().predict()`) and custom single-dataset
+preprocessing uses `model=make_pipeline(...)` on `BrainData.predict`.
 """
 
-from .base import (
-    CVScheme,
-    FittedStack,
-    FittedTransform,
-    Terminal,
-    TransformStep,
-)
+from .base import FittedStack, FittedTransform, TransformStep
+from .cv import CVScheme
 from .pool import PooledData, ResultDict, StatResult
-from .steps import AlignStep, FittedAlign, NormalizeStep, PipeStep, ReduceStep
+from .steps import NormalizeStep, PipeStep, ReduceStep
 
 __all__ = [
-    "AlignStep",
-    # Transform protocols
+    # Cross-validation scheme
     "CVScheme",
-    "FittedAlign",
+    # Fitted-stack container + transform protocols
     "FittedStack",
     "FittedTransform",
     # Transform steps
@@ -34,6 +29,5 @@ __all__ = [
     "ReduceStep",
     "ResultDict",
     "StatResult",
-    "Terminal",
     "TransformStep",
 ]

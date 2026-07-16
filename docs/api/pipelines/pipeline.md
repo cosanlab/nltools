@@ -3,70 +3,23 @@
 
 Low-level pipeline primitives for nltools.
 
-Defines the transform protocols (`TransformStep`, `FittedTransform`, `CVScheme`,
-`Terminal`) and `FittedStack`, the container that records fitted transforms so a
-stack can be inverted. These primitives back `BrainCollectionPipeline`; the
-standalone fluent `Pipeline` orchestrator was removed in v0.6.0 in favor of
-`BrainCollection`'s native `.cv().standardize().reduce().predict()`.
+Defines the transform protocols (`TransformStep`, `FittedTransform`) and
+`FittedStack`, the container that records fitted transforms so a stack can be
+inverted. These primitives back `BrainCollectionPipeline`; the standalone fluent
+`Pipeline` orchestrator was removed in v0.6.0 in favor of `BrainCollection`'s
+native `.cv().standardize().reduce().predict()`.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#pipelines-pipeline-cvscheme) | Protocol for cross-validation schemes.
 [`FittedStack`](#pipelines-pipeline-fittedstack) | Collection of fitted transforms for inverse transform support.
 [`FittedTransform`](#pipelines-pipeline-fittedtransform) | Protocol for fitted transform objects.
-[`Terminal`](#pipelines-pipeline-terminal) | Protocol for terminal operations that end a pipeline.
 [`TransformStep`](#pipelines-pipeline-transformstep) | Protocol for pipeline transform steps.
 
-**Attributes:**
 
-Name | Type | Description
----- | ---- | -----------
-`DataType` |  | 
-`T` |  | 
 
 ### Classes
-
-(pipelines-pipeline-cvscheme)=
-#### `CVScheme`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for cross-validation schemes.
-
-Compatible with scikit-learn CV splitters and custom implementations.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`split`](#pipelines-pipeline-split) | Generate train/test index splits.
-
-
-
-##### Methods
-
-(pipelines-pipeline-split)=
-###### `split`
-
-```python
-split(data: Any) -> Any
-```
-
-Generate train/test index splits.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to split (used to determine n_samples). | *required*
-
-**Yields:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
 
 (pipelines-pipeline-fittedstack)=
 #### `FittedStack`
@@ -214,51 +167,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
-
-(pipelines-pipeline-terminal)=
-#### `Terminal`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for terminal operations that end a pipeline.
-
-Terminals perform the final computation (e.g., prediction, similarity)
-and produce results for each CV fold.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit_evaluate`](#pipelines-pipeline-fit-evaluate) | Fit on training data and evaluate on test data.
-
-
-
-##### Methods
-
-(pipelines-pipeline-fit-evaluate)=
-###### `fit_evaluate`
-
-```python
-fit_evaluate(train_data: Any, test_data: Any, train_idx: NDArray[np.intp], test_idx: NDArray[np.intp], fitted_stack: FittedStack) -> Any
-```
-
-Fit on training data and evaluate on test data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`train_data` | <code>[Any](#typing.Any)</code> | Transformed training data. | *required*
-`test_data` | <code>[Any](#typing.Any)</code> | Transformed test data. | *required*
-`train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original training indices. | *required*
-`test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Original test indices. | *required*
-`fitted_stack` | <code>[FittedStack](#nltools.pipelines.base.FittedStack)</code> | Stack of fitted transforms for inverse transform support. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
 
 (pipelines-pipeline-transformstep)=
 #### `TransformStep`
