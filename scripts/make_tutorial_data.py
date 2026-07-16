@@ -1,10 +1,19 @@
 #!/usr/bin/env python
-"""Download and stage browser-sized datasets for the GLM and MVPA tutorials.
+"""Download and stage browser-sized datasets for the tutorials.
 
-The outputs are written below ``scratch/tutorial-data/tutorials`` by default.
-That directory is intentionally gitignored: this script is the reproducible
-source of the staged data, while the generated files are intended for a later
-upload to the ``nltools/niftis`` Hugging Face dataset.
+Covers the GLM, MVPA, encoding, and ISC tutorials. The outputs are written below
+``scratch/tutorial-data/tutorials`` by default. That directory is intentionally
+gitignored: this script is the reproducible source of the staged data, while the
+generated files are intended for upload to the ``nltools/niftis`` Hugging Face
+dataset (under ``tutorials/{glm,mvpa,encoding,isc}/``).
+
+The encoding tutorial (nilearn Miyawaki2008) and ISC tutorial (nilearn
+development_fmri) both need their full per-run/per-subject timecourses — encoding
+pairs every volume with a stimulus, ISC correlates full timecourses across
+subjects — so neither is temporally trimmed. Their 4D BOLD is still quantized to
+scaled int16 to cut transfer size, mirroring the GLM trim. The encoding stage
+keeps the first ``--miyawaki-runs`` runs (func + 10x10 stimulus labels + the
+subject-native mask); the ISC stage keeps ``--isc-subjects`` subjects' func.
 
 The GLM tutorial performs an eight-subject group analysis, so its default trim
 keeps subjects 01--08 and the first 76 volumes of each run.  Those volumes
@@ -39,7 +48,12 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 from nibabel.spatialimages import SpatialImage
-from nilearn.datasets import fetch_haxby, fetch_language_localizer_demo_dataset
+from nilearn.datasets import (
+    fetch_development_fmri,
+    fetch_haxby,
+    fetch_language_localizer_demo_dataset,
+    fetch_miyawaki2008,
+)
 from nilearn.interfaces.bids import get_bids_files
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -273,6 +287,95 @@ def stage_mvpa(output_root: Path, session: int) -> dict[str, Any]:
     }
 
 
+def stage_encoding(output_root: Path, n_runs: int) -> dict[str, Any]:
+    """Stage the first ``n_runs`` of Miyawaki2008 for the encoding tutorial.
+
+    Encoding pairs every volume with a 10x10 stimulus, so all volumes per run are
+    kept (no temporal trim); each run's 4D func is quantized to scaled int16.
+    Stimulus labels and the subject-native mask are copied verbatim. Mirrors the
+    notebook's ``load_runs(n_runs)``: ``func[i]``/``label[i]`` for the first runs
+    plus ``mask``.
+    """
+    dataset = fetch_miyawaki2008(verbose=1)
+    destination_root = output_root / "encoding"
+    if destination_root.exists():
+        shutil.rmtree(destination_root)
+    destination_root.mkdir(parents=True)
+
+    source_files: list[Path] = []
+    staged_files: list[Path] = []
+    quantization_errors: dict[str, float] = {}
+
+    for i in range(n_runs):
+        func = Path(dataset.func[i])
+        label = Path(dataset.label[i])
+        source_files.extend((func, label))
+        image = nib.load(func)
+        if image.ndim != 4:
+            raise ValueError(f"run {i}: expected 4D func, got shape {image.shape}")
+        run = f"run-{i + 1:02d}"
+        bold_destination = destination_root / f"{run}_bold.nii.gz"
+        _, max_error = save_scaled_int16(func, image.shape[3], bold_destination)
+        staged_files.append(bold_destination)
+        quantization_errors[run] = max_error
+        staged_files.append(copy_file(label, destination_root / f"{run}_label.csv"))
+
+    mask = Path(dataset.mask)
+    source_files.append(mask)
+    staged_files.append(copy_file(mask, destination_root / "mask.nii.gz"))
+
+    source_root = Path(dataset.func[0]).parent
+    return {
+        "source_root": source_root,
+        "source_dataset_bytes": byte_size(source_root),
+        "source_needed_bytes": sum(path.stat().st_size for path in source_files),
+        "destination_root": destination_root,
+        "staged_files": staged_files,
+        "staged_bytes": sum(path.stat().st_size for path in staged_files),
+        "kept_runs": n_runs,
+        "quantization_max_abs_error": quantization_errors,
+    }
+
+
+def stage_isc(output_root: Path, n_subjects: int) -> dict[str, Any]:
+    """Stage ``n_subjects`` of development_fmri func for the ISC tutorial.
+
+    ISC correlates full timecourses across subjects, so each subject's timeseries
+    is kept at full length (no temporal trim). The func is copied verbatim rather
+    than int16-quantized: the source is already compact (~6 MB/subject) and int16
+    re-encoding both grows the gzip size and would perturb the exact timeseries
+    values ISC correlates. Mirrors the notebook's
+    ``fetch_development_fmri(n_subjects)`` then ``DATA.func[i]`` (confounds are
+    unused by the tutorial, so not staged).
+    """
+    dataset = fetch_development_fmri(n_subjects=n_subjects, verbose=1)
+    destination_root = output_root / "isc"
+    if destination_root.exists():
+        shutil.rmtree(destination_root)
+    destination_root.mkdir(parents=True)
+
+    source_files = [Path(path) for path in dataset.func]
+    staged_files: list[Path] = []
+
+    for i, func in enumerate(source_files, start=1):
+        image = nib.load(func)
+        if image.ndim != 4:
+            raise ValueError(f"sub-{i:02d}: expected 4D func, got shape {image.shape}")
+        destination = destination_root / f"sub-{i:02d}_task-pixar_bold.nii.gz"
+        staged_files.append(copy_file(func, destination))
+
+    source_root = source_files[0].parent.parent
+    return {
+        "source_root": source_root,
+        "source_dataset_bytes": byte_size(source_root),
+        "source_needed_bytes": sum(path.stat().st_size for path in source_files),
+        "destination_root": destination_root,
+        "staged_files": staged_files,
+        "staged_bytes": sum(path.stat().st_size for path in staged_files),
+        "kept_subjects": n_subjects,
+    }
+
+
 def print_report(name: str, report: dict[str, Any]) -> None:
     """Print a compact, machine-readable-enough staging report."""
     print(f"\n{name.upper()}")
@@ -291,7 +394,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--dataset",
-        choices=("all", "glm", "mvpa"),
+        choices=("all", "glm", "mvpa", "encoding", "isc"),
         default="all",
         help="dataset to stage (default: all)",
     )
@@ -313,6 +416,18 @@ def main() -> int:
         default=0,
         help="complete Haxby session/chunk to retain (default: 0)",
     )
+    parser.add_argument(
+        "--miyawaki-runs",
+        type=int,
+        default=8,
+        help="leading Miyawaki runs to retain for the encoding tutorial (default: 8)",
+    )
+    parser.add_argument(
+        "--isc-subjects",
+        type=int,
+        default=12,
+        help="development_fmri subjects to retain for the ISC tutorial (default: 12)",
+    )
     args = parser.parse_args()
 
     output_root = args.output_dir.resolve()
@@ -321,6 +436,10 @@ def main() -> int:
         print_report("glm", stage_glm(output_root, args.glm_volumes))
     if args.dataset in ("all", "mvpa"):
         print_report("mvpa", stage_mvpa(output_root, args.haxby_session))
+    if args.dataset in ("all", "encoding"):
+        print_report("encoding", stage_encoding(output_root, args.miyawaki_runs))
+    if args.dataset in ("all", "isc"):
+        print_report("isc", stage_isc(output_root, args.isc_subjects))
     return 0
 
 
