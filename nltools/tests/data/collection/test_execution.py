@@ -59,6 +59,17 @@ class TestRunIdAndStepDirs:
         name = core.make_step_dirname("op", {"b": 2, "a": 1})
         assert "a-1_b-2" in name
 
+    def test_make_step_dirname_lex_order_matches_creation(self):
+        """Same-second creations must stay lex-sortable in creation order.
+
+        Regression for the flaky ``test_steps_lex_sorted_oldest_to_newest``:
+        a second-resolution timestamp ties for rapid successive calls, and the
+        random uuid tail then broke ``lex == creation`` order. A monotonic
+        counter must make the tiebreak deterministic.
+        """
+        names = [core.make_step_dirname("op") for _ in range(100)]
+        assert names == sorted(names)
+
     def test_make_step_dirname_skips_none_values(self):
         name = core.make_step_dirname("op", {"x": None, "y": 1})
         assert "x" not in name

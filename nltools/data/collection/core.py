@@ -6,6 +6,7 @@ step-directory naming. No class state lives here.
 
 from __future__ import annotations
 
+import itertools
 import os
 import re
 import secrets
@@ -129,18 +130,29 @@ def _slug_kwargs(kwargs: dict[str, Any]) -> str:
     return "_".join(parts)
 
 
+# Process-monotonic counter: a deterministic tiebreak for step subdirs created
+# within the same wall-clock second, so lex order tracks creation order even
+# when the second-resolution timestamp ties (the uuid tail alone is random).
+_STEP_SEQ = itertools.count()
+
+
 def make_step_dirname(
     op: str,
     kwargs: dict[str, Any] | None = None,
     *,
     now: datetime | None = None,
 ) -> str:
-    """Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+    """Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
 
     Each call yields a unique name (UUID tail) — same op + same params
-    twice produces two subdirs, never overwriting.
+    twice produces two subdirs, never overwriting. The zero-padded ``seq`` is
+    a process-monotonic counter placed after the second-resolution timestamp,
+    so lexicographic order tracks creation order even for calls that share a
+    second (the timestamp stays the primary, cross-process ordering key).
     """
-    base = f"{make_run_id(now)}_{op}"
+    now = now or datetime.now(UTC)
+    stamp = now.strftime("%Y%m%dT%H%M%S")
+    base = f"{stamp}_{next(_STEP_SEQ):09d}_{secrets.token_hex(4)}_{op}"
     slug = _slug_kwargs(kwargs or {})
     return f"{base}_{slug}" if slug else base
 
