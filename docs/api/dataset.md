@@ -1,3 +1,4 @@
+(dataset-datasets)=
 ## `datasets`
 
 Dataset download and example-data utilities.
@@ -10,11 +11,11 @@ Functions to help download datasets from Neurovault and other sources.
 
 Name | Description
 ---- | -----------
-[`download_nifti`](#download-nifti) | Download an image from a URL to a nifti file.
-[`fetch_emotion_ratings`](#fetch-emotion-ratings) | Download and load emotion rating dataset from Neurovault.
-[`fetch_neurovault_collection`](#fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
-[`fetch_pain`](#fetch-pain) | Download and load pain dataset from Neurovault.
-[`load_haxby_example`](#load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
+[`download_nifti`](#dataset-download-nifti) | Download an image from a URL to a nifti file.
+[`fetch_emotion_ratings`](#dataset-fetch-emotion-ratings) | Download and load emotion rating dataset from Neurovault.
+[`fetch_neurovault_collection`](#dataset-fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
+[`fetch_pain`](#dataset-fetch-pain) | Download and load pain dataset from Neurovault.
+[`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
 
 
@@ -22,6 +23,7 @@ Name | Description
 
 ### Methods
 
+(dataset-download-nifti)=
 #### `download_nifti`
 
 ```python
@@ -43,6 +45,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Path to the downloaded file
 
+(dataset-fetch-emotion-ratings)=
 #### `fetch_emotion_ratings`
 
 ```python
@@ -76,6 +79,7 @@ PLoS biology, 13(6), e1002180.
 
 </details>
 
+(dataset-fetch-neurovault-collection)=
 #### `fetch_neurovault_collection`
 
 ```python
@@ -100,6 +104,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (metadata polars.DataFrame, list of image file paths)
 
+(dataset-fetch-pain)=
 #### `fetch_pain`
 
 ```python
@@ -132,6 +137,7 @@ PLoS biology, 13(6), e1002180.
 
 </details>
 
+(dataset-load-haxby-example)=
 #### `load_haxby_example`
 
 ```python

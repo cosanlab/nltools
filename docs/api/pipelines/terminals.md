@@ -1,3 +1,4 @@
+(pipelines-terminals-terminals)=
 ## `terminals`
 
 Terminal operations for nltools pipelines.
@@ -10,14 +11,15 @@ within cross-validation folds.
 
 Name | Description
 ---- | -----------
-[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
-[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
-[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
+[`ISCTerminal`](#pipelines-terminals-iscterminal) | ISC terminal for multi-subject pipelines.
+[`PredictTerminal`](#pipelines-terminals-predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSATerminal`](#pipelines-terminals-rsaterminal) | RSA terminal for multi-subject pipelines.
 
 
 
 ### Classes
 
+(pipelines-terminals-iscterminal)=
 #### `ISCTerminal`
 
 ```python
@@ -48,7 +50,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#pipelines-terminals-fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
@@ -62,6 +64,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-terminals-fit-evaluate)=
 ###### `fit_evaluate`
 
 ```python
@@ -82,6 +85,7 @@ Type | Description
 ---- | -----------
 <code>[ISCResult](#nltools.pipelines.results.ISCResult)</code> | Result containing ISC values, p-values, and confidence intervals.
 
+(pipelines-terminals-predictterminal)=
 #### `PredictTerminal`
 
 ```python
@@ -131,8 +135,8 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with-y) | Create copy with different target variable.
+[`fit_evaluate`](#pipelines-terminals-fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#pipelines-terminals-with-y) | Create copy with different target variable.
 
 **Attributes:**
 
@@ -168,6 +172,7 @@ Type | Description
 ---- | -----------
 <code>[FoldResult](#nltools.pipelines.results.FoldResult)</code> | Result containing score, predictions, indices, and fitted stack.
 
+(pipelines-terminals-with-y)=
 ###### `with_y`
 
 ```python
@@ -190,6 +195,7 @@ Type | Description
 ---- | -----------
 <code>[PredictTerminal](#nltools.pipelines.terminals.PredictTerminal)</code> | New terminal with updated y.
 
+(pipelines-terminals-rsaterminal)=
 #### `RSATerminal`
 
 ```python
@@ -220,7 +226,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#pipelines-terminals-fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 

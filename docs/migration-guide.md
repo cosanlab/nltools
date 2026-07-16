@@ -857,6 +857,7 @@ best_alpha = brain_data.cv_results_['best_alpha']
 
 ---
 
+(pattern-4-machine-learning-classification-regression)=
 ### Pattern 4: Machine Learning (Classification/Regression)
 
 **Before (v0.5.1):**

@@ -1,3 +1,4 @@
+(data-braindata-io-io)=
 ## `io`
 
 BrainData I/O and loading functions.
@@ -10,26 +11,27 @@ writing, and uploading.
 
 Name | Description
 ---- | -----------
-[`check_space_match`](#check-space-match) | Check if data and mask are in same space.
-[`detect_and_update_mask`](#detect-and-update-mask) | Detect best matching template from data and update mask if mask was None.
-[`detect_space`](#detect-space) | Detect if mask is in MNI space or native space.
-[`get_interpolation`](#get-interpolation) | Get the interpolation method to use for a given image.
-[`initialize_mask`](#initialize-mask) | Initialize the mask image.
-[`load_from_brain_data`](#load-from-brain-data) | Load data from another BrainData object.
-[`load_from_file`](#load-from-file) | Load data from file path or nibabel object.
-[`load_from_h5`](#load-from-h5) | Load data from HDF5 file.
-[`load_from_list`](#load-from-list) | Load data from a list of BrainData objects or file paths.
-[`load_from_url`](#load-from-url) | Load data from URL.
-[`resample_to`](#resample-to) | Resample BrainData to match target image or resolution.
-[`to_nifti`](#to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
-[`upload_neurovault`](#upload-neurovault) | Upload data to NeuroVault.
-[`warn_if_resampling`](#warn-if-resampling) | Warn about resampling if verbose=True and resample=True.
-[`write_brain_data`](#write-brain-data) | Write out BrainData object to Nifti or HDF5 File.
+[`check_space_match`](#data-braindata-io-check-space-match) | Check if data and mask are in same space.
+[`detect_and_update_mask`](#data-braindata-io-detect-and-update-mask) | Detect best matching template from data and update mask if mask was None.
+[`detect_space`](#data-braindata-io-detect-space) | Detect if mask is in MNI space or native space.
+[`get_interpolation`](#data-braindata-io-get-interpolation) | Get the interpolation method to use for a given image.
+[`initialize_mask`](#data-braindata-io-initialize-mask) | Initialize the mask image.
+[`load_from_brain_data`](#data-braindata-io-load-from-brain-data) | Load data from another BrainData object.
+[`load_from_file`](#data-braindata-io-load-from-file) | Load data from file path or nibabel object.
+[`load_from_h5`](#data-braindata-io-load-from-h5) | Load data from HDF5 file.
+[`load_from_list`](#data-braindata-io-load-from-list) | Load data from a list of BrainData objects or file paths.
+[`load_from_url`](#data-braindata-io-load-from-url) | Load data from URL.
+[`resample_to`](#data-braindata-io-resample-to) | Resample BrainData to match target image or resolution.
+[`to_nifti`](#data-braindata-io-to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
+[`upload_neurovault`](#data-braindata-io-upload-neurovault) | Upload data to NeuroVault.
+[`warn_if_resampling`](#data-braindata-io-warn-if-resampling) | Warn about resampling if verbose=True and resample=True.
+[`write_brain_data`](#data-braindata-io-write-brain-data) | Write out BrainData object to Nifti or HDF5 File.
 
 
 
 ### Methods
 
+(data-braindata-io-check-space-match)=
 #### `check_space_match`
 
 ```python
@@ -51,6 +53,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `bool` |  | True if spaces match (no resampling needed), False otherwise
 
+(data-braindata-io-detect-and-update-mask)=
 #### `detect_and_update_mask`
 
 ```python
@@ -78,6 +81,7 @@ Type | Description
 ---- | -----------
  | nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
 
+(data-braindata-io-detect-space)=
 #### `detect_space`
 
 ```python
@@ -99,6 +103,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | 'mni' if mask is MNI template, 'native' otherwise
 
+(data-braindata-io-get-interpolation)=
 #### `get_interpolation`
 
 ```python
@@ -122,6 +127,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Interpolation method. When 'auto', resolves to 'nearest' or 'continuous' based on data type. Otherwise returns the instance's configured interpolation setting.
 
+(data-braindata-io-initialize-mask)=
 #### `initialize_mask`
 
 ```python
@@ -137,6 +143,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `mask` |  | Brain mask as nibabel object, file path, template name string, or None. Template name strings supported: '{res}mm-MNI152-2009{version}' (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl') | *required*
 
+(data-braindata-io-load-from-brain-data)=
 #### `load_from_brain_data`
 
 ```python
@@ -153,6 +160,7 @@ Name | Type | Description | Default
 `brain_data` |  | BrainData object to copy from. | *required*
 `mask` |  | Optional mask to use. If None, uses mask from brain_data. | <code>None</code>
 
+(data-braindata-io-load-from-file)=
 #### `load_from_file`
 
 ```python
@@ -168,6 +176,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `data` |  | File path or nibabel object. | *required*
 
+(data-braindata-io-load-from-h5)=
 #### `load_from_h5`
 
 ```python
@@ -184,6 +193,7 @@ Name | Type | Description | Default
 `file_path` |  | Path to HDF5 file. | *required*
 `mask` |  | User-specified mask (to determine if we should load mask from file). | *required*
 
+(data-braindata-io-load-from-list)=
 #### `load_from_list`
 
 ```python
@@ -199,6 +209,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `data_list` |  | List of BrainData objects or file paths. | *required*
 
+(data-braindata-io-load-from-url)=
 #### `load_from_url`
 
 ```python
@@ -214,6 +225,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `url` |  | URL to download data from. | *required*
 
+(data-braindata-io-resample-to)=
 #### `resample_to`
 
 ```python
@@ -237,6 +249,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | New BrainData instance with resampled data
 
+(data-braindata-io-to-nifti)=
 #### `to_nifti`
 
 ```python
@@ -257,6 +270,7 @@ Type | Description
 ---- | -----------
  | nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
 
+(data-braindata-io-upload-neurovault)=
 #### `upload_neurovault`
 
 ```python
@@ -285,6 +299,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | NeuroVault collection information.
 
+(data-braindata-io-warn-if-resampling)=
 #### `warn_if_resampling`
 
 ```python
@@ -300,6 +315,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `context` | <code>[str](#str)</code> | Context string to include in warning. Default: empty string. | <code>''</code>
 
+(data-braindata-io-write-brain-data)=
 #### `write_brain_data`
 
 ```python

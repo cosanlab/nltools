@@ -1,3 +1,4 @@
+(data-collection-core-core)=
 ## `core`
 
 Module-level helpers for BrainCollection.
@@ -9,16 +10,17 @@ step-directory naming. No class state lives here.
 
 Name | Description
 ---- | -----------
-[`coerce_metadata`](#coerce-metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
-[`make_run_id`](#make-run-id) | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
-[`make_step_dirname`](#make-step-dirname) | Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
-[`resolve_cache_dir`](#resolve-cache-dir) | Resolve ``cache_dir`` per the spec's precedence rules.
-[`resolve_mask`](#resolve-mask) | Resolve a mask spec into a Nifti1Image.
+[`coerce_metadata`](#data-collection-core-coerce-metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
+[`make_run_id`](#data-collection-core-make-run-id) | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+[`make_step_dirname`](#data-collection-core-make-step-dirname) | Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+[`resolve_cache_dir`](#data-collection-core-resolve-cache-dir) | Resolve ``cache_dir`` per the spec's precedence rules.
+[`resolve_mask`](#data-collection-core-resolve-mask) | Resolve a mask spec into a Nifti1Image.
 
 
 
 ### Methods
 
+(data-collection-core-coerce-metadata)=
 #### `coerce_metadata`
 
 ```python
@@ -33,6 +35,7 @@ DataFrame with a default ``subject`` column (``sub-0001``, ...).
 Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
 the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
 
+(data-collection-core-make-run-id)=
 #### `make_run_id`
 
 ```python
@@ -44,6 +47,7 @@ Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
 Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
 ``secrets.token_hex(4)``. Lex-sortable, collision-free across processes.
 
+(data-collection-core-make-step-dirname)=
 #### `make_step_dirname`
 
 ```python
@@ -55,6 +59,7 @@ Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
 Each call yields a unique name (UUID tail) — same op + same params
 twice produces two subdirs, never overwriting.
 
+(data-collection-core-resolve-cache-dir)=
 #### `resolve_cache_dir`
 
 ```python
@@ -68,6 +73,7 @@ Returns ``None`` when the caller passes ``None`` (signaling tempdir mode).
 The returned path is *not* yet decorated with a ``run_id`` subdir; that
 happens at construction time on the instance.
 
+(data-collection-core-resolve-mask)=
 #### `resolve_mask`
 
 ```python

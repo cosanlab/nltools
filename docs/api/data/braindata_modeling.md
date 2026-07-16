@@ -1,3 +1,4 @@
+(data-braindata-modeling-modeling)=
 ## `modeling`
 
 BrainData modeling functions.
@@ -9,20 +10,21 @@ fitting, GLM estimation, Ridge regression, and contrast computation.
 
 Name | Description
 ---- | -----------
-[`compute_contrasts`](#compute-contrasts) | Compute contrasts from a fitted GLM.
-[`compute_ridge_cv`](#compute-ridge-cv) | Held-out CV scores under a fixed Ridge α.
-[`fit`](#fit) | Fit a model to brain imaging data.
-[`fit_glm`](#fit-glm) | Fit GLM model and extract results (same logic as current regress()).
-[`fit_ridge`](#fit-ridge) | Fit Ridge model and extract results.
-[`parse_contrast_string`](#parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
-[`to_fit_dataclass`](#to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
-[`ttest`](#ttest) | One-sample voxelwise t-test across images (axis 0).
-[`ttest2`](#ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
+[`compute_contrasts`](#data-braindata-modeling-compute-contrasts) | Compute contrasts from a fitted GLM.
+[`compute_ridge_cv`](#data-braindata-modeling-compute-ridge-cv) | Held-out CV scores under a fixed Ridge α.
+[`fit`](#data-braindata-modeling-fit) | Fit a model to brain imaging data.
+[`fit_glm`](#data-braindata-modeling-fit-glm) | Fit GLM model and extract results (same logic as current regress()).
+[`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
+[`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
+[`to_fit_dataclass`](#data-braindata-modeling-to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
+[`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
 
 
 ### Methods
 
+(data-braindata-modeling-compute-contrasts)=
 #### `compute_contrasts`
 
 ```python
@@ -83,6 +85,7 @@ Type | Description
 
 </details>
 
+(data-braindata-modeling-compute-ridge-cv)=
 #### `compute_ridge_cv`
 
 ```python
@@ -112,6 +115,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
 
+(data-braindata-modeling-fit)=
 #### `fit`
 
 ```python
@@ -187,6 +191,7 @@ Name | Type | Description
 >>> assert 't_stats' in fit_glm.available()
 ```
 
+(data-braindata-modeling-fit-glm)=
 #### `fit_glm`
 
 ```python
@@ -210,6 +215,7 @@ glm_r2, and design_matrix on bd.
 
 </details>
 
+(data-braindata-modeling-fit-ridge)=
 #### `fit_ridge`
 
 ```python
@@ -235,6 +241,7 @@ cv_results_ (if cv provided) on bd.
 
 </details>
 
+(data-braindata-modeling-parse-contrast-string)=
 #### `parse_contrast_string`
 
 ```python
@@ -256,6 +263,7 @@ Type | Description
 ---- | -----------
  | np.array: Numeric contrast vector
 
+(data-braindata-modeling-to-fit-dataclass)=
 #### `to_fit_dataclass`
 
 ```python
@@ -277,6 +285,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Fit` |  | Dataclass containing fit results
 
+(data-braindata-modeling-ttest)=
 #### `ttest`
 
 ```python
@@ -310,6 +319,7 @@ Type | Description
  | The effect size is always returned alongside the inferential maps so
  | group-level code never has to compute the mean separately.
 
+(data-braindata-modeling-ttest2)=
 #### `ttest2`
 
 ```python

@@ -1,3 +1,4 @@
+(data-collection-io-io)=
 ## `io`
 
 IO and constructors for BrainCollection.
@@ -10,15 +11,15 @@ crosses the disk boundary lives here.
 
 Name | Description
 ---- | -----------
-[`discover_bids`](#discover-bids) | Walk the BIDS dataset and return aligned per-item lists.
-[`from_bids`](#from-bids) | Build a ``BrainCollection`` from a BIDS dataset.
-[`from_glob`](#from-glob) | Build a collection by globbing for BOLD images (and optionally designs).
-[`from_paths`](#from-paths) | Build a collection from explicit lists of brain (and design) paths.
-[`load`](#load) | Materialize path-backed items into ``BrainData``.
-[`memory_estimate`](#memory-estimate) | Human-readable RAM estimate if every item were loaded.
-[`read`](#read) | Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
-[`unload`](#unload) | Drop in-memory data for items that have backing paths.
-[`write`](#write) | Write a clean, portable copy of ``bc`` outside the cache root.
+[`discover_bids`](#data-collection-io-discover-bids) | Walk the BIDS dataset and return aligned per-item lists.
+[`from_bids`](#data-collection-io-from-bids) | Build a ``BrainCollection`` from a BIDS dataset.
+[`from_glob`](#data-collection-io-from-glob) | Build a collection by globbing for BOLD images (and optionally designs).
+[`from_paths`](#data-collection-io-from-paths) | Build a collection from explicit lists of brain (and design) paths.
+[`load`](#data-collection-io-load) | Materialize path-backed items into ``BrainData``.
+[`memory_estimate`](#data-collection-io-memory-estimate) | Human-readable RAM estimate if every item were loaded.
+[`read`](#data-collection-io-read) | Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
+[`unload`](#data-collection-io-unload) | Drop in-memory data for items that have backing paths.
+[`write`](#data-collection-io-write) | Write a clean, portable copy of ``bc`` outside the cache root.
 
 
 
@@ -26,6 +27,7 @@ Name | Description
 
 ### Methods
 
+(data-collection-io-discover-bids)=
 #### `discover_bids`
 
 ```python
@@ -44,6 +46,7 @@ Errors per SPEC §"Edge cases / errors":
   - fmriprep absent + ``confounds_strategy`` set: raise.
   - pybids not installed: raise ``ImportError``.
 
+(data-collection-io-from-bids)=
 #### `from_bids`
 
 ```python
@@ -60,6 +63,7 @@ here — that's the user's ``transform_designs`` step.
 
 See SPEC §"``from_bids`` — concrete design" for edge cases.
 
+(data-collection-io-from-glob)=
 #### `from_glob`
 
 ```python
@@ -68,6 +72,7 @@ from_glob(cls: type[BrainCollection], pattern: str, *, mask: nib.Nifti1Image | P
 
 Build a collection by globbing for BOLD images (and optionally designs).
 
+(data-collection-io-from-paths)=
 #### `from_paths`
 
 ```python
@@ -76,6 +81,7 @@ from_paths(cls: type[BrainCollection], brain_paths: list[Path | str], *, mask: n
 
 Build a collection from explicit lists of brain (and design) paths.
 
+(data-collection-io-load)=
 #### `load`
 
 ```python
@@ -88,6 +94,7 @@ Mutates ``bc`` in place. This is the only mutation method besides
 ``unload`` and does not allocate a step
 subdir, does not write to disk, does not produce a new identity.
 
+(data-collection-io-memory-estimate)=
 #### `memory_estimate`
 
 ```python
@@ -99,6 +106,7 @@ Human-readable RAM estimate if every item were loaded.
 Used by ``BrainCollection.memory_estimate()``; reports ``n_subjects``,
 typical per-item shape, and an estimated total in MB/GB.
 
+(data-collection-io-read)=
 #### `read`
 
 ```python
@@ -110,6 +118,7 @@ Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
 Does **not** recover from cache subdirs in v0.6.0 — call ``bc.write(...)``
 first to materialize a portable directory.
 
+(data-collection-io-unload)=
 #### `unload`
 
 ```python
@@ -121,6 +130,7 @@ Drop in-memory data for items that have backing paths.
 Mutates in place. This is a no-op for items that don't have a backing path
 because dropping them would lose data.
 
+(data-collection-io-write)=
 #### `write`
 
 ```python

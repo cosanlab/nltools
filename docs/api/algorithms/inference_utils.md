@@ -1,3 +1,4 @@
+(algorithms-inference-utils-utils)=
 ## `utils`
 
 Utility functions for permutation testing.

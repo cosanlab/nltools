@@ -1,3 +1,4 @@
+(algorithms-inference-matrix-matrix)=
 ## `matrix`
 
 Matrix permutation test implementations (Mantel test).
@@ -10,10 +11,10 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double-center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#algorithms-inference-matrix-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-inference-matrix-double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#algorithms-inference-matrix-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#algorithms-inference-matrix-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
@@ -23,6 +24,7 @@ Name | Type | Description
 
 ### Methods
 
+(algorithms-inference-matrix-distance-correlation)=
 #### `distance_correlation`
 
 ```python
@@ -76,6 +78,7 @@ True
 True
 ```
 
+(algorithms-inference-matrix-double-center)=
 #### `double_center`
 
 ```python
@@ -110,6 +113,7 @@ True
 True
 ```
 
+(algorithms-inference-matrix-matrix-permutation-test)=
 #### `matrix_permutation_test`
 
 ```python
@@ -184,6 +188,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
+(algorithms-inference-matrix-u-center)=
 #### `u_center`
 
 ```python

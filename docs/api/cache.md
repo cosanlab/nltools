@@ -1,3 +1,4 @@
+(cache-cache)=
 ## `cache`
 
 Disk-based caching infrastructure for expensive computations.
@@ -31,20 +32,21 @@ neighborhoods, ISC, and SRM.
 
 Name | Description
 ---- | -----------
-[`CacheManager`](#cachemanager) | Manages disk-based caching for expensive computations.
+[`CacheManager`](#cache-cachemanager) | Manages disk-based caching for expensive computations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`clear_cache`](#clear-cache) | Clear the nltools cache.
-[`get_cache_dir`](#get-cache-dir) | Get the nltools cache directory.
-[`hash_mask`](#hash-mask) | Compute a stable hash for a NIfTI mask image.
+[`clear_cache`](#cache-clear-cache) | Clear the nltools cache.
+[`get_cache_dir`](#cache-get-cache-dir) | Get the nltools cache directory.
+[`hash_mask`](#cache-hash-mask) | Compute a stable hash for a NIfTI mask image.
 
 
 
 ### Classes
 
+(cache-cachemanager)=
 #### `CacheManager`
 
 ```python
@@ -82,13 +84,13 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`clear`](#clear) | Clear all cached files in this category.
-[`delete`](#delete) | Delete a cached file.
-[`exists`](#exists) | Check if a cache key exists.
-[`get_path`](#get-path) | Get the file path for a cache key.
-[`list_keys`](#list-keys) | List all cached keys in this category.
-[`load`](#load) | Load cached data.
-[`save`](#save) | Save arrays to cache.
+[`clear`](#cache-clear) | Clear all cached files in this category.
+[`delete`](#cache-delete) | Delete a cached file.
+[`exists`](#cache-exists) | Check if a cache key exists.
+[`get_path`](#cache-get-path) | Get the file path for a cache key.
+[`list_keys`](#cache-list-keys) | List all cached keys in this category.
+[`load`](#cache-load) | Load cached data.
+[`save`](#cache-save) | Save arrays to cache.
 
 **Attributes:**
 
@@ -99,6 +101,7 @@ Name | Type | Description
 
 ##### Methods
 
+(cache-clear)=
 ###### `clear`
 
 ```python
@@ -113,6 +116,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of files deleted
 
+(cache-delete)=
 ###### `delete`
 
 ```python
@@ -134,6 +138,7 @@ Type | Description
 ---- | -----------
 <code>[bool](#bool)</code> | True if file was deleted, False if it didn't exist
 
+(cache-exists)=
 ###### `exists`
 
 ```python
@@ -155,6 +160,7 @@ Type | Description
 ---- | -----------
 <code>[bool](#bool)</code> | True if cached file exists
 
+(cache-get-path)=
 ###### `get_path`
 
 ```python
@@ -176,6 +182,7 @@ Type | Description
 ---- | -----------
 <code>[Path](#pathlib.Path)</code> | Path to the cache file
 
+(cache-list-keys)=
 ###### `list_keys`
 
 ```python
@@ -196,6 +203,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | List of cache keys (without extension)
 
+(cache-load)=
 ###### `load`
 
 ```python
@@ -216,6 +224,7 @@ Type | Description
 ---- | -----------
 <code>[dict](#dict) \| None</code> | Dictionary of cached arrays, or None if not cached
 
+(cache-save)=
 ###### `save`
 
 ```python
@@ -242,6 +251,7 @@ Type | Description
 
 ### Methods
 
+(cache-clear-cache)=
 #### `clear_cache`
 
 ```python
@@ -262,6 +272,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of files deleted
 
+(cache-get-cache-dir)=
 #### `get_cache_dir`
 
 ```python
@@ -278,6 +289,7 @@ Type | Description
 ---- | -----------
 <code>[Path](#pathlib.Path)</code> | Path to cache directory
 
+(cache-hash-mask)=
 #### `hash_mask`
 
 ```python

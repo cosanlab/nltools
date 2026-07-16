@@ -1,3 +1,4 @@
+(algorithms-algorithms)=
 ## `algorithms`
 
 External functions.
@@ -6,41 +7,42 @@ External functions.
 
 Name | Description
 ---- | -----------
-[`alignment`](#alignment) | Multi-subject functional alignment algorithms.
-[`backends`](#backends) | Backend abstraction for CPU/GPU operations.
-[`hrf`](#hrf) | Hemodynamic response functions — re-exported from nilearn.
-[`inference`](#inference) | GPU-accelerated statistical inference for neuroimaging.
-[`random`](#random) | Shared random state utilities for algorithms module.
-[`ridge`](#ridge) | Ridge regression algorithms and utilities.
-[`shape_utils`](#shape-utils) | Shared shape manipulation utilities for algorithms module.
+[`alignment`](#algorithms-alignment) | Multi-subject functional alignment algorithms.
+[`backends`](#algorithms-backends) | Backend abstraction for CPU/GPU operations.
+[`hrf`](#algorithms-hrf) | Hemodynamic response functions — re-exported from nilearn.
+[`inference`](#algorithms-inference) | GPU-accelerated statistical inference for neuroimaging.
+[`random`](#algorithms-random) | Shared random state utilities for algorithms module.
+[`ridge`](#algorithms-ridge) | Ridge regression algorithms and utilities.
+[`shape_utils`](#algorithms-shape-utils) | Shared shape manipulation utilities for algorithms module.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
-[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
-[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#algorithms-detsrm) | Deterministic Shared Response Model (DetSRM).
+[`HyperAlignment`](#algorithms-hyperalignment) | Hyperalignment using iterative Procrustes alignment.
+[`LocalAlignment`](#algorithms-localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#algorithms-srm) | Probabilistic Shared Response Model (SRM).
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`glover_dispersion_derivative`](#glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
-[`glover_hrf`](#glover-hrf) | Implement the Glover :term:`HRF` model.
-[`glover_time_derivative`](#glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
-[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
-[`spm_dispersion_derivative`](#spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
-[`spm_hrf`](#spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
-[`spm_time_derivative`](#spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
+[`glover_dispersion_derivative`](#algorithms-glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
+[`glover_hrf`](#algorithms-glover-hrf) | Implement the Glover :term:`HRF` model.
+[`glover_time_derivative`](#algorithms-glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
+[`one_sample_permutation_test`](#algorithms-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`ridge_cv`](#algorithms-ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#algorithms-ridge-svd) | Solve ridge regression using Singular Value Decomposition.
+[`spm_dispersion_derivative`](#algorithms-spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
+[`spm_hrf`](#algorithms-spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
+[`spm_time_derivative`](#algorithms-spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 
 
 ### Classes
 
+(algorithms-detsrm)=
 #### `DetSRM`
 
 ```python
@@ -120,12 +122,13 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model.
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform data to the Shared Response subspace.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 ##### Methods
 
+(algorithms-fit)=
 ###### `fit`
 
 ```python
@@ -150,6 +153,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `self` | <code>[DetSRM](#nltools.algorithms.alignment.srm.DetSRM)</code> | Fitted model
 
+(algorithms-transform)=
 ###### `transform`
 
 ```python
@@ -173,6 +177,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `s` | <code>list of 2D arrays, element i has shape=[features_i, samples_i]</code> | Shared responses from input data (X)
 
+(algorithms-transform-subject)=
 ###### `transform_subject`
 
 ```python
@@ -194,6 +199,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
 
+(algorithms-hyperalignment)=
 #### `HyperAlignment`
 
 ```python
@@ -289,9 +295,9 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit hyperalignment model to data.
-[`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform-subject) | Align a new subject to the common space.
+[`fit`](#algorithms-fit) | Fit hyperalignment model to data.
+[`transform`](#algorithms-transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#algorithms-transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -369,6 +375,7 @@ Name | Type | Description
 `disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
 `scale` | <code>[float](#float)</code> | Scale factor used
 
+(algorithms-localalignment)=
 #### `LocalAlignment`
 
 ```python
@@ -433,15 +440,15 @@ used to preserve local orthogonality of transforms.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
-[`transform`](#transform) | Apply local transforms to data.
+[`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
+[`transform`](#algorithms-transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
 `backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
 `mask_` | <code>[Any](#typing.Any) \| None</code> | 
 `max_memory_gb` | <code>[float](#float)</code> | 
@@ -479,6 +486,7 @@ mask : Nifti1Image
 self : LocalAlignment
     Fitted alignment model.
 
+(algorithms-fit-transform)=
 ###### `fit_transform`
 
 ```python
@@ -514,6 +522,7 @@ data : List[np.ndarray]
 List[np.ndarray]
     Aligned data for each subject, shape (n_voxels, n_samples).
 
+(algorithms-srm)=
 #### `SRM`
 
 ```python
@@ -596,9 +605,9 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model.
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform matrix to Shared Response space.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 ##### Methods
 
@@ -675,6 +684,7 @@ Name | Type | Description
 
 ### Methods
 
+(algorithms-glover-dispersion-derivative)=
 #### `glover_dispersion_derivative`
 
 ```python
@@ -720,6 +730,7 @@ Returns
 dhrf : array of shape(length / t_r * oversampling), dtype=float
       dhrf sampling on the oversampled time grid
 
+(algorithms-glover-hrf)=
 #### `glover_hrf`
 
 ```python
@@ -765,6 +776,7 @@ Returns
 hrf : array of shape(length / t_r * oversampling, dtype=float)
      :term:`HRF` sampling on the oversampled time grid.
 
+(algorithms-glover-time-derivative)=
 #### `glover_time_derivative`
 
 ```python
@@ -810,6 +822,7 @@ Returns
 dhrf : array of shape(length / t_r), dtype=float
       dhrf sampling on the provided grid
 
+(algorithms-one-sample-permutation-test)=
 #### `one_sample_permutation_test`
 
 ```python
@@ -880,6 +893,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-ridge-cv)=
 #### `ridge_cv`
 
 ```python
@@ -931,6 +945,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-ridge-svd)=
 #### `ridge_svd`
 
 ```python
@@ -1015,6 +1030,7 @@ Type | Description
 
 </details>
 
+(algorithms-spm-dispersion-derivative)=
 #### `spm_dispersion_derivative`
 
 ```python
@@ -1060,6 +1076,7 @@ Returns
 dhrf : array of shape(length / tr * oversampling), dtype=float
       dhrf sampling on the oversampled time grid
 
+(algorithms-spm-hrf)=
 #### `spm_hrf`
 
 ```python
@@ -1105,6 +1122,7 @@ Returns
 hrf : array of shape(length / t_r * oversampling, dtype=float)
      :term:`HRF` sampling on the oversampled time grid
 
+(algorithms-spm-time-derivative)=
 #### `spm_time_derivative`
 
 ```python
@@ -1154,6 +1172,7 @@ dhrf : array of shape(length / t_r, dtype=float)
 
 ### Modules
 
+(algorithms-alignment)=
 #### `alignment`
 
 Multi-subject functional alignment algorithms.
@@ -1168,18 +1187,18 @@ This package provides algorithms for aligning functional data across subjects:
 
 Name | Description
 ---- | -----------
-[`hyperalignment`](#hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
-[`local`](#local) | LocalAlignment: Neighborhood-based functional alignment.
-[`srm`](#srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
+[`hyperalignment`](#algorithms-hyperalignment) | HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
+[`local`](#algorithms-local) | LocalAlignment: Neighborhood-based functional alignment.
+[`srm`](#algorithms-srm) | Shared Response Model (SRM) for multi-subject fMRI alignment.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
-[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
-[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
-[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#algorithms-detsrm) | Deterministic Shared Response Model (DetSRM).
+[`HyperAlignment`](#algorithms-hyperalignment) | Hyperalignment using iterative Procrustes alignment.
+[`LocalAlignment`](#algorithms-localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`SRM`](#algorithms-srm) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -1264,14 +1283,15 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model.
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform data to the Shared Response subspace.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 
 
 ####### Attributes##
 
+(algorithms-features)=
 ###### `features`
 
 ```python
@@ -1457,9 +1477,9 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit hyperalignment model to data.
-[`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform-subject) | Align a new subject to the common space.
+[`fit`](#algorithms-fit) | Fit hyperalignment model to data.
+[`transform`](#algorithms-transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#algorithms-transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -1472,6 +1492,7 @@ Name | Type | Description | Default
 
 ####### Attributes##
 
+(algorithms-auto-pad)=
 ###### `auto_pad`
 
 ```python
@@ -1627,15 +1648,15 @@ used to preserve local orthogonality of transforms.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
-[`transform`](#transform) | Apply local transforms to data.
+[`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
+[`transform`](#algorithms-transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
 `backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
 `mask_` | <code>[Any](#typing.Any) \| None</code> | 
 `max_memory_gb` | <code>[float](#float)</code> | 
@@ -1657,6 +1678,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(algorithms-aggregation)=
 ###### `aggregation`
 
 ```python
@@ -1898,9 +1920,9 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model.
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform matrix to Shared Response space.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2052,7 +2074,7 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`HyperAlignment`](#hyperalignment) | Hyperalignment using iterative Procrustes alignment.
+[`HyperAlignment`](#algorithms-hyperalignment) | Hyperalignment using iterative Procrustes alignment.
 
 
 
@@ -2153,9 +2175,9 @@ human ventral temporal cortex. Neuron, 72(2), 404-416.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit hyperalignment model to data.
-[`transform`](#transform) | Transform data to common space using fitted transformations.
-[`transform_subject`](#transform-subject) | Align a new subject to the common space.
+[`fit`](#algorithms-fit) | Fit hyperalignment model to data.
+[`transform`](#algorithms-transform) | Transform data to common space using fitted transformations.
+[`transform_subject`](#algorithms-transform-subject) | Align a new subject to the common space.
 
 **Parameters:**
 
@@ -2259,6 +2281,7 @@ Name | Type | Description
 `disparity` | <code>[float](#float)</code> | Alignment quality (sum of squared differences)
 `scale` | <code>[float](#float)</code> | Scale factor used
 
+(algorithms-local)=
 ###### `local`
 
 LocalAlignment: Neighborhood-based functional alignment.
@@ -2270,7 +2293,7 @@ Uses center-only aggregation to preserve orthogonality of local transforms.
 
 Name | Description
 ---- | -----------
-[`LocalAlignment`](#localalignment) | Local (neighborhood-based) functional alignment across subjects.
+[`LocalAlignment`](#algorithms-localalignment) | Local (neighborhood-based) functional alignment across subjects.
 
 
 
@@ -2342,15 +2365,15 @@ used to preserve local orthogonality of transforms.
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit local alignment on multi-subject data.
-[`fit_transform`](#fit-transform) | Fit alignment and transform data in one step.
-[`transform`](#transform) | Apply local transforms to data.
+[`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
+[`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
+[`transform`](#algorithms-transform) | Apply local transforms to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`aggregation`](#aggregation) | <code>[str](#str)</code> | 
+[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
 `backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
 `mask_` | <code>[Any](#typing.Any) \| None</code> | 
 `max_memory_gb` | <code>[float](#float)</code> | 
@@ -2611,8 +2634,8 @@ limitations under the License.
 
 Name | Description
 ---- | -----------
-[`DetSRM`](#detsrm) | Deterministic Shared Response Model (DetSRM).
-[`SRM`](#srm) | Probabilistic Shared Response Model (SRM).
+[`DetSRM`](#algorithms-detsrm) | Deterministic Shared Response Model (DetSRM).
+[`SRM`](#algorithms-srm) | Probabilistic Shared Response Model (SRM).
 
 
 
@@ -2699,9 +2722,9 @@ Basic multi-subject DetSRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the Deterministic Shared Response Model.
-[`transform`](#transform) | Use the model to transform data to the Shared Response subspace.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the Deterministic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform data to the Shared Response subspace.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2879,9 +2902,9 @@ Basic multi-subject SRM fitting:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute the probabilistic Shared Response Model.
-[`transform`](#transform) | Use the model to transform matrix to Shared Response space.
-[`transform_subject`](#transform-subject) | Transform a new subject using the existing model.
+[`fit`](#algorithms-fit) | Compute the probabilistic Shared Response Model.
+[`transform`](#algorithms-transform) | Use the model to transform matrix to Shared Response space.
+[`transform_subject`](#algorithms-transform-subject) | Transform a new subject using the existing model.
 
 
 
@@ -2978,6 +3001,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `w` | <code>2D array, shape=[voxels, features]</code> | Orthogonal mapping `W_{new}` for new subject
 
+(algorithms-backends)=
 #### `backends`
 
 Backend abstraction for CPU/GPU operations.
@@ -2990,21 +3014,22 @@ maintaining NumPy-first development.
 
 Name | Description
 ---- | -----------
-[`Backend`](#backend) | Backend abstraction for numerical operations.
+[`Backend`](#algorithms-backend) | Backend abstraction for numerical operations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`assert_array_almost_equal`](#assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
-[`auto_select_backend`](#auto-select-backend) | Automatically select backend based on problem size.
-[`check_gpu_available`](#check-gpu-available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve-backend) | Coerce a backend specifier into a `Backend` instance.
+[`assert_array_almost_equal`](#algorithms-assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#algorithms-auto-select-backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#algorithms-check-gpu-available) | Check if GPU acceleration is available.
+[`resolve_backend`](#algorithms-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
 ##### Classes
 
+(algorithms-backend)=
 ###### `Backend`
 
 ```python
@@ -3034,7 +3059,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`asarray`](#asarray) | Convert input to a backend array.
+[`asarray`](#algorithms-asarray) | Convert input to a backend array.
 `asarray_like` | Convert *x* to an array matching *ref*'s dtype (and device for torch).
 `check_arrays` | Coerce all inputs to the same dtype (and device) as the first.
 `concatenate` | Concatenate arrays along an axis.
@@ -3058,6 +3083,7 @@ Name | Description
 
 ####### Attributes##
 
+(algorithms-is-gpu)=
 ###### `is_gpu`
 
 ```python
@@ -3070,6 +3096,7 @@ True if backend is using a GPU device (CUDA or MPS).
 
 ####### Functions##
 
+(algorithms-asarray)=
 ###### `asarray`
 
 ```python
@@ -3427,6 +3454,7 @@ Name | Type | Description | Default
 
 ##### Methods
 
+(algorithms-assert-array-almost-equal)=
 ###### `assert_array_almost_equal`
 
 ```python
@@ -3456,6 +3484,7 @@ Type | Description
 ---- | -----------
  | None (raises AssertionError if arrays don't match)
 
+(algorithms-auto-select-backend)=
 ###### `auto_select_backend`
 
 ```python
@@ -3493,6 +3522,7 @@ Selection criteria:
 
 </details>
 
+(algorithms-check-gpu-available)=
 ###### `check_gpu_available`
 
 ```python
@@ -3507,6 +3537,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
 
+(algorithms-resolve-backend)=
 ###### `resolve_backend`
 
 ```python
@@ -3535,6 +3566,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Backend` |  | Resolved backend instance.
 
+(algorithms-hrf)=
 #### `hrf`
 
 Hemodynamic response functions — re-exported from nilearn.
@@ -3547,12 +3579,12 @@ nilearn ships canonical SPM and Glover HRFs (and their derivatives) under
 
 Name | Description
 ---- | -----------
-[`glover_dispersion_derivative`](#glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
-[`glover_hrf`](#glover-hrf) | Implement the Glover :term:`HRF` model.
-[`glover_time_derivative`](#glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
-[`spm_dispersion_derivative`](#spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
-[`spm_hrf`](#spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
-[`spm_time_derivative`](#spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
+[`glover_dispersion_derivative`](#algorithms-glover-dispersion-derivative) | Implement the Glover dispersion derivative :term:`HRF` model.
+[`glover_hrf`](#algorithms-glover-hrf) | Implement the Glover :term:`HRF` model.
+[`glover_time_derivative`](#algorithms-glover-time-derivative) | Implement the Glover time derivative :term:`HRF` (dhrf) model.
+[`spm_dispersion_derivative`](#algorithms-spm-dispersion-derivative) | Implement the :term:`SPM` dispersion derivative :term:`HRF` model.
+[`spm_hrf`](#algorithms-spm-hrf) | Implement the :term:`SPM` :term:`HRF` model.
+[`spm_time_derivative`](#algorithms-spm-time-derivative) | Implement the :term:`SPM` time derivative :term:`HRF` (dhrf) model.
 
 
 
@@ -3828,6 +3860,7 @@ Returns
 dhrf : array of shape(length / t_r, dtype=float)
       dhrf sampling on the provided grid
 
+(algorithms-inference)=
 #### `inference`
 
 GPU-accelerated statistical inference for neuroimaging.
@@ -3900,45 +3933,46 @@ with BrainData objects, see nltools.data.brain_data.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#bootstrap) | Bootstrap inference utilities with CPU/GPU support.
-[`correlation`](#correlation) | Correlation permutation test implementations.
-[`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
-[`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
-[`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#one-sample) | One-sample permutation test implementations.
-[`timeseries`](#timeseries) | Time-series permutation test implementations.
-[`two_sample`](#two-sample) | Two-sample permutation test implementations.
-[`utils`](#utils) | Utility functions for permutation testing.
-[`validation`](#validation) | Shared validation utilities for algorithms module.
+[`bootstrap`](#algorithms-bootstrap) | Bootstrap inference utilities with CPU/GPU support.
+[`correlation`](#algorithms-correlation) | Correlation permutation test implementations.
+[`icc`](#algorithms-icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
+[`isc`](#algorithms-isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+[`matrix`](#algorithms-matrix) | Matrix permutation test implementations (Mantel test).
+[`one_sample`](#algorithms-one-sample) | One-sample permutation test implementations.
+[`timeseries`](#algorithms-timeseries) | Time-series permutation test implementations.
+[`two_sample`](#algorithms-two-sample) | Two-sample permutation test implementations.
+[`utils`](#algorithms-utils) | Utility functions for permutation testing.
+[`validation`](#algorithms-validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#algorithms-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle-shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
-[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double-center) | Double center a 2d array.
-[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#algorithms-circle-shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#algorithms-compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#algorithms-correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#algorithms-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-double-center) | Double center a 2d array.
+[`isc_group_permutation_test`](#algorithms-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#algorithms-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#algorithms-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#algorithms-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#algorithms-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#algorithms-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
 ##### Classes
 
+(algorithms-onlinebootstrapstats)=
 ###### `OnlineBootstrapStats`
 
 ```python
@@ -3974,14 +4008,14 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get-results) | Compute final bootstrap statistics.
+[`get_results`](#algorithms-get-results) | Compute final bootstrap statistics.
 `update` | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#m2) |  | 
+[`M2`](#algorithms-m2) |  | 
 `mean` |  | 
 `n` |  | 
 `percentiles` |  | 
@@ -3993,6 +4027,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(algorithms-m2)=
 ###### `M2`
 
 ```python
@@ -4039,6 +4074,7 @@ shape = shape
 
 ####### Functions##
 
+(algorithms-get-results)=
 ###### `get_results`
 
 ```python
@@ -4128,6 +4164,7 @@ Name | Type | Description | Default
 
 ##### Methods
 
+(algorithms-circle-shift)=
 ###### `circle_shift`
 
 ```python
@@ -4172,6 +4209,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
+(algorithms-compute-icc-voxelwise)=
 ###### `compute_icc_voxelwise`
 
 ```python
@@ -4222,6 +4260,7 @@ Type | Description
 True
 ```
 
+(algorithms-correlation-permutation-test)=
 ###### `correlation_permutation_test`
 
 ```python
@@ -4300,6 +4339,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-distance-correlation)=
 ###### `distance_correlation`
 
 ```python
@@ -4353,6 +4393,7 @@ True
 True
 ```
 
+(algorithms-double-center)=
 ###### `double_center`
 
 ```python
@@ -4387,6 +4428,7 @@ True
 True
 ```
 
+(algorithms-isc-group-permutation-test)=
 ###### `isc_group_permutation_test`
 
 ```python
@@ -4469,6 +4511,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-isc-permutation-test)=
 ###### `isc_permutation_test`
 
 ```python
@@ -4553,6 +4596,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-matrix-permutation-test)=
 ###### `matrix_permutation_test`
 
 ```python
@@ -4697,6 +4741,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-phase-randomize)=
 ###### `phase_randomize`
 
 ```python
@@ -4761,6 +4806,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
+(algorithms-timeseries-correlation-permutation-test)=
 ###### `timeseries_correlation_permutation_test`
 
 ```python
@@ -4833,6 +4879,7 @@ True
 
 </details>
 
+(algorithms-two-sample-permutation-test)=
 ###### `two_sample_permutation_test`
 
 ```python
@@ -4906,6 +4953,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-u-center)=
 ###### `u_center`
 
 ```python
@@ -4942,6 +4990,7 @@ True
 
 ##### Modules
 
+(algorithms-bootstrap)=
 ###### `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
@@ -4950,19 +4999,20 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#algorithms-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`FITTED_METHODS`](#fitted-methods) |  | 
+[`FITTED_METHODS`](#algorithms-fitted-methods) |  | 
 `SIMPLE_METHODS` |  | 
 
 
 
 ####### Attributes##
 
+(algorithms-fitted-methods)=
 ###### `FITTED_METHODS`
 
 ```python
@@ -5014,14 +5064,14 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get-results) | Compute final bootstrap statistics.
+[`get_results`](#algorithms-get-results) | Compute final bootstrap statistics.
 `update` | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`M2`](#m2) |  | 
+[`M2`](#algorithms-m2) |  | 
 `mean` |  | 
 `n` |  | 
 `percentiles` |  | 
@@ -5168,6 +5218,7 @@ Name | Type | Description | Default
 
 ####### Functions
 
+(algorithms-correlation)=
 ###### `correlation`
 
 Correlation permutation test implementations.
@@ -5180,7 +5231,7 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`correlation_permutation_test`](#algorithms-correlation-permutation-test) | Correlation permutation test.
 
 
 
@@ -5268,6 +5319,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-icc)=
 ###### `icc`
 
 Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
@@ -5299,7 +5351,7 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#algorithms-compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
 
 
@@ -5359,6 +5411,7 @@ Type | Description
 True
 ```
 
+(algorithms-isc)=
 ###### `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
@@ -5403,8 +5456,8 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#algorithms-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 
 
@@ -5578,6 +5631,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-matrix)=
 ###### `matrix`
 
 Matrix permutation test implementations (Mantel test).
@@ -5590,21 +5644,22 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double-center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#algorithms-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#algorithms-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#algorithms-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`MAX_INT`](#max-int) |  | 
+[`MAX_INT`](#algorithms-max-int) |  | 
 
 
 
 ####### Attributes##
 
+(algorithms-max-int)=
 ###### `MAX_INT`
 
 ```python
@@ -5808,6 +5863,7 @@ Name | Type | Description
 True
 ```
 
+(algorithms-one-sample)=
 ###### `one_sample`
 
 One-sample permutation test implementations.
@@ -5819,7 +5875,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#algorithms-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
@@ -5897,6 +5953,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-timeseries)=
 ###### `timeseries`
 
 Time-series permutation test implementations.
@@ -5924,9 +5981,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle-shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`circle_shift`](#algorithms-circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#algorithms-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 
@@ -6114,6 +6171,7 @@ True
 
 </details>
 
+(algorithms-two-sample)=
 ###### `two_sample`
 
 Two-sample permutation test implementations.
@@ -6125,7 +6183,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#algorithms-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 
@@ -6206,6 +6264,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-utils)=
 ###### `utils`
 
 Utility functions for permutation testing.
@@ -6217,12 +6276,13 @@ permutation test implementations.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`EPSILON`](#epsilon) |  | 
+[`EPSILON`](#algorithms-epsilon) |  | 
 
 
 
 ####### Attributes##
 
+(algorithms-epsilon)=
 ###### `EPSILON`
 
 ```python
@@ -6233,6 +6293,7 @@ EPSILON = 1e-10
 
 ####### Functions
 
+(algorithms-validation)=
 ###### `validation`
 
 Shared validation utilities for algorithms module.
@@ -6257,7 +6318,7 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#validate-alpha) | Validate regularization parameter alpha.
+[`validate_alpha`](#algorithms-validate-alpha) | Validate regularization parameter alpha.
 `validate_array_shape` | Validate array dimensionality.
 `validate_array_shape_range` | Validate array dimensionality is within a range.
 `validate_bootstrap_data` | Validate input data for bootstrapping.
@@ -6279,6 +6340,7 @@ Name | Description
 
 ####### Functions##
 
+(algorithms-validate-alpha)=
 ###### `validate_alpha`
 
 ```python
@@ -6558,6 +6620,7 @@ MCP-adjusted p-values. See GH #315.
 
 </details>
 
+(algorithms-random)=
 #### `random`
 
 Shared random state utilities for algorithms module.
@@ -6591,15 +6654,16 @@ Example:
 
 Name | Description
 ---- | -----------
-[`generate_bootstrap_indices`](#generate-bootstrap-indices) | Generate bootstrap indices deterministically for resampling.
-[`generate_seeds`](#generate-seeds) | Generate random seeds for deterministic parallelization.
-[`generate_sign_flips`](#generate-sign-flips) | Generate random sign-flip matrix for one-sample permutation tests.
-[`get_random_state`](#get-random-state) | Get RandomState instance from seed.
+[`generate_bootstrap_indices`](#algorithms-generate-bootstrap-indices) | Generate bootstrap indices deterministically for resampling.
+[`generate_seeds`](#algorithms-generate-seeds) | Generate random seeds for deterministic parallelization.
+[`generate_sign_flips`](#algorithms-generate-sign-flips) | Generate random sign-flip matrix for one-sample permutation tests.
+[`get_random_state`](#algorithms-get-random-state) | Get RandomState instance from seed.
 
 
 
 ##### Methods
 
+(algorithms-generate-bootstrap-indices)=
 ###### `generate_bootstrap_indices`
 
 ```python
@@ -6644,6 +6708,7 @@ array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
 
 </details>
 
+(algorithms-generate-seeds)=
 ###### `generate_seeds`
 
 ```python
@@ -6678,6 +6743,7 @@ Type | Description
 True
 ```
 
+(algorithms-generate-sign-flips)=
 ###### `generate_sign_flips`
 
 ```python
@@ -6728,6 +6794,7 @@ True
 
 </details>
 
+(algorithms-get-random-state)=
 ###### `get_random_state`
 
 ```python
@@ -6755,6 +6822,7 @@ Uses sklearn.utils.check_random_state for consistency
 
 </details>
 
+(algorithms-ridge)=
 #### `ridge`
 
 Ridge regression algorithms and utilities.
@@ -6780,25 +6848,26 @@ Features:
 
 Name | Description
 ---- | -----------
-[`core`](#core) | Ridge regression algorithms using SVD decomposition.
-[`solvers`](#solvers) | Ridge regression solvers with cross-validation.
-[`utils`](#utils) | Utility functions for ridge regression.
+[`core`](#algorithms-core) | Ridge regression algorithms using SVD decomposition.
+[`solvers`](#algorithms-solvers) | Ridge regression solvers with cross-validation.
+[`utils`](#algorithms-utils) | Utility functions for ridge regression.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`cross_val_predict_ridge`](#cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
-[`generate_dirichlet_samples`](#generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
-[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
-[`solve_banded_ridge_cv`](#solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#solve-ridge-cv) | Solve ridge regression with cross-validation.
+[`cross_val_predict_ridge`](#algorithms-cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
+[`generate_dirichlet_samples`](#algorithms-generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
+[`ridge_cv`](#algorithms-ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#algorithms-ridge-svd) | Solve ridge regression using Singular Value Decomposition.
+[`solve_banded_ridge_cv`](#algorithms-solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#algorithms-solve-ridge-cv) | Solve ridge regression with cross-validation.
 
 
 
 ##### Methods
 
+(algorithms-cross-val-predict-ridge)=
 ###### `cross_val_predict_ridge`
 
 ```python
@@ -6841,6 +6910,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'parallel': Backend used (for transparency).
 
+(algorithms-generate-dirichlet-samples)=
 ###### `generate_dirichlet_samples`
 
 ```python
@@ -7015,6 +7085,7 @@ Type | Description
 
 </details>
 
+(algorithms-solve-banded-ridge-cv)=
 ###### `solve_banded_ridge_cv`
 
 ```python
@@ -7124,6 +7195,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 </details>
 
+(algorithms-solve-ridge-cv)=
 ###### `solve_ridge_cv`
 
 ```python
@@ -7210,6 +7282,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 
 ##### Modules
 
+(algorithms-core)=
 ###### `core`
 
 Ridge regression algorithms using SVD decomposition.
@@ -7262,8 +7335,8 @@ himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
 
 Name | Description
 ---- | -----------
-[`ridge_cv`](#ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
-[`ridge_svd`](#ridge-svd) | Solve ridge regression using Singular Value Decomposition.
+[`ridge_cv`](#algorithms-ridge-cv) | Ridge regression with cross-validation for hyperparameter selection.
+[`ridge_svd`](#algorithms-ridge-svd) | Solve ridge regression using Singular Value Decomposition.
 
 
 
@@ -7404,6 +7477,7 @@ Type | Description
 
 </details>
 
+(algorithms-solvers)=
 ###### `solvers`
 
 Ridge regression solvers with cross-validation.
@@ -7422,9 +7496,9 @@ Follows himalaya's implementation patterns:
 
 Name | Description
 ---- | -----------
-[`cross_val_predict_ridge`](#cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
-[`solve_banded_ridge_cv`](#solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
-[`solve_ridge_cv`](#solve-ridge-cv) | Solve ridge regression with cross-validation.
+[`cross_val_predict_ridge`](#algorithms-cross-val-predict-ridge) | Held-out ridge predictions per CV fold under a (per-target) alpha.
+[`solve_banded_ridge_cv`](#algorithms-solve-banded-ridge-cv) | Solve banded ridge regression with cross-validation using random search.
+[`solve_ridge_cv`](#algorithms-solve-ridge-cv) | Solve ridge regression with cross-validation.
 
 
 
@@ -7674,7 +7748,7 @@ following himalaya's implementation patterns.
 
 Name | Description
 ---- | -----------
-[`generate_dirichlet_samples`](#generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
+[`generate_dirichlet_samples`](#algorithms-generate-dirichlet-samples) | Generate samples from a Dirichlet distribution.
 
 
 
@@ -7721,6 +7795,7 @@ Type | Description
 True
 ```
 
+(algorithms-shape-utils)=
 #### `shape_utils`
 
 Shared shape manipulation utilities for algorithms module.
@@ -7755,15 +7830,16 @@ Example:
 
 Name | Description
 ---- | -----------
-[`batch_or_skip`](#batch-or-skip) | Apply batch or skip if dimension is 1.
-[`ensure_2d`](#ensure-2d) | Ensure array is 2D, adding dimension if needed.
-[`extract_triangle_elements`](#extract-triangle-elements) | Extract triangle elements from square matrix.
-[`permute_matrix_symmetric`](#permute-matrix-symmetric) | Apply symmetric row+column permutation to square matrix.
+[`batch_or_skip`](#algorithms-batch-or-skip) | Apply batch or skip if dimension is 1.
+[`ensure_2d`](#algorithms-ensure-2d) | Ensure array is 2D, adding dimension if needed.
+[`extract_triangle_elements`](#algorithms-extract-triangle-elements) | Extract triangle elements from square matrix.
+[`permute_matrix_symmetric`](#algorithms-permute-matrix-symmetric) | Apply symmetric row+column permutation to square matrix.
 
 
 
 ##### Methods
 
+(algorithms-batch-or-skip)=
 ###### `batch_or_skip`
 
 ```python
@@ -7805,6 +7881,7 @@ array([1.0])
 (5,)
 ```
 
+(algorithms-ensure-2d)=
 ###### `ensure_2d`
 
 ```python
@@ -7837,6 +7914,7 @@ Type | Description
 (2, 2)
 ```
 
+(algorithms-extract-triangle-elements)=
 ###### `extract_triangle_elements`
 
 ```python
@@ -7867,6 +7945,7 @@ Type | Description
 array([ 1,  2,  3,  6,  7, 11])
 ```
 
+(algorithms-permute-matrix-symmetric)=
 ###### `permute_matrix_symmetric`
 
 ```python

@@ -1,3 +1,4 @@
+(algorithms-inference-timeseries-timeseries)=
 ## `timeseries`
 
 Time-series permutation test implementations.
@@ -25,9 +26,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle-shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`circle_shift`](#algorithms-inference-timeseries-circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#algorithms-inference-timeseries-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 
@@ -35,6 +36,7 @@ Name | Description
 
 ### Methods
 
+(algorithms-inference-timeseries-circle-shift)=
 #### `circle_shift`
 
 ```python
@@ -79,6 +81,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
+(algorithms-inference-timeseries-phase-randomize)=
 #### `phase_randomize`
 
 ```python
@@ -143,6 +146,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
+(algorithms-inference-timeseries-timeseries-correlation-permutation-test)=
 #### `timeseries_correlation_permutation_test`
 
 ```python

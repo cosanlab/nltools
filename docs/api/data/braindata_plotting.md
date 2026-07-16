@@ -1,3 +1,4 @@
+(data-braindata-plotting-plotting)=
 ## `plotting`
 
 BrainData plotting functions.
@@ -6,10 +7,10 @@ BrainData plotting functions.
 
 Name | Description
 ---- | -----------
-[`auto_select_colormap`](#auto-select-colormap) | Auto-select colormap based on data characteristics.
-[`plot_brain`](#plot-brain) | Plot BrainData instance using nilearn visualization or matplotlib.
-[`plot_flatmap_brain`](#plot-flatmap-brain) | Plot brain data on cortical flatmap.
-[`prepare_save_paths`](#prepare-save-paths) | Prepare save paths for multiple plot outputs.
+[`auto_select_colormap`](#data-braindata-plotting-auto-select-colormap) | Auto-select colormap based on data characteristics.
+[`plot_brain`](#data-braindata-plotting-plot-brain) | Plot BrainData instance using nilearn visualization or matplotlib.
+[`plot_flatmap_brain`](#data-braindata-plotting-plot-flatmap-brain) | Plot brain data on cortical flatmap.
+[`prepare_save_paths`](#data-braindata-plotting-prepare-save-paths) | Prepare save paths for multiple plot outputs.
 
 **Attributes:**
 
@@ -19,6 +20,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-braindata-plotting-auto-select-colormap)=
 #### `auto_select_colormap`
 
 ```python
@@ -39,6 +41,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Colormap name
 
+(data-braindata-plotting-plot-brain)=
 #### `plot_brain`
 
 ```python
@@ -80,6 +83,7 @@ Type | Description
  | of figures (one per image for glass; one per image-and-view pair for
  | slices). All figures auto-display in notebooks.
 
+(data-braindata-plotting-plot-flatmap-brain)=
 #### `plot_flatmap_brain`
 
 ```python
@@ -116,6 +120,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
+(data-braindata-plotting-prepare-save-paths)=
 #### `prepare_save_paths`
 
 ```python

@@ -1,3 +1,4 @@
+(data-adjacency-adjacency)=
 ## `Adjacency`
 
 ```python
@@ -23,34 +24,34 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Append data to an Adjacency instance.
-[`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`cluster_summary`](#cluster-summary) | Provide summaries of clusters within Adjacency matrices.
-[`copy`](#copy) | Create a copy of Adjacency object.
-[`distance`](#distance) | Calculate distance between images within an Adjacency() instance.
-[`distance_to_similarity`](#distance-to-similarity) | Convert distance matrix to similarity matrix.
-[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
-[`mean`](#mean) | Calculate mean of Adjacency.
-[`median`](#median) | Calculate median of Adjacency.
-[`plot`](#plot) | Create a heatmap of an Adjacency matrix.
-[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
-[`plot_mds`](#plot-mds) | Plot multidimensional scaling.
-[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
-[`r_to_z`](#r-to-z) | Apply Fisher's r-to-z transformation to each data element.
-[`regress`](#regress) | Run a regression on an adjacency instance.
-[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
-[`squareform`](#squareform) | Convert adjacency data back to square form.
-[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
-[`std`](#std) | Calculate standard deviation of Adjacency.
-[`sum`](#sum) | Calculate sum of Adjacency.
-[`threshold`](#threshold) | Threshold an Adjacency instance.
-[`to_brain`](#to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
-[`to_graph`](#to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
-[`to_square`](#to-square) | Convert adjacency back to square matrix format.
-[`ttest`](#ttest) | Calculate ttest across samples.
-[`write`](#write) | Write out Adjacency object to csv file.
-[`z_to_r`](#z-to-r) | Convert each z score back into an r value.
+[`append`](#data-adjacency-append) | Append data to an Adjacency instance.
+[`bootstrap`](#data-adjacency-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`cluster_summary`](#data-adjacency-cluster-summary) | Provide summaries of clusters within Adjacency matrices.
+[`copy`](#data-adjacency-copy) | Create a copy of Adjacency object.
+[`distance`](#data-adjacency-distance) | Calculate distance between images within an Adjacency() instance.
+[`distance_to_similarity`](#data-adjacency-distance-to-similarity) | Convert distance matrix to similarity matrix.
+[`generate_permutations`](#data-adjacency-generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`mean`](#data-adjacency-mean) | Calculate mean of Adjacency.
+[`median`](#data-adjacency-median) | Calculate median of Adjacency.
+[`plot`](#data-adjacency-plot) | Create a heatmap of an Adjacency matrix.
+[`plot_label_distance`](#data-adjacency-plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_mds`](#data-adjacency-plot-mds) | Plot multidimensional scaling.
+[`plot_silhouette`](#data-adjacency-plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#data-adjacency-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
+[`regress`](#data-adjacency-regress) | Run a regression on an adjacency instance.
+[`similarity`](#data-adjacency-similarity) | Calculate similarity between two Adjacency matrices.
+[`social_relations_model`](#data-adjacency-social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
+[`squareform`](#data-adjacency-squareform) | Convert adjacency data back to square form.
+[`stats_label_distance`](#data-adjacency-stats-label-distance) | Calculate permutation tests on within and between label distance.
+[`std`](#data-adjacency-std) | Calculate standard deviation of Adjacency.
+[`sum`](#data-adjacency-sum) | Calculate sum of Adjacency.
+[`threshold`](#data-adjacency-threshold) | Threshold an Adjacency instance.
+[`to_brain`](#data-adjacency-to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
+[`to_graph`](#data-adjacency-to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
+[`to_square`](#data-adjacency-to-square) | Convert adjacency back to square matrix format.
+[`ttest`](#data-adjacency-ttest) | Calculate ttest across samples.
+[`write`](#data-adjacency-write) | Write out Adjacency object to csv file.
+[`z_to_r`](#data-adjacency-z-to-r) | Convert each z score back into an r value.
 
 **Attributes:**
 
@@ -70,6 +71,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-adjacency-append)=
 #### `append`
 
 ```python
@@ -90,6 +92,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (Adjacency) new appended Adjacency instance
 
+(data-adjacency-bootstrap)=
 #### `bootstrap`
 
 ```python
@@ -127,6 +130,7 @@ Name | Type | Description
 >>> assert isinstance(boot['mean'], Adjacency)
 ```
 
+(data-adjacency-cluster-summary)=
 #### `cluster_summary`
 
 ```python
@@ -152,6 +156,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | within cluster means
 
+(data-adjacency-copy)=
 #### `copy`
 
 ```python
@@ -160,6 +165,7 @@ copy()
 
 Create a copy of Adjacency object.
 
+(data-adjacency-distance)=
 #### `distance`
 
 ```python
@@ -181,6 +187,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dist` |  | (Adjacency) Outputs a 2D distance matrix.
 
+(data-adjacency-distance-to-similarity)=
 #### `distance_to_similarity`
 
 ```python
@@ -204,6 +211,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (Adjacency) Adjacency object
 
+(data-adjacency-generate-permutations)=
 #### `generate_permutations`
 
 ```python
@@ -233,6 +241,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | permuted version of self
 
+(data-adjacency-mean)=
 #### `mean`
 
 ```python
@@ -253,6 +262,7 @@ Type | Description
 ---- | -----------
  | float if single matrix, Adjacency if axis=0, np.array if axis=1.
 
+(data-adjacency-median)=
 #### `median`
 
 ```python
@@ -273,6 +283,7 @@ Type | Description
 ---- | -----------
  | float if single matrix, Adjacency if axis=0, np.array if axis=1.
 
+(data-adjacency-plot)=
 #### `plot`
 
 ```python
@@ -290,6 +301,7 @@ Name | Type | Description | Default
 `limit` |  | (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3) | <code>3</code>
 `axes` |  | matplotlib axis handle | <code>None</code>
 
+(data-adjacency-plot-label-distance)=
 #### `plot_label_distance`
 
 ```python
@@ -310,6 +322,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `f` |  | violin plot handles
 
+(data-adjacency-plot-mds)=
 #### `plot_mds`
 
 ```python
@@ -332,6 +345,7 @@ Name | Type | Description | Default
 `ax` |  | matplotlib axis handle | <code>None</code>
 `n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 
+(data-adjacency-plot-silhouette)=
 #### `plot_silhouette`
 
 ```python
@@ -340,6 +354,7 @@ plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5
 
 Create a silhouette plot.
 
+(data-adjacency-r-to-z)=
 #### `r_to_z`
 
 ```python
@@ -348,6 +363,7 @@ r_to_z()
 
 Apply Fisher's r-to-z transformation to each data element.
 
+(data-adjacency-regress)=
 #### `regress`
 
 ```python
@@ -371,6 +387,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of stats outputs.
 
+(data-adjacency-similarity)=
 #### `similarity`
 
 ```python
@@ -395,6 +412,7 @@ Name | Type | Description | Default
 `n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
 
+(data-adjacency-social-relations-model)=
 #### `social_relations_model`
 
 ```python
@@ -443,6 +461,7 @@ Type | Description
 ---- | -----------
  | estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
 
+(data-adjacency-squareform)=
 #### `squareform`
 
 ```python
@@ -451,6 +470,7 @@ squareform()
 
 Convert adjacency data back to square form.
 
+(data-adjacency-stats-label-distance)=
 #### `stats_label_distance`
 
 ```python
@@ -472,6 +492,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | dictionary of within and between group differences     and p-values
 
+(data-adjacency-std)=
 #### `std`
 
 ```python
@@ -492,6 +513,7 @@ Type | Description
 ---- | -----------
  | float if single matrix, Adjacency if axis=0, np.array if axis=1.
 
+(data-adjacency-sum)=
 #### `sum`
 
 ```python
@@ -512,6 +534,7 @@ Type | Description
 ---- | -----------
  | float if single matrix, Adjacency if axis=0, np.array if axis=1.
 
+(data-adjacency-threshold)=
 #### `threshold`
 
 ```python
@@ -538,6 +561,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | thresholded Adjacency instance
 
+(data-adjacency-to-brain)=
 #### `to_brain`
 
 ```python
@@ -575,6 +599,7 @@ Name | Type | Description
 >>> brain_map = rdms.to_brain(sims)
 ```
 
+(data-adjacency-to-graph)=
 #### `to_graph`
 
 ```python
@@ -585,6 +610,7 @@ Convert a single Adjacency matrix into a NetworkX graph.
 
 This currently works only for ``single_matrix``.
 
+(data-adjacency-to-square)=
 #### `to_square`
 
 ```python
@@ -602,6 +628,7 @@ Type | Description
  | np.ndarray or list: Square matrix representation. Returns a list
  | of matrices if this object contains multiple adjacency matrices.
 
+(data-adjacency-ttest)=
 #### `ttest`
 
 ```python
@@ -627,6 +654,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
 
+(data-adjacency-write)=
 #### `write`
 
 ```python
@@ -642,6 +670,7 @@ Name | Type | Description | Default
 `file_name` | <code>[str](#str)</code> | name of file name to write | *required*
 `method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
 
+(data-adjacency-z-to-r)=
 #### `z_to_r`
 
 ```python

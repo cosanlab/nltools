@@ -1,3 +1,4 @@
+(templates-templates)=
 ## `templates`
 
 Global MNI brain-space configuration for nltools.
@@ -34,40 +35,41 @@ Scope a change to a block:
 
 Name | Description
 ---- | -----------
-[`config`](#config) | Global brain-space configuration: frozen dataclass + set/get/with API.
-[`fetch`](#fetch) | Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
-[`matching`](#matching) | Affine-based template matching and background-image selection.
-[`paths`](#paths) | Pure path-resolution helpers for MNI template files.
-[`registry`](#registry) | Static registry of supported MNI templates.
+[`config`](#templates-config) | Global brain-space configuration: frozen dataclass + set/get/with API.
+[`fetch`](#templates-fetch) | Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
+[`matching`](#templates-matching) | Affine-based template matching and background-image selection.
+[`paths`](#templates-paths) | Pure path-resolution helpers for MNI template files.
+[`registry`](#templates-registry) | Static registry of supported MNI templates.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`BrainSpaceConfig`](#brainspaceconfig) | Immutable MNI template configuration.
+[`BrainSpaceConfig`](#templates-brainspaceconfig) | Immutable MNI template configuration.
 `TemplateMatch` | Result of matching a data affine to a template.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`fetch_resource`](#fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
-[`get_bg_image`](#get-bg-image) | Get a background image path matching a data resolution.
-[`get_brainspace`](#get-brainspace) | Return the current global brain-space configuration.
-[`is_standard_space`](#is-standard-space) | Check whether an affine is compatible with our MNI templates.
-[`list_resources`](#list-resources) | List files available in the ``nltools/niftis`` HF dataset.
-[`match_resolution`](#match-resolution) | Find the best matching template for a given affine matrix.
-[`reset_brainspace`](#reset-brainspace) | Reset the global brain-space configuration to defaults.
-[`resolve_paths`](#resolve-paths) | Build mask/brain/plot paths for a template + resolution.
-[`resolve_template_name`](#resolve-template-name) | Resolve a template name string to a file path.
-[`seed_resources`](#seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
-[`set_brainspace`](#set-brainspace) | Set the global brain-space configuration.
-[`with_brainspace`](#with-brainspace) | Temporarily change the global brain-space configuration.
+[`fetch_resource`](#templates-fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
+[`get_bg_image`](#templates-get-bg-image) | Get a background image path matching a data resolution.
+[`get_brainspace`](#templates-get-brainspace) | Return the current global brain-space configuration.
+[`is_standard_space`](#templates-is-standard-space) | Check whether an affine is compatible with our MNI templates.
+[`list_resources`](#templates-list-resources) | List files available in the ``nltools/niftis`` HF dataset.
+[`match_resolution`](#templates-match-resolution) | Find the best matching template for a given affine matrix.
+[`reset_brainspace`](#templates-reset-brainspace) | Reset the global brain-space configuration to defaults.
+[`resolve_paths`](#templates-resolve-paths) | Build mask/brain/plot paths for a template + resolution.
+[`resolve_template_name`](#templates-resolve-template-name) | Resolve a template name string to a file path.
+[`seed_resources`](#templates-seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
+[`set_brainspace`](#templates-set-brainspace) | Set the global brain-space configuration.
+[`with_brainspace`](#templates-with-brainspace) | Temporarily change the global brain-space configuration.
 
 
 
 ### Classes
 
+(templates-brainspaceconfig)=
 #### `BrainSpaceConfig`
 
 ```python
@@ -81,10 +83,11 @@ Immutable MNI template configuration.
 Name | Type | Description
 ---- | ---- | -----------
 `template` | <code>[TemplateName](#nltools.templates.registry.TemplateName)</code> | Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
-[`resolution`](#resolution) | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
+[`resolution`](#templates-resolution) | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
 
 ### Methods
 
+(templates-fetch-resource)=
 #### `fetch_resource`
 
 ```python
@@ -107,6 +110,7 @@ Type | Description
 <code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
 <code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
+(templates-get-bg-image)=
 #### `get_bg_image`
 
 ```python
@@ -133,6 +137,7 @@ Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Path to the template image file.
 
+(templates-get-brainspace)=
 #### `get_brainspace`
 
 ```python
@@ -141,6 +146,7 @@ get_brainspace() -> BrainSpaceConfig
 
 Return the current global brain-space configuration.
 
+(templates-is-standard-space)=
 #### `is_standard_space`
 
 ```python
@@ -170,6 +176,7 @@ Type | Description
 <code>[str](#str) \| None</code> | ``reason`` a one-line human-readable explanation suitable for
 <code>[tuple](#tuple)[[bool](#bool), [str](#str) \| None]</code> | embedding in an error message.
 
+(templates-list-resources)=
 #### `list_resources`
 
 ```python
@@ -203,6 +210,7 @@ and pre-seed via `seed_resources`.
 
 </details>
 
+(templates-match-resolution)=
 #### `match_resolution`
 
 ```python
@@ -228,6 +236,7 @@ Type | Description
 ---- | -----------
 <code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | A `TemplateMatch`.
 
+(templates-reset-brainspace)=
 #### `reset_brainspace`
 
 ```python
@@ -236,6 +245,7 @@ reset_brainspace() -> BrainSpaceConfig
 
 Reset the global brain-space configuration to defaults.
 
+(templates-resolve-paths)=
 #### `resolve_paths`
 
 ```python
@@ -257,6 +267,7 @@ Type | Description
 ---- | -----------
 <code>[dict](#dict)[[str](#str), [str](#str)]</code> | Dict with keys ``'mask'``, ``'brain'``, ``'plot'``.
 
+(templates-resolve-template-name)=
 #### `resolve_template_name`
 
 ```python
@@ -280,6 +291,7 @@ Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Absolute path to the requested template file.
 
+(templates-seed-resources)=
 #### `seed_resources`
 
 ```python
@@ -303,6 +315,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
 
+(templates-set-brainspace)=
 #### `set_brainspace`
 
 ```python
@@ -328,6 +341,7 @@ Type | Description
 ---- | -----------
 <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig)</code> | The new (or unchanged) current ``BrainSpaceConfig``.
 
+(templates-with-brainspace)=
 #### `with_brainspace`
 
 ```python
@@ -356,6 +370,7 @@ Type | Description
 
 ### Modules
 
+(templates-config)=
 #### `config`
 
 Global brain-space configuration: frozen dataclass + set/get/with API.
@@ -364,16 +379,16 @@ Global brain-space configuration: frozen dataclass + set/get/with API.
 
 Name | Description
 ---- | -----------
-[`BrainSpaceConfig`](#brainspaceconfig) | Immutable MNI template configuration.
+[`BrainSpaceConfig`](#templates-brainspaceconfig) | Immutable MNI template configuration.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`get_brainspace`](#get-brainspace) | Return the current global brain-space configuration.
-[`reset_brainspace`](#reset-brainspace) | Reset the global brain-space configuration to defaults.
-[`set_brainspace`](#set-brainspace) | Set the global brain-space configuration.
-[`with_brainspace`](#with-brainspace) | Temporarily change the global brain-space configuration.
+[`get_brainspace`](#templates-get-brainspace) | Return the current global brain-space configuration.
+[`reset_brainspace`](#templates-reset-brainspace) | Reset the global brain-space configuration to defaults.
+[`set_brainspace`](#templates-set-brainspace) | Set the global brain-space configuration.
+[`with_brainspace`](#templates-with-brainspace) | Temporarily change the global brain-space configuration.
 
 ##### Methods
 
@@ -442,6 +457,7 @@ Type | Description
 ---- | -----------
 <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig)</code> | The ``BrainSpaceConfig`` active inside the block.
 
+(templates-fetch)=
 #### `fetch`
 
 Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
@@ -464,9 +480,9 @@ browser per dataset revision.
 
 Name | Description
 ---- | -----------
-[`fetch_resource`](#fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
-[`list_resources`](#list-resources) | List files available in the ``nltools/niftis`` HF dataset.
-[`seed_resources`](#seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
+[`fetch_resource`](#templates-fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
+[`list_resources`](#templates-list-resources) | List files available in the ``nltools/niftis`` HF dataset.
+[`seed_resources`](#templates-seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
 **Attributes:**
 
@@ -555,6 +571,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
 
+(templates-matching)=
 #### `matching`
 
 Affine-based template matching and background-image selection.
@@ -569,9 +586,9 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`get_bg_image`](#get-bg-image) | Get a background image path matching a data resolution.
-[`is_standard_space`](#is-standard-space) | Check whether an affine is compatible with our MNI templates.
-[`match_resolution`](#match-resolution) | Find the best matching template for a given affine matrix.
+[`get_bg_image`](#templates-get-bg-image) | Get a background image path matching a data resolution.
+[`is_standard_space`](#templates-is-standard-space) | Check whether an affine is compatible with our MNI templates.
+[`match_resolution`](#templates-match-resolution) | Find the best matching template for a given affine matrix.
 
 ##### Methods
 
@@ -655,6 +672,7 @@ Type | Description
 ---- | -----------
 <code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | A `TemplateMatch`.
 
+(templates-paths)=
 #### `paths`
 
 Pure path-resolution helpers for MNI template files.
@@ -667,8 +685,8 @@ Files are fetched on first use from the ``nltools/niftis`` HF dataset; see
 
 Name | Description
 ---- | -----------
-[`resolve_paths`](#resolve-paths) | Build mask/brain/plot paths for a template + resolution.
-[`resolve_template_name`](#resolve-template-name) | Resolve a template name string to a file path.
+[`resolve_paths`](#templates-resolve-paths) | Build mask/brain/plot paths for a template + resolution.
+[`resolve_template_name`](#templates-resolve-template-name) | Resolve a template name string to a file path.
 
 ##### Methods
 
@@ -716,6 +734,7 @@ Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Absolute path to the requested template file.
 
+(templates-registry)=
 #### `registry`
 
 Static registry of supported MNI templates.
@@ -724,47 +743,53 @@ Static registry of supported MNI templates.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Resolution`](#resolution) |  | 
-[`SUPPORTED_RESOLUTIONS`](#supported-resolutions) | <code>[dict](#dict)[[str](#str), [list](#list)[[int](#int)]]</code> | 
-[`TEMPLATE_PRIORITY`](#template-priority) | <code>[list](#list)[[str](#str)]</code> | 
-[`TemplateName`](#templatename) |  | 
-[`VERSION_MAP`](#version-map) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
-[`VERSION_TO_TEMPLATE`](#version-to-template) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
+[`Resolution`](#templates-resolution) |  | 
+[`SUPPORTED_RESOLUTIONS`](#templates-supported-resolutions) | <code>[dict](#dict)[[str](#str), [list](#list)[[int](#int)]]</code> | 
+[`TEMPLATE_PRIORITY`](#templates-template-priority) | <code>[list](#list)[[str](#str)]</code> | 
+[`TemplateName`](#templates-templatename) |  | 
+[`VERSION_MAP`](#templates-version-map) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
+[`VERSION_TO_TEMPLATE`](#templates-version-to-template) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
 
 
 
 ##### Attributes
 
+(templates-resolution)=
 ###### `Resolution`
 
 ```python
 Resolution = Literal[1, 2, 3]
 ```
 
+(templates-supported-resolutions)=
 ###### `SUPPORTED_RESOLUTIONS`
 
 ```python
 SUPPORTED_RESOLUTIONS: dict[str, list[int]] = {'default': [2, 3], 'nilearn': [1, 2, 3], 'fmriprep': [1, 2]}
 ```
 
+(templates-template-priority)=
 ###### `TEMPLATE_PRIORITY`
 
 ```python
 TEMPLATE_PRIORITY: list[str] = ['default', 'nilearn', 'fmriprep']
 ```
 
+(templates-templatename)=
 ###### `TemplateName`
 
 ```python
 TemplateName = Literal['default', 'nilearn', 'fmriprep']
 ```
 
+(templates-version-map)=
 ###### `VERSION_MAP`
 
 ```python
 VERSION_MAP: dict[str, str] = {'default': 'fsl', 'nilearn': 'a', 'fmriprep': 'c'}
 ```
 
+(templates-version-to-template)=
 ###### `VERSION_TO_TEMPLATE`
 
 ```python

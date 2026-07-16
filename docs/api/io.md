@@ -1,3 +1,4 @@
+(io-io)=
 ## `io`
 
 nltools I/O utilities.
@@ -8,20 +9,21 @@ HDF5 serialization for neuroimaging data types.
 
 Name | Description
 ---- | -----------
-[`h5`](#h5) | HDF5 I/O utilities for nltools data types.
+[`h5`](#io-h5) | HDF5 I/O utilities for nltools data types.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`is_h5_path`](#is-h5-path) | Check if a file path indicates an HDF5 file.
-[`load_brain_data_h5`](#load-brain-data-h5) | Load BrainData from HDF5 file.
-[`to_h5`](#to-h5) | Save BrainData or Adjacency objects to HDF5 files.
+[`is_h5_path`](#io-is-h5-path) | Check if a file path indicates an HDF5 file.
+[`load_brain_data_h5`](#io-load-brain-data-h5) | Load BrainData from HDF5 file.
+[`to_h5`](#io-to-h5) | Save BrainData or Adjacency objects to HDF5 files.
 
 
 
 ### Methods
 
+(io-is-h5-path)=
 #### `is_h5_path`
 
 ```python
@@ -53,6 +55,7 @@ False
 True
 ```
 
+(io-load-brain-data-h5)=
 #### `load_brain_data_h5`
 
 ```python
@@ -78,6 +81,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Dictionary containing loaded data, X, Y, and optionally mask info.
 
+(io-to-h5)=
 #### `to_h5`
 
 ```python
@@ -102,6 +106,7 @@ Name | Type | Description | Default
 
 ### Modules
 
+(io-h5)=
 #### `h5`
 
 HDF5 I/O utilities for nltools data types.
@@ -112,9 +117,9 @@ Shared serialization logic for BrainData and Adjacency objects.
 
 Name | Description
 ---- | -----------
-[`is_h5_path`](#is-h5-path) | Check if a file path indicates an HDF5 file.
-[`load_brain_data_h5`](#load-brain-data-h5) | Load BrainData from HDF5 file.
-[`to_h5`](#to-h5) | Save BrainData or Adjacency objects to HDF5 files.
+[`is_h5_path`](#io-is-h5-path) | Check if a file path indicates an HDF5 file.
+[`load_brain_data_h5`](#io-load-brain-data-h5) | Load BrainData from HDF5 file.
+[`to_h5`](#io-to-h5) | Save BrainData or Adjacency objects to HDF5 files.
 
 
 

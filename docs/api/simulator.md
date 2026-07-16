@@ -1,3 +1,4 @@
+(simulator-simulator)=
 ## `simulator`
 
 NeuroLearn Simulator Tools
@@ -9,13 +10,14 @@ Tools to simulate multivariate data.
 
 Name | Description
 ---- | -----------
-[`SimulateGrid`](#simulategrid) | Simulate 2D grid data for testing statistical methods.
-[`Simulator`](#simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
+[`SimulateGrid`](#simulator-simulategrid) | Simulate 2D grid data for testing statistical methods.
+[`Simulator`](#simulator-simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
 
 
 ### Classes
 
+(simulator-simulategrid)=
 #### `SimulateGrid`
 
 ```python
@@ -63,15 +65,16 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_signal`](#add-signal) | Add rectangular signal to self.data
-[`create_mask`](#create-mask) | Create a mask for where the signal is located in grid.
-[`fit`](#fit) | Run ttest on self.data
-[`plot_grid_simulation`](#plot-grid-simulation) | Create a plot of the simulations
-[`run_multiple_simulations`](#run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
-[`threshold_simulation`](#threshold-simulation) | Threshold simulation
+[`add_signal`](#simulator-add-signal) | Add rectangular signal to self.data
+[`create_mask`](#simulator-create-mask) | Create a mask for where the signal is located in grid.
+[`fit`](#simulator-fit) | Run ttest on self.data
+[`plot_grid_simulation`](#simulator-plot-grid-simulation) | Create a plot of the simulations
+[`run_multiple_simulations`](#simulator-run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
+[`threshold_simulation`](#simulator-threshold-simulation) | Threshold simulation
 
 ##### Methods
 
+(simulator-add-signal)=
 ###### `add_signal`
 
 ```python
@@ -87,6 +90,7 @@ Name | Type | Description | Default
 `signal_width` | <code>[int](#int)</code> | width of signal box | <code>20</code>
 `signal_amplitude` | <code>[int](#int)</code> | intensity of signal | <code>1</code>
 
+(simulator-create-mask)=
 ###### `create_mask`
 
 ```python
@@ -95,6 +99,7 @@ create_mask(signal_width)
 
 Create a mask for where the signal is located in grid.
 
+(simulator-fit)=
 ###### `fit`
 
 ```python
@@ -103,6 +108,7 @@ fit()
 
 Run ttest on self.data
 
+(simulator-plot-grid-simulation)=
 ###### `plot_grid_simulation`
 
 ```python
@@ -111,6 +117,7 @@ plot_grid_simulation(threshold, threshold_type, n_simulations = 100, correction 
 
 Create a plot of the simulations
 
+(simulator-run-multiple-simulations)=
 ###### `run_multiple_simulations`
 
 ```python
@@ -119,6 +126,7 @@ run_multiple_simulations(threshold, threshold_type, n_simulations = 100, correct
 
 This method will run multiple simulations to calculate overall false positive rate
 
+(simulator-threshold-simulation)=
 ###### `threshold_simulation`
 
 ```python
@@ -176,17 +184,18 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`create_cov_data`](#create-cov-data) | create continuous simulated data with covariance
-[`create_data`](#create-data) | create simulated data with integers
-[`create_ncov_data`](#create-ncov-data) | create continuous simulated data with covariance
-[`gaussian`](#gaussian) | create a 3D gaussian signal normalized to a given intensity
-[`n_spheres`](#n-spheres) | generate a set of spheres in the brain mask space
-[`normal_noise`](#normal-noise) | produce a normal noise distribution for all all points in the brain mask
-[`sphere`](#sphere) | create a sphere of given radius at some point p in the brain mask
-[`to_nifti`](#to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+[`create_cov_data`](#simulator-create-cov-data) | create continuous simulated data with covariance
+[`create_data`](#simulator-create-data) | create simulated data with integers
+[`create_ncov_data`](#simulator-create-ncov-data) | create continuous simulated data with covariance
+[`gaussian`](#simulator-gaussian) | create a 3D gaussian signal normalized to a given intensity
+[`n_spheres`](#simulator-n-spheres) | generate a set of spheres in the brain mask space
+[`normal_noise`](#simulator-normal-noise) | produce a normal noise distribution for all all points in the brain mask
+[`sphere`](#simulator-sphere) | create a sphere of given radius at some point p in the brain mask
+[`to_nifti`](#simulator-to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
 
 ##### Methods
 
+(simulator-create-cov-data)=
 ###### `create_cov_data`
 
 ```python
@@ -209,6 +218,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
+(simulator-create-data)=
 ###### `create_data`
 
 ```python
@@ -229,6 +239,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
+(simulator-create-ncov-data)=
 ###### `create_ncov_data`
 
 ```python
@@ -250,6 +261,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
+(simulator-gaussian)=
 ###### `gaussian`
 
 ```python
@@ -266,6 +278,7 @@ Name | Type | Description | Default
 `sigma` |  | standard deviation | *required*
 `i_tot` |  | sum total of activation (numerical integral over the gaussian returns this value) | *required*
 
+(simulator-n-spheres)=
 ###### `n_spheres`
 
 ```python
@@ -281,6 +294,7 @@ Name | Type | Description | Default
 `radius` |  | vector of radius.  Will create multiple spheres if len(radius) > 1 | *required*
 `centers` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
+(simulator-normal-noise)=
 ###### `normal_noise`
 
 ```python
@@ -296,6 +310,7 @@ Name | Type | Description | Default
 `mu` |  | average value of the gaussian signal (usually set to 0) | *required*
 `sigma` |  | standard deviation | *required*
 
+(simulator-sphere)=
 ###### `sphere`
 
 ```python
@@ -311,6 +326,7 @@ Name | Type | Description | Default
 `r` |  | radius of the sphere | *required*
 `p` |  | point (in coordinates of the brain mask) of the center of the sphere | *required*
 
+(simulator-to-nifti)=
 ###### `to_nifti`
 
 ```python

@@ -1,3 +1,4 @@
+(pipelines-pipeline-base)=
 ## `base`
 
 Pipeline base infrastructure for nltools.
@@ -21,14 +22,15 @@ Example:
 Name | Description
 ---- | -----------
 `CVScheme` | Protocol for cross-validation schemes.
-[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
-[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
+[`FittedStack`](#pipelines-pipeline-fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#pipelines-pipeline-fittedtransform) | Protocol for fitted transform objects.
+[`Pipeline`](#pipelines-pipeline-pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`Terminal`](#pipelines-pipeline-terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#pipelines-pipeline-transformstep) | Protocol for pipeline transform steps.
 
 ##### Methods
 
+(pipelines-pipeline-split)=
 ###### `split`
 
 ```python
@@ -49,6 +51,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
 
+(pipelines-pipeline-fittedstack)=
 #### `FittedStack`
 
 ```python
@@ -76,11 +79,12 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
+[`append`](#pipelines-pipeline-append) | Add a fitted transform to the stack.
+[`inverse_transform`](#pipelines-pipeline-inverse-transform) | Apply inverse transforms in reverse order.
 
 ##### Methods
 
+(pipelines-pipeline-append)=
 ###### `append`
 
 ```python
@@ -95,6 +99,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fitted_step` | <code>[FittedTransform](#nltools.pipelines.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
+(pipelines-pipeline-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -123,6 +128,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 
 </details>
 
+(pipelines-pipeline-fittedtransform)=
 #### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -144,8 +150,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#transform) | Apply the learned transformation to data.
+[`inverse_transform`](#pipelines-pipeline-inverse-transform) | Apply the inverse transformation to data.
+[`transform`](#pipelines-pipeline-transform) | Apply the learned transformation to data.
 
 
 
@@ -171,6 +177,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Data in original space.
 
+(pipelines-pipeline-transform)=
 ###### `transform`
 
 ```python
@@ -191,6 +198,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
+(pipelines-pipeline-pipeline)=
 #### `Pipeline`
 
 ```python
@@ -245,14 +253,15 @@ programming patterns.
 
 Name | Description
 ---- | -----------
-[`copy`](#copy) | Create a shallow copy of the pipeline.
-[`normalize`](#normalize) | Add a normalization step to the pipeline.
-[`pipe`](#pipe) | Add a custom transformer to the pipeline.
-[`predict`](#predict) | Execute pipeline with cross-validation and return prediction results.
-[`reduce`](#reduce) | Add a dimensionality reduction step to the pipeline.
+[`copy`](#pipelines-pipeline-copy) | Create a shallow copy of the pipeline.
+[`normalize`](#pipelines-pipeline-normalize) | Add a normalization step to the pipeline.
+[`pipe`](#pipelines-pipeline-pipe) | Add a custom transformer to the pipeline.
+[`predict`](#pipelines-pipeline-predict) | Execute pipeline with cross-validation and return prediction results.
+[`reduce`](#pipelines-pipeline-reduce) | Add a dimensionality reduction step to the pipeline.
 
 ##### Methods
 
+(pipelines-pipeline-copy)=
 ###### `copy`
 
 ```python
@@ -267,6 +276,7 @@ Type | Description
 ---- | -----------
 <code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline instance with same configuration.
 
+(pipelines-pipeline-normalize)=
 ###### `normalize`
 
 ```python
@@ -295,6 +305,7 @@ Type | Description
 >>> pipeline.normalize(method='minmax', feature_range=(0, 1))
 ```
 
+(pipelines-pipeline-pipe)=
 ###### `pipe`
 
 ```python
@@ -322,6 +333,7 @@ Type | Description
 >>> pipeline.pipe(FastICA(n_components=20))
 ```
 
+(pipelines-pipeline-predict)=
 ###### `predict`
 
 ```python
@@ -353,6 +365,7 @@ Type | Description
 >>> print(result.summary())
 ```
 
+(pipelines-pipeline-reduce)=
 ###### `reduce`
 
 ```python
@@ -382,6 +395,7 @@ Type | Description
 >>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
 ```
 
+(pipelines-pipeline-terminal)=
 #### `Terminal`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -395,12 +409,13 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#pipelines-pipeline-fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
 ##### Methods
 
+(pipelines-pipeline-fit-evaluate)=
 ###### `fit_evaluate`
 
 ```python
@@ -425,6 +440,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
 
+(pipelines-pipeline-transformstep)=
 #### `TransformStep`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -450,10 +466,11 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit the transform to data.
+[`fit`](#pipelines-pipeline-fit) | Fit the transform to data.
 
 ##### Methods
 
+(pipelines-pipeline-fit)=
 ###### `fit`
 
 ```python

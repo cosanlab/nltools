@@ -1,3 +1,4 @@
+(data-adjacency-stats-stats)=
 ## `stats`
 
 Provide standalone statistical functions for Adjacency matrices.
@@ -8,20 +9,21 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 
 Name | Description
 ---- | -----------
-[`cluster_summary`](#cluster-summary) | This function provides summaries of clusters within Adjacency matrices.
-[`plot_label_distance`](#plot-label-distance) | Create a violin plot of within- and between-label distances.
-[`plot_silhouette`](#plot-silhouette) | Create a silhouette plot.
-[`r_to_z`](#r-to-z) | Apply Fisher's r to z transformation to each element of the data object.
-[`similarity`](#similarity) | Calculate similarity between two Adjacency matrices.
-[`stats_label_distance`](#stats-label-distance) | Calculate permutation tests on within and between label distance.
-[`threshold`](#threshold) | Threshold an Adjacency instance.
-[`ttest`](#ttest) | Calculate ttest across samples.
-[`z_to_r`](#z-to-r) | Convert z score back into r value for each element of data object.
+[`cluster_summary`](#data-adjacency-stats-cluster-summary) | This function provides summaries of clusters within Adjacency matrices.
+[`plot_label_distance`](#data-adjacency-stats-plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_silhouette`](#data-adjacency-stats-plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#data-adjacency-stats-r-to-z) | Apply Fisher's r to z transformation to each element of the data object.
+[`similarity`](#data-adjacency-stats-similarity) | Calculate similarity between two Adjacency matrices.
+[`stats_label_distance`](#data-adjacency-stats-stats-label-distance) | Calculate permutation tests on within and between label distance.
+[`threshold`](#data-adjacency-stats-threshold) | Threshold an Adjacency instance.
+[`ttest`](#data-adjacency-stats-ttest) | Calculate ttest across samples.
+[`z_to_r`](#data-adjacency-stats-z-to-r) | Convert z score back into r value for each element of data object.
 
 
 
 ### Methods
 
+(data-adjacency-stats-cluster-summary)=
 #### `cluster_summary`
 
 ```python
@@ -48,6 +50,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | (dict) within cluster means
 
+(data-adjacency-stats-plot-label-distance)=
 #### `plot_label_distance`
 
 ```python
@@ -69,6 +72,7 @@ Type | Description
 ---- | -----------
  | None
 
+(data-adjacency-stats-plot-silhouette)=
 #### `plot_silhouette`
 
 ```python
@@ -93,6 +97,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Silhouette plot results including scores and optional permutation p-value.
 
+(data-adjacency-stats-r-to-z)=
 #### `r_to_z`
 
 ```python
@@ -113,6 +118,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | New Adjacency with z-transformed values.
 
+(data-adjacency-stats-similarity)=
 #### `similarity`
 
 ```python
@@ -146,6 +152,7 @@ Type | Description
 ---- | -----------
  | dict or list: Correlation result dict with keys 'r' and 'p', or a list of such dicts when adj contains multiple matrices.
 
+(data-adjacency-stats-stats-label-distance)=
 #### `stats_label_distance`
 
 ```python
@@ -168,6 +175,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | dictionary of within and between group differences     and p-values
 
+(data-adjacency-stats-threshold)=
 #### `threshold`
 
 ```python
@@ -195,6 +203,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | thresholded Adjacency instance
 
+(data-adjacency-stats-ttest)=
 #### `ttest`
 
 ```python
@@ -221,6 +230,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
 
+(data-adjacency-stats-z-to-r)=
 #### `z_to_r`
 
 ```python

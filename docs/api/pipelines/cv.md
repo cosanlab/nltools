@@ -1,3 +1,4 @@
+(pipelines-cv-cv)=
 ## `cv`
 
 Cross-validation scheme configuration for nltools pipelines.
@@ -10,7 +11,7 @@ strategies used across nltools analysis pipelines.
 Name | Description
 ---- | -----------
 `CVScheme` | Cross-validation scheme configuration.
-[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
+[`NestedCVScheme`](#pipelines-cv-nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
 
 **Attributes:**
 
@@ -20,6 +21,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-cv-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -41,6 +43,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of splits/folds that will be generated.
 
+(pipelines-cv-split)=
 ###### `split`
 
 ```python
@@ -62,6 +65,7 @@ Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
 
+(pipelines-cv-nestedcvscheme)=
 #### `NestedCVScheme`
 
 ```python
@@ -116,9 +120,9 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
-[`split`](#split) | Generate nested cross-validation splits.
+[`n_inner_splits`](#pipelines-cv-n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#pipelines-cv-n-outer-splits) | Return number of outer splits.
+[`split`](#pipelines-cv-split) | Generate nested cross-validation splits.
 
 **Attributes:**
 
@@ -129,6 +133,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-cv-n-inner-splits)=
 ###### `n_inner_splits`
 
 ```python
@@ -150,6 +155,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of inner folds per outer fold.
 
+(pipelines-cv-n-outer-splits)=
 ###### `n_outer_splits`
 
 ```python

@@ -1,3 +1,4 @@
+(data-design-matrix-regressors-regressors)=
 ## `regressors`
 
 Provide standalone regressor functions for DesignMatrix.
@@ -9,9 +10,9 @@ a new DesignMatrix with the requested transformation applied.
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
-[`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
+[`add_dct_basis`](#data-design-matrix-regressors-add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#data-design-matrix-regressors-add-poly) | Add Legendre polynomial drift terms.
+[`convolve`](#data-design-matrix-regressors-convolve) | Convolve columns with an HRF or custom kernel.
 
 
 
@@ -19,6 +20,7 @@ Name | Description
 
 ### Methods
 
+(data-design-matrix-regressors-add-dct-basis)=
 #### `add_dct_basis`
 
 ```python
@@ -42,6 +44,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
 
+(data-design-matrix-regressors-add-poly)=
 #### `add_poly`
 
 ```python
@@ -64,6 +67,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
 
+(data-design-matrix-regressors-convolve)=
 #### `convolve`
 
 ```python

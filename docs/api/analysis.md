@@ -1,3 +1,4 @@
+(analysis-roc)=
 ## `roc`
 
 NeuroLearn Analysis Tools
@@ -9,7 +10,7 @@ machine-learning analyses on imaging data
 
 Name | Description
 ---- | -----------
-[`Roc`](#roc) | Roc Class
+[`Roc`](#analysis-roc) | Roc Class
 
 
 
@@ -41,9 +42,9 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`calculate`](#calculate) | Calculate Receiver Operating Characteristic plot (ROC) for
-[`plot`](#plot) | Create ROC Plot
-[`summary`](#summary) | Display a formatted summary of ROC analysis.
+[`calculate`](#analysis-calculate) | Calculate Receiver Operating Characteristic plot (ROC) for
+[`plot`](#analysis-plot) | Create ROC Plot
+[`summary`](#analysis-summary) | Display a formatted summary of ROC analysis.
 
 **Attributes:**
 
@@ -56,6 +57,7 @@ Name | Type | Description
 
 ##### Methods
 
+(analysis-calculate)=
 ###### `calculate`
 
 ```python
@@ -77,6 +79,7 @@ Name | Type | Description | Default
 `balanced_acc` |  | balanced accuracy for single-interval classification             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC | <code>False</code>
 `**kwargs` |  | Additional keyword arguments to pass to the prediction             algorithm | *required*
 
+(analysis-plot)=
 ###### `plot`
 
 ```python
@@ -102,6 +105,7 @@ Type | Description
 ---- | -----------
  | fig
 
+(analysis-summary)=
 ###### `summary`
 
 ```python

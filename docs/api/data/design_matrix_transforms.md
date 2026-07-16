@@ -1,3 +1,4 @@
+(data-design-matrix-transforms-transforms)=
 ## `transforms`
 
 Standalone transform functions for DesignMatrix.
@@ -9,10 +10,10 @@ and returns a new DesignMatrix via `copy_with(dm,...)`.
 
 Name | Description
 ---- | -----------
-[`downsample`](#downsample) | Reduce temporal resolution using Polars-native operations.
-[`standardize`](#standardize) | Standardize columns using the specified method.
-[`upsample`](#upsample) | Increase temporal resolution using Polars-native interpolation.
-[`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
+[`downsample`](#data-design-matrix-transforms-downsample) | Reduce temporal resolution using Polars-native operations.
+[`standardize`](#data-design-matrix-transforms-standardize) | Standardize columns using the specified method.
+[`upsample`](#data-design-matrix-transforms-upsample) | Increase temporal resolution using Polars-native interpolation.
+[`zscore`](#data-design-matrix-transforms-zscore) | Z-score standardize columns to mean zero and unit variance.
 
 
 
@@ -20,6 +21,7 @@ Name | Description
 
 ### Methods
 
+(data-design-matrix-transforms-downsample)=
 #### `downsample`
 
 ```python
@@ -49,6 +51,7 @@ Name | Type | Description
 >>> dm_down = downsample(dm, target=0.5)  # 1 Hz -> 0.5 Hz (100 -> 50 samples)
 ```
 
+(data-design-matrix-transforms-standardize)=
 #### `standardize`
 
 ```python
@@ -82,6 +85,7 @@ Name | Type | Description
 >>> dm_c = standardize(dm, method='center')  # center only
 ```
 
+(data-design-matrix-transforms-upsample)=
 #### `upsample`
 
 ```python
@@ -112,6 +116,7 @@ Name | Type | Description
 >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
 ```
 
+(data-design-matrix-transforms-zscore)=
 #### `zscore`
 
 ```python

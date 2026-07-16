@@ -1,3 +1,4 @@
+(algorithms-inference-two-sample-two-sample)=
 ## `two_sample`
 
 Two-sample permutation test implementations.
@@ -9,7 +10,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#algorithms-inference-two-sample-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 
@@ -17,6 +18,7 @@ Name | Description
 
 ### Methods
 
+(algorithms-inference-two-sample-two-sample-permutation-test)=
 #### `two_sample_permutation_test`
 
 ```python

@@ -1,3 +1,4 @@
+(data-atlases-reporting-reporting)=
 ## `reporting`
 
 Cluster reports — peak/cluster geometry plus atlas labels.
@@ -16,10 +17,11 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`cluster_report_data`](#cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
+[`cluster_report_data`](#data-atlases-reporting-cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
 
 ##### Methods
 
+(data-atlases-reporting-plot)=
 ###### `plot`
 
 ```python
@@ -41,6 +43,7 @@ Type | Description
 <code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
 <code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``(label, figure)`` tuples.
 
+(data-atlases-reporting-to-csv)=
 ###### `to_csv`
 
 ```python
@@ -53,6 +56,7 @@ Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 ### Methods
 
+(data-atlases-reporting-cluster-report-data)=
 #### `cluster_report_data`
 
 ```python

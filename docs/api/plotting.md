@@ -1,3 +1,4 @@
+(plotting-plotting)=
 ## `plotting`
 
 nltools.plotting — Visualization utilities for neuroimaging analysis.
@@ -20,32 +21,33 @@ from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
 
 Name | Description
 ---- | -----------
-[`adjacency`](#adjacency) | Adjacency matrix visualization — stacked plots, distance, and silhouette.
-[`brain`](#brain) | Brain visualization — surface plots, flatmaps, and interactive viewers.
-[`decomposition`](#decomposition) | ICA/PCA component viewer — interactive decomposition explorer.
-[`prediction`](#prediction) | Model output visualization — ROC, SVM margin, regression, and logistic plots.
+[`adjacency`](#plotting-adjacency) | Adjacency matrix visualization — stacked plots, distance, and silhouette.
+[`brain`](#plotting-brain) | Brain visualization — surface plots, flatmaps, and interactive viewers.
+[`decomposition`](#plotting-decomposition) | ICA/PCA component viewer — interactive decomposition explorer.
+[`prediction`](#plotting-prediction) | Model output visualization — ROC, SVM margin, regression, and logistic plots.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component-viewer) | This a function to interactively view the results of a decomposition analysis.
-[`plot_between_label_distance`](#plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
-[`plot_dist_from_hyperplane`](#plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
-[`plot_flatmap`](#plot-flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot-interactive-brain) | Create an interactive brain visualization with nilearn.
-[`plot_mean_label_distance`](#plot-mean-label-distance) | Violin plot of within- vs between-label distances.
-[`plot_probability`](#plot-probability) | Plot Classification Probability.
-[`plot_roc`](#plot-roc) | Plot 1-Specificity by Sensitivity.
-[`plot_scatter`](#plot-scatter) | Plot Prediction Scatterplot.
-[`plot_silhouette`](#plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
-[`plot_stacked_adjacency`](#plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
-[`plot_surf`](#plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
+[`component_viewer`](#plotting-component-viewer) | This a function to interactively view the results of a decomposition analysis.
+[`plot_between_label_distance`](#plotting-plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
+[`plot_dist_from_hyperplane`](#plotting-plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
+[`plot_flatmap`](#plotting-plot-flatmap) | Plot brain data on cortical flatmap.
+[`plot_interactive_brain`](#plotting-plot-interactive-brain) | Create an interactive brain visualization with nilearn.
+[`plot_mean_label_distance`](#plotting-plot-mean-label-distance) | Violin plot of within- vs between-label distances.
+[`plot_probability`](#plotting-plot-probability) | Plot Classification Probability.
+[`plot_roc`](#plotting-plot-roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plotting-plot-scatter) | Plot Prediction Scatterplot.
+[`plot_silhouette`](#plotting-plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
+[`plot_stacked_adjacency`](#plotting-plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
+[`plot_surf`](#plotting-plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 
 
 ### Methods
 
+(plotting-component-viewer)=
 #### `component_viewer`
 
 ```python
@@ -61,6 +63,7 @@ Name | Type | Description | Default
 `output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
 
+(plotting-plot-between-label-distance)=
 #### `plot_between_label_distance`
 
 ```python
@@ -92,6 +95,7 @@ Type | Description
  | are long format with columns [label1, label2, <value>] so they can
  | be pivoted to a matrix if needed.
 
+(plotting-plot-dist-from-hyperplane)=
 #### `plot_dist_from_hyperplane`
 
 ```python
@@ -112,6 +116,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn plot of distance from hyperplane
 
+(plotting-plot-flatmap)=
 #### `plot_flatmap`
 
 ```python
@@ -198,6 +203,7 @@ High resolution for publication:
 
 </details>
 
+(plotting-plot-interactive-brain)=
 #### `plot_interactive_brain`
 
 ```python
@@ -222,6 +228,7 @@ Type | Description
 ---- | -----------
  | interactive brain viewer widget
 
+(plotting-plot-mean-label-distance)=
 #### `plot_mean_label_distance`
 
 ```python
@@ -249,6 +256,7 @@ Type | Description
  | pl.DataFrame with columns [Distance, Group, Type] in long format.
  | If permutation_test=True, returns (pl.DataFrame, dict of per-group stats).
 
+(plotting-plot-probability)=
 #### `plot_probability`
 
 ```python
@@ -269,6 +277,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn scatterplot
 
+(plotting-plot-roc)=
 #### `plot_roc`
 
 ```python
@@ -290,6 +299,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a matplotlib ROC plot
 
+(plotting-plot-scatter)=
 #### `plot_scatter`
 
 ```python
@@ -310,6 +320,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `fig` |  | Will return a seaborn scatterplot
 
+(plotting-plot-silhouette)=
 #### `plot_silhouette`
 
 ```python
@@ -342,6 +353,7 @@ Type | Description
  | pl.DataFrame with columns [label, mean_silhouette]. If permutation_test
  | is True, adds a `p` column (1.0 for clusters with non-positive mean).
 
+(plotting-plot-stacked-adjacency)=
 #### `plot_stacked_adjacency`
 
 ```python
@@ -365,6 +377,7 @@ Type | Description
 ---- | -----------
  | matplotlib axes with the stacked heatmap.
 
+(plotting-plot-surf)=
 #### `plot_surf`
 
 ```python
@@ -414,6 +427,7 @@ Type | Description
 
 ### Modules
 
+(plotting-adjacency)=
 #### `adjacency`
 
 Adjacency matrix visualization — stacked plots, distance, and silhouette.
@@ -422,10 +436,10 @@ Adjacency matrix visualization — stacked plots, distance, and silhouette.
 
 Name | Description
 ---- | -----------
-[`plot_between_label_distance`](#plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
-[`plot_mean_label_distance`](#plot-mean-label-distance) | Violin plot of within- vs between-label distances.
-[`plot_silhouette`](#plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
-[`plot_stacked_adjacency`](#plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
+[`plot_between_label_distance`](#plotting-plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
+[`plot_mean_label_distance`](#plotting-plot-mean-label-distance) | Violin plot of within- vs between-label distances.
+[`plot_silhouette`](#plotting-plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
+[`plot_stacked_adjacency`](#plotting-plot-stacked-adjacency) | Create stacked adjacency to illustrate similarity.
 
 
 
@@ -544,6 +558,7 @@ Type | Description
 ---- | -----------
  | matplotlib axes with the stacked heatmap.
 
+(plotting-brain)=
 #### `brain`
 
 Brain visualization — surface plots, flatmaps, and interactive viewers.
@@ -552,9 +567,9 @@ Brain visualization — surface plots, flatmaps, and interactive viewers.
 
 Name | Description
 ---- | -----------
-[`plot_flatmap`](#plot-flatmap) | Plot brain data on cortical flatmap.
-[`plot_interactive_brain`](#plot-interactive-brain) | Create an interactive brain visualization with nilearn.
-[`plot_surf`](#plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
+[`plot_flatmap`](#plotting-plot-flatmap) | Plot brain data on cortical flatmap.
+[`plot_interactive_brain`](#plotting-plot-interactive-brain) | Create an interactive brain visualization with nilearn.
+[`plot_surf`](#plotting-plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 ##### Methods
 
@@ -713,6 +728,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
+(plotting-decomposition)=
 #### `decomposition`
 
 ICA/PCA component viewer — interactive decomposition explorer.
@@ -721,7 +737,7 @@ ICA/PCA component viewer — interactive decomposition explorer.
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#component-viewer) | This a function to interactively view the results of a decomposition analysis.
+[`component_viewer`](#plotting-component-viewer) | This a function to interactively view the results of a decomposition analysis.
 
 ##### Methods
 
@@ -740,6 +756,7 @@ Name | Type | Description | Default
 `output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
 
+(plotting-prediction)=
 #### `prediction`
 
 Model output visualization — ROC, SVM margin, regression, and logistic plots.
@@ -748,10 +765,10 @@ Model output visualization — ROC, SVM margin, regression, and logistic plots.
 
 Name | Description
 ---- | -----------
-[`plot_dist_from_hyperplane`](#plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
-[`plot_probability`](#plot-probability) | Plot Classification Probability.
-[`plot_roc`](#plot-roc) | Plot 1-Specificity by Sensitivity.
-[`plot_scatter`](#plot-scatter) | Plot Prediction Scatterplot.
+[`plot_dist_from_hyperplane`](#plotting-plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
+[`plot_probability`](#plotting-plot-probability) | Plot Classification Probability.
+[`plot_roc`](#plotting-plot-roc) | Plot 1-Specificity by Sensitivity.
+[`plot_scatter`](#plotting-plot-scatter) | Plot Prediction Scatterplot.
 
 
 

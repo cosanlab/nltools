@@ -1,3 +1,4 @@
+(data-braindata-analysis-analysis)=
 ## `analysis`
 
 BrainData analysis functions.
@@ -10,34 +11,35 @@ alignment, smoothing, and other analytical operations.
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Align a BrainData instance to a target using functional alignment.
-[`align_per_roi`](#align-per-roi) | Per-parcel functional alignment + voxel-space reassembly.
-[`apply_mask`](#apply-mask) | Mask BrainData instance using nilearn functionality.
-[`check_masks`](#check-masks) | Ensure two datasets use compatible masks, creating a union mask if needed.
-[`decompose`](#decompose) | Decompose a BrainData object.
-[`detrend_data`](#detrend-data) | Remove the linear trend from each voxel.
-[`distance`](#distance) | Calculate distance between images within a BrainData() instance.
-[`extract_roi`](#extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter_data`](#filter-data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
-[`find_spikes_data`](#find-spikes-data) | Identify spikes from time-series data; see `find_spikes`.
-[`icc`](#icc) | Calculate voxelwise intraclass correlations for BrainData.
-[`multivariate_similarity`](#multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
-[`r_to_z`](#r-to-z) | Apply Fisher's r-to-z transformation to each data element.
-[`reduce_per_roi`](#reduce-per-roi) | Apply a reducer within each parcel and paint results back to voxel space.
-[`regions`](#regions) | Extract brain connected regions into separate regions.
-[`scale_data`](#scale-data) | Scale data via mean scaling.
-[`similarity`](#similarity) | Calculate similarity to a single BrainData or nibabel image.
-[`smooth`](#smooth) | Apply spatial smoothing using nilearn's ``smooth_img``.
-[`standardize`](#standardize) | Standardize BrainData() instance.
-[`temporal_resample`](#temporal-resample) | Resample a BrainData time series to a target frequency or sample count.
-[`threshold_data`](#threshold-data) | Threshold BrainData instance with optional cluster filtering.
-[`transform_pairwise_data`](#transform-pairwise-data) | Transform BrainData into pairwise comparisons.
-[`z_to_r`](#z-to-r) | Convert z score back into r value for each element of data object.
+[`align`](#data-braindata-analysis-align) | Align a BrainData instance to a target using functional alignment.
+[`align_per_roi`](#data-braindata-analysis-align-per-roi) | Per-parcel functional alignment + voxel-space reassembly.
+[`apply_mask`](#data-braindata-analysis-apply-mask) | Mask BrainData instance using nilearn functionality.
+[`check_masks`](#data-braindata-analysis-check-masks) | Ensure two datasets use compatible masks, creating a union mask if needed.
+[`decompose`](#data-braindata-analysis-decompose) | Decompose a BrainData object.
+[`detrend_data`](#data-braindata-analysis-detrend-data) | Remove the linear trend from each voxel.
+[`distance`](#data-braindata-analysis-distance) | Calculate distance between images within a BrainData() instance.
+[`extract_roi`](#data-braindata-analysis-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+[`filter_data`](#data-braindata-analysis-filter-data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`find_spikes_data`](#data-braindata-analysis-find-spikes-data) | Identify spikes from time-series data; see `find_spikes`.
+[`icc`](#data-braindata-analysis-icc) | Calculate voxelwise intraclass correlations for BrainData.
+[`multivariate_similarity`](#data-braindata-analysis-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
+[`r_to_z`](#data-braindata-analysis-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
+[`reduce_per_roi`](#data-braindata-analysis-reduce-per-roi) | Apply a reducer within each parcel and paint results back to voxel space.
+[`regions`](#data-braindata-analysis-regions) | Extract brain connected regions into separate regions.
+[`scale_data`](#data-braindata-analysis-scale-data) | Scale data via mean scaling.
+[`similarity`](#data-braindata-analysis-similarity) | Calculate similarity to a single BrainData or nibabel image.
+[`smooth`](#data-braindata-analysis-smooth) | Apply spatial smoothing using nilearn's ``smooth_img``.
+[`standardize`](#data-braindata-analysis-standardize) | Standardize BrainData() instance.
+[`temporal_resample`](#data-braindata-analysis-temporal-resample) | Resample a BrainData time series to a target frequency or sample count.
+[`threshold_data`](#data-braindata-analysis-threshold-data) | Threshold BrainData instance with optional cluster filtering.
+[`transform_pairwise_data`](#data-braindata-analysis-transform-pairwise-data) | Transform BrainData into pairwise comparisons.
+[`z_to_r`](#data-braindata-analysis-z-to-r) | Convert z score back into r value for each element of data object.
 
 
 
 ### Methods
 
+(data-braindata-analysis-align)=
 #### `align`
 
 ```python
@@ -78,6 +80,7 @@ Name | Type | Description
 - Project aligned data into original data:
     >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
 
+(data-braindata-analysis-align-per-roi)=
 #### `align_per_roi`
 
 ```python
@@ -95,6 +98,7 @@ parcel = NaN). Per-parcel transform matrices and common-model
 objects are kept as dicts keyed by atlas label, since matrices over
 different voxel subsets can't be painted into one image.
 
+(data-braindata-analysis-apply-mask)=
 #### `apply_mask`
 
 ```python
@@ -129,6 +133,7 @@ Cython-optimized code with better validation and memory management.
 
 </details>
 
+(data-braindata-analysis-check-masks)=
 #### `check_masks`
 
 ```python
@@ -150,6 +155,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (data2, image2) arrays with compatible masks
 
+(data-braindata-analysis-decompose)=
 #### `decompose`
 
 ```python
@@ -174,6 +180,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `output` |  | a dictionary of decomposition parameters
 
+(data-braindata-analysis-detrend-data)=
 #### `detrend_data`
 
 ```python
@@ -195,6 +202,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | (BrainData) detrended BrainData instance
 
+(data-braindata-analysis-distance)=
 #### `distance`
 
 ```python
@@ -220,6 +228,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dist` |  | (Adjacency) Whole-brain pairwise distance matrix, or a stacked Adjacency (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
+(data-braindata-analysis-extract-roi)=
 #### `extract_roi`
 
 ```python
@@ -258,6 +267,7 @@ Type | Description
 >>> components = brain.extract_roi(mask, metric='pca', n_components=5)
 ```
 
+(data-braindata-analysis-filter-data)=
 #### `filter_data`
 
 ```python
@@ -292,6 +302,7 @@ nilearn.signal.clean documentation for all available options
 
 </details>
 
+(data-braindata-analysis-find-spikes-data)=
 #### `find_spikes_data`
 
 ```python
@@ -300,6 +311,7 @@ find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = Non
 
 Identify spikes from time-series data; see `find_spikes`.
 
+(data-braindata-analysis-icc)=
 #### `icc`
 
 ```python
@@ -357,6 +369,7 @@ subject2_session1, ...]
 
 </details>
 
+(data-braindata-analysis-multivariate-similarity)=
 #### `multivariate_similarity`
 
 ```python
@@ -381,6 +394,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | dictionary of regression statistics in BrainData instances {'beta','t','p','df','residual'}
 
+(data-braindata-analysis-r-to-z)=
 #### `r_to_z`
 
 ```python
@@ -401,6 +415,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Transformed BrainData instance.
 
+(data-braindata-analysis-reduce-per-roi)=
 #### `reduce_per_roi`
 
 ```python
@@ -419,6 +434,7 @@ NaN. Output is a `BrainData` of the same shape as the input.
 
 Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
+(data-braindata-analysis-regions)=
 #### `regions`
 
 ```python
@@ -443,6 +459,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance with extracted ROIs as data.
 
+(data-braindata-analysis-scale-data)=
 #### `scale_data`
 
 ```python
@@ -489,6 +506,7 @@ Name | Type | Description
 >>> scaled = brain.scale(100.0, axis=0)
 ```
 
+(data-braindata-analysis-similarity)=
 #### `similarity`
 
 ```python
@@ -511,6 +529,7 @@ Type | Description
 ---- | -----------
  | np.ndarray: Similarity values.
 
+(data-braindata-analysis-smooth)=
 #### `smooth`
 
 ```python
@@ -532,6 +551,7 @@ Type | Description
 ---- | -----------
  | BrainData instance (copy with smoothed data)
 
+(data-braindata-analysis-standardize)=
 #### `standardize`
 
 ```python
@@ -555,6 +575,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | Standardized BrainData instance.
 
+(data-braindata-analysis-temporal-resample)=
 #### `temporal_resample`
 
 ```python
@@ -584,6 +605,7 @@ Type | Description
 ---- | -----------
  | upsampled BrainData instance
 
+(data-braindata-analysis-threshold-data)=
 #### `threshold_data`
 
 ```python
@@ -622,6 +644,7 @@ Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
 
 </details>
 
+(data-braindata-analysis-transform-pairwise-data)=
 #### `transform_pairwise_data`
 
 ```python
@@ -642,6 +665,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance transformed into pairwise comparisons.
 
+(data-braindata-analysis-z-to-r)=
 #### `z_to_r`
 
 ```python

@@ -1,3 +1,4 @@
+(crossval-cross-validation)=
 ## `cross_validation`
 
 Provide cross-validation data classes.
@@ -9,12 +10,13 @@ types of cross-validation
 
 Name | Description
 ---- | -----------
-[`KFoldStratified`](#kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
+[`KFoldStratified`](#crossval-kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
 
 
 
 ### Classes
 
+(crossval-kfoldstratified)=
 #### `KFoldStratified`
 
 ```python
@@ -45,12 +47,13 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`split`](#split) | Generate indices to split data into training and test set.
+[`split`](#crossval-split) | Generate indices to split data into training and test set.
 
 
 
 ##### Methods
 
+(crossval-split)=
 ###### `split`
 
 ```python

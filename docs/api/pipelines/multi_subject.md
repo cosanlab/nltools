@@ -1,3 +1,4 @@
+(pipelines-multi-subject-multi-subject)=
 ## `multi_subject`
 
 Multi-subject pipeline for cross-subject analyses.
@@ -9,12 +10,13 @@ supporting leave-one-subject-out (LOSO) and run-based CV schemes.
 
 Name | Description
 ---- | -----------
-[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`MultiSubjectPipeline`](#pipelines-multi-subject-multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
 
 
 
 ### Classes
 
+(pipelines-multi-subject-multisubjectpipeline)=
 #### `MultiSubjectPipeline`
 
 ```python
@@ -50,13 +52,13 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Add cross-subject alignment step to pipeline.
-[`isc`](#isc) | Compute inter-subject correlation across subjects.
-[`normalize`](#normalize) | Add normalization step (per-subject).
-[`pipe`](#pipe) | Add custom sklearn transformer.
-[`predict`](#predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#reduce) | Add dimensionality reduction step.
-[`rsa`](#rsa) | Compute representational similarity analysis.
+[`align`](#pipelines-multi-subject-align) | Add cross-subject alignment step to pipeline.
+[`isc`](#pipelines-multi-subject-isc) | Compute inter-subject correlation across subjects.
+[`normalize`](#pipelines-multi-subject-normalize) | Add normalization step (per-subject).
+[`pipe`](#pipelines-multi-subject-pipe) | Add custom sklearn transformer.
+[`predict`](#pipelines-multi-subject-predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#pipelines-multi-subject-reduce) | Add dimensionality reduction step.
+[`rsa`](#pipelines-multi-subject-rsa) | Compute representational similarity analysis.
 
 **Attributes:**
 
@@ -71,6 +73,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-multi-subject-align)=
 ###### `align`
 
 ```python
@@ -115,6 +118,7 @@ Examples:
 ...     .fit(model='ttest', contrast='A-B')
 ... )
 
+(pipelines-multi-subject-isc)=
 ###### `isc`
 
 ```python
@@ -150,6 +154,7 @@ Examples:
 ... )
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
 
+(pipelines-multi-subject-normalize)=
 ###### `normalize`
 
 ```python
@@ -158,6 +163,7 @@ normalize(method: str = 'zscore', **kwargs: str) -> MultiSubjectPipeline
 
 Add normalization step (per-subject).
 
+(pipelines-multi-subject-pipe)=
 ###### `pipe`
 
 ```python
@@ -166,6 +172,7 @@ pipe(transformer) -> MultiSubjectPipeline
 
 Add custom sklearn transformer.
 
+(pipelines-multi-subject-predict)=
 ###### `predict`
 
 ```python
@@ -210,6 +217,7 @@ result = pipeline.cv('loso').predict(
 )
 ```
 
+(pipelines-multi-subject-reduce)=
 ###### `reduce`
 
 ```python
@@ -218,6 +226,7 @@ reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | Non
 
 Add dimensionality reduction step.
 
+(pipelines-multi-subject-rsa)=
 ###### `rsa`
 
 ```python

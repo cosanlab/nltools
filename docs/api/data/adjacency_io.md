@@ -1,3 +1,4 @@
+(data-adjacency-io-io)=
 ## `io`
 
 I/O functions for Adjacency objects.
@@ -6,13 +7,14 @@ I/O functions for Adjacency objects.
 
 Name | Description
 ---- | -----------
-[`to_graph`](#to-graph) | Convert Adjacency into networkx graph.
-[`write`](#write) | Write out Adjacency object to csv file.
+[`to_graph`](#data-adjacency-io-to-graph) | Convert Adjacency into networkx graph.
+[`write`](#data-adjacency-io-write) | Write out Adjacency object to csv file.
 
 
 
 ### Methods
 
+(data-adjacency-io-to-graph)=
 #### `to_graph`
 
 ```python
@@ -35,6 +37,7 @@ Type | Description
 ---- | -----------
  | networkx.Graph or networkx.DiGraph: Graph representation of the adjacency matrix. Uses DiGraph for directed matrices.
 
+(data-adjacency-io-write)=
 #### `write`
 
 ```python

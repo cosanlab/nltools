@@ -1,3 +1,4 @@
+(data-collection-execution-execution)=
 ## `execution`
 
 Parallel execution machinery for BrainCollection.
@@ -18,10 +19,10 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`read_glm_bundle`](#read-glm-bundle) | Read and validate a GLM bundle.
-[`read_ridge_bundle`](#read-ridge-bundle) | Read a ridge bundle.
-[`write_glm_bundle`](#write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
-[`write_ridge_bundle`](#write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
+[`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read and validate a GLM bundle.
+[`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle.
+[`write_glm_bundle`](#data-collection-execution-write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+[`write_ridge_bundle`](#data-collection-execution-write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 **Attributes:**
 
@@ -31,6 +32,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-collection-execution-read-glm-bundle)=
 #### `read_glm_bundle`
 
 ```python
@@ -44,6 +46,7 @@ a migration message; nltools-version
 mismatch logs a warning but does not refuse — bundles are usually
 forward-compatible within a minor version.
 
+(data-collection-execution-read-ridge-bundle)=
 #### `read_ridge_bundle`
 
 ```python
@@ -54,6 +57,7 @@ Read a ridge bundle.
 
 Uses the same schema and version handling as ``read_glm_bundle``.
 
+(data-collection-execution-write-glm-bundle)=
 #### `write_glm_bundle`
 
 ```python
@@ -71,6 +75,7 @@ Layout (see SPEC §"HDF5 fit bundle"):
 Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
 portable across machines. Uses ``h5py.File(..., locking=False)``.
 
+(data-collection-execution-write-ridge-bundle)=
 #### `write_ridge_bundle`
 
 ```python

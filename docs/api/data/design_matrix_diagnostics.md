@@ -1,3 +1,4 @@
+(data-design-matrix-diagnostics-diagnostics)=
 ## `diagnostics`
 
 Diagnostic and utility functions for DesignMatrix.
@@ -6,9 +7,9 @@ Diagnostic and utility functions for DesignMatrix.
 
 Name | Description
 ---- | -----------
-[`clean`](#clean) | Remove highly correlated columns.
-[`corr`](#corr) | Correlation between DesignMatrix columns as an Adjacency.
-[`vif`](#vif) | Compute the variance inflation factor for each column.
+[`clean`](#data-design-matrix-diagnostics-clean) | Remove highly correlated columns.
+[`corr`](#data-design-matrix-diagnostics-corr) | Correlation between DesignMatrix columns as an Adjacency.
+[`vif`](#data-design-matrix-diagnostics-vif) | Compute the variance inflation factor for each column.
 
 
 
@@ -16,6 +17,7 @@ Name | Description
 
 ### Methods
 
+(data-design-matrix-diagnostics-clean)=
 #### `clean`
 
 ```python
@@ -43,6 +45,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
+(data-design-matrix-diagnostics-corr)=
 #### `corr`
 
 ```python
@@ -80,6 +83,7 @@ yield NaN correlations.
 
 </details>
 
+(data-design-matrix-diagnostics-vif)=
 #### `vif`
 
 ```python

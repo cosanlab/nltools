@@ -1,3 +1,4 @@
+(data-design-matrix-designmatrix)=
 ## `DesignMatrix`
 
 ```python
@@ -66,27 +67,27 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_dct_basis`](#add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
-[`add_poly`](#add-poly) | Add Legendre polynomial drift terms.
-[`append`](#append) | Concatenate design matrices.
-[`clean`](#clean) | Remove highly correlated columns.
-[`convolve`](#convolve) | Convolve columns with an HRF or custom kernel.
-[`copy`](#copy) | Create a deep copy of the DesignMatrix.
-[`corr`](#corr) | Calculate column correlations as a similarity ``Adjacency``.
-[`downsample`](#downsample) | Reduce temporal resolution using Polars-native operations.
-[`drop`](#drop) | Drop specified columns.
-[`fillna`](#fillna) | Fill NaN/null values with specified value.
-[`plot`](#plot) | Visualize the design matrix.
-[`replace_data`](#replace-data) | Replace data columns while preserving confounds and metadata.
-[`standardize`](#standardize) | Standardize columns using the specified method.
-[`sum`](#sum) | Compute the sum along an axis.
-[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
-[`upsample`](#upsample) | Increase temporal resolution to a target frequency.
-[`vif`](#vif) | Compute the variance inflation factor for each column.
-[`with_columns`](#with-columns) | Add or replace columns via Polars expressions.
-[`write`](#write) | Write DesignMatrix to file.
-[`zscore`](#zscore) | Z-score standardize columns to mean zero and unit variance.
+[`add_dct_basis`](#data-design-matrix-add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#data-design-matrix-add-poly) | Add Legendre polynomial drift terms.
+[`append`](#data-design-matrix-append) | Concatenate design matrices.
+[`clean`](#data-design-matrix-clean) | Remove highly correlated columns.
+[`convolve`](#data-design-matrix-convolve) | Convolve columns with an HRF or custom kernel.
+[`copy`](#data-design-matrix-copy) | Create a deep copy of the DesignMatrix.
+[`corr`](#data-design-matrix-corr) | Calculate column correlations as a similarity ``Adjacency``.
+[`downsample`](#data-design-matrix-downsample) | Reduce temporal resolution using Polars-native operations.
+[`drop`](#data-design-matrix-drop) | Drop specified columns.
+[`fillna`](#data-design-matrix-fillna) | Fill NaN/null values with specified value.
+[`plot`](#data-design-matrix-plot) | Visualize the design matrix.
+[`replace_data`](#data-design-matrix-replace-data) | Replace data columns while preserving confounds and metadata.
+[`standardize`](#data-design-matrix-standardize) | Standardize columns using the specified method.
+[`sum`](#data-design-matrix-sum) | Compute the sum along an axis.
+[`to_numpy`](#data-design-matrix-to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#data-design-matrix-to-pandas) | Convert DesignMatrix to pandas DataFrame.
+[`upsample`](#data-design-matrix-upsample) | Increase temporal resolution to a target frequency.
+[`vif`](#data-design-matrix-vif) | Compute the variance inflation factor for each column.
+[`with_columns`](#data-design-matrix-with-columns) | Add or replace columns via Polars expressions.
+[`write`](#data-design-matrix-write) | Write DesignMatrix to file.
+[`zscore`](#data-design-matrix-zscore) | Z-score standardize columns to mean zero and unit variance.
 
 Passing another ``DesignMatrix`` returns a copy: ``data``,
 ``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
@@ -104,6 +105,7 @@ is anything other than an events file.
 
 ### Methods
 
+(data-design-matrix-add-dct-basis)=
 #### `add_dct_basis`
 
 ```python
@@ -126,6 +128,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
 
+(data-design-matrix-add-poly)=
 #### `add_poly`
 
 ```python
@@ -147,6 +150,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
 
+(data-design-matrix-append)=
 #### `append`
 
 ```python
@@ -173,6 +177,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
+(data-design-matrix-clean)=
 #### `clean`
 
 ```python
@@ -196,6 +201,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
+(data-design-matrix-convolve)=
 #### `convolve`
 
 ```python
@@ -222,6 +228,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns renamed.
 
+(data-design-matrix-copy)=
 #### `copy`
 
 ```python
@@ -236,6 +243,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
 
+(data-design-matrix-corr)=
 #### `corr`
 
 ```python
@@ -257,6 +265,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | Similarity matrix whose ``labels`` are the column names. The unit diagonal is dropped (self-correlation isn't an edge); use ``.plot(method='corr')`` for a heatmap with the diagonal restored.
 
+(data-design-matrix-downsample)=
 #### `downsample`
 
 ```python
@@ -278,6 +287,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
 
+(data-design-matrix-drop)=
 #### `drop`
 
 ```python
@@ -298,6 +308,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
 
+(data-design-matrix-fillna)=
 #### `fillna`
 
 ```python
@@ -318,6 +329,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
 
+(data-design-matrix-plot)=
 #### `plot`
 
 ```python
@@ -356,6 +368,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure: The figure containing the plot.
 
+(data-design-matrix-replace-data)=
 #### `replace_data`
 
 ```python
@@ -377,6 +390,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
 
+(data-design-matrix-standardize)=
 #### `standardize`
 
 ```python
@@ -398,6 +412,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
 
+(data-design-matrix-sum)=
 #### `sum`
 
 ```python
@@ -418,6 +433,7 @@ Type | Description
 ---- | -----------
 <code>[Series](#polars.Series)</code> | pl.Series: Sums along specified axis.
 
+(data-design-matrix-to-numpy)=
 #### `to_numpy`
 
 ```python
@@ -432,6 +448,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | np.ndarray: 2D array with shape (n_samples, n_columns)
 
+(data-design-matrix-to-pandas)=
 #### `to_pandas`
 
 ```python
@@ -446,6 +463,7 @@ Type | Description
 ---- | -----------
 <code>[DataFrame](#pandas.DataFrame)</code> | pd.DataFrame: Pandas DataFrame with same data and column names.
 
+(data-design-matrix-upsample)=
 #### `upsample`
 
 ```python
@@ -467,6 +485,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
 
+(data-design-matrix-vif)=
 #### `vif`
 
 ```python
@@ -487,6 +506,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular.
 
+(data-design-matrix-with-columns)=
 #### `with_columns`
 
 ```python
@@ -517,6 +537,7 @@ For convenience, named-kwarg values that aren't ``pl.Expr`` /
 ... )
 ```
 
+(data-design-matrix-write)=
 #### `write`
 
 ```python
@@ -535,6 +556,7 @@ Name | Type | Description | Default
 `file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
 `sep` | <code>[str](#str)</code> | Column separator for text files (default: tab). | <code>'\t'</code>
 
+(data-design-matrix-zscore)=
 #### `zscore`
 
 ```python

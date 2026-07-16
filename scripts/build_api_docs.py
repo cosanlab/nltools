@@ -157,6 +157,7 @@ def _remove_deprecated_members(text: str) -> str:
         text,
         flags=re.MULTILINE,
     )
+
     # Drop detail sections whose body opens with "Deprecated:" right after the
     # signature code fence. Section spans "#### `name`" to the next heading/EOF.
     def _drop(m: re.Match) -> str:
@@ -182,6 +183,54 @@ def _myst_slug(heading_text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-")
 
 
+def _scope_anchors(text: str, prefix: str) -> str:
+    """Give each member heading an explicit, page-scoped MyST target label.
+
+    mystmd warns ("implicit heading reference") whenever a cross-reference
+    resolves to a heading's auto-generated id instead of an explicit label.
+    griffe2md links every summary-table row to a member heading by its slug, so
+    without explicit labels each linked member emits one such warning (1000+ per
+    full build). The fix is to label the headings and reference the labels.
+
+    The catch: explicit MyST labels are project-*global*, whereas the implicit
+    heading ids they replace are page-*local*. Common method names repeat across
+    facades (``align`` is a `stats` function, a `BrainData` method, ...), so a
+    bare ``(align)=`` on every page collides — trading implicit-ref warnings for
+    just as many "Duplicate identifier" ones. Prefixing every label and its
+    same-page links with a per-page ``prefix`` (derived from the output path)
+    restores page-scoped uniqueness while keeping the reference explicit.
+
+    Two coordinated edits, using the same first-occurrence slug set:
+      1. Inject ``(prefix-slug)=`` before the first code-span heading for each
+         slug (``#### `name` `` — the members/submodules summary tables link to;
+         section headings like Methods/Attributes are never linked, so skipped).
+      2. Rewrite each surviving same-page link ``](#slug)`` -> ``](#prefix-slug)``
+         for slugs that got a label, so links still resolve to their heading.
+
+    Runs last in `postprocess`, after `_delink_dangling_anchors` has dropped any
+    link whose heading was removed — so every remaining ``](#slug)`` targets a
+    real on-page heading.
+    """
+    labeled: set[str] = set()
+    out: list[str] = []
+    heading_re = re.compile(r"^#{1,6}\s+`([^`]+)`\s*$")
+    for line in text.split("\n"):
+        m = heading_re.match(line)
+        if m:
+            slug = _myst_slug(m.group(1))
+            if slug and slug not in labeled:
+                labeled.add(slug)
+                out.append(f"({prefix}-{slug})=")
+        out.append(line)
+    text = "\n".join(out)
+
+    def relink(m: re.Match) -> str:
+        slug = m.group(1)
+        return f"](#{prefix}-{slug})" if slug in labeled else m.group(0)
+
+    return re.sub(r"\]\(#([\w-]+)\)", relink, text)
+
+
 def _delink_dangling_anchors(text: str) -> str:
     """De-link summary-table links whose target heading isn't on the page.
 
@@ -201,7 +250,7 @@ def _delink_dangling_anchors(text: str) -> str:
     return re.sub(r"\[`([^`]+)`\]\(#([\w.-]+)\)", repl, text)
 
 
-def postprocess(text: str) -> str:
+def postprocess(text: str, prefix: str) -> str:
     """Fix griffe2md output quirks.
 
     - Insert newline between concatenated headings (e.g. ``### Attributes#### foo``)
@@ -209,6 +258,10 @@ def postprocess(text: str) -> str:
     - Rename 'Functions' summary/category heading to 'Methods' for class pages
     - Strip any residual RST roles (safety net over docstring standardization)
     - Hide deprecated members (documented in the migration guide instead)
+    - Label member headings with page-scoped explicit MyST targets
+
+    ``prefix`` is a per-page slug (from the output path) that namespaces the
+    explicit heading labels so they stay unique project-wide.
     """
     # Fix concatenated headings: "### Foo#### Bar" -> "### Foo\n\n#### Bar"
     text = re.sub(r"(#{2,6} .+?)(#{2,6} )", r"\1\n\n\2", text)
@@ -248,6 +301,10 @@ def postprocess(text: str) -> str:
     # Final pass: drop summary links whose target heading was removed above.
     text = _delink_dangling_anchors(text)
 
+    # Label the surviving member/submodule headings (and their same-page links)
+    # with page-scoped explicit targets, so references resolve explicitly.
+    text = _scope_anchors(text, prefix)
+
     return text
 
 
@@ -275,10 +332,13 @@ def generate(module: str, output: Path) -> bool:
         if not output.exists():
             print(f"  FAILED: {module} → {output}", file=sys.stderr)
             return False
-    # Apply post-processing
+    # Apply post-processing. The page-scoped label prefix is the output path
+    # relative to docs/api/ (minus extension), slugified — unique per page.
     if output.exists():
+        rel = output.relative_to(DOCS_API).with_suffix("")
+        prefix = _myst_slug(rel.as_posix())
         text = output.read_text()
-        text = postprocess(text)
+        text = postprocess(text, prefix)
         output.write_text(text)
     return True
 

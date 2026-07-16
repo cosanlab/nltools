@@ -1,3 +1,4 @@
+(data-adjacency-plotting-plotting)=
 ## `plotting`
 
 Plotting functions for Adjacency matrices.
@@ -6,13 +7,14 @@ Plotting functions for Adjacency matrices.
 
 Name | Description
 ---- | -----------
-[`plot_adjacency`](#plot-adjacency) | Create Heatmap of Adjacency Matrix.
-[`plot_mds`](#plot-mds) | Plot Multidimensional Scaling.
+[`plot_adjacency`](#data-adjacency-plotting-plot-adjacency) | Create Heatmap of Adjacency Matrix.
+[`plot_mds`](#data-adjacency-plotting-plot-mds) | Plot Multidimensional Scaling.
 
 
 
 ### Methods
 
+(data-adjacency-plotting-plot-adjacency)=
 #### `plot_adjacency`
 
 ```python
@@ -37,6 +39,7 @@ Type | Description
 ---- | -----------
  | None
 
+(data-adjacency-plotting-plot-mds)=
 #### `plot_mds`
 
 ```python

@@ -1,3 +1,4 @@
+(models-models)=
 ## `models`
 
 Model classes for neuroimaging analysis.
@@ -8,22 +9,23 @@ Provides sklearn-compatible APIs for common neuroimaging analyses.
 
 Name | Description
 ---- | -----------
-[`base`](#base) | Base classes for nltools models.
-[`glm`](#glm) | GLM model for neuroimaging data.
-[`ridge`](#ridge) | Ridge regression model for neuroimaging data.
+[`base`](#models-base) | Base classes for nltools models.
+[`glm`](#models-glm) | GLM model for neuroimaging data.
+[`ridge`](#models-ridge) | Ridge regression model for neuroimaging data.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`BaseModel`](#basemodel) | Abstract base class for all nltools models.
-[`Glm`](#glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
-[`Ridge`](#ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+[`BaseModel`](#models-basemodel) | Abstract base class for all nltools models.
+[`Glm`](#models-glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Ridge`](#models-ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
 
 
 ### Classes
 
+(models-basemodel)=
 #### `BaseModel`
 
 ```python
@@ -51,12 +53,13 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit the model to training data.
-[`predict`](#predict) | Generate predictions for new data.
-[`score`](#score) | Evaluate model performance.
+[`fit`](#models-fit) | Fit the model to training data.
+[`predict`](#models-predict) | Generate predictions for new data.
+[`score`](#models-score) | Evaluate model performance.
 
 ##### Methods
 
+(models-fit)=
 ###### `fit`
 
 ```python
@@ -78,6 +81,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `BaseModel` |  | Fitted model instance
 
+(models-predict)=
 ###### `predict`
 
 ```python
@@ -98,6 +102,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `ndarray` |  | Predicted values
 
+(models-score)=
 ###### `score`
 
 ```python
@@ -119,6 +124,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `float` |  | Model performance metric
 
+(models-glm)=
 #### `Glm`
 
 ```python
@@ -213,13 +219,14 @@ For advanced use cases, access the internal FirstLevelModel via the
 
 Name | Description
 ---- | -----------
-[`compute_contrast`](#compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
-[`fit`](#fit) | Fit GLM to fMRI data.
-[`predict`](#predict) | Generate predictions from fitted GLM.
-[`score`](#score) | Return mean R² across voxels and runs.
+[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#models-fit) | Fit GLM to fMRI data.
+[`predict`](#models-predict) | Generate predictions from fitted GLM.
+[`score`](#models-score) | Return mean R² across voxels and runs.
 
 ##### Methods
 
+(models-compute-contrast)=
 ###### `compute_contrast`
 
 ```python
@@ -374,6 +381,7 @@ For voxel-wise R² maps, access `glm_.r_square` directly.
 >>> print(f"Mean R²: {r2:.3f}")
 ```
 
+(models-ridge)=
 #### `Ridge`
 
 ```python
@@ -443,9 +451,9 @@ Ridge(alpha=1.0, backend='numpy')
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit ridge regression model.
-[`predict`](#predict) | Predict using the ridge model.
-[`score`](#score) | Return the coefficient of determination R^2 of the prediction.
+[`fit`](#models-fit) | Fit ridge regression model.
+[`predict`](#models-predict) | Predict using the ridge model.
+[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
 
 ##### Methods
 
@@ -521,6 +529,7 @@ Type | Description
 
 ### Modules
 
+(models-base)=
 #### `base`
 
 Base classes for nltools models.
@@ -531,7 +540,7 @@ Provides sklearn-compatible API for neuroimaging analysis.
 
 Name | Description
 ---- | -----------
-[`BaseModel`](#basemodel) | Abstract base class for all nltools models.
+[`BaseModel`](#models-basemodel) | Abstract base class for all nltools models.
 
 
 
@@ -564,14 +573,15 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit the model to training data.
-[`predict`](#predict) | Generate predictions for new data.
-[`score`](#score) | Evaluate model performance.
+[`fit`](#models-fit) | Fit the model to training data.
+[`predict`](#models-predict) | Generate predictions for new data.
+[`score`](#models-score) | Evaluate model performance.
 
 
 
 ####### Attributes##
 
+(models-is-fitted)=
 ###### `is_fitted_`
 
 ```python
@@ -654,7 +664,7 @@ Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
 
 Name | Description
 ---- | -----------
-[`Glm`](#glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Glm`](#models-glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
 
 
 
@@ -754,15 +764,16 @@ For advanced use cases, access the internal FirstLevelModel via the
 
 Name | Description
 ---- | -----------
-[`compute_contrast`](#compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
-[`fit`](#fit) | Fit GLM to fMRI data.
-[`predict`](#predict) | Generate predictions from fitted GLM.
-[`score`](#score) | Return mean R² across voxels and runs.
+[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#models-fit) | Fit GLM to fMRI data.
+[`predict`](#models-predict) | Generate predictions from fitted GLM.
+[`score`](#models-score) | Return mean R² across voxels and runs.
 
 
 
 ####### Attributes##
 
+(models-design-matrices)=
 ###### `design_matrices_`
 
 ```python
@@ -1030,7 +1041,7 @@ Supports both regular ridge (single feature space) and banded ridge
 
 Name | Description
 ---- | -----------
-[`Ridge`](#ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+[`Ridge`](#models-ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
 
 
@@ -1105,14 +1116,15 @@ Ridge(alpha=1.0, backend='numpy')
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit ridge regression model.
-[`predict`](#predict) | Predict using the ridge model.
-[`score`](#score) | Return the coefficient of determination R^2 of the prediction.
+[`fit`](#models-fit) | Fit ridge regression model.
+[`predict`](#models-predict) | Predict using the ridge model.
+[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
 
 
 
 ####### Attributes##
 
+(models-alpha)=
 ###### `alpha`
 
 ```python

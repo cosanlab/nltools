@@ -1,3 +1,4 @@
+(backends-backends)=
 ## `backends`
 
 Backend abstraction for CPU/GPU operations.
@@ -10,21 +11,22 @@ maintaining NumPy-first development.
 
 Name | Description
 ---- | -----------
-[`Backend`](#backend) | Backend abstraction for numerical operations.
+[`Backend`](#backends-backend) | Backend abstraction for numerical operations.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`assert_array_almost_equal`](#assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
-[`auto_select_backend`](#auto-select-backend) | Automatically select backend based on problem size.
-[`check_gpu_available`](#check-gpu-available) | Check if GPU acceleration is available.
-[`resolve_backend`](#resolve-backend) | Coerce a backend specifier into a `Backend` instance.
+[`assert_array_almost_equal`](#backends-assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_select_backend`](#backends-auto-select-backend) | Automatically select backend based on problem size.
+[`check_gpu_available`](#backends-check-gpu-available) | Check if GPU acceleration is available.
+[`resolve_backend`](#backends-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
 
 
 ### Classes
 
+(backends-backend)=
 #### `Backend`
 
 ```python
@@ -54,28 +56,29 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`asarray`](#asarray) | Convert input to a backend array.
-[`asarray_like`](#asarray-like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
-[`check_arrays`](#check-arrays) | Coerce all inputs to the same dtype (and device) as the first.
-[`concatenate`](#concatenate) | Concatenate arrays along an axis.
-[`copy`](#copy) | Return an independent copy of the array.
-[`dtype_to_str`](#dtype-to-str) | Normalize a dtype (numpy, torch, or string) to its string name.
-[`expand_dims`](#expand-dims) | Insert a new axis.
-[`flatnonzero`](#flatnonzero) | Return indices of non-zero elements in the flattened array.
-[`full`](#full) | Create array filled with *fill_value*.
-[`full_like`](#full-like) | Create array filled with *fill_value*, optionally with a different shape.
-[`matmul`](#matmul) | Matrix multiplication.
-[`ones_like`](#ones-like) | Create ones array, optionally with a different shape.
-[`sort`](#sort) | Sort along an axis, returning values only.
-[`svd`](#svd) | Compute Singular Value Decomposition.
-[`to_cpu`](#to-cpu) | Transfer array to CPU. No-op for numpy.
-[`to_device`](#to-device) | Transfer array to backend device.
-[`to_gpu`](#to-gpu) | Transfer array to GPU. No-op for numpy.
-[`to_numpy`](#to-numpy) | Convert array back to NumPy.
-[`zeros_like`](#zeros-like) | Create zeros array, optionally with a different shape.
+[`asarray`](#backends-asarray) | Convert input to a backend array.
+[`asarray_like`](#backends-asarray-like) | Convert *x* to an array matching *ref*'s dtype (and device for torch).
+[`check_arrays`](#backends-check-arrays) | Coerce all inputs to the same dtype (and device) as the first.
+[`concatenate`](#backends-concatenate) | Concatenate arrays along an axis.
+[`copy`](#backends-copy) | Return an independent copy of the array.
+[`dtype_to_str`](#backends-dtype-to-str) | Normalize a dtype (numpy, torch, or string) to its string name.
+[`expand_dims`](#backends-expand-dims) | Insert a new axis.
+[`flatnonzero`](#backends-flatnonzero) | Return indices of non-zero elements in the flattened array.
+[`full`](#backends-full) | Create array filled with *fill_value*.
+[`full_like`](#backends-full-like) | Create array filled with *fill_value*, optionally with a different shape.
+[`matmul`](#backends-matmul) | Matrix multiplication.
+[`ones_like`](#backends-ones-like) | Create ones array, optionally with a different shape.
+[`sort`](#backends-sort) | Sort along an axis, returning values only.
+[`svd`](#backends-svd) | Compute Singular Value Decomposition.
+[`to_cpu`](#backends-to-cpu) | Transfer array to CPU. No-op for numpy.
+[`to_device`](#backends-to-device) | Transfer array to backend device.
+[`to_gpu`](#backends-to-gpu) | Transfer array to GPU. No-op for numpy.
+[`to_numpy`](#backends-to-numpy) | Convert array back to NumPy.
+[`zeros_like`](#backends-zeros-like) | Create zeros array, optionally with a different shape.
 
 ##### Methods
 
+(backends-asarray)=
 ###### `asarray`
 
 ```python
@@ -101,6 +104,7 @@ Type | Description
 ---- | -----------
  | Backend array (numpy ndarray or torch Tensor).
 
+(backends-asarray-like)=
 ###### `asarray_like`
 
 ```python
@@ -122,6 +126,7 @@ Type | Description
 ---- | -----------
  | Backend array with same dtype/device as ref.
 
+(backends-check-arrays)=
 ###### `check_arrays`
 
 ```python
@@ -145,6 +150,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `list` |  | Converted arrays in the same order as inputs.
 
+(backends-concatenate)=
 ###### `concatenate`
 
 ```python
@@ -160,6 +166,7 @@ Name | Type | Description | Default
 `arrays` |  | Sequence of arrays. | *required*
 `axis` |  | Axis to concatenate along (default 0). | <code>0</code>
 
+(backends-copy)=
 ###### `copy`
 
 ```python
@@ -174,6 +181,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `array` |  | Input array. | *required*
 
+(backends-dtype-to-str)=
 ###### `dtype_to_str`
 
 ```python
@@ -194,6 +202,7 @@ Type | Description
 ---- | -----------
  | str or None: e.g. "float32", "float64", or None if input was None.
 
+(backends-expand-dims)=
 ###### `expand_dims`
 
 ```python
@@ -209,6 +218,7 @@ Name | Type | Description | Default
 `array` |  | Input array. | *required*
 `axis` |  | Position of the new axis. | *required*
 
+(backends-flatnonzero)=
 ###### `flatnonzero`
 
 ```python
@@ -223,6 +233,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `array` |  | Input array. | *required*
 
+(backends-full)=
 ###### `full`
 
 ```python
@@ -239,6 +250,7 @@ Name | Type | Description | Default
 `fill_value` |  | Scalar fill value. | *required*
 `dtype` |  | Output dtype. If None, inferred by the backend. | <code>None</code>
 
+(backends-full-like)=
 ###### `full_like`
 
 ```python
@@ -257,6 +269,7 @@ Name | Type | Description | Default
 `dtype` |  | Output dtype. If None, uses array.dtype. | <code>None</code>
 `device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
+(backends-matmul)=
 ###### `matmul`
 
 ```python
@@ -278,6 +291,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Result of A @ B
 
+(backends-ones-like)=
 ###### `ones_like`
 
 ```python
@@ -295,6 +309,7 @@ Name | Type | Description | Default
 `dtype` |  | Output dtype. If None, uses array.dtype. | <code>None</code>
 `device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
+(backends-sort)=
 ###### `sort`
 
 ```python
@@ -310,6 +325,7 @@ Name | Type | Description | Default
 `array` |  | Input array. | *required*
 `axis` |  | Axis to sort along (default -1). | <code>-1</code>
 
+(backends-svd)=
 ###### `svd`
 
 ```python
@@ -331,6 +347,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` |  | (U, s, Vt) where: - U (array): Left singular vectors - s (array): Singular values - Vt (array): Right singular vectors (transposed)
 
+(backends-to-cpu)=
 ###### `to_cpu`
 
 ```python
@@ -351,6 +368,7 @@ Type | Description
 ---- | -----------
  | Array on CPU.
 
+(backends-to-device)=
 ###### `to_device`
 
 ```python
@@ -371,6 +389,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `array` |  | Array on device (numpy array or torch tensor)
 
+(backends-to-gpu)=
 ###### `to_gpu`
 
 ```python
@@ -392,6 +411,7 @@ Type | Description
 ---- | -----------
  | Array on GPU device.
 
+(backends-to-numpy)=
 ###### `to_numpy`
 
 ```python
@@ -412,6 +432,7 @@ Type | Description
 ---- | -----------
  | np.ndarray: NumPy array
 
+(backends-zeros-like)=
 ###### `zeros_like`
 
 ```python
@@ -433,6 +454,7 @@ Name | Type | Description | Default
 
 ### Methods
 
+(backends-assert-array-almost-equal)=
 #### `assert_array_almost_equal`
 
 ```python
@@ -462,6 +484,7 @@ Type | Description
 ---- | -----------
  | None (raises AssertionError if arrays don't match)
 
+(backends-auto-select-backend)=
 #### `auto_select_backend`
 
 ```python
@@ -499,6 +522,7 @@ Selection criteria:
 
 </details>
 
+(backends-check-gpu-available)=
 #### `check_gpu_available`
 
 ```python
@@ -513,6 +537,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
 
+(backends-resolve-backend)=
 #### `resolve_backend`
 
 ```python

@@ -1,3 +1,4 @@
+(data-braindata-bootstrap-bootstrap)=
 ## `bootstrap`
 
 Bootstrap functions extracted from BrainData methods.
@@ -6,8 +7,8 @@ Bootstrap functions extracted from BrainData methods.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_brain_data`](#convert-bootstrap-results-to-brain-data) | Convert bootstrap results dictionary to BrainData format.
+[`bootstrap`](#data-braindata-bootstrap-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`convert_bootstrap_results_to_brain_data`](#data-braindata-bootstrap-convert-bootstrap-results-to-brain-data) | Convert bootstrap results dictionary to BrainData format.
 
 
 
@@ -103,6 +104,7 @@ This method replaces the removed `summarize_bootstrap()` function.
 
 </details>
 
+(data-braindata-bootstrap-convert-bootstrap-results-to-brain-data)=
 #### `convert_bootstrap_results_to_brain_data`
 
 ```python

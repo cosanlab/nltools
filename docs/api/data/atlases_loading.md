@@ -1,3 +1,4 @@
+(data-atlases-loading-loading)=
 ## `loading`
 
 Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
@@ -12,10 +13,11 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`load_atlas`](#load-atlas) | Lazy-load an atlas by registry name.
+[`load_atlas`](#data-atlases-loading-load-atlas) | Lazy-load an atlas by registry name.
 
 ### Methods
 
+(data-atlases-loading-load-atlas)=
 #### `load_atlas`
 
 ```python

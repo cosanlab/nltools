@@ -1,3 +1,4 @@
+(data-collection-pipeline-pipeline)=
 ## `pipeline`
 
 Pipeline classes for BrainCollection.
@@ -10,14 +11,15 @@ chaining pool() after fit().
 
 Name | Description
 ---- | -----------
-[`BrainCollectionCVResult`](#braincollectioncvresult) | Cross-validation results for BrainCollection pipelines.
+[`BrainCollectionCVResult`](#data-collection-pipeline-braincollectioncvresult) | Cross-validation results for BrainCollection pipelines.
 `BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
-[`FittedBrainCollection`](#fittedbraincollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
+[`FittedBrainCollection`](#data-collection-pipeline-fittedbraincollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
 
 
 
 ### Classes
 
+(data-collection-pipeline-braincollectioncvresult)=
 #### `BrainCollectionCVResult`
 
 ```python
@@ -34,7 +36,7 @@ with convenience properties for accessing scores and predictions.
 Name | Type | Description
 ---- | ---- | -----------
 `fold_results` |  | List of dictionaries with per-fold results.
-[`pipeline`](#pipeline) |  | The pipeline that generated these results.
+[`pipeline`](#data-collection-pipeline-pipeline) |  | The pipeline that generated these results.
 `scores` | <code>[ndarray](#numpy.ndarray)</code> | Per-fold prediction scores.
 `mean_score` | <code>[float](#float)</code> | Mean score across all folds.
 `std_score` | <code>[float](#float)</code> | Standard deviation of scores.
@@ -49,6 +51,7 @@ Name | Type | Description | Default
 
 ##### Methods
 
+(data-collection-pipeline-normalize)=
 ###### `normalize`
 
 ```python
@@ -70,6 +73,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with normalization step added.
 
+(data-collection-pipeline-pipe)=
 ###### `pipe`
 
 ```python
@@ -90,6 +94,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with custom step added.
 
+(data-collection-pipeline-predict)=
 ###### `predict`
 
 ```python
@@ -112,6 +117,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionCVResult](#nltools.data.collection.pipeline.BrainCollectionCVResult)</code> | Cross-validation results with scores and predictions.
 
+(data-collection-pipeline-reduce)=
 ###### `reduce`
 
 ```python
@@ -134,6 +140,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
 
+(data-collection-pipeline-fittedbraincollection)=
 #### `FittedBrainCollection`
 
 ```python
@@ -169,7 +176,7 @@ Examples
 
 Name | Description
 ---- | -----------
-[`pool`](#pool) | Pool fitted parameters across subjects.
+[`pool`](#data-collection-pipeline-pool) | Pool fitted parameters across subjects.
 
 **Attributes:**
 
@@ -181,6 +188,7 @@ Name | Type | Description
 
 ##### Methods
 
+(data-collection-pipeline-pool)=
 ###### `pool`
 
 ```python

@@ -1,3 +1,4 @@
+(mask-mask)=
 ## `mask`
 
 Utilities for creating and manipulating brain masks.
@@ -10,16 +11,17 @@ Classes to represent masks
 
 Name | Description
 ---- | -----------
-[`collapse_mask`](#collapse-mask) | Collapse separate masks into one integer-labeled mask.
-[`create_sphere`](#create-sphere) | Generate spheres in brain-mask space.
-[`expand_mask`](#expand-mask) | Expand an integer-labeled mask into separate binary masks.
-[`roi_to_brain`](#roi-to-brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
-[`roi_to_brain_from_atlas`](#roi-to-brain-from-atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
+[`collapse_mask`](#mask-collapse-mask) | Collapse separate masks into one integer-labeled mask.
+[`create_sphere`](#mask-create-sphere) | Generate spheres in brain-mask space.
+[`expand_mask`](#mask-expand-mask) | Expand an integer-labeled mask into separate binary masks.
+[`roi_to_brain`](#mask-roi-to-brain) | Populate an expanded binary ROI mask with a vector or matrix of per-ROI values.
+[`roi_to_brain_from_atlas`](#mask-roi-to-brain-from-atlas) | Paint per-parcel values onto voxel space using a labeled atlas.
 
 
 
 ### Methods
 
+(mask-collapse-mask)=
 #### `collapse_mask`
 
 ```python
@@ -43,6 +45,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | BrainData instance of a mask with different integers indicating different masks
 
+(mask-create-sphere)=
 #### `create_sphere`
 
 ```python
@@ -58,6 +61,7 @@ Name | Type | Description | Default
 `radius` |  | vector of radius.  Will create multiple spheres if     len(radius) > 1 | <code>5</code>
 `centers` |  | a vector of sphere centers of the form [px, py, pz] or     [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
+(mask-expand-mask)=
 #### `expand_mask`
 
 ```python
@@ -79,6 +83,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `out` |  | BrainData instance of multiple binary masks
 
+(mask-roi-to-brain)=
 #### `roi_to_brain`
 
 ```python
@@ -107,6 +112,7 @@ Name | Type | Description
 `BrainData` |  | A BrainData instance with each ROI populated by the
  |  | provided value(s).
 
+(mask-roi-to-brain-from-atlas)=
 #### `roi_to_brain_from_atlas`
 
 ```python

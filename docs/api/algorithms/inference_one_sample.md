@@ -1,3 +1,4 @@
+(algorithms-inference-one-sample-one-sample)=
 ## `one_sample`
 
 One-sample permutation test implementations.
@@ -9,7 +10,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#algorithms-inference-one-sample-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
@@ -17,6 +18,7 @@ Name | Description
 
 ### Methods
 
+(algorithms-inference-one-sample-one-sample-permutation-test)=
 #### `one_sample_permutation_test`
 
 ```python

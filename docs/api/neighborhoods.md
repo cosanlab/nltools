@@ -1,3 +1,4 @@
+(neighborhoods-neighborhoods)=
 ## `neighborhoods`
 
 Spatial neighborhood computation for neuroimaging analyses.
@@ -30,18 +31,19 @@ is deterministic and can be cached for reuse across analyses.
 
 Name | Description
 ---- | -----------
-[`SphereNeighborhoods`](#sphereneighborhoods) | Precomputed sphere neighborhoods for a brain mask.
+[`SphereNeighborhoods`](#neighborhoods-sphereneighborhoods) | Precomputed sphere neighborhoods for a brain mask.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_searchlight_neighborhoods`](#compute-searchlight-neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
+[`compute_searchlight_neighborhoods`](#neighborhoods-compute-searchlight-neighborhoods) | Compute sphere neighborhoods for all voxels in a brain mask.
 
 
 
 ### Classes
 
+(neighborhoods-sphereneighborhoods)=
 #### `SphereNeighborhoods`
 
 ```python
@@ -79,12 +81,13 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`get_neighborhood_size`](#get-neighborhood-size) | Get the number of voxels in a neighborhood.
-[`get_neighbors`](#get-neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
-[`iter_neighborhoods`](#iter-neighborhoods) | Iterate over all neighborhoods.
+[`get_neighborhood_size`](#neighborhoods-get-neighborhood-size) | Get the number of voxels in a neighborhood.
+[`get_neighbors`](#neighborhoods-get-neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
+[`iter_neighborhoods`](#neighborhoods-iter-neighborhoods) | Iterate over all neighborhoods.
 
 ##### Methods
 
+(neighborhoods-get-neighborhood-size)=
 ###### `get_neighborhood_size`
 
 ```python
@@ -105,6 +108,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of voxels in the neighborhood
 
+(neighborhoods-get-neighbors)=
 ###### `get_neighbors`
 
 ```python
@@ -125,6 +129,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Array of voxel indices within radius of the center voxel
 
+(neighborhoods-iter-neighborhoods)=
 ###### `iter_neighborhoods`
 
 ```python
@@ -149,6 +154,7 @@ Name | Type | Description | Default
 
 ### Methods
 
+(neighborhoods-compute-searchlight-neighborhoods)=
 #### `compute_searchlight_neighborhoods`
 
 ```python

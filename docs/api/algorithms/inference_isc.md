@@ -1,3 +1,4 @@
+(algorithms-inference-isc-isc)=
 ## `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
@@ -42,11 +43,12 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#algorithms-inference-isc-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-inference-isc-isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 ### Methods
 
+(algorithms-inference-isc-isc-group-permutation-test)=
 #### `isc_group_permutation_test`
 
 ```python
@@ -129,6 +131,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-inference-isc-isc-permutation-test)=
 #### `isc_permutation_test`
 
 ```python

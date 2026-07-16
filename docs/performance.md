@@ -44,6 +44,7 @@ nltools provides two computational backends:
 
 ---
 
+(benchmark-results)=
 ## Benchmark Results
 
 **System:** macOS 23.6.0 (Apple Silicon, arm64)
@@ -343,7 +344,7 @@ y = np.random.randn(n_samples).astype(np.float32)
 ## See Also
 
 - [Backends](api/backends.md) - CPU/GPU backend documentation
-- [Ridge Regression](api/algorithms.md#ridge) - Algorithm details
+- [Ridge Regression](api/algorithms.md#algorithms-ridge) - Algorithm details
 - [Algorithms](api/algorithms.md) - Complete algorithm reference
 
 ---

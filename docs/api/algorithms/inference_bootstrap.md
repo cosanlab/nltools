@@ -1,3 +1,4 @@
+(algorithms-inference-bootstrap-bootstrap)=
 ## `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
@@ -17,6 +18,7 @@ Name | Type | Description
 
 ##### Methods
 
+(algorithms-inference-bootstrap-get-results)=
 ###### `get_results`
 
 ```python
@@ -86,6 +88,7 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
+(algorithms-inference-bootstrap-update)=
 ###### `update`
 
 ```python

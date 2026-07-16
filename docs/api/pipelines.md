@@ -1,3 +1,4 @@
+(pipelines-pipelines)=
 ## `pipelines`
 
 Pipeline infrastructure for nltools.
@@ -34,48 +35,49 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`base`](#base) | Pipeline base infrastructure for nltools.
-[`cv`](#cv) | Cross-validation scheme configuration for nltools pipelines.
-[`multi_subject`](#multi-subject) | Multi-subject pipeline for cross-subject analyses.
-[`pool`](#pool) | Pool infrastructure for multi-subject aggregation.
-[`results`](#results) | Result containers for nltools pipelines.
-[`steps`](#steps) | Transform steps for nltools pipelines.
-[`terminals`](#terminals) | Terminal operations for nltools pipelines.
+[`base`](#pipelines-base) | Pipeline base infrastructure for nltools.
+[`cv`](#pipelines-cv) | Cross-validation scheme configuration for nltools pipelines.
+[`multi_subject`](#pipelines-multi-subject) | Multi-subject pipeline for cross-subject analyses.
+[`pool`](#pipelines-pool) | Pool infrastructure for multi-subject aggregation.
+[`results`](#pipelines-results) | Result containers for nltools pipelines.
+[`steps`](#pipelines-steps) | Transform steps for nltools pipelines.
+[`terminals`](#pipelines-terminals) | Terminal operations for nltools pipelines.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
-[`CVResult`](#cvresult) | Cross-validation result container.
-[`CVScheme`](#cvscheme) | Protocol for cross-validation schemes.
-[`CVSchemeImpl`](#cvschemeimpl) | Cross-validation scheme configuration.
-[`FittedAlign`](#fittedalign) | Fitted alignment model.
-[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
-[`FoldResult`](#foldresult) | Result from a single CV fold.
-[`ISCResult`](#iscresult) | Result from ISC terminal computation.
-[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
-[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
-[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
-[`NormalizeStep`](#normalizestep) | Normalization transform step.
-[`PermutationResult`](#permutationresult) | Result from permutation testing.
-[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
-[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`PooledData`](#pooleddata) | Aggregated data from multiple subjects.
-[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
-[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
-[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
-[`ReduceStep`](#reducestep) | Dimensionality reduction step.
-[`ResultDict`](#resultdict) | Dictionary of StatResults, one per contrast.
-[`StatResult`](#statresult) | Result of statistical test.
-[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
+[`AlignStep`](#pipelines-alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`CVResult`](#pipelines-cvresult) | Cross-validation result container.
+[`CVScheme`](#pipelines-cvscheme) | Protocol for cross-validation schemes.
+[`CVSchemeImpl`](#pipelines-cvschemeimpl) | Cross-validation scheme configuration.
+[`FittedAlign`](#pipelines-fittedalign) | Fitted alignment model.
+[`FittedStack`](#pipelines-fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#pipelines-fittedtransform) | Protocol for fitted transform objects.
+[`FoldResult`](#pipelines-foldresult) | Result from a single CV fold.
+[`ISCResult`](#pipelines-iscresult) | Result from ISC terminal computation.
+[`ISCTerminal`](#pipelines-iscterminal) | ISC terminal for multi-subject pipelines.
+[`MultiSubjectPipeline`](#pipelines-multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`NestedCVScheme`](#pipelines-nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
+[`NormalizeStep`](#pipelines-normalizestep) | Normalization transform step.
+[`PermutationResult`](#pipelines-permutationresult) | Result from permutation testing.
+[`PipeStep`](#pipelines-pipestep) | Wrapper for sklearn-compatible transformers.
+[`Pipeline`](#pipelines-pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`PooledData`](#pipelines-pooleddata) | Aggregated data from multiple subjects.
+[`PredictTerminal`](#pipelines-predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSAResult`](#pipelines-rsaresult) | Result from RSA terminal computation.
+[`RSATerminal`](#pipelines-rsaterminal) | RSA terminal for multi-subject pipelines.
+[`ReduceStep`](#pipelines-reducestep) | Dimensionality reduction step.
+[`ResultDict`](#pipelines-resultdict) | Dictionary of StatResults, one per contrast.
+[`StatResult`](#pipelines-statresult) | Result of statistical test.
+[`Terminal`](#pipelines-terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#pipelines-transformstep) | Protocol for pipeline transform steps.
 
 
 
 ### Classes
 
+(pipelines-alignstep)=
 #### `AlignStep`
 
 ```python
@@ -113,15 +115,15 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit alignment model on list of subject data.
+[`fit`](#pipelines-fit) | Fit alignment model on list of subject data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-[`kwargs`](#kwargs) |  | 
-[`method`](#method) |  | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
+[`kwargs`](#pipelines-kwargs) |  | 
+[`method`](#pipelines-method) |  | 
 `n_features` |  | 
 `n_iter` |  | 
 `n_jobs` |  | 
@@ -131,6 +133,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-fit)=
 ###### `fit`
 
 ```python
@@ -151,6 +154,7 @@ Type | Description
 ---- | -----------
 <code>[FittedAlign](#nltools.pipelines.steps.FittedAlign)</code> | Fitted alignment model.
 
+(pipelines-cvresult)=
 #### `CVResult`
 
 ```python
@@ -178,24 +182,25 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
-[`summary`](#summary) | Return formatted summary string.
+[`inverse_transform`](#pipelines-inverse-transform) | Map predictions back through inverse transforms.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
-[`is_fully_invertible`](#is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
+[`fold_results`](#pipelines-fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`is_fully_invertible`](#pipelines-is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
 `mean_score` | <code>[float](#float)</code> | Mean score across all folds.
 `n_folds` | <code>[int](#int)</code> | Number of cross-validation folds.
-[`pipeline`](#pipeline) | <code>[Any](#typing.Any)</code> | 
+[`pipeline`](#pipelines-pipeline) | <code>[Any](#typing.Any)</code> | 
 `predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
 `scores` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
 `std_score` | <code>[float](#float)</code> | Standard deviation of scores across folds.
 
 ##### Methods
 
+(pipelines-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -227,6 +232,7 @@ fitted parameters. Not all pipelines support full inversion.
 
 </details>
 
+(pipelines-summary)=
 ###### `summary`
 
 ```python
@@ -235,6 +241,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-cvscheme)=
 #### `CVScheme`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -247,12 +254,13 @@ Compatible with scikit-learn CV splitters and custom implementations.
 
 Name | Description
 ---- | -----------
-[`split`](#split) | Generate train/test index splits.
+[`split`](#pipelines-split) | Generate train/test index splits.
 
 
 
 ##### Methods
 
+(pipelines-split)=
 ###### `split`
 
 ```python
@@ -273,6 +281,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Tuple of (train_idx, test_idx) arrays of indices for each fold.
 
+(pipelines-cvschemeimpl)=
 #### `CVSchemeImpl`
 
 ```python
@@ -329,14 +338,14 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_splits`](#n-splits) | Return number of splits.
-[`split`](#split) | Generate train/test indices for each fold.
+[`n_splits`](#pipelines-n-splits) | Return number of splits.
+[`split`](#pipelines-split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+[`is_loro`](#pipelines-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 `is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
 `k` | <code>[int](#int) \| None</code> | 
 `n` | <code>[int](#int)</code> | 
@@ -346,6 +355,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -388,6 +398,7 @@ Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
 
+(pipelines-fittedalign)=
 #### `FittedAlign`
 
 ```python
@@ -403,16 +414,16 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 Name | Type | Description
 ---- | ---- | -----------
 `model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
+[`method`](#pipelines-method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
 `new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
+[`inverse_transform`](#pipelines-inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
+[`transform`](#pipelines-transform) | Transform subjects that were in training.
+[`transform_new_subject`](#pipelines-transform-new-subject) | Align a new subject not in training (for LOSO).
 
 ##### Methods
 
@@ -436,6 +447,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Data in original subject-specific space, shape (n_samples, n_features).
 
+(pipelines-transform)=
 ###### `transform`
 
 ```python
@@ -456,6 +468,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features).
 
+(pipelines-transform-new-subject)=
 ###### `transform_new_subject`
 
 ```python
@@ -478,6 +491,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
 
+(pipelines-fittedstack)=
 #### `FittedStack`
 
 ```python
@@ -493,7 +507,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#pipelines-steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -505,11 +519,12 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
+[`append`](#pipelines-append) | Add a fitted transform to the stack.
+[`inverse_transform`](#pipelines-inverse-transform) | Apply inverse transforms in reverse order.
 
 ##### Methods
 
+(pipelines-append)=
 ###### `append`
 
 ```python
@@ -552,6 +567,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 
 </details>
 
+(pipelines-fittedtransform)=
 #### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -573,8 +589,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#transform) | Apply the learned transformation to data.
+[`inverse_transform`](#pipelines-inverse-transform) | Apply the inverse transformation to data.
+[`transform`](#pipelines-transform) | Apply the learned transformation to data.
 
 
 
@@ -620,6 +636,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
+(pipelines-foldresult)=
 #### `FoldResult`
 
 ```python
@@ -639,7 +656,7 @@ Name | Type | Description
 `predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
 `train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
 `test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
-[`fitted_stack`](#fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
+[`fitted_stack`](#pipelines-fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
 
 ##### Methods
 
@@ -651,6 +668,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-iscterminal)=
 #### `ISCTerminal`
 
 ```python
@@ -681,20 +699,21 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `metric` | <code>[str](#str)</code> | 
 `n_permute` | <code>[int](#int)</code> | 
 `parallel` | <code>[str](#str)</code> | 
 
 ##### Methods
 
+(pipelines-fit-evaluate)=
 ###### `fit_evaluate`
 
 ```python
@@ -715,6 +734,7 @@ Type | Description
 ---- | -----------
 <code>[ISCResult](#nltools.pipelines.results.ISCResult)</code> | Result containing ISC values, p-values, and confidence intervals.
 
+(pipelines-multisubjectpipeline)=
 #### `MultiSubjectPipeline`
 
 ```python
@@ -750,27 +770,28 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Add cross-subject alignment step to pipeline.
-[`isc`](#isc) | Compute inter-subject correlation across subjects.
-[`normalize`](#normalize) | Add normalization step (per-subject).
-[`pipe`](#pipe) | Add custom sklearn transformer.
-[`predict`](#predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#reduce) | Add dimensionality reduction step.
-[`rsa`](#rsa) | Compute representational similarity analysis.
+[`align`](#pipelines-align) | Add cross-subject alignment step to pipeline.
+[`isc`](#pipelines-isc) | Compute inter-subject correlation across subjects.
+[`normalize`](#pipelines-normalize) | Add normalization step (per-subject).
+[`pipe`](#pipelines-pipe) | Add custom sklearn transformer.
+[`predict`](#pipelines-predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#pipelines-reduce) | Add dimensionality reduction step.
+[`rsa`](#pipelines-rsa) | Compute representational similarity analysis.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
+[`cv`](#pipelines-cv) | <code>[Any](#typing.Any) \| None</code> | 
 `data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
 `n_steps` | <code>[int](#int)</code> | Number of transform steps.
 `n_subjects` | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
+[`steps`](#pipelines-steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 ##### Methods
 
+(pipelines-align)=
 ###### `align`
 
 ```python
@@ -815,6 +836,7 @@ Examples:
 ...     .fit(model='ttest', contrast='A-B')
 ... )
 
+(pipelines-isc)=
 ###### `isc`
 
 ```python
@@ -850,6 +872,7 @@ Examples:
 ... )
 >>> print(f"ISC: {result.isc:.3f}, p: {result.p:.3f}")
 
+(pipelines-normalize)=
 ###### `normalize`
 
 ```python
@@ -858,6 +881,7 @@ normalize(method: str = 'zscore', **kwargs: str) -> MultiSubjectPipeline
 
 Add normalization step (per-subject).
 
+(pipelines-pipe)=
 ###### `pipe`
 
 ```python
@@ -866,6 +890,7 @@ pipe(transformer) -> MultiSubjectPipeline
 
 Add custom sklearn transformer.
 
+(pipelines-predict)=
 ###### `predict`
 
 ```python
@@ -910,6 +935,7 @@ result = pipeline.cv('loso').predict(
 )
 ```
 
+(pipelines-reduce)=
 ###### `reduce`
 
 ```python
@@ -918,6 +944,7 @@ reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | Non
 
 Add dimensionality reduction step.
 
+(pipelines-rsa)=
 ###### `rsa`
 
 ```python
@@ -953,6 +980,7 @@ Examples:
 ... )
 >>> print(f"r = {result.correlation:.3f}, p = {result.p_value:.3f}")
 
+(pipelines-nestedcvscheme)=
 #### `NestedCVScheme`
 
 ```python
@@ -1007,19 +1035,20 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
-[`split`](#split) | Generate nested cross-validation splits.
+[`n_inner_splits`](#pipelines-n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#pipelines-n-outer-splits) | Return number of outer splits.
+[`split`](#pipelines-split) | Generate nested cross-validation splits.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`inner`](#inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+[`inner`](#pipelines-inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 `outer` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 
 ##### Methods
 
+(pipelines-n-inner-splits)=
 ###### `n_inner_splits`
 
 ```python
@@ -1041,6 +1070,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of inner folds per outer fold.
 
+(pipelines-n-outer-splits)=
 ###### `n_outer_splits`
 
 ```python
@@ -1106,6 +1136,7 @@ Type | Description
 
 </details>
 
+(pipelines-normalizestep)=
 #### `NormalizeStep`
 
 ```python
@@ -1138,15 +1169,15 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute normalization parameters from data.
+[`fit`](#pipelines-fit) | Compute normalization parameters from data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#axis) | <code>[int](#int)</code> | 
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`axis`](#pipelines-axis) | <code>[int](#int)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 
 ##### Methods
 
@@ -1170,6 +1201,7 @@ Type | Description
 ---- | -----------
 <code>[FittedNormalize](#nltools.pipelines.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
 
+(pipelines-permutationresult)=
 #### `PermutationResult`
 
 ```python
@@ -1192,7 +1224,7 @@ Name | Type | Description
 `observed` | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
 `null_distribution` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
 `p_value` | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
-[`n_permutations`](#n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
+[`n_permutations`](#pipelines-n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
 
 **Examples:**
 
@@ -1214,11 +1246,12 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
-[`summary`](#summary) | Return formatted summary string.
+[`from_scores`](#pipelines-from-scores) | Create PermutationResult from observed result and null scores.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 ##### Methods
 
+(pipelines-from-scores)=
 ###### `from_scores`
 
 ```python
@@ -1250,6 +1283,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-pipestep)=
 #### `PipeStep`
 
 ```python
@@ -1282,14 +1316,14 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit transformer to data.
+[`fit`](#pipelines-fit) | Fit transformer to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+[`transformer`](#pipelines-transformer) | <code>[Any](#typing.Any)</code> | 
 
 ##### Methods
 
@@ -1316,6 +1350,7 @@ Type | Description
 ---- | -----------
 <code>[FittedPipe](#nltools.pipelines.steps.FittedPipe)</code> | Fitted transform wrapper.
 
+(pipelines-pipeline)=
 #### `Pipeline`
 
 ```python
@@ -1370,14 +1405,15 @@ programming patterns.
 
 Name | Description
 ---- | -----------
-[`copy`](#copy) | Create a shallow copy of the pipeline.
-[`normalize`](#normalize) | Add a normalization step to the pipeline.
-[`pipe`](#pipe) | Add a custom transformer to the pipeline.
-[`predict`](#predict) | Execute pipeline with cross-validation and return prediction results.
-[`reduce`](#reduce) | Add a dimensionality reduction step to the pipeline.
+[`copy`](#pipelines-copy) | Create a shallow copy of the pipeline.
+[`normalize`](#pipelines-normalize) | Add a normalization step to the pipeline.
+[`pipe`](#pipelines-pipe) | Add a custom transformer to the pipeline.
+[`predict`](#pipelines-predict) | Execute pipeline with cross-validation and return prediction results.
+[`reduce`](#pipelines-reduce) | Add a dimensionality reduction step to the pipeline.
 
 ##### Methods
 
+(pipelines-copy)=
 ###### `copy`
 
 ```python
@@ -1507,6 +1543,7 @@ Type | Description
 >>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
 ```
 
+(pipelines-pooleddata)=
 #### `PooledData`
 
 ```python
@@ -1543,17 +1580,17 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`cv`](#cv) | Create CV pipeline on pooled data.
-[`fit`](#fit) | Fit second-level statistical model.
-[`load`](#load) | Load pooled data from disk.
-[`repool`](#repool) | Re-extract different parameter from saved fitted state.
-[`save`](#save) | Save pooled data to disk.
+[`cv`](#pipelines-cv) | Create CV pipeline on pooled data.
+[`fit`](#pipelines-fit) | Fit second-level statistical model.
+[`load`](#pipelines-load) | Load pooled data from disk.
+[`repool`](#pipelines-repool) | Re-extract different parameter from saved fitted state.
+[`save`](#pipelines-save) | Save pooled data to disk.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
+[`condition_names`](#pipelines-condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
 `data` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 `fitted_state` | <code>[Any](#typing.Any) \| None</code> | 
 `mask` | <code>[Any](#typing.Any) \| None</code> | 
@@ -1567,6 +1604,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-cv)=
 ###### `cv`
 
 ```python
@@ -1623,6 +1661,7 @@ Examples:
 >>> results = pool.fit(model='ttest', contrasts=['A-B', 'A-C', 'B-C'])
 >>> results['A-B'].threshold(method='fdr')
 
+(pipelines-load)=
 ###### `load`
 
 ```python
@@ -1643,6 +1682,7 @@ Type | Description
 ---- | -----------
 <code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | Loaded pooled data.
 
+(pipelines-repool)=
 ###### `repool`
 
 ```python
@@ -1663,6 +1703,7 @@ Type | Description
 ---- | -----------
 <code>[PooledData](#nltools.pipelines.pool.PooledData)</code> | New PooledData with the requested parameter.
 
+(pipelines-save)=
 ###### `save`
 
 ```python
@@ -1677,6 +1718,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `path` | <code>[str](#str)</code> | Output path (directory or .npz file). | *required*
 
+(pipelines-predictterminal)=
 #### `PredictTerminal`
 
 ```python
@@ -1726,15 +1768,15 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with-y) | Create copy with different target variable.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#pipelines-with-y) | Create copy with different target variable.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`algorithm`](#pipelines-algorithm) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 `y` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 ##### Methods
@@ -1763,6 +1805,7 @@ Type | Description
 ---- | -----------
 <code>[FoldResult](#nltools.pipelines.results.FoldResult)</code> | Result containing score, predictions, indices, and fitted stack.
 
+(pipelines-with-y)=
 ###### `with_y`
 
 ```python
@@ -1785,6 +1828,7 @@ Type | Description
 ---- | -----------
 <code>[PredictTerminal](#nltools.pipelines.terminals.PredictTerminal)</code> | New terminal with updated y.
 
+(pipelines-rsaresult)=
 #### `RSAResult`
 
 ```python
@@ -1801,15 +1845,15 @@ Name | Type | Description
 ---- | ---- | -----------
 `correlation` | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
 `p_value` | <code>[float](#float)</code> | P-value from permutation test.
-[`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
-[`method`](#method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
+[`ci`](#pipelines-ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
+[`method`](#pipelines-method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
 `n_conditions` | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`summary`](#summary) | Return formatted summary string.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 ##### Methods
 
@@ -1821,6 +1865,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-rsaterminal)=
 #### `RSATerminal`
 
 ```python
@@ -1851,14 +1896,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 `n_permute` | <code>[int](#int)</code> | 
 
@@ -1884,6 +1929,7 @@ Type | Description
 ---- | -----------
 <code>[RSAResult](#nltools.pipelines.results.RSAResult)</code> | Result containing correlation coefficient and p-value.
 
+(pipelines-reducestep)=
 #### `ReduceStep`
 
 ```python
@@ -1916,14 +1962,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit reduction model to data.
+[`fit`](#pipelines-fit) | Fit reduction model to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#method) | <code>[str](#str)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
 
@@ -1949,6 +1995,7 @@ Type | Description
 ---- | -----------
 <code>[FittedReduce](#nltools.pipelines.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
 
+(pipelines-resultdict)=
 #### `ResultDict`
 
 Bases: <code>[dict](#dict)</code>
@@ -1961,12 +2008,13 @@ Provides convenience methods for batch operations.
 
 Name | Description
 ---- | -----------
-[`threshold_all`](#threshold-all) | Apply thresholding to all results.
+[`threshold_all`](#pipelines-threshold-all) | Apply thresholding to all results.
 
 
 
 ##### Methods
 
+(pipelines-threshold-all)=
 ###### `threshold_all`
 
 ```python
@@ -1988,6 +2036,7 @@ Type | Description
 ---- | -----------
 <code>[ResultDict](#nltools.pipelines.pool.ResultDict)</code> | New dict with thresholded results.
 
+(pipelines-statresult)=
 #### `StatResult`
 
 ```python
@@ -2002,14 +2051,14 @@ Holds statistical maps and provides thresholding utilities.
 
 Name | Description
 ---- | -----------
-[`threshold`](#threshold) | Apply multiple comparison correction.
-[`to_nifti`](#to-nifti) | Save as NIfTI file.
+[`threshold`](#pipelines-threshold) | Apply multiple comparison correction.
+[`to_nifti`](#pipelines-to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
+[`contrast`](#pipelines-contrast) | <code>[str](#str) \| None</code> | 
 `df` | <code>[int](#int) \| None</code> | 
 `f_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 `p_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
@@ -2017,6 +2066,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-threshold)=
 ###### `threshold`
 
 ```python
@@ -2038,6 +2088,7 @@ Type | Description
 ---- | -----------
 <code>[StatResult](#nltools.pipelines.pool.StatResult)</code> | New result with thresholded maps.
 
+(pipelines-to-nifti)=
 ###### `to_nifti`
 
 ```python
@@ -2053,6 +2104,7 @@ Name | Type | Description | Default
 `path` | <code>[str](#str)</code> | Output path. | *required*
 `mask` |  | Mask to use for reconstruction. | <code>None</code>
 
+(pipelines-terminal)=
 #### `Terminal`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -2066,7 +2118,7 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
@@ -2096,6 +2148,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Fold result (structure depends on terminal type).
 
+(pipelines-transformstep)=
 #### `TransformStep`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -2109,7 +2162,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples:
 >>> class MyStep:
@@ -2121,7 +2174,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit the transform to data.
+[`fit`](#pipelines-fit) | Fit the transform to data.
 
 ##### Methods
 
@@ -2149,6 +2202,7 @@ Type | Description
 
 ### Modules
 
+(pipelines-base)=
 #### `base`
 
 Pipeline base infrastructure for nltools.
@@ -2171,12 +2225,12 @@ Example:
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#cvscheme) | Protocol for cross-validation schemes.
-[`FittedStack`](#fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#fittedtransform) | Protocol for fitted transform objects.
-[`Pipeline`](#pipeline) | Base pipeline for chained transforms with optional cross-validation.
-[`Terminal`](#terminal) | Protocol for terminal operations that end a pipeline.
-[`TransformStep`](#transformstep) | Protocol for pipeline transform steps.
+[`CVScheme`](#pipelines-cvscheme) | Protocol for cross-validation schemes.
+[`FittedStack`](#pipelines-fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#pipelines-fittedtransform) | Protocol for fitted transform objects.
+[`Pipeline`](#pipelines-pipeline) | Base pipeline for chained transforms with optional cross-validation.
+[`Terminal`](#pipelines-terminal) | Protocol for terminal operations that end a pipeline.
+[`TransformStep`](#pipelines-transformstep) | Protocol for pipeline transform steps.
 
 
 
@@ -2196,7 +2250,7 @@ Compatible with scikit-learn CV splitters and custom implementations.
 
 Name | Description
 ---- | -----------
-[`split`](#split) | Generate train/test index splits.
+[`split`](#pipelines-split) | Generate train/test index splits.
 
 
 
@@ -2237,7 +2291,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+[`steps`](#pipelines-steps) | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -2249,13 +2303,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Add a fitted transform to the stack.
-[`inverse_transform`](#inverse-transform) | Apply inverse transforms in reverse order.
+[`append`](#pipelines-append) | Add a fitted transform to the stack.
+[`inverse_transform`](#pipelines-inverse-transform) | Apply inverse transforms in reverse order.
 
 
 
 ####### Attributes##
 
+(pipelines-is-fully-invertible)=
 ###### `is_fully_invertible`
 
 ```python
@@ -2343,8 +2398,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#transform) | Apply the learned transformation to data.
+[`inverse_transform`](#pipelines-inverse-transform) | Apply the inverse transformation to data.
+[`transform`](#pipelines-transform) | Apply the learned transformation to data.
 
 
 
@@ -2444,11 +2499,11 @@ programming patterns.
 
 Name | Description
 ---- | -----------
-[`copy`](#copy) | Create a shallow copy of the pipeline.
-[`normalize`](#normalize) | Add a normalization step to the pipeline.
-[`pipe`](#pipe) | Add a custom transformer to the pipeline.
-[`predict`](#predict) | Execute pipeline with cross-validation and return prediction results.
-[`reduce`](#reduce) | Add a dimensionality reduction step to the pipeline.
+[`copy`](#pipelines-copy) | Create a shallow copy of the pipeline.
+[`normalize`](#pipelines-normalize) | Add a normalization step to the pipeline.
+[`pipe`](#pipelines-pipe) | Add a custom transformer to the pipeline.
+[`predict`](#pipelines-predict) | Execute pipeline with cross-validation and return prediction results.
+[`reduce`](#pipelines-reduce) | Add a dimensionality reduction step to the pipeline.
 
 
 
@@ -2626,7 +2681,7 @@ and produce results for each CV fold.
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit on training data and evaluate on test data.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Fit on training data and evaluate on test data.
 
 
 
@@ -2669,7 +2724,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples:
 >>> class MyStep:
@@ -2681,12 +2736,13 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit the transform to data.
+[`fit`](#pipelines-fit) | Fit the transform to data.
 
 
 
 ####### Attributes##
 
+(pipelines-invertible)=
 ###### `invertible`
 
 ```python
@@ -2728,19 +2784,20 @@ strategies used across nltools analysis pipelines.
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#cvscheme) | Cross-validation scheme configuration.
-[`NestedCVScheme`](#nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
+[`CVScheme`](#pipelines-cvscheme) | Cross-validation scheme configuration.
+[`NestedCVScheme`](#pipelines-nestedcvscheme) | Nested cross-validation for hyperparameter tuning.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CVSchemeType`](#cvschemetype) |  | 
+[`CVSchemeType`](#pipelines-cvschemetype) |  | 
 
 
 
 ##### Attributes
 
+(pipelines-cvschemetype)=
 ###### `CVSchemeType`
 
 ```python
@@ -2807,14 +2864,14 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_splits`](#n-splits) | Return number of splits.
-[`split`](#split) | Generate train/test indices for each fold.
+[`n_splits`](#pipelines-n-splits) | Return number of splits.
+[`split`](#pipelines-split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+[`is_loro`](#pipelines-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 `is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
 `k` | <code>[int](#int) \| None</code> | 
 `n` | <code>[int](#int)</code> | 
@@ -2826,6 +2883,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(pipelines-is-loro)=
 ###### `is_loro`
 
 ```python
@@ -2984,21 +3042,22 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_inner_splits`](#n-inner-splits) | Return number of inner splits per outer fold.
-[`n_outer_splits`](#n-outer-splits) | Return number of outer splits.
-[`split`](#split) | Generate nested cross-validation splits.
+[`n_inner_splits`](#pipelines-n-inner-splits) | Return number of inner splits per outer fold.
+[`n_outer_splits`](#pipelines-n-outer-splits) | Return number of outer splits.
+[`split`](#pipelines-split) | Generate nested cross-validation splits.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`inner`](#inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
+[`inner`](#pipelines-inner) | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 `outer` | <code>[CVScheme](#nltools.pipelines.cv.CVScheme)</code> | 
 
 
 
 ####### Attributes##
 
+(pipelines-inner)=
 ###### `inner`
 
 ```python
@@ -3101,6 +3160,7 @@ Type | Description
 
 </details>
 
+(pipelines-multi-subject)=
 #### `multi_subject`
 
 Multi-subject pipeline for cross-subject analyses.
@@ -3112,7 +3172,7 @@ supporting leave-one-subject-out (LOSO) and run-based CV schemes.
 
 Name | Description
 ---- | -----------
-[`MultiSubjectPipeline`](#multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
+[`MultiSubjectPipeline`](#pipelines-multisubjectpipeline) | Pipeline for multi-subject neuroimaging analyses.
 
 
 
@@ -3153,24 +3213,24 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`align`](#align) | Add cross-subject alignment step to pipeline.
-[`isc`](#isc) | Compute inter-subject correlation across subjects.
-[`normalize`](#normalize) | Add normalization step (per-subject).
-[`pipe`](#pipe) | Add custom sklearn transformer.
-[`predict`](#predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#reduce) | Add dimensionality reduction step.
-[`rsa`](#rsa) | Compute representational similarity analysis.
+[`align`](#pipelines-align) | Add cross-subject alignment step to pipeline.
+[`isc`](#pipelines-isc) | Compute inter-subject correlation across subjects.
+[`normalize`](#pipelines-normalize) | Add normalization step (per-subject).
+[`pipe`](#pipelines-pipe) | Add custom sklearn transformer.
+[`predict`](#pipelines-predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#pipelines-reduce) | Add dimensionality reduction step.
+[`rsa`](#pipelines-rsa) | Compute representational similarity analysis.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`cv`](#cv) | <code>[Any](#typing.Any) \| None</code> | 
+[`cv`](#pipelines-cv) | <code>[Any](#typing.Any) \| None</code> | 
 `data` | <code>[list](#list)[[NDArray](#numpy.typing.NDArray)]</code> | 
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | 
 `n_steps` | <code>[int](#int)</code> | Number of transform steps.
 `n_subjects` | <code>[int](#int)</code> | Number of subjects in the multi-subject dataset.
-[`steps`](#steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
+[`steps`](#pipelines-steps) | <code>[list](#list)[[Any](#typing.Any)]</code> | 
 
 
 
@@ -3402,6 +3462,7 @@ Examples:
 ... )
 >>> print(f"r = {result.correlation:.3f}, p = {result.p_value:.3f}")
 
+(pipelines-pool)=
 #### `pool`
 
 Pool infrastructure for multi-subject aggregation.
@@ -3416,9 +3477,9 @@ it is executed lazily, and pool() triggers execution and aggregation.
 
 Name | Description
 ---- | -----------
-[`PooledData`](#pooleddata) | Aggregated data from multiple subjects.
-[`ResultDict`](#resultdict) | Dictionary of StatResults, one per contrast.
-[`StatResult`](#statresult) | Result of statistical test.
+[`PooledData`](#pipelines-pooleddata) | Aggregated data from multiple subjects.
+[`ResultDict`](#pipelines-resultdict) | Dictionary of StatResults, one per contrast.
+[`StatResult`](#pipelines-statresult) | Result of statistical test.
 
 
 
@@ -3462,17 +3523,17 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`cv`](#cv) | Create CV pipeline on pooled data.
-[`fit`](#fit) | Fit second-level statistical model.
-[`load`](#load) | Load pooled data from disk.
-[`repool`](#repool) | Re-extract different parameter from saved fitted state.
-[`save`](#save) | Save pooled data to disk.
+[`cv`](#pipelines-cv) | Create CV pipeline on pooled data.
+[`fit`](#pipelines-fit) | Fit second-level statistical model.
+[`load`](#pipelines-load) | Load pooled data from disk.
+[`repool`](#pipelines-repool) | Re-extract different parameter from saved fitted state.
+[`save`](#pipelines-save) | Save pooled data to disk.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`condition_names`](#condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
+[`condition_names`](#pipelines-condition-names) | <code>[list](#list)[[str](#str)] \| None</code> | 
 `data` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 `fitted_state` | <code>[Any](#typing.Any) \| None</code> | 
 `mask` | <code>[Any](#typing.Any) \| None</code> | 
@@ -3488,6 +3549,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(pipelines-condition-names)=
 ###### `condition_names`
 
 ```python
@@ -3688,7 +3750,7 @@ Provides convenience methods for batch operations.
 
 Name | Description
 ---- | -----------
-[`threshold_all`](#threshold-all) | Apply thresholding to all results.
+[`threshold_all`](#pipelines-threshold-all) | Apply thresholding to all results.
 
 
 
@@ -3729,14 +3791,14 @@ Holds statistical maps and provides thresholding utilities.
 
 Name | Description
 ---- | -----------
-[`threshold`](#threshold) | Apply multiple comparison correction.
-[`to_nifti`](#to-nifti) | Save as NIfTI file.
+[`threshold`](#pipelines-threshold) | Apply multiple comparison correction.
+[`to_nifti`](#pipelines-to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`contrast`](#contrast) | <code>[str](#str) \| None</code> | 
+[`contrast`](#pipelines-contrast) | <code>[str](#str) \| None</code> | 
 `df` | <code>[int](#int) \| None</code> | 
 `f_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
 `p_map` | <code>[NDArray](#numpy.typing.NDArray) \| None</code> | 
@@ -3746,6 +3808,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(pipelines-contrast)=
 ###### `contrast`
 
 ```python
@@ -3816,6 +3879,7 @@ Name | Type | Description | Default
 `path` | <code>[str](#str)</code> | Output path. | *required*
 `mask` |  | Mask to use for reconstruction. | <code>None</code>
 
+(pipelines-results)=
 #### `results`
 
 Result containers for nltools pipelines.
@@ -3827,11 +3891,11 @@ including cross-validation results and per-fold information.
 
 Name | Description
 ---- | -----------
-[`CVResult`](#cvresult) | Cross-validation result container.
-[`FoldResult`](#foldresult) | Result from a single CV fold.
-[`ISCResult`](#iscresult) | Result from ISC terminal computation.
-[`PermutationResult`](#permutationresult) | Result from permutation testing.
-[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
+[`CVResult`](#pipelines-cvresult) | Cross-validation result container.
+[`FoldResult`](#pipelines-foldresult) | Result from a single CV fold.
+[`ISCResult`](#pipelines-iscresult) | Result from ISC terminal computation.
+[`PermutationResult`](#pipelines-permutationresult) | Result from permutation testing.
+[`RSAResult`](#pipelines-rsaresult) | Result from RSA terminal computation.
 
 
 
@@ -3864,18 +3928,18 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
-[`summary`](#summary) | Return formatted summary string.
+[`inverse_transform`](#pipelines-inverse-transform) | Map predictions back through inverse transforms.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`fold_results`](#fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
-[`is_fully_invertible`](#is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
+[`fold_results`](#pipelines-fold-results) | <code>[list](#list)[[FoldResult](#nltools.pipelines.results.FoldResult)]</code> | 
+[`is_fully_invertible`](#pipelines-is-fully-invertible) | <code>[bool](#bool)</code> | Check if all transform steps are invertible.
 `mean_score` | <code>[float](#float)</code> | Mean score across all folds.
 `n_folds` | <code>[int](#int)</code> | Number of cross-validation folds.
-[`pipeline`](#pipeline) | <code>[Any](#typing.Any)</code> | 
+[`pipeline`](#pipelines-pipeline) | <code>[Any](#typing.Any)</code> | 
 `predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | All predictions in original sample order.
 `scores` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Per-fold prediction scores as a numpy array.
 `std_score` | <code>[float](#float)</code> | Standard deviation of scores across folds.
@@ -3884,6 +3948,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(pipelines-fold-results)=
 ###### `fold_results`
 
 ```python
@@ -4009,12 +4074,13 @@ Name | Type | Description
 `predictions` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Model predictions on test set.
 `train_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of training samples.
 `test_idx` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]</code> | Indices of test samples.
-[`fitted_stack`](#fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
+[`fitted_stack`](#pipelines-fitted-stack) | <code>[Any](#typing.Any)</code> | Stack of fitted transforms for inverse transform support.
 
 
 
 ####### Attributes##
 
+(pipelines-fitted-stack)=
 ###### `fitted_stack`
 
 ```python
@@ -4045,6 +4111,7 @@ test_idx: NDArray[np.intp]
 train_idx: NDArray[np.intp]
 ```
 
+(pipelines-iscresult)=
 ###### `ISCResult`
 
 ```python
@@ -4060,10 +4127,10 @@ from the ISC permutation test.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`isc`](#isc) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | ISC values. Scalar for single-feature or (n_voxels,) for voxel-wise ISC.
+[`isc`](#pipelines-isc) | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | ISC values. Scalar for single-feature or (n_voxels,) for voxel-wise ISC.
 `p` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | P-values (Phipson-Smyth corrected).
-[`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
-[`method`](#method) | <code>[str](#str)</code> | ISC method used ('pairwise' or 'leave-one-out').
+[`ci`](#pipelines-ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
+[`method`](#pipelines-method) | <code>[str](#str)</code> | ISC method used ('pairwise' or 'leave-one-out').
 `metric` | <code>[str](#str)</code> | Summary metric used ('median' or 'mean').
 `n_subjects` | <code>[int](#int)</code> | Number of subjects in the analysis.
 
@@ -4071,12 +4138,13 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`summary`](#summary) | Return formatted summary string.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 
 
 ####### Attributes##
 
+(pipelines-ci)=
 ###### `ci`
 
 ```python
@@ -4147,7 +4215,7 @@ Name | Type | Description
 `observed` | <code>[CVResult](#nltools.pipelines.results.CVResult)</code> | The result from the real (non-permuted) data.
 `null_distribution` | <code>[NDArray](#numpy.typing.NDArray)[[floating](#numpy.floating)]</code> | Array of scores from each permutation.
 `p_value` | <code>[float](#float)</code> | Permutation p-value: proportion of null scores >= observed score.
-[`n_permutations`](#n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
+[`n_permutations`](#pipelines-n-permutations) | <code>[int](#int)</code> | Number of permutations performed.
 
 **Examples:**
 
@@ -4169,13 +4237,14 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
-[`summary`](#summary) | Return formatted summary string.
+[`from_scores`](#pipelines-from-scores) | Create PermutationResult from observed result and null scores.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 
 
 ####### Attributes##
 
+(pipelines-n-permutations)=
 ###### `n_permutations`
 
 ```python
@@ -4283,15 +4352,15 @@ Name | Type | Description
 ---- | ---- | -----------
 `correlation` | <code>[float](#float)</code> | Correlation between neural RDM and model RDM.
 `p_value` | <code>[float](#float)</code> | P-value from permutation test.
-[`ci`](#ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
-[`method`](#method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
+[`ci`](#pipelines-ci) | <code>[tuple](#tuple)</code> | Confidence interval (lower, upper).
+[`method`](#pipelines-method) | <code>[str](#str)</code> | Correlation method used (e.g., 'spearman', 'pearson').
 `n_conditions` | <code>[int](#int)</code> | Number of conditions/stimuli in the RDM.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`summary`](#summary) | Return formatted summary string.
+[`summary`](#pipelines-summary) | Return formatted summary string.
 
 
 
@@ -4339,6 +4408,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-steps)=
 #### `steps`
 
 Transform steps for nltools pipelines.
@@ -4355,14 +4425,14 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#fittedalign) | Fitted alignment model.
-[`FittedNormalize`](#fittednormalize) | Fitted normalization transform.
-[`FittedPipe`](#fittedpipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#fittedreduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#normalizestep) | Normalization transform step.
-[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#reducestep) | Dimensionality reduction step.
+[`AlignStep`](#pipelines-alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`FittedAlign`](#pipelines-fittedalign) | Fitted alignment model.
+[`FittedNormalize`](#pipelines-fittednormalize) | Fitted normalization transform.
+[`FittedPipe`](#pipelines-fittedpipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#pipelines-fittedreduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#pipelines-normalizestep) | Normalization transform step.
+[`PipeStep`](#pipelines-pipestep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#pipelines-reducestep) | Dimensionality reduction step.
 
 
 
@@ -4405,15 +4475,15 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit alignment model on list of subject data.
+[`fit`](#pipelines-fit) | Fit alignment model on list of subject data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
-[`kwargs`](#kwargs) |  | 
-[`method`](#method) |  | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if alignment is invertible.
+[`kwargs`](#pipelines-kwargs) |  | 
+[`method`](#pipelines-method) |  | 
 `n_features` |  | 
 `n_iter` |  | 
 `n_jobs` |  | 
@@ -4526,21 +4596,22 @@ Holds a fitted SRM or HyperAlignment model and applies transformations.
 Name | Type | Description
 ---- | ---- | -----------
 `model` | <code>[Any](#typing.Any)</code> | Fitted SRM or HyperAlignment instance.
-[`method`](#method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
+[`method`](#pipelines-method) | <code>[str](#str)</code> | The alignment method used ('srm' or 'hyperalignment').
 `new_subject_method` | <code>[str](#str)</code> | Method for aligning held-out subjects in LOSO CV.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
+[`inverse_transform`](#pipelines-inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
+[`transform`](#pipelines-transform) | Transform subjects that were in training.
+[`transform_new_subject`](#pipelines-transform-new-subject) | Align a new subject not in training (for LOSO).
 
 
 
 ####### Attributes##
 
+(pipelines-method)=
 ###### `method`
 
 ```python
@@ -4625,6 +4696,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
 
+(pipelines-fittednormalize)=
 ###### `FittedNormalize`
 
 ```python
@@ -4640,21 +4712,22 @@ the transformation to new data.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`mean`](#mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
+[`mean`](#pipelines-mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
 `std` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
-[`method`](#method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
+[`method`](#pipelines-method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse normalization.
-[`transform`](#transform) | Apply normalization to data.
+[`inverse_transform`](#pipelines-inverse-transform) | Reverse normalization.
+[`transform`](#pipelines-transform) | Apply normalization to data.
 
 
 
 ####### Attributes##
 
+(pipelines-mean)=
 ###### `mean`
 
 ```python
@@ -4717,6 +4790,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Normalized data.
 
+(pipelines-fittedpipe)=
 ###### `FittedPipe`
 
 ```python
@@ -4731,19 +4805,20 @@ Holds a fitted sklearn transformer and delegates transform calls to it.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
+[`transformer`](#pipelines-transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Apply inverse transform if supported.
-[`transform`](#transform) | Apply the fitted transformer.
+[`inverse_transform`](#pipelines-inverse-transform) | Apply inverse transform if supported.
+[`transform`](#pipelines-transform) | Apply the fitted transformer.
 
 
 
 ####### Attributes##
 
+(pipelines-transformer)=
 ###### `transformer`
 
 ```python
@@ -4794,6 +4869,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Transformed data.
 
+(pipelines-fittedreduce)=
 ###### `FittedReduce`
 
 ```python
@@ -4809,14 +4885,14 @@ Holds the fitted sklearn model and applies transformations.
 Name | Type | Description
 ---- | ---- | -----------
 `model` | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
-[`method`](#method) | <code>[str](#str)</code> | The reduction method used.
+[`method`](#pipelines-method) | <code>[str](#str)</code> | The reduction method used.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
-[`transform`](#transform) | Apply dimensionality reduction.
+[`inverse_transform`](#pipelines-inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
+[`transform`](#pipelines-transform) | Apply dimensionality reduction.
 
 
 
@@ -4910,20 +4986,21 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute normalization parameters from data.
+[`fit`](#pipelines-fit) | Compute normalization parameters from data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#axis) | <code>[int](#int)</code> | 
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`axis`](#pipelines-axis) | <code>[int](#int)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 
 
 
 ####### Attributes##
 
+(pipelines-axis)=
 ###### `axis`
 
 ```python
@@ -4998,14 +5075,14 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit transformer to data.
+[`fit`](#pipelines-fit) | Fit transformer to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#transformer) | <code>[Any](#typing.Any)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+[`transformer`](#pipelines-transformer) | <code>[Any](#typing.Any)</code> | 
 
 
 
@@ -5090,14 +5167,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit reduction model to data.
+[`fit`](#pipelines-fit) | Fit reduction model to data.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#method) | <code>[str](#str)</code> | 
+[`invertible`](#pipelines-invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
 
@@ -5161,6 +5238,7 @@ Type | Description
 ---- | -----------
 <code>[FittedReduce](#nltools.pipelines.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
 
+(pipelines-terminals)=
 #### `terminals`
 
 Terminal operations for nltools pipelines.
@@ -5173,9 +5251,9 @@ within cross-validation folds.
 
 Name | Description
 ---- | -----------
-[`ISCTerminal`](#iscterminal) | ISC terminal for multi-subject pipelines.
-[`PredictTerminal`](#predictterminal) | Prediction/classification terminal for CV pipelines.
-[`RSATerminal`](#rsaterminal) | RSA terminal for multi-subject pipelines.
+[`ISCTerminal`](#pipelines-iscterminal) | ISC terminal for multi-subject pipelines.
+[`PredictTerminal`](#pipelines-predictterminal) | Prediction/classification terminal for CV pipelines.
+[`RSATerminal`](#pipelines-rsaterminal) | RSA terminal for multi-subject pipelines.
 
 
 
@@ -5211,14 +5289,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute ISC across subjects.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Compute ISC across subjects.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `metric` | <code>[str](#str)</code> | 
 `n_permute` | <code>[int](#int)</code> | 
 `parallel` | <code>[str](#str)</code> | 
@@ -5227,6 +5305,7 @@ Name | Type | Description
 
 ####### Attributes##
 
+(pipelines-kwargs)=
 ###### `kwargs`
 
 ```python
@@ -5330,21 +5409,22 @@ Logistic regression with balanced classes:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Fit model on training data and evaluate on test data.
-[`with_y`](#with-y) | Create copy with different target variable.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Fit model on training data and evaluate on test data.
+[`with_y`](#pipelines-with-y) | Create copy with different target variable.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`algorithm`](#algorithm) | <code>[str](#str)</code> | 
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`algorithm`](#pipelines-algorithm) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
 `y` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 
 
 
 ####### Attributes##
 
+(pipelines-algorithm)=
 ###### `algorithm`
 
 ```python
@@ -5443,14 +5523,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit_evaluate`](#fit-evaluate) | Compute RSA correlation between neural and model RDMs.
+[`fit_evaluate`](#pipelines-fit-evaluate) | Compute RSA correlation between neural and model RDMs.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-[`kwargs`](#kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
-[`method`](#method) | <code>[str](#str)</code> | 
+[`kwargs`](#pipelines-kwargs) | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | 
+[`method`](#pipelines-method) | <code>[str](#str)</code> | 
 `model_rdm` | <code>[NDArray](#numpy.typing.NDArray)</code> | 
 `n_permute` | <code>[int](#int)</code> | 
 

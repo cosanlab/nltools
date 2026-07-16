@@ -1,3 +1,4 @@
+(pipelines-steps-steps)=
 ## `steps`
 
 Transform steps for nltools pipelines.
@@ -14,19 +15,20 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`AlignStep`](#alignstep) | Cross-subject alignment via SRM or HyperAlignment.
-[`FittedAlign`](#fittedalign) | Fitted alignment model.
-[`FittedNormalize`](#fittednormalize) | Fitted normalization transform.
-[`FittedPipe`](#fittedpipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#fittedreduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#normalizestep) | Normalization transform step.
-[`PipeStep`](#pipestep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#reducestep) | Dimensionality reduction step.
+[`AlignStep`](#pipelines-steps-alignstep) | Cross-subject alignment via SRM or HyperAlignment.
+[`FittedAlign`](#pipelines-steps-fittedalign) | Fitted alignment model.
+[`FittedNormalize`](#pipelines-steps-fittednormalize) | Fitted normalization transform.
+[`FittedPipe`](#pipelines-steps-fittedpipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#pipelines-steps-fittedreduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#pipelines-steps-normalizestep) | Normalization transform step.
+[`PipeStep`](#pipelines-steps-pipestep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#pipelines-steps-reducestep) | Dimensionality reduction step.
 
 
 
 ### Classes
 
+(pipelines-steps-alignstep)=
 #### `AlignStep`
 
 ```python
@@ -64,7 +66,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit alignment model on list of subject data.
+[`fit`](#pipelines-steps-fit) | Fit alignment model on list of subject data.
 
 **Attributes:**
 
@@ -82,6 +84,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-steps-fit)=
 ###### `fit`
 
 ```python
@@ -102,6 +105,7 @@ Type | Description
 ---- | -----------
 <code>[FittedAlign](#nltools.pipelines.steps.FittedAlign)</code> | Fitted alignment model.
 
+(pipelines-steps-fittedalign)=
 #### `FittedAlign`
 
 ```python
@@ -124,12 +128,13 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
-[`transform`](#transform) | Transform subjects that were in training.
-[`transform_new_subject`](#transform-new-subject) | Align a new subject not in training (for LOSO).
+[`inverse_transform`](#pipelines-steps-inverse-transform) | Reverse alignment (only for full-rank hyperalignment).
+[`transform`](#pipelines-steps-transform) | Transform subjects that were in training.
+[`transform_new_subject`](#pipelines-steps-transform-new-subject) | Align a new subject not in training (for LOSO).
 
 ##### Methods
 
+(pipelines-steps-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -150,6 +155,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Data in original subject-specific space, shape (n_samples, n_features).
 
+(pipelines-steps-transform)=
 ###### `transform`
 
 ```python
@@ -170,6 +176,7 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, shape (n_samples, n_aligned_features).
 
+(pipelines-steps-transform-new-subject)=
 ###### `transform_new_subject`
 
 ```python
@@ -192,6 +199,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Aligned data for the new subject, shape (n_samples, n_aligned_features).
 
+(pipelines-steps-fittednormalize)=
 #### `FittedNormalize`
 
 ```python
@@ -215,8 +223,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse normalization.
-[`transform`](#transform) | Apply normalization to data.
+[`inverse_transform`](#pipelines-steps-inverse-transform) | Reverse normalization.
+[`transform`](#pipelines-steps-transform) | Apply normalization to data.
 
 ##### Methods
 
@@ -260,6 +268,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Normalized data.
 
+(pipelines-steps-fittedpipe)=
 #### `FittedPipe`
 
 ```python
@@ -280,8 +289,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Apply inverse transform if supported.
-[`transform`](#transform) | Apply the fitted transformer.
+[`inverse_transform`](#pipelines-steps-inverse-transform) | Apply inverse transform if supported.
+[`transform`](#pipelines-steps-transform) | Apply the fitted transformer.
 
 ##### Methods
 
@@ -325,6 +334,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Transformed data.
 
+(pipelines-steps-fittedreduce)=
 #### `FittedReduce`
 
 ```python
@@ -346,8 +356,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
-[`transform`](#transform) | Apply dimensionality reduction.
+[`inverse_transform`](#pipelines-steps-inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
+[`transform`](#pipelines-steps-transform) | Apply dimensionality reduction.
 
 ##### Methods
 
@@ -391,6 +401,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components).
 
+(pipelines-steps-normalizestep)=
 #### `NormalizeStep`
 
 ```python
@@ -423,7 +434,7 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Compute normalization parameters from data.
+[`fit`](#pipelines-steps-fit) | Compute normalization parameters from data.
 
 **Attributes:**
 
@@ -455,6 +466,7 @@ Type | Description
 ---- | -----------
 <code>[FittedNormalize](#nltools.pipelines.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
 
+(pipelines-steps-pipestep)=
 #### `PipeStep`
 
 ```python
@@ -487,7 +499,7 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit transformer to data.
+[`fit`](#pipelines-steps-fit) | Fit transformer to data.
 
 **Attributes:**
 
@@ -521,6 +533,7 @@ Type | Description
 ---- | -----------
 <code>[FittedPipe](#nltools.pipelines.steps.FittedPipe)</code> | Fitted transform wrapper.
 
+(pipelines-steps-reducestep)=
 #### `ReduceStep`
 
 ```python
@@ -553,7 +566,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#fit) | Fit reduction model to data.
+[`fit`](#pipelines-steps-fit) | Fit reduction model to data.
 
 **Attributes:**
 

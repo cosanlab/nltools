@@ -1,3 +1,4 @@
+(pipelines-results-results)=
 ## `results`
 
 Result containers for nltools pipelines.
@@ -9,16 +10,17 @@ including cross-validation results and per-fold information.
 
 Name | Description
 ---- | -----------
-[`CVResult`](#cvresult) | Cross-validation result container.
-[`FoldResult`](#foldresult) | Result from a single CV fold.
+[`CVResult`](#pipelines-results-cvresult) | Cross-validation result container.
+[`FoldResult`](#pipelines-results-foldresult) | Result from a single CV fold.
 `ISCResult` | Result from ISC terminal computation.
-[`PermutationResult`](#permutationresult) | Result from permutation testing.
-[`RSAResult`](#rsaresult) | Result from RSA terminal computation.
+[`PermutationResult`](#pipelines-results-permutationresult) | Result from permutation testing.
+[`RSAResult`](#pipelines-results-rsaresult) | Result from RSA terminal computation.
 
 
 
 ### Classes
 
+(pipelines-results-cvresult)=
 #### `CVResult`
 
 ```python
@@ -46,8 +48,8 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#inverse-transform) | Map predictions back through inverse transforms.
-[`summary`](#summary) | Return formatted summary string.
+[`inverse_transform`](#pipelines-results-inverse-transform) | Map predictions back through inverse transforms.
+[`summary`](#pipelines-results-summary) | Return formatted summary string.
 
 **Attributes:**
 
@@ -64,6 +66,7 @@ Name | Type | Description
 
 ##### Methods
 
+(pipelines-results-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -95,6 +98,7 @@ fitted parameters. Not all pipelines support full inversion.
 
 </details>
 
+(pipelines-results-summary)=
 ###### `summary`
 
 ```python
@@ -103,6 +107,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-results-foldresult)=
 #### `FoldResult`
 
 ```python
@@ -134,6 +139,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-results-permutationresult)=
 #### `PermutationResult`
 
 ```python
@@ -178,11 +184,12 @@ to ensure it is never exactly 0 and accounts for the observed value itself.
 
 Name | Description
 ---- | -----------
-[`from_scores`](#from-scores) | Create PermutationResult from observed result and null scores.
-[`summary`](#summary) | Return formatted summary string.
+[`from_scores`](#pipelines-results-from-scores) | Create PermutationResult from observed result and null scores.
+[`summary`](#pipelines-results-summary) | Return formatted summary string.
 
 ##### Methods
 
+(pipelines-results-from-scores)=
 ###### `from_scores`
 
 ```python
@@ -214,6 +221,7 @@ summary() -> str
 
 Return formatted summary string.
 
+(pipelines-results-rsaresult)=
 #### `RSAResult`
 
 ```python
@@ -238,7 +246,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`summary`](#summary) | Return formatted summary string.
+[`summary`](#pipelines-results-summary) | Return formatted summary string.
 
 ##### Methods
 

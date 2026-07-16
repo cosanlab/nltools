@@ -1,3 +1,4 @@
+(algorithms-inference-correlation-correlation)=
 ## `correlation`
 
 Correlation permutation test implementations.
@@ -10,10 +11,11 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`correlation_permutation_test`](#algorithms-inference-correlation-correlation-permutation-test) | Correlation permutation test.
 
 ### Methods
 
+(algorithms-inference-correlation-correlation-permutation-test)=
 #### `correlation_permutation_test`
 
 ```python

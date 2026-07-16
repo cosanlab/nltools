@@ -1,3 +1,4 @@
+(data-atlases-registry-registry)=
 ## `registry`
 
 Static registry of atlases hosted at ``nltools/niftis/atlases``.
@@ -20,7 +21,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`list_atlases`](#list-atlases) | Return the sorted list of registered atlas names.
+[`list_atlases`](#data-atlases-registry-list-atlases) | Return the sorted list of registered atlas names.
 
 **Attributes:**
 
@@ -32,6 +33,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-atlases-registry-list-atlases)=
 #### `list_atlases`
 
 ```python

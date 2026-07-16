@@ -1,3 +1,4 @@
+(data-design-matrix-io-io)=
 ## `io`
 
 Provide DesignMatrix I/O and visualization functions.
@@ -9,12 +10,12 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 Name | Description
 ---- | -----------
-[`events_to_dm`](#events-to-dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
-[`load_from_file`](#load-from-file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
-[`to_numpy`](#to-numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#to-pandas) | Convert DesignMatrix to pandas DataFrame.
-[`write`](#write) | Write DesignMatrix to file.
-[`write_h5`](#write-h5) | Write DesignMatrix to HDF5 file with metadata.
+[`events_to_dm`](#data-design-matrix-io-events-to-dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
+[`load_from_file`](#data-design-matrix-io-load-from-file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
+[`to_numpy`](#data-design-matrix-io-to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#data-design-matrix-io-to-pandas) | Convert DesignMatrix to pandas DataFrame.
+[`write`](#data-design-matrix-io-write) | Write DesignMatrix to file.
+[`write_h5`](#data-design-matrix-io-write-h5) | Write DesignMatrix to HDF5 file with metadata.
 
 
 
@@ -22,6 +23,7 @@ Name | Description
 
 ### Methods
 
+(data-design-matrix-io-events-to-dm)=
 #### `events_to_dm`
 
 ```python
@@ -51,6 +53,7 @@ Type | Description
 <code>[DataFrame](#polars.DataFrame)</code> | pl.DataFrame with one column per unique `trial_type`, values in
 <code>[DataFrame](#polars.DataFrame)</code> | {0, modulation} indicating where each condition is active.
 
+(data-design-matrix-io-load-from-file)=
 #### `load_from_file`
 
 ```python
@@ -85,6 +88,7 @@ Type | Description
 <code>[bool](#bool)</code> | caller that the columns are experimental regressors rather than
 <code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | nuisance.
 
+(data-design-matrix-io-to-numpy)=
 #### `to_numpy`
 
 ```python
@@ -117,6 +121,7 @@ Type | Description
 (3, 2)
 ```
 
+(data-design-matrix-io-to-pandas)=
 #### `to_pandas`
 
 ```python
@@ -149,6 +154,7 @@ Type | Description
 <class 'pandas.core.frame.DataFrame'>
 ```
 
+(data-design-matrix-io-write)=
 #### `write`
 
 ```python
@@ -191,6 +197,7 @@ HDF5 format preserves metadata (sampling_freq, convolved, confounds).
 
 </details>
 
+(data-design-matrix-io-write-h5)=
 #### `write_h5`
 
 ```python

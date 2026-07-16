@@ -1,3 +1,4 @@
+(data-design-matrix-append-append)=
 ## `append`
 
 Provide standalone DesignMatrix concatenation functions.
@@ -9,13 +10,13 @@ DesignMatrix methods, following the "functional core" pattern.
 
 Name | Description
 ---- | -----------
-[`append`](#append) | Concatenate design matrices.
-[`append_horizontal`](#append-horizontal) | Concatenate matrices horizontally by adding columns.
-[`append_vertical`](#append-vertical) | Concatenate matrices vertically with optional confound separation.
-[`append_vertical_with_separation`](#append-vertical-with-separation) | Concatenate vertically with automatic confound separation.
-[`get_starting_run_idx`](#get-starting-run-idx) | Determine the next run index for multi-run appending.
-[`identify_columns_to_separate`](#identify-columns-to-separate) | Identify columns that need run-specific separation.
-[`match_column_pattern`](#match-column-pattern) | Match columns against a pattern with wildcard support.
+[`append`](#data-design-matrix-append-append) | Concatenate design matrices.
+[`append_horizontal`](#data-design-matrix-append-append-horizontal) | Concatenate matrices horizontally by adding columns.
+[`append_vertical`](#data-design-matrix-append-append-vertical) | Concatenate matrices vertically with optional confound separation.
+[`append_vertical_with_separation`](#data-design-matrix-append-append-vertical-with-separation) | Concatenate vertically with automatic confound separation.
+[`get_starting_run_idx`](#data-design-matrix-append-get-starting-run-idx) | Determine the next run index for multi-run appending.
+[`identify_columns_to_separate`](#data-design-matrix-append-identify-columns-to-separate) | Identify columns that need run-specific separation.
+[`match_column_pattern`](#data-design-matrix-append-match-column-pattern) | Match columns against a pattern with wildcard support.
 
 
 
@@ -50,6 +51,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
+(data-design-matrix-append-append-horizontal)=
 #### `append_horizontal`
 
 ```python
@@ -73,6 +75,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with columns from all matrices.
 
+(data-design-matrix-append-append-vertical)=
 #### `append_vertical`
 
 ```python
@@ -98,6 +101,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with rows from all matrices.
 
+(data-design-matrix-append-append-vertical-with-separation)=
 #### `append_vertical_with_separation`
 
 ```python
@@ -125,6 +129,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated DesignMatrix with run-separated confound columns and multi=True.
 
+(data-design-matrix-append-get-starting-run-idx)=
 #### `get_starting_run_idx`
 
 ```python
@@ -145,6 +150,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `int` | <code>[int](#int)</code> | Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
 
+(data-design-matrix-append-identify-columns-to-separate)=
 #### `identify_columns_to_separate`
 
 ```python
@@ -167,6 +173,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `set` | <code>[set](#set)</code> | Column names that should be separated with run prefixes.
 
+(data-design-matrix-append-match-column-pattern)=
 #### `match_column_pattern`
 
 ```python

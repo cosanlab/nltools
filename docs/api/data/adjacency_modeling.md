@@ -1,3 +1,4 @@
+(data-adjacency-modeling-modeling)=
 ## `modeling`
 
 Provide standalone modeling and inference functions for Adjacency matrices.
@@ -8,16 +9,17 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_adjacency`](#convert-bootstrap-results-to-adjacency) | Convert bootstrap results dictionary to Adjacency format.
-[`generate_permutations`](#generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
-[`regress`](#regress) | Run a regression on an adjacency instance.
-[`social_relations_model`](#social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
+[`bootstrap`](#data-adjacency-modeling-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`convert_bootstrap_results_to_adjacency`](#data-adjacency-modeling-convert-bootstrap-results-to-adjacency) | Convert bootstrap results dictionary to Adjacency format.
+[`generate_permutations`](#data-adjacency-modeling-generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`regress`](#data-adjacency-modeling-regress) | Run a regression on an adjacency instance.
+[`social_relations_model`](#data-adjacency-modeling-social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
 
 
 
 ### Methods
 
+(data-adjacency-modeling-bootstrap)=
 #### `bootstrap`
 
 ```python
@@ -56,6 +58,7 @@ Name | Type | Description
 >>> assert isinstance(boot['mean'], Adjacency)
 ```
 
+(data-adjacency-modeling-convert-bootstrap-results-to-adjacency)=
 #### `convert_bootstrap_results_to_adjacency`
 
 ```python
@@ -81,6 +84,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `dict` |  | Dictionary with Adjacency objects for each statistic
 
+(data-adjacency-modeling-generate-permutations)=
 #### `generate_permutations`
 
 ```python
@@ -113,6 +117,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` |  | permuted version of adj
 
+(data-adjacency-modeling-regress)=
 #### `regress`
 
 ```python
@@ -137,6 +142,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `stats` |  | (dict) dictionary of stats outputs.
 
+(data-adjacency-modeling-social-relations-model)=
 #### `social_relations_model`
 
 ```python

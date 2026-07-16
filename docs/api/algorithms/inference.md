@@ -1,3 +1,4 @@
+(algorithms-inference-inference)=
 ## `inference`
 
 GPU-accelerated statistical inference for neuroimaging.
@@ -70,45 +71,46 @@ with BrainData objects, see nltools.data.brain_data.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#bootstrap) | Bootstrap inference utilities with CPU/GPU support.
-[`correlation`](#correlation) | Correlation permutation test implementations.
-[`icc`](#icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
-[`isc`](#isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
-[`matrix`](#matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#one-sample) | One-sample permutation test implementations.
-[`timeseries`](#timeseries) | Time-series permutation test implementations.
-[`two_sample`](#two-sample) | Two-sample permutation test implementations.
-[`utils`](#utils) | Utility functions for permutation testing.
-[`validation`](#validation) | Shared validation utilities for algorithms module.
+[`bootstrap`](#algorithms-inference-bootstrap) | Bootstrap inference utilities with CPU/GPU support.
+[`correlation`](#algorithms-inference-correlation) | Correlation permutation test implementations.
+[`icc`](#algorithms-inference-icc) | Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
+[`isc`](#algorithms-inference-isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+[`matrix`](#algorithms-inference-matrix) | Matrix permutation test implementations (Mantel test).
+[`one_sample`](#algorithms-inference-one-sample) | One-sample permutation test implementations.
+[`timeseries`](#algorithms-inference-timeseries) | Time-series permutation test implementations.
+[`two_sample`](#algorithms-inference-two-sample) | Two-sample permutation test implementations.
+[`utils`](#algorithms-inference-utils) | Utility functions for permutation testing.
+[`validation`](#algorithms-inference-validation) | Shared validation utilities for algorithms module.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle-shift) | Circular shift for time-series data.
-[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
-[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
-[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double-center) | Double center a 2d array.
-[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`circle_shift`](#algorithms-inference-circle-shift) | Circular shift for time-series data.
+[`compute_icc_voxelwise`](#algorithms-inference-compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`correlation_permutation_test`](#algorithms-inference-correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#algorithms-inference-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-inference-double-center) | Double center a 2d array.
+[`isc_group_permutation_test`](#algorithms-inference-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-inference-isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#algorithms-inference-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#algorithms-inference-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#algorithms-inference-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#algorithms-inference-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#algorithms-inference-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 
 
 ### Classes
 
+(algorithms-inference-onlinebootstrapstats)=
 #### `OnlineBootstrapStats`
 
 ```python
@@ -144,8 +146,8 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 
 Name | Description
 ---- | -----------
-[`get_results`](#get-results) | Compute final bootstrap statistics.
-[`update`](#update) | Update statistics with a new bootstrap sample.
+[`get_results`](#algorithms-inference-get-results) | Compute final bootstrap statistics.
+[`update`](#algorithms-inference-update) | Update statistics with a new bootstrap sample.
 
 **Attributes:**
 
@@ -161,6 +163,7 @@ Name | Type | Description
 
 ##### Methods
 
+(algorithms-inference-get-results)=
 ###### `get_results`
 
 ```python
@@ -230,6 +233,7 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 >>> if 'samples' in result:
 ...     equivalent_result['samples'] = result['samples']
 
+(algorithms-inference-update)=
 ###### `update`
 
 ```python
@@ -250,6 +254,7 @@ Name | Type | Description | Default
 
 ### Methods
 
+(algorithms-inference-circle-shift)=
 #### `circle_shift`
 
 ```python
@@ -294,6 +299,7 @@ array([[ 4, 30],
        [ 3, 20]])
 ```
 
+(algorithms-inference-compute-icc-voxelwise)=
 #### `compute_icc_voxelwise`
 
 ```python
@@ -344,6 +350,7 @@ Type | Description
 True
 ```
 
+(algorithms-inference-correlation-permutation-test)=
 #### `correlation_permutation_test`
 
 ```python
@@ -422,6 +429,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-distance-correlation)=
 #### `distance_correlation`
 
 ```python
@@ -475,6 +483,7 @@ True
 True
 ```
 
+(algorithms-inference-double-center)=
 #### `double_center`
 
 ```python
@@ -509,6 +518,7 @@ True
 True
 ```
 
+(algorithms-inference-isc-group-permutation-test)=
 #### `isc_group_permutation_test`
 
 ```python
@@ -591,6 +601,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-inference-isc-permutation-test)=
 #### `isc_permutation_test`
 
 ```python
@@ -675,6 +686,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-inference-matrix-permutation-test)=
 #### `matrix_permutation_test`
 
 ```python
@@ -749,6 +761,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
 ```
 
+(algorithms-inference-one-sample-permutation-test)=
 #### `one_sample_permutation_test`
 
 ```python
@@ -819,6 +832,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-phase-randomize)=
 #### `phase_randomize`
 
 ```python
@@ -883,6 +897,7 @@ True
 >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
 ```
 
+(algorithms-inference-timeseries-correlation-permutation-test)=
 #### `timeseries_correlation_permutation_test`
 
 ```python
@@ -955,6 +970,7 @@ True
 
 </details>
 
+(algorithms-inference-two-sample-permutation-test)=
 #### `two_sample_permutation_test`
 
 ```python
@@ -1028,6 +1044,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-u-center)=
 #### `u_center`
 
 ```python
@@ -1064,6 +1081,7 @@ True
 
 ### Modules
 
+(algorithms-inference-bootstrap)=
 #### `bootstrap`
 
 Bootstrap inference utilities with CPU/GPU support.
@@ -1072,7 +1090,7 @@ Bootstrap inference utilities with CPU/GPU support.
 
 Name | Description
 ---- | -----------
-[`OnlineBootstrapStats`](#onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 **Attributes:**
 
@@ -1083,6 +1101,7 @@ Name | Type | Description
 
 ##### Methods
 
+(algorithms-inference-correlation)=
 #### `correlation`
 
 Correlation permutation test implementations.
@@ -1095,7 +1114,7 @@ of correlations.
 
 Name | Description
 ---- | -----------
-[`correlation_permutation_test`](#correlation-permutation-test) | Correlation permutation test.
+[`correlation_permutation_test`](#algorithms-inference-correlation-permutation-test) | Correlation permutation test.
 
 ##### Methods
 
@@ -1177,6 +1196,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-icc)=
 #### `icc`
 
 Voxel-wise Intraclass Correlation Coefficient (ICC) computation.
@@ -1208,7 +1228,7 @@ assessing rater reliability. Psychological bulletin, 86(2), 420.
 
 Name | Description
 ---- | -----------
-[`compute_icc_voxelwise`](#compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
+[`compute_icc_voxelwise`](#algorithms-inference-compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
 ##### Methods
 
@@ -1262,6 +1282,7 @@ Type | Description
 True
 ```
 
+(algorithms-inference-isc)=
 #### `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
@@ -1306,8 +1327,8 @@ structure but is O(n²) in subjects.
 
 Name | Description
 ---- | -----------
-[`isc_group_permutation_test`](#isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`isc_group_permutation_test`](#algorithms-inference-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-inference-isc-permutation-test) | Compute intersubject correlation with permutation testing.
 
 ##### Methods
 
@@ -1477,6 +1498,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 
 </details>
 
+(algorithms-inference-matrix)=
 #### `matrix`
 
 Matrix permutation test implementations (Mantel test).
@@ -1489,10 +1511,10 @@ functions for distance correlation and matrix centering operations.
 
 Name | Description
 ---- | -----------
-[`distance_correlation`](#distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#double-center) | Double center a 2d array.
-[`matrix_permutation_test`](#matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`distance_correlation`](#algorithms-inference-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-inference-double-center) | Double center a 2d array.
+[`matrix_permutation_test`](#algorithms-inference-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`u_center`](#algorithms-inference-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
 
 **Attributes:**
 
@@ -1695,6 +1717,7 @@ Name | Type | Description
 True
 ```
 
+(algorithms-inference-one-sample)=
 #### `one_sample`
 
 One-sample permutation test implementations.
@@ -1706,7 +1729,7 @@ of the one-sample permutation test (sign-flipping test).
 
 Name | Description
 ---- | -----------
-[`one_sample_permutation_test`](#one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`one_sample_permutation_test`](#algorithms-inference-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
 
 
 
@@ -1784,6 +1807,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-timeseries)=
 #### `timeseries`
 
 Time-series permutation test implementations.
@@ -1811,9 +1835,9 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 Name | Description
 ---- | -----------
-[`circle_shift`](#circle-shift) | Circular shift for time-series data.
-[`phase_randomize`](#phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`circle_shift`](#algorithms-inference-circle-shift) | Circular shift for time-series data.
+[`phase_randomize`](#algorithms-inference-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
 
 
@@ -2001,6 +2025,7 @@ True
 
 </details>
 
+(algorithms-inference-two-sample)=
 #### `two_sample`
 
 Two-sample permutation test implementations.
@@ -2012,7 +2037,7 @@ of the two-sample permutation test (group permutation test).
 
 Name | Description
 ---- | -----------
-[`two_sample_permutation_test`](#two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`two_sample_permutation_test`](#algorithms-inference-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
 
 
 
@@ -2093,6 +2118,7 @@ Name | Type | Description
 
 </details>
 
+(algorithms-inference-utils)=
 #### `utils`
 
 Utility functions for permutation testing.
@@ -2108,6 +2134,7 @@ Name | Type | Description
 
 ##### Methods
 
+(algorithms-inference-validation)=
 #### `validation`
 
 Shared validation utilities for algorithms module.
@@ -2132,28 +2159,29 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#validate-alpha) | Validate regularization parameter alpha.
-[`validate_array_shape`](#validate-array-shape) | Validate array dimensionality.
-[`validate_array_shape_range`](#validate-array-shape-range) | Validate array dimensionality is within a range.
-[`validate_bootstrap_data`](#validate-bootstrap-data) | Validate input data for bootstrapping.
-[`validate_bootstrap_method`](#validate-bootstrap-method) | Validate bootstrap method name.
-[`validate_how_parameter`](#validate-how-parameter) | Validate 'how' parameter for matrix operations.
-[`validate_isc_parameters`](#validate-isc-parameters) | Validate ISC parameter values.
-[`validate_metric_parameter`](#validate-metric-parameter) | Validate metric parameter.
-[`validate_n_samples`](#validate-n-samples) | Validate number of samples.
-[`validate_parallel_parameter`](#validate-parallel-parameter) | Validate parallel parameter.
-[`validate_parallel_parameter_matrix`](#validate-parallel-parameter-matrix) | Validate parallel parameter for matrix operations.
-[`validate_percentiles`](#validate-percentiles) | Validate percentile values for confidence intervals.
-[`validate_same_first_dimension`](#validate-same-first-dimension) | Validate two arrays have same first dimension.
-[`validate_same_shape`](#validate-same-shape) | Validate two arrays have same shape.
-[`validate_shape_compatibility`](#validate-shape-compatibility) | Validate that X and y have compatible shapes for regression.
-[`validate_square_matrix`](#validate-square-matrix) | Validate matrix is square.
-[`validate_tail_parameter`](#validate-tail-parameter) | Validate and normalize tail parameter.
+[`validate_alpha`](#algorithms-inference-validate-alpha) | Validate regularization parameter alpha.
+[`validate_array_shape`](#algorithms-inference-validate-array-shape) | Validate array dimensionality.
+[`validate_array_shape_range`](#algorithms-inference-validate-array-shape-range) | Validate array dimensionality is within a range.
+[`validate_bootstrap_data`](#algorithms-inference-validate-bootstrap-data) | Validate input data for bootstrapping.
+[`validate_bootstrap_method`](#algorithms-inference-validate-bootstrap-method) | Validate bootstrap method name.
+[`validate_how_parameter`](#algorithms-inference-validate-how-parameter) | Validate 'how' parameter for matrix operations.
+[`validate_isc_parameters`](#algorithms-inference-validate-isc-parameters) | Validate ISC parameter values.
+[`validate_metric_parameter`](#algorithms-inference-validate-metric-parameter) | Validate metric parameter.
+[`validate_n_samples`](#algorithms-inference-validate-n-samples) | Validate number of samples.
+[`validate_parallel_parameter`](#algorithms-inference-validate-parallel-parameter) | Validate parallel parameter.
+[`validate_parallel_parameter_matrix`](#algorithms-inference-validate-parallel-parameter-matrix) | Validate parallel parameter for matrix operations.
+[`validate_percentiles`](#algorithms-inference-validate-percentiles) | Validate percentile values for confidence intervals.
+[`validate_same_first_dimension`](#algorithms-inference-validate-same-first-dimension) | Validate two arrays have same first dimension.
+[`validate_same_shape`](#algorithms-inference-validate-same-shape) | Validate two arrays have same shape.
+[`validate_shape_compatibility`](#algorithms-inference-validate-shape-compatibility) | Validate that X and y have compatible shapes for regression.
+[`validate_square_matrix`](#algorithms-inference-validate-square-matrix) | Validate matrix is square.
+[`validate_tail_parameter`](#algorithms-inference-validate-tail-parameter) | Validate and normalize tail parameter.
 
 
 
 ##### Methods
 
+(algorithms-inference-validate-alpha)=
 ###### `validate_alpha`
 
 ```python
@@ -2169,6 +2197,7 @@ Name | Type | Description | Default
 `alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
 
+(algorithms-inference-validate-array-shape)=
 ###### `validate_array_shape`
 
 ```python
@@ -2185,6 +2214,7 @@ Name | Type | Description | Default
 `expected_ndim` | <code>[int](#int)</code> | Expected number of dimensions | *required*
 `name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
 
+(algorithms-inference-validate-array-shape-range)=
 ###### `validate_array_shape_range`
 
 ```python
@@ -2202,6 +2232,7 @@ Name | Type | Description | Default
 `max_ndim` | <code>[int](#int)</code> | Maximum number of dimensions (inclusive) | *required*
 `name` | <code>[str](#str)</code> | Name of array for error message | <code>'array'</code>
 
+(algorithms-inference-validate-bootstrap-data)=
 ###### `validate_bootstrap_data`
 
 ```python
@@ -2217,6 +2248,7 @@ Name | Type | Description | Default
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to validate | *required*
 `method` | <code>[str](#str)</code> | Bootstrap method | *required*
 
+(algorithms-inference-validate-bootstrap-method)=
 ###### `validate_bootstrap_method`
 
 ```python
@@ -2233,6 +2265,7 @@ Name | Type | Description | Default
 `simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
 `fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
 
+(algorithms-inference-validate-how-parameter)=
 ###### `validate_how_parameter`
 
 ```python
@@ -2247,6 +2280,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `how` | <code>[str](#str)</code> | How parameter value | *required*
 
+(algorithms-inference-validate-isc-parameters)=
 ###### `validate_isc_parameters`
 
 ```python
@@ -2263,6 +2297,7 @@ Name | Type | Description | Default
 `summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
 `method` | <code>[str](#str) \| None</code> | Resampling method (optional) | <code>None</code>
 
+(algorithms-inference-validate-metric-parameter)=
 ###### `validate_metric_parameter`
 
 ```python
@@ -2279,6 +2314,7 @@ Name | Type | Description | Default
 `allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
 
+(algorithms-inference-validate-n-samples)=
 ###### `validate_n_samples`
 
 ```python
@@ -2295,6 +2331,7 @@ Name | Type | Description | Default
 `min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
 
+(algorithms-inference-validate-parallel-parameter)=
 ###### `validate_parallel_parameter`
 
 ```python
@@ -2309,6 +2346,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
 
+(algorithms-inference-validate-parallel-parameter-matrix)=
 ###### `validate_parallel_parameter_matrix`
 
 ```python
@@ -2323,6 +2361,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
 
+(algorithms-inference-validate-percentiles)=
 ###### `validate_percentiles`
 
 ```python
@@ -2337,6 +2376,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
 
+(algorithms-inference-validate-same-first-dimension)=
 ###### `validate_same_first_dimension`
 
 ```python
@@ -2354,6 +2394,7 @@ Name | Type | Description | Default
 `name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
 `name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
+(algorithms-inference-validate-same-shape)=
 ###### `validate_same_shape`
 
 ```python
@@ -2371,6 +2412,7 @@ Name | Type | Description | Default
 `name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
 `name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
+(algorithms-inference-validate-shape-compatibility)=
 ###### `validate_shape_compatibility`
 
 ```python
@@ -2388,6 +2430,7 @@ Name | Type | Description | Default
 `X_name` | <code>[str](#str)</code> | Name of X for error message | <code>'X'</code>
 `y_name` | <code>[str](#str)</code> | Name of y for error message | <code>'y'</code>
 
+(algorithms-inference-validate-square-matrix)=
 ###### `validate_square_matrix`
 
 ```python
@@ -2403,6 +2446,7 @@ Name | Type | Description | Default
 `matrix` | <code>[ndarray](#numpy.ndarray)</code> | Matrix to validate | *required*
 `name` | <code>[str](#str)</code> | Name of matrix for error message | <code>'matrix'</code>
 
+(algorithms-inference-validate-tail-parameter)=
 ###### `validate_tail_parameter`
 
 ```python

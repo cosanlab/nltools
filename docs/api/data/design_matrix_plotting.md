@@ -1,3 +1,4 @@
+(data-design-matrix-plotting-plotting)=
 ## `plotting`
 
 DesignMatrix visualization functions.
@@ -10,10 +11,10 @@ dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
 Name | Description
 ---- | -----------
-[`plot_corr`](#plot-corr) | Render a labeled correlation heatmap of the columns.
-[`plot_designmatrix`](#plot-designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
-[`plot_matrix`](#plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
-[`plot_timeseries`](#plot-timeseries) | Plot regressor time courses as overlaid lines.
+[`plot_corr`](#data-design-matrix-plotting-plot-corr) | Render a labeled correlation heatmap of the columns.
+[`plot_designmatrix`](#data-design-matrix-plotting-plot-designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
+[`plot_matrix`](#data-design-matrix-plotting-plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
+[`plot_timeseries`](#data-design-matrix-plotting-plot-timeseries) | Plot regressor time courses as overlaid lines.
 
 **Attributes:**
 
@@ -23,6 +24,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-design-matrix-plotting-plot-corr)=
 #### `plot_corr`
 
 ```python
@@ -55,6 +57,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
+(data-design-matrix-plotting-plot-designmatrix)=
 #### `plot_designmatrix`
 
 ```python
@@ -71,6 +74,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure: The figure containing the plot.
 
+(data-design-matrix-plotting-plot-matrix)=
 #### `plot_matrix`
 
 ```python
@@ -99,6 +103,7 @@ Type | Description
 ---- | -----------
  | matplotlib.figure.Figure
 
+(data-design-matrix-plotting-plot-timeseries)=
 #### `plot_timeseries`
 
 ```python

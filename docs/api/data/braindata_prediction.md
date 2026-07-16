@@ -1,3 +1,4 @@
+(data-braindata-prediction-prediction)=
 ## `prediction`
 
 BrainData prediction — timeseries (encoding) and MVPA (decoding).
@@ -11,12 +12,12 @@ self with attributes, ``inplace=False`` returns the dataclass.
 
 Name | Description
 ---- | -----------
-[`build_pipeline`](#build-pipeline) | Build a per-fold scikit-learn preprocessing and model pipeline.
-[`predict`](#predict) | Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
-[`predict_mvpa`](#predict-mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
-[`predict_timeseries`](#predict-timeseries) | Predict voxel timeseries from a fitted encoding model.
-[`resolve_model`](#resolve-model) | Resolve a string shortcut or pass through a sklearn estimator.
-[`resolve_scoring`](#resolve-scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
+[`build_pipeline`](#data-braindata-prediction-build-pipeline) | Build a per-fold scikit-learn preprocessing and model pipeline.
+[`predict`](#data-braindata-prediction-predict) | Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
+[`predict_mvpa`](#data-braindata-prediction-predict-mvpa) | Cross-validated decoding. Returns Predict (or self if inplace=True).
+[`predict_timeseries`](#data-braindata-prediction-predict-timeseries) | Predict voxel timeseries from a fitted encoding model.
+[`resolve_model`](#data-braindata-prediction-resolve-model) | Resolve a string shortcut or pass through a sklearn estimator.
+[`resolve_scoring`](#data-braindata-prediction-resolve-scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
 
 **Attributes:**
 
@@ -26,6 +27,7 @@ Name | Type | Description
 
 ### Methods
 
+(data-braindata-prediction-build-pipeline)=
 #### `build_pipeline`
 
 ```python
@@ -37,6 +39,7 @@ Build a per-fold scikit-learn preprocessing and model pipeline.
 The pipeline contains an optional StandardScaler, optional PCA, and the
 model. If only the model is needed, returns the model itself.
 
+(data-braindata-prediction-predict)=
 #### `predict`
 
 ```python
@@ -48,6 +51,7 @@ Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
 Implements `BrainData.predict`. See the class docstring for full parameter
 documentation.
 
+(data-braindata-prediction-predict-mvpa)=
 #### `predict_mvpa`
 
 ```python
@@ -56,6 +60,7 @@ predict_mvpa(bd, *, y, spatial_scale: str, model: Any, cv: Any, standardize: boo
 
 Cross-validated decoding. Returns Predict (or self if inplace=True).
 
+(data-braindata-prediction-predict-timeseries)=
 #### `predict_timeseries`
 
 ```python
@@ -69,6 +74,7 @@ Encoding model prediction yields a brain image — the natural container is
 ``BrainData``, so it composes directly with downstream methods (`.plot()`,
 `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
 
+(data-braindata-prediction-resolve-model)=
 #### `resolve_model`
 
 ```python
@@ -77,6 +83,7 @@ resolve_model(model: Any)
 
 Resolve a string shortcut or pass through a sklearn estimator.
 
+(data-braindata-prediction-resolve-scoring)=
 #### `resolve_scoring`
 
 ```python

@@ -1,3 +1,4 @@
+(utils-utils)=
 ## `utils`
 
 Provide cross-cutting utilities for nltools.
@@ -8,13 +9,14 @@ Cross-cutting utilities used across the nltools package.
 
 Name | Description
 ---- | -----------
-[`all_same`](#all-same) | Check if all items in a sequence are equal to the first item.
-[`attempt_to_import`](#attempt-to-import) | Attempt to import an optional dependency, returning None if unavailable.
-[`concatenate`](#concatenate) | Concatenate a list of BrainData() or Adjacency() objects.
-[`get_resource_path`](#get-resource-path) | Get path to nltools resource directory.
+[`all_same`](#utils-all-same) | Check if all items in a sequence are equal to the first item.
+[`attempt_to_import`](#utils-attempt-to-import) | Attempt to import an optional dependency, returning None if unavailable.
+[`concatenate`](#utils-concatenate) | Concatenate a list of BrainData() or Adjacency() objects.
+[`get_resource_path`](#utils-get-resource-path) | Get path to nltools resource directory.
 
 ### Methods
 
+(utils-all-same)=
 #### `all_same`
 
 ```python
@@ -44,6 +46,7 @@ True
 False
 ```
 
+(utils-attempt-to-import)=
 #### `attempt_to_import`
 
 ```python
@@ -79,6 +82,7 @@ Type | Description
 ...     pass
 ```
 
+(utils-concatenate)=
 #### `concatenate`
 
 ```python
@@ -87,6 +91,7 @@ concatenate(data)
 
 Concatenate a list of BrainData() or Adjacency() objects.
 
+(utils-get-resource-path)=
 #### `get_resource_path`
 
 ```python
