@@ -12,7 +12,7 @@ Name | Description
 ---- | -----------
 [`coerce_metadata`](#data-collection-core-coerce-metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
 [`make_run_id`](#data-collection-core-make-run-id) | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
-[`make_step_dirname`](#data-collection-core-make-step-dirname) | Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+[`make_step_dirname`](#data-collection-core-make-step-dirname) | Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
 [`resolve_cache_dir`](#data-collection-core-resolve-cache-dir) | Resolve ``cache_dir`` per the spec's precedence rules.
 [`resolve_mask`](#data-collection-core-resolve-mask) | Resolve a mask spec into a Nifti1Image.
 
@@ -54,10 +54,13 @@ Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
 make_step_dirname(op: str, kwargs: dict[str, Any] | None = None, *, now: datetime | None = None) -> str
 ```
 
-Name a step subdir: ``{timestamp}_{uuid8}_{op}_{key_kwargs}/``.
+Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
 
 Each call yields a unique name (UUID tail) — same op + same params
-twice produces two subdirs, never overwriting.
+twice produces two subdirs, never overwriting. The zero-padded ``seq`` is
+a process-monotonic counter placed after the second-resolution timestamp,
+so lexicographic order tracks creation order even for calls that share a
+second (the timestamp stays the primary, cross-process ordering key).
 
 (data-collection-core-resolve-cache-dir)=
 #### `resolve_cache_dir`
