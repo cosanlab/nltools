@@ -12,22 +12,22 @@ own output.
 
 Name | Description
 ---- | -----------
-[`align`](#data-collection-inference-align) | Functional alignment (Procrustes / SRM / hyperalignment).
+[`align`](#data-collection-inference-align) | Functional alignment via ``LocalAlignment``.
 [`anova`](#data-collection-inference-anova) | One-way ANOVA across subjects.
 [`concat`](#data-collection-inference-concat) | Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
-[`isc`](#data-collection-inference-isc) | Inter-subject correlation.
-[`isc_test`](#data-collection-inference-isc-test) | Permutation/bootstrap inference on ISC.
-`max_` | Compute the per-voxel maximum across subjects.
-[`mean`](#data-collection-inference-mean) | Compute the mean across subjects along the leading axis.
-[`median`](#data-collection-inference-median) | Compute the median across subjects.
-`min_` | Compute the per-voxel minimum across subjects.
-[`permutation_test`](#data-collection-inference-permutation-test) | Sign-flipping permutation test across subjects.
-[`permutation_test2`](#data-collection-inference-permutation-test2) | Two-sample permutation test between two collections.
-[`std`](#data-collection-inference-std) | Compute the standard deviation across subjects.
-`sum_` | Compute the sum across subjects.
+[`isc`](#data-collection-inference-isc) | Inter-subject correlation across the time dimension.
+[`isc_test`](#data-collection-inference-isc-test) | Bootstrap inference on ISC.
+`max_` | Per-voxel max across subjects. Streams.
+[`mean`](#data-collection-inference-mean) | Mean across subjects (leading axis). Streams from path-backed input.
+[`median`](#data-collection-inference-median) | Median across subjects. Materializes (not streaming-friendly).
+`min_` | Per-voxel min across subjects. Streams.
+[`permutation_test`](#data-collection-inference-permutation-test) | Sign-flipping permutation test across subjects (one-sample).
+[`permutation_test2`](#data-collection-inference-permutation-test2) | Two-sample permutation test by random label shuffling.
+[`std`](#data-collection-inference-std) | Std across subjects. Streams via Welford; ddof=1.
+`sum_` | Sum across subjects. Streams.
 [`ttest`](#data-collection-inference-ttest) | One-sample t-test across subjects.
-[`ttest2`](#data-collection-inference-ttest2) | Two-sample t-test between two collections.
-[`var`](#data-collection-inference-var) | Compute the variance across subjects.
+[`ttest2`](#data-collection-inference-ttest2) | Two-sample t-test between two collections (subject-level).
+[`var`](#data-collection-inference-var) | Variance across subjects. Streams via Welford; ddof=1.
 
 
 
@@ -42,24 +42,23 @@ Name | Description
 align(bc: BrainCollection, *, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Functional alignment (Procrustes / SRM / hyperalignment).
+Functional alignment via ``LocalAlignment``.
 
-Returns ``BrainCollection`` (aligned data) or
+Materializes all subjects (algorithm constraint in v0.6.0). Returns
+a new ``BrainCollection`` of aligned data, or
 ``(BrainCollection, LocalAlignment)`` when ``return_model=True``.
-Materializes all subjects in v0.6 (algorithm constraint, see SPEC
-streaming-algorithms table).
 
 (data-collection-inference-anova)=
 #### `anova`
 
 ```python
-anova(bc: BrainCollection, groups: str | list | np.ndarray) -> dict[str, BrainData]
+anova(bc: BrainCollection, groups: str | list | np.ndarray) -> dict[str, BrainData | int]
 ```
 
 One-way ANOVA across subjects.
 
 ``groups`` is a metadata column name, a list, or an ndarray of length
-``n_subjects``.
+``n_subjects``. Returns ``{'F', 'p', 'df_between', 'df_within'}``.
 
 (data-collection-inference-concat)=
 #### `concat`
@@ -70,8 +69,8 @@ concat(bc: BrainCollection) -> BrainData
 
 Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
 
-Not streamable — the operation *is* materialization. Items must share
-a voxel dimension; mismatched shapes raise.
+Not streamable — the operation *is* materialization. 1D items are
+promoted to ``(1, n_voxels)`` before concatenation.
 
 (data-collection-inference-isc)=
 #### `isc`
@@ -80,11 +79,15 @@ a voxel dimension; mismatched shapes raise.
 isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
 ```
 
-Inter-subject correlation.
+Inter-subject correlation across the time dimension.
 
-LOO method streams (two passes, sum-trick); pairwise streams two
-subjects at a time. Voxelwise/searchlight path goes through
-``nltools.algorithms.inference.isc`` after the v0.6 streaming rewrite.
+method='loo' uses the leave-one-out template approach (each subject
+correlated with the average of the others). method='pairwise' computes
+all subject pairs. Both materialize all subjects in v0.6.0; the
+streaming rewrite is deferred to a later release.
+
+Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
+for ``pairwise``.
 
 (data-collection-inference-isc-test)=
 #### `isc_test`
@@ -93,7 +96,10 @@ subjects at a time. Voxelwise/searchlight path goes through
 isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False, random_state: int | None = None) -> dict
 ```
 
-Permutation/bootstrap inference on ISC.
+Bootstrap inference on ISC.
+
+Resamples subjects with replacement, recomputes ISC each draw, and
+derives a per-voxel p-value from the null distribution centered at 0.
 
 (data-collection-inference-max)=
 #### `max_`
@@ -102,9 +108,7 @@ Permutation/bootstrap inference on ISC.
 max_(bc: BrainCollection) -> BrainData
 ```
 
-Compute the per-voxel maximum across subjects.
-
-This operation streams.
+Per-voxel max across subjects. Streams.
 
 (data-collection-inference-mean)=
 #### `mean`
@@ -113,9 +117,7 @@ This operation streams.
 mean(bc: BrainCollection) -> BrainData
 ```
 
-Compute the mean across subjects along the leading axis.
-
-Streams from path-backed input.
+Mean across subjects (leading axis). Streams from path-backed input.
 
 (data-collection-inference-median)=
 #### `median`
@@ -124,9 +126,7 @@ Streams from path-backed input.
 median(bc: BrainCollection) -> BrainData
 ```
 
-Compute the median across subjects.
-
-This materializes the data because the operation is not streaming-friendly.
+Median across subjects. Materializes (not streaming-friendly).
 
 (data-collection-inference-min)=
 #### `min_`
@@ -135,9 +135,7 @@ This materializes the data because the operation is not streaming-friendly.
 min_(bc: BrainCollection) -> BrainData
 ```
 
-Compute the per-voxel minimum across subjects.
-
-This operation streams.
+Per-voxel min across subjects. Streams.
 
 (data-collection-inference-permutation-test)=
 #### `permutation_test`
@@ -146,10 +144,11 @@ This operation streams.
 permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
-Sign-flipping permutation test across subjects.
+Sign-flipping permutation test across subjects (one-sample).
 
-Materializes all subjects (or memmaps); see SPEC streaming-algorithms
-table — sign-flipping needs the full set in memory by design.
+Per SPEC streaming-algorithms table, sign-flipping needs all subjects
+in memory by design. ``device`` is currently informational; backend
+selection is deferred to the parametric stats path.
 
 (data-collection-inference-permutation-test2)=
 #### `permutation_test2`
@@ -158,7 +157,7 @@ table — sign-flipping needs the full set in memory by design.
 permutation_test2(bc: BrainCollection, other: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
 ```
 
-Two-sample permutation test between two collections.
+Two-sample permutation test by random label shuffling.
 
 (data-collection-inference-std)=
 #### `std`
@@ -167,9 +166,7 @@ Two-sample permutation test between two collections.
 std(bc: BrainCollection) -> BrainData
 ```
 
-Compute the standard deviation across subjects.
-
-Streams via Welford with ``ddof=1`` by default.
+Std across subjects. Streams via Welford; ddof=1.
 
 (data-collection-inference-sum)=
 #### `sum_`
@@ -178,9 +175,7 @@ Streams via Welford with ``ddof=1`` by default.
 sum_(bc: BrainCollection) -> BrainData
 ```
 
-Compute the sum across subjects.
-
-This operation streams.
+Sum across subjects. Streams.
 
 (data-collection-inference-ttest)=
 #### `ttest`
@@ -201,7 +196,7 @@ Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
 ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True) -> dict[str, BrainData]
 ```
 
-Two-sample t-test between two collections.
+Two-sample t-test between two collections (subject-level).
 
 (data-collection-inference-var)=
 #### `var`
@@ -210,7 +205,5 @@ Two-sample t-test between two collections.
 var(bc: BrainCollection) -> BrainData
 ```
 
-Compute the variance across subjects.
-
-Streams via Welford with ``ddof=1`` by default.
+Variance across subjects. Streams via Welford; ddof=1.
 

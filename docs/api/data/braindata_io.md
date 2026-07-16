@@ -21,6 +21,7 @@ Name | Description
 [`load_from_h5`](#data-braindata-io-load-from-h5) | Load data from HDF5 file.
 [`load_from_list`](#data-braindata-io-load-from-list) | Load data from a list of BrainData objects or file paths.
 [`load_from_url`](#data-braindata-io-load-from-url) | Load data from URL.
+[`mask_images`](#data-braindata-io-mask-images) | Mask a list of space-aligned images with a single fitted masker.
 [`resample_to`](#data-braindata-io-resample-to) | Resample BrainData to match target image or resolution.
 [`to_nifti`](#data-braindata-io-to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
 [`upload_neurovault`](#data-braindata-io-upload-neurovault) | Upload data to NeuroVault.
@@ -224,6 +225,45 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `url` |  | URL to download data from. | *required*
+
+(data-braindata-io-mask-images)=
+#### `mask_images`
+
+```python
+mask_images(mask, imgs)
+```
+
+Mask a list of space-aligned images with a single fitted masker.
+
+Validates ``mask`` exactly ONCE — one ``load_mask_img`` — and reuses the
+binarized mask across every image in ``imgs``, instead of re-running
+nilearn's costly ``load_mask_img`` (binarization checks + ``safe_get_data``,
+which each trigger nilearn's forced ``gc.collect``) per image.
+
+``nilearn.masking.apply_mask`` is exactly ``load_mask_img`` (validate) ->
+``new_img_like`` (build binary mask) -> ``apply_mask_fmri`` (extract), with
+``dtype='f'``, ``smoothing_fwhm=None``, ``ensure_finite=True``. This hoists
+the first two out of the per-image loop and calls the lower-level
+``apply_mask_fmri`` (which "assumes mask_img contains only two different
+values") per image, so the result is byte-equivalent to
+``np.vstack([apply_mask(im, mask) for im in imgs])`` for space-aligned data.
+
+Images must already share ``mask``'s space (callers resample first); no
+resampling is done here. Falls back to the per-image functional
+``apply_mask`` if the fast path raises for any reason.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask` |  | A ``nibabel.Nifti1Image`` boolean/binary mask. | *required*
+`imgs` |  | List of space-aligned ``nibabel`` images to mask. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
 
 (data-braindata-io-resample-to)=
 #### `resample_to`

@@ -274,13 +274,13 @@ Must be called after .fit(model='glm', X=design_matrix) has been run.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `contrasts` |  | Can be:<br>- str: A string specifying the contrast using column names   e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC" - dict: Dictionary with contrast names as keys and contrast strings/vectors as values   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]} - array: Numeric contrast vector matching the number of regressors   e.g., [1, -1, 0, 0] for a 4-regressor model | *required*
-`contrast_type` | <code>[str](#str)</code> | Type of contrast statistic ('t' or 'F'). Default: 't' Note: Currently only 't' contrasts are supported. | <code>'t'</code>
+`contrast_type` | <code>[str](#str)</code> | What to return per contrast. One of `"t"` (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` / `"effect_size"` (effect-size β map — use this when feeding a second-level group analysis), or `"all"` (a bundle dict `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`. | <code>'t'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | BrainData or dict: If single contrast, returns BrainData object with contrast map.                If multiple contrasts (dict input), returns dict of BrainData objects.
+ | BrainData or dict: A single contrast with a scalar `contrast_type` returns a `BrainData` map; with `contrast_type="all"` it returns a flat dict keyed by `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed by contrast name (nested under the five keys when `contrast_type="all"`).
 
 **Examples:**
 

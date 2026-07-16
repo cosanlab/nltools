@@ -4,74 +4,76 @@
 Pipeline classes for BrainCollection.
 
 Provides BrainCollectionPipeline for fluent pipeline API with cross-validation,
-BrainCollectionCVResult for storing CV results, and FittedBrainCollection for
-chaining pool() after fit().
+and FittedBrainCollection for chaining pool() after fit(). CV-aware
+``predict()`` returns a ``BrainData`` with CV attributes attached
+(``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+``fold_results``, ``cv_pipeline``).
 
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`BrainCollectionCVResult`](#data-collection-pipeline-braincollectioncvresult) | Cross-validation results for BrainCollection pipelines.
-`BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
+[`BrainCollectionPipeline`](#data-collection-pipeline-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
 [`FittedBrainCollection`](#data-collection-pipeline-fittedbraincollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
 
 
 
 ### Classes
 
-(data-collection-pipeline-braincollectioncvresult)=
-#### `BrainCollectionCVResult`
+(data-collection-pipeline-braincollectionpipeline)=
+#### `BrainCollectionPipeline`
 
 ```python
-BrainCollectionCVResult(fold_results: list, pipeline: BrainCollectionPipeline)
+BrainCollectionPipeline(brain_collection: BrainCollection, cv: BrainCollection = None, groups: np.ndarray | None = None)
 ```
 
-Cross-validation results for BrainCollection pipelines.
+Pipeline for BrainCollection with multi-subject CV support.
 
-Contains fold-by-fold results from cross-validated prediction,
-with convenience properties for accessing scores and predictions.
+Wraps BrainCollection to provide fluent pipeline API with LOSO
+and run-based cross-validation.
+
+This class enables method chaining for preprocessing and prediction
+with proper cross-validation semantics for multi-subject neuroimaging
+analyses.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`fold_results` |  | List of dictionaries with per-fold results.
-[`pipeline`](#data-collection-pipeline-pipeline) |  | The pipeline that generated these results.
-`scores` | <code>[ndarray](#numpy.ndarray)</code> | Per-fold prediction scores.
-`mean_score` | <code>[float](#float)</code> | Mean score across all folds.
-`std_score` | <code>[float](#float)</code> | Standard deviation of scores.
-`n_folds` | <code>[int](#int)</code> | Number of CV folds.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
+`cv` |  | The cross-validation scheme configuration.
+`n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
 
-**Parameters:**
+**Examples:**
 
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`fold_results` | <code>[list](#list)</code> | List of fold result dictionaries. | *required*
-`pipeline` | <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | The pipeline that generated these results. | *required*
-
-##### Methods
-
-(data-collection-pipeline-normalize)=
-###### `normalize`
-
-```python
-normalize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
+```pycon
+>>> # Leave-one-subject-out with preprocessing
+>>> result = (bc
+...     .cv(scheme='loso')
+...     .standardize()
+...     .reduce(n_components=50)
+...     .predict(labels, algorithm='svm'))
+>>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
-Add normalization step.
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-collection-pipeline-pipe) | Add custom sklearn transformer.
+[`predict`](#data-collection-pipeline-predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#data-collection-pipeline-reduce) | Add dimensionality reduction step.
+[`standardize`](#data-collection-pipeline-standardize) | Add standardization step.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Normalization method ('zscore', 'minmax'). | <code>'zscore'</code>
-`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with normalization step added.
+##### Methods
 
 (data-collection-pipeline-pipe)=
 ###### `pipe`
@@ -98,7 +100,7 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(y, algorithm: str = 'ridge', **kwargs: str) -> BrainCollectionCVResult
+predict(y, algorithm: str = 'ridge', **kwargs: str)
 ```
 
 Execute pipeline with CV and return prediction results.
@@ -115,7 +117,9 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollectionCVResult](#nltools.data.collection.pipeline.BrainCollectionCVResult)</code> | Cross-validation results with scores and predictions.
+ | ``BrainData`` carrying out-of-fold predictions plus CV attributes
+ | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+ | ``fold_results``, ``cv_pipeline``).
 
 (data-collection-pipeline-reduce)=
 ###### `reduce`
@@ -139,6 +143,28 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
+
+(data-collection-pipeline-standardize)=
+###### `standardize`
+
+```python
+standardize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
+```
+
+Add standardization step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
+`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with standardization step added.
 
 (data-collection-pipeline-fittedbraincollection)=
 #### `FittedBrainCollection`

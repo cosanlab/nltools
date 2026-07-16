@@ -110,6 +110,18 @@ Type | Description
 <code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
 <code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Resolution is memoized per ``relpath`` for the session — repeated
+calls (e.g. every default-mask ``BrainData`` construction) return the
+cached path with no work. On the first call for a file already in the
+HF cache we resolve it with ``local_files_only=True`` so we never make
+a network round-trip to revalidate an ETag; only a genuine cache miss
+touches the network.
+
+</details>
+
 (templates-get-bg-image)=
 #### `get_bg_image`
 
@@ -514,6 +526,18 @@ Type | Description
 <code>[str](#str)</code> | Absolute path to the cached file on disk. The returned path drops
 <code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
 <code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+Resolution is memoized per ``relpath`` for the session — repeated
+calls (e.g. every default-mask ``BrainData`` construction) return the
+cached path with no work. On the first call for a file already in the
+HF cache we resolve it with ``local_files_only=True`` so we never make
+a network round-trip to revalidate an ETag; only a genuine cache miss
+touches the network.
+
+</details>
 
 ###### `list_resources`
 

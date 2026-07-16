@@ -11,6 +11,7 @@ Name | Description
 ---- | -----------
 [`all_same`](#utils-all-same) | Check if all items in a sequence are equal to the first item.
 [`attempt_to_import`](#utils-attempt-to-import) | Attempt to import an optional dependency, returning None if unavailable.
+[`coalesced_gc`](#utils-coalesced-gc) | Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
 [`concatenate`](#utils-concatenate) | Concatenate a list of BrainData() or Adjacency() objects.
 [`get_resource_path`](#utils-get-resource-path) | Get path to nltools resource directory.
 
@@ -81,6 +82,39 @@ Type | Description
 ...     # Use torch
 ...     pass
 ```
+
+(utils-coalesced-gc)=
+#### `coalesced_gc`
+
+```python
+coalesced_gc()
+```
+
+Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
+
+nilearn calls ``gc.collect()`` after every masked-array copy
+(``_utils/niimg.py:safe_get_data``); a masking-heavy op — a GLM fit that
+re-validates the same mask and builds several result maps — fires dozens.
+With torch/nilearn/sklearn resident each sweep costs ~0.1s, so the storm
+dominates the wall-clock of otherwise-trivial numerical work.
+
+This no-ops the interim collects and runs a single real collect on exit,
+so peak memory stays bounded to one operation's worth of cyclic garbage
+(the ``gc.collect()`` nilearn calls is a peak-memory optimization, not a
+correctness requirement — suppressing it only defers reclamation). Opt out
+with ``NLTOOLS_NO_GC_COALESCE=1``.
+
+Because ``@contextmanager`` results double as decorators, this can also be
+used as ``@coalesced_gc()`` on an operation-boundary method.
+
+Nesting is safe: each frame restores whatever it saved, so only the
+outermost frame restores the real ``gc.collect`` and runs the final sweep;
+inner frames' exit-time collect is a no-op.
+
+Caveat: this swaps a process-global builtin. It is safe under the default
+loky (process) worker backend — each worker has its own ``gc``. Under a
+*threading* backend there is a brief window where a concurrent thread sees
+the no-op collect; ``NLTOOLS_NO_GC_COALESCE=1`` is the escape hatch there.
 
 (utils-concatenate)=
 #### `concatenate`

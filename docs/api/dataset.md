@@ -6,18 +6,20 @@ Dataset download and example-data utilities.
 # NeuroLearn datasets
 
 Functions to help download example datasets. The curated example datasets
-(`fetch_pain`) are hosted on the ``nltools/niftis`` Hugging Face dataset and
-resolve through the same `fetch_resource` / `seed_resources` machinery as the
-MNI templates and atlases, so they work both on a normal Python kernel and in
-Pyodide / JupyterLite (pre-seed with `seed_resources` there). Arbitrary
-Neurovault collections are still available via `fetch_neurovault_collection`.
+(`fetch_pain`, `fetch_emotion_ratings`) are hosted on the ``nltools/niftis``
+Hugging Face dataset and resolve through the same `fetch_resource` /
+`seed_resources` machinery as the MNI templates and atlases, so they work both
+on a normal Python kernel and in Pyodide / JupyterLite (pre-seed with
+`seed_resources` there). Arbitrary Neurovault collections are still available
+via `fetch_neurovault_collection`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`download_nifti`](#dataset-download-nifti) | Download an image from a URL to a nifti file.
-[`fetch_emotion_ratings`](#dataset-fetch-emotion-ratings) | Download and load emotion rating dataset from Neurovault.
+[`emotion_resources`](#dataset-emotion-resources) | List every `fetch_resource` relpath the emotion dataset needs.
+[`fetch_emotion_ratings`](#dataset-fetch-emotion-ratings) | Download and load the emotion-rating dataset from the nltools HF dataset.
 [`fetch_neurovault_collection`](#dataset-fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
 [`fetch_pain`](#dataset-fetch-pain) | Download and load the pain dataset from the nltools HF dataset.
 [`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
@@ -26,6 +28,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
+`EMOTION_METADATA` |  | Relpath of the emotion dataset's metadata table (its filename manifest).
 `PAIN_RESOURCES` | <code>[list](#list)[[str](#str)]</code> | Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
 
 ### Methods
@@ -52,30 +55,61 @@ Name | Type | Description
 ---- | ---- | -----------
 `str` |  | Path to the downloaded file
 
+(dataset-emotion-resources)=
+#### `emotion_resources`
+
+```python
+emotion_resources() -> list[str]
+```
+
+List every `fetch_resource` relpath the emotion dataset needs.
+
+The emotion image filenames are keyed by Neurovault id (not a generable
+grid like `PAIN_RESOURCES`), so this reads `EMOTION_METADATA` to enumerate
+them. To pre-seed the Pyodide / JupyterLite cache, seed the metadata file
+first (it is read here), then seed the images:
+
+```python
+await seed_resources([EMOTION_METADATA])
+await seed_resources(emotion_resources())
+```
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[str](#str)]</code> | list[str]: `[EMOTION_METADATA, ...679 image relpaths]`.
+
 (dataset-fetch-emotion-ratings)=
 #### `fetch_emotion_ratings`
 
 ```python
-fetch_emotion_ratings(data_dir = None, verbose = 1)
+fetch_emotion_ratings(verbose = 0)
 ```
 
-Download and load emotion rating dataset from Neurovault.
+Download and load the emotion-rating dataset from the nltools HF dataset.
 
-This downloads the Chang et al. (2015) emotion ratings dataset from
-Neurovault collection 1964.
+Loads the Chang et al. (2015) IAPS emotion-rating study: 679 whole-brain
+contrast images across 150 subjects, each rating images 1-5, with a
+built-in train/test holdout split. `X` carries the full portable Neurovault
+metadata (key columns: `SubjectID`, `Rating`, `Holdout`, `AGE`, `SEX`).
+
+Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
+locally on first use, so this works on a normal Python kernel with no extra
+setup. In Pyodide / JupyterLite, pre-seed the cache first (see
+`emotion_resources`).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data_dir` | <code>[str](#str)</code> | Path of the data directory. Used to force data storage in a specified location. Default: None | <code>None</code>
-`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+`verbose` | <code>[int](#int)</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | BrainData object with downloaded data. X=metadata
+`BrainData` |  | `BrainData` with the 679 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>

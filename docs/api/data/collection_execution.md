@@ -19,8 +19,8 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read and validate a GLM bundle.
-[`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle.
+[`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+[`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 [`write_glm_bundle`](#data-collection-execution-write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 [`write_ridge_bundle`](#data-collection-execution-write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
@@ -39,10 +39,9 @@ Name | Type | Description
 read_glm_bundle(path: Path) -> dict[str, Any]
 ```
 
-Read and validate a GLM bundle.
+Read a GLM bundle. Validates ``bundle_schema_version``.
 
-Validates ``bundle_schema_version``. A schema-version mismatch raises with
-a migration message; nltools-version
+Schema-version mismatch raises with a migration message; nltools-version
 mismatch logs a warning but does not refuse — bundles are usually
 forward-compatible within a minor version.
 
@@ -53,9 +52,7 @@ forward-compatible within a minor version.
 read_ridge_bundle(path: Path) -> dict[str, Any]
 ```
 
-Read a ridge bundle.
-
-Uses the same schema and version handling as ``read_glm_bundle``.
+Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 
 (data-collection-execution-write-glm-bundle)=
 #### `write_glm_bundle`
@@ -79,11 +76,14 @@ portable across machines. Uses ``h5py.File(..., locking=False)``.
 #### `write_ridge_bundle`
 
 ```python
-write_ridge_bundle(out_path: Path, *, weights: np.ndarray, cv_scores: np.ndarray, predictions: np.ndarray, scores: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+write_ridge_bundle(out_path: Path, *, weights: np.ndarray, intercept: np.ndarray, cv_scores: np.ndarray, predictions: np.ndarray, scores: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
 ```
 
 Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
-(``weights``, ``cv_scores``, ``predictions``, ``scores``).
+(``weights``, ``intercept``, ``cv_scores``, ``predictions``, ``scores``).
 
+
+
+### Modules

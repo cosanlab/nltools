@@ -72,6 +72,10 @@ from_glob(cls: type[BrainCollection], pattern: str, *, mask: nib.Nifti1Image | P
 
 Build a collection by globbing for BOLD images (and optionally designs).
 
+``pattern_groups`` extracts metadata from filename wildcards. Pass
+``{column_name: wildcard_index}`` (0-based) to capture each ``*`` in
+``pattern`` into a metadata column.
+
 (data-collection-io-from-paths)=
 #### `from_paths`
 
@@ -80,6 +84,8 @@ from_paths(cls: type[BrainCollection], brain_paths: list[Path | str], *, mask: n
 ```
 
 Build a collection from explicit lists of brain (and design) paths.
+
+Always lazy — items are stored as ``Path`` and loaded on demand.
 
 (data-collection-io-load)=
 #### `load`
@@ -103,8 +109,8 @@ memory_estimate(bc: BrainCollection) -> str
 
 Human-readable RAM estimate if every item were loaded.
 
-Used by ``BrainCollection.memory_estimate()``; reports ``n_subjects``,
-typical per-item shape, and an estimated total in MB/GB.
+Reports ``n_subjects``, the per-item shape (or "unknown" if path-backed
+and not yet loaded), and an estimated total in MB/GB based on float32.
 
 (data-collection-io-read)=
 #### `read`
@@ -115,8 +121,9 @@ read(cls: type[BrainCollection], directory: Path | str, *, mask: nib.Nifti1Image
 
 Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
 
-Does **not** recover from cache subdirs in v0.6.0 — call ``bc.write(...)``
-first to materialize a portable directory.
+Discovers items by globbing ``image_*.nii*`` (matches the ``write()``
+default pattern) and pairs them with rows from ``metadata.csv`` if it
+exists. Does **not** recover from cache subdirs in v0.6.0.
 
 (data-collection-io-unload)=
 #### `unload`
