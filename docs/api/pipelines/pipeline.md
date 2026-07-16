@@ -13,7 +13,7 @@ standalone fluent `Pipeline` orchestrator was removed in v0.6.0 in favor of
 
 Name | Description
 ---- | -----------
-`CVScheme` | Protocol for cross-validation schemes.
+[`CVScheme`](#pipelines-pipeline-cvscheme) | Protocol for cross-validation schemes.
 [`FittedStack`](#pipelines-pipeline-fittedstack) | Collection of fitted transforms for inverse transform support.
 [`FittedTransform`](#pipelines-pipeline-fittedtransform) | Protocol for fitted transform objects.
 [`Terminal`](#pipelines-pipeline-terminal) | Protocol for terminal operations that end a pipeline.
@@ -25,6 +25,25 @@ Name | Type | Description
 ---- | ---- | -----------
 `DataType` |  | 
 `T` |  | 
+
+### Classes
+
+(pipelines-pipeline-cvscheme)=
+#### `CVScheme`
+
+Bases: <code>[Protocol](#typing.Protocol)</code>
+
+Protocol for cross-validation schemes.
+
+Compatible with scikit-learn CV splitters and custom implementations.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`split`](#pipelines-pipeline-split) | Generate train/test index splits.
+
+
 
 ##### Methods
 

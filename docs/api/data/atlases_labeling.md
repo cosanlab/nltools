@@ -20,6 +20,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `CoordsLike` |  | 
 
+### Classes
+
 ### Methods
 
 (data-atlases-labeling-label-coords)=

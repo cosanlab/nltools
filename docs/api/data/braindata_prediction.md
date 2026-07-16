@@ -25,6 +25,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `VALID_SPATIAL_SCALES` |  | 
 
+### Classes
+
 ### Methods
 
 (data-braindata-prediction-build-pipeline)=

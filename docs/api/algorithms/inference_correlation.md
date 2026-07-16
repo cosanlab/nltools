@@ -13,6 +13,8 @@ Name | Description
 ---- | -----------
 [`correlation_permutation_test`](#algorithms-inference-correlation-correlation-permutation-test) | Correlation permutation test.
 
+### Classes
+
 ### Methods
 
 (algorithms-inference-correlation-correlation-permutation-test)=

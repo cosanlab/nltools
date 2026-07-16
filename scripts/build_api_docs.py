@@ -160,6 +160,51 @@ def _strip_rst_directives(text: str) -> str:
     return _RST_DIRECTIVE_RE.sub("", text)
 
 
+_HEADING_RE = re.compile(r"^(#{2,6}) ")
+
+
+def _remove_attributes_sections(text: str) -> str:
+    """Drop every ``Attributes`` detail section, keeping the summary table.
+
+    An Attributes section at heading level ``L`` spans from its heading to the
+    next heading of level ``<= L`` (its next sibling or a shallower heading).
+    Terminating on level — not merely on "the next Methods heading" — is what
+    keeps a module-level ``### Attributes`` section from greedily swallowing the
+    following ``### Classes`` / ``#### FirstClass`` headings, which collapsed the
+    page into a module-h2 -> class-Methods-h5 jump that mystmd warned on.
+
+    Assumes concatenated headings have already been split onto their own lines
+    (see the ``postprocess`` step that runs before this), so each heading —
+    including ``#### Attributes`` — is on a line of its own.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        m = _HEADING_RE.match(line)
+        if m and line[len(m.group(1)) + 1 :].strip() == "Attributes":
+            level = len(m.group(1))
+            # Skip this heading and everything under it until a heading of
+            # level <= this one (sibling/parent), which terminates the section.
+            i += 1
+            while i < n:
+                mm = _HEADING_RE.match(lines[i])
+                if mm and len(mm.group(1)) <= level:
+                    break
+                i += 1
+            # Collapse any blank lines left dangling before the terminator so we
+            # don't accumulate a widening gap where the section used to be.
+            while out and out[-1] == "":
+                out.pop()
+            out.append("")
+            continue
+        out.append(line)
+        i += 1
+    return "\n".join(out)
+
+
 def _remove_deprecated_members(text: str) -> str:
     """Hide deprecated methods from the generated API reference.
 
@@ -307,14 +352,12 @@ def postprocess(text: str, prefix: str) -> str:
     # Remove "Bases: object" (noise for classes that only inherit from object)
     text = re.sub(r"\nBases: <code>\[object\]\(#object\)</code>\n", "\n", text)
 
-    # Remove the entire Attributes detail section (heading + individual entries).
-    # The summary table is enough. Keep everything from "### Methods" onward.
-    text = re.sub(
-        r"\n*^#{2,6} Attributes\n.*?(?=^#{2,6} Methods$)",
-        "\n\n",
-        text,
-        flags=re.MULTILINE | re.DOTALL,
-    )
+    # Remove every Attributes detail section (heading + individual entries); the
+    # summary table is enough. Level-aware: each section ends at the next heading
+    # of same-or-shallower level, so a module-level `### Attributes` can't eat the
+    # following `### Classes` / `#### FirstClass` headings (which produced a
+    # module-h2 -> class-Methods-h5 depth jump that mystmd warned on).
+    text = _remove_attributes_sections(text)
 
     # Hide deprecated members and strip any residual RST roles (safety net).
     text = _remove_deprecated_members(text)

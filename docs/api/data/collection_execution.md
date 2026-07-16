@@ -12,8 +12,8 @@ through ``_apply`` here.
 
 Name | Description
 ---- | -----------
-`BrainCollectionWorkerError` | Raised in the parent process when a worker fails inside ``_apply``.
-`tqdm_joblib` | Context manager that updates a tqdm bar as joblib workers complete.
+[`BrainCollectionWorkerError`](#data-collection-execution-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
+[`tqdm_joblib`](#data-collection-execution-tqdm-joblib) | Context manager that updates a tqdm bar as joblib workers complete.
 
 **Methods:**
 
@@ -29,6 +29,40 @@ Name | Description
 Name | Type | Description
 ---- | ---- | -----------
 `BUNDLE_SCHEMA_VERSION` |  | 
+
+### Classes
+
+(data-collection-execution-braincollectionworkererror)=
+#### `BrainCollectionWorkerError`
+
+Bases: <code>[RuntimeError](#RuntimeError)</code>
+
+Raised in the parent process when a worker fails inside ``_apply``.
+
+Wraps the original exception via ``raise ... from e`` so the full
+traceback is preserved. The message embeds subject/run context from
+``_ItemTask.metadata_row`` so users can locate the offending item.
+
+(data-collection-execution-tqdm-joblib)=
+#### `tqdm_joblib`
+
+```python
+tqdm_joblib(total: int, desc: str = '', disable: bool = False) -> None
+```
+
+Context manager that updates a tqdm bar as joblib workers complete.
+
+Replaces today's submit-time wrapper, which advances on dispatch rather
+than completion. Monkey-patches ``BatchCompletionCallBack.__call__`` for
+the duration of the ``with`` block.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`desc` |  | 
+`disable` |  | 
+`total` |  | 
 
 ### Methods
 

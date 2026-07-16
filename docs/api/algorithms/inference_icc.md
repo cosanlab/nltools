@@ -32,6 +32,8 @@ Name | Description
 ---- | -----------
 [`compute_icc_voxelwise`](#algorithms-inference-icc-compute-icc-voxelwise) | Compute voxel-wise ICC across many voxels.
 
+### Classes
+
 ### Methods
 
 (algorithms-inference-icc-compute-icc-voxelwise)=

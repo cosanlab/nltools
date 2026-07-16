@@ -979,28 +979,8 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`DataType`](#pipelines-datatype) |  | 
-[`T`](#pipelines-t) |  | 
-
-
-
-##### Attributes
-
-(pipelines-datatype)=
-###### `DataType`
-
-```python
-DataType = TypeVar('DataType')
-```
-
-(pipelines-t)=
-###### `T`
-
-```python
-T = TypeVar('T')
-```
-
-
+`DataType` |  | 
+`T` |  | 
 
 ##### Classes
 
@@ -1334,20 +1314,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-[`CVSchemeType`](#pipelines-cvschemetype) |  | 
-
-
-
-##### Attributes
-
-(pipelines-cvschemetype)=
-###### `CVSchemeType`
-
-```python
-CVSchemeType = Literal['kfold', 'loso', 'loro', 'bootstrap', 'permutation']
-```
-
-
+`CVSchemeType` |  | 
 
 ##### Classes
 

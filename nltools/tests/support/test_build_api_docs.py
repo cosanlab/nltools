@@ -59,3 +59,54 @@ class TestStripRstDirectives:
         text = "See the note below.\n\n`t_r` is the repetition time.\n"
         out = build_api_docs._strip_rst_directives(text)
         assert out == text
+
+
+class TestRemoveAttributesSections:
+    """Attributes detail sections drop, but must not swallow class headings.
+
+    Regression for the heading-depth bug: the old terminator ("next Methods
+    anywhere") let a module-level `### Attributes` section greedily consume the
+    following `### Classes` / `#### FirstClass` headings up to the first class's
+    Methods, collapsing the page to a module-h2 -> class-Methods-h5 jump that
+    mystmd warns on. Removal must be level-aware: an Attributes heading at level
+    L ends at the next heading of level <= L (its sibling/parent).
+    """
+
+    def _page(self):
+        # Mirrors real griffe2md structure after the concatenated-heading split:
+        # module attrs (h3) -> Classes (h3) -> FirstClass (h4) with its own
+        # attrs (h5) + methods (h5).
+        return (
+            "## `cv`\n\n"
+            "### Attributes\n\n"
+            "#### `CVSchemeType`\n\n"
+            "A module-level type alias.\n\n"
+            "### Classes\n\n"
+            "#### `CVScheme`\n\n"
+            "The class docstring.\n\n"
+            "##### Attributes\n\n"
+            "###### `k`\n\n"
+            "Number of folds.\n\n"
+            "##### Methods\n\n"
+            "###### `split`\n\n"
+            "Yield splits.\n"
+        )
+
+    def test_class_heading_survives(self, build_api_docs):
+        out = build_api_docs._remove_attributes_sections(self._page())
+        # The first class's detail heading must NOT be eaten.
+        assert "#### `CVScheme`" in out
+        assert "### Classes" in out
+        # No heading-depth jump: h2 is followed by h3, never straight to h5.
+        assert "## `cv`\n\n##### Methods" not in out
+
+    def test_attributes_detail_removed(self, build_api_docs):
+        out = build_api_docs._remove_attributes_sections(self._page())
+        # Both the module-level and class-level Attributes detail go away...
+        assert "### Attributes" not in out
+        assert "##### Attributes" not in out
+        assert "#### `CVSchemeType`" not in out
+        assert "###### `k`" not in out
+        # ...but Methods and its members stay.
+        assert "##### Methods" in out
+        assert "###### `split`" in out

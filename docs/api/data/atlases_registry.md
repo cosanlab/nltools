@@ -15,7 +15,7 @@ their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
 Name | Description
 ---- | -----------
-`AtlasMetadata` | Static description of a registered atlas.
+[`AtlasMetadata`](#data-atlases-registry-atlasmetadata) | Static description of a registered atlas.
 
 **Methods:**
 
@@ -30,6 +30,24 @@ Name | Type | Description
 `ATLASES` | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
 `AtlasKind` |  | 
 `DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+### Classes
+
+(data-atlases-registry-atlasmetadata)=
+#### `AtlasMetadata`
+
+```python
+AtlasMetadata(kind: AtlasKind, citation: str) -> None
+```
+
+Static description of a registered atlas.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+`citation` | <code>[str](#str)</code> | Short citation string for the original atlas.
 
 ### Methods
 

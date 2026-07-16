@@ -22,6 +22,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `VALID_PLOT_METHODS` |  | 
 
+### Classes
+
 ### Methods
 
 (data-design-matrix-plotting-plot-corr)=

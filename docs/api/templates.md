@@ -46,7 +46,7 @@ Name | Description
 Name | Description
 ---- | -----------
 [`BrainSpaceConfig`](#templates-brainspaceconfig) | Immutable MNI template configuration.
-`TemplateMatch` | Result of matching a data affine to a template.
+[`TemplateMatch`](#templates-templatematch) | Result of matching a data affine to a template.
 
 **Methods:**
 
@@ -83,7 +83,27 @@ Immutable MNI template configuration.
 Name | Type | Description
 ---- | ---- | -----------
 `template` | <code>[TemplateName](#nltools.templates.registry.TemplateName)</code> | Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
-[`resolution`](#templates-resolution) | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
+`resolution` | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
+
+(templates-templatematch)=
+#### `TemplateMatch`
+
+```python
+TemplateMatch(template: str, resolution: int, mask_path: str, brain_path: str, plot_path: str, match_distance: float) -> None
+```
+
+Result of matching a data affine to a template.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`template` | <code>[str](#str)</code> | Best-matching template name.
+`resolution` | <code>[int](#int)</code> | Best-matching resolution in mm.
+`mask_path` | <code>[str](#str)</code> | Path to the matched mask file.
+[`brain_path`](#templates-brain-path) | <code>[str](#str)</code> | Path to the matched brain file.
+`plot_path` | <code>[str](#str)</code> | Path to the matched T1/plot file.
+`match_distance` | <code>[float](#float)</code> | Absolute difference in mm between detected data resolution and the selected template resolution (0 for exact).
 
 ### Methods
 
@@ -402,6 +422,66 @@ Name | Description
 [`set_brainspace`](#templates-set-brainspace) | Set the global brain-space configuration.
 [`with_brainspace`](#templates-with-brainspace) | Temporarily change the global brain-space configuration.
 
+##### Classes
+
+###### `BrainSpaceConfig`
+
+```python
+BrainSpaceConfig(template: TemplateName = 'default', resolution: Resolution = 2) -> None
+```
+
+Immutable MNI template configuration.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`template` | <code>[TemplateName](#nltools.templates.registry.TemplateName)</code> | Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
+`resolution` | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
+
+
+
+####### Attributes##
+
+(templates-brain)=
+###### `brain`
+
+```python
+brain: str
+```
+
+Path to the brain-extracted image.
+
+######## `mask`
+
+```python
+mask: str
+```
+
+Path to the brain mask file.
+
+######## `plot`
+
+```python
+plot: str
+```
+
+Path to the full T1 image used for plotting.
+
+######## `resolution`
+
+```python
+resolution: Resolution = 2
+```
+
+######## `template`
+
+```python
+template: TemplateName = 'default'
+```
+
+
+
 ##### Methods
 
 ###### `get_brainspace`
@@ -604,7 +684,7 @@ Affine-based template matching and background-image selection.
 
 Name | Description
 ---- | -----------
-`TemplateMatch` | Result of matching a data affine to a template.
+[`TemplateMatch`](#templates-templatematch) | Result of matching a data affine to a template.
 
 **Methods:**
 
@@ -613,6 +693,70 @@ Name | Description
 [`get_bg_image`](#templates-get-bg-image) | Get a background image path matching a data resolution.
 [`is_standard_space`](#templates-is-standard-space) | Check whether an affine is compatible with our MNI templates.
 [`match_resolution`](#templates-match-resolution) | Find the best matching template for a given affine matrix.
+
+##### Classes
+
+###### `TemplateMatch`
+
+```python
+TemplateMatch(template: str, resolution: int, mask_path: str, brain_path: str, plot_path: str, match_distance: float) -> None
+```
+
+Result of matching a data affine to a template.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`template` | <code>[str](#str)</code> | Best-matching template name.
+`resolution` | <code>[int](#int)</code> | Best-matching resolution in mm.
+`mask_path` | <code>[str](#str)</code> | Path to the matched mask file.
+[`brain_path`](#templates-brain-path) | <code>[str](#str)</code> | Path to the matched brain file.
+`plot_path` | <code>[str](#str)</code> | Path to the matched T1/plot file.
+`match_distance` | <code>[float](#float)</code> | Absolute difference in mm between detected data resolution and the selected template resolution (0 for exact).
+
+
+
+####### Attributes##
+
+(templates-brain-path)=
+###### `brain_path`
+
+```python
+brain_path: str
+```
+
+######## `mask_path`
+
+```python
+mask_path: str
+```
+
+######## `match_distance`
+
+```python
+match_distance: float
+```
+
+######## `plot_path`
+
+```python
+plot_path: str
+```
+
+######## `resolution`
+
+```python
+resolution: int
+```
+
+######## `template`
+
+```python
+template: str
+```
+
+
 
 ##### Methods
 
@@ -767,56 +911,9 @@ Static registry of supported MNI templates.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`Resolution`](#templates-resolution) |  | 
-[`SUPPORTED_RESOLUTIONS`](#templates-supported-resolutions) | <code>[dict](#dict)[[str](#str), [list](#list)[[int](#int)]]</code> | 
-[`TEMPLATE_PRIORITY`](#templates-template-priority) | <code>[list](#list)[[str](#str)]</code> | 
-[`TemplateName`](#templates-templatename) |  | 
-[`VERSION_MAP`](#templates-version-map) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
-[`VERSION_TO_TEMPLATE`](#templates-version-to-template) | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
-
-
-
-##### Attributes
-
-(templates-resolution)=
-###### `Resolution`
-
-```python
-Resolution = Literal[1, 2, 3]
-```
-
-(templates-supported-resolutions)=
-###### `SUPPORTED_RESOLUTIONS`
-
-```python
-SUPPORTED_RESOLUTIONS: dict[str, list[int]] = {'default': [2, 3], 'nilearn': [1, 2, 3], 'fmriprep': [1, 2]}
-```
-
-(templates-template-priority)=
-###### `TEMPLATE_PRIORITY`
-
-```python
-TEMPLATE_PRIORITY: list[str] = ['default', 'nilearn', 'fmriprep']
-```
-
-(templates-templatename)=
-###### `TemplateName`
-
-```python
-TemplateName = Literal['default', 'nilearn', 'fmriprep']
-```
-
-(templates-version-map)=
-###### `VERSION_MAP`
-
-```python
-VERSION_MAP: dict[str, str] = {'default': 'fsl', 'nilearn': 'a', 'fmriprep': 'c'}
-```
-
-(templates-version-to-template)=
-###### `VERSION_TO_TEMPLATE`
-
-```python
-VERSION_TO_TEMPLATE: dict[str, str] = {v: k for k, v in (VERSION_MAP.items())}
-```
-
+`Resolution` |  | 
+`SUPPORTED_RESOLUTIONS` | <code>[dict](#dict)[[str](#str), [list](#list)[[int](#int)]]</code> | 
+`TEMPLATE_PRIORITY` | <code>[list](#list)[[str](#str)]</code> | 
+`TemplateName` |  | 
+`VERSION_MAP` | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 
+`VERSION_TO_TEMPLATE` | <code>[dict](#dict)[[str](#str), [str](#str)]</code> | 

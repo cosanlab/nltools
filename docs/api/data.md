@@ -92,7 +92,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-`Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
 [`data`](#data-data) |  | 
 `is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
 `is_single_matrix` |  | 
@@ -799,7 +799,7 @@ Name | Description
 
 Name | Type | Description
 ---- | ---- | -----------
-`cache_root` | <code>[Path](#pathlib.Path)</code> | 
+[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | 
 `designs` | <code>[list](#list)</code> | 
 `is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
 `mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
@@ -2432,6 +2432,784 @@ Name | Type | Description
 `MAX_INT` |  | 
 `nx` |  | 
 
+##### Classes
+
+###### `Adjacency`
+
+```python
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
+```
+
+Represent adjacency matrices in vectorized form.
+
+Adjacency is a class to represent Adjacency matrices as a vector rather
+than a 2-dimensional matrix. This makes it easier to perform data
+manipulation and analyses.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | pandas data instance or list of files | <code>None</code>
+`matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
+`Y` |  | Pandas DataFrame of training labels | <code>None</code>
+`labels` |  | (list) optional node labels | <code>None</code>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`append`](#data-append) | Append data to an Adjacency instance.
+[`bootstrap`](#data-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`cluster_summary`](#data-cluster-summary) | Provide summaries of clusters within Adjacency matrices.
+[`copy`](#data-copy) | Create a copy of Adjacency object.
+[`distance`](#data-distance) | Calculate distance between images within an Adjacency() instance.
+[`distance_to_similarity`](#data-distance-to-similarity) | Convert distance matrix to similarity matrix.
+[`generate_permutations`](#data-generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
+[`mean`](#data-mean) | Calculate mean of Adjacency.
+[`median`](#data-median) | Calculate median of Adjacency.
+[`plot`](#data-plot) | Create a heatmap of an Adjacency matrix.
+[`plot_label_distance`](#data-plot-label-distance) | Create a violin plot of within- and between-label distances.
+[`plot_mds`](#data-plot-mds) | Plot multidimensional scaling.
+[`plot_silhouette`](#data-plot-silhouette) | Create a silhouette plot.
+[`r_to_z`](#data-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
+[`regress`](#data-regress) | Run a regression on an adjacency instance.
+[`similarity`](#data-similarity) | Calculate similarity between two Adjacency matrices.
+[`social_relations_model`](#data-social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
+[`squareform`](#data-squareform) | Convert adjacency data back to square form.
+[`stats_label_distance`](#data-stats-label-distance) | Calculate permutation tests on within and between label distance.
+[`std`](#data-std) | Calculate standard deviation of Adjacency.
+[`sum`](#data-sum) | Calculate sum of Adjacency.
+[`threshold`](#data-threshold) | Threshold an Adjacency instance.
+[`to_brain`](#data-to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
+[`to_graph`](#data-to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
+[`to_square`](#data-to-square) | Convert adjacency back to square matrix format.
+[`ttest`](#data-ttest) | Calculate ttest across samples.
+[`write`](#data-write) | Write out Adjacency object to csv file.
+[`z_to_r`](#data-z-to-r) | Convert each z score back into an r value.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+[`data`](#data-data) |  | 
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
+
+
+
+####### Attributes##
+
+(data-y)=
+###### `Y`
+
+```python
+Y: pl.DataFrame
+```
+
+Training labels as a polars DataFrame (possibly empty).
+
+######## `data`
+
+```python
+data = np.array(f['data'])
+```
+
+######## `is_empty`
+
+```python
+is_empty: bool
+```
+
+Check if Adjacency object is empty.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`bool` | <code>[bool](#bool)</code> | True if the adjacency matrix is empty, False otherwise.
+
+######## `is_single_matrix`
+
+```python
+is_single_matrix = f['is_single_matrix'][]
+```
+
+######## `issymmetric`
+
+```python
+issymmetric = f['issymmetric'][]
+```
+
+######## `labels`
+
+```python
+labels = legacy['labels']
+```
+
+######## `matrix_type`
+
+```python
+matrix_type = f['matrix_type'][].decode()
+```
+
+######## `n_nodes`
+
+```python
+n_nodes
+```
+
+Return the number of nodes in the adjacency matrix.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`int` |  | Number of nodes (n) for an (n, n) matrix.
+
+######## `shape`
+
+```python
+shape
+```
+
+Return the logical shape of the adjacency matrix.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | For single matrix: (n_nodes, n_nodes)    For stacked matrices: (n_matrices, n_nodes, n_nodes)    For empty: (0, 0)
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Use `.vector_shape` to get the internal vectorized representation shape.
+
+</details>
+
+######## `spatial_scale`
+
+```python
+spatial_scale: SpatialScale | None = spatial_scale
+```
+
+######## `vector_shape`
+
+```python
+vector_shape
+```
+
+Return shape of internal vectorized representation.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | For single matrix: (vector_length,)    For stacked matrices: (n_matrices, vector_length)
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+This is the raw shape of the internal data storage.
+Use `.shape` for the logical (n_nodes, n_nodes) shape.
+
+</details>
+
+
+
+####### Functions##
+
+###### `append`
+
+```python
+append(data)
+```
+
+Append data to an Adjacency instance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | (Adjacency) Adjacency instance to append | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (Adjacency) new appended Adjacency instance
+
+######## `bootstrap`
+
+```python
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+```
+
+Bootstrap statistics using efficient online algorithms.
+
+Uses memory-efficient bootstrap infrastructure with CPU parallelization.
+Supports simple aggregation statistics (mean, std, median, sum, min, max).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
+`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
+`save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'   (all Adjacency objects). If save_boots=True, also includes 'samples'.
+
+**Examples:**
+
+```pycon
+>>> # Simple aggregation
+>>> boot = adj.bootstrap(stat='mean', n_samples=1000)
+>>> assert 'mean' in boot
+>>> assert isinstance(boot['mean'], Adjacency)
+```
+
+######## `cluster_summary`
+
+```python
+cluster_summary(clusters = None, metric = 'mean', summary = 'within')
+```
+
+Provide summaries of clusters within Adjacency matrices.
+
+Computes mean/median of within and between cluster values. Requires a
+list of cluster ids indicating the row/column of each cluster.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`clusters` |  | (list) list of cluster labels | <code>None</code>
+`metric` |  | (str) method to summarize mean or median. If 'None" then return all r values | <code>'mean'</code>
+`summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | within cluster means
+
+######## `copy`
+
+```python
+copy()
+```
+
+Create a copy of Adjacency object.
+
+######## `distance`
+
+```python
+distance(metric = 'correlation', include_diag = False, **kwargs)
+```
+
+Calculate distance between images within an Adjacency() instance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` |  | (str) type of distance metric (can use any scikit learn or     scipy metric) | <code>'correlation'</code>
+`include_diag` |  | (bool) whether to include the main diagonal when     computing distances between adjacency matrices. Only applies     to symmetric matrices. Default False (consistent with how     symmetric matrices are stored without diagonal). | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dist` |  | (Adjacency) Outputs a 2D distance matrix.
+
+######## `distance_to_similarity`
+
+```python
+distance_to_similarity(metric = 'correlation', beta = 1)
+```
+
+Convert distance matrix to similarity matrix.
+
+Note: currently only implemented for correlation and euclidean.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` |  | (str) Can only be correlation or euclidean | <code>'correlation'</code>
+`beta` |  | (float) parameter to scale exponential function (default: 1) for euclidean | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (Adjacency) Adjacency object
+
+######## `generate_permutations`
+
+```python
+generate_permutations(n_permute, random_state = None)
+```
+
+Generate permuted versions of an Adjacency instance lazily.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
+`random_state` | <code>([int](#int), [seed](#numpy.random.seed))</code> | random seed for reproducibility. | <code>None</code>
+
+**Examples:**
+
+```pycon
+>>> for perm in adj.generate_permutations(1000):
+>>>     out = neural_distance_mat.similarity(perm)
+>>>     ...
+```
+
+**Yields:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | permuted version of self
+
+######## `mean`
+
+```python
+mean(axis = 0)
+```
+
+Calculate mean of Adjacency.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate mean over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `median`
+
+```python
+median(axis = 0)
+```
+
+Calculate median of Adjacency.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate median over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `plot`
+
+```python
+plot(limit = 3, axes = None, *args, **kwargs)
+```
+
+Create a heatmap of an Adjacency matrix.
+
+Can pass in any sns.heatmap argument
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`limit` |  | (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3) | <code>3</code>
+`axes` |  | matplotlib axis handle | <code>None</code>
+
+######## `plot_label_distance`
+
+```python
+plot_label_distance(labels = None, ax = None)
+```
+
+Create a violin plot of within- and between-label distances.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`f` |  | violin plot handles
+
+######## `plot_mds`
+
+```python
+plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
+```
+
+Plot multidimensional scaling.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_components` |  | (int) Number of dimensions to project (can be 2 or 3) | <code>2</code>
+`metric` |  | (bool) Perform metric or non-metric dimensional scaling; default | <code>True</code>
+`labels` |  | (list) Can override labels stored in Adjacency Class | <code>None</code>
+`labels_color` |  | (str) list of colors for labels, if len(1) then make all same color | <code>None</code>
+`cmap` |  | colormap instance (default: plt.cm.hot_r) | <code>None</code>
+`view` |  | (tuple) view for 3-Dimensional plot; default (30,20) | <code>(30, 20)</code>
+`figsize` |  | (list) figure size; default [12, 8] | <code>None</code>
+`ax` |  | matplotlib axis handle | <code>None</code>
+`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
+
+######## `plot_silhouette`
+
+```python
+plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+```
+
+Create a silhouette plot.
+
+######## `r_to_z`
+
+```python
+r_to_z()
+```
+
+Apply Fisher's r-to-z transformation to each data element.
+
+######## `regress`
+
+```python
+regress(X, method = 'ols')
+```
+
+Run a regression on an adjacency instance.
+You can decompose an adjacency instance with another adjacency instance.
+You can also decompose each pixel by passing a design_matrix instance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`stats` |  | (dict) dictionary of stats outputs.
+
+######## `similarity`
+
+```python
+similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
+```
+
+Calculate similarity between two Adjacency matrices.
+
+The default uses Spearman correlation and a permutation test.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
+`permutation_method` |  | (str) '1d','2d', or None | <code>'2d'</code>
+`metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
+`include_diag` |  | (bool) only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
+`nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
+
+######## `social_relations_model`
+
+```python
+social_relations_model(summarize_results = True, nan_replace = True)
+```
+
+Estimate the social relations model from a matrix for a round-robin design.
+
+X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+
+where X_{ij} is the score for person i rating person j, m is the group mean,
+\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
+is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+
+This model is primarily concerned with partioning the variance of the various effects.
+
+Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
+Tests replicate examples  presented in the book. Note, that this method assumes that
+actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
+The minimal sample size to estimate these effects is 4.
+
+<details class="model-assumptions" open markdown="1">
+<summary>Model Assumptions</summary>
+
+- Social interactions are exclusively dyadic
+- People are randomly sampled from population
+- No order effects
+- The effects combine additively and relationships are linear
+
+</details>
+
+In the future we might update the formulas and standard errors based on
+Bond and Lashley, 1996
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`self` |  | (adjacency) can be a single matrix or many matrices for each group | *required*
+`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
+`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+
+######## `squareform`
+
+```python
+squareform()
+```
+
+Convert adjacency data back to square form.
+
+######## `stats_label_distance`
+
+```python
+stats_label_distance(labels = None, n_permute = 5000, n_jobs = -1)
+```
+
+Calculate permutation tests on within and between label distance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
+`n_permute` | <code>[int](#int)</code> | number of permutations to run (default=5000) | <code>5000</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | dictionary of within and between group differences     and p-values
+
+######## `std`
+
+```python
+std(axis = 0)
+```
+
+Calculate standard deviation of Adjacency.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate std over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `sum`
+
+```python
+sum(axis = 0)
+```
+
+Calculate sum of Adjacency.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate sum over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `threshold`
+
+```python
+threshold(upper = None, lower = None, binarize = False)
+```
+
+Threshold an Adjacency instance.
+
+Provide upper and lower values or percentages to perform two-sided
+thresholding. Binarize will return a mask image respecting thresholds
+if provided, otherwise respecting every non-zero value.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | thresholded Adjacency instance
+
+######## `to_brain`
+
+```python
+to_brain(values, *, fill: float = np.nan)
+```
+
+Project per-matrix scalars back to voxel-space `BrainData`.
+
+Requires `spatial_scale` to be set (i.e. this stack came from
+`BrainData.distance` or another spatial-scale-aware producer).
+Each entry of ``values`` is painted onto the voxels assigned to its
+corresponding parcel by ``spatial_scale.atlas`` /
+``spatial_scale.roi_labels``. Voxels outside the atlas receive
+``fill``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
+`fill` | <code>[float](#float)</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | Single image masked to ``spatial_scale.source_mask``.
+
+**Examples:**
+
+```pycon
+>>> rdms = brain.distance(metric='correlation',
+...                       spatial_scale='roi', roi_mask=atlas)
+>>> sims = rdms.similarity(model_rdm)
+>>> brain_map = rdms.to_brain(sims)
+```
+
+######## `to_graph`
+
+```python
+to_graph()
+```
+
+Convert a single Adjacency matrix into a NetworkX graph.
+
+This currently works only for ``single_matrix``.
+
+######## `to_square`
+
+```python
+to_square()
+```
+
+Convert adjacency back to square matrix format.
+
+This is an alias for `squareform`.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | np.ndarray or list: Square matrix representation. Returns a list
+ | of matrices if this object contains multiple adjacency matrices.
+
+######## `ttest`
+
+```python
+ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+```
+
+Calculate ttest across samples.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
+
+######## `write`
+
+```python
+write(file_name, method = 'long')
+```
+
+Write out Adjacency object to csv file.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
+`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
+
+######## `z_to_r`
+
+```python
+z_to_r()
+```
+
+Convert each z score back into an r value.
+
+
+
 ##### Methods
 
 ##### Modules
@@ -3229,6 +4007,178 @@ Name | Type | Description
 `AtlasKind` |  | 
 `DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
+##### Classes
+
+###### `Atlas`
+
+```python
+Atlas(name: str, image: nb.Nifti1Image, labels: pl.DataFrame, kind: AtlasKind, citation: str) -> None
+```
+
+A loaded atlas — image, labels, and metadata.
+
+Constructed by `load_atlas`; users normally don't instantiate
+directly.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`name` | <code>[str](#str)</code> | Registry key (e.g. ``"harvard_oxford"``).
+`image` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
+`labels` | <code>[DataFrame](#polars.DataFrame)</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
+`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
+[`citation`](#data-citation) | <code>[str](#str)</code> | Short citation for the original atlas.
+
+
+
+####### Attributes##
+
+(data-citation)=
+###### `citation`
+
+```python
+citation: str
+```
+
+######## `image`
+
+```python
+image: nb.Nifti1Image
+```
+
+######## `kind`
+
+```python
+kind: AtlasKind
+```
+
+######## `labels`
+
+```python
+labels: pl.DataFrame
+```
+
+######## `name`
+
+```python
+name: str
+```
+
+(data-atlasmetadata)=
+###### `AtlasMetadata`
+
+```python
+AtlasMetadata(kind: AtlasKind, citation: str) -> None
+```
+
+Static description of a registered atlas.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+[`citation`](#data-citation) | <code>[str](#str)</code> | Short citation string for the original atlas.
+
+
+
+####### Attributes##
+
+###### `citation`
+
+```python
+citation: str
+```
+
+######## `kind`
+
+```python
+kind: AtlasKind
+```
+
+(data-clusterreport)=
+###### `ClusterReport`
+
+```python
+ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
+```
+
+Result of `BrainData.cluster_report`.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+[`clusters`](#data-clusters) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
+`stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`plot`](#data-plot) | Render an overview glass brain + one slice figure per cluster.
+`to_csv` | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
+
+
+
+####### Attributes##
+
+(data-clusters)=
+###### `clusters`
+
+```python
+clusters: pl.DataFrame
+```
+
+######## `peaks`
+
+```python
+peaks: pl.DataFrame
+```
+
+######## `stat_img`
+
+```python
+stat_img: BrainData
+```
+
+
+
+####### Functions##
+
+###### `plot`
+
+```python
+plot(*, output_dir: str | Path | None = None) -> list[tuple[str, Any]] | None
+```
+
+Render an overview glass brain + one slice figure per cluster.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`output_dir` | <code>[str](#str) \| [Path](#pathlib.Path) \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``(label, figure)`` tuples.
+
+######## `to_csv`
+
+```python
+to_csv(output_dir: str | Path) -> None
+```
+
+Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
+
+
+
 ##### Methods
 
 (data-cluster-report-data)=
@@ -3450,7 +4400,6 @@ Name | Type | Description
 
 ######### Attributes####
 
-(data-citation)=
 ###### `citation`
 
 ```python
@@ -3568,7 +4517,6 @@ DEFAULT_ATLASES: tuple[str, ...] = ('harvard_oxford', 'aal', 'schaefer_200')
 
 ####### Classes##
 
-(data-atlasmetadata)=
 ###### `AtlasMetadata`
 
 ```python
@@ -3646,7 +4594,6 @@ Name | Description
 
 ####### Classes##
 
-(data-clusterreport)=
 ###### `ClusterReport`
 
 ```python
@@ -3674,7 +4621,6 @@ Name | Description
 
 ######### Attributes####
 
-(data-clusters)=
 ###### `clusters`
 
 ```python
@@ -3781,25 +4727,2275 @@ See ``SPEC.md`` for the full design contract.
 
 Name | Description
 ---- | -----------
-`core` | Module-level helpers for BrainCollection.
-`execution` | Parallel execution machinery for BrainCollection.
-`inference` | Group-level reductions and cross-subject ops for BrainCollection.
+[`core`](#data-core) | Module-level helpers for BrainCollection.
+[`execution`](#data-execution) | Parallel execution machinery for BrainCollection.
+[`inference`](#data-inference) | Group-level reductions and cross-subject ops for BrainCollection.
 [`io`](#data-io) | IO and constructors for BrainCollection.
-`pipeline` | Pipeline classes for BrainCollection.
+[`pipeline`](#data-pipeline) | Pipeline classes for BrainCollection.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
 [`BrainCollection`](#data-braincollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
-`BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
-`BrainCollectionWorkerError` | Raised in the parent process when a worker fails inside ``_apply``.
+[`BrainCollectionPipeline`](#data-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
+[`BrainCollectionWorkerError`](#data-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BUNDLE_SCHEMA_VERSION` |  | 
+[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
+
+##### Classes
+
+###### `BrainCollection`
+
+```python
+BrainCollection(brains: list, *, mask: nib.Nifti1Image | Path | str, designs: list | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, lazy: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> None
+```
+
+Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
+
+Constructed via ``__init__`` (explicit lists) or one of the classmethod
+factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
+
+See ``SPEC.md`` §"Public API" for the full contract; key invariants:
+  - Per-subject ops route through ``execution._apply`` and return a
+    lightweight clone via ``self._clone(...)`` over the same cache root.
+  - Path-backed by default after parallel ops; ``cache='auto'`` follows
+    source state. ``cache=`` is only accepted on collection-returning ops.
+  - ``load`` / ``unload`` are the only methods that mutate ``self``.
+
+Internal state (mutable list at top level; per-item slots are parallel):
+
+  _items          list[BrainData | Path]        per-item brain data
+  _mask           nib.Nifti1Image               shared mask (by reference)
+  _designs        list[DesignMatrix | Path | None]
+  _confounds      list[pd.DataFrame | None]
+  _sample_masks   list[np.ndarray | None]
+  _metadata       pl.DataFrame                  simple-typed columns only
+  _cache_root     Path | None                   shared by clones
+  _step_id        str | None                    this collection's step id
+  _parent_step_id str | None                    upstream step id (lineage)
+  _step_dirs      list[Path]                    lineage of step subdirs
+                                                that produced these items
+  _source_paths   list[Path | None]             per-item backing path
+                                                (None for in-memory only)
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`align`](#data-align) | 
+[`anova`](#data-anova) | 
+[`apply`](#data-apply) | Call ``BrainData.<op>(*args, **kwargs)`` on every item in parallel.
+[`cleanup`](#data-cleanup) | Remove ``cache_root`` and invalidate every clone derived from ``self``.
+[`cleanup_all`](#data-cleanup-all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
+[`compute_contrasts`](#data-compute-contrasts) | Compute per-subject contrast maps from fit-bundle items.
+[`concat`](#data-concat) | 
+[`cv`](#data-cv) | Build a CV pipeline for cross-subject prediction.
+[`detrend`](#data-detrend) | 
+[`filter`](#data-filter) | Filter to a subset by predicate, polars expression, or boolean array.
+[`fit`](#data-fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
+[`from_bids`](#data-from-bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+[`from_glob`](#data-from-glob) | 
+[`from_paths`](#data-from-paths) | 
+[`isc`](#data-isc) | 
+[`isc_test`](#data-isc-test) | 
+[`iter_pairs`](#data-iter-pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
+[`load`](#data-load) | Materialize path-backed items in place. Returns ``self`` for chaining.
+[`map`](#data-map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
+[`max`](#data-max) | 
+[`mean`](#data-mean) | 
+[`median`](#data-median) | 
+[`memory_estimate`](#data-memory-estimate) | 
+[`min`](#data-min) | 
+[`permutation_test`](#data-permutation-test) | 
+[`permutation_test2`](#data-permutation-test2) | 
+[`predict`](#data-predict) | Two distinct paths, dispatched by argument:
+[`read`](#data-read) | Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+[`resample`](#data-resample) | 
+[`smooth`](#data-smooth) | 
+[`standardize`](#data-standardize) | 
+[`std`](#data-std) | 
+[`steps`](#data-steps) | Step subdirs that produced this collection's items, oldest to newest.
+[`sum`](#data-sum) | 
+[`threshold`](#data-threshold) | 
+[`transform_designs`](#data-transform-designs) | Map ``fn(dm) -> DesignMatrix`` over each paired design.
+[`ttest`](#data-ttest) | 
+[`ttest2`](#data-ttest2) | 
+[`unload`](#data-unload) | Drop in-memory data for items with backing paths. Returns ``self``.
+[`var`](#data-var) | 
+[`write`](#data-write) | 
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | 
+`designs` | <code>[list](#list)</code> | 
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | 
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | 
+`n_subjects` | <code>[int](#int)</code> | 
+`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
+``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
+Resolved at construction and frozen on the instance.
+
+
+
+####### Attributes##
+
+(data-cache-root)=
+###### `cache_root`
+
+```python
+cache_root: Path
+```
+
+######## `designs`
+
+```python
+designs: list
+```
+
+######## `is_loaded`
+
+```python
+is_loaded: list[bool]
+```
+
+Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+
+######## `mask`
+
+```python
+mask: nib.Nifti1Image
+```
+
+######## `metadata`
+
+```python
+metadata: pl.DataFrame
+```
+
+######## `n_subjects`
+
+```python
+n_subjects: int
+```
+
+######## `n_voxels`
+
+```python
+n_voxels: int
+```
+
+Voxel count from the mask. Raises if mask is unset.
+
+######## `shape`
+
+```python
+shape: tuple[int, int | None, int]
+```
+
+``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+``n_obs`` is ``None`` when any item is path-backed (loading just to
+report shape would defeat the purpose) or when items are ragged.
+
+
+
+####### Functions##
+
+###### `align`
+
+```python
+align(*, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+```
+
+######## `anova`
+
+```python
+anova(groups: str | list | np.ndarray) -> dict
+```
+
+######## `apply`
+
+```python
+apply(op: str, *args: str, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **kwargs: Literal['auto', True, False]) -> BrainCollection
+```
+
+Call ``BrainData.<op>(*args, **kwargs)`` on every item in parallel.
+
+All per-subject methods (``smooth``, ``standardize``, ...) reduce to
+this. Centralizes the ``_apply`` plumbing and the cache-knob handling.
+``op`` is named ``op`` (not ``method``) to avoid colliding with
+``BrainData`` methods that themselves take a ``method=`` kwarg
+(``standardize``, ``detrend``, ...).
+
+######## `cleanup`
+
+```python
+cleanup() -> None
+```
+
+Remove ``cache_root`` and invalidate every clone derived from ``self``.
+
+Idempotent — calling twice is a no-op. Path-backed items in any
+clone become unloadable after this; use ``bc.write(...)`` first to
+materialize a portable copy if needed.
+
+######## `cleanup_all`
+
+```python
+cleanup_all(directory: Path | str = '.') -> None
+```
+
+Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
+
+Wide brush — can kill sibling sessions in the same cwd. Prefer
+``bc.cleanup()`` for surgical removal.
+
+######## `compute_contrasts`
+
+```python
+compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, contrast_type: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
+```
+
+Compute per-subject contrast maps from fit-bundle items.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``contrast_type`` → ``BrainCollection``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts (single type)            → ``dict[str, BrainCollection]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``contrast_type='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``contrast_type='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
+
+Each per-subject NIfTI gets a JSON sidecar with lineage attrs
+(``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
+``nltools_version``).
+
+######## `concat`
+
+```python
+concat() -> BrainData
+```
+
+######## `cv`
+
+```python
+cv(*, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainCollectionPipeline
+```
+
+Build a CV pipeline for cross-subject prediction.
+
+See ``pipeline.py`` for the builder API. The pipeline's ``predict``
+terminal returns a ``BrainData`` with CV attrs attached.
+
+######## `detrend`
+
+```python
+detrend(*, method: str = 'linear', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+######## `filter`
+
+```python
+filter(predicate: Callable[[Any], Any] | list | np.ndarray | pl.Series | pd.Series) -> BrainCollection
+```
+
+Filter to a subset by predicate, polars expression, or boolean array.
+
+######## `fit`
+
+```python
+fit(model: str = 'glm', X: DesignMatrix | list | Callable | None = None, *, scale: bool = True, scale_value: float = 100.0, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **model_kwargs: Literal['auto', True, False]) -> BrainCollection
+```
+
+Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
+
+``X`` resolution priority:
+  - ``None``         → use ``self.designs`` (must be set per subject)
+  - ``DesignMatrix`` → shared across all subjects
+  - ``list``         → per-subject (len == n_subjects)
+  - ``callable``     → ``fn(ctx: _DesignContext) -> DesignMatrix``
+
+######## `from_bids`
+
+```python
+from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: str | None = None, space: str | None = None, sub_labels: list[str] | None = None, img_filters: list[tuple[str, str]] | None = None, derivatives_folder: str = 'derivatives', pair_events: bool = True, confounds_strategy: str | tuple[str, ...] | None = None, confounds_kwargs: dict | None = None, TR: float | str = 'infer', cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+
+Full design and edge cases: SPEC §"``from_bids`` — concrete design".
+
+######## `from_glob`
+
+```python
+from_glob(pattern: str, *, mask: nib.Nifti1Image | Path | str, design_pattern: str | None = None, pattern_groups: dict[str, int] | str | None = None, sort: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+######## `from_paths`
+
+```python
+from_paths(brain_paths: list, *, mask: nib.Nifti1Image | Path | str, design_paths: list | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+######## `isc`
+
+```python
+isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
+```
+
+######## `isc_test`
+
+```python
+isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False, random_state: int | None = None) -> dict
+```
+
+######## `iter_pairs`
+
+```python
+iter_pairs() -> Iterator[tuple]
+```
+
+Yield ``(BrainData, DesignMatrix | None)`` pairs.
+
+######## `load`
+
+```python
+load(indices: list[int] | None = None) -> BrainCollection
+```
+
+Materialize path-backed items in place. Returns ``self`` for chaining.
+
+######## `map`
+
+```python
+map(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
+
+######## `max`
+
+```python
+max() -> BrainData
+```
+
+######## `mean`
+
+```python
+mean() -> BrainData
+```
+
+######## `median`
+
+```python
+median() -> BrainData
+```
+
+######## `memory_estimate`
+
+```python
+memory_estimate() -> str
+```
+
+######## `min`
+
+```python
+min() -> BrainData
+```
+
+######## `permutation_test`
+
+```python
+permutation_test(*, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+```
+
+######## `permutation_test2`
+
+```python
+permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+```
+
+######## `predict`
+
+```python
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+```
+
+Two distinct paths, dispatched by argument:
+
+  ``y=`` only    → group MVPA (subjects as samples) → ``BrainData``
+  ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
+  both / neither → raise
+
+``predict(y=...)`` requires single-map-per-subject items (run
+``compute_contrasts(...)`` first if you have GLM/ridge bundles).
+
+######## `read`
+
+```python
+read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+
+######## `resample`
+
+```python
+resample(target, *, interpolation: str = 'continuous', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+######## `smooth`
+
+```python
+smooth(fwhm: float, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+######## `standardize`
+
+```python
+standardize(*, axis: int = 0, method: str = 'center', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+######## `std`
+
+```python
+std() -> BrainData
+```
+
+######## `steps`
+
+```python
+steps() -> list[Path]
+```
+
+Step subdirs that produced this collection's items, oldest to newest.
+
+Lineage chain accumulated through clones (one entry per upstream
+cached op). Empty when the collection was constructed directly or
+no ancestor wrote to disk.
+
+######## `sum`
+
+```python
+sum() -> BrainData
+```
+
+######## `threshold`
+
+```python
+threshold(*, lower: float | None = None, upper: float | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+######## `transform_designs`
+
+```python
+transform_designs(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+```
+
+Map ``fn(dm) -> DesignMatrix`` over each paired design.
+
+Items with no paired design are skipped (kept as ``None``). Runs in
+the parent process — designs are small. ``n_jobs``/``progress_bar``/
+``cache`` are accepted for surface consistency but ignored.
+
+######## `ttest`
+
+```python
+ttest(*, popmean: float = 0.0) -> dict
+```
+
+######## `ttest2`
+
+```python
+ttest2(other: BrainCollection, *, equal_var: bool = True) -> dict
+```
+
+######## `unload`
+
+```python
+unload(indices: list[int] | None = None) -> BrainCollection
+```
+
+Drop in-memory data for items with backing paths. Returns ``self``.
+
+######## `var`
+
+```python
+var() -> BrainData
+```
+
+######## `write`
+
+```python
+write(directory: Path | str, *, pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list[Path]
+```
+
+(data-braincollectionpipeline)=
+###### `BrainCollectionPipeline`
+
+```python
+BrainCollectionPipeline(brain_collection: BrainCollection, cv: BrainCollection = None, groups: np.ndarray | None = None)
+```
+
+Pipeline for BrainCollection with multi-subject CV support.
+
+Wraps BrainCollection to provide fluent pipeline API with LOSO
+and run-based cross-validation.
+
+This class enables method chaining for preprocessing and prediction
+with proper cross-validation semantics for multi-subject neuroimaging
+analyses.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
+[`cv`](#data-cv) |  | The cross-validation scheme configuration.
+`n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
+
+**Examples:**
+
+```pycon
+>>> # Leave-one-subject-out with preprocessing
+>>> result = (bc
+...     .cv(scheme='loso')
+...     .standardize()
+...     .reduce(n_components=50)
+...     .predict(labels, algorithm='svm'))
+>>> print(f"Mean accuracy: {result.mean_score:.2%}")
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-pipe) | Add custom sklearn transformer.
+[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
+`reduce` | Add dimensionality reduction step.
+[`standardize`](#data-standardize) | Add standardization step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
+
+
+
+####### Attributes##
+
+###### `cv`
+
+```python
+cv
+```
+
+Cross-validation scheme.
+
+######## `n_steps`
+
+```python
+n_steps: int
+```
+
+Number of transform steps.
+
+######## `n_subjects`
+
+```python
+n_subjects: int
+```
+
+Number of subjects/images.
+
+
+
+####### Functions##
+
+(data-pipe)=
+###### `pipe`
+
+```python
+pipe(transformer) -> BrainCollectionPipeline
+```
+
+Add custom sklearn transformer.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`transformer` |  | sklearn-compatible transformer with fit/transform interface. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with custom step added.
+
+######## `predict`
+
+```python
+predict(y, algorithm: str = 'ridge', **kwargs: str)
+```
+
+Execute pipeline with CV and return prediction results.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
+`algorithm` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`**kwargs` |  | Passed to model constructor. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ``BrainData`` carrying out-of-fold predictions plus CV attributes
+ | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+ | ``fold_results``, ``cv_pipeline``).
+
+######## `reduce`
+
+```python
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> BrainCollectionPipeline
+```
+
+Add dimensionality reduction step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
+`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
+
+######## `standardize`
+
+```python
+standardize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
+```
+
+Add standardization step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
+`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with standardization step added.
+
+(data-braincollectionworkererror)=
+###### `BrainCollectionWorkerError`
+
+Bases: <code>[RuntimeError](#RuntimeError)</code>
+
+Raised in the parent process when a worker fails inside ``_apply``.
+
+Wraps the original exception via ``raise ... from e`` so the full
+traceback is preserved. The message embeds subject/run context from
+``_ItemTask.metadata_row`` so users can locate the offending item.
+
+
+
+##### Modules
+
+(data-core)=
+###### `core`
+
+Module-level helpers for BrainCollection.
+
+Pure functions: metadata coercion, mask resolution, run/step ID generation,
+step-directory naming. No class state lives here.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`coerce_metadata`](#data-coerce-metadata) | Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
+`make_run_id` | Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+`make_step_dirname` | Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
+`resolve_cache_dir` | Resolve ``cache_dir`` per the spec's precedence rules.
+`resolve_mask` | Resolve a mask spec into a Nifti1Image.
+
+
+
+####### Functions##
+
+(data-coerce-metadata)=
+###### `coerce_metadata`
+
+```python
+coerce_metadata(metadata: pl.DataFrame | pd.DataFrame | dict | None, n_subjects: int) -> pl.DataFrame
+```
+
+Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
+
+Accepts polars/pandas DataFrames or a dict-of-columns. ``None`` yields a
+DataFrame with a default ``subject`` column (``sub-0001``, ...).
+
+Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
+the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
+
+######## `make_run_id`
+
+```python
+make_run_id(now: datetime | None = None) -> str
+```
+
+Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+
+Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
+``secrets.token_hex(4)``. Lex-sortable, collision-free across processes.
+
+######## `make_step_dirname`
+
+```python
+make_step_dirname(op: str, kwargs: dict[str, Any] | None = None, *, now: datetime | None = None) -> str
+```
+
+Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
+
+Each call yields a unique name (UUID tail) — same op + same params
+twice produces two subdirs, never overwriting. The zero-padded ``seq`` is
+a process-monotonic counter placed after the second-resolution timestamp,
+so lexicographic order tracks creation order even for calls that share a
+second (the timestamp stays the primary, cross-process ordering key).
+
+######## `resolve_cache_dir`
+
+```python
+resolve_cache_dir(cache_dir: Path | str | None) -> Path | None
+```
+
+Resolve ``cache_dir`` per the spec's precedence rules.
+
+Order: explicit arg → ``NLTOOLS_CACHE_DIR`` env var → ``./.nltools_cache``.
+Returns ``None`` when the caller passes ``None`` (signaling tempdir mode).
+The returned path is *not* yet decorated with a ``run_id`` subdir; that
+happens at construction time on the instance.
+
+######## `resolve_mask`
+
+```python
+resolve_mask(mask: nib.Nifti1Image | Path | str) -> nib.Nifti1Image
+```
+
+Resolve a mask spec into a Nifti1Image.
+
+Accepts a Nifti1Image, a path, or a known nltools template string
+(e.g. ``"3mm-MNI152-2009c"``). String templates dispatch to the same
+resolver used by ``BrainData``.
+
+(data-execution)=
+###### `execution`
+
+Parallel execution machinery for BrainCollection.
+
+Holds the worker-side dataclasses (``_ItemTask``, ``_DesignContext``), the
+single parallel primitive (``_apply``), the worker-error type, and the
+HDF5 fit-bundle IO. Every per-subject method on ``BrainCollection`` routes
+through ``_apply`` here.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BrainCollectionWorkerError`](#data-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
+`tqdm_joblib` | Context manager that updates a tqdm bar as joblib workers complete.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`read_glm_bundle`](#data-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+`read_ridge_bundle` | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
+`write_glm_bundle` | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+`write_ridge_bundle` | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
+
+
+
+####### Attributes##
+
+(data-bundle-schema-version)=
+###### `BUNDLE_SCHEMA_VERSION`
+
+```python
+BUNDLE_SCHEMA_VERSION = 1
+```
+
+
+
+####### Classes##
+
+###### `BrainCollectionWorkerError`
+
+Bases: <code>[RuntimeError](#RuntimeError)</code>
+
+Raised in the parent process when a worker fails inside ``_apply``.
+
+Wraps the original exception via ``raise ... from e`` so the full
+traceback is preserved. The message embeds subject/run context from
+``_ItemTask.metadata_row`` so users can locate the offending item.
+
+######## `tqdm_joblib`
+
+```python
+tqdm_joblib(total: int, desc: str = '', disable: bool = False) -> None
+```
+
+Context manager that updates a tqdm bar as joblib workers complete.
+
+Replaces today's submit-time wrapper, which advances on dispatch rather
+than completion. Monkey-patches ``BatchCompletionCallBack.__call__`` for
+the duration of the ``with`` block.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`desc`](#data-desc) |  | 
+`disable` |  | 
+`total` |  | 
+
+
+
+######### Attributes####
+
+(data-desc)=
+###### `desc`
+
+```python
+desc = desc
+```
+
+########## `disable`
+
+```python
+disable = disable
+```
+
+########## `total`
+
+```python
+total = total
+```
+
+
+
+####### Functions##
+
+(data-read-glm-bundle)=
+###### `read_glm_bundle`
+
+```python
+read_glm_bundle(path: Path) -> dict[str, Any]
+```
+
+Read a GLM bundle. Validates ``bundle_schema_version``.
+
+Schema-version mismatch raises with a migration message; nltools-version
+mismatch logs a warning but does not refuse — bundles are usually
+forward-compatible within a minor version.
+
+######## `read_ridge_bundle`
+
+```python
+read_ridge_bundle(path: Path) -> dict[str, Any]
+```
+
+Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
+
+######## `write_glm_bundle`
+
+```python
+write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, sigma2: np.ndarray, r2: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], scale: bool, scale_value: float, model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+```
+
+Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+
+Layout (see SPEC §"HDF5 fit bundle"):
+    /betas, /residuals, /sigma2, /r2, /X, /mask
+    attrs: affine, regressor_names, scale, scale_value, model_kwargs,
+           nltools_version, bundle_schema_version,
+           step_id, parent_step_id, op, kwargs (JSON-encoded).
+
+Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
+portable across machines. Uses ``h5py.File(..., locking=False)``.
+
+######## `write_ridge_bundle`
+
+```python
+write_ridge_bundle(out_path: Path, *, weights: np.ndarray, intercept: np.ndarray, cv_scores: np.ndarray, predictions: np.ndarray, scores: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+```
+
+Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
+
+Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
+(``weights``, ``intercept``, ``cv_scores``, ``predictions``, ``scores``).
+
+
+
+####### Modules
+
+(data-inference)=
+###### `inference`
+
+Group-level reductions and cross-subject ops for BrainCollection.
+
+Module-level functions that the ``BrainCollection`` facade delegates to.
+Reductions stream from path-backed inputs (Welford-style) and produce
+in-memory ``BrainData`` (or dicts of them); they never path-back their
+own output.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`align`](#data-align) | Functional alignment via ``LocalAlignment``.
+[`anova`](#data-anova) | One-way ANOVA across subjects.
+[`concat`](#data-concat) | Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
+[`isc`](#data-isc) | Inter-subject correlation across the time dimension.
+[`isc_test`](#data-isc-test) | Bootstrap inference on ISC.
+`max_` | Per-voxel max across subjects. Streams.
+[`mean`](#data-mean) | Mean across subjects (leading axis). Streams from path-backed input.
+[`median`](#data-median) | Median across subjects. Materializes (not streaming-friendly).
+`min_` | Per-voxel min across subjects. Streams.
+[`permutation_test`](#data-permutation-test) | Sign-flipping permutation test across subjects (one-sample).
+[`permutation_test2`](#data-permutation-test2) | Two-sample permutation test by random label shuffling.
+[`std`](#data-std) | Std across subjects. Streams via Welford; ddof=1.
+`sum_` | Sum across subjects. Streams.
+[`ttest`](#data-ttest) | One-sample t-test across subjects.
+[`ttest2`](#data-ttest2) | Two-sample t-test between two collections (subject-level).
+[`var`](#data-var) | Variance across subjects. Streams via Welford; ddof=1.
+
+
+
+####### Classes
+
+####### Functions##
+
+###### `align`
+
+```python
+align(bc: BrainCollection, *, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+```
+
+Functional alignment via ``LocalAlignment``.
+
+Materializes all subjects (algorithm constraint in v0.6.0). Returns
+a new ``BrainCollection`` of aligned data, or
+``(BrainCollection, LocalAlignment)`` when ``return_model=True``.
+
+######## `anova`
+
+```python
+anova(bc: BrainCollection, groups: str | list | np.ndarray) -> dict[str, BrainData | int]
+```
+
+One-way ANOVA across subjects.
+
+``groups`` is a metadata column name, a list, or an ndarray of length
+``n_subjects``. Returns ``{'F', 'p', 'df_between', 'df_within'}``.
+
+######## `concat`
+
+```python
+concat(bc: BrainCollection) -> BrainData
+```
+
+Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
+
+Not streamable — the operation *is* materialization. 1D items are
+promoted to ``(1, n_voxels)`` before concatenation.
+
+######## `isc`
+
+```python
+isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
+```
+
+Inter-subject correlation across the time dimension.
+
+method='loo' uses the leave-one-out template approach (each subject
+correlated with the average of the others). method='pairwise' computes
+all subject pairs. Both materialize all subjects in v0.6.0; the
+streaming rewrite is deferred to a later release.
+
+Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
+for ``pairwise``.
+
+######## `isc_test`
+
+```python
+isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_permute: int = 5000, permutation_method: str = 'bootstrap', metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False, random_state: int | None = None) -> dict
+```
+
+Bootstrap inference on ISC.
+
+Resamples subjects with replacement, recomputes ISC each draw, and
+derives a per-voxel p-value from the null distribution centered at 0.
+
+######## `max_`
+
+```python
+max_(bc: BrainCollection) -> BrainData
+```
+
+Per-voxel max across subjects. Streams.
+
+######## `mean`
+
+```python
+mean(bc: BrainCollection) -> BrainData
+```
+
+Mean across subjects (leading axis). Streams from path-backed input.
+
+######## `median`
+
+```python
+median(bc: BrainCollection) -> BrainData
+```
+
+Median across subjects. Materializes (not streaming-friendly).
+
+######## `min_`
+
+```python
+min_(bc: BrainCollection) -> BrainData
+```
+
+Per-voxel min across subjects. Streams.
+
+######## `permutation_test`
+
+```python
+permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+```
+
+Sign-flipping permutation test across subjects (one-sample).
+
+Per SPEC streaming-algorithms table, sign-flipping needs all subjects
+in memory by design. ``device`` is currently informational; backend
+selection is deferred to the parametric stats path.
+
+######## `permutation_test2`
+
+```python
+permutation_test2(bc: BrainCollection, other: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+```
+
+Two-sample permutation test by random label shuffling.
+
+######## `std`
+
+```python
+std(bc: BrainCollection) -> BrainData
+```
+
+Std across subjects. Streams via Welford; ddof=1.
+
+######## `sum_`
+
+```python
+sum_(bc: BrainCollection) -> BrainData
+```
+
+Sum across subjects. Streams.
+
+######## `ttest`
+
+```python
+ttest(bc: BrainCollection, *, popmean: float = 0.0) -> dict[str, BrainData]
+```
+
+One-sample t-test across subjects.
+
+Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
+``BrainData.ttest``. Streams from path-backed input via Welford.
+
+######## `ttest2`
+
+```python
+ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True) -> dict[str, BrainData]
+```
+
+Two-sample t-test between two collections (subject-level).
+
+######## `var`
+
+```python
+var(bc: BrainCollection) -> BrainData
+```
+
+Variance across subjects. Streams via Welford; ddof=1.
+
+###### `io`
+
+IO and constructors for BrainCollection.
+
+Constructors (``from_bids``, ``from_glob``, ``from_paths``, ``read``),
+write, load/unload, cache plumbing, and ``memory_estimate``. Anything that
+crosses the disk boundary lives here.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`discover_bids`](#data-discover-bids) | Walk the BIDS dataset and return aligned per-item lists.
+[`from_bids`](#data-from-bids) | Build a ``BrainCollection`` from a BIDS dataset.
+[`from_glob`](#data-from-glob) | Build a collection by globbing for BOLD images (and optionally designs).
+[`from_paths`](#data-from-paths) | Build a collection from explicit lists of brain (and design) paths.
+[`load`](#data-load) | Materialize path-backed items into ``BrainData``.
+[`memory_estimate`](#data-memory-estimate) | Human-readable RAM estimate if every item were loaded.
+[`read`](#data-read) | Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
+[`unload`](#data-unload) | Drop in-memory data for items that have backing paths.
+[`write`](#data-write) | Write a clean, portable copy of ``bc`` outside the cache root.
+
+
+
+####### Classes
+
+####### Functions##
+
+(data-discover-bids)=
+###### `discover_bids`
+
+```python
+discover_bids(root: Path | str | Any, *, task: str | None, space: str | None, sub_labels: list[str] | None, img_filters: list[tuple[str, str]] | None, derivatives_folder: str, confounds_strategy: str | tuple[str, ...] | None, confounds_kwargs: dict | None, TR: float | str) -> dict[str, list]
+```
+
+Walk the BIDS dataset and return aligned per-item lists.
+
+Returns a dict with keys: ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
+``sample_masks``, ``metadata_rows``, ``TRs``. Each list is the same length
+(one entry per BOLD file). Anything missing for an item is ``None``.
+
+Errors per SPEC §"Edge cases / errors":
+  - Missing TR with ``TR='infer'``: raise.
+  - ``task=None`` + ``pair_events=True``: caller silently downgrades.
+  - fmriprep absent + ``confounds_strategy`` set: raise.
+  - pybids not installed: raise ``ImportError``.
+
+######## `from_bids`
+
+```python
+from_bids(cls: type[BrainCollection], root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: str | None = None, space: str | None = None, sub_labels: list[str] | None = None, img_filters: list[tuple[str, str]] | None = None, derivatives_folder: str = 'derivatives', pair_events: bool = True, confounds_strategy: str | tuple[str, ...] | None = None, confounds_kwargs: dict | None = None, TR: float | str = 'infer', cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Build a ``BrainCollection`` from a BIDS dataset.
+
+Delegates discovery to ``nilearn.glm.first_level.first_level_from_bids``
+(which wraps pybids), drops the returned ``models``, and keeps paths +
+events/confounds DataFrames. Per-item ``DesignMatrix`` is built from the
+events DataFrame; convolution / drift / confound merging is **not** done
+here — that's the user's ``transform_designs`` step.
+
+See SPEC §"``from_bids`` — concrete design" for edge cases.
+
+######## `from_glob`
+
+```python
+from_glob(cls: type[BrainCollection], pattern: str, *, mask: nib.Nifti1Image | Path | str, design_pattern: str | None = None, pattern_groups: dict[str, int] | str | None = None, sort: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Build a collection by globbing for BOLD images (and optionally designs).
+
+``pattern_groups`` extracts metadata from filename wildcards. Pass
+``{column_name: wildcard_index}`` (0-based) to capture each ``*`` in
+``pattern`` into a metadata column.
+
+######## `from_paths`
+
+```python
+from_paths(cls: type[BrainCollection], brain_paths: list[Path | str], *, mask: nib.Nifti1Image | Path | str, design_paths: list[Path | str | None] | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Build a collection from explicit lists of brain (and design) paths.
+
+Always lazy — items are stored as ``Path`` and loaded on demand.
+
+######## `load`
+
+```python
+load(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection
+```
+
+Materialize path-backed items into ``BrainData``.
+
+Mutates ``bc`` in place. This is the only mutation method besides
+``unload`` and does not allocate a step
+subdir, does not write to disk, does not produce a new identity.
+
+######## `memory_estimate`
+
+```python
+memory_estimate(bc: BrainCollection) -> str
+```
+
+Human-readable RAM estimate if every item were loaded.
+
+Reports ``n_subjects``, the per-item shape (or "unknown" if path-backed
+and not yet loaded), and an estimated total in MB/GB based on float32.
+
+######## `read`
+
+```python
+read(cls: type[BrainCollection], directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
+```
+
+Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
+
+Discovers items by globbing ``image_*.nii*`` (matches the ``write()``
+default pattern) and pairs them with rows from ``metadata.csv`` if it
+exists. Does **not** recover from cache subdirs in v0.6.0.
+
+######## `unload`
+
+```python
+unload(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection
+```
+
+Drop in-memory data for items that have backing paths.
+
+Mutates in place. This is a no-op for items that don't have a backing path
+because dropping them would lose data.
+
+######## `write`
+
+```python
+write(bc: BrainCollection, directory: Path | str, *, pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list[Path]
+```
+
+Write a clean, portable copy of ``bc`` outside the cache root.
+
+Inverse of ``BrainCollection.read()``. Writes one NIfTI per item under
+``directory`` plus a metadata CSV. Skips the cache layout entirely so
+the result is shareable / archival.
+
+(data-pipeline)=
+###### `pipeline`
+
+Pipeline classes for BrainCollection.
+
+Provides BrainCollectionPipeline for fluent pipeline API with cross-validation,
+and FittedBrainCollection for chaining pool() after fit(). CV-aware
+``predict()`` returns a ``BrainData`` with CV attributes attached
+(``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+``fold_results``, ``cv_pipeline``).
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BrainCollectionPipeline`](#data-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
+`FittedBrainCollection` | Wrapper for fitted BrainCollection enabling pool() chaining.
+
+
+
+####### Classes##
+
+###### `BrainCollectionPipeline`
+
+```python
+BrainCollectionPipeline(brain_collection: BrainCollection, cv: BrainCollection = None, groups: np.ndarray | None = None)
+```
+
+Pipeline for BrainCollection with multi-subject CV support.
+
+Wraps BrainCollection to provide fluent pipeline API with LOSO
+and run-based cross-validation.
+
+This class enables method chaining for preprocessing and prediction
+with proper cross-validation semantics for multi-subject neuroimaging
+analyses.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
+[`cv`](#data-cv) |  | The cross-validation scheme configuration.
+`n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
+
+**Examples:**
+
+```pycon
+>>> # Leave-one-subject-out with preprocessing
+>>> result = (bc
+...     .cv(scheme='loso')
+...     .standardize()
+...     .reduce(n_components=50)
+...     .predict(labels, algorithm='svm'))
+>>> print(f"Mean accuracy: {result.mean_score:.2%}")
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-pipe) | Add custom sklearn transformer.
+[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
+`reduce` | Add dimensionality reduction step.
+[`standardize`](#data-standardize) | Add standardization step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
+
+
+
+######### Attributes####
+
+###### `cv`
+
+```python
+cv
+```
+
+Cross-validation scheme.
+
+########## `n_steps`
+
+```python
+n_steps: int
+```
+
+Number of transform steps.
+
+########## `n_subjects`
+
+```python
+n_subjects: int
+```
+
+Number of subjects/images.
+
+
+
+######### Functions####
+
+###### `pipe`
+
+```python
+pipe(transformer) -> BrainCollectionPipeline
+```
+
+Add custom sklearn transformer.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`transformer` |  | sklearn-compatible transformer with fit/transform interface. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with custom step added.
+
+########## `predict`
+
+```python
+predict(y, algorithm: str = 'ridge', **kwargs: str)
+```
+
+Execute pipeline with CV and return prediction results.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
+`algorithm` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`**kwargs` |  | Passed to model constructor. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ``BrainData`` carrying out-of-fold predictions plus CV attributes
+ | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
+ | ``fold_results``, ``cv_pipeline``).
+
+########## `reduce`
+
+```python
+reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | None) -> BrainCollectionPipeline
+```
+
+Add dimensionality reduction step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
+`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
+
+########## `standardize`
+
+```python
+standardize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
+```
+
+Add standardization step.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
+`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with standardization step added.
+
+######## `FittedBrainCollection`
+
+```python
+FittedBrainCollection(brain_collection: BrainCollection, fitted_results: BrainCollection | dict[str, BrainCollection], model: str, condition_names: list[str] | None = None)
+```
+
+Wrapper for fitted BrainCollection enabling pool() chaining.
+
+This class wraps the results of bc.fit() and provides the .pool()
+method for aggregating across subjects.
+
+The execution model:
+- fit() executes immediately (eager)
+- pool() aggregates the fitted parameters
+- pool() returns PooledData for second-level analysis
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The original collection that was fitted. | *required*
+`fitted_results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | The fitted results. Can be a BrainCollection (betas or scores) or a dict mapping stat names to BrainCollections (e.g., {'betas': ..., 't': ...}). | *required*
+`model` | <code>[str](#str)</code> | The model type that was fitted ('glm' or 'ridge'). | *required*
+`condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions/regressors from the design matrix. | <code>None</code>
+
+Examples
+--------
+>>> fitted = bc.fit(model='glm', X=dm)
+>>> pool = fitted.pool(param='beta')
+>>> result = pool.fit(model='ttest', contrast='A-B')
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pool`](#data-pool) | Pool fitted parameters across subjects.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`betas`](#data-betas) | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Convenience accessor for beta coefficients from a GLM fit.
+`n_subjects` | <code>[int](#int)</code> | Number of subjects in the fitted collection.
+`results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Access the fitted results directly.
+
+
+
+######### Attributes####
+
+(data-betas)=
+###### `betas`
+
+```python
+betas: BrainCollection
+```
+
+Convenience accessor for beta coefficients from a GLM fit.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Beta coefficients from GLM fit.
+
+########## `n_subjects`
+
+```python
+n_subjects: int
+```
+
+Number of subjects in the fitted collection.
+
+########## `results`
+
+```python
+results: BrainCollection | dict[str, BrainCollection]
+```
+
+Access the fitted results directly.
+
+Returns the underlying BrainCollection or dict of BrainCollections.
+Use this for backward compatibility or when pool() is not needed.
+
+
+
+######### Functions####
+
+(data-pool)=
+###### `pool`
+
+```python
+pool(param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
+```
+
+Pool fitted parameters across subjects.
+
+Aggregates per-subject fitted results for group-level analysis.
+Returns a PooledData object that can be passed to second-level
+statistical tests.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`param` | <code>[str](#str)</code> | Parameter to pool. GLM options: 'beta', 't', 'r2', 'p', 'se', 'residual'. Ridge options: 'scores', 'weights'. Default is 'beta'. | <code>'beta'</code>
+`contrast` | <code>[str](#str) \| None</code> | Apply contrast before pooling. Format: 'A-B' or 'A+B'. Requires condition_names to be available. | <code>None</code>
+`save` | <code>[str](#str) \| None</code> | Path template to save per-subject results before pooling. Supports {subject}, {idx} placeholders. | <code>None</code>
+`save_fitted` | <code>[bool](#bool)</code> | If True, save full fitted state for later repool(). | <code>False</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Pooled data ready for second-level analysis.
+
+Examples
+--------
+>>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
+>>> result = pool.fit(model='ttest', contrast='face-house')
+
+>>> # Pool t-statistics instead of betas
+>>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
+
+#### `designmatrix`
+
+Provide a Polars-based design matrix for neuroimaging analysis.
+
+Efficient design matrix implementation using Polars for fast DataFrame operations.
+Provides HRF convolution, resampling, polynomial regressors, and diagnostic tools.
+
+Uses composition pattern (wrapping pl.DataFrame) for clean metadata preservation.
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`append`](#data-append) | Provide standalone DesignMatrix concatenation functions.
+[`diagnostics`](#data-diagnostics) | Diagnostic and utility functions for DesignMatrix.
+[`io`](#data-io) | Provide DesignMatrix I/O and visualization functions.
+[`plotting`](#data-plotting) | DesignMatrix visualization functions.
+[`regressors`](#data-regressors) | Provide standalone regressor functions for DesignMatrix.
+[`transforms`](#data-transforms) | Standalone transform functions for DesignMatrix.
+[`utils`](#data-utils) | Shared helpers for DesignMatrix submodules.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`DesignMatrix`](#data-designmatrix) | Represent experimental designs for neuroimaging with Polars.
+
+
+
+##### Classes
+
+###### `DesignMatrix`
+
+```python
+DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover')
+```
+
+Represent experimental designs for neuroimaging with Polars.
+
+This is a Polars-based design matrix for experimental designs in
+neuroimaging.
+
+Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
+Uses composition pattern (not subclassing) for clean metadata preservation.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>DataFrame, ndarray, dict, str/Path, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - str or Path to a `.tsv`/`.csv` file. BIDS events files   (containing `onset` and `duration` columns) are converted to   boxcar regressors — call ``convolve()`` afterwards if you want   HRF convolution. Any other tabular file is read as-is and is   typically used for confounds. - None (empty initialization) | <code>None</code>
+`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (1/TR for fMRI data). Mutually exclusive with ``TR``. | <code>None</code>
+`TR` | <code>[float](#float)</code> | Repetition time in seconds. Convenience for ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``. | <code>None</code>
+`run_length` | <code>[int](#int) or 'infer'</code> | Required when ``data`` is a file path. Number of TRs in the run. Pass ``'infer'`` for tabular/confounds files to accept whatever row count the file has (not valid for events files). | <code>None</code>
+`columns` | <code>list of str</code> | Column names (used with ndarray input) | <code>None</code>
+`convolved` | <code>list of str</code> | Names of convolved columns (tracked internally) | <code>None</code>
+`confounds` | <code>list of str</code> | Names of nuisance/confound columns (intercept, polynomial drift, DCT cosines, motion, …) tracked internally | <code>None</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`sampling_freq` | <code>[float](#float) or None</code> | Sampling frequency in Hz
+`convolved` | <code>list of str</code> | Columns that have been convolved
+`confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
+`multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
+
+**Examples:**
+
+```pycon
+>>> # Create from numpy array
+>>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
+```
+
+```pycon
+>>> # Add columns
+>>> dm['stim'] = [0, 1, 1, 0] * 25
+```
+
+```pycon
+>>> # Convolve with HRF — convolved columns get a `_c0` suffix
+>>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
+```
+
+```pycon
+>>> # Add polynomial drift terms
+>>> dm_conv = dm_conv.add_poly(order=2)
+```
+
+```pycon
+>>> # Multi-run concatenation (auto-separates polynomials)
+>>> dm_run1 = DesignMatrix(...).add_poly(0)
+>>> dm_run2 = DesignMatrix(...).add_poly(0)
+>>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+```
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`add_dct_basis`](#data-add-dct-basis) | Add discrete cosine transform basis functions for high-pass filtering.
+[`add_poly`](#data-add-poly) | Add Legendre polynomial drift terms.
+[`append`](#data-append) | Concatenate design matrices.
+[`clean`](#data-clean) | Remove highly correlated columns.
+[`convolve`](#data-convolve) | Convolve columns with an HRF or custom kernel.
+[`copy`](#data-copy) | Create a deep copy of the DesignMatrix.
+[`corr`](#data-corr) | Calculate column correlations as a similarity ``Adjacency``.
+[`downsample`](#data-downsample) | Reduce temporal resolution using Polars-native operations.
+[`drop`](#data-drop) | Drop specified columns.
+[`fillna`](#data-fillna) | Fill NaN/null values with specified value.
+[`plot`](#data-plot) | Visualize the design matrix.
+[`replace_data`](#data-replace-data) | Replace data columns while preserving confounds and metadata.
+[`standardize`](#data-standardize) | Standardize columns using the specified method.
+[`sum`](#data-sum) | Compute the sum along an axis.
+[`to_numpy`](#data-to-numpy) | Convert a DesignMatrix to a NumPy array.
+[`to_pandas`](#data-to-pandas) | Convert DesignMatrix to pandas DataFrame.
+[`upsample`](#data-upsample) | Increase temporal resolution to a target frequency.
+[`vif`](#data-vif) | Compute the variance inflation factor for each column.
+[`with_columns`](#data-with-columns) | Add or replace columns via Polars expressions.
+[`write`](#data-write) | Write DesignMatrix to file.
+[`zscore`](#data-zscore) | Z-score standardize columns to mean zero and unit variance.
+
+Passing another ``DesignMatrix`` returns a copy: ``data``,
+``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
+carried over. Any explicit kwarg overrides the inherited value.
+
+When ``data`` is a path to a BIDS events file, the constructor
+HRF-convolves the regressors by default (``hrf_model='glover'``,
+matching nilearn's ``make_first_level_design_matrix``). The output
+columns are suffixed ``_c0`` and ``.convolved`` is populated. Pass
+``hrf_model=None`` to load raw boxcar regressors instead — useful
+for FIR designs, PPI flows that build interaction terms before
+convolution, or pedagogical material that introduces convolution
+as a separate step. ``hrf_model`` is silently ignored when ``data``
+is anything other than an events file.
+
+
+
+####### Attributes##
+
+(data-columns)=
+###### `columns`
+
+```python
+columns: list[str]
+```
+
+Column names of the design matrix as a list of strings.
+
+######## `confounds`
+
+```python
+confounds: list[str]
+```
+
+Names of nuisance/confound columns (read-only).
+
+Managed by ``.convolve()``, ``.append()``, ``.add_poly()``,
+``.add_dct_basis()``, and the ``confounds=`` constructor kwarg. Direct
+assignment raises ``AttributeError`` — pass via the constructor or use
+``.append(other, axis=1)`` (which auto-tracks confounds when ``other``
+is a raw pandas/polars DataFrame).
+
+######## `convolved`
+
+```python
+convolved: list[str]
+```
+
+Names of HRF-convolved columns (read-only).
+
+Managed by ``.convolve()`` and ``.append()`` (merges across inputs).
+Direct assignment raises ``AttributeError`` — pass via the
+``convolved=`` constructor kwarg if you need to set initial state.
+
+######## `data`
+
+```python
+data = data.data.clone()
+```
+
+######## `is_empty`
+
+```python
+is_empty: bool
+```
+
+Check if DesignMatrix has no data.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`bool` | <code>[bool](#bool)</code> | True if the design matrix is empty, False otherwise.
+
+######## `multi`
+
+```python
+multi = False
+```
+
+######## `sampling_freq`
+
+```python
+sampling_freq = sampling_freq
+```
+
+######## `shape`
+
+```python
+shape: tuple
+```
+
+Return (n_rows, n_cols) tuple.
+
+
+
+####### Functions##
+
+###### `add_dct_basis`
+
+```python
+add_dct_basis(duration: float = 180, drop: int = 0, *, include_constant: bool = True) -> DesignMatrix
+```
+
+Add discrete cosine transform basis functions for high-pass filtering.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
+`drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
+
+######## `add_poly`
+
+```python
+add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
+```
+
+Add Legendre polynomial drift terms.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
+`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
+
+######## `append`
+
+```python
+append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
+```
+
+Concatenate design matrices.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>DesignMatrix or list of DesignMatrix</code> | Design matrix/matrices to append. | *required*
+`axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). Default: 0. | <code>0</code>
+`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs (only applies when axis=0). Default: True. | <code>True</code>
+`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
+`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN values during vertical concatenation. Default: 0. | <code>0</code>
+`as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
+`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
+
+######## `clean`
+
+```python
+clean(fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+```
+
+Remove highly correlated columns.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations (default 0) | <code>0</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns from correlation check | <code>False</code>
+`thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh, default 0.95) | <code>0.95</code>
+`verbose` | <code>[bool](#bool)</code> | Print dropped column names | <code>True</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+
+######## `convolve`
+
+```python
+convolve(conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
+```
+
+Convolve columns with an HRF or custom kernel.
+
+Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
+the kernel index, ``0`` for a single 1-D kernel). The source columns
+are dropped, and ``self.convolved`` lists the post-suffix names so
+downstream metadata stays in sync with the dataframe.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels). | <code>'hrf'</code>
+`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns). | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns renamed.
+
+######## `copy`
+
+```python
+copy() -> DesignMatrix
+```
+
+Create a deep copy of the DesignMatrix.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
+
+######## `corr`
+
+```python
+corr(*, metric: str = 'pearson', columns: list[str] | None = None)
+```
+
+Calculate column correlations as a similarity ``Adjacency``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | Similarity matrix whose ``labels`` are the column names. The unit diagonal is dropped (self-correlation isn't an edge); use ``.plot(method='corr')`` for a heatmap with the diagonal restored.
+
+######## `downsample`
+
+```python
+downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+```
+
+Reduce temporal resolution using Polars-native operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq) | *required*
+`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median' (default: 'mean') | <code>'mean'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
+
+######## `drop`
+
+```python
+drop(columns: list[str]) -> DesignMatrix
+```
+
+Drop specified columns.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`columns` | <code>list of str</code> | Column names to remove. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
+
+######## `fillna`
+
+```python
+fillna(value: int | float) -> DesignMatrix
+```
+
+Fill NaN/null values with specified value.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`value` | <code>[int](#int) or [float](#float)</code> | Value to replace NaN/null entries with. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
+
+######## `plot`
+
+```python
+plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: str = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None)
+```
+
+Visualize the design matrix.
+
+Dispatches over ``method`` (mirroring ``BrainData.plot``):
+
+- ``'matrix'`` (default): SPM-style heatmap (rows=TRs, cols=regressors).
+- ``'timeseries'``: overlaid line plot of regressor time courses. Pass
+  the same ``ax`` across calls to overlay multiple DesignMatrices
+  (e.g. original vs. convolved).
+- ``'corr'``: labeled correlation heatmap of the columns (reuses
+  `corr`; diagonal restored to 1.0 for display).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | ``'matrix'`` | ``'timeseries'`` | ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
+`columns` | <code>list of str</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`rescale` | <code>[bool](#bool)</code> | ``'matrix'`` only. Rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
+`metric` | <code>[str](#str)</code> | ``'corr'`` only. ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size; sensible per-method default when omitted. | <code>None</code>
+`title` | <code>[str](#str)</code> | Axis title. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Colormap (``'matrix'`` / ``'corr'``). | <code>None</code>
+`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
+`**kwargs` |  | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``Axes.plot`` for ``'timeseries'``). | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | matplotlib.figure.Figure: The figure containing the plot.
+
+######## `replace_data`
+
+```python
+replace_data(data: np.ndarray, column_names: list[str] | None = None) -> DesignMatrix
+```
+
+Replace data columns while preserving confounds and metadata.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#ndarray)</code> | New data array (must match number of rows in current DesignMatrix) | *required*
+`column_names` | <code>list of str</code> | Names for new data columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
+
+######## `standardize`
+
+```python
+standardize(method: str = 'zscore', columns: list[str] | None = None) -> DesignMatrix
+```
+
+Standardize columns using the specified method.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+
+######## `sum`
+
+```python
+sum(axis: int = 0) -> pl.Series
+```
+
+Compute the sum along an axis.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` | <code>int, default=0</code> | 0: sum down columns, 1: sum across rows. | <code>0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Series](#polars.Series)</code> | pl.Series: Sums along specified axis.
+
+######## `to_numpy`
+
+```python
+to_numpy() -> np.ndarray
+```
+
+Convert a DesignMatrix to a NumPy array.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | np.ndarray: 2D array with shape (n_samples, n_columns)
+
+######## `to_pandas`
+
+```python
+to_pandas() -> pd.DataFrame
+```
+
+Convert DesignMatrix to pandas DataFrame.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#pandas.DataFrame)</code> | pd.DataFrame: Pandas DataFrame with same data and column names.
+
+######## `upsample`
+
+```python
+upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+```
+
+Increase temporal resolution to a target frequency.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
+`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
+
+######## `vif`
+
+```python
+vif(exclude_confounds: bool = True) -> np.ndarray | None
+```
+
+Compute the variance inflation factor for each column.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns. Default: True. | <code>True</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular.
+
+######## `with_columns`
+
+```python
+with_columns(*exprs, **named_exprs) -> DesignMatrix
+```
+
+Add or replace columns via Polars expressions.
+
+Mirrors `DataFrame.with_columns`. Named kwargs become
+named columns; positional ``pl.Expr`` arguments are accepted as-is
+(including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
+with metadata preserved; new columns are *not* auto-tagged as
+convolved or confounds.
+
+For convenience, named-kwarg values that aren't ``pl.Expr`` /
+``pl.Series`` are coerced:
+
+- ``int``/``float`` → broadcast scalar via ``pl.lit``
+- ``list`` / ``np.ndarray`` → wrapped as ``pl.Series``
+
+**Examples:**
+
+```pycon
+>>> dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
+>>> dm = dm.with_columns(
+...     vmpfc=seed_signal,
+...     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+... )
+```
+
+######## `write`
+
+```python
+write(file_name: str, sep: str = '\t') -> None
+```
+
+Write DesignMatrix to file.
+
+Supports TSV (default), CSV, and HDF5 formats. Format is
+auto-detected from file extension.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
+`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab). | <code>'\t'</code>
+
+######## `zscore`
+
+```python
+zscore(columns: list[str] | None = None) -> DesignMatrix
+```
+
+Z-score standardize columns to mean zero and unit variance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
+
+
 
 ##### Methods
 
@@ -5070,7 +8266,6 @@ Name | Type | Description
 
 ####### Attributes##
 
-(data-betas)=
 ###### `betas`
 
 ```python

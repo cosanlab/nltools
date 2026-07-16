@@ -31,6 +31,8 @@ Name | Type | Description
 `EMOTION_METADATA` |  | Relpath of the emotion dataset's metadata table (its filename manifest).
 `PAIN_RESOURCES` | <code>[list](#list)[[str](#str)]</code> | Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
 
+### Classes
+
 ### Methods
 
 (dataset-download-nifti)=

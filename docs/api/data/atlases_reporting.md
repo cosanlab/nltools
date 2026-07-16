@@ -11,13 +11,39 @@ attribute every voxel of every cluster to one or more atlases.
 
 Name | Description
 ---- | -----------
-`ClusterReport` | Result of `BrainData.cluster_report`.
+[`ClusterReport`](#data-atlases-reporting-clusterreport) | Result of `BrainData.cluster_report`.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`cluster_report_data`](#data-atlases-reporting-cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
+
+### Classes
+
+(data-atlases-reporting-clusterreport)=
+#### `ClusterReport`
+
+```python
+ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
+```
+
+Result of `BrainData.cluster_report`.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+`clusters` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
+`stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`plot`](#data-atlases-reporting-plot) | Render an overview glass brain + one slice figure per cluster.
+[`to_csv`](#data-atlases-reporting-to-csv) | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 ##### Methods
 
