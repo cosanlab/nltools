@@ -159,25 +159,26 @@ def solve_banded_ridge_cv(
         ridge regression, use solve_ridge_cv instead.
 
         Algorithm details:
-            - Random search: Samples gamma weights from Dirichlet distribution
-            - Banded ridge: Scales each feature space by sqrt(gamma_i), then solves standard ridge
-            - Cross-validation: Evaluates each (gamma, alpha) combination via k-fold CV
-            - Best selection: Chooses (gamma, alpha) that maximizes CV score per target
+
+        - Random search: Samples gamma weights from Dirichlet distribution
+        - Banded ridge: Scales each feature space by sqrt(gamma_i), then solves standard ridge
+        - Cross-validation: Evaluates each (gamma, alpha) combination via k-fold CV
+        - Best selection: Chooses (gamma, alpha) that maximizes CV score per target
 
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
 
-            - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
-              in batches to avoid storing all resolution matrices simultaneously
-            - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-            - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
-              for computation
-            - Immediate cleanup with del statements: Explicitly frees memory after each batch
+        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
+          in batches to avoid storing all resolution matrices simultaneously
+        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+        - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
+          for computation
+        - Immediate cleanup with del statements: Explicitly frees memory after each batch
 
         Performance:
 
-            - Time complexity: O(n_iter × n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
-            - Memory complexity: O(n_features × n_targets_batch) per batch
-            - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
+        - Time complexity: O(n_iter × n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
+        - Memory complexity: O(n_features × n_targets_batch) per batch
+        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
         See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
@@ -703,24 +704,25 @@ def solve_ridge_cv(
         use solve_banded_ridge_cv instead.
 
         Algorithm details:
-            - Cross-validation: k-fold CV evaluates each alpha value
-            - Alpha selection: Chooses best alpha per target (or globally if local_alpha=False)
-            - Refit: Fits final model on full dataset using best alpha(s)
+
+        - Cross-validation: k-fold CV evaluates each alpha value
+        - Alpha selection: Chooses best alpha per target (or globally if local_alpha=False)
+        - Refit: Fits final model on full dataset using best alpha(s)
 
         Memory efficiency strategies (Principle 2: automatic memory efficiency):
 
-            - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
-              in batches to avoid storing all resolution matrices simultaneously
-            - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-            - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
-              for computation
-            - Immediate cleanup with del statements: Explicitly frees memory after each batch
+        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
+          in batches to avoid storing all resolution matrices simultaneously
+        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
+        - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
+          for computation
+        - Immediate cleanup with del statements: Explicitly frees memory after each batch
 
         Performance:
 
-            - Time complexity: O(n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
-            - Memory complexity: O(n_features × n_targets_batch) per batch
-            - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
+        - Time complexity: O(n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
+        - Memory complexity: O(n_features × n_targets_batch) per batch
+        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
         See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.

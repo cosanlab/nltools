@@ -9,7 +9,6 @@ Learn how to use nltools through hands-on examples. Start with the **Basics** to
 These tutorials introduce the four core data classes in nltools. Each one covers creation, manipulation, and common operations.
 
 ::::{grid} 1 2 2 2
-:gutter: 3
 
 :::{grid-item-card} BrainData Basics
 :link: basics/01_brain_data
@@ -33,7 +32,6 @@ Creating Adjacency objects, square vs. vector forms, thresholding, and binarizin
 End-to-end analysis workflows that demonstrate how nltools classes and functions work together for real neuroimaging analyses.
 
 ::::{grid} 1 2 2 2
-:gutter: 3
 
 :::{grid-item-card} GLM Analysis
 :link: workflows/01_glm

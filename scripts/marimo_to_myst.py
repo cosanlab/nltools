@@ -10,7 +10,9 @@ and code cells into fenced blocks), then rewrites the marimo-flavored markdown
 into MyST-NB markdown that the Jupyter Book v2 site executes at build time:
 
 * the marimo frontmatter (``title``/``marimo-version``/``width``/``header``...)
-  is replaced with a standard ``file_format: mystnb`` block;
+  is replaced with a standard ``kernelspec`` block (mystmd executes ``{code-cell}``
+  directives at build time; the old MyST-NB ``file_format`` key is ignored by
+  mystmd v2, so it is intentionally omitted);
 * ```` ```python {.marimo} ```` fences become ```` ```{code-cell} python3 ````;
 * ``import marimo`` lines are stripped, and any cell that becomes empty as a
   result is dropped entirely;
@@ -54,7 +56,6 @@ FRONTMATTER = """\
 ---
 # AUTO-GENERATED from {source} by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe tutorials-build`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3

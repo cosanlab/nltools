@@ -1,7 +1,6 @@
 ---
 # AUTO-GENERATED from 03_mvpa.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe tutorials-build`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3

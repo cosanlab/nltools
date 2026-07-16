@@ -11,7 +11,7 @@ project:
       url: /try-it-jupyterlite/lab/index.html
     - file: migration-guide.md
       title: v0.6.0 Migration Guide
-    - file: tutorials/index
+    - file: tutorials/index.md
       children:
         - title: Basics
           hidden: true
