@@ -53,6 +53,7 @@ dev = [
     "pytest-xdist>=3.8.0",
     "rich>=14.2.0",
     "ruff==0.14.2",
+    "semgrep>=1.100",
     "torch>=2.9.0",
     "tqdm>=4.67.1",
     "ty>=0.0.4",
@@ -151,6 +152,10 @@ too-many-positional-arguments = "ignore" # seaborn deprecated positional args
 [tool.poe.tasks.lint]
 help = "Fix, format, and type-check (ruff check --fix -> ruff format -> ty check)"
 shell = """ruff check nltools --fix && ruff format nltools && ty check nltools"""
+
+[tool.poe.tasks.lint-api]
+help = "Enforce v0.6.0 canonical-kwarg API conventions (semgrep rules + keyword-only `*` marker check)"
+shell = """semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py"""
 
 [tool.poe.tasks.test]
 help = "Run default fast test suite (parallel)"
