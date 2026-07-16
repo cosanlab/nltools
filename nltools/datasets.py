@@ -3,17 +3,20 @@
 # NeuroLearn datasets
 
 Functions to help download example datasets. The curated example datasets
-(`fetch_pain`) are hosted on the ``nltools/niftis`` Hugging Face dataset and
-resolve through the same `fetch_resource` / `seed_resources` machinery as the
-MNI templates and atlases, so they work both on a normal Python kernel and in
-Pyodide / JupyterLite (pre-seed with `seed_resources` there). Arbitrary
-Neurovault collections are still available via `fetch_neurovault_collection`.
+(`fetch_pain`, `fetch_emotion_ratings`) are hosted on the ``nltools/niftis``
+Hugging Face dataset and resolve through the same `fetch_resource` /
+`seed_resources` machinery as the MNI templates and atlases, so they work both
+on a normal Python kernel and in Pyodide / JupyterLite (pre-seed with
+`seed_resources` there). Arbitrary Neurovault collections are still available
+via `fetch_neurovault_collection`.
 
 """
 
 __all__ = [
+    "EMOTION_METADATA",
     "PAIN_RESOURCES",
     "download_nifti",
+    "emotion_resources",
     "fetch_emotion_ratings",
     "fetch_neurovault_collection",
     "fetch_pain",
@@ -51,6 +54,38 @@ Pass to `nltools.templates.seed_resources` before calling `fetch_pain` in
 Pyodide / JupyterLite, where synchronous downloads are unavailable:
 ``await seed_resources(PAIN_RESOURCES)``.
 """
+
+# Curated emotion-rating dataset hosted on the ``nltools/niftis`` HF dataset.
+# Unlike pain, the 679 images are keyed by Neurovault id rather than a
+# generable subject x condition grid, so the filename manifest is read from
+# ``metadata.csv`` (see `emotion_resources`) instead of being a static list.
+_EMOTION_DIR = "datasets/emotion_ratings"
+EMOTION_METADATA = f"{_EMOTION_DIR}/metadata.csv"
+"""Relpath of the emotion dataset's metadata table (its filename manifest)."""
+
+
+def emotion_resources() -> list[str]:
+    """List every `fetch_resource` relpath the emotion dataset needs.
+
+    The emotion image filenames are keyed by Neurovault id (not a generable
+    grid like `PAIN_RESOURCES`), so this reads `EMOTION_METADATA` to enumerate
+    them. To pre-seed the Pyodide / JupyterLite cache, seed the metadata file
+    first (it is read here), then seed the images:
+
+    ```python
+    await seed_resources([EMOTION_METADATA])
+    await seed_resources(emotion_resources())
+    ```
+
+    Returns:
+        list[str]: `[EMOTION_METADATA, ...679 image relpaths]`.
+    """
+    import polars as pl
+
+    meta = pl.read_csv(fetch_resource(EMOTION_METADATA))
+    return [EMOTION_METADATA] + [
+        f"{_EMOTION_DIR}/{fn}" for fn in meta["filename"].to_list()
+    ]
 
 
 def download_nifti(url, data_dir=None):
@@ -168,32 +203,40 @@ def fetch_pain(verbose=0):
         raise RuntimeError(f"Failed to fetch pain dataset: {e}")
 
 
-def fetch_emotion_ratings(data_dir=None, verbose=1):
-    """Download and load emotion rating dataset from Neurovault.
+def fetch_emotion_ratings(verbose=0):
+    """Download and load the emotion-rating dataset from the nltools HF dataset.
 
-    This downloads the Chang et al. (2015) emotion ratings dataset from
-    Neurovault collection 1964.
+    Loads the Chang et al. (2015) IAPS emotion-rating study: 679 whole-brain
+    contrast images across 150 subjects, each rating images 1-5, with a
+    built-in train/test holdout split. `X` carries the full portable Neurovault
+    metadata (key columns: `SubjectID`, `Rating`, `Holdout`, `AGE`, `SEX`).
+
+    Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
+    locally on first use, so this works on a normal Python kernel with no extra
+    setup. In Pyodide / JupyterLite, pre-seed the cache first (see
+    `emotion_resources`).
 
     Args:
-        data_dir (str, optional): Path of the data directory. Used to force data
-            storage in a specified location. Default: None
-        verbose (int, optional): Verbosity level. Default: 1
+        verbose (int, optional): Verbosity passed to `BrainData` while loading.
+            Default: 0
 
     Returns:
-        BrainData: BrainData object with downloaded data. X=metadata
+        BrainData: `BrainData` with the 679 images; `X` holds the metadata table.
 
     References:
         Chang, L. J., Gianaros, P. J., Manuck, S. B., Krishnan, A., & Wager, T. D. (2015).
         A sensitive and specific neural signature for picture-induced negative affect.
         PLoS biology, 13(6), e1002180.
     """
-    collection_id = 1964
+    import polars as pl
 
     try:
-        metadata, files = fetch_neurovault_collection(
-            collection_id=collection_id, data_dir=data_dir, verbose=verbose
-        )
-        return BrainData(data=files, X=metadata, verbose=0)
+        metadata = pl.read_csv(fetch_resource(EMOTION_METADATA))
+        files = [
+            fetch_resource(f"{_EMOTION_DIR}/{fn}")
+            for fn in metadata["filename"].to_list()
+        ]
+        return BrainData(data=files, X=metadata, verbose=verbose)
 
     except Exception as e:
         raise RuntimeError(f"Failed to fetch emotion ratings dataset: {e}")

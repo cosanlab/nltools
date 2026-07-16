@@ -161,6 +161,44 @@ class TestFetchPain:
         assert sorted(brain.X["PainLevel"].unique().to_list()) == [1, 2, 3]
 
 
+class TestFetchEmotionRatings:
+    """HF-backed IAPS emotion-rating dataset loader."""
+
+    @pytest.mark.slow
+    def test_emotion_resources_manifest(self):
+        """emotion_resources() reads metadata.csv to list the 679 id-keyed images."""
+        from nltools.datasets import EMOTION_METADATA, emotion_resources
+
+        try:
+            resources = emotion_resources()
+        except Exception as e:
+            pytest.skip(f"Skipped due to network error: {e}")
+
+        assert EMOTION_METADATA == "datasets/emotion_ratings/metadata.csv"
+        assert resources[0] == EMOTION_METADATA
+        images = resources[1:]
+        assert len(images) == 679
+        assert all(
+            f.startswith("datasets/emotion_ratings/img-") and f.endswith(".nii.gz")
+            for f in images
+        )
+
+    @pytest.mark.slow
+    def test_fetch_emotion_ratings_from_hf(self):
+        """Downloads the real dataset from HF and returns a populated BrainData."""
+        from nltools.datasets import fetch_emotion_ratings
+
+        try:
+            brain = fetch_emotion_ratings()
+        except Exception as e:
+            pytest.skip(f"Skipped due to network error: {e}")
+
+        assert isinstance(brain, BrainData)
+        assert brain.shape[0] == 679
+        assert {"filename", "SubjectID", "Rating", "Holdout"}.issubset(brain.X.columns)
+        assert sorted(brain.X["Rating"].unique().to_list()) == [1, 2, 3, 4, 5]
+
+
 class TestLoadHaxbyExample:
     """Offline synthetic Haxby dataset for tutorials / Pyodide."""
 
