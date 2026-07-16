@@ -1,6 +1,6 @@
 # BrainCollection — v0.6.0 redesign spec
 
-> Status: draft. Implementation has not started. Edit freely; we'll cut code from this.
+> Status: implementation substantially complete on branch `collection-impl` (worktree `nltools-collection-impl`). Modules live under `nltools/data/collection/` ({core,execution,inference,io,pipeline}.py + `__init__.py` facade) with tests under `nltools/tests/data/collection/`. This spec remains the source of truth for intended design — keep it in sync as the code evolves. (Collection tests are still skipped on `uv-cleanup` per commit 4ad10050.)
 
 ## Goals (in priority order)
 
