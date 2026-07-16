@@ -5,7 +5,12 @@ Dataset download and example-data utilities.
 
 # NeuroLearn datasets
 
-Functions to help download datasets from Neurovault and other sources.
+Functions to help download example datasets. The curated example datasets
+(`fetch_pain`) are hosted on the ``nltools/niftis`` Hugging Face dataset and
+resolve through the same `fetch_resource` / `seed_resources` machinery as the
+MNI templates and atlases, so they work both on a normal Python kernel and in
+Pyodide / JupyterLite (pre-seed with `seed_resources` there). Arbitrary
+Neurovault collections are still available via `fetch_neurovault_collection`.
 
 **Methods:**
 
@@ -14,12 +19,14 @@ Name | Description
 [`download_nifti`](#dataset-download-nifti) | Download an image from a URL to a nifti file.
 [`fetch_emotion_ratings`](#dataset-fetch-emotion-ratings) | Download and load emotion rating dataset from Neurovault.
 [`fetch_neurovault_collection`](#dataset-fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
-[`fetch_pain`](#dataset-fetch-pain) | Download and load pain dataset from Neurovault.
+[`fetch_pain`](#dataset-fetch-pain) | Download and load the pain dataset from the nltools HF dataset.
 [`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
+**Attributes:**
 
-
-### Classes
+Name | Type | Description
+---- | ---- | -----------
+`PAIN_RESOURCES` | <code>[list](#list)[[str](#str)]</code> | Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
 
 ### Methods
 
@@ -108,25 +115,32 @@ Name | Type | Description
 #### `fetch_pain`
 
 ```python
-fetch_pain(data_dir = None, verbose = 1)
+fetch_pain(verbose = 0)
 ```
 
-Download and load pain dataset from Neurovault.
+Download and load the pain dataset from the nltools HF dataset.
 
-This downloads the Chang et al. (2015) pain dataset from Neurovault collection 504.
+Loads the Chang et al. (2015) pain-perception study: 28 subjects x 3
+stimulus-intensity conditions = 84 whole-brain contrast images, with a
+curated metadata table (`SubjectID`, `PainLevel`, `PainIntensity`, `Age`,
+`Sex`, provenance `neurovault_id` / `name`).
+
+Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
+locally on first use, so this works on a normal Python kernel with no extra
+setup. In Pyodide / JupyterLite, pre-seed the cache first:
+``await seed_resources(PAIN_RESOURCES)``.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data_dir` | <code>[str](#str)</code> | Path of the data directory. Used to force data storage in a specified location. Default: None | <code>None</code>
-`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+`verbose` | <code>[int](#int)</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | BrainData object with downloaded data. X=metadata
+`BrainData` |  | `BrainData` with the 84 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>

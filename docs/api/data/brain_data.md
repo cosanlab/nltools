@@ -538,11 +538,11 @@ Type | Description
 After ``model="glm"``, the following per-regressor BrainData
 attributes are populated — one map per design-matrix column:
 
-    - ``glm_betas``: effect-size (β) maps.
-    - ``glm_t``: marginal t-statistic for each regressor.
-    - ``glm_p``: marginal p-value.
-    - ``glm_se``: standard error of β.
-    - ``glm_r2``: voxel-wise R².
+- ``glm_betas``: effect-size (β) maps.
+- ``glm_t``: marginal t-statistic for each regressor.
+- ``glm_p``: marginal p-value.
+- ``glm_se``: standard error of β.
+- ``glm_r2``: voxel-wise R².
 
 ``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
 regressor ``i`` only. For contrasts across regressors
