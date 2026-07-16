@@ -12,16 +12,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-if TYPE_CHECKING:
-    from .base import Pipeline
-
-# Type alias for CV schemes
-CVSchemeType = Literal["kfold", "loso", "loro", "bootstrap"]
 
 
 @dataclass
@@ -229,33 +223,6 @@ class PooledData:
             weights[idx] = sign
 
         return weights
-
-    def cv(
-        self, k: int | None = None, scheme: CVSchemeType = "kfold", **kwargs
-    ) -> Pipeline:
-        """Create CV pipeline on pooled data.
-
-        Useful for classification on pooled betas.
-
-        Args:
-            k: Number of folds.
-            scheme: CV scheme ('kfold', 'loso', 'loro', 'bootstrap').
-
-        Returns:
-            Pipeline for classification on pooled data.
-        """
-        from .base import Pipeline
-        from .cv import CVScheme
-
-        # Reshape data for pipeline: (n_subjects, n_features)
-        if self.data.ndim == 3:
-            # Flatten conditions into features
-            data = self.data.reshape(self.n_subjects, -1)
-        else:
-            data = self.data
-
-        cv_scheme = CVScheme(k=k, scheme=scheme, **kwargs)
-        return Pipeline(data, cv=cv_scheme)
 
     def repool(self, param: str) -> PooledData:
         """Re-extract different parameter from saved fitted state.

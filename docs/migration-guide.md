@@ -892,7 +892,7 @@ result.available()     # list non-None fields
 | Return type | dict (`weight_map`, `mcr_all`, …) | `Predict` dataclass | Frozen, introspectable via `.available()` / `.asdict()` |
 | Weight map | top-level dict key | `result.weight_map` | Full-data refit coefficients for linear models; per-fold coefficients are in `result.fold_weight_maps` |
 
-**Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. This does not affect the separate `nltools.pipelines.Pipeline.pipe()` API.
+**Removed**: `brain.cv(k).predict(y, algorithm=…)` fluent API. The full set of fluent steps (`cv()`, `normalize()`, `reduce()`, `pipe()`) on `BrainData` collapses to kwargs on `bd.predict()`. The standalone `nltools.pipelines.Pipeline` orchestrator was also removed in v0.6.0 — multi-subject cross-validation now lives on `BrainCollection` (`bc.cv().standardize().reduce().predict()`), and custom single-dataset preprocessing uses `model=make_pipeline(...)` on `bd.predict()`.
 
 ---
 
@@ -1674,7 +1674,7 @@ pipe = make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())
 result = brain_data.predict(y=labels, model=pipe, standardize=False)
 ```
 
-The fluent API `brain.cv(k=5).normalize().reduce().pipe(t).predict(y, algorithm=…)` has been **removed** from `BrainData`. All four steps fold into kwargs on `bd.predict()` (`cv=`, `standardize=`, `reduce='pca'`, `n_components=`, `model=`). The separate `nltools.pipelines.Pipeline.pipe()` API remains available.
+The fluent API `brain.cv(k=5).normalize().reduce().pipe(t).predict(y, algorithm=…)` has been **removed** from `BrainData`. All four steps fold into kwargs on `bd.predict()` (`cv=`, `standardize=`, `reduce='pca'`, `n_components=`, `model=`). The standalone `nltools.pipelines.Pipeline` API was likewise removed in v0.6.0; multi-subject CV now lives on `BrainCollection` (`bc.cv().standardize().reduce().predict()`).
 
 ### Step 3: Replace Removed Empty-State Access
 ```python

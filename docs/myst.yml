@@ -90,11 +90,8 @@ project:
       children:
         - file: api/pipelines.md
         - file: api/pipelines/pipeline.md
-        - file: api/pipelines/multi_subject.md
         - file: api/pipelines/cv.md
         - file: api/pipelines/steps.md
-        - file: api/pipelines/terminals.md
-        - file: api/pipelines/results.md
     - title: API Utilities
       children:
         - file: api/utils.md

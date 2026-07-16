@@ -110,11 +110,8 @@ MODULES: list[tuple[str, str]] = [
     # --- pipelines ---
     ("nltools.pipelines", "pipelines.md"),
     ("nltools.pipelines.base", "pipelines/pipeline.md"),
-    ("nltools.pipelines.multi_subject", "pipelines/multi_subject.md"),
     ("nltools.pipelines.cv", "pipelines/cv.md"),
     ("nltools.pipelines.steps", "pipelines/steps.md"),
-    ("nltools.pipelines.terminals", "pipelines/terminals.md"),
-    ("nltools.pipelines.results", "pipelines/results.md"),
 ]
 
 

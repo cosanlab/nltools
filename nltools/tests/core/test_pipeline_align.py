@@ -1,9 +1,9 @@
-"""Tests for alignment pipeline step (Phase 7).
+"""Tests for the alignment pipeline primitives.
 
 Tests cover:
 - AlignStep: SRM and HyperAlignment wrappers
 - FittedAlign: transform and new subject handling
-- MultiSubjectPipeline.align(): integration
+- Alignment integration in full workflows
 """
 
 import numpy as np
@@ -170,65 +170,6 @@ class TestFittedAlign:
             NotImplementedError, match="only supported for hyperalignment"
         ):
             fitted_srm.inverse_transform(data)
-
-
-class TestMultiSubjectPipelineAlign:
-    """Tests for MultiSubjectPipeline.align() integration."""
-
-    @pytest.fixture
-    def subject_data(self):
-        """Create sample multi-subject data."""
-        np.random.seed(42)
-        return [np.random.randn(50, 100) for _ in range(4)]  # (samples, voxels)
-
-    def test_align_method_exists(self, subject_data):
-        """Test align() method exists on pipeline."""
-        from nltools.pipelines.cv import CVScheme
-        from nltools.pipelines.multi_subject import MultiSubjectPipeline
-
-        cv = CVScheme(scheme="loso")
-        pipeline = MultiSubjectPipeline(data=subject_data, cv=cv)
-
-        assert hasattr(pipeline, "align")
-
-    def test_align_returns_pipeline(self, subject_data):
-        """Test align() returns new pipeline."""
-        from nltools.pipelines.cv import CVScheme
-        from nltools.pipelines.multi_subject import MultiSubjectPipeline
-
-        cv = CVScheme(scheme="loso")
-        p1 = MultiSubjectPipeline(data=subject_data, cv=cv)
-        p2 = p1.align(method="srm", n_features=10)
-
-        assert p1 is not p2
-        assert p1.n_steps == 0
-        assert p2.n_steps == 1
-
-    def test_align_chaining(self, subject_data):
-        """Test align() chains with other methods."""
-        from nltools.pipelines.cv import CVScheme
-        from nltools.pipelines.multi_subject import MultiSubjectPipeline
-
-        cv = CVScheme(scheme="loso")
-        pipeline = (
-            MultiSubjectPipeline(data=subject_data, cv=cv)
-            .normalize()
-            .align(method="srm", n_features=10)
-            .reduce(n_components=5)
-        )
-
-        assert pipeline.n_steps == 3
-
-    def test_align_default_params(self, subject_data):
-        """Test align() with default parameters."""
-        from nltools.pipelines.cv import CVScheme
-        from nltools.pipelines.multi_subject import MultiSubjectPipeline
-
-        cv = CVScheme(scheme="loso")
-        pipeline = MultiSubjectPipeline(data=subject_data, cv=cv).align()
-
-        # Should have added an AlignStep with defaults
-        assert pipeline.n_steps == 1
 
 
 class TestAlignmentIntegration:

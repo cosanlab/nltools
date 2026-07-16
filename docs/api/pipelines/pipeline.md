@@ -1,21 +1,13 @@
 (pipelines-pipeline-base)=
 ## `base`
 
-Pipeline base infrastructure for nltools.
+Low-level pipeline primitives for nltools.
 
-This module provides the foundational classes and protocols for building
-chainable transform pipelines with optional cross-validation support.
-
-The design follows an immutable pattern where each transform method returns
-a new Pipeline instance, enabling fluent method chaining without side effects.
-
-Example:
->>> pipeline = (
-...     Pipeline(data, cv=kfold)
-...     .normalize(method='zscore')
-...     .reduce(method='pca', n_components=50)
-...     .predict(y, algorithm='ridge')
-... )
+Defines the transform protocols (`TransformStep`, `FittedTransform`, `CVScheme`,
+`Terminal`) and `FittedStack`, the container that records fitted transforms so a
+stack can be inverted. These primitives back `BrainCollectionPipeline`; the
+standalone fluent `Pipeline` orchestrator was removed in v0.6.0 in favor of
+`BrainCollection`'s native `.cv().standardize().reduce().predict()`.
 
 **Classes:**
 
@@ -24,9 +16,15 @@ Name | Description
 `CVScheme` | Protocol for cross-validation schemes.
 [`FittedStack`](#pipelines-pipeline-fittedstack) | Collection of fitted transforms for inverse transform support.
 [`FittedTransform`](#pipelines-pipeline-fittedtransform) | Protocol for fitted transform objects.
-[`Pipeline`](#pipelines-pipeline-pipeline) | Base pipeline for chained transforms with optional cross-validation.
 [`Terminal`](#pipelines-pipeline-terminal) | Protocol for terminal operations that end a pipeline.
 [`TransformStep`](#pipelines-pipeline-transformstep) | Protocol for pipeline transform steps.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DataType` |  | 
+`T` |  | 
 
 ##### Methods
 
@@ -197,203 +195,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
-
-(pipelines-pipeline-pipeline)=
-#### `Pipeline`
-
-```python
-Pipeline(data: Any, cv: CVScheme | None = None, steps: list[TransformStep] = list(), _is_lazy: bool = False) -> None
-```
-
-Base pipeline for chained transforms with optional cross-validation.
-
-Pipelines enable fluent, chainable data transformations that are executed
-within a cross-validation framework. Each transform method returns a new
-Pipeline instance (immutable pattern), allowing method chaining without
-side effects.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Input data (typically ndarray or BrainData). | *required*
-`cv` | <code>[CVScheme](#nltools.pipelines.base.CVScheme) \| None</code> | Cross-validation scheme. Required for terminal methods like predict(). | <code>None</code>
-`steps` | <code>[list](#list)[[TransformStep](#nltools.pipelines.base.TransformStep)]</code> | List of transform steps (typically not set directly). | <code>[list](#list)()</code>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`_is_lazy` | <code>[bool](#bool)</code> | Whether pipeline is in lazy evaluation mode (future feature).
-
-**Examples:**
-
-```pycon
->>> from sklearn.model_selection import KFold
->>> cv = KFold(n_splits=5)
->>> result = (
-...     Pipeline(X, cv=cv)
-...     .normalize(method='zscore')
-...     .reduce(method='pca', n_components=50)
-...     .predict(y, algorithm='ridge')
-... )
-```
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-The pipeline uses an immutable pattern: each method returns a new
-Pipeline instance rather than modifying in place. This enables safe method
-chaining, branching pipelines from intermediate states, and functional
-programming patterns.
-
-</details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`copy`](#pipelines-pipeline-copy) | Create a shallow copy of the pipeline.
-[`normalize`](#pipelines-pipeline-normalize) | Add a normalization step to the pipeline.
-[`pipe`](#pipelines-pipeline-pipe) | Add a custom transformer to the pipeline.
-[`predict`](#pipelines-pipeline-predict) | Execute pipeline with cross-validation and return prediction results.
-[`reduce`](#pipelines-pipeline-reduce) | Add a dimensionality reduction step to the pipeline.
-
-##### Methods
-
-(pipelines-pipeline-copy)=
-###### `copy`
-
-```python
-copy() -> Pipeline
-```
-
-Create a shallow copy of the pipeline.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline instance with same configuration.
-
-(pipelines-pipeline-normalize)=
-###### `normalize`
-
-```python
-normalize(method: str = 'zscore', **kwargs: Any) -> Pipeline
-```
-
-Add a normalization step to the pipeline.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Normalization method. Options: 'zscore', 'minmax', 'robust'. Default is 'zscore'. | <code>'zscore'</code>
-`**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the normalizer. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline with normalization step added.
-
-**Examples:**
-
-```pycon
->>> pipeline.normalize(method='zscore')
->>> pipeline.normalize(method='minmax', feature_range=(0, 1))
-```
-
-(pipelines-pipeline-pipe)=
-###### `pipe`
-
-```python
-pipe(transformer: Any) -> Pipeline
-```
-
-Add a custom transformer to the pipeline.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`transformer` | <code>[Any](#typing.Any)</code> | Custom transformer with fit/transform interface. Must be compatible with sklearn transformers or implement the TransformStep protocol. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline with custom step added.
-
-**Examples:**
-
-```pycon
->>> from sklearn.decomposition import FastICA
->>> pipeline.pipe(FastICA(n_components=20))
-```
-
-(pipelines-pipeline-predict)=
-###### `predict`
-
-```python
-predict(y: Any, algorithm: str = 'ridge', **kwargs: Any) -> Any
-```
-
-Execute pipeline with cross-validation and return prediction results.
-
-This is a terminal method that triggers pipeline execution.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`y` | <code>[Any](#typing.Any)</code> | Target variable to predict. | *required*
-`algorithm` | <code>[str](#str)</code> | Prediction algorithm. Options: 'ridge', 'lasso', 'svr'. Default is 'ridge'. | <code>'ridge'</code>
-`**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the predictor. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Cross-validation results containing predictions and metrics.
-
-**Examples:**
-
-```pycon
->>> result = pipeline.predict(y, algorithm='ridge', alpha=1.0)
->>> print(result.summary())
-```
-
-(pipelines-pipeline-reduce)=
-###### `reduce`
-
-```python
-reduce(method: str = 'pca', n_components: int | None = None, **kwargs: Any) -> Pipeline
-```
-
-Add a dimensionality reduction step to the pipeline.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Reduction method. Options: 'pca', 'ica', 'nmf', 'srm'. Default is 'pca'. | <code>'pca'</code>
-`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
-`**kwargs` | <code>[Any](#typing.Any)</code> | Additional arguments passed to the reducer. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Pipeline](#nltools.pipelines.base.Pipeline)</code> | New pipeline with reduction step added.
-
-**Examples:**
-
-```pycon
->>> pipeline.reduce(method='pca', n_components=50)
->>> pipeline.reduce(method='srm', n_components=20, n_iter=100)
-```
 
 (pipelines-pipeline-terminal)=
 #### `Terminal`

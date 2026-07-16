@@ -1,4 +1,4 @@
-"""Tests for pipeline transform steps (used by MultiSubjectPipeline).
+"""Tests for pipeline transform steps (used by BrainCollectionPipeline).
 
 Tests cover:
 - NormalizeStep: zscore and minmax normalization

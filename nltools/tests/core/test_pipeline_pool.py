@@ -126,14 +126,6 @@ class TestPooledData:
         with pytest.raises(ValueError, match="Unknown condition"):
             multicond_pool._parse_contrast("face-unknown")
 
-    def test_cv_creates_pipeline(self, simple_pool):
-        """Test cv() creates Pipeline."""
-
-        pipeline = simple_pool.cv(k=5, scheme="kfold")
-        # Should return something Pipeline-like
-        assert hasattr(pipeline, "normalize")
-        assert hasattr(pipeline, "predict")
-
     def test_repool_without_fitted_state_raises(self, simple_pool):
         """Test repool raises without fitted state."""
         with pytest.raises(ValueError, match="No fitted state"):
