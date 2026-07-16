@@ -707,10 +707,6 @@ Temporal oversampling factor in seconds.
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="time_length-" open markdown="1">
 <summary>`float`, default=32.0</summary>
 
@@ -745,10 +741,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
@@ -791,10 +783,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
@@ -1046,10 +1034,6 @@ t_r : `float`
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
 
@@ -1092,10 +1076,6 @@ t_r : `float`
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
 
@@ -1137,10 +1117,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
@@ -3611,10 +3587,6 @@ Temporal oversampling factor in seconds.
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="time_length-" open markdown="1">
 <summary>`float`, default=32.0</summary>
 
@@ -3648,10 +3620,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
@@ -3694,10 +3662,6 @@ t_r : `float`
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
 
@@ -3738,10 +3702,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
@@ -3784,10 +3744,6 @@ t_r : `float`
 
 tr:
 
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
-
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>
 
@@ -3828,10 +3784,6 @@ t_r : `float`
     :term:`Repetition time<TR>`, in seconds (sampling period).
 
 tr:
-
-    .. nilearn_deprecated:: 0.11.0
-
-        Use ``t_r`` instead (see above).
 
 <details class="oversampling-" open markdown="1">
 <summary>`int`, default=50</summary>

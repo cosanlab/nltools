@@ -136,6 +136,30 @@ def _strip_rst_roles(text: str) -> str:
     return re.sub(r":(func|meth|class|attr|obj|mod|data|exc|ref):`([^`]+)`", repl, text)
 
 
+# RST block directive (``.. name:: args`` + optional deeper-indented body). These
+# leak from re-exported third-party docstrings (e.g. nilearn's ``glover_hrf`` /
+# ``spm_hrf`` carry ``.. nilearn_deprecated:: 0.11.0``), which we can't rewrite at
+# the source. The body is every following line that is blank or indented deeper
+# than the marker, per RST; consume the marker and its whole block.
+_RST_DIRECTIVE_RE = re.compile(
+    r"^(?P<indent>[ \t]*)\.\. [\w-]+::[^\n]*\n"  # ``.. name:: args`` marker line
+    r"(?:[ \t]*\n|(?P=indent)[ \t]+[^\n]*\n)*",  # blank or deeper-indented body
+    re.MULTILINE,
+)
+
+
+def _strip_rst_directives(text: str) -> str:
+    """Drop residual RST block directives leaked from third-party docstrings.
+
+    nltools' own docstrings are Markdown-only, but re-exports (e.g.
+    ``nltools.algorithms.hrf`` re-exporting nilearn HRFs) carry RST directives
+    like ``.. nilearn_deprecated:: 0.11.0`` that otherwise render as literal RST.
+    Removes the ``.. name::`` marker and any deeper-indented directive body.
+    """
+
+    return _RST_DIRECTIVE_RE.sub("", text)
+
+
 def _remove_deprecated_members(text: str) -> str:
     """Hide deprecated methods from the generated API reference.
 
@@ -253,7 +277,8 @@ def postprocess(text: str, prefix: str) -> str:
     - Insert newline between concatenated headings (e.g. ``### Attributes#### foo``)
     - Shorten dotpath anchors in summary table links to match short heading IDs
     - Rename 'Functions' summary/category heading to 'Methods' for class pages
-    - Strip any residual RST roles (safety net over docstring standardization)
+    - Strip any residual RST roles and block directives (safety net over
+      docstring standardization; catches third-party re-export leakage)
     - Hide deprecated members (documented in the migration guide instead)
     - Label member headings with page-scoped explicit MyST targets
 
@@ -294,6 +319,7 @@ def postprocess(text: str, prefix: str) -> str:
     # Hide deprecated members and strip any residual RST roles (safety net).
     text = _remove_deprecated_members(text)
     text = _strip_rst_roles(text)
+    text = _strip_rst_directives(text)
 
     # Final pass: drop summary links whose target heading was removed above.
     text = _delink_dangling_anchors(text)
