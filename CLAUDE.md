@@ -55,9 +55,11 @@ Jupyter Book v2 (mystmd). API docs auto-generated via `griffe2md` (Google-style 
 
 ```bash
 uv run poe docs-generate   # regenerate API docs only
-uv run poe docs-build      # generate + myst build --site
-uv run poe docs-preview    # myst start (live preview)
+uv run poe docs-build      # generate + myst build --site + marimo/WASM tutorials
+uv run poe docs-marimo     # export tutorial notebooks to WASM pages (--base-url for /nltools/)
+uv run poe docs-preview    # myst start (live preview of the site + gallery)
 uv run poe docs-clean      # rm _build
+uv run poe tutorials       # static-check + run every tutorial notebook end-to-end
 uv run poe changelog       # regenerate docs/changelog.md from git history (git-cliff)
 uv run poe release         # full release: bump version, build, smoke-test, changelog, tag, publish
 ```
@@ -67,7 +69,17 @@ uv run poe release         # full release: bump version, build, smoke-test, chan
   hides deprecated members, fixes griffe heading quirks)
 - Changelog: `cliff.toml` (git-cliff config) → `docs/changelog.md`; badge CSS in `docs/_static/custom.css`
 - Release: `scripts/release.py` (uv/poe workflow); version lives ONLY in `pyproject.toml`
-- Tutorials: `docs/tutorials/` — MyST Markdown with `{code-cell}` directives
+- Tutorials: **marimo `.py` notebooks** under `docs/tutorials/{basics,workflows}/` are the single
+  source of truth. `scripts/build_marimo_wasm.py` exports each to a self-contained interactive
+  **WASM page** (`marimo export html-wasm --mode run --show-code --execute`) served under
+  `_build/html/tutorials/<group>-<name>.html`; the MyST `tutorials/index.md` is a gallery linking
+  to them. Each notebook has a PEP 723 header for the PyPI stack (auto-micropip'd in-browser) and an
+  `IN_WASM` cell that installs the nltools dev wheel from a build-hosted URL; `--execute` bakes
+  outputs at build time via a `file://` wheel injected into PEP 723. See `marimo-learning.md` for the
+  full mechanics. (The old `marimo_to_myst.py` `.md`-render + JupyterLite pipeline is retired.)
+  Local check: `uv run poe tutorials`. **In-browser data**: `01_glm`/`03_mvpa` + all basics seed
+  trimmed data from HF `nltools/niftis`; `02_encoding`/`04_isc` still need trimmed subsets hosted
+  before their data cells run in WASM (they run locally today).
 
 ### Docstring style — Google-style Markdown, NO RST
 

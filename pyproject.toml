@@ -226,67 +226,57 @@ shell = """
 set -eu
 cd docs
 BASE_URL=/nltools myst build --site --html --execute
-# MyST does not apply BASE_URL to literal TOC url entries.
-find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/try-it-jupyterlite/}{/nltools/try-it-jupyterlite/}g' {} +
-find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/try-it-jupyterlite/}{/nltools/try-it-jupyterlite/}g' {} +
+# MyST does not apply BASE_URL to literal TOC/card url entries (the interactive
+# tutorial links point at /tutorials/{basics,workflows}-*.html). Prefix /nltools.
+find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g' {} +
+find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g' {} +
 """
 
 [tool.poe.tasks.docs-build]
-help = "Generate API docs, build MyST, then add the local JupyterLite bundle"
+help = "Generate API docs, build MyST, then add the interactive marimo/WASM tutorials"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
-  { ref = "docs-jupyterlite" },
+  { ref = "docs-marimo" },
 ]
 
 [tool.poe.tasks.docs-build-pages]
-help = "Generate API docs and build the MyST site plus JupyterLite for GitHub Pages"
+help = "Generate API docs and build the MyST site plus marimo/WASM tutorials for GitHub Pages"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site-pages" },
-  { ref = "docs-jupyterlite-pages" },
+  { ref = "docs-marimo-pages" },
 ]
 
-[tool.poe.tasks.docs-jupyterlite]
-help = "Build the root-based local JupyterLite tutorial bundle"
-executor = "virtualenv"
-cmd = "python scripts/build_jupyterlite.py"
+[tool.poe.tasks.docs-marimo]
+help = "Export tutorial marimo notebooks to interactive WASM pages under _build/html/tutorials"
+cmd = "python scripts/build_marimo_wasm.py"
 
-[tool.poe.tasks.docs-jupyterlite-pages]
-help = "Build JupyterLite for /nltools/ on cosanlab.github.io"
-executor = "virtualenv"
-cmd = "python scripts/build_jupyterlite.py --base-url /nltools/try-it-jupyterlite/"
+[tool.poe.tasks.docs-marimo-pages]
+help = "Export tutorial WASM pages for the /nltools/ GitHub Pages subpath"
+cmd = "python scripts/build_marimo_wasm.py --base-url /nltools/"
 
 [tool.poe.tasks.docs-preview]
-help = "Live preview docs (myst start + CORS wheel server for in-browser Pyodide)"
-shell = """
-python scripts/serve_wheel.py --port 8080 &
-WHEEL_PID=$!
-trap "kill $WHEEL_PID 2>/dev/null" EXIT INT TERM
-cd docs && myst start --execute
-"""
+help = "Live preview the MyST site (API reference + tutorial gallery)"
+shell = """cd docs && myst start"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
-shell = """for nb in docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "check $nb"; marimo check "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-run]
 help = "Execute each tutorial marimo notebook as a script to verify it runs end-to-end"
-shell = """for nb in docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
-
-[tool.poe.tasks.tutorials-build]
-help = "Regenerate tutorial MyST-NB markdown from the marimo notebooks (single source of truth)"
-cmd = "python scripts/marimo_to_myst.py --all"
+shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
 help = "Clear the joblib fit cache used by the tutorial notebooks (forces recompute)"
 shell = """rm -rf .cache/tutorials docs/.cache/tutorials"""
 
 [tool.poe.tasks.tutorials]
-help = "Verify tutorial notebooks run, then regenerate their MyST markdown"
+help = "Static-check tutorial notebooks, then verify they run end-to-end"
 sequence = [
+  { ref = "tutorials-check" },
   { ref = "tutorials-run" },
-  { ref = "tutorials-build" },
 ]
 
 [tool.poe.tasks.changelog]

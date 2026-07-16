@@ -1,3 +1,22 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "numpy==2.0.2",
+#     "nibabel",
+#     "nilearn==0.13.1",
+#     "scikit-learn",
+#     "scipy",
+#     "pandas",
+#     "polars",
+#     "seaborn",
+#     "matplotlib",
+#     "joblib>=1.5.3",
+#     "huggingface-hub",
+#     "pynv",
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.23.9"
@@ -9,6 +28,31 @@ def _():
     import marimo as mo
 
     return (mo,)
+
+
+@app.cell
+def _():
+    import sys
+
+    IN_WASM = sys.platform == "emscripten"
+    return (IN_WASM,)
+
+
+@app.cell(hide_code=True)
+async def _(IN_WASM):
+    # In-browser only: install the nltools dev wheel before any nltools import runs.
+    # The PyPI stack micropip-installs from the PEP 723 header automatically; nltools is
+    # not on PyPI at this dev version, so we install the build-hosted wheel by absolute
+    # URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
+    wasm_ready = True
+    if IN_WASM:
+        import micropip
+        import js
+
+        _ = await micropip.install(
+            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
+        )
+    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -41,7 +85,8 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(wasm_ready):
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
     import numpy as np
     from joblib import Memory
 
@@ -61,25 +106,23 @@ def _(mo):
         r"""
     ## How to do it
 
-    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV. In JupyterLite, the same analysis uses a trimmed copy of the eight subjects fitted below so it can run entirely in the browser.
+    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV. In the browser (Pyodide), the same analysis uses a trimmed copy of the eight subjects fitted below so it runs without a server.
     """
     )
     return
 
 
 @app.cell
-async def _():
+async def _(IN_WASM, wasm_ready):
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
     import json
-    import sys
     from pathlib import Path
 
     from nilearn.datasets import fetch_language_localizer_demo_dataset
     from nilearn.interfaces.bids import get_bids_files
     from nltools.templates import fetch_resource, seed_resources
 
-    IN_PYODIDE = sys.platform == "emscripten"
-
-    if IN_PYODIDE:
+    if IN_WASM:
         _pyodide_subjects = [f"{_subject:02d}" for _subject in range(1, 9)]
 
         def _resource_paths(sub: str) -> dict:
@@ -244,7 +287,7 @@ def _(mo):
         r"""
     ### Multiple-comparisons correction
 
-    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.stats.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
+    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.stats.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](workflows-03_mvpa.html)) recovers power.
     """
     )
     return
@@ -287,9 +330,9 @@ def _(mo):
 
     **Next steps**
 
-    - [Encoding models](02_encoding.md) — predict brain activity *from* stimulus features (GLM vs. Ridge).
-    - [Multivariate pattern analysis](03_mvpa.md) — decode conditions and compare representational geometry.
-    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
+    - [Encoding models](workflows-02_encoding.html) — predict brain activity *from* stimulus features (GLM vs. Ridge).
+    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode conditions and compare representational geometry.
+    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
     """
     )
     return

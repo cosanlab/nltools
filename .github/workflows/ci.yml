@@ -54,9 +54,11 @@ jobs:
           HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run pytest -n 2 --tb=short
 
-      - name: Build docs
+      - name: Build docs (API generation + MyST site smoke; skips the slow marimo/WASM export)
         if: matrix.python-version == '3.12'
-        run: uv run jupyter-book build docs
+        run: |
+          uv run poe docs-generate
+          cd docs && uv run myst build --html
 
       - name: Build package
         if: matrix.python-version == '3.12'

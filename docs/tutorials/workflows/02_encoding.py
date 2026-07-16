@@ -1,3 +1,22 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "numpy==2.0.2",
+#     "nibabel",
+#     "nilearn==0.13.1",
+#     "scikit-learn",
+#     "scipy",
+#     "pandas",
+#     "polars",
+#     "seaborn",
+#     "matplotlib",
+#     "joblib>=1.5.3",
+#     "huggingface-hub",
+#     "pynv",
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.23.9"
@@ -9,6 +28,35 @@ def _():
     import marimo as mo
 
     return (mo,)
+
+
+@app.cell
+def _():
+    import sys
+
+    IN_WASM = sys.platform == "emscripten"
+    return (IN_WASM,)
+
+
+@app.cell(hide_code=True)
+async def _(IN_WASM):
+    # In-browser only: install the nltools dev wheel before any nltools import runs.
+    # The PyPI stack micropip-installs from the PEP 723 header automatically; nltools is
+    # not on PyPI at this dev version, so we install the build-hosted wheel by absolute
+    # URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
+    #
+    # NOTE: this notebook's dataset (nilearn Miyawaki) is not yet hosted for in-browser
+    # use — the data cell below runs locally but not in WASM until a trimmed subset is
+    # seeded from HF (tracked follow-up). The kernel + nltools still boot in the browser.
+    wasm_ready = True
+    if IN_WASM:
+        import micropip
+        import js
+
+        _ = await micropip.install(
+            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
+        )
+    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -29,7 +77,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    **How it works.** Compared with the [GLM](01_glm.md), an encoding model flips the question and the machinery:
+    **How it works.** Compared with the [GLM](workflows-01_glm.html), an encoding model flips the question and the machinery:
 
     - **GLM** assumes a canonical HRF, uses a few categorical regressors, and asks *which voxels respond* (β / t / p).
     - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (cross-validated R²).
@@ -41,7 +89,8 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(wasm_ready):
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
     import numpy as np
     from joblib import Memory
 
@@ -242,9 +291,9 @@ def _(mo):
 
     **Next steps**
 
-    - [GLM analysis](01_glm.md) — the inferential counterpart: which voxels respond.
-    - [Multivariate pattern analysis](03_mvpa.md) — decode the stimulus from brain patterns.
-    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
+    - [GLM analysis](workflows-01_glm.html) — the inferential counterpart: which voxels respond.
+    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode the stimulus from brain patterns.
+    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
     """
     )
     return

@@ -7,25 +7,31 @@ project:
   github: cosanlab/nltools
   toc:
     - file: index.md
-    - title: Try it live
-      url: /try-it-jupyterlite/lab/index.html
     - file: migration-guide.md
       title: v0.6.0 Migration Guide
     - file: tutorials/index.md
       children:
         - title: Basics
-          hidden: true
           children:
-            - file: tutorials/basics/01_brain_data.md
-            - file: tutorials/basics/02_design_matrix.md
-            - file: tutorials/basics/03_adjacency.md
+            # Interactive marimo/WASM notebooks (built by scripts/build_marimo_wasm.py).
+            # These are literal URLs; MyST does not apply BASE_URL to them, so the
+            # docs-site-pages perl rewrite prefixes /nltools on GitHub Pages.
+            - title: BrainData Basics
+              url: /tutorials/basics-01_brain_data.html
+            - title: DesignMatrix Basics
+              url: /tutorials/basics-02_design_matrix.html
+            - title: Adjacency Basics
+              url: /tutorials/basics-03_adjacency.html
         - title: Workflows
-          hidden: true
           children:
-            - file: tutorials/workflows/01_glm.md
-            - file: tutorials/workflows/02_encoding.md
-            - file: tutorials/workflows/03_mvpa.md
-            - file: tutorials/workflows/04_isc.md
+            - title: GLM Analysis
+              url: /tutorials/workflows-01_glm.html
+            - title: Encoding Models
+              url: /tutorials/workflows-02_encoding.html
+            - title: Multivariate Pattern Analysis
+              url: /tutorials/workflows-03_mvpa.html
+            - title: Inter-Subject Correlation
+              url: /tutorials/workflows-04_isc.html
     - title: Data Classes
       children:
         - file: api/data/brain_data.md

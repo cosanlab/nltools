@@ -1,3 +1,22 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "marimo",
+#     "numpy==2.0.2",
+#     "nibabel",
+#     "nilearn==0.13.1",
+#     "scikit-learn",
+#     "scipy",
+#     "pandas",
+#     "polars",
+#     "seaborn",
+#     "matplotlib",
+#     "joblib>=1.5.3",
+#     "huggingface-hub",
+#     "pynv",
+#     "pyodide-http; sys_platform == 'emscripten'",
+# ]
+# ///
 import marimo
 
 __generated_with = "0.23.9"
@@ -9,6 +28,31 @@ def _():
     import marimo as mo
 
     return (mo,)
+
+
+@app.cell
+def _():
+    import sys
+
+    IN_WASM = sys.platform == "emscripten"
+    return (IN_WASM,)
+
+
+@app.cell(hide_code=True)
+async def _(IN_WASM):
+    # In-browser only: install the nltools dev wheel before any nltools import runs.
+    # The PyPI stack micropip-installs from the PEP 723 header automatically; nltools is
+    # not on PyPI at this dev version, so we install the build-hosted wheel by absolute
+    # URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
+    wasm_ready = True
+    if IN_WASM:
+        import micropip
+        import js
+
+        _ = await micropip.install(
+            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
+        )
+    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -34,14 +78,15 @@ def _(mo):
         r"""
     **How it works.** Both approaches operate on the same patterns; they differ in the question. Decoding fits a classifier across voxels and scores it on held-out data. RSA turns patterns into a distance matrix (the RDM) and correlates that geometry with a model RDM. The `spatial_scale=` switch is shared: whole-brain uses every voxel jointly, ROI runs the analysis per parcel, and searchlight sweeps a roving sphere.
 
-    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both. JupyterLite loads a trimmed copy of the same subject so the workflow remains practical in a browser.
+    We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both. In the browser, a trimmed copy of the same subject keeps the workflow practical.
     """
     )
     return
 
 
 @app.cell
-def _():
+def _(wasm_ready):
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
     import warnings
 
     import numpy as np
@@ -69,14 +114,10 @@ def _(mo):
 
 
 @app.cell
-async def _(BrainData, fetch_resource, memory, np, pd, seed_resources):
-    import sys
-
+async def _(IN_WASM, BrainData, fetch_resource, memory, np, pd, seed_resources):
     from nilearn.datasets import fetch_haxby
 
-    IN_PYODIDE = sys.platform == "emscripten"
-
-    if IN_PYODIDE:
+    if IN_WASM:
         from sklearn.utils import Bunch
 
         mvpa_resources = [
@@ -283,9 +324,9 @@ def _(mo):
 
     **Next steps**
 
-    - [GLM analysis](01_glm.md) — the mass-univariate "where", and how to build single-trial designs.
-    - [Encoding models](02_encoding.md) — predict brain activity from stimulus features.
-    - [Inter-subject correlation](04_isc.md) — shared responses across people.
+    - [GLM analysis](workflows-01_glm.html) — the mass-univariate "where", and how to build single-trial designs.
+    - [Encoding models](workflows-02_encoding.html) — predict brain activity from stimulus features.
+    - [Inter-subject correlation](workflows-04_isc.html) — shared responses across people.
     """
     )
     return
