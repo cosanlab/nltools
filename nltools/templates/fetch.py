@@ -31,7 +31,7 @@ _PYODIDE_CACHE_ROOT = Path("/nltools_cache") / REVISION
 _idbfs_mounted = False
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def fetch_resource(relpath: str) -> str:
     """Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
