@@ -45,3 +45,16 @@ from .templates import (
 from .version import __version__
 from .mask import expand_mask, collapse_mask, create_sphere
 from .algorithms import SRM, DetSRM
+
+# Bind submodules advertised in __all__ so attribute access (e.g.
+# nltools.datasets, nltools.cross_validation) works without a prior
+# explicit `import nltools.datasets`.
+from . import (  # noqa: F401
+    cross_validation,
+    data,
+    datasets,
+    io,
+    plotting,
+    stats,
+    utils,
+)

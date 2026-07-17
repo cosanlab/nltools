@@ -90,7 +90,7 @@ class Ridge(BaseModel):
         cv=None,
         alphas=None,
         n_iter=100,
-        concentration=[0.1, 1.0],
+        concentration=None,
         backend="numpy",
         local_alpha=True,
         fit_intercept=False,
@@ -103,7 +103,7 @@ class Ridge(BaseModel):
         self.cv = cv
         self.alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
         self.n_iter = n_iter
-        self.concentration = concentration
+        self.concentration = [0.1, 1.0] if concentration is None else concentration
         self.backend = backend
         self.local_alpha = local_alpha
         self.fit_intercept = fit_intercept
