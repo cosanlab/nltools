@@ -45,9 +45,9 @@ async def _(IN_WASM):
     # not on PyPI at this dev version, so we install the build-hosted wheel by absolute
     # URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
     #
-    # NOTE: this notebook's dataset (nilearn development_fmri) is not yet hosted for
-    # in-browser use — the data cell below runs locally but not in WASM until a trimmed
-    # subset is seeded from HF (tracked follow-up). The kernel + nltools still boot.
+    # The dataset (nilearn development_fmri) is hosted under tutorials/isc/ in the
+    # nltools/niftis HF dataset; the data cell seeds a light 6-subject subset into the
+    # IDBFS cache in the browser and reads the full 12 from local nilearn otherwise.
     wasm_ready = True
     if IN_WASM:
         import micropip
@@ -97,7 +97,7 @@ def _(wasm_ready):
     from nltools.algorithms.inference.isc import isc_permutation_test
     from nltools.data import BrainData
     from nltools.mask import roi_to_brain_from_atlas
-    from nltools.templates import fetch_resource
+    from nltools.templates import fetch_resource, seed_resources
 
     memory = Memory(".cache/tutorials", verbose=0)
     warnings.filterwarnings("ignore", message="Cannot detect name collisions")
@@ -108,6 +108,7 @@ def _(wasm_ready):
         memory,
         np,
         roi_to_brain_from_atlas,
+        seed_resources,
     )
 
 
@@ -124,11 +125,30 @@ def _(mo):
 
 
 @app.cell
-def _(BrainData, fetch_resource, memory, np):
+async def _(IN_WASM, BrainData, fetch_resource, memory, np, seed_resources):
     from nilearn.datasets import fetch_development_fmri
 
-    N_SUBJECTS = 12
-    DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
+    # In-browser the movie subjects stream from HF into IDBFS, so keep the seed
+    # light (6 × ~6 MB); locally use the full 12 nilearn ships.
+    N_SUBJECTS = 6 if IN_WASM else 12
+
+    if IN_WASM:
+        from sklearn.utils import Bunch
+
+        _subs = [f"{_i:02d}" for _i in range(1, N_SUBJECTS + 1)]
+        isc_resources = [
+            f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz" for _s in _subs
+        ] + ["masks/default/3mm-MNI152-2009fsl-k50.nii.gz"]
+        await seed_resources(isc_resources)
+        DATA = Bunch(
+            func=[
+                fetch_resource(f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz")
+                for _s in _subs
+            ]
+        )
+    else:
+        DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
+
     ATLAS = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 
     @memory.cache
@@ -167,8 +187,12 @@ def _(isc_data, isc_permutation_test, np):
     )
     isc_values = np.asarray(pairwise["isc"])
     p_values = np.asarray(pairwise["p"])
-    print(f"pairwise ISC — median {np.median(isc_values):.3f}, max {isc_values.max():.3f}")
-    print(f"regions significant (p < 0.05): {(p_values < 0.05).sum()} / {isc_values.size}")
+    print(
+        f"pairwise ISC — median {np.median(isc_values):.3f}, max {isc_values.max():.3f}"
+    )
+    print(
+        f"regions significant (p < 0.05): {(p_values < 0.05).sum()} / {isc_values.size}"
+    )
     return (isc_values,)
 
 
@@ -189,7 +213,10 @@ def _(ATLAS, isc_values, roi_to_brain_from_atlas):
     brain_mask = math_img("img > 0", img=ATLAS)  # binary mask defining the output grid
     isc_map = roi_to_brain_from_atlas(isc_values, atlas=ATLAS, source_mask=brain_mask)
     isc_map.plot(
-        method="slices", title="Inter-subject correlation (pairwise, per region)", cmap="hot", colorbar=True
+        method="slices",
+        title="Inter-subject correlation (pairwise, per region)",
+        cmap="hot",
+        colorbar=True,
     )
     return
 
@@ -222,7 +249,10 @@ def _(isc_data, isc_permutation_test, isc_values, np):
 
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.scatter(isc_values, loo_values, alpha=0.7)
-    lims = [min(isc_values.min(), loo_values.min()), max(isc_values.max(), loo_values.max())]
+    lims = [
+        min(isc_values.min(), loo_values.min()),
+        max(isc_values.max(), loo_values.max()),
+    ]
     ax.plot(lims, lims, "k--", linewidth=1, label="y = x")
     ax.set_xlabel("pairwise ISC")
     ax.set_ylabel("leave-one-out ISC")

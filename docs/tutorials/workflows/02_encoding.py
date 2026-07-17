@@ -45,9 +45,9 @@ async def _(IN_WASM):
     # not on PyPI at this dev version, so we install the build-hosted wheel by absolute
     # URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
     #
-    # NOTE: this notebook's dataset (nilearn Miyawaki) is not yet hosted for in-browser
-    # use — the data cell below runs locally but not in WASM until a trimmed subset is
-    # seeded from HF (tracked follow-up). The kernel + nltools still boot in the browser.
+    # The dataset (nilearn Miyawaki) is hosted as a trimmed subset under
+    # tutorials/encoding/ in the nltools/niftis HF dataset; the data cell seeds it
+    # into the IDBFS cache in the browser and reads from local nilearn otherwise.
     wasm_ready = True
     if IN_WASM:
         import micropip
@@ -95,11 +95,12 @@ def _(wasm_ready):
     from joblib import Memory
 
     from nltools.data import BrainData
+    from nltools.templates import fetch_resource, seed_resources
     from nltools.utils import concatenate
 
     # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
     memory = Memory(".cache/tutorials", verbose=0)
-    return BrainData, Memory, concatenate, memory, np
+    return BrainData, Memory, concatenate, fetch_resource, memory, np, seed_resources
 
 
 @app.cell(hide_code=True)
@@ -115,10 +116,36 @@ def _(mo):
 
 
 @app.cell
-def _(BrainData, concatenate, memory, np):
+async def _(
+    IN_WASM, BrainData, concatenate, fetch_resource, memory, np, seed_resources
+):
     from nilearn.datasets import fetch_miyawaki2008
 
-    DATASET = fetch_miyawaki2008(verbose=0)
+    if IN_WASM:
+        from sklearn.utils import Bunch
+
+        _runs = [f"{_i:02d}" for _i in range(1, 9)]
+        encoding_resources = (
+            [f"tutorials/encoding/run-{_r}_bold.nii.gz" for _r in _runs]
+            + [f"tutorials/encoding/run-{_r}_label.csv" for _r in _runs]
+            + ["tutorials/encoding/mask.nii.gz", "tutorials/encoding/background.nii.gz"]
+        )
+        await seed_resources(encoding_resources)
+        # Stand-in for nilearn's Bunch: same .func/.label/.mask/.background attrs
+        # the load + plot cells read, backed by the trimmed HF-hosted subset.
+        DATASET = Bunch(
+            func=[
+                fetch_resource(f"tutorials/encoding/run-{_r}_bold.nii.gz")
+                for _r in _runs
+            ],
+            label=[
+                fetch_resource(f"tutorials/encoding/run-{_r}_label.csv") for _r in _runs
+            ],
+            mask=fetch_resource("tutorials/encoding/mask.nii.gz"),
+            background=fetch_resource("tutorials/encoding/background.nii.gz"),
+        )
+    else:
+        DATASET = fetch_miyawaki2008(verbose=0)
 
     @memory.cache
     def load_runs(n_runs: int):
@@ -126,7 +153,10 @@ def _(BrainData, concatenate, memory, np):
         runs = [BrainData(DATASET.func[i], mask=DATASET.mask) for i in range(n_runs)]
         bold = concatenate(runs)
         stim = np.vstack(
-            [np.loadtxt(DATASET.label[i], delimiter=",", dtype=int) for i in range(n_runs)]
+            [
+                np.loadtxt(DATASET.label[i], delimiter=",", dtype=int)
+                for i in range(n_runs)
+            ]
         ).astype(float)
         stim[stim < 0] = 0.0  # rest frames → no-patch
         return bold, stim
