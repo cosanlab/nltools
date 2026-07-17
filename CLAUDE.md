@@ -14,13 +14,19 @@
 Classes are **facades and glue** — all real logic lives in pure functions.
 
 - **Shell** (imperative): `nltools/data/` — `BrainData`, `Adjacency`, `DesignMatrix`, `BrainCollection`. Each is a facade over submodules (io, modeling, plotting, etc.)
-- **Core** (functional): `stats.py`, `utils.py`, `algorithms/` (`ridge`, `srm`, `hyperalignment`, `inference`)
+- **Core** (functional): `stats`, `utils`, `cross_validation`, `mask`, `algorithms/` (`alignment` [SRM/hyperalignment/LocalAlignment], `inference`, `ridge`)
 
 **Design rules:**
 - Pure functions first. Classes compose and delegate to them, never the reverse.
 - Use frozen dataclasses for immutable state containers. Prefer modern Python (type hints, `@dataclass(frozen=True)`, `|` unions, etc.).
 - Don't repeat logic — extract shared helpers as functions where most useful and import them. Prefer a single source of truth over duplicated code.
 - **No underscore-prefixed module names** (e.g. `validation.py` not `_validation.py`). Leading underscores are fine for internal functions/methods, just not filenames.
+
+**Internals reference** (design docs for the subsystems below — read the relevant one before changing that subsystem; keep it in sync when behavior changes):
+- `docs/development/execution-model.md` — `BrainCollection` parallel execution: path-backed caching, the `cache=` knob, HDF5 fit bundles, `_ItemTask`/`_DesignContext` pickling, parallel write safety. (Replaces the old `data/collection/SPEC.md`.)
+- `docs/development/ridge-internals.md` — the six ridge tricks + the `class Backend` abstraction (`parallel=`/hyphenated names/MPS). (Replaces `algorithms/ridge/{DESIGN,README}.md`.)
+- `docs/development/inference-internals.md` — permutation/bootstrap algorithms, deterministic cross-backend RNG, Phipson-Smyth p-values, numerical stability. (Replaces `algorithms/inference/DESIGN.md`.)
+- `docs/development/index.md` — the architecture overview + canonical kwarg vocabulary (human-facing entry point; the interactive [Design Tour](docs/design-tour.md) links into these).
 
 ## API Conventions (v0.6.0)
 

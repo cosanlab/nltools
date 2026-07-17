@@ -314,7 +314,7 @@ def isfc(data, method="average", n_jobs=-1):
 def isps(
     data, *, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False
 ):
-    """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+    """Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
     timeseries. Requires multiple subjects. This method is largely based on that described by Glerean

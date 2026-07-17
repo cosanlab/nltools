@@ -266,7 +266,11 @@ class BrainCollection:
         mask: nib.Nifti1Image | Path | str,
         cache_dir: Path | str | None = "./.nltools_cache",
     ) -> BrainCollection:
-        """Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0."""
+        """Read a collection previously saved by ``write()``.
+
+        Note:
+            Does not recover from cache subdirs in v0.6.0.
+        """
         return io.read(cls, directory, mask=mask, cache_dir=cache_dir)
 
     # ------------------------------------------------------------------
@@ -313,7 +317,7 @@ class BrainCollection:
 
     @property
     def shape(self) -> tuple[int, int | None, int]:
-        """``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+        """Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
         ``n_obs`` is ``None`` when any item is path-backed (loading just to
         report shape would defeat the purpose) or when items are ragged.
@@ -842,7 +846,7 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ):  # Predict | BrainCollection
-        """Two distinct paths, dispatched by argument:
+        """Predict via one of two paths, dispatched by argument.
 
           ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
           ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``

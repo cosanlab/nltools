@@ -812,7 +812,7 @@ class BrainData:
     def filter(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
         self, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
     ):
-        """Apply butterworth filter to data. Wraps nilearn.signal.clean.
+        """Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
         Note:
             Unlike nilearn's default, does not detrend or standardize. Pass

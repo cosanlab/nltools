@@ -116,6 +116,12 @@ project:
       children:
         - file: contributing.md
         - file: performance.md
+        - title: Architecture & Internals
+          children:
+            - file: development/index.md
+            - file: development/execution-model.md
+            - file: development/ridge-internals.md
+            - file: development/inference-internals.md
         - file: changelog.md
 site:
   options:

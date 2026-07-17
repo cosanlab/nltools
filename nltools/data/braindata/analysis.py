@@ -714,7 +714,7 @@ def z_to_r(bd):
 def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
     bd, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
 ):
-    """Apply butterworth filter to data. Wraps nilearn.signal.clean.
+    """Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
     Does not default to detrending and standardizing like nilearn
     implementation, but this can be overridden using kwargs.
