@@ -9,6 +9,12 @@
 - **Breaking commits**: use `!` in the type (e.g. `feat(data)!:`, `refactor!:`) and include a `BREAKING:` line in the body describing the API change.
 - **Task tracking**: Linear (project `nltools`, team `Ejolly`).
 
+## Skills
+
+Use the vendored project skills (in `.claude/skills/`) for the domains they cover — don't work from memory:
+- **`nilearn`** — before writing, reviewing, or debugging any nilearn code (GLM, masking, plotting, decoding, datasets, connectivity). This codebase builds directly on nilearn; the skill carries current signatures and patterns.
+- **`marimo-notebook` / `marimo-pair`** — when authoring or editing the marimo `.py` tutorials under `docs/tutorials/`.
+
 ## Architecture: Functional Core, Imperative Shell
 
 Classes are **facades and glue** — all real logic lives in pure functions.
