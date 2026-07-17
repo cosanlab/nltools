@@ -2,17 +2,16 @@
 
 These are the building blocks that back `BrainCollectionPipeline`: transform
 steps (`NormalizeStep`, `ReduceStep`, `PipeStep`), the fitted-stack container
-(`FittedStack`), the pooled-data aggregator (`PooledData`), the cross-validation
-scheme (`CVScheme`), and the transform protocols. This package is internal; the
-standalone fluent `Pipeline` / `MultiSubjectPipeline` orchestration was removed in
-v0.6.0 — multi-subject CV now lives on `BrainCollection`
-(`.cv().standardize().reduce().predict()`) and custom single-dataset
-preprocessing uses `model=make_pipeline(...)` on `BrainData.predict`.
+(`FittedStack`), the cross-validation scheme (`CVScheme`), and the transform
+protocols. This package is internal; the standalone fluent `Pipeline` /
+`MultiSubjectPipeline` orchestration was removed in v0.6.0 — multi-subject CV
+now lives on `BrainCollection` (`.cv().standardize().reduce().predict()`) and
+custom single-dataset preprocessing uses `model=make_pipeline(...)` on
+`BrainData.predict`.
 """
 
 from .base import FittedStack, FittedTransform, TransformStep
 from .cv import CVScheme
-from .pool import PooledData, ResultDict, StatResult
 from .steps import NormalizeStep, PipeStep, ReduceStep
 
 __all__ = [
@@ -24,10 +23,6 @@ __all__ = [
     # Transform steps
     "NormalizeStep",
     "PipeStep",
-    # Pool infrastructure
-    "PooledData",
     "ReduceStep",
-    "ResultDict",
-    "StatResult",
     "TransformStep",
 ]
