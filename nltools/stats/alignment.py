@@ -312,7 +312,7 @@ def procrustes(data1, data2):
 
 
 def procrustes_distance(
-    mat1, mat2, n_permute=5000, tail=2, n_jobs=-1, random_state=None
+    mat1, mat2, *, n_permute=5000, tail=2, n_jobs=-1, random_state=None
 ):
     """Test matrix similarity using Procrustes superposition.
 
@@ -382,6 +382,7 @@ def procrustes_distance(
 def align_states(
     reference,
     target,
+    *,
     metric="correlation",
     return_index=False,
     replace_zero_variance=False,

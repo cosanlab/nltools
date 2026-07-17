@@ -668,6 +668,7 @@ class BrainCollection:
 
                 def worker(
                     task,
+                    *,
                     _cdef=cdef,
                     _stat=stat,
                     _step=step_id,

@@ -481,6 +481,7 @@ class FittedBrainCollection:
 
     def pool(
         self,
+        *,
         param: str = "beta",
         contrast: str | None = None,
         save: str | None = None,

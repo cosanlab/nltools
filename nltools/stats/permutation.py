@@ -36,6 +36,7 @@ from typing import Literal
 
 def one_sample_permutation_test(
     data: np.ndarray,
+    *,
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
@@ -91,6 +92,7 @@ def one_sample_permutation_test(
 def two_sample_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
@@ -139,6 +141,7 @@ def two_sample_permutation_test(
 def correlation_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int = 5000,
     metric: str = "pearson",
     tail: int | str = 2,
@@ -190,6 +193,7 @@ def correlation_permutation_test(
 def timeseries_correlation_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     method: Literal["circle_shift", "phase_randomize"] = "circle_shift",
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
@@ -306,6 +310,7 @@ def phase_randomize(
 def matrix_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int = 5000,
     metric: str = "pearson",
     how: str = "upper",

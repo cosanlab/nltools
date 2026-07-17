@@ -659,6 +659,7 @@ def _signed_z_from_p(t_like_arr, p_arr):
 
 def ttest(
     bd,
+    *,
     popmean=0.0,
     permutation=False,
     n_permute=5000,

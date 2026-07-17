@@ -52,7 +52,7 @@ class Simulator:
     """
 
     def __init__(
-        self, brain_mask=None, output_dir=None, random_state=None
+        self, *, brain_mask=None, output_dir=None, random_state=None
     ):  # no scoring param
         # self.resource_folder = os.path.join(os.getcwd(),'resources')
         if output_dir is None:
@@ -189,7 +189,7 @@ class Simulator:
         )
 
     def create_data(
-        self, levels, sigma, radius=5, center=None, reps=1, output_dir=None
+        self, levels, sigma, *, radius=5, center=None, reps=1, output_dir=None
     ):
         """create simulated data with integers
 
@@ -251,7 +251,7 @@ class Simulator:
         return dat
 
     def create_cov_data(
-        self, cor, cov, sigma, mask=None, reps=1, n_sub=1, output_dir=None
+        self, cor, cov, sigma, *, mask=None, reps=1, n_sub=1, output_dir=None
     ):
         """create continuous simulated data with covariance
 
@@ -364,7 +364,7 @@ class Simulator:
                     wr.writerow(self.rep_id)
 
     def create_ncov_data(
-        self, cor, cov, sigma, masks=None, reps=1, n_sub=1, output_dir=None
+        self, cor, cov, sigma, *, masks=None, reps=1, n_sub=1, output_dir=None
     ):
         """create continuous simulated data with covariance
 
@@ -540,6 +540,7 @@ class SimulateGrid:
 
     def __init__(
         self,
+        *,
         grid_width=100,
         signal_width=20,
         n_subjects=20,

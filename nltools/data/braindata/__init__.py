@@ -548,6 +548,7 @@ class BrainData:
     def bootstrap(
         self,
         stat,
+        *,
         n_samples=5000,
         save_boots=False,
         percentiles=(2.5, 97.5),
@@ -782,7 +783,7 @@ class BrainData:
         return extract_roi(self, mask, metric=metric, n_components=n_components)
 
     def filter(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
-        self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
+        self, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
     ):
         """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
@@ -1018,6 +1019,7 @@ class BrainData:
 
     def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn plotting functions
         self,
+        *,
         method="glass",
         upper=None,
         lower=None,
@@ -1094,6 +1096,7 @@ class BrainData:
 
     def plot_flatmap(
         self,
+        *,
         threshold=None,
         cmap="RdBu_r",
         vmax=None,
@@ -1515,6 +1518,7 @@ class BrainData:
     @coalesced_gc()
     def regions(
         self,
+        *,
         min_region_size=1350,
         method="local_regions",
         smoothing_fwhm=6,
@@ -1572,7 +1576,7 @@ class BrainData:
             "estimators directly. See the migration guide."
         )
 
-    def resample_to(self, img=None, resolution=None, interpolation=None):
+    def resample_to(self, *, img=None, resolution=None, interpolation=None):
         """Resample BrainData to match target image or resolution.
 
         Args:
@@ -1588,7 +1592,9 @@ class BrainData:
         """
         from .io import resample_to
 
-        return resample_to(self, img, resolution, interpolation)
+        return resample_to(
+            self, img=img, resolution=resolution, interpolation=interpolation
+        )
 
     def scale(self, scale_val=100.0, axis=None):
         """Scale data via mean scaling.
@@ -1642,7 +1648,7 @@ class BrainData:
 
         return smooth(self, fwhm)
 
-    def standardize(self, axis=0, method="center", verbose=True):
+    def standardize(self, *, axis=0, method="center", verbose=True):
         """Standardize BrainData() instance.
 
         Args:
@@ -1696,7 +1702,7 @@ class BrainData:
 
         return apply_func(self, np.sum, axis)
 
-    def temporal_resample(self, sampling_freq=None, target=None, target_type="hz"):
+    def temporal_resample(self, *, sampling_freq=None, target=None, target_type="hz"):
         """Resample BrainData timeseries to a new target frequency or number of samples.
 
         Args:
@@ -1716,6 +1722,7 @@ class BrainData:
     @coalesced_gc()
     def threshold(
         self,
+        *,
         upper=None,
         lower=None,
         binarize=False,
@@ -1814,6 +1821,7 @@ class BrainData:
 
     def ttest(
         self,
+        *,
         popmean=0.0,
         permutation=False,
         n_permute=5000,
@@ -1901,6 +1909,7 @@ class BrainData:
 
     def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API via io.upload_neurovault
         self,
+        *,
         access_token=None,
         collection_name=None,
         collection_id=None,
@@ -1928,11 +1937,11 @@ class BrainData:
 
         return upload_neurovault(
             self,
-            access_token,
-            collection_name,
-            collection_id,
-            img_type,
-            img_modality,
+            access_token=access_token,
+            collection_name=collection_name,
+            collection_id=collection_id,
+            img_type=img_type,
+            img_modality=img_modality,
             **kwargs,
         )
 

@@ -9,6 +9,7 @@ import numpy as np
 def bootstrap(
     adj,
     stat,
+    *,
     n_samples=5000,
     save_boots=False,
     percentiles=(2.5, 97.5),

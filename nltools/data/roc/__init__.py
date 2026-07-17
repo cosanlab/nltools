@@ -34,6 +34,7 @@ class Roc:
 
     def __init__(
         self,
+        *,
         input_values=None,
         binary_outcome=None,
         threshold_type="optimal_overall",
@@ -62,6 +63,7 @@ class Roc:
 
     def calculate(
         self,
+        *,
         input_values=None,
         binary_outcome=None,
         criterion_values=None,

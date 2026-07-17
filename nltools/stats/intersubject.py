@@ -90,6 +90,7 @@ def _bootstrap_isc(
 
 def isc(
     data,
+    *,
     n_samples=5000,
     metric="median",
     method="bootstrap",
@@ -308,6 +309,7 @@ def _permute_isc_group(similarity_matrix, group, metric="median", random_state=N
 def isc_group(
     group1,
     group2,
+    *,
     n_samples=5000,
     metric="median",
     method="permute",
@@ -485,7 +487,9 @@ def isfc(data, method="average", n_jobs=-1):
     return sub_isfc
 
 
-def isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False):
+def isps(
+    data, *, sampling_freq=0.5, low_cut=0.04, high_cut=0.07, order=5, pairwise=False
+):
     """Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
 
     This function computes the instantaneous intersubject phase synchrony for a single voxel/roi

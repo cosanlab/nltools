@@ -56,6 +56,7 @@ def _require_standard_space(bd, op_name: str, *, remedy: str) -> None:
 
 def plot_brain(
     bd,
+    *,
     method="glass",
     upper=None,
     lower=None,
@@ -335,6 +336,7 @@ def plot_brain(
 
 def plot_flatmap_brain(
     bd,
+    *,
     threshold=None,
     cmap="RdBu_r",
     vmax=None,

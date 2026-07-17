@@ -86,6 +86,7 @@ class Ridge(BaseModel):
 
     def __init__(
         self,
+        *,
         alpha=1.0,
         cv=None,
         alphas=None,

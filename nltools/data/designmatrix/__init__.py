@@ -428,7 +428,9 @@ class DesignMatrix:
         """
         from .regressors import add_dct_basis
 
-        return add_dct_basis(self, duration, drop, include_constant=include_constant)
+        return add_dct_basis(
+            self, duration=duration, drop=drop, include_constant=include_constant
+        )
 
     def add_poly(self, order: int = 0, include_lower: bool = True) -> DesignMatrix:
         """Add Legendre polynomial drift terms.
@@ -493,6 +495,7 @@ class DesignMatrix:
 
     def clean(
         self,
+        *,
         fill_na: int | float | None = 0,
         exclude_confounds: bool = False,
         thresh: float = 0.95,
@@ -511,7 +514,13 @@ class DesignMatrix:
         """
         from .diagnostics import clean
 
-        return clean(self, fill_na, exclude_confounds, thresh, verbose)
+        return clean(
+            self,
+            fill_na=fill_na,
+            exclude_confounds=exclude_confounds,
+            thresh=thresh,
+            verbose=verbose,
+        )
 
     def convolve(
         self,

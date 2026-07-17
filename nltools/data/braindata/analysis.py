@@ -708,7 +708,7 @@ def z_to_r(bd):
 
 
 def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
-    bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
+    bd, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
 ):
     """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
@@ -760,7 +760,7 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     return out
 
 
-def standardize(bd, axis=0, method="center", verbose=True):
+def standardize(bd, *, axis=0, method="center", verbose=True):
     """Standardize BrainData() instance.
 
     Args:
@@ -874,6 +874,7 @@ def scale_data(bd, scale_val=100.0, axis=None):
 
 def threshold_data(
     bd,
+    *,
     upper=None,
     lower=None,
     binarize=False,
@@ -982,6 +983,7 @@ def threshold_data(
 
 def regions(
     bd,
+    *,
     min_region_size=1350,
     method="local_regions",
     smoothing_fwhm=6,
@@ -1244,7 +1246,7 @@ def find_spikes_data(
     )
 
 
-def temporal_resample(bd, sampling_freq=None, target=None, target_type="hz"):
+def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     """Resample a BrainData time series to a target frequency or sample count.
 
     Resample BrainData timeseries to a new target frequency or number of samples

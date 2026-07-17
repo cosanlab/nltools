@@ -624,7 +624,7 @@ def _ensure_sform(img):
     return out
 
 
-def resample_to(bd, img=None, resolution=None, interpolation=None):
+def resample_to(bd, *, img=None, resolution=None, interpolation=None):
     """Resample BrainData to match target image or resolution.
 
     Args:
@@ -773,6 +773,7 @@ def write_brain_data(bd, file_name):
 
 def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API
     bd,
+    *,
     access_token=None,
     collection_name=None,
     collection_id=None,

@@ -143,6 +143,7 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
 
 def clean(
     dm: DesignMatrix,
+    *,
     fill_na: int | float | None = 0,
     exclude_confounds: bool = False,
     thresh: float = 0.95,

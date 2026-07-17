@@ -443,10 +443,16 @@ class Adjacency:
         from .modeling import bootstrap
 
         return bootstrap(
-            self, stat, n_samples, save_boots, percentiles, n_jobs, random_state
+            self,
+            stat,
+            n_samples=n_samples,
+            save_boots=save_boots,
+            percentiles=percentiles,
+            n_jobs=n_jobs,
+            random_state=random_state,
         )
 
-    def cluster_summary(self, clusters=None, metric="mean", summary="within"):
+    def cluster_summary(self, *, clusters=None, metric="mean", summary="within"):
         """Provide summaries of clusters within Adjacency matrices.
 
         Computes mean/median of within and between cluster values. Requires a
@@ -463,7 +469,7 @@ class Adjacency:
         """
         from .stats import cluster_summary
 
-        return cluster_summary(self, clusters, metric, summary)
+        return cluster_summary(self, clusters=clusters, metric=metric, summary=summary)
 
     def copy(self):
         """Create a copy of Adjacency object."""
@@ -648,12 +654,19 @@ class Adjacency:
         )
 
     def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
-        self, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+        self, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
     ):
         """Create a silhouette plot."""
         from .stats import plot_silhouette
 
-        return plot_silhouette(self, labels, ax, permutation_test, n_permute, **kwargs)
+        return plot_silhouette(
+            self,
+            labels=labels,
+            ax=ax,
+            permutation_test=permutation_test,
+            n_permute=n_permute,
+            **kwargs,
+        )
 
     def r_to_z(self):
         """Apply Fisher's r-to-z transformation to each data element."""
@@ -785,7 +798,7 @@ class Adjacency:
             for x in self
         ]
 
-    def stats_label_distance(self, labels=None, n_permute=5000, n_jobs=-1):
+    def stats_label_distance(self, *, labels=None, n_permute=5000, n_jobs=-1):
         """Calculate permutation tests on within and between label distance.
 
         Args:
@@ -799,7 +812,9 @@ class Adjacency:
         """
         from .stats import stats_label_distance
 
-        return stats_label_distance(self, labels, n_permute, n_jobs)
+        return stats_label_distance(
+            self, labels=labels, n_permute=n_permute, n_jobs=n_jobs
+        )
 
     def std(self, axis=0):
         """Calculate standard deviation of Adjacency.
@@ -823,7 +838,7 @@ class Adjacency:
         """
         return apply_stat(self, np.nansum, axis)
 
-    def threshold(self, upper=None, lower=None, binarize=False):
+    def threshold(self, *, upper=None, lower=None, binarize=False):
         """Threshold an Adjacency instance.
 
         Provide upper and lower values or percentages to perform two-sided
@@ -847,7 +862,7 @@ class Adjacency:
         """
         from .stats import threshold
 
-        return threshold(self, upper, lower, binarize)
+        return threshold(self, upper=upper, lower=lower, binarize=binarize)
 
     def to_brain(self, values, *, fill: float = np.nan):
         """Project per-matrix scalars back to voxel-space `BrainData`.
@@ -924,6 +939,7 @@ class Adjacency:
 
     def ttest(
         self,
+        *,
         permutation=False,
         n_permute=5000,
         tail=2,

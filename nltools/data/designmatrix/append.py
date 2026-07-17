@@ -83,6 +83,7 @@ def _coerce_horizontal_input(x, sampling_freq):
 def append(
     dm: DesignMatrix,
     other,
+    *,
     axis: int = 0,
     keep_separate: bool = True,
     unique_cols: list[str] | None = None,

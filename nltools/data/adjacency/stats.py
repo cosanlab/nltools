@@ -231,7 +231,7 @@ def z_to_r(adj):
     return out
 
 
-def threshold(adj, upper=None, lower=None, binarize=False):
+def threshold(adj, *, upper=None, lower=None, binarize=False):
     """Threshold an Adjacency instance.
 
     Provide upper and lower values or percentages to perform two-sided
@@ -274,6 +274,7 @@ def threshold(adj, upper=None, lower=None, binarize=False):
 
 def ttest(
     adj,
+    *,
     permutation=False,
     n_permute=5000,
     tail=2,
@@ -406,7 +407,7 @@ def plot_label_distance(adj, labels=None, ax=None):
     return
 
 
-def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
+def stats_label_distance(adj, *, labels=None, n_permute=5000, n_jobs=-1):
     """Calculate permutation tests on within and between label distance.
 
     Args:
@@ -445,7 +446,7 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
 
 
 def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
-    adj, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+    adj, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
 ):
     """Create a silhouette plot.
 
@@ -481,7 +482,7 @@ def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to mat
     )
 
 
-def cluster_summary(adj, clusters=None, metric="mean", summary="within"):
+def cluster_summary(adj, *, clusters=None, metric="mean", summary="within"):
     """This function provides summaries of clusters within Adjacency matrices.
 
     It can compute mean/median of within and between cluster values. Requires a

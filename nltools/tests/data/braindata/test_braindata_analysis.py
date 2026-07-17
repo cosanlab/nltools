@@ -190,7 +190,7 @@ class TestBrainDataAnalysis:
         # Regions
         r = mask.regions(min_region_size=10)
         m1 = BrainData(s1)
-        m2 = r.threshold(1, binarize=True)
+        m2 = r.threshold(upper=1, binarize=True)
         assert len(np.unique(r.to_nifti().get_fdata())) == 2
         diff = m2 - m1
         assert np.sum(diff.data) == 0

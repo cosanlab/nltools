@@ -241,6 +241,7 @@ def add_poly(
 
 def add_dct_basis(
     dm: DesignMatrix,
+    *,
     duration: float = 180,
     drop: int = 0,
     include_constant: bool = True,

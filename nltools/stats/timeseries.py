@@ -28,7 +28,7 @@ def calc_bpm(beat_interval, sampling_freq):
 
 
 def downsample(
-    data, sampling_freq=None, target=None, target_type="samples", method="mean"
+    data, *, sampling_freq=None, target=None, target_type="samples", method="mean"
 ):
     """Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 
@@ -97,7 +97,7 @@ def downsample(
 
 
 def upsample(
-    data, sampling_freq=None, target=None, target_type="samples", method="linear"
+    data, *, sampling_freq=None, target=None, target_type="samples", method="linear"
 ):
     """Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
