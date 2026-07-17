@@ -166,10 +166,29 @@ def ridge_svd(
         Uty = U.T @ y_device  # Shape: (rank, n_targets)
         coef = Vt.T @ (shrinkage[:, np.newaxis] * Uty)  # Broadcasting
     else:
-        # PyTorch backend
+        # PyTorch backend. Batch over target columns so max_gpu_memory_gb
+        # bounds the per-batch GPU allocation (the target-scaling tensors are
+        # Uty, the shrunk product, and the coef block). Small problems resolve
+        # to a single batch and are identical to the unbatched path.
+        from .utils import _auto_n_targets_batch
+
         shrinkage = s / (s**2 + alpha)
-        Uty = backend.matmul(U.T, y_device)
-        coef = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
+        shrink_col = shrinkage[:, None]
+        n_targets = y_device.shape[1]
+        rank = s.shape[0]
+        n_targets_batch = _auto_n_targets_batch(
+            max_gpu_memory_gb, rank + n_features + n_samples, n_targets
+        )
+        if n_targets_batch >= n_targets:
+            Uty = backend.matmul(U.T, y_device)
+            coef = backend.matmul(Vt.T, shrink_col * Uty)
+        else:
+            parts = []
+            for start in range(0, n_targets, n_targets_batch):
+                y_batch = y_device[:, start : start + n_targets_batch]
+                Uty_batch = backend.matmul(U.T, y_batch)
+                parts.append(backend.matmul(Vt.T, shrink_col * Uty_batch))
+            coef = backend.concatenate(parts, axis=1)
 
     # Transfer back to NumPy
     coef = backend.to_numpy(coef)
@@ -315,7 +334,13 @@ def ridge_cv(
         y_train, y_test = y[train_idx], y[test_idx]
 
         for i, alpha in enumerate(alphas):
-            coef = ridge_svd(X_train, y_train, alpha=alpha, parallel=parallel_param)
+            coef = ridge_svd(
+                X_train,
+                y_train,
+                alpha=alpha,
+                parallel=parallel_param,
+                max_gpu_memory_gb=max_gpu_memory_gb,
+            )
             if coef.ndim == 1:
                 coef = coef[:, np.newaxis]
             y_pred = X_test @ coef
@@ -330,7 +355,13 @@ def ridge_cv(
     best_alpha = alphas[best_idx]
 
     # Fit final model on full (centered, if applicable) data
-    coef_final = ridge_svd(X, y, alpha=best_alpha, parallel=parallel_param)
+    coef_final = ridge_svd(
+        X,
+        y,
+        alpha=best_alpha,
+        parallel=parallel_param,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+    )
 
     # Recover intercept on the original (uncentered) scale
     intercept = None

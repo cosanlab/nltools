@@ -278,7 +278,7 @@ def solve_banded_ridge_cv(
     if n_targets_batch is None:
         n_targets_batch = (
             _auto_n_targets_batch(
-                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+                max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
             if parallel == "gpu"
             else n_targets
@@ -777,7 +777,7 @@ def solve_ridge_cv(
     if n_targets_batch is None:
         n_targets_batch = (
             _auto_n_targets_batch(
-                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+                max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
             if parallel == "gpu"
             else n_targets
@@ -1032,7 +1032,7 @@ def cross_val_predict_ridge(
     if n_targets_batch is None:
         n_targets_batch = (
             _auto_n_targets_batch(
-                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+                max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
             if parallel == "gpu"
             else n_targets

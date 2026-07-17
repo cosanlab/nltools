@@ -17,34 +17,33 @@ if TYPE_CHECKING:
 
 def _auto_n_targets_batch(
     max_gpu_memory_gb: float,
-    n_samples: int,
-    n_alphas_batch: int,
+    elements_per_target: int,
     n_targets: int,
 ) -> int:
     """Derive a GPU target-batch size from a memory budget.
 
-    Used by the CV solvers when ``n_targets_batch`` is left unset and
-    ``parallel='gpu'`` so ``max_gpu_memory_gb`` actually bounds GPU
-    allocation instead of processing all targets at once.
+    Used by the GPU ridge paths when ``n_targets_batch`` is left unset so
+    ``max_gpu_memory_gb`` actually bounds GPU allocation instead of
+    processing all targets at once.
 
-    The dominant target-scaling GPU tensor in the CV loop is the
-    alpha-batched prediction block (~``n_alphas_batch * n_samples`` float32
-    elements per target); a 5x overhead factor keeps peak allocation clear
-    of the budget. This mirrors the batch-sizing used by the (now-removed)
-    ICC GPU path. The result is floored at 1000 targets and capped at
-    ``n_targets``.
+    ``elements_per_target`` is the caller's estimate of the dominant
+    target-scaling working set (in float32 elements) for a single target
+    column — e.g. the alpha-batched prediction block ``n_alphas_batch *
+    n_samples`` in the CV solvers, or ``rank + n_features + n_samples`` in
+    the single-fit SVD path. A 5x overhead factor keeps peak allocation
+    clear of the budget (mirroring the now-removed ICC GPU batcher). The
+    result is floored at ``min(1000, n_targets)`` and capped at ``n_targets``.
 
     Args:
         max_gpu_memory_gb: GPU memory budget in GB.
-        n_samples: Number of training samples.
-        n_alphas_batch: Resolved alpha batch size.
+        elements_per_target: Dominant float32 working-set size per target.
         n_targets: Total number of targets (columns of Y).
 
     Returns:
         int: Target batch size in ``[min(1000, n_targets), n_targets]``.
     """
     bytes_per_element = 4  # float32
-    memory_per_target = max(1, n_alphas_batch * n_samples * bytes_per_element * 5)
+    memory_per_target = max(1, elements_per_target * bytes_per_element * 5)
     n_targets_batch = int(max_gpu_memory_gb * 1e9 / memory_per_target)
     return max(min(1000, n_targets), min(n_targets_batch, n_targets))
 
