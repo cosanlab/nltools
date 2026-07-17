@@ -606,7 +606,7 @@ class BrainCollection:
         self,
         contrasts: str | list[str] | dict[str, np.ndarray],
         *,
-        contrast_type: str = "beta",
+        method: str = "beta",
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
@@ -618,10 +618,10 @@ class BrainCollection:
         """Compute per-subject contrast maps from fit-bundle items.
 
         Returns:
-          single contrast + single ``contrast_type`` → ``BrainCollection``
+          single contrast + single ``method`` → ``BrainCollection``
           multiple contrasts (single type)            → ``dict[str, BrainCollection]``
-          ``contrast_type='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
-          multiple contrasts + ``contrast_type='all'`` → nested
+          ``method='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+          multiple contrasts + ``method='all'`` → nested
                                                          ``dict[name, dict[stat, BrainCollection]]``
 
         Each per-subject NIfTI gets a JSON sidecar with lineage attrs
@@ -648,14 +648,14 @@ class BrainCollection:
             )
 
         # Normalize stat types
-        if contrast_type == "all":
+        if method == "all":
             stat_types = list(execution._CONTRAST_TYPES)
-        elif contrast_type in execution._CONTRAST_TYPES:
-            stat_types = [contrast_type]
+        elif method in execution._CONTRAST_TYPES:
+            stat_types = [method]
         else:
             raise ValueError(
-                f"contrast_type must be one of "
-                f"{execution._CONTRAST_TYPES + ('all',)}; got {contrast_type!r}"
+                f"method must be one of "
+                f"{execution._CONTRAST_TYPES + ('all',)}; got {method!r}"
             )
 
         per_pair: dict[tuple[str, str], BrainCollection] = {}
@@ -705,13 +705,13 @@ class BrainCollection:
                 )
 
         # Reshape outputs by input shape
-        if single_contrast and contrast_type != "all":
-            return per_pair[(next(iter(contrast_dict)), contrast_type)]
-        if single_contrast and contrast_type == "all":
+        if single_contrast and method != "all":
+            return per_pair[(next(iter(contrast_dict)), method)]
+        if single_contrast and method == "all":
             cname = next(iter(contrast_dict))
             return {stat: per_pair[(cname, stat)] for stat in stat_types}
-        if not single_contrast and contrast_type != "all":
-            return {cname: per_pair[(cname, contrast_type)] for cname in contrast_dict}
+        if not single_contrast and method != "all":
+            return {cname: per_pair[(cname, method)] for cname in contrast_dict}
         return {
             cname: {stat: per_pair[(cname, stat)] for stat in stat_types}
             for cname in contrast_dict
@@ -1059,11 +1059,11 @@ class BrainCollection:
             random_state=random_state,
         )
 
-    def align(
+    def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignment solver iterations, not a permutation count
         self,
         *,
         method: str = "procrustes",
-        scheme: str = "searchlight",
+        spatial_scale: str = "searchlight",
         radius_mm: float = 10.0,
         parcellation: nib.Nifti1Image | None = None,
         n_features: int | None = None,
@@ -1077,7 +1077,7 @@ class BrainCollection:
         return inference.align(
             self,
             method=method,
-            scheme=scheme,
+            spatial_scale=spatial_scale,
             radius_mm=radius_mm,
             parcellation=parcellation,
             n_features=n_features,
@@ -1160,7 +1160,7 @@ class BrainCollection:
             _source_paths=new_sources,
         )
 
-    def apply(
+    def apply(  # nosemgrep: kwargs-internal-forwarding  # generic dispatch to BrainData.<op>(*args, **kwargs)
         self,
         op: str,
         *args,

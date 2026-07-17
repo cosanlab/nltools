@@ -15,7 +15,7 @@ from scipy.stats import t as t_dist
 __all__ = ["regress"]
 
 
-def regress(X, Y, mode: str = "ols", stats: str = "full"):
+def regress(X, Y, method: str = "ols", stats: str = "full"):
     """Fit an OLS regression of ``Y`` on ``X``.
 
     Does not add an intercept — include one in ``X`` explicitly. If ``Y``
@@ -24,8 +24,8 @@ def regress(X, Y, mode: str = "ols", stats: str = "full"):
     Args:
         X: Design matrix, shape ``(n_samples, n_regressors)``.
         Y: Response, shape ``(n_samples,)`` or ``(n_samples, n_targets)``.
-        mode: Only ``'ols'`` is supported in v0.6.0. The legacy
-            ``'robust'`` and ``'arma'`` modes were dropped; use
+        method: Only ``'ols'`` is supported in v0.6.0. The legacy
+            ``'robust'`` and ``'arma'`` methods were dropped; use
             statsmodels or a dedicated package if you need them.
         stats: ``'full'`` returns the 6-tuple below; ``'betas'`` returns
             just ``b``; ``'tstats'`` returns ``(b, t)``.
@@ -40,9 +40,9 @@ def regress(X, Y, mode: str = "ols", stats: str = "full"):
         - ``df``: residual degrees of freedom
         - ``res``: residuals
     """
-    if mode != "ols":
+    if method != "ols":
         raise NotImplementedError(
-            f"regress(mode={mode!r}) is not supported in v0.6.0. "
+            f"regress(method={method!r}) is not supported in v0.6.0. "
             "Only 'ols' is available; use statsmodels for robust/ARMA fits."
         )
     if stats not in ("full", "betas", "tstats"):

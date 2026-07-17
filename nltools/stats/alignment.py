@@ -15,7 +15,9 @@ from ..algorithms.inference.utils import _compute_pvalue
 from ..algorithms.alignment import SRM, DetSRM
 
 
-def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs):
+def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSRM algorithm constructors
+    data, method="deterministic_srm", n_features=None, axis=0, *args, **kwargs
+):
     """Align subject data into a common response model.
 
     This function is a convenience wrapper around `HyperAlignment` and `SRM` classes.

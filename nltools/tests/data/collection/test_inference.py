@@ -123,7 +123,7 @@ class TestAlign:
         "correctness covered in nltools.algorithms tests"
     )
     def test_align_returns_collection(self, bc_inmem):
-        out = bc_inmem.align(method="procrustes", scheme="searchlight")
+        out = bc_inmem.align(method="procrustes", spatial_scale="searchlight")
         assert isinstance(out, BrainCollection)
 
     @pytest.mark.skip(
@@ -133,7 +133,7 @@ class TestAlign:
     def test_align_with_return_model_returns_tuple(self, bc_inmem):
         out, model = bc_inmem.align(
             method="procrustes",
-            scheme="searchlight",
+            spatial_scale="searchlight",
             return_model=True,
         )
         assert isinstance(out, BrainCollection)
@@ -144,5 +144,5 @@ class TestAlign:
 
         sig = inspect.signature(BrainCollection.align)
         assert sig.parameters["return_model"].default is False
-        assert sig.parameters["scheme"].default == "searchlight"
+        assert sig.parameters["spatial_scale"].default == "searchlight"
         assert sig.parameters["method"].default == "procrustes"

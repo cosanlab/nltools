@@ -38,7 +38,7 @@ class BrainCollectionPipeline:
         ...     .cv(scheme='loso')
         ...     .standardize()
         ...     .reduce(n_components=50)
-        ...     .predict(labels, algorithm='svm'))
+        ...     .predict(labels, method='svm'))
         >>> print(f"Mean accuracy: {result.mean_score:.2%}")
     """
 
@@ -90,7 +90,9 @@ class BrainCollectionPipeline:
         new._steps = self._steps + [step]
         return new
 
-    def standardize(self, method: str = "zscore", **kwargs) -> BrainCollectionPipeline:
+    def standardize(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn transformer via NormalizeStep
+        self, method: str = "zscore", **kwargs
+    ) -> BrainCollectionPipeline:
         """Add standardization step.
 
         Args:
@@ -104,7 +106,7 @@ class BrainCollectionPipeline:
 
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
-    def reduce(
+    def reduce(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn transformer via ReduceStep
         self, method: str = "pca", n_components: int | None = None, **kwargs
     ) -> BrainCollectionPipeline:
         """Add dimensionality reduction step.
@@ -136,12 +138,14 @@ class BrainCollectionPipeline:
 
         return self._add_step(PipeStep(transformer=transformer))
 
-    def predict(self, y, algorithm: str = "ridge", **kwargs):
+    def predict(  # nosemgrep: kwargs-internal-forwarding  # **kwargs forwards to the sklearn estimator constructor
+        self, y, method: str = "ridge", **kwargs
+    ):
         """Execute pipeline with CV and return prediction results.
 
         Args:
             y: Target variable. For LOSO, shape should be (n_subjects,).
-            algorithm: Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
+            method: Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
             **kwargs: Passed to model constructor.
 
         Returns:
@@ -162,8 +166,8 @@ class BrainCollectionPipeline:
         subject_data = [bd.data for bd in self._bc]
 
         if self._cv.is_loso:
-            return self._execute_loso(subject_data, y, algorithm, kwargs)
-        return self._execute_pooled_cv(subject_data, y, algorithm, kwargs)
+            return self._execute_loso(subject_data, y, method, kwargs)
+        return self._execute_pooled_cv(subject_data, y, method, kwargs)
 
     def _execute_loso(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict

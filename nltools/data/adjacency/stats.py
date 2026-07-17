@@ -444,7 +444,7 @@ def stats_label_distance(adj, labels=None, n_permute=5000, n_jobs=-1):
     return stats
 
 
-def plot_silhouette(
+def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
     adj, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
 ):
     """Create a silhouette plot.

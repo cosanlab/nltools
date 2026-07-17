@@ -469,7 +469,9 @@ class Adjacency:
         """Create a copy of Adjacency object."""
         return deepcopy(self)
 
-    def distance(self, metric="correlation", include_diag=False, **kwargs):
+    def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to sklearn.metrics.pairwise_distances
+        self, metric="correlation", include_diag=False, **kwargs
+    ):
         """Calculate distance between images within an Adjacency() instance.
 
         Args:
@@ -571,7 +573,9 @@ class Adjacency:
         """
         return apply_stat(self, np.nanmedian, axis)
 
-    def plot(self, limit=3, axes=None, *args, **kwargs):
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plot_adjacency
+        self, limit=3, axes=None, *args, **kwargs
+    ):
         """Create a heatmap of an Adjacency matrix.
 
         Can pass in any sns.heatmap argument
@@ -598,7 +602,7 @@ class Adjacency:
 
         return plot_label_distance(self, labels, ax)
 
-    def plot_mds(
+    def plot_mds(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_mds
         self,
         n_components=2,
         metric=True,
@@ -643,7 +647,7 @@ class Adjacency:
             **kwargs,
         )
 
-    def plot_silhouette(
+    def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
         self, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
     ):
         """Create a silhouette plot."""

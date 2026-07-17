@@ -557,11 +557,11 @@ def isc_test(
     }
 
 
-def align(
+def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignment solver iterations, not a permutation count
     bc: BrainCollection,
     *,
     method: str = "procrustes",
-    scheme: str = "searchlight",
+    spatial_scale: str = "searchlight",
     radius_mm: float = 10.0,
     parcellation: nib.Nifti1Image | None = None,
     n_features: int | None = None,
@@ -585,7 +585,7 @@ def align(
     arrays = [np.asarray(x) for x in _iter_arrays(bc)]
 
     aligner = LocalAlignment(
-        scheme=scheme,
+        scheme=spatial_scale,
         method=method,
         radius_mm=radius_mm,
         parcellation=parcellation,

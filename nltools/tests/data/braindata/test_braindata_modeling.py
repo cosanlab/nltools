@@ -91,11 +91,9 @@ class TestBrainDataModeling:
         )
         minimal_brain_data.fit(model="glm", X=design_matrix)
 
-        t_map = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="t")
-        beta_map = minimal_brain_data.compute_contrasts(
-            "condA - condB", contrast_type="beta"
-        )
-        z_map = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="z")
+        t_map = minimal_brain_data.compute_contrasts("condA - condB", method="t")
+        beta_map = minimal_brain_data.compute_contrasts("condA - condB", method="beta")
+        z_map = minimal_brain_data.compute_contrasts("condA - condB", method="z")
 
         for m in (t_map, beta_map, z_map):
             assert isinstance(m, BrainData)
@@ -117,11 +115,11 @@ class TestBrainDataModeling:
 
     def test_compute_contrasts_invalid_type(self, minimal_brain_data):
         """Unknown contrast_type raises ValueError with supported values listed."""
-        with pytest.raises(ValueError, match="contrast_type must be"):
+        with pytest.raises(ValueError, match="method must be"):
             # not fitted yet but validation happens before that path; set dummy attr
             minimal_brain_data.glm_betas = minimal_brain_data[0]
             minimal_brain_data.model_ = object()
-            minimal_brain_data.compute_contrasts([1, -1, 0], contrast_type="F")
+            minimal_brain_data.compute_contrasts([1, -1, 0], method="F")
 
     @pytest.mark.slow
     def test_compute_contrasts_all_single_returns_bundle(self, minimal_brain_data):
@@ -135,7 +133,7 @@ class TestBrainDataModeling:
         )
         minimal_brain_data.fit(model="glm", X=design_matrix)
 
-        res = minimal_brain_data.compute_contrasts("condA - condB", contrast_type="all")
+        res = minimal_brain_data.compute_contrasts("condA - condB", method="all")
         assert isinstance(res, dict)
         assert set(res.keys()) == {"beta", "t", "z", "p", "se"}
         for key in ("beta", "t", "z", "p", "se"):
@@ -143,9 +141,7 @@ class TestBrainDataModeling:
             assert res[key].shape[-1] == minimal_brain_data.shape[1]
 
         # Consistency: individual calls agree with the bundle.
-        t_only = minimal_brain_data.compute_contrasts(
-            "condA - condB", contrast_type="t"
-        )
+        t_only = minimal_brain_data.compute_contrasts("condA - condB", method="t")
         np.testing.assert_allclose(np.asarray(t_only.data), np.asarray(res["t"].data))
 
     @pytest.mark.slow
@@ -162,7 +158,7 @@ class TestBrainDataModeling:
 
         res = minimal_brain_data.compute_contrasts(
             {"A_vs_B": "condA - condB", "just_A": [0, 1, 0]},
-            contrast_type="all",
+            method="all",
         )
         assert set(res.keys()) == {"A_vs_B", "just_A"}
         for bundle in res.values():

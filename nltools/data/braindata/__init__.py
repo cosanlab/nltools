@@ -465,7 +465,9 @@ class BrainData:
 
         return align(self, target, method=method, axis=axis)
 
-    def append(self, data, ignore_attrs=False, **kwargs):
+    def append(  # nosemgrep: kwargs-internal-forwarding  # forwards to pandas.concat
+        self, data, ignore_attrs=False, **kwargs
+    ):
         """Append data to BrainData instance.
 
         Args:
@@ -602,7 +604,7 @@ class BrainData:
             random_state=random_state,
         )
 
-    def compute_contrasts(self, contrasts, contrast_type="t"):
+    def compute_contrasts(self, contrasts, method="t"):
         """Compute contrasts from fitted GLM results.
 
         This method computes contrasts as linear combinations of the GLM beta coefficients.
@@ -617,15 +619,15 @@ class BrainData:
                   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}
                 - array: Numeric contrast vector matching the number of regressors
                   e.g., [1, -1, 0, 0] for a 4-regressor model
-            contrast_type (str): What to return per contrast. One of `"t"` (default,
+            method (str): What to return per contrast. One of `"t"` (default,
                 t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` /
                 `"effect_size"` (effect-size β map — use this when feeding a
                 second-level group analysis), or `"all"` (a bundle dict
                 `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`.
 
         Returns:
-            BrainData or dict: A single contrast with a scalar `contrast_type` returns a
-                `BrainData` map; with `contrast_type="all"` it returns a flat dict keyed by
+            BrainData or dict: A single contrast with a scalar `method` returns a
+                `BrainData` map; with `method="all"` it returns a flat dict keyed by
                 `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed
                 by contrast name (nested under the five keys when `contrast_type="all"`).
 
@@ -650,7 +652,7 @@ class BrainData:
         """
         from .modeling import compute_contrasts
 
-        return compute_contrasts(self, contrasts, contrast_type=contrast_type)
+        return compute_contrasts(self, contrasts, method=method)
 
     def copy(self):
         """Create a deep copy of a BrainData instance.
@@ -673,7 +675,7 @@ class BrainData:
         out.data = np.array([])
         return out
 
-    @coalesced_gc()
+    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
     def decompose(self, *, method="pca", axis="voxels", n_components=None, **kwargs):
         """Decompose BrainData object.
 
@@ -711,7 +713,7 @@ class BrainData:
 
         return detrend_data(self, method=method)
 
-    @coalesced_gc()
+    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist via analysis.distance
     def distance(
         self,
         metric="euclidean",
@@ -779,7 +781,9 @@ class BrainData:
 
         return extract_roi(self, mask, metric=metric, n_components=n_components)
 
-    def filter(self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
+    def filter(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
+        self, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
+    ):
         """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
         Note:
@@ -839,7 +843,7 @@ class BrainData:
             sampling_freq=sampling_freq,
         )
 
-    @coalesced_gc()
+    @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn/sklearn estimator via modeling.fit
     def fit(
         self,
         model="glm",
@@ -1012,7 +1016,7 @@ class BrainData:
 
         return multivariate_similarity(self, images, method=method)
 
-    def plot(
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn plotting functions
         self,
         method="glass",
         upper=None,
@@ -1229,7 +1233,7 @@ class BrainData:
             save=save,
         )
 
-    def iplot(
+    def iplot(  # nosemgrep: kwargs-internal-forwarding  # forwards to the ipyniivue viewer
         self,
         *,
         view: str = "ortho",
@@ -1538,7 +1542,7 @@ class BrainData:
             is_mask=is_mask,
         )
 
-    def regress(self, design_matrix=None, method="ols", mode=None):
+    def regress(self, design_matrix=None, method="ols"):
         """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
         **Deprecated:** Since version 0.6.0. Use `fit` with ``model='glm'``
@@ -1550,10 +1554,11 @@ class BrainData:
             self,
             design_matrix=design_matrix,
             method=method,
-            mode=mode,
         )
 
-    def predict_multi(self, *args, **kwargs):
+    def predict_multi(  # nosemgrep: kwargs-internal-forwarding  # deprecated no-op; tolerates any legacy args to raise a helpful error
+        self, *args, **kwargs
+    ):
         """Deprecated: removed in v0.6.0; will return in a future Model class.
 
         Per the v0.6 migration guide, the multi-method MVPA wrapper has
@@ -1894,7 +1899,7 @@ class BrainData:
 
         return ttest2(self, other, equal_var=equal_var)
 
-    def upload_neurovault(
+    def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API via io.upload_neurovault
         self,
         access_token=None,
         collection_name=None,

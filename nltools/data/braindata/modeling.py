@@ -9,7 +9,7 @@ import numpy as np
 from .utils import shallow_copy
 
 
-def fit(
+def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn FirstLevelModel / ridge estimator
     bd,
     model="glm",
     *,
@@ -245,7 +245,9 @@ def fit(
     return bd
 
 
-def fit_ridge(bd, X, cv=None, **kwargs):
+def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params (alpha/backend) to compute_ridge_cv
+    bd, X, cv=None, **kwargs
+):
     """Fit Ridge model and extract results.
 
     Args:
@@ -410,7 +412,7 @@ def _assemble_ridge_cv_results(bd, X, cv):
     }
 
 
-def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto", **kwargs):
+def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
     """Held-out CV scores under a fixed Ridge α.
 
     Used only for the *fixed-α* + CV branch — alpha selection is now
@@ -424,7 +426,6 @@ def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto", **kwargs):
         alpha (float, optional): Fixed regularization strength. If None,
             extracted from ``bd.model_.alpha``.
         backend (str): Computational backend ('numpy', 'torch', 'auto'). Default: 'auto'
-        **kwargs: Additional kwargs (forward-compatibility).
 
     Returns:
         dict: ``{"scores", "mean_score", "predictions", "folds"}``.
@@ -779,14 +780,13 @@ def ttest2(bd, other, equal_var=True):
     return {"t": t_bd, "p": p_bd}
 
 
-def regress(bd, design_matrix=None, method="ols", mode=None):
+def regress(bd, design_matrix=None, method="ols"):
     """Deprecated: Use fit(model='glm', X=design_matrix) instead.
 
     Args:
         bd: BrainData instance.
         design_matrix: Design matrix (unused, raises error).
         method: Noise model (unused, raises error).
-        mode: Mode (unused, raises error).
     """
     raise NotImplementedError(
         "The regress() method has been removed in v0.6.0. "
@@ -836,7 +836,7 @@ def _contrast_all_to_bd(img_dict, mask):
     return out
 
 
-def compute_contrasts(bd, contrasts, contrast_type="t"):
+def compute_contrasts(bd, contrasts, method="t"):
     """Compute contrasts from a fitted GLM.
 
     Delegates to the underlying ``nilearn.FirstLevelModel.compute_contrast`` so
@@ -856,7 +856,7 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
             - array-like: a numeric contrast vector, one weight per regressor
               (e.g. ``[1, -1, 0, 0]``)
             - dict: ``{name: contrast}`` for multiple contrasts at once
-        contrast_type (str): What to return per contrast. One of:
+        method (str): What to return per contrast. One of:
 
             - ``"t"`` (default): t-statistic map (for thresholding /
               single-subject inference)
@@ -872,19 +872,19 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
     Returns:
         Depends on inputs:
 
-            - single contrast (str or array) + scalar ``contrast_type``:
+            - single contrast (str or array) + scalar ``method``:
               a single BrainData.
-            - single contrast + ``contrast_type="all"``: a flat dict of five
+            - single contrast + ``method="all"``: a flat dict of five
               BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``.
-            - dict of contrasts + scalar ``contrast_type``: a dict
+            - dict of contrasts + scalar ``method``: a dict
               ``{name: BrainData}``.
-            - dict of contrasts + ``contrast_type="all"``: a nested dict
+            - dict of contrasts + ``method="all"``: a nested dict
               ``{name: {"beta", "t", "z", "p", "se"}}``.
 
     Raises:
         RuntimeError: if ``.fit(model='glm')`` has not been run.
         ValueError: if the contrast vector length or a column name is invalid,
-            or if ``contrast_type`` is not one of the supported values.
+            or if ``method`` is not one of the supported values.
 
     Examples:
         >>> data.fit(model="glm", X=dm)
@@ -892,11 +892,11 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
         >>> tmap = data.compute_contrasts("conditionA - conditionB")
         >>> # Effect-size map for use as input to a group-level analysis
         >>> beta = data.compute_contrasts(
-        ...     "conditionA - conditionB", contrast_type="beta"
+        ...     "conditionA - conditionB", method="beta"
         ... )
         >>> # Everything at once: threshold on res["t"], feed group on res["beta"]
         >>> res = data.compute_contrasts(
-        ...     "conditionA - conditionB", contrast_type="all"
+        ...     "conditionA - conditionB", method="all"
         ... )
         >>> res["t"].plot(threshold=3.09)
         >>> group_effects.append(res["beta"])
@@ -905,7 +905,7 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
         - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
         - Column names must match design matrix columns exactly (case-sensitive).
         - For group analysis, stack per-subject effect-size maps
-          (``contrast_type="beta"`` or ``res["beta"]`` from ``contrast_type="all"``)
+          (``method="beta"`` or ``res["beta"]`` from ``method="all"``)
           and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
           t-maps into a group one-sample test conflates effect magnitude with precision.
     """
@@ -921,13 +921,12 @@ def compute_contrasts(bd, contrasts, contrast_type="t"):
             ".fit(model='glm', X=design_matrix) to enable compute_contrasts."
         )
 
-    if contrast_type not in _CONTRAST_OUTPUT_TYPES:
+    if method not in _CONTRAST_OUTPUT_TYPES:
         raise ValueError(
-            f"contrast_type must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; "
-            f"got {contrast_type!r}"
+            f"method must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; got {method!r}"
         )
-    output_type = _CONTRAST_OUTPUT_TYPES[contrast_type]
-    want_all = contrast_type == "all"
+    output_type = _CONTRAST_OUTPUT_TYPES[method]
+    want_all = method == "all"
 
     # Normalize contrasts → {name: contrast_def}
     if isinstance(contrasts, (str, list, np.ndarray)):

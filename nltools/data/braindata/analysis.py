@@ -71,7 +71,7 @@ def similarity(bd, image, method="correlation"):
     return compute_similarity(data2, image2, method=method)
 
 
-def distance(
+def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
     bd,
     metric="euclidean",
     *,
@@ -707,7 +707,9 @@ def z_to_r(bd):
     return out
 
 
-def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs):
+def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
+    bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs
+):
     """Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
     Does not default to detrending and standardizing like nilearn
@@ -1043,7 +1045,9 @@ def transform_pairwise_data(bd):
     return out
 
 
-def decompose(bd, *, method="pca", axis="voxels", n_components=None, **kwargs):
+def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
+    bd, *, method="pca", axis="voxels", n_components=None, **kwargs
+):
     """Decompose a BrainData object.
 
     Args:

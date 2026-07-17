@@ -9,6 +9,12 @@
 # translation" rule). Rules therefore (a) match only public defs via the
 # `^[^_]` name filter and (b) exclude the algorithm/pipeline internals by path.
 #
+# IMPORTANT (semgrep structure): the `metavariable-regex` name filter must be
+# ANDed with `pattern-either` under a single `patterns:` block. A top-level
+# `metavariable-regex` sibling to `pattern-either` is silently ignored by
+# semgrep, so the `^[^_]` underscore exemption only takes effect when nested
+# this way. (Verified 2026-07-17 — the flat form flagged `_private` helpers.)
+#
 # Suppress a genuine false positive with a trailing `# nosemgrep: <rule-id>` and
 # a one-line reason.
 #
@@ -30,37 +36,38 @@ rules:
       to the internal name at the facade boundary. `metric` (distance/similarity)
       and `spatial_scale` (whole_brain/roi/searchlight) are distinct canonical
       names — use those where they apply, not `method`.
-    pattern-either:
-      - pattern: "def $F(..., algorithm=$X, ...): ..."
-      - pattern: "def $F(..., algorithm: $T = $X, ...): ..."
-      - pattern: "def $F(..., algorithm: $T, ...): ..."
-      - pattern: "def $F(..., scheme=$X, ...): ..."
-      - pattern: "def $F(..., scheme: $T = $X, ...): ..."
-      - pattern: "def $F(..., scheme: $T, ...): ..."
-      - pattern: "def $F(..., kind=$X, ...): ..."
-      - pattern: "def $F(..., kind: $T = $X, ...): ..."
-      - pattern: "def $F(..., kind: $T, ...): ..."
-      - pattern: "def $F(..., estimator=$X, ...): ..."
-      - pattern: "def $F(..., estimator: $T = $X, ...): ..."
-      - pattern: "def $F(..., estimator: $T, ...): ..."
-      - pattern: "def $F(..., icc_type=$X, ...): ..."
-      - pattern: "def $F(..., icc_type: $T = $X, ...): ..."
-      - pattern: "def $F(..., icc_type: $T, ...): ..."
-      - pattern: "def $F(..., extract_type=$X, ...): ..."
-      - pattern: "def $F(..., extract_type: $T = $X, ...): ..."
-      - pattern: "def $F(..., extract_type: $T, ...): ..."
-      - pattern: "def $F(..., perm_type=$X, ...): ..."
-      - pattern: "def $F(..., perm_type: $T = $X, ...): ..."
-      - pattern: "def $F(..., perm_type: $T, ...): ..."
-      - pattern: "def $F(..., contrast_type=$X, ...): ..."
-      - pattern: "def $F(..., contrast_type: $T = $X, ...): ..."
-      - pattern: "def $F(..., contrast_type: $T, ...): ..."
-      - pattern: "def $F(..., mode=$X, ...): ..."
-      - pattern: "def $F(..., mode: $T = $X, ...): ..."
-      - pattern: "def $F(..., mode: $T, ...): ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., algorithm=$X, ...): ..."
+          - pattern: "def $F(..., algorithm: $T = $X, ...): ..."
+          - pattern: "def $F(..., algorithm: $T, ...): ..."
+          - pattern: "def $F(..., scheme=$X, ...): ..."
+          - pattern: "def $F(..., scheme: $T = $X, ...): ..."
+          - pattern: "def $F(..., scheme: $T, ...): ..."
+          - pattern: "def $F(..., kind=$X, ...): ..."
+          - pattern: "def $F(..., kind: $T = $X, ...): ..."
+          - pattern: "def $F(..., kind: $T, ...): ..."
+          - pattern: "def $F(..., estimator=$X, ...): ..."
+          - pattern: "def $F(..., estimator: $T = $X, ...): ..."
+          - pattern: "def $F(..., estimator: $T, ...): ..."
+          - pattern: "def $F(..., icc_type=$X, ...): ..."
+          - pattern: "def $F(..., icc_type: $T = $X, ...): ..."
+          - pattern: "def $F(..., icc_type: $T, ...): ..."
+          - pattern: "def $F(..., extract_type=$X, ...): ..."
+          - pattern: "def $F(..., extract_type: $T = $X, ...): ..."
+          - pattern: "def $F(..., extract_type: $T, ...): ..."
+          - pattern: "def $F(..., perm_type=$X, ...): ..."
+          - pattern: "def $F(..., perm_type: $T = $X, ...): ..."
+          - pattern: "def $F(..., perm_type: $T, ...): ..."
+          - pattern: "def $F(..., contrast_type=$X, ...): ..."
+          - pattern: "def $F(..., contrast_type: $T = $X, ...): ..."
+          - pattern: "def $F(..., contrast_type: $T, ...): ..."
+          - pattern: "def $F(..., mode=$X, ...): ..."
+          - pattern: "def $F(..., mode: $T = $X, ...): ..."
+          - pattern: "def $F(..., mode: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"
@@ -76,13 +83,14 @@ rules:
       Public API uses `parallel=` for parallel execution. The canonical name is
       `n_jobs: int = -1` (CLAUDE.md). The stats/algorithm-layer internals may
       keep `parallel=`, but the public facade must expose `n_jobs` and translate.
-    pattern-either:
-      - pattern: "def $F(..., parallel=$X, ...): ..."
-      - pattern: "def $F(..., parallel: $T = $X, ...): ..."
-      - pattern: "def $F(..., parallel: $T, ...): ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., parallel=$X, ...): ..."
+          - pattern: "def $F(..., parallel: $T = $X, ...): ..."
+          - pattern: "def $F(..., parallel: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"
@@ -99,16 +107,17 @@ rules:
       `n_permute`; bootstrap sample count is `n_samples` (semantically distinct).
       Banned: n_perm / n_iter. (`n_iter` meaning solver iterations in the
       algorithm layer is exempt via the path exclusion.)
-    pattern-either:
-      - pattern: "def $F(..., n_perm=$X, ...): ..."
-      - pattern: "def $F(..., n_perm: $T = $X, ...): ..."
-      - pattern: "def $F(..., n_perm: $T, ...): ..."
-      - pattern: "def $F(..., n_iter=$X, ...): ..."
-      - pattern: "def $F(..., n_iter: $T = $X, ...): ..."
-      - pattern: "def $F(..., n_iter: $T, ...): ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., n_perm=$X, ...): ..."
+          - pattern: "def $F(..., n_perm: $T = $X, ...): ..."
+          - pattern: "def $F(..., n_perm: $T, ...): ..."
+          - pattern: "def $F(..., n_iter=$X, ...): ..."
+          - pattern: "def $F(..., n_iter: $T = $X, ...): ..."
+          - pattern: "def $F(..., n_iter: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"
@@ -124,13 +133,14 @@ rules:
       Public API uses `show_progress=` for a progress indicator. The canonical
       name is `progress_bar: bool = False` (CLAUDE.md). `verbose` is reserved for
       log-level only and must not double as a progress flag.
-    pattern-either:
-      - pattern: "def $F(..., show_progress=$X, ...): ..."
-      - pattern: "def $F(..., show_progress: $T = $X, ...): ..."
-      - pattern: "def $F(..., show_progress: $T, ...): ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., show_progress=$X, ...): ..."
+          - pattern: "def $F(..., show_progress: $T = $X, ...): ..."
+          - pattern: "def $F(..., show_progress: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"
@@ -145,13 +155,14 @@ rules:
     message: >-
       Public API uses `ignore_diagonal=`. The canonical name is
       `include_diag: bool` (CLAUDE.md) — note the inverted sense.
-    pattern-either:
-      - pattern: "def $F(..., ignore_diagonal=$X, ...): ..."
-      - pattern: "def $F(..., ignore_diagonal: $T = $X, ...): ..."
-      - pattern: "def $F(..., ignore_diagonal: $T, ...): ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., ignore_diagonal=$X, ...): ..."
+          - pattern: "def $F(..., ignore_diagonal: $T = $X, ...): ..."
+          - pattern: "def $F(..., ignore_diagonal: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"
@@ -174,12 +185,13 @@ rules:
       nibabel / seaborn / pandas). Internal nltools->nltools delegation must use
       explicit parameters. If this forwards to a third-party API, suppress with
       `# nosemgrep: kwargs-internal-forwarding` and name the API.
-    pattern-either:
-      - pattern: "def $F(..., **kwargs): ..."
-      - pattern: "def $F(..., **kwargs) -> $R: ..."
-    metavariable-regex:
-      metavariable: $F
-      regex: '^[^_]'
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., **kwargs): ..."
+          - pattern: "def $F(..., **kwargs) -> $R: ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
     paths:
       exclude:
         - "**/tests/**"

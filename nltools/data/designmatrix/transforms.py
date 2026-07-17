@@ -97,17 +97,14 @@ def standardize(
     raise ValueError(f"Invalid method '{method}'. Must be 'zscore' or 'center'.")
 
 
-def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
+def downsample(dm: DesignMatrix, target: float, method: str = "mean") -> DesignMatrix:
     """Reduce temporal resolution using Polars-native operations.
 
     Args:
         dm: DesignMatrix instance to transform.
         target (float): Target sampling frequency in Hz (must be < current
             sampling_freq).
-        **kwargs: Additional keyword arguments:
-
-            - **method** (str): Aggregation method - 'mean' or 'median'.
-              Default: 'mean'.
+        method (str): Aggregation method - 'mean' or 'median'. Default: 'mean'.
 
     Returns:
         DesignMatrix: Downsampled DesignMatrix with updated sampling_freq.
@@ -120,8 +117,6 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
         >>> dm = DesignMatrix({"a": list(range(100))}, sampling_freq=1.0)
         >>> dm_down = downsample(dm, target=0.5)  # 1 Hz -> 0.5 Hz (100 -> 50 samples)
     """
-    method = kwargs.pop("method", "mean")
-
     if dm.sampling_freq is None:
         raise ValueError(
             "DesignMatrix must have sampling_freq set for downsampling. "
@@ -170,9 +165,7 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
     return copy_with(dm, downsampled_df, sampling_freq=target)
 
 
-def upsample(
-    dm: DesignMatrix, target: float, method: str = "linear", **kwargs
-) -> DesignMatrix:
+def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignMatrix:
     """Increase temporal resolution using Polars-native interpolation.
 
     Args:
@@ -181,7 +174,6 @@ def upsample(
             sampling_freq)
         method (str): Interpolation method - 'linear' or 'nearest'
             (default: 'linear')
-        **kwargs: Reserved for future extensions
 
     Returns:
         DesignMatrix: Upsampled DesignMatrix with updated sampling_freq.

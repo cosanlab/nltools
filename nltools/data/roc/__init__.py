@@ -229,7 +229,7 @@ class Roc:
         p = np.mean(~self.misclass)
         self.accuracy_se = np.sqrt(p * (1 - p) / self.n)
 
-    def plot(self, plot_method="gaussian", balanced_acc=False, **kwargs):
+    def plot(self, plot_method="gaussian", balanced_acc=False):
         """Create ROC Plot
 
         Create a specific kind of ROC curve plot, based on input values
@@ -238,8 +238,6 @@ class Roc:
         Args:
             plot_method: type of plot ['gaussian','observed']
             binary_outcome: vector of training labels
-            **kwargs: Additional keyword arguments to pass to the prediction
-                        algorithm
 
         Returns:
             fig

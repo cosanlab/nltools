@@ -43,7 +43,7 @@ class TestFitSignature:
 class TestComputeContrastsSignature:
     def test_default_contrast_type_is_beta(self):
         sig = inspect.signature(BrainCollection.compute_contrasts)
-        assert sig.parameters["contrast_type"].default == "beta"
+        assert sig.parameters["method"].default == "beta"
 
     def test_accepts_list_or_dict_contrasts(self):
         sig = inspect.signature(BrainCollection.compute_contrasts)
@@ -181,18 +181,18 @@ class TestComputeContrastsBehavior:
         return bc.fit(model="glm", cache=True, n_jobs=1)
 
     def test_single_contrast_returns_collection(self, fitted_bc):
-        out = fitted_bc.compute_contrasts("a - b", contrast_type="beta", n_jobs=1)
+        out = fitted_bc.compute_contrasts("a - b", method="beta", n_jobs=1)
         assert isinstance(out, BrainCollection)
         assert out.n_subjects == fitted_bc.n_subjects
 
     def test_single_regressor_identity_contrast(self, fitted_bc):
-        out = fitted_bc.compute_contrasts("a", contrast_type="beta", n_jobs=1)
+        out = fitted_bc.compute_contrasts("a", method="beta", n_jobs=1)
         assert isinstance(out, BrainCollection)
 
     def test_multiple_contrasts_returns_dict(self, fitted_bc):
         out = fitted_bc.compute_contrasts(
             {"main": "a - b", "avg": "a + b"},
-            contrast_type="beta",
+            method="beta",
             n_jobs=1,
         )
         assert isinstance(out, dict)
@@ -200,7 +200,7 @@ class TestComputeContrastsBehavior:
         assert all(isinstance(v, BrainCollection) for v in out.values())
 
     def test_all_contrast_types_returns_dict_keyed_by_type(self, fitted_bc):
-        out = fitted_bc.compute_contrasts("a", contrast_type="all", n_jobs=1)
+        out = fitted_bc.compute_contrasts("a", method="all", n_jobs=1)
         assert isinstance(out, dict)
         for k in ("beta", "t", "z", "p", "se"):
             assert k in out
@@ -209,7 +209,7 @@ class TestComputeContrastsBehavior:
     def test_contrast_writes_lineage_sidecar(self, fitted_bc):
         import json
 
-        out = fitted_bc.compute_contrasts("a", contrast_type="beta", n_jobs=1)
+        out = fitted_bc.compute_contrasts("a", method="beta", n_jobs=1)
         item = out._items[0]
         sidecar = item.parent / (item.name[:-7] + ".json")  # .nii.gz → .json
         assert sidecar.exists()
@@ -224,8 +224,8 @@ class TestComputeContrastsBehavior:
             fitted_bc.compute_contrasts("nonexistent", n_jobs=1)
 
     def test_contrast_invalid_type_raises(self, fitted_bc):
-        with pytest.raises(ValueError, match="contrast_type"):
-            fitted_bc.compute_contrasts("a", contrast_type="bogus", n_jobs=1)
+        with pytest.raises(ValueError, match="method"):
+            fitted_bc.compute_contrasts("a", method="bogus", n_jobs=1)
 
 
 class TestPredictDispatch:

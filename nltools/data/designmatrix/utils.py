@@ -30,7 +30,7 @@ def df_passthrough(dm: DesignMatrix, name: str):
     if not callable(attr) or name not in WRAP_AS_DESIGNMATRIX:
         return attr
 
-    @functools.wraps(attr)
+    @functools.wraps(attr)  # nosemgrep: kwargs-internal-forwarding  # generic wrapper
     def wrapped(*args, **kwargs):
         result = attr(*args, **kwargs)
         if isinstance(result, pl.DataFrame):

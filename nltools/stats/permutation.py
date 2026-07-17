@@ -39,7 +39,7 @@ def one_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -60,11 +60,11 @@ def one_sample_permutation_test(
             ``1`` / ``'upper'`` — upper one-tailed (mean > 0);
             ``-1`` / ``'lower'`` — lower one-tailed (mean < 0).
         return_null: If True, include the full null distribution in results.
-        parallel: Parallelization backend.
+        device: Parallelization backend.
             ``'cpu'`` — joblib (default, 4–8× speedup);
             ``'gpu'`` — PyTorch GPU (fastest for large problems);
             ``None`` — single-threaded NumPy (debugging).
-        n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
+        n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
 
@@ -81,7 +81,7 @@ def one_sample_permutation_test(
         n_permute=n_permute,
         tail=tail,
         return_null=return_null,
-        parallel=parallel,
+        parallel=device,
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
@@ -94,7 +94,7 @@ def two_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -110,8 +110,8 @@ def two_sample_permutation_test(
         n_permute: Number of permutations (default 5000).
         tail: Test sidedness (see `one_sample_permutation_test`).
         return_null: If True, include the full null distribution.
-        parallel: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
-        n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
+        device: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
+        n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
 
@@ -129,7 +129,7 @@ def two_sample_permutation_test(
         n_permute=n_permute,
         tail=tail,
         return_null=return_null,
-        parallel=parallel,
+        parallel=device,
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
@@ -143,7 +143,7 @@ def correlation_permutation_test(
     metric: str = "pearson",
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -160,8 +160,8 @@ def correlation_permutation_test(
         metric: Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``.
         tail: Test sidedness (see `one_sample_permutation_test`).
         return_null: If True, include the full null distribution.
-        parallel: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
-        n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
+        device: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
+        n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
 
@@ -180,7 +180,7 @@ def correlation_permutation_test(
         metric=metric,
         tail=tail,
         return_null=return_null,
-        parallel=parallel,
+        parallel=device,
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
@@ -194,7 +194,7 @@ def timeseries_correlation_permutation_test(
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
     tail: int = 2,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
@@ -213,8 +213,8 @@ def timeseries_correlation_permutation_test(
         n_permute: Number of permutations (default 5000).
         metric: Correlation type — ``'pearson'``, ``'spearman'``, or ``'kendall'``.
         tail: Test sidedness (1, 2, or −1).
-        parallel: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
-        n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
+        device: Parallelization backend (``'cpu'``, ``'gpu'``, or ``None``).
+        n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         return_null: If True, include the full null distribution.
         random_state: Seed for reproducibility.
@@ -241,7 +241,7 @@ def timeseries_correlation_permutation_test(
         n_permute=n_permute,
         metric=metric,
         tail=tail,
-        parallel=parallel,
+        parallel=device,
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         return_null=return_null,
@@ -311,7 +311,7 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int | str = 2,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
     random_state: int | None = None,
@@ -329,8 +329,8 @@ def matrix_permutation_test(
         how: Which matrix elements to use — ``'upper'``, ``'lower'``, or ``'full'``.
         include_diag: Whether to include diagonal elements.
         tail: Test sidedness (see `one_sample_permutation_test`).
-        parallel: Parallelization backend (``'cpu'`` or ``None``; GPU not supported).
-        n_jobs: CPU cores for ``parallel='cpu'`` (default −1 = all).
+        device: Parallelization backend (``'cpu'`` or ``None``; GPU not supported).
+        n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         return_null: If True, include the full null distribution.
         random_state: Seed for reproducibility.
 
@@ -357,7 +357,7 @@ def matrix_permutation_test(
         how=how,
         include_diag=include_diag,
         tail=tail,
-        parallel=parallel,
+        parallel=device,
         n_jobs=n_jobs,
         return_null=return_null,
         random_state=random_state,

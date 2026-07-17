@@ -28,16 +28,16 @@ class TestBackends:
 
         results = {}
         for backend in backends:
-            # Map backend to parallel parameter
+            # Map backend to device parameter
             if backend == "numpy":
-                parallel = None
+                device = None
             elif backend == "torch":
-                parallel = "gpu"
+                device = "gpu"
             else:
-                parallel = "cpu"
+                device = "cpu"
 
             results[backend] = one_sample_permutation_test(
-                data, n_permute=N_PERMUTE_BACKEND, parallel=parallel, random_state=42
+                data, n_permute=N_PERMUTE_BACKEND, device=device, random_state=42
             )
 
         # Compare results
@@ -56,7 +56,7 @@ class TestBackends:
         """Test explicit NumPy backend."""
         np.random.seed(42)
         data = np.random.randn(30)
-        result = one_sample_permutation_test(data, parallel=None, random_state=42)
+        result = one_sample_permutation_test(data, device=None, random_state=42)
 
         assert result["parallel"] is None
 
@@ -67,6 +67,6 @@ class TestBackends:
         """Test explicit PyTorch backend."""
         np.random.seed(42)
         data = np.random.randn(30)
-        result = one_sample_permutation_test(data, parallel="gpu", random_state=42)
+        result = one_sample_permutation_test(data, device="gpu", random_state=42)
 
         assert result["parallel"] == "gpu"

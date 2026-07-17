@@ -128,7 +128,9 @@ class Glm(BaseModel):
             **kwargs,
         )
 
-    def fit(self, X, y=None, design_matrices=None, events=None, **kwargs):
+    def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn FirstLevelModel.fit
+        self, X, y=None, design_matrices=None, events=None, **kwargs
+    ):
         """
         Fit GLM to fMRI data.
 

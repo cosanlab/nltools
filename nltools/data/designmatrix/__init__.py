@@ -546,7 +546,7 @@ class DesignMatrix:
         cloned_df = self.data.clone()
         return copy_with(self, cloned_df)
 
-    def downsample(self, target: float, method: str = "mean", **kwargs) -> DesignMatrix:
+    def downsample(self, target: float, method: str = "mean") -> DesignMatrix:
         """Reduce temporal resolution using Polars-native operations.
 
         Args:
@@ -558,7 +558,7 @@ class DesignMatrix:
         """
         from .transforms import downsample
 
-        return downsample(self, target, method=method, **kwargs)
+        return downsample(self, target, method=method)
 
     def drop(self, columns: list[str]) -> DesignMatrix:
         """Drop specified columns.
@@ -584,7 +584,7 @@ class DesignMatrix:
         filled_df = self.data.fill_null(value).fill_nan(value)
         return copy_with(self, filled_df)
 
-    def plot(
+    def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plot_designmatrix
         self,
         method: str = "matrix",
         *,
@@ -744,7 +744,7 @@ class DesignMatrix:
 
         return to_pandas(self)
 
-    def upsample(self, target: float, method: str = "linear", **kwargs) -> DesignMatrix:
+    def upsample(self, target: float, method: str = "linear") -> DesignMatrix:
         """Increase temporal resolution to a target frequency.
 
         Args:
@@ -756,7 +756,7 @@ class DesignMatrix:
         """
         from .transforms import upsample
 
-        return upsample(self, target, method, **kwargs)
+        return upsample(self, target, method)
 
     def corr(
         self,

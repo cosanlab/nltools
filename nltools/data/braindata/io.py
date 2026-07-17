@@ -771,7 +771,7 @@ def write_brain_data(bd, file_name):
         to_nifti(bd).to_filename(file_name)
 
 
-def upload_neurovault(
+def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API
     bd,
     access_token=None,
     collection_name=None,
@@ -819,7 +819,9 @@ def upload_neurovault(
     # mkdtemp guarantees a unique dir (the old os.times() name could collide).
     tmp_dir = tempfile.mkdtemp()
 
-    def add_image_to_collection(api, collection, dat, tmp_dir, index_id=0, **kwargs):
+    def add_image_to_collection(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API
+        api, collection, dat, tmp_dir, index_id=0, **kwargs
+    ):
         """Upload an image to a NeuroVault collection.
 
         Args:
