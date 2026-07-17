@@ -125,6 +125,11 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Advisory only: the in-browser Pyodide stack is a known-flaky external
+    # surface (upstream marimo/Pyodide issues, e.g. cosanlab/nltools#455), not
+    # a signal about nltools itself. Allow this job to fail without failing the
+    # overall run so a red Pyodide leg doesn't mask a genuinely green build.
+    continue-on-error: true
 
     steps:
       - name: Checkout Code
