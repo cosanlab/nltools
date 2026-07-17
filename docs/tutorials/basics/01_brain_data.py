@@ -1,29 +1,19 @@
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
+#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
+#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
+#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
+#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
+#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "numpy==2.0.2",
-#     "nibabel",
-#     "nilearn==0.13.1",
-#     "scikit-learn",
-#     "scipy",
-#     "pandas",
-#     "polars",
-#     "seaborn",
-#     "matplotlib",
-#     "joblib>=1.5.3",
-#     "huggingface-hub",
-#     "pynv",
-#     "ipyniivue",
-#     "ipywidgets",
 #     "pyodide-http; sys_platform == 'emscripten'",
 # ]
 # ///
 # BrainData basics — runs entirely in the browser via marimo + Pyodide.
 # Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` itself is injected at build time
-# (file:// wheel for --execute) and micropip-installed from a hosted URL in
-# the browser; see the IN_WASM setup cells below.
+# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
+# build-hosted wheel URL by the IN_WASM setup cells below.
 
 import marimo
 
@@ -70,26 +60,53 @@ def _():
 
 @app.cell(hide_code=True)
 async def _(IN_WASM):
-    # In-browser only: install the nltools dev wheel. The PyPI stack comes from the
-    # PEP 723 header (marimo micropips it automatically under WASM); nltools is not on
-    # PyPI at this version, so we install the build-hosted wheel by absolute URL.
-    # This cell runs in the Pyodide *web worker*, where js.location is the worker
+    # In-browser only: install nltools + its full runtime stack before any nltools import
+    # runs. We can't rely on marimo's PEP 723 header auto-install alone: it races cell
+    # execution (cells run before numpy/nibabel/... finish installing) and marimo does not
+    # re-run a cell that already failed with ModuleNotFoundError. So we install everything
+    # *here* and await it, then hand `wasm_ready` to every nltools-importing cell to force
+    # ordering. This cell runs in the Pyodide web worker, where js.location is the worker
     # script URL — resolve the wheel against the shared origin, not location.href.
+    wasm_ready = True
     if IN_WASM:
         import micropip
         import js
 
-        _ = await micropip.install(
+        # Install nltools' runtime stack UNPINNED so micropip takes Pyodide's bundled
+        # builds (e.g. joblib 1.4.0) — pinning to nltools' host versions (joblib>=1.5.3)
+        # fails because Pyodide ships one build of each package and micropip won't upgrade
+        # a bundled one. nilearn is the exception: 0.14+ needs packaging>=26 (absent in
+        # Pyodide 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib
+        # come in transitively at their bundled versions.
+        await micropip.install(
+            [
+                "nibabel",
+                "nilearn==0.13.1",
+                "seaborn",
+                "polars",
+                "pynv",
+                "ipyniivue",
+                "ipywidgets",
+                "huggingface-hub",
+                "anywidget",
+            ]
+        )
+        # deps=False installs the wheel without re-checking nltools' own version pins
+        # (which would re-trigger the joblib>=1.5.3 conflict above).
+        await micropip.install(
             js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
         )
-    return
+    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
-async def _(IN_WASM):
+async def _(IN_WASM, wasm_ready):
     # In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
     # synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-    # doing (unsupported) sync HTTP. Persists across reloads via IndexedDB.
+    # doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded`
+    # is threaded into the data-loading cell so fetch_pain() waits for the cache.
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+    seeded = True
     if IN_WASM:
         from nltools.datasets import PAIN_RESOURCES
         from nltools.templates import seed_resources
@@ -102,11 +119,12 @@ async def _(IN_WASM):
                 *PAIN_RESOURCES,
             ]
         )
-    return
+    return (seeded,)
 
 
 @app.cell
-def _():
+def _(wasm_ready):
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
     from nltools import BrainData
 
     # Empty brain
@@ -133,7 +151,8 @@ def _(mo):
 
 
 @app.cell
-def _():
+def _(seeded, wasm_ready):
+    _ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
     from nltools.datasets import fetch_pain
 
     brains = fetch_pain()
@@ -526,7 +545,10 @@ def _(mo):
 
 @app.cell
 def _(masked_data):
-    # Bare NiiVue viewer (no ipywidgets needed) — 3D ortho view of the stat map
+    # Bare NiiVue viewer (no ipywidgets needed) — 3D ortho view of the stat map.
+    # NOTE: the niivue/ipyniivue widget does not yet render under marimo-WASM (Pyodide) —
+    # "TypeError: A.onChange is not a function". Works locally / in `marimo edit`.
+    # Tracked upstream: https://github.com/cosanlab/nltools/issues/455
     masked_data.iplot(controls=False)
     return
 

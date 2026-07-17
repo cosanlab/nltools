@@ -33,16 +33,37 @@ IN_WASM = sys.platform == "emscripten"
 
 ```{code-cell} python3
 :tags: [remove-input]
-# In-browser only: install the nltools dev wheel. The PyPI stack comes from the
-# PEP 723 header (marimo micropips it automatically under WASM); nltools is not on
-# PyPI at this version, so we install the build-hosted wheel by absolute URL.
-# This cell runs in the Pyodide *web worker*, where js.location is the worker
-# script URL — resolve the wheel against the shared origin, not location.href.
+# In-browser only: install nltools + its full runtime stack before any nltools import
+# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
+# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
+# marimo never re-runs a cell that already failed with ModuleNotFoundError. This cell
+# runs in the Pyodide *web worker*, where js.location is the worker script URL — resolve
+# the wheel against the shared origin, not location.href.
+wasm_ready = True
 if IN_WASM:
     import micropip
     import js
 
-    _ = await micropip.install(
+    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
+    # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
+    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
+    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
+    # transitively at their bundled versions.
+    await micropip.install(
+        [
+            "nibabel",
+            "nilearn==0.13.1",
+            "seaborn",
+            "polars",
+            "pynv",
+            "ipyniivue",
+            "ipywidgets",
+            "huggingface-hub",
+            "anywidget",
+        ]
+    )
+    # deps=False installs the wheel without re-checking nltools' own version pins.
+    await micropip.install(
         js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
     )
 ```
@@ -51,7 +72,10 @@ if IN_WASM:
 :tags: [remove-input]
 # In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
 # synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-# doing (unsupported) sync HTTP. Persists across reloads via IndexedDB.
+# doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded` is
+# threaded into the data-loading cell so fetch_pain() waits for the cache.
+_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+seeded = True
 if IN_WASM:
     from nltools.datasets import PAIN_RESOURCES
     from nltools.templates import seed_resources
@@ -74,6 +98,7 @@ To keep things self-contained we reuse the pain dataset from the
 (low / medium / high) — with a metadata table in `.X`.
 
 ```{code-cell} python3
+_ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
 import polars as pl
 
 from nltools.datasets import fetch_pain

@@ -16,10 +16,10 @@ IN_WASM = sys.platform == "emscripten"
 
 ```{code-cell} python3
 :tags: [remove-input]
-# In-browser only: install the nltools dev wheel before any nltools import runs.
-# The PyPI stack micropip-installs from the PEP 723 header automatically; nltools is
-# not on PyPI at this dev version, so we install the build-hosted wheel by absolute
-# URL. `wasm_ready` is threaded into the nltools-importing cells to force ordering.
+# In-browser only: install nltools + its full runtime stack before any nltools import
+# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
+# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
+# marimo never re-runs a cell that already failed with ModuleNotFoundError.
 #
 # The dataset (nilearn development_fmri) is hosted under tutorials/isc/ in the
 # nltools/niftis HF dataset; the data cell seeds a light 6-subject subset into the
@@ -29,7 +29,26 @@ if IN_WASM:
     import micropip
     import js
 
-    _ = await micropip.install(
+    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
+    # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
+    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
+    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
+    # transitively at their bundled versions.
+    await micropip.install(
+        [
+            "nibabel",
+            "nilearn==0.13.1",
+            "seaborn",
+            "polars",
+            "pynv",
+            "ipyniivue",
+            "ipywidgets",
+            "huggingface-hub",
+            "anywidget",
+        ]
+    )
+    # deps=False installs the wheel without re-checking nltools' own version pins.
+    await micropip.install(
         js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
     )
 ```

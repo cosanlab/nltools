@@ -95,10 +95,10 @@ GitHub Pages subpath) parameterizes `docs-site`/`docs-wasm`/`docs-build`.
     "Running live in your browser" admonition, and injects an "Open interactive version" banner
     linking to the WASM page.
   - **Interactive (opt-in).** `scripts/build_marimo_wasm.py` exports each to a self-contained
-    **WASM page** (`marimo export html-wasm --mode run --show-code --execute`) at
-    `_build/html/tutorials/<group>-<name>.html`. PEP 723 header for the PyPI stack (auto-micropip'd
-    in-browser); an `IN_WASM` cell installs the nltools dev wheel from a build-hosted URL. See
-    `marimo-learning.md` for the full mechanics.
+    **WASM page** (`marimo export html-wasm --mode run --show-code --no-sandbox --no-execute`) at
+    `_build/html/tutorials/<group>-<name>.html`. The page runs live in-browser (Pyodide); the static
+    `.md` pages carry the baked outputs. See **"marimo-WASM: critical details"** below before
+    touching the build script or any notebook's `IN_WASM` cells.
   - **Notebook structure for both modes**: WASM-only plumbing lives in `hide_code=True` cells
     (`IN_WASM` def, micropip install, HF `seed_resources`) so it runs but stays hidden in static;
     each data-load cell is **split** so the browser seeding is a hidden cell yielding a `browser_*`
@@ -108,6 +108,41 @@ GitHub Pages subpath) parameterizes `docs-site`/`docs-wasm`/`docs-build`.
     MyST execute build). **Data**: all four workflow datasets + the basics now seed trimmed subsets
     from HF `nltools/niftis` (`tutorials/{glm,encoding,isc,mvpa}/`); static/local runs fetch via
     nilearn (`else` branch) so they never need HF.
+
+### marimo-WASM: critical details (Pyodide in-browser)
+
+The WASM pages run each notebook in **marimo's Pyodide 0.27.7 worker** (bundles numpy 2.0.2,
+joblib 1.4.0). Three non-obvious rules keep them booting — break any one and the kernel silently
+dies with a `ModuleNotFoundError`/`ValueError` that **never recovers** (marimo does NOT re-run a
+cell that already errored). Verify changes in a **real browser** (playwright-cli against a served
+`docs/_build/html`), not the node `tests/pyodide/test_runner.mjs` — that tests the wheel directly,
+not the exported page. First boot takes several minutes (heavy scientific stack in Pyodide).
+
+1. **Export with `--no-execute` (the script default). Never `--execute`.** `--execute` bakes a
+   pre-boot output preview but freezes the dev env's *resolved* dep versions into the browser
+   micropip list — the ambient (too-new) `numpy==2.4.3`, `pandas==3.0.2`, etc., which Pyodide 0.27
+   can't provide, so the kernel dies on `import numpy`. `--no-execute` embeds the header verbatim.
+2. **The PEP 723 header carries ONLY `marimo` + `pyodide-http` — never the runtime stack, never a
+   `file://` wheel.** Whatever marimo bakes into the header becomes the browser's micropip list at
+   boot. Two failure modes this avoids: (a) a `file://` nltools wheel makes Pyodide try to fetch a
+   local path over HTTP → kernel never boots (the historical #3952 bug); (b) listing the runtime
+   stack makes marimo's header auto-install redundantly pull *unpinned latest*
+   scikit-learn/scipy/pandas/matplotlib, which drag in `packaging>=26` (absent in Pyodide 0.27) and
+   error out. The `IN_WASM` cell is the **sole** installer instead (next point).
+3. **Each `IN_WASM` install cell installs the FULL runtime stack, UNPINNED, and gates every
+   nltools/numpy-importing cell via a `wasm_ready` sentinel.** Because marimo does not block cells
+   on package install and never retries a failed cell, an ungated import cell runs before install
+   finishes and stays broken forever. So the install cell does
+   `await micropip.install([nibabel, nilearn==0.13.1, seaborn, polars, pynv, ipyniivue, ipywidgets,
+   huggingface-hub, anywidget])` then `micropip.install(<wheel>, deps=False)`, sets `wasm_ready =
+   True`, and returns it; **every** cell that imports nltools/numpy takes `wasm_ready` as a param
+   (`_ = wasm_ready`), and data-loading cells also gate on a `seeded` sentinel from the
+   `seed_resources` cell. Pin **only** `nilearn==0.13.1` (0.14+ needs packaging>=26); everything
+   else must be **unpinned** so micropip takes Pyodide's bundled build — pinning to nltools' host
+   versions (e.g. `joblib>=1.5.3`) fails because micropip won't upgrade a bundled package (Pyodide
+   ships joblib 1.4.0). `deps=False` on the wheel skips re-checking nltools' own pins. numpy/scipy/
+   pandas/sklearn/matplotlib arrive transitively at their bundled versions. This mirrors bossanova's
+   hand-rolled Pyodide bootstrap.
 
 ### Docstring style — Google-style Markdown, NO RST
 

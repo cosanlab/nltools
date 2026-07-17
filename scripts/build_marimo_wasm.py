@@ -7,17 +7,31 @@ notebook via ``marimo export html-wasm`` (Pyodide) and served as a static page
 alongside the MyST site — replacing both the old ``marimo_to_myst`` ``.md``
 render pipeline and the JupyterLite "Try it live" bundle.
 
-Two things need templating per notebook, because ``nltools`` is not on PyPI at
-this dev version (see ``marimo-learning.md``):
+Dependencies in the browser (the hard-won part — see the two failure modes below):
 
-* **Build-time (`--execute`)** bakes cell outputs into the page so it's readable
-  before Pyodide boots. ``marimo``'s ``--execute`` runs in an isolated env built
-  from the notebook's PEP 723 header and *ignores the ambient env*, so we inject
-  ``nltools @ file://<abs-wheel> ; sys_platform != 'emscripten'`` into the header
-  (the marker keeps it out of the browser install).
-* **In-browser**, the ``IN_WASM`` setup cell micropip-installs the wheel from a
-  hosted URL. The committed notebook carries a ``__NLTOOLS_WHEEL_URL__``
-  placeholder we replace with the origin-relative path where the wheel is served.
+* The notebook's PEP 723 header is deliberately pinned to **Pyodide-compatible**
+  versions (``numpy==2.0.2`` = the numpy bundled by marimo's Pyodide 0.27.7 worker;
+  ``nilearn==0.13.1``; other compiled packages left *unpinned* so Pyodide/micropip
+  resolve them to their bundled versions — never pin numpy/scipy/pandas/sklearn to
+  arbitrary versions, Pyodide only ships one build of each). marimo bakes this exact
+  header into the browser's micropip install list, so it must stay Pyodide-safe.
+* We therefore export with **``--no-execute``**. ``--execute`` bakes cell outputs
+  into the page (a nice pre-boot preview), but marimo runs it in an env whose
+  *resolved* versions it then freezes into that same browser install list — which
+  overwrites the safe pins with the ambient dev env's too-new versions (e.g.
+  ``numpy==2.4.3``), and Pyodide can't provide them, so ``import numpy`` fails and
+  the kernel dies. ``--no-execute`` embeds the header verbatim. The WASM page runs
+  live in-browser instead of showing a baked preview; the static ``.md`` tutorials
+  (the default doc build) already carry real baked outputs via MyST execute.
+* ``nltools`` itself is not on PyPI at this dev version. The ``IN_WASM`` setup cell
+  micropip-installs the freshly-built dev wheel (``deps=False``) from a hosted URL;
+  the committed notebook carries a ``__NLTOOLS_WHEEL_URL__`` placeholder we replace
+  with the origin-relative path where the wheel is served. (An earlier version
+  instead injected ``nltools @ file://<abs-wheel>`` into the PEP 723 header for a
+  build-time ``--execute`` env; marimo froze that into the browser list too, and
+  Pyodide failed to fetch the local ``file://`` path over HTTP — the #3952 bug.)
+* ``--no-sandbox`` keeps the export itself in the ambient env (which already has
+  ``marimo``) rather than spinning up a throwaway ``uv run --isolated`` env.
 
 Output layout (flat, one shared ``assets/`` bundle for all notebooks)::
 
@@ -33,7 +47,8 @@ Usage::
     python scripts/build_marimo_wasm.py                       # all notebooks, base-url /
     python scripts/build_marimo_wasm.py --base-url /nltools/  # GitHub Pages subpath
     python scripts/build_marimo_wasm.py --filter 01_brain     # just matching notebooks
-    python scripts/build_marimo_wasm.py --no-execute          # skip output baking (faster)
+    python scripts/build_marimo_wasm.py --execute             # bake outputs (BREAKS browser
+                                                              #   compat — see module docstring)
 """
 
 from __future__ import annotations
@@ -75,23 +90,6 @@ def build_wheel() -> Path:
     return newest_wheel()
 
 
-def inject_pep723_nltools(src: str, wheel_abs: Path) -> str:
-    """Add the local nltools wheel to the notebook's PEP 723 dependency list.
-
-    Excluded from the browser via a ``sys_platform`` marker; used only by the
-    build-time ``--execute`` isolated environment.
-    """
-    marker = "# dependencies = ["
-    start = src.find(marker)
-    if start == -1:
-        raise SystemExit("notebook is missing a PEP 723 `# dependencies = [` block")
-    close = src.find("# ]", start)
-    if close == -1:
-        raise SystemExit("notebook PEP 723 dependency block is not closed with `# ]`")
-    dep = f"#     \"nltools @ file://{wheel_abs} ; sys_platform != 'emscripten'\",\n"
-    return src[:close] + dep + src[close:]
-
-
 def resolve_targets(filter_str: str | None) -> list[tuple[str, Path]]:
     targets: list[tuple[str, Path]] = []
     for group, pattern in TUTORIAL_SOURCES:
@@ -106,13 +104,11 @@ def export_one(
     group: str,
     notebook: Path,
     out_dir: Path,
-    wheel_abs: Path,
     wheel_url: str,
     execute: bool,
 ) -> dict:
     """Template + export one notebook to ``<out_dir>/<group>-<name>.html``."""
     src = notebook.read_text()
-    src = inject_pep723_nltools(src, wheel_abs)
     src = src.replace(WHEEL_URL_PLACEHOLDER, wheel_url)
 
     out_name = f"{group}-{notebook.stem}.html"
@@ -133,10 +129,15 @@ def export_one(
             "--mode",
             "run",
             "--show-code",
+            # Export in the ambient dev env (which already has marimo) rather than a
+            # throwaway `uv run --isolated` PEP 723 env.
+            "--no-sandbox",
+            # --execute would freeze the ambient env's (too-new) resolved versions into
+            # the browser micropip list, breaking Pyodide; --no-execute keeps the
+            # Pyodide-safe header pins. See the module docstring.
+            "--execute" if execute else "--no-execute",
             "-f",
         ]
-        if execute:
-            cmd.append("--execute")
         # marimo prints progress to stderr; surface it but don't capture (long).
         subprocess.run(cmd, check=True)
 
@@ -160,10 +161,11 @@ def main() -> int:
         "--filter", help="only export notebooks whose filename contains this"
     )
     parser.add_argument(
-        "--no-execute",
-        dest="execute",
-        action="store_false",
-        help="skip build-time execution (no baked output preview; faster)",
+        "--execute",
+        action="store_true",
+        help="bake cell outputs as a pre-boot preview. WARNING: breaks in-browser "
+        "execution — marimo freezes the ambient env's resolved dep versions into the "
+        "Pyodide micropip list, which Pyodide can't satisfy. Default: off (--no-execute).",
     )
     parser.add_argument(
         "--html-dir",
@@ -194,9 +196,7 @@ def main() -> int:
     manifest = []
     for group, nb in targets:
         print(f"\n=== exporting {group}/{nb.name} ===")
-        manifest.append(
-            export_one(group, nb, out_dir, wheel.resolve(), wheel_url, args.execute)
-        )
+        manifest.append(export_one(group, nb, out_dir, wheel_url, args.execute))
         print(f"  → {out_dir}/{group}-{nb.stem}.html")
 
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
