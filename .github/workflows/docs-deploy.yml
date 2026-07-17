@@ -53,6 +53,11 @@ jobs:
         with:
           node-version: "22"
 
+      # mystmd is an npm package (not a Python dep); poe docs-build-pages shells
+      # out to `myst`, so it must be on PATH. Pinned to match local dev (v1.10.1).
+      - name: Install MyST
+        run: npm install -g mystmd@1.10.1
+
       - name: Install dependencies
         run: uv sync --extra all
 

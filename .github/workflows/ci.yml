@@ -96,6 +96,19 @@ jobs:
           HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run poe test
 
+      # mystmd is an npm package (not a Python dep); the docs smoke step below
+      # shells out to `myst`, so Node + a PATH-global myst are required. Pinned
+      # to match local dev (v1.10.1). Only needed on the 3.12 docs leg.
+      - name: Set up Node
+        if: matrix.python-version == '3.12'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        with:
+          node-version: "22"
+
+      - name: Install MyST
+        if: matrix.python-version == '3.12'
+        run: npm install -g mystmd@1.10.1
+
       - name: Build docs (API generation + MyST site smoke; skips the slow marimo/WASM export)
         if: matrix.python-version == '3.12'
         run: |
