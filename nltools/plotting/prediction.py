@@ -23,25 +23,25 @@ def plot_dist_from_hyperplane(stats_output):
     """
 
     if "dist_from_hyperplane_xval" in stats_output.columns:
-        sns.catplot(
-            "subject_id",
-            "dist_from_hyperplane_xval",
-            hue="Y",
+        g = sns.catplot(
             data=stats_output,
+            x="subject_id",
+            y="dist_from_hyperplane_xval",
+            hue="Y",
             kind="point",
         )
     else:
-        sns.catplot(
-            "subject_id",
-            "dist_from_hyperplane_all",
-            hue="Y",
+        g = sns.catplot(
             data=stats_output,
+            x="subject_id",
+            y="dist_from_hyperplane_all",
+            hue="Y",
             kind="point",
         )
     plt.xlabel("Subject", fontsize=16)
     plt.ylabel("Distance from Hyperplane", fontsize=16)
     plt.title("Classification", fontsize=18)
-    return
+    return g
 
 
 def plot_scatter(stats_output):
@@ -56,13 +56,13 @@ def plot_scatter(stats_output):
     """
 
     if "yfit_xval" in stats_output.columns:
-        sns.lmplot(x="Y", y="yfit_xval", data=stats_output)
+        g = sns.lmplot(data=stats_output, x="Y", y="yfit_xval")
     else:
-        sns.lmplot(x="Y", y="yfit_all", data=stats_output)
+        g = sns.lmplot(data=stats_output, x="Y", y="yfit_all")
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Value", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return
+    return g
 
 
 def plot_probability(stats_output):
@@ -76,13 +76,13 @@ def plot_probability(stats_output):
 
     """
     if "Probability_xval" in stats_output.columns:
-        sns.lmplot("Y", "Probability_xval", data=stats_output, logistic=True)
+        g = sns.lmplot(data=stats_output, x="Y", y="Probability_xval", logistic=True)
     else:
-        sns.lmplot("Y", "Probability_all", data=stats_output, logistic=True)
+        g = sns.lmplot(data=stats_output, x="Y", y="Probability_all", logistic=True)
     plt.xlabel("Y", fontsize=16)
     plt.ylabel("Predicted Probability", fontsize=16)
     plt.title("Prediction", fontsize=18)
-    return
+    return g
 
 
 def plot_roc(fpr, tpr):
@@ -97,9 +97,9 @@ def plot_roc(fpr, tpr):
 
     """
 
-    plt.figure()
+    fig = plt.figure()
     plt.plot(fpr, tpr, color="red", linewidth=3)
     plt.xlabel("(1 - Specificity)", fontsize=16)
     plt.ylabel("Sensitivity", fontsize=16)
     plt.title("ROC Plot", fontsize=18)
-    return
+    return fig

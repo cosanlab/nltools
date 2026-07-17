@@ -49,12 +49,52 @@ def _within_between_values(distance_arr, labels_arr, label):
     return within, between
 
 
+def _stacked_adjacency_matrix(adjacency1, adjacency2, normalize=True):
+    """Build the stacked matrix with adjacency1 in the upper triangle, adjacency2 lower.
+
+    The mapping is fixed regardless of `normalize` so toggling normalization never
+    swaps which input appears in which triangle. When `normalize` is True each
+    triangle is mean-centered and scaled by the max absolute triangle value (guarded
+    against a zero max) so the two datasets share a comparable range.
+
+    Args:
+        adjacency1: Adjacency instance rendered in the upper triangle.
+        adjacency2: Adjacency instance rendered in the lower triangle.
+        normalize: Mean-center and scale each triangle before stacking. Default True.
+
+    Returns:
+        Square np.ndarray with the two triangles combined.
+    """
+    if normalize:
+        upper_src = (adjacency1 - adjacency1.mean()).squareform()
+        lower_src = (adjacency2 - adjacency2.mean()).squareform()
+    else:
+        upper_src = adjacency1.squareform()
+        lower_src = adjacency2.squareform()
+
+    upper = np.triu(upper_src, k=1)
+    lower = np.tril(lower_src, k=-1)
+
+    if normalize:
+        upper_scale = np.max(np.abs(upper))
+        lower_scale = np.max(np.abs(lower))
+        if upper_scale > 0:
+            upper = upper / upper_scale
+        if lower_scale > 0:
+            lower = lower / lower_scale
+
+    return upper + lower
+
+
 def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
     """Create stacked adjacency to illustrate similarity.
 
+    `adjacency1` is drawn in the upper triangle and `adjacency2` in the lower,
+    consistently whether or not `normalize` is set.
+
     Args:
-        adjacency1: Adjacency instance 1.
-        adjacency2: Adjacency instance 2.
+        adjacency1: Adjacency instance shown in the upper triangle.
+        adjacency2: Adjacency instance shown in the lower triangle.
         normalize: Normalize matrices before stacking. Default True.
         **kwargs: Passed through to seaborn.heatmap.
 
@@ -66,14 +106,7 @@ def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
     if not isinstance(adjacency1, Adjacency) or not isinstance(adjacency2, Adjacency):
         raise ValueError("This function requires Adjacency() instances as input.")
 
-    upper = np.triu(adjacency2.squareform(), k=1)
-    lower = np.tril(adjacency1.squareform(), k=-1)
-    if normalize:
-        upper = np.triu((adjacency1 - adjacency1.mean()).squareform(), k=1)
-        lower = np.tril((adjacency2 - adjacency2.mean()).squareform(), k=-1)
-        upper = upper / np.max(upper)
-        lower = lower / np.max(lower)
-    dist = upper + lower
+    dist = _stacked_adjacency_matrix(adjacency1, adjacency2, normalize=normalize)
     return sns.heatmap(
         dist, xticklabels=False, yticklabels=False, square=True, **kwargs
     )
@@ -222,8 +255,6 @@ def plot_between_label_distance(
 
     if ax is None:
         _, ax = plt.subplots(1)
-    else:
-        plt.figure()
 
     within_matrix = _long_to_matrix(
         within_mean_df, "label1", "label2", "mean_distance", unique

@@ -4,11 +4,13 @@ import matplotlib
 
 matplotlib.use("Agg")
 
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 import pytest
 
 from nltools.plotting.adjacency import (
+    _stacked_adjacency_matrix,
     plot_between_label_distance,
     plot_mean_label_distance,
     plot_silhouette,
@@ -103,3 +105,53 @@ class TestPlotStackedAdjacency:
         a2 = Adjacency(rng.random((6, 6)), matrix_type="similarity")
         ax = plot_stacked_adjacency(a1, a2)
         assert ax is not None
+
+    def test_consistent_triangle_mapping_across_normalize(self):
+        """F126: adjacency1 must drive the same triangle regardless of normalize.
+
+        Build two Adjacency inputs whose off-diagonal orderings are opposites, so
+        the identity of whichever input lands in the upper triangle is recoverable
+        from the value ordering. That ordering must match adjacency1 in BOTH the
+        normalize=False and normalize=True branches (mean-centering + positive
+        scaling is monotonic, so argsort is preserved).
+        """
+        from nltools.data import Adjacency
+
+        n = 4
+        # Upper-triangle (squareform) vectors that are strict reverses of each other.
+        v1 = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        v2 = v1[::-1].copy()
+        a1 = Adjacency(v1, matrix_type="similarity_flat")
+        a2 = Adjacency(v2, matrix_type="similarity_flat")
+
+        iu = np.triu_indices(n, k=1)
+        a1_order = np.argsort(a1.squareform()[iu])
+
+        raw = _stacked_adjacency_matrix(a1, a2, normalize=False)
+        norm = _stacked_adjacency_matrix(a1, a2, normalize=True)
+
+        # Upper triangle tracks adjacency1 in both branches (same argsort).
+        assert np.array_equal(np.argsort(raw[iu]), a1_order)
+        assert np.array_equal(np.argsort(norm[iu]), a1_order)
+
+    def test_normalize_no_nan_when_triangle_all_negative(self):
+        """F126: normalizing must divide by max-abs, never producing inf/nan."""
+        from nltools.data import Adjacency
+
+        rng = np.random.default_rng(3)
+        a1 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
+        a2 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
+        out = _stacked_adjacency_matrix(a1, a2, normalize=True)
+        assert np.isfinite(out).all()
+
+
+class TestPlotBetweenLabelDistanceFigureLeak:
+    def test_no_stray_figure_when_ax_supplied(self, well_separated_distance):
+        """F127: supplying an ax must not spawn an extra blank figure."""
+        distance, labels = well_separated_distance
+        plt.close("all")
+        fig, ax = plt.subplots(1)
+        n_before = len(plt.get_fignums())
+        plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
+        assert len(plt.get_fignums()) == n_before
+        plt.close("all")
