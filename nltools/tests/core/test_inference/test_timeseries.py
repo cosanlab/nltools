@@ -617,7 +617,7 @@ class TestTimeseriesGPU:
         y = np.random.randn(100)
 
         result = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, parallel="gpu", random_state=42
+            x, y, method="circle_shift", n_permute=100, device="gpu", random_state=42
         )
 
         assert "correlation" in result
@@ -644,7 +644,7 @@ class TestTimeseriesGPU:
             y,
             method="phase_randomize",
             n_permute=100,
-            parallel="gpu",
+            device="gpu",
             random_state=42,
         )
 
@@ -668,10 +668,10 @@ class TestTimeseriesGPU:
         y = np.random.randn(100)
 
         result1 = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, parallel="gpu", random_state=42
+            x, y, method="circle_shift", n_permute=100, device="gpu", random_state=42
         )
         result2 = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, parallel="gpu", random_state=42
+            x, y, method="circle_shift", n_permute=100, device="gpu", random_state=42
         )
 
         np.testing.assert_equal(result1["correlation"], result2["correlation"])
@@ -699,7 +699,7 @@ class TestTimeseriesGPU:
                 y,
                 method="circle_shift",
                 n_permute=100,
-                parallel="gpu",
+                device="gpu",
                 return_null=True,
                 random_state=42,
             )
@@ -720,10 +720,10 @@ class TestTimeseriesGPU:
         y = np.random.randn(200)
 
         result_cpu = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, parallel="cpu", random_state=42
+            x, y, method="circle_shift", n_permute=100, device="cpu", random_state=42
         )
         result_gpu = timeseries_correlation_permutation_test(
-            x, y, method="circle_shift", n_permute=100, parallel="gpu", random_state=42
+            x, y, method="circle_shift", n_permute=100, device="gpu", random_state=42
         )
 
         # Correlation should match closely (GPU uses float32)
@@ -755,7 +755,7 @@ class TestTimeseriesGPU:
             y,
             method="phase_randomize",
             n_permute=100,
-            parallel="cpu",
+            device="cpu",
             random_state=42,
         )
         result_gpu = timeseries_correlation_permutation_test(
@@ -763,7 +763,7 @@ class TestTimeseriesGPU:
             y,
             method="phase_randomize",
             n_permute=100,
-            parallel="gpu",
+            device="gpu",
             random_state=42,
         )
 
@@ -844,7 +844,7 @@ class TestTimeseriesGPU:
             y,
             method="phase_randomize",
             n_permute=5000,
-            parallel="gpu",
+            device="gpu",
             max_gpu_memory_gb=1.0,  # Small memory budget to force batching
             random_state=42,
         )

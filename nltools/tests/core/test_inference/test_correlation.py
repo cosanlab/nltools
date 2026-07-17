@@ -24,7 +24,7 @@ class TestCorrelationPermutationTail:
         x = rng.randn(50)
         y = -x + rng.randn(50) * 0.1
         result = correlation_permutation_test(
-            x, y, n_permute=100, tail=tail, parallel=None
+            x, y, n_permute=100, tail=tail, device=None
         )
         assert "p" in result
         assert 0 < result["p"] <= 1
@@ -355,7 +355,7 @@ class TestCorrelationPermutation:
         data2 = data1 + np.random.randn(50, 20) * 0.5
 
         result = correlation_permutation_test(
-            data1, data2, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
+            data1, data2, n_permute=500, device="cpu", n_jobs=2, random_state=42
         )
 
         # Observed correlations should be positive (data2 derived from data1)
@@ -410,7 +410,7 @@ class TestCorrelationPermutation:
                 parallel = "cpu"
 
             results[backend] = correlation_permutation_test(
-                x, y, n_permute=N_PERMUTE_BACKEND, parallel=parallel, random_state=42
+                x, y, n_permute=N_PERMUTE_BACKEND, device=parallel, random_state=42
             )
 
         # Compare results
@@ -449,7 +449,7 @@ class TestCorrelationPermutation:
                 data1,
                 data2,
                 n_permute=N_PERMUTE_BACKEND,
-                parallel=parallel,
+                device=parallel,
                 random_state=42,
             )
 
@@ -476,7 +476,7 @@ class TestCorrelationPermutation:
 
         # NumPy backend
         result_numpy = correlation_permutation_test(
-            data1, data2, n_permute=500, parallel=None, random_state=42
+            data1, data2, n_permute=500, device=None, random_state=42
         )
 
         # GPU backend with small memory budget to force batching
@@ -484,7 +484,7 @@ class TestCorrelationPermutation:
             data1,
             data2,
             n_permute=500,
-            parallel="gpu",
+            device="gpu",
             max_gpu_memory_gb=0.5,
             random_state=42,
         )
@@ -512,12 +512,12 @@ class TestCorrelationPermutation:
 
         # CPU parallel (default)
         result_cpu = correlation_permutation_test(
-            data1, data2, n_permute=200, parallel="cpu", random_state=42
+            data1, data2, n_permute=200, device="cpu", random_state=42
         )
 
         # GPU vectorized (should process all features simultaneously)
         result_gpu = correlation_permutation_test(
-            data1, data2, n_permute=200, parallel="gpu", random_state=42
+            data1, data2, n_permute=200, device="gpu", random_state=42
         )
 
         # Results should match closely (float32 vs float64 precision)
@@ -550,7 +550,7 @@ class TestCorrelationPermutation:
             data2,
             n_permute=200,
             metric="spearman",
-            parallel="cpu",
+            device="cpu",
             random_state=42,
         )
 
@@ -560,7 +560,7 @@ class TestCorrelationPermutation:
             data2,
             n_permute=200,
             metric="spearman",
-            parallel="gpu",
+            device="gpu",
             random_state=42,
         )
 

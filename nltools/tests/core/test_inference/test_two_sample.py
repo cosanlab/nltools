@@ -167,7 +167,7 @@ class TestTwoSamplePermutation:
         data2 = np.random.randn(25, 50)
 
         result = two_sample_permutation_test(
-            data1, data2, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
+            data1, data2, n_permute=500, device="cpu", n_jobs=2, random_state=42
         )
 
         # Mean difference should match observed
@@ -189,7 +189,7 @@ class TestTwoSamplePermutation:
 
         # NumPy backend
         result_numpy = two_sample_permutation_test(
-            data1, data2, n_permute=500, parallel=None, random_state=42
+            data1, data2, n_permute=500, device=None, random_state=42
         )
 
         # GPU backend with small memory budget to force batching
@@ -197,7 +197,7 @@ class TestTwoSamplePermutation:
             data1,
             data2,
             n_permute=500,
-            parallel="gpu",
+            device="gpu",
             max_gpu_memory_gb=0.5,
             random_state=42,
         )

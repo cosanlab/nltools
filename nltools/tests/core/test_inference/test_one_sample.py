@@ -199,7 +199,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
         data = np.random.randn(n_samples) + true_mean
 
         result = one_sample_permutation_test(
-            data, n_permute=100, random_state=42, parallel=None
+            data, n_permute=100, random_state=42, device=None
         )
 
         # Computed mean should be close to true mean
@@ -300,7 +300,7 @@ class TestOneSamplePermutationStatisticalCorrectness:
         data = np.random.randn(n_samples)  # Mean ~ 0
 
         result = one_sample_permutation_test(
-            data, n_permute=n_permute, return_null=True, random_state=42, parallel=None
+            data, n_permute=n_permute, return_null=True, random_state=42, device=None
         )
 
         # Null distribution mean should be close to 0 (within sampling error)

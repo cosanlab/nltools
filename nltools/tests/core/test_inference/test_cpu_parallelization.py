@@ -22,7 +22,7 @@ class TestCPUParallelization:
             data = np.random.randn(30, n_features)
 
         result = one_sample_permutation_test(
-            data, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
+            data, n_permute=500, device="cpu", n_jobs=2, random_state=42
         )
 
         # Verify results based on feature count
@@ -42,7 +42,7 @@ class TestCPUParallelization:
         # Test with data that has mean = 0 (null hypothesis true)
         data_null = np.random.randn(30, 50)
         result_null = one_sample_permutation_test(
-            data_null, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
+            data_null, n_permute=500, device="cpu", n_jobs=2, random_state=42
         )
 
         # Mean should match observed mean
@@ -55,7 +55,7 @@ class TestCPUParallelization:
         # Test with data that has strong positive effect
         data_effect = np.random.randn(30, 50) + 2.0  # Mean = 2.0
         result_effect = one_sample_permutation_test(
-            data_effect, n_permute=500, parallel="cpu", n_jobs=2, random_state=42
+            data_effect, n_permute=500, device="cpu", n_jobs=2, random_state=42
         )
 
         # All features should be significant (p < 0.05)
@@ -69,7 +69,7 @@ class TestCPUParallelization:
         # Test various n_jobs values
         for n_jobs in [1, 2, -1]:
             result = one_sample_permutation_test(
-                data, n_permute=200, parallel="cpu", n_jobs=n_jobs, random_state=42
+                data, n_permute=200, device="cpu", n_jobs=n_jobs, random_state=42
             )
 
             assert result["parallel"] == "cpu"
@@ -84,7 +84,7 @@ class TestCPUParallelization:
         result = one_sample_permutation_test(
             data,
             n_permute=200,
-            parallel="cpu",
+            device="cpu",
             n_jobs=2,
             return_null=True,
             random_state=42,
@@ -99,10 +99,10 @@ class TestCPUParallelization:
         data = np.random.randn(30, 10)
 
         result1 = one_sample_permutation_test(
-            data, n_permute=200, parallel="cpu", n_jobs=2, random_state=42
+            data, n_permute=200, device="cpu", n_jobs=2, random_state=42
         )
         result2 = one_sample_permutation_test(
-            data, n_permute=200, parallel="cpu", n_jobs=2, random_state=42
+            data, n_permute=200, device="cpu", n_jobs=2, random_state=42
         )
 
         # Results should be identical with same seed
