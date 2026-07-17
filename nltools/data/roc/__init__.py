@@ -55,10 +55,10 @@ class Roc:
                 "'optimal_balanced','minimum_sdt_bias']"
             )
 
-        self.input_values = deepcopy(input_values)
+        self.input_values = np.array(input_values)
         self.threshold_type = deepcopy(threshold_type)
         self.forced_choice = deepcopy(forced_choice)
-        self.binary_outcome = np.asarray(binary_outcome).flatten()
+        self.binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
 
     def calculate(
         self,
@@ -91,10 +91,10 @@ class Roc:
         """
 
         if input_values is not None:
-            self.input_values = deepcopy(input_values)
+            self.input_values = np.array(input_values)
 
         if binary_outcome is not None:
-            self.binary_outcome = deepcopy(binary_outcome)
+            self.binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
 
         # Create Criterion Values
         if criterion_values is not None:
@@ -226,9 +226,8 @@ class Roc:
         # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
         self.n = len(self.misclass)
         self.accuracy_p = binomtest(int(np.sum(~self.misclass)), self.n, p=0.5)
-        self.accuracy_se = np.sqrt(
-            np.mean(~self.misclass) * (np.mean(~self.misclass)) / self.n
-        )
+        p = np.mean(~self.misclass)
+        self.accuracy_se = np.sqrt(p * (1 - p) / self.n)
 
     def plot(self, plot_method="gaussian", balanced_acc=False, **kwargs):
         """Create ROC Plot

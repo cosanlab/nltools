@@ -1,6 +1,54 @@
+import matplotlib
+
+matplotlib.use("Agg")
+
 import pytest
+import nibabel as nib
 from nltools.data.simulator import Simulator, SimulateGrid
 import numpy as np
+
+
+def _small_mask():
+    """A tiny all-ones brain mask for fast Simulator smoke tests."""
+    return nib.Nifti1Image(np.ones((12, 12, 12), dtype=np.float32), affine=np.eye(4))
+
+
+def test_simulator_accepts_nibabel_mask():
+    """F086: a valid Nifti1Image brain_mask must not raise."""
+    mask = _small_mask()
+    sim = Simulator(brain_mask=mask)
+    assert isinstance(sim.brain_mask, nib.nifti1.Nifti1Image)
+
+
+def test_n_spheres_multi_radius_default_center():
+    """F102: multiple radii with center=None must build one center per radius."""
+    sim = Simulator(brain_mask=_small_mask())
+    A = sim.n_spheres([3, 3], None)
+    assert A.shape == (12, 12, 12)
+    assert A.sum() > 0
+    # A float scalar radius must also be accepted (not just Python int).
+    B = sim.n_spheres(3.0, None)
+    assert B.sum() > 0
+
+
+def test_create_ncov_data_int_cov():
+    """F087: an integer cov must be listified into a covariance matrix."""
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+    sphere = sim.n_spheres(3, None)
+    masks = nib.Nifti1Image(sphere.astype(np.float32), affine=sim.brain_mask.affine)
+    sim.create_ncov_data(
+        cor=1, cov=1, sigma=1, masks=masks, reps=5, n_sub=1, output_dir=None
+    )
+    assert sim.data.shape[-1] == 5
+
+
+def test_plot_grid_simulation_already_fit():
+    """F101: plotting an already-fit grid must still threshold (thresholded != None)."""
+    sim = SimulateGrid(grid_width=10, n_subjects=10, random_state=0)
+    sim.fit()  # sets isfit=True but leaves self.thresholded == None
+    assert sim.thresholded is None
+    sim.plot_grid_simulation(threshold=0.05, threshold_type="p", n_simulations=10)
+    assert sim.thresholded is not None
 
 
 @pytest.mark.slow

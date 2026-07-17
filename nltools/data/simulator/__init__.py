@@ -64,7 +64,7 @@ class Simulator:
             brain_mask = nib.load(brain_mask)
         elif brain_mask is None:
             brain_mask = nib.load(get_brainspace().mask)
-        elif ~isinstance(brain_mask, nib.nifti1.Nifti1Image):
+        elif not isinstance(brain_mask, nib.nifti1.Nifti1Image):
             raise ValueError("brain_mask is not a string or a nibabel instance")
         self.brain_mask = brain_mask
         self.random_state = check_random_state(random_state)
@@ -165,12 +165,12 @@ class Simulator:
         dims = self.brain_mask.get_fdata().shape
 
         # Initialize Spheres with options for multiple radii and centers of the spheres (or just an int and a 3D list)
-        if isinstance(radius, int):
-            radius = [radius]
+        if isinstance(radius, (int, float, np.integer, np.floating)):
+            radius = [int(radius)]
         if center is None:
             center = [
-                [dims[0] / 2, dims[1] / 2, dims[2] / 2] * len(radius)
-            ]  # default value for centers
+                [dims[0] // 2, dims[1] // 2, dims[2] // 2] for _ in radius
+            ]  # default value for centers (one [x, y, z] per radius)
         elif (
             isinstance(center, list) and isinstance(center[0], int) and len(radius) == 1
         ):
@@ -182,7 +182,7 @@ class Simulator:
         ):
             A = np.zeros_like(self.brain_mask.get_fdata())
             for i in range(len(radius)):
-                A = np.add(A, self.sphere(radius[i], center[i]))
+                A = np.add(A, self.sphere(radius[i], [int(c) for c in center[i]]))
             return A
         raise ValueError(
             "Data type for sphere or radius(ii) or center(s) not recognized."
@@ -389,8 +389,8 @@ class Simulator:
             masks = [masks]
         if type(cor) is float or type(cor) is int:
             cor = [cor]
-        if type(cov) is float or type(cor) is int:
-            cov = [cov]
+        if type(cov) is float or type(cov) is int:
+            cov = [[cov]]
         if not len(cor) == len(masks):
             raise ValueError(
                 "cor matrix has incompatible dimensions for mask list of length "
@@ -792,6 +792,7 @@ class SimulateGrid:
         """Create a plot of the simulations"""
         if not self.isfit:
             self.fit()
+        if self.thresholded is None:
             self.threshold_simulation(
                 threshold=threshold,
                 threshold_type=threshold_type,
