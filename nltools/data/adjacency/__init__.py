@@ -45,6 +45,8 @@ class Adjacency:
                     'similarity_flat','directed_flat']
         Y: Pandas DataFrame of training labels
         labels: (list) optional node labels
+        spatial_scale: (SpatialScale, optional) spatial-scale metadata linking rows/
+            columns to a brain parcellation, enabling projection back into brain space
 
     """
 
@@ -728,7 +730,9 @@ class Adjacency:
 
         Args:
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
+            plot: (bool) plot the observed statistic against the null distribution. Default False
             method: (str) permutation scheme '1d', '2d', or None
+            n_permute: (int) number of permutations for the p-value. Default 5000
             metric: (str) 'spearman','pearson','kendall'
             include_diag: (bool) only applies to 'directed' Adjacency types using
                 method=None or method='1d'. Default False

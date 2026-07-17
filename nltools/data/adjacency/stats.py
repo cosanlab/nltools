@@ -46,12 +46,14 @@ def similarity(
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
         random_state (int, optional): Random seed for reproducibility.
+        project (bool): If True and adj has a spatial_scale, project the per-matrix
+            correlations back into brain space. Default False.
 
     Returns:
-        dict or list: Correlation result dict with keys 'r' and 'p', or a list of
-            such dicts when adj contains multiple matrices.
-        BrainData when `project=True` (per-matrix correlations projected via
-            spatial_scale).
+        dict | list | BrainData: A correlation result dict with keys 'r' and 'p'
+            (or a list of such dicts when adj contains multiple matrices); a
+            `BrainData` when `project=True`, holding the per-matrix correlations
+            projected back into brain space via the spatial_scale.
 
     """
     from nltools.data.adjacency import Adjacency

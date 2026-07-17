@@ -322,10 +322,11 @@ def procrustes_distance(
         n_permute (int): number of permutation iterations to perform
         tail (int): either 1 for one-tailed or 2 for two-tailed test; default 2
         n_jobs (int): The number of CPUs to use to do permutation; default -1 (all)
+        random_state (int, np.random.RandomState, or None): seed or generator for
+            the permutation shuffling; default None
 
     Returns:
-        similarity (float): similarity between matrices bounded between 0 and 1
-        pval (float): permuted p-value
+        dict: results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
 
     """
 

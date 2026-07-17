@@ -152,7 +152,7 @@ class Simulator:
 
         Args:
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
-            centers: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+            center: a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
         """
         # initialize useful values
         dims = self.brain_mask.get_fdata().shape
@@ -614,7 +614,7 @@ class SimulateGrid:
 
         Args:
             threshold (float): threshold to apply to simulation
-            threshhold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p']
+            threshold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p']
 
         Returns:
             threshold_data (np.array): thresholded data
@@ -643,7 +643,7 @@ class SimulateGrid:
 
         Args:
             threshold (float): threshold to apply to simulation
-            threshhold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q']
+            threshold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q']
         """
 
         if not self.isfit:
