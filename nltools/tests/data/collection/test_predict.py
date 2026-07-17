@@ -266,17 +266,14 @@ class TestPredictDispatch:
         with pytest.raises(ValueError, match="single-map-per-subject"):
             bc_inmem.predict(y=np.array([0, 1, 0]))
 
-    @pytest.mark.xfail(
-        reason="BD.predict on (3, 27) data is too tiny for sklearn estimators",
-        strict=False,
-    )
-    def test_y_only_returns_braindata_with_cv_attrs(
+    def test_y_only_returns_predict_with_cv_attrs(
         self,
         tiny_mask,
         tiny_brain_factory,
     ):
         # Use single-map-per-subject items (1, 27).
         from nltools.data import BrainData
+        from nltools.data.fitresults import Predict
 
         np.random.seed(0)
         single_maps = [
@@ -285,8 +282,14 @@ class TestPredictDispatch:
         ]
         bc = BrainCollection(single_maps, mask=tiny_mask, lazy=False, cache_dir=None)
         out = bc.predict(y=np.array([0, 1, 0, 1, 0, 1]))
-        assert isinstance(out, BrainData)
-        assert hasattr(out, "cv_scores")
+        # y-mode whole-brain returns a Predict dataclass, not a BrainData.
+        assert isinstance(out, Predict)
+        assert out.predictions.shape == (6,)
+        assert out.scores.shape == (6,)
+        assert isinstance(out.mean_score, float)
+        # Brain-space output is itself a BrainData; estimator is fitted on all data.
+        assert isinstance(out.weight_map, BrainData)
+        assert out.estimator is not None
 
     def test_x_new_only_returns_collection(self, bc_ridge_fitted):
         from pathlib import Path

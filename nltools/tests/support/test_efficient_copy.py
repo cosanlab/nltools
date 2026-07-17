@@ -215,11 +215,6 @@ def test_transform_methods_efficient():
 def test_getitem_efficiency(sim_brain_data):
     """Test that indexing operations use efficient copying"""
 
-    # Add some data to make it more realistic
-    if len(sim_brain_data) == 1:
-        # Skip if single image
-        pytest.skip("Need multiple images for indexing test")
-
     # Test that indexing preserves object sharing
     indexed = sim_brain_data[0]
 
