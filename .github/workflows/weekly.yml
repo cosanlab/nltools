@@ -1,5 +1,7 @@
 name: Weekly Comprehensive Tests
 
+# Full suite (incl. slow + integration markers via `poe test-all`) across every
+# supported Python plus a macOS leg. Runs weekly and on manual dispatch.
 on:
   schedule:
     # Sunday at 11pm UTC (6pm EST, 3pm PST)
@@ -9,6 +11,7 @@ on:
 jobs:
   test-full:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -47,14 +50,16 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check nltools/
 
-      - name: Run all tests (including slow)
+      - name: Run all tests (including slow + integration)
         env:
           HF_HUB_ETAG_TIMEOUT: "30"
-        run: uv run pytest -n 2 -m "" --tb=short
+        run: uv run poe test-all
 
-      - name: Build docs
+      - name: Build docs (API generation + MyST site smoke)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        run: uv run jupyter-book build docs
+        run: |
+          uv run poe docs-generate
+          cd docs && uv run myst build --html
 
       - name: Build package
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'

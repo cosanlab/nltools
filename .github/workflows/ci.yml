@@ -1,10 +1,14 @@
 name: CI
 
+# Fast feedback on every push to / PR against main (uv-cleanup is the active
+# v0.6.0 dev branch and kept here so in-flight work still gets CI). Runs the
+# default fast test suite (slow + integration markers are skipped by pyproject
+# addopts). Manually triggerable via the Actions tab.
 on:
   push:
     branches:
-      - master
       - main
+      - master
       - uv-cleanup
   pull_request:
     branches:
@@ -13,6 +17,41 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          version: "0.7.6"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra all
+
+      # Non-mutating mirror of `poe lint` (which runs ruff --fix + format
+      # in-place). CI must fail on drift, not silently fix it.
+      - name: Ruff lint
+        run: uv run ruff check nltools/
+
+      - name: Ruff format check
+        run: uv run ruff format --check nltools/
+
+      - name: Type-check with ty
+        run: uv run ty check nltools/
+
+      # v0.6.0 canonical-kwarg API conventions gate (semgrep rules + kw-only check).
+      - name: API conventions
+        run: uv run poe lint-api
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -46,13 +85,10 @@ jobs:
           restore-keys: |
             hf-cache-${{ runner.os }}-
 
-      - name: Lint with ruff
-        run: uv run ruff check nltools/
-
-      - name: Run tests
+      - name: Run fast tests
         env:
           HF_HUB_ETAG_TIMEOUT: "30"
-        run: uv run pytest -n 2 --tb=short
+        run: uv run poe test
 
       - name: Build docs (API generation + MyST site smoke; skips the slow marimo/WASM export)
         if: matrix.python-version == '3.12'

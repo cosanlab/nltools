@@ -2,8 +2,17 @@
 """Interactive nltools release orchestrator.
 
 The workflow reviews the latest pytest log, bumps the project version, builds
-and smoke-tests distributions, regenerates the changelog, creates a release
-commit and tag, and finally publishes the artifacts.
+and smoke-tests distributions, regenerates the changelog, and creates a release
+commit and tag.
+
+Publishing to PyPI is handled by GitHub, not this script: for the default
+`--target pypi`, the final step pushes the release commit and tag, which
+triggers the `Release` workflow (`.github/workflows/release.yml`) to build and
+upload to PyPI via Trusted Publishing (OIDC). The local build/smoke-test here is
+a pre-flight check; the wheel GitHub publishes is rebuilt from the pushed tag.
+
+`--target testpypi` still publishes locally with `uv publish` (no GitHub
+workflow targets TestPyPI) — useful for validating the release before tagging.
 
 Usage:
     uv run poe release
@@ -386,6 +395,12 @@ def step_confirm(
     for artifact in artifacts:
         table.add_row("Artifact", artifact.name)
     table.add_row("Git", f"commit release: v{new_version}; tag v{new_version}")
+    publish = (
+        "local uv publish -> TestPyPI"
+        if target == "testpypi"
+        else "push commit + tag -> GitHub Release workflow -> PyPI (Trusted Publishing)"
+    )
+    table.add_row("Publish", publish)
     console.print(table)
 
     if not confirm("Create the release commit/tag and publish these artifacts?"):
@@ -431,27 +446,49 @@ def load_publish_env(target: str) -> dict[str, str]:
     return values
 
 
-def step_publish(target: str) -> None:
-    """Publish distributions to PyPI or TestPyPI with uv."""
+def step_publish(target: str, new_version: str) -> None:
+    """Publish the release: push the tag (PyPI via GitHub) or upload to TestPyPI."""
     console.print(Panel("[bold]Step 9: Publish[/]", style="blue"))
 
-    command = ["uv", "publish"]
-    if target == "testpypi":
-        command.extend(
-            [
-                "--publish-url",
-                TESTPYPI_PUBLISH_URL,
-                "--check-url",
-                TESTPYPI_CHECK_URL,
-            ]
+    if target == "pypi":
+        # PyPI publishing is owned by the GitHub `Release` workflow, triggered by
+        # the pushed tag. Push the commit first, then the tag.
+        tag = f"v{new_version}"
+        result = run(["git", "push", "origin", "HEAD"])
+        if result.returncode != 0:
+            abort(
+                "Failed to push the release commit. The commit and tag remain "
+                "local; push them manually to trigger the release workflow."
+            )
+        result = run(["git", "push", "origin", tag])
+        if result.returncode != 0:
+            abort(
+                f"Failed to push tag {tag}. Push it manually (`git push origin "
+                f"{tag}`) to trigger the release workflow."
+            )
+        console.print(f"[bold green]Pushed release commit and tag {tag}.[/]")
+        console.print(
+            "[dim]GitHub `Release` workflow will build and publish to PyPI via "
+            "Trusted Publishing. Watch it in the Actions tab.[/]"
         )
+        return
+
+    # TestPyPI: publish locally with uv (no GitHub workflow targets TestPyPI).
+    command = [
+        "uv",
+        "publish",
+        "--publish-url",
+        TESTPYPI_PUBLISH_URL,
+        "--check-url",
+        TESTPYPI_CHECK_URL,
+    ]
     result = run(command, env=load_publish_env(target))
     if result.returncode != 0:
         abort(
             "uv publish failed. The release commit and tag remain local; "
             "inspect the error before retrying."
         )
-    console.print("[bold green]Published successfully.[/]")
+    console.print("[bold green]Published to TestPyPI.[/]")
 
 
 def main() -> None:
@@ -470,15 +507,20 @@ def main() -> None:
     step_changelog(new_version)
     step_confirm(old_version, new_version, args.target, artifacts, test_status)
     step_git_commit_and_tag(new_version)
-    step_publish(args.target)
+    step_publish(args.target, new_version)
 
-    console.print(
-        Panel(
-            f"[bold green]Release v{new_version} complete![/]\n"
-            f"Published to {target_label}, committed, and tagged.",
-            style="green",
+    if args.target == "pypi":
+        message = (
+            f"[bold green]Release v{new_version} committed, tagged, and pushed![/]\n"
+            "The GitHub `Release` workflow is now publishing to PyPI via Trusted "
+            "Publishing — track it in the Actions tab."
         )
-    )
+    else:
+        message = (
+            f"[bold green]Release v{new_version} complete![/]\n"
+            f"Published to {target_label}, committed, and tagged."
+        )
+    console.print(Panel(message, style="green"))
 
 
 if __name__ == "__main__":

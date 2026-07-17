@@ -1,0 +1,101 @@
+name: Release
+
+# Build and publish nltools to PyPI via Trusted Publishing (OIDC) — no stored
+# secrets. Fires when scripts/release.py pushes a `v*` tag, or manually from the
+# Actions tab. On a tag push the tag must match the version in pyproject.toml.
+#
+# One-time setup on PyPI (https://pypi.org/manage/project/nltools/settings/publishing/):
+#   Add a GitHub trusted publisher scoped to this repo, workflow `release.yml`,
+#   environment `pypi`. No token is ever stored in GitHub.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Environment gate: scope the PyPI trusted publisher (and optional required
+    # reviewers, for a manual approval step) to this environment.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/nltools/
+    permissions:
+      # OIDC token for Trusted Publishing — no PyPI secret needed.
+      id-token: write
+      # Create the GitHub Release (tag pushes only).
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          version: "0.7.6"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Read project version
+        id: version
+        run: |
+          version=$(grep -m1 -E '^version = ' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Project version: $version"
+
+      # On a tag push, the tag must equal v<pyproject-version> so we never
+      # publish a wheel whose version disagrees with the release tag.
+      - name: Verify tag matches version
+        if: github.ref_type == 'tag'
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "v${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match pyproject version v${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Smoke-test the built wheel in a clean environment
+        run: |
+          uv venv /tmp/smoke --python 3.12
+          wheel=$(ls dist/*.whl)
+          uv pip install --python /tmp/smoke "$wheel"
+          /tmp/smoke/bin/python - "${{ steps.version.outputs.version }}" <<'PY'
+          import sys
+          from importlib.metadata import version
+          import numpy as np
+          from nltools import Adjacency, DesignMatrix
+
+          expected = sys.argv[1]
+          installed = version("nltools")
+          assert installed == expected, (installed, expected)
+
+          dm = DesignMatrix(
+              {"intercept": [1.0, 1.0], "condition": [0.0, 1.0]},
+              sampling_freq=1.0,
+          )
+          assert dm.shape == (2, 2), dm.shape
+
+          adj = Adjacency(np.array([[0.0, 0.5], [0.5, 0.0]]), matrix_type="similarity")
+          assert adj.shape == (2, 2), adj.shape
+          print(f"nltools {installed} wheel smoke test passed")
+          PY
+
+      - name: Publish to PyPI (Trusted Publishing)
+        run: uv publish --trusted-publishing always dist/*
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
