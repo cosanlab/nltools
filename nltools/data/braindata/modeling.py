@@ -857,46 +857,46 @@ _CONTRAST_OUTPUT_TYPES = {
     "all": "all",
 }
 
-# nilearn 'all' output → cleaner nltools keys. effect_variance is stored
-# as the standard error after a sqrt, for symmetry with bd.glm_se.
-_CONTRAST_ALL_KEY_MAP = {
-    "effect_size": "beta",
-    "stat": "t",
-    "z_score": "z",
-    "p_value": "p",
-    "effect_variance": "se",
-}
 
+def _functional_contrast(labels, run_results, con_vec, statistic):
+    """Compute contrast statistic(s) as masked-space arrays.
 
-def _contrast_all_to_bd(img_dict, mask):
-    """Convert nilearn's output_type='all' dict into a dict of BrainData.
-
-    ``effect_variance`` is stored as the (voxel-wise) standard error, i.e.
-    ``sqrt(|effect_variance|)`` — matches how ``bd.glm_se`` is computed in
-    `fit_glm` and what a user thinks of as "SE of the contrast".
+    Uses nilearn's FUNCTIONAL ``compute_contrast`` on the fitted
+    ``(labels_, results_)`` — the full per-voxel parameter covariance (correct
+    for OLS and AR) — with no unmasking to a Nifti. For ``statistic='all'``
+    returns a dict of arrays keyed ``beta/t/z/p/se``; otherwise a single array.
+    ``se`` is ``sqrt(|effect_variance|)``, matching ``bd.glm_se``.
     """
-    from . import BrainData
+    from nilearn.glm import compute_contrast as _nl_compute_contrast
 
-    out = {}
-    for src_key, dst_key in _CONTRAST_ALL_KEY_MAP.items():
-        img = img_dict[src_key]
-        if dst_key == "se":
-            bd_map = BrainData(img, mask=mask, verbose=False)
-            bd_map.data = np.sqrt(np.abs(np.asarray(bd_map.data)))
-            out[dst_key] = bd_map
-        else:
-            out[dst_key] = BrainData(img, mask=mask, verbose=False)
-    return out
+    con = _nl_compute_contrast(labels, run_results, np.asarray(con_vec, dtype=float))
+    if statistic == "all":
+        return {
+            "beta": con.effect_size().ravel(),
+            "t": con.stat().ravel(),
+            "z": con.z_score().ravel(),
+            "p": con.p_value().ravel(),
+            "se": np.sqrt(np.abs(con.effect_variance().ravel())),
+        }
+    getters = {
+        "t": con.stat,
+        "z": con.z_score,
+        "p": con.p_value,
+        "beta": con.effect_size,
+        "effect_size": con.effect_size,
+    }
+    return getters[statistic]().ravel()
 
 
 def compute_contrasts(bd, contrasts, statistic="t"):
     """Compute contrasts from a fitted GLM.
 
-    Delegates to the underlying ``nilearn.FirstLevelModel.compute_contrast`` so
-    t-statistics are computed with the full parameter covariance matrix —
-    linear-combination-of-stored-betas cannot do this correctly for multi-
-    regressor contrasts (it would ignore off-diagonal covariance and produce
-    an effect-size map, not a t-map).
+    Uses nilearn's functional ``compute_contrast`` on the fitted
+    ``(labels_, results_)`` so t-statistics are computed with the full per-voxel
+    parameter covariance (correct for OLS and AR) — a linear combination of
+    stored betas cannot do this for multi-regressor contrasts (it would ignore
+    off-diagonal covariance and produce an effect-size map, not a t-map).
+    Contrast maps stay in masked-array space; no unmasking to a Nifti.
 
     Must be called after ``.fit(model='glm', X=design_matrix)`` has been run.
 
@@ -979,7 +979,6 @@ def compute_contrasts(bd, contrasts, statistic="t"):
             f"statistic must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; "
             f"got {statistic!r}"
         )
-    output_type = _CONTRAST_OUTPUT_TYPES[statistic]
     want_all = statistic == "all"
 
     # Normalize contrasts → {name: contrast_def}
@@ -993,6 +992,10 @@ def compute_contrasts(bd, contrasts, statistic="t"):
         raise TypeError("contrasts must be str, array, or dict")
 
     n_regressors = bd.glm_betas.shape[0]
+    # Read the fitted run_glm results once; contrasts are computed as arrays via
+    # nilearn's functional compute_contrast (no Nifti round-trip). Single run.
+    labels = bd.model_.glm_.labels_[0]
+    run_results = bd.model_.glm_.results_[0]
     results = {}
     for name, contrast_def in contrast_dict.items():
         if isinstance(contrast_def, str):
@@ -1006,13 +1009,14 @@ def compute_contrasts(bd, contrasts, statistic="t"):
                 f"number of regressors ({n_regressors})"
             )
 
-        contrast_out = bd.model_.compute_contrast(
-            contrast_vector, output_type=output_type
-        )
+        vals = _functional_contrast(labels, run_results, contrast_vector, statistic)
         if want_all:
-            results[name] = _contrast_all_to_bd(contrast_out, bd.mask)
+            results[name] = {
+                key: BrainData(data=arr, mask=bd.mask, verbose=False)
+                for key, arr in vals.items()
+            }
         else:
-            results[name] = BrainData(contrast_out, mask=bd.mask, verbose=False)
+            results[name] = BrainData(data=vals, mask=bd.mask, verbose=False)
 
     if single_contrast:
         return results["contrast"]

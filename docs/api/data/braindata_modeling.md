@@ -34,11 +34,12 @@ compute_contrasts(bd, contrasts, statistic = 't')
 
 Compute contrasts from a fitted GLM.
 
-Delegates to the underlying ``nilearn.FirstLevelModel.compute_contrast`` so
-t-statistics are computed with the full parameter covariance matrix —
-linear-combination-of-stored-betas cannot do this correctly for multi-
-regressor contrasts (it would ignore off-diagonal covariance and produce
-an effect-size map, not a t-map).
+Uses nilearn's functional ``compute_contrast`` on the fitted
+``(labels_, results_)`` so t-statistics are computed with the full per-voxel
+parameter covariance (correct for OLS and AR) — a linear combination of
+stored betas cannot do this for multi-regressor contrasts (it would ignore
+off-diagonal covariance and produce an effect-size map, not a t-map).
+Contrast maps stay in masked-array space; no unmasking to a Nifti.
 
 Must be called after ``.fit(model='glm', X=design_matrix)`` has been run.
 
