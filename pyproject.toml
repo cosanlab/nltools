@@ -223,7 +223,13 @@ shell = """python scripts/build_api_docs.py"""
 
 [tool.poe.tasks.docs-site]
 help = "Build MyST site data and static HTML after API docs have been generated"
-shell = """cd docs && myst build --site --html --execute"""
+shell = """
+set -eu
+cd docs
+myst build --site --html --execute
+# Standalone interactive Design Tour page (not a MyST page; copied verbatim).
+cp public/design-tour.html _build/html/design-tour.html
+"""
 
 [tool.poe.tasks.docs-site-pages]
 help = "Build MyST site for the /nltools/ GitHub Pages subpath"
@@ -231,10 +237,12 @@ shell = """
 set -eu
 cd docs
 BASE_URL=/nltools myst build --site --html --execute
+# Standalone interactive Design Tour page (not a MyST page; copied verbatim).
+cp public/design-tour.html _build/html/design-tour.html
 # MyST does not apply BASE_URL to literal TOC/card url entries (the interactive
-# tutorial links point at /tutorials/{basics,workflows}-*.html). Prefix /nltools.
-find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g' {} +
-find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g' {} +
+# tutorial links + the Design Tour link). Prefix /nltools.
+find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g; s{(?<!/nltools)/design-tour\\.html}{/nltools/design-tour.html}g' {} +
+find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g; s{(?<!/nltools)/design-tour\\.html}{/nltools/design-tour.html}g' {} +
 """
 
 [tool.poe.tasks.docs-build]

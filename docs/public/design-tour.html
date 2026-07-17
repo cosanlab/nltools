@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nltools — Design Tour</title>
+<script>
+/* Early theme detection — runs before paint to avoid a flash.
+   Respects the embedding MyST site's light/dark choice (same-origin),
+   falls back to the OS preference when opened standalone. */
+(function () {
+  var manual = (function () {
+    try { var v = localStorage.getItem('nltools-tour-theme'); return (v === 'dark' || v === 'light') ? v : null; }
+    catch (e) { return null; }
+  })();
+  function urlTheme() {
+    try { var p = new URLSearchParams(location.search).get('theme');
+      return (p === 'dark' || p === 'light') ? p : null; } catch (e) { return null; }
+  }
+  function parentTheme() {
+    try {
+      if (!window.parent || window.parent === window) return null;
+      var pd = window.parent.document, el = pd.documentElement, body = pd.body;
+      var nodes = [el, body];
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i]; if (!n) continue;
+        var attr = ((n.getAttribute && (n.getAttribute('data-theme') || n.getAttribute('data-mode') ||
+                     n.getAttribute('data-color-mode'))) || '').toLowerCase();
+        if (attr.indexOf('dark') > -1) return 'dark';
+        if (attr.indexOf('light') > -1) return 'light';
+        var cls = ((n.className && n.className.toString()) || '').toLowerCase();
+        if (/(^|[\s-])dark($|[\s-])/.test(cls)) return 'dark';
+        if (/(^|[\s-])light($|[\s-])/.test(cls)) return 'light';
+      }
+      // Naming-agnostic fallback: infer from the site background luminance.
+      var bg = window.parent.getComputedStyle(body || el).backgroundColor;
+      var m = bg && bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if (m) {
+        var lum = 0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3];
+        return lum < 128 ? 'dark' : 'light';
+      }
+    } catch (e) {}
+    return null;
+  }
+  function osTheme() {
+    try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+    catch (e) { return 'dark'; }
+  }
+  function resolve() { return manual || urlTheme() || parentTheme() || osTheme(); }
+  function apply() { document.documentElement.setAttribute('data-theme', resolve()); }
+  apply();
+  window.__tourApplyTheme = apply;
+  window.__tourSetManual = function (t) {
+    manual = t;
+    try { localStorage.setItem('nltools-tour-theme', t); } catch (e) {}
+    apply();
+  };
+  // Live-sync to the parent site's theme toggle.
+  try {
+    if (window.parent && window.parent !== window) {
+      var pd = window.parent.document;
+      var obs = new MutationObserver(apply);
+      obs.observe(pd.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-mode', 'data-color-mode', 'style'] });
+      if (pd.body) obs.observe(pd.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-mode', 'style'] });
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', apply);
+  } catch (e) {}
+  window.addEventListener('message', function (e) {
+    if (e.data && (e.data.theme === 'dark' || e.data.theme === 'light')) { manual = e.data.theme; apply(); }
+  });
+})();
+</script>
+<style>
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+    transition: background 0.25s ease;
+  }
+</style>
+</head>
+<body>
+<style>
+:root {
+  /* ---- dark (default) ---- */
+  --bg: #0d1017;
+  --panel: #161b22;
+  --panel-2: #1c232c;
+  --panel-3: #232b36;
+  --ink: #e6edf3;
+  --ink-dim: #9aa6b2;
+  --ink-faint: #5b6570;
+  --accent: #a78bfa;
+  --accent-2: #8b5cf6;
+  --accent-soft: rgba(167,139,250,0.10);
+  --accent-ink: #17111f;
+  --blue: #58a6ff;
+  --green: #7ee787;
+  --red: #ff7b72;
+  --purple: #d2a8ff;
+  --orange: #ffa657;
+  --cyan: #79c0ff;
+  --border: #2a323d;
+  --border-soft: #1f2731;
+  --code-bg: #0a0d12;
+  --shadow: rgba(0,0,0,0.4);
+  color-scheme: dark;
+  --tour-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  --tour-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #fbfaff; --panel: #f4f2fb; --panel-2: #ece7f9; --panel-3: #e3dcf6;
+    --ink: #1b1d26; --ink-dim: #5a6270; --ink-faint: #8b94a3;
+    --accent: #7c3aed; --accent-2: #6d28d9; --accent-soft: rgba(124,58,237,0.08); --accent-ink: #ffffff;
+    --blue: #0969da; --green: #1a7f37; --red: #cf222e; --purple: #8250df; --orange: #bc4c00; --cyan: #0550ae;
+    --border: #e2dff0; --border-soft: #eeecf7; --code-bg: #f5f3fc; --shadow: rgba(80,60,140,0.12);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #fbfaff; --panel: #f4f2fb; --panel-2: #ece7f9; --panel-3: #e3dcf6;
+  --ink: #1b1d26; --ink-dim: #5a6270; --ink-faint: #8b94a3;
+  --accent: #7c3aed; --accent-2: #6d28d9; --accent-soft: rgba(124,58,237,0.08); --accent-ink: #ffffff;
+  --blue: #0969da; --green: #1a7f37; --red: #cf222e; --purple: #8250df; --orange: #bc4c00; --cyan: #0550ae;
+  --border: #e2dff0; --border-soft: #eeecf7; --code-bg: #f5f3fc; --shadow: rgba(80,60,140,0.12);
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0d1017; --panel: #161b22; --panel-2: #1c232c; --panel-3: #232b36;
+  --ink: #e6edf3; --ink-dim: #9aa6b2; --ink-faint: #5b6570;
+  --accent: #a78bfa; --accent-2: #8b5cf6; --accent-soft: rgba(167,139,250,0.10); --accent-ink: #17111f;
+  --blue: #58a6ff; --green: #7ee787; --red: #ff7b72; --purple: #d2a8ff; --orange: #ffa657; --cyan: #79c0ff;
+  --border: #2a323d; --border-soft: #1f2731; --code-bg: #0a0d12; --shadow: rgba(0,0,0,0.4);
+  color-scheme: dark;
+}
+
+.tour-root {
+  background:
+    radial-gradient(1200px 600px at 90% -10%, var(--accent-soft), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(88,166,255,0.05), transparent 60%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--tour-sans);
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  border-radius: 12px;
+  padding: 36px 32px 56px;
+  margin: 0 auto;
+  max-width: 1120px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.tour-root, .tour-root * { box-sizing: border-box; }
+
+/* ---- HERO ---- */
+.tour-root .hero { position: relative; padding: 8px 0 28px; margin-bottom: 16px; border-bottom: 1px solid var(--border); overflow: hidden; }
+.tour-root .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tour-root .eyebrow {
+  color: var(--accent); font-family: var(--tour-mono); font-size: 12px; letter-spacing: 0.18em;
+  text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px;
+}
+.tour-root .eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: tour-pulse 1.6s ease-in-out infinite; }
+@keyframes tour-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } }
+.tour-root .theme-toggle {
+  background: var(--panel); border: 1px solid var(--border); color: var(--ink-dim);
+  border-radius: 999px; padding: 6px 12px; font-family: var(--tour-mono); font-size: 11px;
+  cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.tour-root .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.tour-root h1 { font-size: 44px; line-height: 1.1; margin: 18px 0 16px; letter-spacing: -0.015em; font-weight: 700; color: var(--ink); }
+.tour-root h1 .accent { background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tour-root .lede { color: var(--ink-dim); font-size: 17px; max-width: 74ch; }
+.tour-root .hero-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; }
+@media (max-width: 720px) { .tour-root .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+.tour-root .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.tour-root .stat .num { font-family: var(--tour-mono); font-size: 28px; font-weight: 600; color: var(--accent); display: block; line-height: 1; }
+.tour-root .stat .lbl { font-size: 12px; color: var(--ink-dim); margin-top: 8px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* ---- TOC ---- */
+.tour-root nav.toc { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; margin: 24px 0 48px; }
+.tour-root nav.toc h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); font-weight: 600; }
+.tour-root nav.toc ol { margin: 0; padding: 0; list-style: none; columns: 2; column-gap: 32px; }
+.tour-root nav.toc li { padding: 5px 0; break-inside: avoid; }
+.tour-root nav.toc a { color: var(--ink); text-decoration: none; transition: color 0.15s, padding 0.15s; display: inline-block; }
+.tour-root nav.toc a:hover { color: var(--accent); padding-left: 4px; }
+.tour-root nav.toc .num { display: inline-block; width: 1.8em; color: var(--ink-faint); font-family: var(--tour-mono); font-size: 12px; }
+
+/* ---- SECTIONS ---- */
+.tour-root section { margin: 64px 0; }
+.tour-root h2 { font-size: 26px; margin: 0 0 18px; padding-left: 16px; position: relative; letter-spacing: -0.01em; color: var(--ink); border: none; }
+.tour-root h2::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); border-radius: 2px; }
+.tour-root h2 .num { font-family: var(--tour-mono); color: var(--ink-faint); font-size: 18px; margin-right: 12px; }
+.tour-root h3 { margin: 28px 0 10px; font-size: 18px; color: var(--ink); }
+.tour-root h4 { color: var(--ink); }
+.tour-root p { margin: 12px 0; color: var(--ink); }
+.tour-root p code, .tour-root li code, .tour-root td code {
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px;
+  font-family: var(--tour-mono); font-size: 13.5px; color: var(--purple);
+}
+
+/* ---- CODE ---- */
+.tour-root pre { background: var(--code-bg) !important; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 14px 0; font-family: var(--tour-mono); font-size: 13px; line-height: 1.6; color: var(--ink); }
+.tour-root pre code { background: transparent; border: none; padding: 0; color: var(--ink); font-size: 13px; }
+.tour-root pre .k { color: var(--red); }
+.tour-root pre .s { color: var(--green); }
+.tour-root pre .c { color: var(--ink-faint); font-style: italic; }
+.tour-root pre .n { color: var(--purple); }
+.tour-root pre .f { color: var(--blue); }
+.tour-root pre .a { color: var(--orange); }
+.tour-root pre .num { color: var(--cyan); }
+
+.tour-root ul, .tour-root ol { padding-left: 22px; color: var(--ink); }
+.tour-root li { margin: 4px 0; }
+
+/* ---- CARDS ---- */
+.tour-root .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+.tour-root .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tour-root .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 720px) { .tour-root .grid, .tour-root .grid-3, .tour-root .grid-4 { grid-template-columns: 1fr; } .tour-root nav.toc ol { columns: 1; } .tour-root h1 { font-size: 30px; } }
+.tour-root .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; transition: transform 0.18s, border-color 0.18s, background 0.18s; }
+.tour-root .card:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--panel-2); }
+.tour-root .card h4 { margin: 0 0 6px; font-size: 13px; color: var(--accent); font-family: var(--tour-mono); letter-spacing: 0.04em; }
+.tour-root .card p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14px; }
+.tour-root .card .icon { font-family: var(--tour-mono); font-size: 22px; color: var(--accent); display: inline-block; margin-bottom: 4px; }
+
+/* ---- TABLES ---- */
+.tour-root table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: table; }
+.tour-root th, .tour-root td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); vertical-align: top; color: var(--ink); }
+.tour-root tr:last-child td { border-bottom: none; }
+.tour-root tr:hover td { background: var(--panel-2); }
+.tour-root th { color: var(--ink-dim); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; background: var(--panel-2); }
+.tour-root td code { color: var(--purple); }
+
+.tour-root blockquote { border-left: 3px solid var(--blue); background: var(--panel-2); margin: 16px 0; padding: 14px 18px; color: var(--ink); border-radius: 0 8px 8px 0; }
+.tour-root blockquote p { margin: 4px 0; }
+
+/* ---- ARCH DIAGRAM ---- */
+.tour-root .arch { margin: 20px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.tour-root .arch-row { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin: 8px 0; display: grid; grid-template-columns: 210px 1fr; gap: 18px; align-items: center; cursor: pointer; transition: all 0.2s; }
+.tour-root .arch-row:hover { border-color: var(--accent); transform: translateX(4px); }
+.tour-root .arch-row[data-layer="shell"] .arch-name { color: var(--accent); }
+.tour-root .arch-row[data-layer="core"]  .arch-name { color: var(--blue); }
+.tour-root .arch-row[data-layer="algo"]  .arch-name { color: var(--green); }
+.tour-root .arch-row[data-layer="shell"] { border-left: 4px solid var(--accent); }
+.tour-root .arch-row[data-layer="core"]  { border-left: 4px solid var(--blue); }
+.tour-root .arch-row[data-layer="algo"]  { border-left: 4px solid var(--green); }
+.tour-root .arch-tag { font-family: var(--tour-mono); font-size: 11px; letter-spacing: 0.1em; color: var(--ink-dim); text-transform: uppercase; }
+.tour-root .arch-name { font-size: 17px; font-weight: 600; margin-top: 4px; }
+.tour-root .arch-modules { font-family: var(--tour-mono); font-size: 13px; color: var(--ink-dim); line-height: 1.8; }
+.tour-root .arch-modules .mod { display: inline-block; padding: 2px 8px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; margin: 2px 4px 2px 0; color: var(--ink); transition: all 0.15s; }
+.tour-root .arch-row:hover .mod { border-color: var(--accent); color: var(--accent); }
+.tour-root .arch-note { color: var(--ink-faint); font-size: 12px; margin-top: 6px; }
+.tour-root .arch-arrow { text-align: center; color: var(--ink-faint); font-size: 22px; margin: -2px 0; user-select: none; }
+
+/* ---- FACADE PILLS (interactive) ---- */
+.tour-root .facade-card .pills { margin-top: 8px; }
+.tour-root .facade-card .mod { display: inline-block; padding: 2px 8px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; margin: 3px 4px 0 0; color: var(--ink-dim); font-family: var(--tour-mono); font-size: 12px; transition: all 0.15s; }
+.tour-root .facade-card:hover .mod { border-color: var(--accent); color: var(--accent); }
+
+/* ---- TABS ---- */
+.tour-root .tabs { margin: 20px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.tour-root .tab-bar { display: flex; background: var(--panel-2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.tour-root .tab { flex: 1; min-width: 130px; padding: 12px 16px; text-align: center; cursor: pointer; font-family: var(--tour-mono); font-size: 12.5px; color: var(--ink-dim); border-right: 1px solid var(--border); transition: all 0.15s; user-select: none; }
+.tour-root .tab:last-child { border-right: none; }
+.tour-root .tab.active { color: var(--accent); background: var(--panel); box-shadow: inset 0 -2px 0 var(--accent); }
+.tour-root .tab:hover:not(.active) { color: var(--ink); }
+.tour-root .tab-content { padding: 18px 20px; display: none; }
+.tour-root .tab-content.active { display: block; }
+.tour-root .tab-content h4 { margin: 0 0 6px; color: var(--accent); font-family: var(--tour-mono); font-size: 14px; }
+.tour-root .tab-content p { margin: 6px 0 0; color: var(--ink-dim); font-size: 14.5px; }
+.tour-root .tab-content pre { margin: 12px 0 0; }
+
+/* ---- SEGMENTED CONTROL (cache / backend) ---- */
+.tour-root .demo { margin: 20px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+.tour-root .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px; gap: 4px; flex-wrap: wrap; }
+.tour-root .seg button { background: transparent; border: none; color: var(--ink-dim); padding: 8px 16px; border-radius: 6px; font-family: var(--tour-mono); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.tour-root .seg button.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.tour-root .seg button:hover:not(.active) { color: var(--ink); }
+.tour-root .demo-out { margin-top: 16px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; min-height: 92px; }
+.tour-root .demo-out .headline { font-family: var(--tour-mono); font-size: 14px; margin-bottom: 6px; }
+.tour-root .demo-out .headline.warm { color: var(--green); }
+.tour-root .demo-out .headline.disk { color: var(--blue); }
+.tour-root .demo-out .detail { color: var(--ink-dim); font-size: 14px; }
+.tour-root .demo-out .detail code { color: var(--purple); }
+
+/* ---- LIFECYCLE ---- */
+.tour-root .lifecycle { margin: 20px 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.tour-root .lifecycle-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+.tour-root .btn { background: var(--accent); color: var(--accent-ink); border: none; padding: 8px 16px; border-radius: 6px; font-family: var(--tour-mono); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+.tour-root .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-soft); }
+.tour-root .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+.tour-root .btn.secondary:hover { border-color: var(--accent); color: var(--accent); box-shadow: none; }
+.tour-root .lifecycle-status { font-family: var(--tour-mono); font-size: 12px; color: var(--ink-dim); margin-left: auto; }
+.tour-root .lifecycle-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); margin-right: 6px; vertical-align: middle; }
+.tour-root .lifecycle-status.playing .dot { background: var(--green); box-shadow: 0 0 8px var(--green); animation: tour-pulse 1.2s infinite; }
+.tour-root .lifecycle-stage { display: grid; grid-template-columns: 150px 1fr 1.1fr; gap: 14px; padding: 12px; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; margin: 8px 0; opacity: 0.35; transition: all 0.4s; align-items: center; }
+.tour-root .lifecycle-stage.active { opacity: 1; border-color: var(--accent); background: linear-gradient(90deg, var(--accent-soft), var(--code-bg)); }
+.tour-root .lifecycle-stage.done { opacity: 0.75; border-left: 3px solid var(--green); }
+.tour-root .lifecycle-step { font-family: var(--tour-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-faint); text-transform: uppercase; }
+.tour-root .lifecycle-stage.active .lifecycle-step { color: var(--accent); }
+.tour-root .lifecycle-stage.done .lifecycle-step { color: var(--green); }
+.tour-root .lifecycle-call { font-family: var(--tour-mono); font-size: 13px; color: var(--blue); }
+.tour-root .lifecycle-out { font-family: var(--tour-mono); font-size: 12.5px; color: var(--purple); }
+.tour-root .lifecycle-out::before { content: "→ "; color: var(--ink-faint); }
+
+/* ---- CALLOUT ---- */
+.tour-root .callout { background: linear-gradient(135deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 18px 0; position: relative; overflow: hidden; }
+.tour-root .callout::after { content: ""; position: absolute; top: 0; right: 0; width: 200px; height: 200px; background: radial-gradient(circle, var(--accent-soft), transparent 70%); transform: translate(50%, -50%); pointer-events: none; }
+.tour-root .callout strong { color: var(--accent); }
+
+/* ---- PILLS ---- */
+.tour-root .pill { display: inline-block; font-family: var(--tour-mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink-dim); margin-right: 6px; }
+.tour-root .pill.good { color: var(--green); border-color: rgba(126,231,135,0.35); background: rgba(126,231,135,0.06); }
+.tour-root .pill.bad { color: var(--red); border-color: rgba(255,123,114,0.35); background: rgba(255,123,114,0.06); }
+
+/* ---- REVEAL / TWO-COL / LEGEND ---- */
+.tour-root .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.tour-root .reveal.in { opacity: 1; transform: translateY(0); }
+.tour-root .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .tour-root .two-col { grid-template-columns: 1fr; } }
+.tour-root .two-col h4 { margin-top: 0; }
+.tour-root .two-col pre { font-size: 12px; }
+.tour-root .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-family: var(--tour-mono); font-size: 12px; }
+.tour-root .legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-dim); }
+.tour-root .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.tour-root .legend .lg-shell::before { background: var(--accent); }
+.tour-root .legend .lg-core::before { background: var(--blue); }
+.tour-root .legend .lg-algo::before { background: var(--green); }
+
+.tour-root a { color: var(--blue); }
+.tour-root .tour-footer { border-top: 1px solid var(--border); margin-top: 56px; padding-top: 20px; color: var(--ink-faint); font-size: 13px; text-align: center; }
+</style>
+
+<div class="tour-root">
+
+<header class="hero">
+  <div class="hero-top">
+    <div class="eyebrow"><span class="dot"></span> Engineering Notes · Internals</div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light / dark">◐ theme</button>
+  </div>
+  <h1>Inside <span class="accent">nltools</span></h1>
+  <p class="lede">
+    A neuroimaging analysis toolbox built on one idea: <strong>classes are thin facades — all
+    real work lives in pure functions.</strong> Here's how the four data classes, the functional
+    core, and the CPU/GPU algorithm substrate fit together.
+  </p>
+
+  <div class="hero-stats">
+    <div class="stat"><span class="num" data-count="4">0</span><span class="lbl">Data classes</span></div>
+    <div class="stat"><span class="num" data-count="3">0</span><span class="lbl">Algorithm families</span></div>
+    <div class="stat"><span class="num" data-count="2">0</span><span class="lbl">Compute backends</span></div>
+    <div class="stat"><span class="num" data-count="1">0</span><span class="lbl">Organizing rule</span></div>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Tour</h3>
+  <ol>
+    <li><span class="num">01</span> <a href="#tour-shape">Architectural shape</a></li>
+    <li><span class="num">02</span> <a href="#tour-facades">The four facades</a></li>
+    <li><span class="num">03</span> <a href="#tour-vocab">One vocabulary</a></li>
+    <li><span class="num">04</span> <a href="#tour-exec">Execution model</a></li>
+    <li><span class="num">05</span> <a href="#tour-algo">The algorithm substrate</a></li>
+    <li><span class="num">06</span> <a href="#tour-lifecycle">A workflow, end-to-end</a></li>
+    <li><span class="num">07</span> <a href="#tour-facade-rule">The facade rule</a></li>
+    <li><span class="num">08</span> <a href="#tour-why">Why this works</a></li>
+  </ol>
+</nav>
+
+<section id="tour-shape" class="reveal">
+<h2><span class="num">01</span>Architectural shape</h2>
+<p>
+  nltools is a <em>functional core, imperative shell</em>. Three layers, one dependency
+  direction: the shell delegates down into the core and the algorithm substrate — logic
+  never flows back up into a class. Hover any layer to inspect what lives there:
+</p>
+
+<div class="arch">
+  <div class="arch-row" data-layer="shell">
+    <div><div class="arch-tag">Layer 1 · imperative shell</div><div class="arch-name">Data-class facades</div></div>
+    <div class="arch-modules">
+      <span class="mod">BrainData</span> <span class="mod">Adjacency</span> <span class="mod">DesignMatrix</span> <span class="mod">BrainCollection</span>
+      <div class="arch-note">validate · delegate · assign — each class is a facade over a submodule package</div>
+    </div>
+  </div>
+  <div class="arch-arrow">▼</div>
+  <div class="arch-row" data-layer="core">
+    <div><div class="arch-tag">Layer 2 · functional core</div><div class="arch-name">Pure functions</div></div>
+    <div class="arch-modules">
+      <span class="mod">stats</span> <span class="mod">utils</span> <span class="mod">cross_validation</span> <span class="mod">mask</span>
+      <div class="arch-note">containers in, containers out — no hidden state, no class reach-back</div>
+    </div>
+  </div>
+  <div class="arch-arrow">▼</div>
+  <div class="arch-row" data-layer="algo">
+    <div><div class="arch-tag">Layer 3 · algorithm substrate</div><div class="arch-name">Heavy numerics</div></div>
+    <div class="arch-modules">
+      <span class="mod">alignment</span> <span class="mod">inference</span> <span class="mod">ridge</span> <span class="mod">backends</span>
+      <div class="arch-note">SRM · hyperalignment · permutation/bootstrap · GPU ridge — CPU/GPU behind one Backend</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="lg-shell">imperative shell</span>
+    <span class="lg-core">functional core</span>
+    <span class="lg-algo">algorithm substrate</span>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>The dependency rule.</strong> A facade may validate arguments and call <em>one</em>
+  core/algorithm function, then stow the result. If a method starts branching on model type
+  or orchestrating multiple phases, that logic belongs in a pure function, not the class.
+</div>
+</section>
+
+<section id="tour-facades" class="reveal">
+<h2><span class="num">02</span>The four facades</h2>
+<p>
+  Each data class is a <strong>facade over a package of submodules</strong> — io, modeling,
+  plotting, and so on. The class holds state and delegates; the submodules hold the work.
+  Hover a card to light up its submodules:
+</p>
+
+<div class="grid grid-4">
+  <div class="card facade-card">
+    <div class="icon">◱</div><h4>BrainData</h4>
+    <p>Voxelwise brain images + analysis.</p>
+    <div class="pills">
+      <span class="mod">io</span><span class="mod">analysis</span><span class="mod">modeling</span><span class="mod">prediction</span><span class="mod">bootstrap</span><span class="mod">neighborhoods</span><span class="mod">cache</span><span class="mod">plotting</span><span class="mod">viewer</span><span class="mod">validation</span>
+    </div>
+  </div>
+  <div class="card facade-card">
+    <div class="icon">◇</div><h4>Adjacency</h4>
+    <p>Similarity / distance matrices.</p>
+    <div class="pills">
+      <span class="mod">io</span><span class="mod">modeling</span><span class="mod">stats</span><span class="mod">spatial</span><span class="mod">plotting</span>
+    </div>
+  </div>
+  <div class="card facade-card">
+    <div class="icon">▤</div><h4>DesignMatrix</h4>
+    <p>GLM design construction.</p>
+    <div class="pills">
+      <span class="mod">append</span><span class="mod">transforms</span><span class="mod">regressors</span><span class="mod">diagnostics</span><span class="mod">io</span><span class="mod">plotting</span>
+    </div>
+  </div>
+  <div class="card facade-card">
+    <div class="icon">▦</div><h4>BrainCollection</h4>
+    <p>Parallel iterator of BrainData.</p>
+    <div class="pills">
+      <span class="mod">core</span><span class="mod">execution</span><span class="mod">inference</span><span class="mod">io</span><span class="mod">pipeline</span>
+    </div>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>Same surface, one level up.</strong> <code>BrainCollection</code> mirrors
+  <code>BrainData</code>'s API but runs it across subjects in parallel — so you never write
+  a for-loop over subjects, and first-level results concatenate without picking a contrast
+  inside the loop.
+</div>
+</section>
+
+<section id="tour-vocab" class="reveal">
+<h2><span class="num">03</span>One vocabulary</h2>
+<p>
+  All four facades share <em>one</em> kwarg vocabulary (v0.6.0). Learn it once; it means the
+  same thing on every class. Internal algorithm layers may keep legacy names — the facade
+  translates at the boundary.
+</p>
+
+<table>
+  <thead><tr><th>Concept</th><th>Canonical kwarg</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>Algorithm / variant choice</td><td><code>method</code></td><td>not <code>algorithm</code>/<code>scheme</code>/<code>kind</code>/<code>estimator</code></td></tr>
+    <tr><td>Spatial scale</td><td><code>spatial_scale</code></td><td><code>'whole_brain'</code> · <code>'roi'</code> · <code>'searchlight'</code></td></tr>
+    <tr><td>Distance / similarity metric</td><td><code>metric</code></td><td>kept separate from <code>method</code></td></tr>
+    <tr><td>Subject-level parallelism</td><td><code>n_jobs</code></td><td>default <code>-1</code></td></tr>
+    <tr><td>GPU / CPU selection</td><td><code>device</code></td><td>orthogonal to <code>n_jobs</code></td></tr>
+    <tr><td>Backend (algorithms layer)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code></td></tr>
+    <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
+    <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
+    <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
+  </tbody>
+</table>
+
+<div class="callout">
+  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an
+  estimator <em>class</em>, not a variant. <code>Ridge(n_iter=)</code> matches sklearn's
+  random-search name. <code>compute_contrasts(statistic=)</code> selects an output map (t/z/p/β),
+  not an algorithm. Each is documented, not an oversight.
+</div>
+</section>
+
+<section id="tour-exec" class="reveal">
+<h2><span class="num">04</span>Execution model</h2>
+<p>
+  <code>BrainCollection</code> is <strong>memory-efficient by default</strong>. After a parallel
+  op, workers write each subject's result to a visible disk cache and return a
+  <em>path-backed</em> collection — peak RAM stays at roughly <code>n_workers × 1 subject</code>.
+  The <code>cache=</code> knob controls this. Try it:
+</p>
+
+<div class="demo">
+  <div class="seg" id="cache-seg">
+    <button data-mode="auto" class="active">cache='auto'</button>
+    <button data-mode="true">cache=True</button>
+    <button data-mode="false">cache=False</button>
+  </div>
+  <div class="demo-out" id="cache-out"></div>
+</div>
+
+<h3>Fit bundles</h3>
+<p>
+  <code>fit(model='glm')</code> writes one self-contained HDF5 bundle per subject. Residuals are
+  always included, and the mask is embedded as bytes — so a bundle survives <code>mv</code>,
+  <code>cp</code>, and cross-machine transfer, and any later contrast (incl. t/z/p) is available
+  without re-fitting:
+</p>
+<pre><code><span class="c"># {step_dir}/sub-XXXX_fit.h5</span>
+├── /betas       <span class="c">(n_regressors, n_voxels)</span>
+├── /residuals   <span class="c">(n_obs, n_voxels)   — always saved</span>
+├── /X           <span class="c">(n_obs, n_regressors)</span>
+├── /mask        <span class="c">(embedded NIfTI bytes — portable)</span>
+└── attrs: affine · regressor_names · nltools_version
+         · bundle_schema_version · step_id · parent_step_id</code></pre>
+
+<div class="callout">
+  <strong>Reductions stay small.</strong> <code>mean</code>, <code>ttest</code>, <code>concat</code>,
+  <code>isc</code> stream over path-backed inputs and return a small in-memory
+  <code>BrainData</code> (or dict) — they never path-back their own output.
+</div>
+</section>
+
+<section id="tour-algo" class="reveal">
+<h2><span class="num">05</span>The algorithm substrate</h2>
+<p>
+  Three families of heavy numerics live under <code>nltools/algorithms/</code>, each with its
+  own parallel story — all reachable from the facades through the shared vocabulary.
+</p>
+
+<div class="grid grid-3">
+  <div class="card"><div class="icon">⇄</div><h4>alignment</h4><p>SRM, hyperalignment, and searchlight/ROI LocalAlignment across subjects.</p></div>
+  <div class="card"><div class="icon">σ</div><h4>inference</h4><p>Permutation &amp; bootstrap testing with deterministic, cross-backend RNG.</p></div>
+  <div class="card"><div class="icon">⚡</div><h4>ridge</h4><p>GPU-accelerated ridge/banded ridge — SVD reuse, batching, per-target alphas.</p></div>
+</div>
+
+<h3>Ridge: six tricks behind the speed</h3>
+<div class="tabs" id="ridge-tabs">
+  <div class="tab-bar">
+    <div class="tab active" data-tab="svd">SVD reuse</div>
+    <div class="tab" data-tab="gen">Generator</div>
+    <div class="tab" data-tab="batch">2-D batching</div>
+    <div class="tab" data-tab="ycpu">Y_in_cpu</div>
+    <div class="tab" data-tab="alpha">Per-target α</div>
+    <div class="tab" data-tab="res">Resolution matrix</div>
+  </div>
+  <div class="tab-content active" data-tab="svd">
+    <h4>Solve once, use forever</h4>
+    <p>Decompose <code>X</code> once; every alpha is then just <code>shrinkage = s / (s² + α)</code> — arithmetic, no re-inversion. A 1000-alpha grid costs one SVD.</p>
+  </div>
+  <div class="tab-content" data-tab="gen">
+    <h4>Process and forget</h4>
+    <p><code>_decompose_ridge</code> is a generator: compute one alpha batch, <code>yield</code>, <code>del</code>. Only one batch is ever in RAM.</p>
+  </div>
+  <div class="tab-content" data-tab="batch">
+    <h4>Divide and conquer</h4>
+    <p>Batch over <em>both</em> targets (voxels) and alphas, so a 60&nbsp;GB-naive problem runs in chunks of a few hundred MB.</p>
+  </div>
+  <div class="tab-content" data-tab="ycpu">
+    <h4>Smart shuttle</h4>
+    <p><code>Y_in_cpu=True</code> (default): <code>Y</code> stays in RAM; only the current target batch visits the GPU. ~10% slower, prevents OOM entirely.</p>
+  </div>
+  <div class="tab-content" data-tab="alpha">
+    <h4>Per-voxel α, bulk cost</h4>
+    <p>Per-target alphas need only <code>n_unique_alphas</code> SVDs (~10), not one per voxel — group voxels by their selected alpha and solve once each.</p>
+  </div>
+  <div class="tab-content" data-tab="res">
+    <h4>Separate X from Y</h4>
+    <p>Precompute <code>(XᵀX + αI)⁻¹ Xᵀ</code> (X-dependent, expensive); applying it to any target is a cheap matmul, vectorized over alphas and targets.</p>
+  </div>
+</div>
+
+<h3>One backend, three devices</h3>
+<p>The algorithm layer selects compute with <code>parallel=</code>. A single <code>class Backend</code> hides NumPy vs PyTorch (CUDA / Apple MPS / CPU) — pick one:</p>
+<div class="demo">
+  <div class="seg" id="backend-seg">
+    <button data-mode="none" class="active">parallel=None</button>
+    <button data-mode="cpu">parallel='cpu'</button>
+    <button data-mode="gpu">parallel='gpu'</button>
+  </div>
+  <div class="demo-out" id="backend-out"></div>
+</div>
+</section>
+
+<section id="tour-lifecycle" class="reveal">
+<h2><span class="num">06</span>A workflow, end-to-end</h2>
+<p>
+  A first-level → group GLM shows how path-backed collections flow through the layers. Hit
+  play to step through:
+</p>
+
+<div class="lifecycle">
+  <div class="lifecycle-controls">
+    <button class="btn" id="play-fit">▶ Play</button>
+    <button class="btn secondary" id="reset-fit">↺ Reset</button>
+    <button class="btn secondary" id="step-fit">Step →</button>
+    <div class="lifecycle-status" id="fit-status"><span class="dot"></span> idle</div>
+  </div>
+
+  <div class="lifecycle-stage" data-stage="0">
+    <div class="lifecycle-step">① construct</div>
+    <div class="lifecycle-call">BrainCollection.<span style="color:var(--accent)">from_bids</span>(root)</div>
+    <div class="lifecycle-out">lazy, path-backed collection</div>
+  </div>
+  <div class="lifecycle-stage" data-stage="1">
+    <div class="lifecycle-step">② fit</div>
+    <div class="lifecycle-call">bc.<span style="color:var(--accent)">fit</span>(model=<span style="color:var(--green)">'glm'</span>)</div>
+    <div class="lifecycle-out">per-subject sub-XXXX_fit.h5 bundles</div>
+  </div>
+  <div class="lifecycle-stage" data-stage="2">
+    <div class="lifecycle-step">③ contrasts</div>
+    <div class="lifecycle-call">.<span style="color:var(--accent)">compute_contrasts</span>(<span style="color:var(--green)">'A - B'</span>)</div>
+    <div class="lifecycle-out">per-subject contrast NIfTIs (path-backed)</div>
+  </div>
+  <div class="lifecycle-stage" data-stage="3">
+    <div class="lifecycle-step">④ group</div>
+    <div class="lifecycle-call">.<span style="color:var(--accent)">ttest</span>()</div>
+    <div class="lifecycle-out">BrainData {mean, t, z, p} — in memory</div>
+  </div>
+</div>
+
+<div class="callout">
+  Note what's absent: no contrast is picked inside a loop, and nothing accumulates in RAM.
+  Because residuals live in every bundle, you can compute a <em>different</em> contrast later
+  without re-fitting. The group reduction streams and lands a small map.
+</div>
+</section>
+
+<section id="tour-facade-rule" class="reveal">
+<h2><span class="num">07</span>The facade rule</h2>
+<p>
+  Facade methods are intentionally boring. A method may <strong>validate</strong> user
+  arguments, <strong>delegate</strong> to one core/algorithm function, and <strong>assign</strong>
+  the result. The moment it branches on model type or orchestrates phases, that logic moves
+  into a pure function.
+</p>
+
+<div class="two-col">
+  <div class="card">
+    <h4 style="color:var(--green)"><span class="pill good">good</span> facade method</h4>
+<pre><code><span class="k">def</span> <span class="f">distance</span>(<span class="a">self</span>, *, metric=<span class="s">"correlation"</span>,
+             spatial_scale=<span class="s">"whole_brain"</span>):
+    <span class="f">validate_metric</span>(metric)
+    result = <span class="f">compute_distance</span>(     <span class="c"># one core call</span>
+        <span class="a">self</span>.data, metric=metric,
+        spatial_scale=spatial_scale,
+    )
+    <span class="k">return</span> Adjacency(result, matrix_type=<span class="s">"distance"</span>)</code></pre>
+    <p style="color:var(--ink-dim);font-size:13px">validate · delegate · assign.</p>
+  </div>
+  <div class="card">
+    <h4 style="color:var(--red)"><span class="pill bad">bad</span> facade method</h4>
+<pre><code><span class="k">def</span> <span class="f">distance</span>(<span class="a">self</span>, **kwargs):
+    <span class="k">if</span> kwargs[<span class="s">"metric"</span>] == <span class="s">"correlation"</span>:
+        d = <span class="num">1</span> - np.<span class="f">corrcoef</span>(<span class="a">self</span>.data)
+    <span class="k">elif</span> kwargs[<span class="s">"metric"</span>] == <span class="s">"euclidean"</span>:
+        <span class="c"># … 30 more lines of branching + math …</span>
+    <span class="a">self</span>._cache = <span class="f">_assemble</span>(...)
+    <span class="k">return</span> d</code></pre>
+    <p style="color:var(--ink-dim);font-size:13px"><code>**kwargs</code>, math + branching in the class — belongs in <code>stats</code>.</p>
+  </div>
+</div>
+</section>
+
+<section id="tour-why" class="reveal">
+<h2><span class="num">08</span>Why this works</h2>
+
+<div class="grid grid-3">
+  <div class="card"><div class="icon">🧪</div><h4>Testable in isolation</h4><p>Core functions take plain arrays/containers. Construct inputs, call them — no class, no global state.</p></div>
+  <div class="card"><div class="icon">💾</div><h4>Memory-efficient by default</h4><p>Path-backed collections keep peak RAM at <code>n_workers × 1 subject</code> — 100-subject studies on a laptop.</p></div>
+  <div class="card"><div class="icon">⚡</div><h4>One codebase, CPU + GPU</h4><p>A single <code>Backend</code> hides NumPy vs PyTorch (CUDA / MPS / CPU). Domain code never imports torch.</p></div>
+  <div class="card"><div class="icon">🎲</div><h4>Reproducible inference</h4><p>Per-permutation seeds are pre-generated, so results are identical across sequential, CPU-parallel, and GPU runs.</p></div>
+  <div class="card"><div class="icon">♻︎</div><h4>Refactor-safe vocabulary</h4><p>One canonical kwarg set across four facades. Renames are mechanical; the surface is predictable.</p></div>
+  <div class="card"><div class="icon">🎯</div><h4>Intentional scope</h4><p>Facades stay thin on purpose. Complexity is spent in the core, where it can be tested and reused.</p></div>
+</div>
+
+<div class="callout">
+  <strong>The takeaway.</strong> Thin facades + pure functions + a backend protocol is a small
+  set of primitives. Most of nltools' "design" is just these rules applied consistently — and
+  the rest of the codebase falls out of them.
+</div>
+</section>
+
+<div class="tour-footer">
+  Distilled from the <a href="./development/index.html">Architecture &amp; Internals</a> docs —
+  execution model, ridge internals, and inference internals.
+</div>
+
+</div>
+
+<script>
+(() => {
+  const root = document.querySelector('.tour-root');
+  if (!root || root.dataset.tourInit) return;
+  root.dataset.tourInit = '1';
+
+  // count-up
+  root.querySelectorAll('[data-count]').forEach(el => {
+    const target = +el.dataset.count, dur = 900, t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      el.textContent = Math.floor(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(step); else el.textContent = target;
+    };
+    requestAnimationFrame(step);
+  });
+
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.08 });
+  root.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // tabs
+  root.querySelectorAll('.tab-bar').forEach(bar => {
+    bar.addEventListener('click', e => {
+      const tab = e.target.closest('.tab'); if (!tab) return;
+      const wrap = bar.parentElement;
+      bar.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+      wrap.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.dataset.tab === tab.dataset.tab));
+    });
+  });
+
+  // cache= demo
+  const cacheOut = root.querySelector('#cache-out');
+  const cacheStates = {
+    auto:  ['warm', "cache='auto' — follows the source",
+            "Source loaded in RAM → result stays in memory. Source path-backed (e.g. straight from <code>from_bids</code>) → writes through to disk. The default."],
+    true:  ['disk', "cache=True — always write through",
+            "Every subject's result is written to the on-disk step dir regardless of source state. Peak RAM ≈ <code>n_workers × 1 subject</code>."],
+    false: ['warm', "cache=False — force in-memory",
+            "Any path-backed items are loaded first, and the result lives entirely in RAM. The escape hatch when you've already paid the load cost."],
+  };
+  const renderCache = (mode) => {
+    const [cls, head, detail] = cacheStates[mode];
+    cacheOut.innerHTML = `<div class="headline ${cls}">${head}</div><div class="detail">${detail}</div>`;
+  };
+  root.querySelector('#cache-seg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    root.querySelectorAll('#cache-seg button').forEach(x => x.classList.toggle('active', x === b));
+    renderCache(b.dataset.mode);
+  });
+  renderCache('auto');
+
+  // backend demo
+  const backendOut = root.querySelector('#backend-out');
+  const backendStates = {
+    none: ['warm', "parallel=None → numpy",
+           "Sequential NumPy. Simple, deterministic, easiest to debug. The right choice below ~10k voxels."],
+    cpu:  ['disk', "parallel='cpu' → torch-cpu (or numpy)",
+           "Joblib-parallel across cores / faster CPU tensor ops. No GPU needed; good for mid-size problems."],
+    gpu:  ['warm', "parallel='gpu' → torch-cuda / torch-mps",
+           "PyTorch on CUDA or Apple Metal (MPS supported, with a float32 SVD workaround). Large speedups above ~100k voxels."],
+  };
+  const renderBackend = (mode) => {
+    const [cls, head, detail] = backendStates[mode];
+    backendOut.innerHTML = `<div class="headline ${cls}">${head}</div><div class="detail">${detail}</div>`;
+  };
+  root.querySelector('#backend-seg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    root.querySelectorAll('#backend-seg button').forEach(x => x.classList.toggle('active', x === b));
+    renderBackend(b.dataset.mode);
+  });
+  renderBackend('none');
+
+  // lifecycle player
+  const stages = root.querySelectorAll('.lifecycle-stage');
+  const status = root.querySelector('#fit-status');
+  let cur = -1, timer = null;
+  const renderStages = () => stages.forEach((s, i) => { s.classList.toggle('active', i === cur); s.classList.toggle('done', i < cur); });
+  const stepOnce = () => { cur = Math.min(stages.length - 1, cur + 1); renderStages(); };
+  const reset = () => { cur = -1; if (timer) { clearInterval(timer); timer = null; } status.classList.remove('playing'); status.innerHTML = '<span class="dot"></span> idle'; renderStages(); };
+  const play = () => {
+    if (timer) return;
+    if (cur >= stages.length - 1) cur = -1;
+    status.classList.add('playing'); status.innerHTML = '<span class="dot"></span> playing';
+    timer = setInterval(() => {
+      stepOnce();
+      if (cur >= stages.length - 1) { clearInterval(timer); timer = null; status.classList.remove('playing'); status.innerHTML = '<span class="dot"></span> done'; }
+    }, 1100);
+  };
+  root.querySelector('#play-fit').addEventListener('click', play);
+  root.querySelector('#reset-fit').addEventListener('click', reset);
+  root.querySelector('#step-fit').addEventListener('click', () => {
+    if (timer) { clearInterval(timer); timer = null; status.classList.remove('playing'); }
+    stepOnce(); status.innerHTML = `<span class="dot"></span> step ${cur + 1}/${stages.length}`;
+  });
+  setTimeout(() => { cur = 0; renderStages(); status.innerHTML = '<span class="dot"></span> step 1/' + stages.length; }, 400);
+
+  // theme toggle (manual override; pins choice, keeps working full-screen)
+  const toggle = root.querySelector('#theme-toggle');
+  if (toggle) toggle.addEventListener('click', () => {
+    const nowDark = (document.documentElement.getAttribute('data-theme') || 'dark') === 'dark';
+    if (window.__tourSetManual) window.__tourSetManual(nowDark ? 'light' : 'dark');
+  });
+})();
+</script>
+
+</body>
+</html>

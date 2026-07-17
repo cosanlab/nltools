@@ -120,6 +120,11 @@ project:
         - file: performance.md
         - title: Architecture & Internals
           children:
+            # Standalone interactive HTML page (copied into _build/html by the
+            # docs-site / docs-site-pages tasks). Literal URL; the docs-site-pages
+            # perl rewrite prefixes /nltools for GitHub Pages.
+            - title: Design Tour
+              url: /design-tour.html
             - file: development/index.md
             - file: development/execution-model.md
             - file: development/ridge-internals.md

@@ -27,6 +27,11 @@ Creating design matrices, building task regressors, HRF convolution, and nuisanc
 Creating Adjacency objects, square vs. vector forms, thresholding, and binarizing matrices.
 :::
 
+:::{grid-item-card} BrainCollection Basics
+:link: /tutorials/basics-04_brain_collection.html
+A parallel, memory-efficient iterator of BrainData: per-subject operations in parallel, path-backed caching, and group reductions across subjects.
+:::
+
 ::::
 
 ### Workflows
