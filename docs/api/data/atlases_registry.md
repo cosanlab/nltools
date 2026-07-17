@@ -11,6 +11,16 @@ files are fetched lazily by `load_atlas` via
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`ATLASES` | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+
+
 **Classes:**
 
 Name | Description
@@ -22,14 +32,6 @@ Name | Description
 Name | Description
 ---- | -----------
 [`list_atlases`](#data-atlases-registry-list-atlases) | Return the sorted list of registered atlas names.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`ATLASES` | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-`AtlasKind` |  | 
-`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ### Classes
 

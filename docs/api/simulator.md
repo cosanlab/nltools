@@ -49,15 +49,6 @@ Name | Type | Description
 `thresholded` |  | Thresholded statistical map.
 `isfit` |  | Whether fit() has been called.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import SimulateGrid
->>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
->>> sim.fit()
->>> sim.plot()
-```
-
 **Methods:**
 
 Name | Description
@@ -68,6 +59,17 @@ Name | Description
 [`plot_grid_simulation`](#simulator-plot-grid-simulation) | Create a plot of the simulations.
 [`run_multiple_simulations`](#simulator-run-multiple-simulations) | Run multiple simulations to calculate the overall false positive rate.
 [`threshold_simulation`](#simulator-threshold-simulation) | Threshold the fitted simulation.
+
+
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import SimulateGrid
+>>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+>>> sim.fit()
+>>> sim.plot()
+```
 
 ##### Methods
 
@@ -168,15 +170,6 @@ Name | Type | Description
 `output_dir` |  | Output directory path.
 `random_state` |  | Random state for reproducible simulations.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import Simulator
->>> sim = Simulator(random_state=42)
->>> # Create a dataset with signal in specific regions
->>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
-```
-
 **Methods:**
 
 Name | Description
@@ -189,6 +182,17 @@ Name | Description
 [`normal_noise`](#simulator-normal-noise) | Produce a normal noise distribution for all points in the brain mask.
 [`sphere`](#simulator-sphere) | Create a sphere of given radius at some point p in the brain mask.
 [`to_nifti`](#simulator-to-nifti) | Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
+
+
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import Simulator
+>>> sim = Simulator(random_state=42)
+>>> # Create a dataset with signal in specific regions
+>>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+```
 
 ##### Methods
 

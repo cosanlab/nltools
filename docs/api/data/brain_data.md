@@ -19,6 +19,23 @@ Name | Type | Description | Default
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`X` |  | Design matrix / per-image covariates as a polars DataFrame.
+`Y` |  | Per-image targets as a polars DataFrame.
+`data` |  | 
+`design_matrix` |  | 
+`dtype` |  | Get data type of BrainData.data.
+`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
+`masker` |  | 
+`shape` |  | Get images by voxels shape.
+`size` |  | Total number of elements in BrainData.data (numpy convention).
+`verbose` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -66,21 +83,6 @@ Name | Description
 [`upload_neurovault`](#data-brain-data-upload-neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#data-brain-data-write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#data-brain-data-z-to-r) | Convert z score back into r value for each element of data object.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`X` |  | Design matrix / per-image covariates as a polars DataFrame.
-`Y` |  | Per-image targets as a polars DataFrame.
-`data` |  | 
-`design_matrix` |  | 
-`dtype` |  | Get data type of BrainData.data.
-`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
-`masker` |  | 
-`shape` |  | Get images by voxels shape.
-`size` |  | Total number of elements in BrainData.data (numpy convention).
-`verbose` |  | 
 
 ### Methods
 

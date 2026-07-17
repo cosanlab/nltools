@@ -7,6 +7,14 @@ Standalone functions extracted from ``DesignMatrix`` methods. Each takes a
 ``DesignMatrix`` instance (``dm``) as its first argument. ``DesignMatrix.plot``
 dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`VALID_PLOT_METHODS` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -15,12 +23,6 @@ Name | Description
 [`plot_designmatrix`](#data-design-matrix-plotting-plot-designmatrix) | Visualize a DesignMatrix, dispatching over ``method``.
 [`plot_matrix`](#data-design-matrix-plotting-plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 [`plot_timeseries`](#data-design-matrix-plotting-plot-timeseries) | Plot regressor time courses as overlaid lines.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`VALID_PLOT_METHODS` |  | 
 
 ### Classes
 

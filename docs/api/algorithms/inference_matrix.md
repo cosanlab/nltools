@@ -7,6 +7,14 @@ This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`MAX_INT` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -15,12 +23,6 @@ Name | Description
 [`double_center`](#algorithms-inference-matrix-double-center) | Double center a 2d array.
 [`matrix_permutation_test`](#algorithms-inference-matrix-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
 [`u_center`](#algorithms-inference-matrix-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`MAX_INT` |  | 
 
 ### Methods
 

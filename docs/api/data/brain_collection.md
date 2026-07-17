@@ -33,6 +33,25 @@ Internal state (mutable list at top level; per-item slots are parallel):
   _source_paths   list[Path | None]             per-item backing path
                                                 (None for in-memory only)
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`cache_root` | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
+`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
+`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
+`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
+``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
+Resolved at construction and frozen on the instance.
+
+
+
 **Methods:**
 
 Name | Description
@@ -78,23 +97,6 @@ Name | Description
 [`unload`](#data-brain-collection-unload) | Drop in-memory data for items with backing paths. Returns ``self``.
 [`var`](#data-brain-collection-var) | Voxelwise variance across subjects as a single `BrainData`.
 [`write`](#data-brain-collection-write) | Write a clean, portable copy of the collection outside the cache root.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`cache_root` | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
-`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
-`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
-`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
-`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
-`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
-
-``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
-``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
-Resolved at construction and frozen on the instance.
 
 ### Methods
 

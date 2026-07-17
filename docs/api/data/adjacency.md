@@ -20,6 +20,24 @@ Name | Type | Description | Default
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+`data` |  | 
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
+
+
+
 **Methods:**
 
 Name | Description
@@ -52,22 +70,6 @@ Name | Description
 [`ttest`](#data-adjacency-ttest) | Calculate ttest across samples.
 [`write`](#data-adjacency-write) | Write out Adjacency object to csv file.
 [`z_to_r`](#data-adjacency-z-to-r) | Convert each z score back into an r value.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
-`data` |  | 
-`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-`is_single_matrix` |  | 
-`issymmetric` |  | 
-`labels` |  | 
-`matrix_type` |  | 
-`n_nodes` |  | Return the number of nodes in the adjacency matrix.
-`shape` |  | Return the logical shape of the adjacency matrix.
-`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
-`vector_shape` |  | Return shape of internal vectorized representation.
 
 ### Methods
 

@@ -8,39 +8,6 @@ related classes when no explicit mask is provided. Set it once (e.g., at
 the top of a notebook) and all subsequent operations pick it up
 automatically.
 
-**Examples:**
-
-Set the global brain space:
-
-```python
-    import nltools
-    nltools.set_brainspace(template="fmriprep", resolution=2)
-```
-
-Inspect the current configuration:
-
-```python
-    cfg = nltools.get_brainspace()
-    print(cfg.mask)
-```
-
-Scope a change to a block:
-
-```python
-    with nltools.with_brainspace(resolution=1):
-        brain = BrainData(...)
-```
-
-**Modules:**
-
-Name | Description
----- | -----------
-[`config`](#templates-config) | Global brain-space configuration: frozen dataclass + set/get/with API.
-[`fetch`](#templates-fetch) | Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
-[`matching`](#templates-matching) | Affine-based template matching and background-image selection.
-[`paths`](#templates-paths) | Pure path-resolution helpers for MNI template files.
-[`registry`](#templates-registry) | Static registry of supported MNI templates.
-
 **Classes:**
 
 Name | Description
@@ -66,6 +33,39 @@ Name | Description
 [`with_brainspace`](#templates-with-brainspace) | Temporarily change the global brain-space configuration.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`config`](#templates-config) | Global brain-space configuration: frozen dataclass + set/get/with API.
+[`fetch`](#templates-fetch) | Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
+[`matching`](#templates-matching) | Affine-based template matching and background-image selection.
+[`paths`](#templates-paths) | Pure path-resolution helpers for MNI template files.
+[`registry`](#templates-registry) | Static registry of supported MNI templates.
+
+**Examples:**
+
+Set the global brain space:
+
+```python
+    import nltools
+    nltools.set_brainspace(template="fmriprep", resolution=2)
+```
+
+Inspect the current configuration:
+
+```python
+    cfg = nltools.get_brainspace()
+    print(cfg.mask)
+```
+
+Scope a change to a block:
+
+```python
+    with nltools.with_brainspace(resolution=1):
+        brain = BrainData(...)
+```
 
 ### Classes
 
@@ -568,6 +568,15 @@ the IDBFS-backed cache populated by the seed. The cache persists across
 page reloads via IndexedDB, so seeding only does network work once per
 browser per dataset revision.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`REPO_ID` |  | 
+`REVISION` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -575,13 +584,6 @@ Name | Description
 [`fetch_resource`](#templates-fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
 [`list_resources`](#templates-list-resources) | List files available in the ``nltools/niftis`` HF dataset.
 [`seed_resources`](#templates-seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`REPO_ID` |  | 
-`REVISION` |  | 
 
 ##### Methods
 

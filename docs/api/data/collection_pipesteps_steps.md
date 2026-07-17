@@ -259,12 +259,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-steps-fit) | Compute normalization parameters from data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -272,6 +266,14 @@ Name | Type | Description
 `axis` | <code>[int](#int)</code> | 
 `invertible` | <code>[bool](#bool)</code> | 
 `method` | <code>[str](#str)</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-steps-fit) | Compute normalization parameters from data.
 
 ##### Methods
 
@@ -325,18 +327,20 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-steps-fit) | Fit transformer to data.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `invertible` | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
 `transformer` | <code>[Any](#typing.Any)</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-steps-fit) | Fit transformer to data.
 
 ##### Methods
 
@@ -392,12 +396,6 @@ Examples:
 >>> reduced.shape
 (100, 10)
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-steps-fit) | Fit reduction model to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -406,6 +404,14 @@ Name | Type | Description
 `method` | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-steps-fit) | Fit reduction model to data.
 
 ##### Methods
 

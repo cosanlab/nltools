@@ -8,6 +8,14 @@ single parallel primitive (``_apply``), the worker-error type, and the
 HDF5 fit-bundle IO. Every per-subject method on ``BrainCollection`` routes
 through ``_apply`` here.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BUNDLE_SCHEMA_VERSION` |  | 
+
+
+
 **Classes:**
 
 Name | Description
@@ -23,12 +31,6 @@ Name | Description
 [`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 [`write_glm_bundle`](#data-collection-execution-write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 [`write_ridge_bundle`](#data-collection-execution-write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`BUNDLE_SCHEMA_VERSION` |  | 
 
 ### Classes
 

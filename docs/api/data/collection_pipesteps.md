@@ -12,14 +12,6 @@ now lives on `BrainCollection` (`.cv().standardize().reduce().predict()`) and
 custom single-dataset preprocessing uses `model=make_pipeline(...)` on
 `BrainData.predict`.
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`base`](#data-collection-pipesteps-base) | Low-level pipeline primitives for nltools.
-[`cv`](#data-collection-pipesteps-cv) | Cross-validation scheme configuration for nltools pipelines.
-[`steps`](#data-collection-pipesteps-steps) | Transform steps for nltools pipelines.
-
 **Classes:**
 
 Name | Description
@@ -33,6 +25,14 @@ Name | Description
 [`TransformStep`](#data-collection-pipesteps-transformstep) | Protocol for pipeline transform steps.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`base`](#data-collection-pipesteps-base) | Low-level pipeline primitives for nltools.
+[`cv`](#data-collection-pipesteps-cv) | Cross-validation scheme configuration for nltools pipelines.
+[`steps`](#data-collection-pipesteps-steps) | Transform steps for nltools pipelines.
 
 ### Classes
 
@@ -65,6 +65,27 @@ Name | Type | Description | Default
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
+[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
+
 **Examples:**
 
 ```pycon
@@ -86,25 +107,6 @@ Name | Type | Description | Default
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-`k` | <code>[int](#int) \| None</code> | 
-`n` | <code>[int](#int)</code> | 
-`random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
-`split_by` | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 
@@ -328,12 +330,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -341,6 +337,14 @@ Name | Type | Description
 [`axis`](#data-collection-pipesteps-axis) | <code>[int](#int)</code> | 
 [`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | 
 [`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
 
 ##### Methods
 
@@ -394,18 +398,20 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 [`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
 [`transformer`](#data-collection-pipesteps-transformer) | <code>[Any](#typing.Any)</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
 
 ##### Methods
 
@@ -461,12 +467,6 @@ Examples:
 >>> reduced.shape
 (100, 10)
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -475,6 +475,14 @@ Name | Type | Description
 [`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
 
 ##### Methods
 
@@ -718,6 +726,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to inverse transform. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[Any](#typing.Any)</code> | Data to transform (typically ndarray or BrainData). | *required*
+
 **Returns:**
 
 Type | Description
@@ -731,12 +745,6 @@ transform(data: Any) -> Any
 ```
 
 Apply the learned transformation to data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to transform (typically ndarray or BrainData). | *required*
 
 **Returns:**
 
@@ -814,17 +822,19 @@ Cross-validation scheme configuration for nltools pipelines.
 This module provides a unified interface for configuring cross-validation
 strategies used across nltools analysis pipelines.
 
-**Classes:**
-
-Name | Description
----- | -----------
-[`CVScheme`](#data-collection-pipesteps-cvscheme) | Cross-validation scheme configuration.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `CVSchemeType` |  | 
+
+
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`CVScheme`](#data-collection-pipesteps-cvscheme) | Cross-validation scheme configuration.
 
 ##### Classes
 
@@ -856,6 +866,29 @@ Name | Type | Description | Default
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
+
+
+
+####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
+[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
+
 **Examples:**
 
 ```pycon
@@ -877,29 +910,6 @@ Name | Type | Description | Default
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-`k` | <code>[int](#int) \| None</code> | 
-`n` | <code>[int](#int)</code> | 
-`random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
-`split_by` | <code>[str](#str) \| None</code> | 
-
-
-
-####### Attributes##
 
 (data-collection-pipesteps-is-loro)=
 ###### `is_loro`
@@ -979,6 +989,13 @@ Name | Type | Description | Default
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
+
 **Returns:**
 
 Type | Description
@@ -992,13 +1009,6 @@ split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArr
 ```
 
 Generate train/test indices for each fold.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
-`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
@@ -1102,6 +1112,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Normalized data. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to normalize. | *required*
+
 **Returns:**
 
 Type | Description
@@ -1115,12 +1131,6 @@ transform(data: np.ndarray) -> np.ndarray
 ```
 
 Apply normalization to data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to normalize. | *required*
 
 **Returns:**
 
@@ -1181,6 +1191,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Transformed data. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to transform. | *required*
+
 **Returns:**
 
 Type | Description
@@ -1194,12 +1210,6 @@ transform(data: np.ndarray) -> np.ndarray
 ```
 
 Apply the fitted transformer.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to transform. | *required*
 
 **Returns:**
 
@@ -1267,6 +1277,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components). | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to reduce, shape (n_samples, n_features). | *required*
+
 **Returns:**
 
 Type | Description
@@ -1280,12 +1296,6 @@ transform(data: np.ndarray) -> np.ndarray
 ```
 
 Apply dimensionality reduction.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to reduce, shape (n_samples, n_features). | *required*
 
 **Returns:**
 
@@ -1321,12 +1331,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -1338,6 +1342,12 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
 
 (data-collection-pipesteps-axis)=
 ###### `axis`
@@ -1410,12 +1420,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -1426,6 +1430,12 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
 
 ###### `invertible`
 
@@ -1502,12 +1512,6 @@ Examples:
 >>> reduced.shape
 (100, 10)
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -1520,6 +1524,12 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
 
 ###### `invertible`
 

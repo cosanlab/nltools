@@ -138,12 +138,6 @@ iter_neighborhoods(progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray
 
 Iterate over all neighborhoods.
 
-**Yields:**
-
-Type | Description
----- | -----------
-<code>[tuple](#tuple)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -151,6 +145,12 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
 
 
+
+**Yields:**
+
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
 
 ### Methods
 

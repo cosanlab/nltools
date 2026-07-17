@@ -3,19 +3,6 @@
 
 nltools data types.
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`adjacency`](#data-adjacency) | Provide data structures for working with similarity and dissimilarity matrices.
-[`atlases`](#data-atlases) | Atlas registry, lazy loading, and coordinate labeling.
-[`braindata`](#data-braindata) | Represent brain image data with the BrainData class.
-[`collection`](#data-collection) | BrainCollection — multi-subject brain-data container (v0.6.0).
-[`designmatrix`](#data-designmatrix) | Provide a Polars-based design matrix for neuroimaging analysis.
-[`fitresults`](#data-fitresults) | Immutable container for model fitting results.
-[`roc`](#data-roc) | ROC (Receiver Operating Characteristic) analysis for single-interval classification.
-[`simulator`](#data-simulator) | Tools to simulate multivariate brain and grid data for testing analysis pipelines.
-
 **Classes:**
 
 Name | Description
@@ -30,6 +17,19 @@ Name | Description
 [`Simulator`](#data-simulator) | Simulate fMRI data with realistic spatial and temporal characteristics.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`adjacency`](#data-adjacency) | Provide data structures for working with similarity and dissimilarity matrices.
+[`atlases`](#data-atlases) | Atlas registry, lazy loading, and coordinate labeling.
+[`braindata`](#data-braindata) | Represent brain image data with the BrainData class.
+[`collection`](#data-collection) | BrainCollection — multi-subject brain-data container (v0.6.0).
+[`designmatrix`](#data-designmatrix) | Provide a Polars-based design matrix for neuroimaging analysis.
+[`fitresults`](#data-fitresults) | Immutable container for model fitting results.
+[`roc`](#data-roc) | ROC (Receiver Operating Characteristic) analysis for single-interval classification.
+[`simulator`](#data-simulator) | Tools to simulate multivariate brain and grid data for testing analysis pipelines.
 
 ### Classes
 
@@ -54,6 +54,24 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+[`data`](#data-data) |  | 
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
+
+
 
 **Methods:**
 
@@ -87,22 +105,6 @@ Name | Description
 [`ttest`](#data-ttest) | Calculate ttest across samples.
 [`write`](#data-write) | Write out Adjacency object to csv file.
 [`z_to_r`](#data-z-to-r) | Convert each z score back into an r value.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
-[`data`](#data-data) |  | 
-`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-`is_single_matrix` |  | 
-`issymmetric` |  | 
-`labels` |  | 
-`matrix_type` |  | 
-`n_nodes` |  | Return the number of nodes in the adjacency matrix.
-`shape` |  | Return the logical shape of the adjacency matrix.
-`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
-`vector_shape` |  | Return shape of internal vectorized representation.
 
 ##### Methods
 
@@ -767,6 +769,25 @@ Internal state (mutable list at top level; per-item slots are parallel):
   _source_paths   list[Path | None]             per-item backing path
                                                 (None for in-memory only)
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
+`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
+`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
+`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
+``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
+Resolved at construction and frozen on the instance.
+
+
+
 **Methods:**
 
 Name | Description
@@ -812,23 +833,6 @@ Name | Description
 [`unload`](#data-unload) | Drop in-memory data for items with backing paths. Returns ``self``.
 [`var`](#data-var) | Voxelwise variance across subjects as a single `BrainData`.
 [`write`](#data-write) | Write a clean, portable copy of the collection outside the cache root.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
-`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
-`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
-`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
-`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
-`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
-
-``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
-``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
-Resolved at construction and frozen on the instance.
 
 ##### Methods
 
@@ -1518,6 +1522,23 @@ Name | Type | Description | Default
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`X`](#data-x) |  | Design matrix / per-image covariates as a polars DataFrame.
+[`Y`](#data-y) |  | Per-image targets as a polars DataFrame.
+[`data`](#data-data) |  | 
+`design_matrix` |  | 
+`dtype` |  | Get data type of BrainData.data.
+`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
+`masker` |  | 
+`shape` |  | Get images by voxels shape.
+`size` |  | Total number of elements in BrainData.data (numpy convention).
+`verbose` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -1565,21 +1586,6 @@ Name | Description
 [`upload_neurovault`](#data-upload-neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#data-write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#data-z-to-r) | Convert z score back into r value for each element of data object.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`X`](#data-x) |  | Design matrix / per-image covariates as a polars DataFrame.
-[`Y`](#data-y) |  | Per-image targets as a polars DataFrame.
-[`data`](#data-data) |  | 
-`design_matrix` |  | 
-`dtype` |  | Get data type of BrainData.data.
-`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
-`masker` |  | 
-`shape` |  | Get images by voxels shape.
-`size` |  | Total number of elements in BrainData.data (numpy convention).
-`verbose` |  | 
 
 ##### Methods
 
@@ -2837,35 +2843,6 @@ Name | Type | Description
 `confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
 `multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
 
-**Examples:**
-
-```pycon
->>> # Create from numpy array
->>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
-```
-
-```pycon
->>> # Add columns
->>> dm['stim'] = [0, 1, 1, 0] * 25
-```
-
-```pycon
->>> # Convolve with HRF — convolved columns get a `_c0` suffix
->>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
-```
-
-```pycon
->>> # Add polynomial drift terms
->>> dm_conv = dm_conv.add_poly(order=2)
-```
-
-```pycon
->>> # Multi-run concatenation (auto-separates polynomials)
->>> dm_run1 = DesignMatrix(...).add_poly(0)
->>> dm_run2 = DesignMatrix(...).add_poly(0)
->>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
-```
-
 **Methods:**
 
 Name | Description
@@ -2905,6 +2882,37 @@ for FIR designs, PPI flows that build interaction terms before
 convolution, or pedagogical material that introduces convolution
 as a separate step. ``hrf_model`` is silently ignored when ``data``
 is anything other than an events file.
+
+
+
+**Examples:**
+
+```pycon
+>>> # Create from numpy array
+>>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
+```
+
+```pycon
+>>> # Add columns
+>>> dm['stim'] = [0, 1, 1, 0] * 25
+```
+
+```pycon
+>>> # Convolve with HRF — convolved columns get a `_c0` suffix
+>>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
+```
+
+```pycon
+>>> # Add polynomial drift terms
+>>> dm_conv = dm_conv.add_poly(order=2)
+```
+
+```pycon
+>>> # Multi-run concatenation (auto-separates polynomials)
+>>> dm_run1 = DesignMatrix(...).add_poly(0)
+>>> dm_run2 = DesignMatrix(...).add_poly(0)
+>>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+```
 
 ##### Methods
 
@@ -3402,15 +3410,6 @@ Attributes depend on model type and CV usage:
     cv_best_alpha (float): Selected alpha (if alpha='auto')
     cv_alpha_scores (ndarray): Alpha selection scores (if alpha='auto')
 
-**GLM:**
-    betas (ndarray): Beta coefficients, shape (n_regressors, n_voxels)
-    t_stats (ndarray): T-statistics, shape (n_regressors, n_voxels)
-    p_values (ndarray): P-values, shape (n_regressors, n_voxels)
-    se (ndarray): Standard errors, shape (n_regressors, n_voxels)
-    residuals (ndarray): Residuals, shape (n_samples, n_voxels)
-    fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
-    r2 (ndarray): R² values, shape (n_voxels,)
-
 **Attributes:**
 
 Name | Type | Description
@@ -3439,6 +3438,24 @@ Methods: `available` returns the list of non-None attribute names
 optionally excluding None values.
 
 </details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`asdict`](#data-asdict) | Convert to dictionary.
+[`available`](#data-available) | Return list of non-None attribute names.
+
+
+
+**GLM:**
+    betas (ndarray): Beta coefficients, shape (n_regressors, n_voxels)
+    t_stats (ndarray): T-statistics, shape (n_regressors, n_voxels)
+    p_values (ndarray): P-values, shape (n_regressors, n_voxels)
+    se (ndarray): Standard errors, shape (n_regressors, n_voxels)
+    residuals (ndarray): Residuals, shape (n_samples, n_voxels)
+    fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
+    r2 (ndarray): R² values, shape (n_voxels,)
 
 **Examples:**
 
@@ -3502,13 +3519,6 @@ Export/serialization:
 - Private fields (starting with _) are excluded from available() and asdict().
 
 </details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`asdict`](#data-asdict) | Convert to dictionary.
-[`available`](#data-available) | Return list of non-None attribute names.
 
 ##### Methods
 
@@ -3608,14 +3618,6 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject (default=None) | <code>None</code>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`calculate`](#data-calculate) | Calculate ROC metrics for single-interval classification.
-[`plot`](#data-plot) | Create a ROC plot.
-[`summary`](#data-summary) | Display a formatted summary of ROC analysis.
-
 **Attributes:**
 
 Name | Type | Description
@@ -3624,6 +3626,16 @@ Name | Type | Description
 `forced_choice` |  | 
 `input_values` |  | 
 [`method`](#data-method) |  | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`calculate`](#data-calculate) | Calculate ROC metrics for single-interval classification.
+[`plot`](#data-plot) | Create a ROC plot.
+[`summary`](#data-summary) | Display a formatted summary of ROC analysis.
 
 ##### Methods
 
@@ -3715,15 +3727,6 @@ Name | Type | Description
 `thresholded` |  | Thresholded statistical map.
 `isfit` |  | Whether fit() has been called.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import SimulateGrid
->>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
->>> sim.fit()
->>> sim.plot()
-```
-
 **Methods:**
 
 Name | Description
@@ -3734,6 +3737,17 @@ Name | Description
 [`plot_grid_simulation`](#data-plot-grid-simulation) | Create a plot of the simulations.
 [`run_multiple_simulations`](#data-run-multiple-simulations) | Run multiple simulations to calculate the overall false positive rate.
 [`threshold_simulation`](#data-threshold-simulation) | Threshold the fitted simulation.
+
+
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import SimulateGrid
+>>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+>>> sim.fit()
+>>> sim.plot()
+```
 
 ##### Methods
 
@@ -3834,15 +3848,6 @@ Name | Type | Description
 `output_dir` |  | Output directory path.
 `random_state` |  | Random state for reproducible simulations.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import Simulator
->>> sim = Simulator(random_state=42)
->>> # Create a dataset with signal in specific regions
->>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
-```
-
 **Methods:**
 
 Name | Description
@@ -3855,6 +3860,17 @@ Name | Description
 [`normal_noise`](#data-normal-noise) | Produce a normal noise distribution for all points in the brain mask.
 [`sphere`](#data-sphere) | Create a sphere of given radius at some point p in the brain mask.
 [`to_nifti`](#data-to-nifti) | Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
+
+
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import Simulator
+>>> sim = Simulator(random_state=42)
+>>> # Create a dataset with signal in specific regions
+>>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+```
 
 ##### Methods
 
@@ -4007,6 +4023,21 @@ Name | Type | Description | Default
 
 Provide data structures for working with similarity and dissimilarity matrices.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`MAX_INT` |  | 
+`nx` |  | 
+
+
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Adjacency`](#data-adjacency) | Represent adjacency matrices in vectorized form.
+
 **Modules:**
 
 Name | Description
@@ -4017,19 +4048,6 @@ Name | Description
 [`spatial`](#data-spatial) | Spatial-scale provenance for stacked Adjacency matrices.
 [`stats`](#data-stats) | Provide standalone statistical functions for Adjacency matrices.
 [`utils`](#data-utils) | Shared helpers for Adjacency submodules.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`Adjacency`](#data-adjacency) | Represent adjacency matrices in vectorized form.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`MAX_INT` |  | 
-`nx` |  | 
 
 ##### Classes
 
@@ -4053,6 +4071,26 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
+[`data`](#data-data) |  | 
+`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
+`is_single_matrix` |  | 
+`issymmetric` |  | 
+`labels` |  | 
+`matrix_type` |  | 
+`n_nodes` |  | Return the number of nodes in the adjacency matrix.
+`shape` |  | Return the logical shape of the adjacency matrix.
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
+`vector_shape` |  | Return shape of internal vectorized representation.
+
+
+
+####### Attributes##
 
 **Methods:**
 
@@ -4086,26 +4124,6 @@ Name | Description
 [`ttest`](#data-ttest) | Calculate ttest across samples.
 [`write`](#data-write) | Write out Adjacency object to csv file.
 [`z_to_r`](#data-z-to-r) | Convert each z score back into an r value.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`Y`](#data-y) | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
-[`data`](#data-data) |  | 
-`is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-`is_single_matrix` |  | 
-`issymmetric` |  | 
-`labels` |  | 
-`matrix_type` |  | 
-`n_nodes` |  | Return the number of nodes in the adjacency matrix.
-`shape` |  | Return the logical shape of the adjacency matrix.
-`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
-`vector_shape` |  | Return shape of internal vectorized representation.
-
-
-
-####### Attributes##
 
 (data-y)=
 ###### `Y`
@@ -4241,23 +4259,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | (Adjacency) Adjacency instance to append | *required*
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (Adjacency) new appended Adjacency instance
-
-######## `bootstrap`
-
-```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
-```
-
-Bootstrap statistics using efficient online algorithms.
-
-Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-Supports simple aggregation statistics (mean, std, median, sum, min, max).
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -4269,32 +4270,6 @@ Name | Type | Description | Default
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'   (all Adjacency objects). If save_boots=True, also includes 'samples'.
-
-**Examples:**
-
-```pycon
->>> # Simple aggregation
->>> boot = adj.bootstrap(stat='mean', n_samples=1000)
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], Adjacency)
-```
-
-######## `cluster_summary`
-
-```python
-cluster_summary(*, clusters = None, method = 'mean', summary = 'within')
-```
-
-Provide summaries of clusters within Adjacency matrices.
-
-Computes mean/median of within and between cluster values. Requires a
-list of cluster ids indicating the row/column of each cluster.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -4303,50 +4278,12 @@ Name | Type | Description | Default
 `method` |  | (str) how to summarize, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
 `summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | within cluster means
-
-######## `copy`
-
-```python
-copy()
-```
-
-Create a copy of Adjacency object.
-
-######## `distance`
-
-```python
-distance(metric = 'correlation', include_diag = False, **kwargs)
-```
-
-Calculate distance between images within an Adjacency() instance.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `metric` |  | (str) type of distance metric (can use any scikit learn or     scipy metric) | <code>'correlation'</code>
 `include_diag` |  | (bool) whether to include the main diagonal when     computing distances between adjacency matrices. Only applies     to symmetric matrices. Default False (consistent with how     symmetric matrices are stored without diagonal). | <code>False</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dist` |  | (Adjacency) Outputs a 2D distance matrix.
-
-######## `distance_to_similarity`
-
-```python
-distance_to_similarity(metric = 'correlation', beta = 1)
-```
-
-Convert distance matrix to similarity matrix.
-
-Note: currently only implemented for correlation and euclidean.
 
 **Parameters:**
 
@@ -4355,20 +4292,6 @@ Name | Type | Description | Default
 `metric` |  | (str) Can only be correlation or euclidean | <code>'correlation'</code>
 `beta` |  | (float) parameter to scale exponential function (default: 1) for euclidean | <code>1</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (Adjacency) Adjacency object
-
-######## `generate_permutations`
-
-```python
-generate_permutations(n_permute, random_state = None)
-```
-
-Generate permuted versions of an Adjacency instance lazily.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -4376,69 +4299,17 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>([int](#int), [seed](#numpy.random.seed))</code> | random seed for reproducibility. | <code>None</code>
 
-**Examples:**
-
-```pycon
->>> for perm in adj.generate_permutations(1000):
->>>     out = neural_distance_mat.similarity(perm)
->>>     ...
-```
-
-**Yields:**
-
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | permuted version of self
-
-######## `mean`
-
-```python
-mean(axis = 0)
-```
-
-Calculate mean of Adjacency.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` |  | Calculate mean over matrices (0) or upper triangle (1). | <code>0</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
-
-######## `median`
-
-```python
-median(axis = 0)
-```
-
-Calculate median of Adjacency.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` |  | Calculate median over matrices (0) or upper triangle (1). | <code>0</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
-
-######## `plot`
-
-```python
-plot(limit = 3, axes = None, *args, **kwargs)
-```
-
-Create a heatmap of an Adjacency matrix.
-
-Can pass in any sns.heatmap argument
 
 **Parameters:**
 
@@ -4460,20 +4331,6 @@ Create a violin plot of within- and between-label distances.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`f` |  | violin plot handles
-
-######## `plot_mds`
-
-```python
-plot_mds(*, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
-```
-
-Plot multidimensional scaling.
 
 **Parameters:**
 
@@ -4533,6 +4390,252 @@ Name | Type | Description | Default
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
 `method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
+`method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
+`metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
+`include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
+`nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
+`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
+`project` | <code>[bool](#bool)</code> | (bool) If True and this Adjacency has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`self` |  | (adjacency) can be a single matrix or many matrices for each group | *required*
+`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
+`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
+`n_permute` | <code>[int](#int)</code> | number of permutations to run (default=5000) | <code>5000</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate std over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | Calculate sum over matrices (0) or upper triangle (1). | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
+`fill` | <code>[float](#float)</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
+`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
+
+######## `z_to_r`
+
+```python
+z_to_r()
+```
+
+Convert each z score back into an r value.
+
+
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (Adjacency) new appended Adjacency instance
+
+######## `bootstrap`
+
+```python
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+```
+
+Bootstrap statistics using efficient online algorithms.
+
+Uses memory-efficient bootstrap infrastructure with CPU parallelization.
+Supports simple aggregation statistics (mean, std, median, sum, min, max).
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'   (all Adjacency objects). If save_boots=True, also includes 'samples'.
+
+**Examples:**
+
+```pycon
+>>> # Simple aggregation
+>>> boot = adj.bootstrap(stat='mean', n_samples=1000)
+>>> assert 'mean' in boot
+>>> assert isinstance(boot['mean'], Adjacency)
+```
+
+######## `cluster_summary`
+
+```python
+cluster_summary(*, clusters = None, method = 'mean', summary = 'within')
+```
+
+Provide summaries of clusters within Adjacency matrices.
+
+Computes mean/median of within and between cluster values. Requires a
+list of cluster ids indicating the row/column of each cluster.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | within cluster means
+
+######## `copy`
+
+```python
+copy()
+```
+
+Create a copy of Adjacency object.
+
+######## `distance`
+
+```python
+distance(metric = 'correlation', include_diag = False, **kwargs)
+```
+
+Calculate distance between images within an Adjacency() instance.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dist` |  | (Adjacency) Outputs a 2D distance matrix.
+
+######## `distance_to_similarity`
+
+```python
+distance_to_similarity(metric = 'correlation', beta = 1)
+```
+
+Convert distance matrix to similarity matrix.
+
+Note: currently only implemented for correlation and euclidean.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`out` |  | (Adjacency) Adjacency object
+
+######## `generate_permutations`
+
+```python
+generate_permutations(n_permute, random_state = None)
+```
+
+Generate permuted versions of an Adjacency instance lazily.
+
+**Examples:**
+
+```pycon
+>>> for perm in adj.generate_permutations(1000):
+>>>     out = neural_distance_mat.similarity(perm)
+>>>     ...
+```
+
+**Yields:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | permuted version of self
+
+######## `mean`
+
+```python
+mean(axis = 0)
+```
+
+Calculate mean of Adjacency.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `median`
+
+```python
+median(axis = 0)
+```
+
+Calculate median of Adjacency.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+
+######## `plot`
+
+```python
+plot(limit = 3, axes = None, *args, **kwargs)
+```
+
+Create a heatmap of an Adjacency matrix.
+
+Can pass in any sns.heatmap argument
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`f` |  | violin plot handles
+
+######## `plot_mds`
+
+```python
+plot_mds(*, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
+```
+
+Plot multidimensional scaling.
+
 **Returns:**
 
 Name | Type | Description
@@ -4548,21 +4651,6 @@ similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spe
 Calculate similarity between two Adjacency matrices.
 
 The default uses Spearman correlation and a permutation test.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
-`method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
-`metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
-`include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
-`nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
-`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
-`project` | <code>[bool](#bool)</code> | (bool) If True and this Adjacency has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Returns:**
 
@@ -4604,14 +4692,6 @@ The minimal sample size to estimate these effects is 4.
 In the future we might update the formulas and standard errors based on
 Bond and Lashley, 1996
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`self` |  | (adjacency) can be a single matrix or many matrices for each group | *required*
-`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
-`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
-
 **Returns:**
 
 Type | Description
@@ -4634,13 +4714,6 @@ stats_label_distance(*, labels = None, n_permute = 5000, n_jobs = -1)
 
 Calculate permutation tests on within and between label distance.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
-`n_permute` | <code>[int](#int)</code> | number of permutations to run (default=5000) | <code>5000</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -4655,12 +4728,6 @@ std(axis = 0)
 
 Calculate standard deviation of Adjacency.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | Calculate std over matrices (0) or upper triangle (1). | <code>0</code>
-
 **Returns:**
 
 Type | Description
@@ -4674,12 +4741,6 @@ sum(axis = 0)
 ```
 
 Calculate sum of Adjacency.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | Calculate sum over matrices (0) or upper triangle (1). | <code>0</code>
 
 **Returns:**
 
@@ -4698,14 +4759,6 @@ Threshold an Adjacency instance.
 Provide upper and lower values or percentages to perform two-sided
 thresholding. Binarize will return a mask image respecting thresholds
 if provided, otherwise respecting every non-zero value.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
 
 **Returns:**
 
@@ -4727,13 +4780,6 @@ Each entry of ``values`` is painted onto the voxels assigned to its
 corresponding parcel by ``spatial_scale.atlas`` /
 ``spatial_scale.roi_labels``. Voxels outside the atlas receive
 ``fill``.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
-`fill` | <code>[float](#float)</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
 
 **Returns:**
 
@@ -4785,17 +4831,6 @@ ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n
 
 Calculate ttest across samples.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
-`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -4809,23 +4844,6 @@ write(file_name, method = 'long')
 ```
 
 Write out Adjacency object to csv file.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
-`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
-
-######## `z_to_r`
-
-```python
-z_to_r()
-```
-
-Convert each z score back into an r value.
-
-
 
 ##### Methods
 
@@ -4863,6 +4881,14 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix). | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | Adjacency object to write | *required*
+`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
+`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
+
 **Returns:**
 
 Type | Description
@@ -4876,14 +4902,6 @@ write(adj, file_name, method = 'long')
 ```
 
 Write out Adjacency object to csv file.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | Adjacency object to write | *required*
-`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
-`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
 
 (data-modeling)=
 ###### `modeling`
@@ -4929,6 +4947,38 @@ Name | Type | Description | Default
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | (Adjacency) Adjacency instance (used for matrix_type metadata) | *required*
+`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
+`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | (Adjacency) Adjacency instance | *required*
+`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
+`random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | (Adjacency) Adjacency instance | *required*
+`X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
+`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | (Adjacency) can be a single matrix or many matrices for each group | *required*
+`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
+`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
+
 **Returns:**
 
 Name | Type | Description
@@ -4955,14 +5005,6 @@ Convert bootstrap results dictionary to Adjacency format.
 Helper function to convert numpy arrays from bootstrap functions into
 Adjacency objects.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance (used for matrix_type metadata) | *required*
-`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
-`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -4978,14 +5020,6 @@ generate_permutations(adj, n_permute, random_state = None)
 Generate permuted versions of an Adjacency instance lazily.
 
 This is useful for iterative comparisons.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance | *required*
-`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
-`random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Examples:**
 
@@ -5010,14 +5044,6 @@ regress(adj, X, method = 'ols')
 Run a regression on an adjacency instance.
 You can decompose an adjacency instance with another adjacency instance.
 You can also decompose each pixel by passing a design_matrix instance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance | *required*
-`X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
 
 **Returns:**
 
@@ -5058,14 +5084,6 @@ The minimal sample size to estimate these effects is 4.
 
 In the future we might update the formulas and standard errors based on
 Bond and Lashley, 1996
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | (Adjacency) can be a single matrix or many matrices for each group | *required*
-`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
-`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
 
 **Returns:**
 
@@ -5108,20 +5126,6 @@ Name | Type | Description | Default
 `limit` | <code>[int](#int)</code> | Number of heatmaps to plot if object contains multiple adjacencies (default: 3). | <code>3</code>
 `axes` |  | Matplotlib axis handle. | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | None
-
-######## `plot_mds`
-
-```python
-plot_mds(adj, *, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
-```
-
-Plot Multidimensional Scaling.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -5136,6 +5140,20 @@ Name | Type | Description | Default
 `figsize` | <code>[list](#list)</code> | Figure size. Default [12, 8]. | <code>None</code>
 `ax` |  | Matplotlib axis handle. | <code>None</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. | <code>-1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | None
+
+######## `plot_mds`
+
+```python
+plot_mds(adj, *, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
+```
+
+Plot Multidimensional Scaling.
 
 **Returns:**
 
@@ -5263,40 +5281,12 @@ Name | Type | Description | Default
 `method` |  | (str) how to summarize, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
 `summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | (dict) within cluster means
-
-######## `plot_label_distance`
-
-```python
-plot_label_distance(adj, labels = None, ax = None)
-```
-
-Create a violin plot of within- and between-label distances.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix) | *required*
 `labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | None
-
-######## `plot_silhouette`
-
-```python
-plot_silhouette(adj, *, labels = None, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
-```
-
-Create a silhouette plot.
 
 **Parameters:**
 
@@ -5310,41 +5300,11 @@ Name | Type | Description | Default
 `colors` |  | Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette). | <code>None</code>
 `figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Silhouette plot results including scores and optional permutation p-value.
-
-######## `r_to_z`
-
-```python
-r_to_z(adj)
-```
-
-Apply Fisher's r to z transformation to each element of the data object.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance. | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | New Adjacency with z-transformed values.
-
-######## `similarity`
-
-```python
-similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
-```
-
-Calculate similarity between two Adjacency matrices.
-
-The default uses Spearman correlation and a permutation test.
 
 **Parameters:**
 
@@ -5363,6 +5323,99 @@ Name | Type | Description | Default
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix) | *required*
+`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
+`n_permute` | <code>[int](#int)</code> | number of permutations to run (default=5000) | <code>5000</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance | *required*
+`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
+`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | (dict) within cluster means
+
+######## `plot_label_distance`
+
+```python
+plot_label_distance(adj, labels = None, ax = None)
+```
+
+Create a violin plot of within- and between-label distances.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | None
+
+######## `plot_silhouette`
+
+```python
+plot_silhouette(adj, *, labels = None, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
+```
+
+Create a silhouette plot.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | Silhouette plot results including scores and optional permutation p-value.
+
+######## `r_to_z`
+
+```python
+r_to_z(adj)
+```
+
+Apply Fisher's r to z transformation to each element of the data object.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Adjacency` |  | New Adjacency with z-transformed values.
+
+######## `similarity`
+
+```python
+similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
+```
+
+Calculate similarity between two Adjacency matrices.
+
+The default uses Spearman correlation and a permutation test.
+
 **Returns:**
 
 Type | Description
@@ -5377,14 +5430,6 @@ stats_label_distance(adj, *, labels = None, n_permute = 5000, n_jobs = -1)
 ```
 
 Calculate permutation tests on within and between label distance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix) | *required*
-`labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
-`n_permute` | <code>[int](#int)</code> | number of permutations to run (default=5000) | <code>5000</code>
 
 **Returns:**
 
@@ -5404,15 +5449,6 @@ Provide upper and lower values or percentages to perform two-sided
 thresholding. Binarize will return a mask image respecting thresholds if
 provided, otherwise respecting every non-zero value.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance | *required*
-`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -5427,18 +5463,6 @@ ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = Fal
 
 Calculate ttest across samples.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
-`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
-`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -5452,12 +5476,6 @@ z_to_r(adj)
 ```
 
 Convert z score back into r value for each element of data object.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance. | *required*
 
 **Returns:**
 
@@ -5503,6 +5521,29 @@ Name | Type | Description | Default
 `func` |  | Numpy function to apply (e.g., np.nanmean). | *required*
 `axis` |  | Axis along which to apply function. 0 for across matrices,   1 for across upper triangle elements. | <code>0</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | File path (str/Path), DataFrame, or numpy array. | *required*
+`matrix_type` |  | Optional explicit matrix type ('distance', 'similarity', 'directed', or their '_flat' variants). | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`adj` |  | Adjacency instance (left operand unless *reverse* is True). | *required*
+`y` |  | Operand (scalar or Adjacency). | *required*
+`op` |  | Callable that performs the operation on arrays. | *required*
+`op_name` |  | Name of operation for error messages. | *required*
+`reverse` |  | If True, reverse operand order (y op adj). | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | numpy array of adjacency data. | *required*
+
 **Returns:**
 
 Type | Description
@@ -5521,13 +5562,6 @@ Import and validate a single adjacency data matrix.
 Handles file paths (CSV), DataFrames, and numpy arrays. Determines
 symmetry and matrix type when not provided.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` |  | File path (str/Path), DataFrame, or numpy array. | *required*
-`matrix_type` |  | Optional explicit matrix type ('distance', 'similarity', 'directed', or their '_flat' variants). | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -5542,16 +5576,6 @@ perform_arithmetic(adj, y, op, op_name, reverse = False)
 
 Perform arithmetic operation with validation.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`adj` |  | Adjacency instance (left operand unless *reverse* is True). | *required*
-`y` |  | Operand (scalar or Adjacency). | *required*
-`op` |  | Callable that performs the operation on arrays. | *required*
-`op_name` |  | Name of operation for error messages. | *required*
-`reverse` |  | If True, reverse operand order (y op adj). | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -5565,12 +5589,6 @@ test_is_single_matrix(data)
 ```
 
 Check whether data represents a single matrix (1-D vector).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` |  | numpy array of adjacency data. | *required*
 
 **Returns:**
 
@@ -5593,14 +5611,15 @@ The labeling logic was adapted from
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 > https://doi.org/10.21105/joss.01257
 
-**Modules:**
+**Attributes:**
 
-Name | Description
----- | -----------
-[`labeling`](#data-labeling) | Coordinate-level atlas labeling.
-[`loading`](#data-loading) | Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
-[`registry`](#data-registry) | Static registry of atlases hosted at ``nltools/niftis/atlases``.
-[`reporting`](#data-reporting) | Cluster reports — peak/cluster geometry plus atlas labels.
+Name | Type | Description
+---- | ---- | -----------
+[`ATLASES`](#data-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+
 
 **Classes:**
 
@@ -5619,13 +5638,14 @@ Name | Description
 [`list_atlases`](#data-list-atlases) | Return the sorted list of registered atlas names.
 [`load_atlas`](#data-load-atlas) | Lazy-load an atlas by registry name.
 
-**Attributes:**
+**Modules:**
 
-Name | Type | Description
----- | ---- | -----------
-[`ATLASES`](#data-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-`AtlasKind` |  | 
-`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+Name | Description
+---- | -----------
+[`labeling`](#data-labeling) | Coordinate-level atlas labeling.
+[`loading`](#data-loading) | Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
+[`registry`](#data-registry) | Static registry of atlases hosted at ``nltools/niftis/atlases``.
+[`reporting`](#data-reporting) | Cluster reports — peak/cluster geometry plus atlas labels.
 
 ##### Classes
 
@@ -5915,12 +5935,6 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`label_coords`](#data-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
-
 **Attributes:**
 
 Name | Type | Description
@@ -5930,6 +5944,12 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`label_coords`](#data-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 (data-coordslike)=
 ###### `CoordsLike`
@@ -6091,18 +6111,6 @@ files are fetched lazily by `load_atlas` via
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
-**Classes:**
-
-Name | Description
----- | -----------
-[`AtlasMetadata`](#data-atlasmetadata) | Static description of a registered atlas.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`list_atlases`](#data-list-atlases) | Return the sorted list of registered atlas names.
-
 **Attributes:**
 
 Name | Type | Description
@@ -6114,6 +6122,18 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`AtlasMetadata`](#data-atlasmetadata) | Static description of a registered atlas.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`list_atlases`](#data-list-atlases) | Return the sorted list of registered atlas names.
 
 ###### `ATLASES`
 
@@ -6333,6 +6353,14 @@ Represent brain image data with the BrainData class.
 
 Classes to represent brain image data.
 
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BrainData`](#data-braindata) | Represent neuroimaging data as vectors instead of three-dimensional matrices.
+
+
+
 **Modules:**
 
 Name | Description
@@ -6348,14 +6376,6 @@ Name | Description
 [`utils`](#data-utils) | Shared helpers for BrainData submodules.
 [`validation`](#data-validation) | Validation utilities for BrainData class.
 [`viewer`](#data-viewer) | ipyniivue (niivue) interactive viewer for BrainData.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`BrainData`](#data-braindata) | Represent neuroimaging data as vectors instead of three-dimensional matrices.
-
-
 
 ##### Classes
 
@@ -6378,6 +6398,25 @@ Name | Type | Description | Default
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`X`](#data-x) |  | Design matrix / per-image covariates as a polars DataFrame.
+[`Y`](#data-y) |  | Per-image targets as a polars DataFrame.
+[`data`](#data-data) |  | 
+`design_matrix` |  | 
+`dtype` |  | Get data type of BrainData.data.
+`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
+`masker` |  | 
+`shape` |  | Get images by voxels shape.
+`size` |  | Total number of elements in BrainData.data (numpy convention).
+`verbose` |  | 
+
+
+
+####### Attributes##
 
 **Methods:**
 
@@ -6426,25 +6465,6 @@ Name | Description
 [`upload_neurovault`](#data-upload-neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#data-write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#data-z-to-r) | Convert z score back into r value for each element of data object.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`X`](#data-x) |  | Design matrix / per-image covariates as a polars DataFrame.
-[`Y`](#data-y) |  | Per-image targets as a polars DataFrame.
-[`data`](#data-data) |  | 
-`design_matrix` |  | 
-`dtype` |  | Get data type of BrainData.data.
-`is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
-`masker` |  | 
-`shape` |  | Get images by voxels shape.
-`size` |  | Total number of elements in BrainData.data (numpy convention).
-`verbose` |  | 
-
-
-
-####### Attributes##
 
 (data-x)=
 ###### `X`
@@ -6542,6 +6562,362 @@ Name | Type | Description | Default
 `roi_mask` |  | Atlas image used when `spatial_scale='roi'`. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Reserved for ``spatial_scale='searchlight'``. | <code>10.0</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | BrainData instance to append. | *required*
+`ignore_attrs` |  | (bool) If True, skip concatenation of X and Y     attributes. Useful when appending images where .X or .Y     have different column counts. Default False. | <code>False</code>
+`kwargs` |  | Optional arguments passed to pandas concat for X/Y. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask` |  | (BrainData or nifti object) mask to apply to BrainData object. | *required*
+`resample_mask_to_brain` |  | (bool) Will resample mask to brain space before applying mask (default=False). | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dtype` |  | datatype to convert | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
+`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
+`save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
+`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
+`X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
+`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold (e.g. z- or t-cutoff). ``None`` treats ``self`` as already thresholded. | <code>3.0</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>[bool](#bool)</code> | Report negative clusters separately. | <code>True</code>
+`min_distance` | <code>[float](#float)</code> | Minimum mm between sub-peaks within a cluster. | <code>8.0</code>
+`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)] \| None</code> | Atlas name or list of names (see `list_atlases`). Defaults to ``("harvard_oxford", "aal", "schaefer_200")``. | <code>None</code>
+`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` |  | Can be:<br>- str: A string specifying the contrast using column names   e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC" - dict: Dictionary with contrast names as keys and contrast strings/vectors as values   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]} - array: Numeric contrast vector matching the number of regressors   e.g., [1, -1, 0, 0] for a 4-regressor model | *required*
+`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of `"t"` (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` / `"effect_size"` (effect-size β map — use this when feeding a second-level group analysis), or `"all"` (a bundle dict `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`. | <code>'t'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
+`n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
+`**kwargs` |  | forwarded to the underlying sklearn decomposition estimator. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` |  | ('linear','constant', optional) type of detrending | <code>'linear'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist) | <code>'euclidean'</code>
+`**kwargs` |  | Additional metric options forwarded to ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski). | <code>{}</code>
+`spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per parcel and ``spatial_scale`` provenance attached for back-projection via ``Adjacency.to_brain()``. ``'searchlight'`` requires ``radius_mm`` (and is not yet implemented in this slice). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image (BrainData / Nifti1Image / path) for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
+`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean' | <code>'mean'</code>
+`n_components` |  | If metric='pca', number of components to return | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR) | <code>None</code>
+`high_pass` |  | High pass cutoff frequency | <code>None</code>
+`low_pass` |  | Low pass cutoff frequency | <code>None</code>
+`**kwargs` |  | Additional arguments passed to nilearn.signal.clean | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`global_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in global signal in standard deviations, or None to skip. | <code>3</code>
+`diff_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in average frame difference in standard deviations, or None to skip. | <code>3</code>
+`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
+`X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
+`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
+`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
+`scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling before fitting via nilearn's per-voxel ``mean_scaling``. ``'auto'`` → False for both models (PSC is opt-in). Redundant with ``standardize='zscore'`` (warns). Applied before ``standardize``. | <code>'auto'</code>
+`standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. ``'center'``, ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge, ``None`` for glm. | <code>'auto'</code>
+`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
+`design_clean` | <code>bool, default=True</code> | GLM only. Run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
+`design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
+`design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
+`design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
+`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`view` | <code>[str](#str)</code> | ``"ortho"`` (default), ``"axial"``, ``"coronal"``, ``"sagittal"``, or ``"render"`` (3D volume render). ``"surface"`` is no longer supported — use ``"render"`` or `plot_flatmap` / `plot_surf`. | <code>'ortho'</code>
+`threshold` | <code>[float](#float) \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). | <code>None</code>
+`lower` | <code>[float](#float) \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. | <code>None</code>
+`upper` | <code>[float](#float) \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
+`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
+`atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
+`opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
+`outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
+`colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (default ``True``). An explicit ``is_colorbar`` kwarg overrides this. | <code>True</code>
+`controls` | <code>[bool](#bool)</code> | Wrap the viewer in a `VBox` with an interactive threshold slider (default ``True``). ``False`` returns the bare `NiiVue`. Requires the ``ipywidgets`` optional dependency when ``True``. | <code>True</code>
+`**kwargs` |  | Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) preserves existing behavior. ``'roi'`` requires ``roi_mask`` and returns a BrainData of the same shape with each voxel painted with its parcel's mean per image (parcellation smoothing). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's median per image). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`images` |  | BrainData instance of weight map | *required*
+`method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
+`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
+`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
+`threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
+`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
+`cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. Takes precedence over ``view``-based defaults. Either a list matching ``len(view)`` or a dict keyed by axis letter. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
+`bg_img` | <code>str/nibabel image</code> | Background image. | <code>None</code>
+`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Matplotlib axis. | <code>None</code>
+`figsize` | <code>[tuple](#tuple)</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
+`title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
+`colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
+`save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
+`stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Default: 'mean'. | <code>'mean'</code>
+`limit` | <code>[int](#int)</code> | Maximum number of images to render when this BrainData contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. Warns when more images exist than ``limit``. | <code>3</code>
+`**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`threshold` | <code>[float](#float)</code> | Values below this absolute threshold are masked. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Matplotlib colormap. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
+`vmax` | <code>[float](#float)</code> | Maximum value for colormap. | <code>None</code>
+`vmin` | <code>[float](#float)</code> | Minimum value for colormap. | <code>None</code>
+`template` | <code>[str](#str)</code> | Freesurfer surface resolution. Default: 'fsaverage5'. | <code>'fsaverage5'</code>
+`with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
+`curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature overlay. Default: 0.5. | <code>0.5</code>
+`curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature overlay. Default: 0.5. | <code>0.5</code>
+`transparency` | <code>BrainData, Nifti1Image, str, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent. ``"auto"`` (default) uses the instance's ``.mask``; pass ``None`` to disable masking. | <code>'auto'</code>
+`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
+`colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
+`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
+`interpolation` | <code>[str](#str)</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
+`axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
+`save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` | <code>[array](#array) - [like](#like)</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``. Triggers MVPA mode. | <code>None</code>
+`X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape ``(n_samples, n_features)``. Triggers encoding mode. | <code>None</code>
+`spatial_scale` | <code>[str](#str)</code> | MVPA dispatch — ``'whole_brain'``, ``'searchlight'``, or ``'roi'``. | <code>'whole_brain'</code>
+`model` | <code>str or sklearn estimator</code> | Algorithm. String shortcuts:<br>- Classification: ``'svm'`` (LinearSVC), ``'logistic'``,   ``'lda'``, ``'ridge_classifier'``. - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.<br>Or pass any sklearn estimator / Pipeline (e.g., ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``). When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted to ``False`` (with a warning) so we don't wrap another StandardScaler around your pipeline. Pass ``standardize=True`` explicitly to override. | <code>'svm'</code>
+`cv` | <code>int or sklearn CV splitter</code> | ``int`` → KFold (regression) or StratifiedKFold (classification); pass a splitter for custom schemes (e.g., ``GroupKFold``). | <code>5</code>
+`standardize` | <code>[bool](#bool)</code> | Z-score features per fold before fitting. Default ``True``. Auto-flipped to ``False`` when ``model`` is a sklearn ``Pipeline`` (see ``model`` above). | <code>True</code>
+`reduce` | <code>[str](#str)</code> | Per-fold dimensionality reduction. Currently only ``'pca'`` supported. Default ``None``. Weight maps are back-projected through PCA to voxel space. | <code>None</code>
+`n_components` | <code>[int](#int)</code> | PCA components when ``reduce='pca'``. | <code>None</code>
+`scoring` | <code>[str](#str)</code> | Sklearn scoring string. Default ``'auto'`` → ``'accuracy'`` if classifier, ``'r2'`` if regressor. | <code>'auto'</code>
+`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
+`inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight / ROI. Default ``1``; searchlight on a real brain at higher ``n_jobs`` can be memory-heavy. | <code>1</code>
+`random_state` | <code>[int](#int)</code> | Seed for the shuffled fold splitter when ``cv`` is an int (MVPA mode). Default ``None`` (unseeded shuffle each call). Ignored when ``cv`` is a splitter object — set its own ``random_state`` instead. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight / ROI. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be kept. | <code>1350</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser regions. | <code>6</code>
+`is_mask` | <code>[bool](#bool)</code> | Whether to treat as boolean mask. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrasts`. | <code>None</code>
+`**kwargs` |  | Forwarded to nilearn's ``generate_report`` (e.g. ``title``, ``threshold``, ``alpha``). | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`img` |  | Target image for resampling (nibabel Nifti1Image, str/Path, or None). | <code>None</code>
+`resolution` |  | Target voxel size in mm (float/int for isotropic, or None). | <code>None</code>
+`interpolation` |  | Interpolation method ('nearest', 'linear', 'continuous', or None). | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`scale_val` |  | (int/float) Target value for the mean after scaling. Default 100. | <code>100.0</code>
+`axis` |  | (int or None) None for grand-mean scaling (default), 0 for voxel-wise scaling. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`image` |  | (BrainData, nifti) image to evaluate similarity | *required*
+`metric` |  | (str) Type of similarity     ['correlation','pearson','rank_correlation','spearman','dot_product','cosine'] | <code>'correlation'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fwhm` |  | (float) full width half maximum of gaussian spatial filter | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` | <code>[int](#int)</code> | 0 standardizes each voxel across observations (default). 1 standardizes each observation across voxels. | <code>0</code>
+`method` | <code>[str](#str)</code> | 'center' subtracts the mean (default). 'zscore' subtracts the mean and divides by standard deviation. | <code>'center'</code>
+`suppress_warnings` | <code>[bool](#bool)</code> | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: False. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's std per image). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array) | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`sampling_freq` |  | (float) sampling frequency of data in hertz | <code>None</code>
+`target` |  | (float) upsampling target | <code>None</code>
+`target_type` |  | (str) type of target can be [samples,seconds,hz] | <code>'hz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`upper` |  | (float or str) Upper cutoff for thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. | <code>None</code>
+`binarize` | <code>[bool](#bool)</code> | return binarized image. Default False. | <code>False</code>
+`coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s. Default True. | <code>True</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. Default 0. | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via `one_sample_permutation_test`. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`access_token` |  | (str, Required) Neurovault api access token | <code>None</code>
+`collection_name` |  | (str, Optional) name of new collection to create | <code>None</code>
+`collection_id` |  | (int, Optional) neurovault collection_id if adding images             to existing collection | <code>None</code>
+`img_type` |  | (str, Required) Neurovault map_type | <code>None</code>
+`img_modality` |  | (str, Required) Neurovault image modality | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str) or [Path](#Path)</code> | Output file path (.nii/.nii.gz for NIfTI, .h5/.hdf5 for HDF5). | *required*
+
+######## `z_to_r`
+
+```python
+z_to_r()
+```
+
+Convert z score back into r value for each element of data object.
+
+
+
 **Returns:**
 
 Name | Type | Description
@@ -6563,14 +6939,6 @@ append(data, ignore_attrs = False, **kwargs)
 
 Append data to BrainData instance.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` |  | BrainData instance to append. | *required*
-`ignore_attrs` |  | (bool) If True, skip concatenation of X and Y     attributes. Useful when appending images where .X or .Y     have different column counts. Default False. | <code>False</code>
-`kwargs` |  | Optional arguments passed to pandas concat for X/Y. | <code>{}</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -6588,13 +6956,6 @@ Mask BrainData instance using nilearn functionality.
 Note target data will be resampled into the same space as the mask. If you would like the mask
 resampled into the BrainData space, then set resample_mask_to_brain=True.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`mask` |  | (BrainData or nifti object) mask to apply to BrainData object. | *required*
-`resample_mask_to_brain` |  | (bool) Will resample mask to brain space before applying mask (default=False). | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -6608,12 +6969,6 @@ astype(dtype)
 ```
 
 Cast BrainData.data as type.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dtype` |  | datatype to convert | *required*
 
 **Returns:**
 
@@ -6631,20 +6986,6 @@ Bootstrap statistics using efficient online algorithms.
 
 Uses memory-efficient bootstrap infrastructure with CPU parallelization or GPU acceleration.
 Supports simple aggregation statistics and fitted model statistics (Ridge).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
-`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
-`save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
-`X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
@@ -6672,17 +7013,6 @@ Identifies surviving clusters in the stat map (after voxel + extent
 thresholding), reports peak coordinates and sub-peaks, and labels
 each peak/cluster against one or more atlases.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold (e.g. z- or t-cutoff). ``None`` treats ``self`` as already thresholded. | <code>3.0</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
-`two_sided` | <code>[bool](#bool)</code> | Report negative clusters separately. | <code>True</code>
-`min_distance` | <code>[float](#float)</code> | Minimum mm between sub-peaks within a cluster. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)] \| None</code> | Atlas name or list of names (see `list_atlases`). Defaults to ``("harvard_oxford", "aal", "schaefer_200")``. | <code>None</code>
-`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
-
 **Returns:**
 
 Type | Description
@@ -6700,13 +7030,6 @@ Compute contrasts from fitted GLM results.
 
 This method computes contrasts as linear combinations of the GLM beta coefficients.
 Must be called after .fit(model='glm', X=design_matrix) has been run.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`contrasts` |  | Can be:<br>- str: A string specifying the contrast using column names   e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC" - dict: Dictionary with contrast names as keys and contrast strings/vectors as values   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]} - array: Numeric contrast vector matching the number of regressors   e.g., [1, -1, 0, 0] for a 4-regressor model | *required*
-`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of `"t"` (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` / `"effect_size"` (effect-size β map — use this when feeding a second-level group analysis), or `"all"` (a bundle dict `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`. | <code>'t'</code>
 
 **Returns:**
 
@@ -6774,15 +7097,6 @@ decompose(*, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 
 Decompose BrainData object.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
-`axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
-`n_components` |  | (int) number of components. If None then retain         as many as possible. | <code>None</code>
-`**kwargs` |  | forwarded to the underlying sklearn decomposition estimator. | <code>{}</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -6796,12 +7110,6 @@ detrend(method = 'linear')
 ```
 
 Remove linear trend from each voxel.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` |  | ('linear','constant', optional) type of detrending | <code>'linear'</code>
 
 **Returns:**
 
@@ -6817,16 +7125,6 @@ distance(metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: 
 
 Calculate distance between images within a BrainData() instance.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist) | <code>'euclidean'</code>
-`**kwargs` |  | Additional metric options forwarded to ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski). | <code>{}</code>
-`spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per parcel and ``spatial_scale`` provenance attached for back-projection via ``Adjacency.to_brain()``. ``'searchlight'`` requires ``radius_mm`` (and is not yet implemented in this slice). | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas image (BrainData / Nifti1Image / path) for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -6840,14 +7138,6 @@ extract_roi(mask, metric = 'mean', n_components = None)
 ```
 
 Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
-`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean' | <code>'mean'</code>
-`n_components` |  | If metric='pca', number of components to return | <code>None</code>
 
 **Returns:**
 
@@ -6880,15 +7170,6 @@ detrend=True or standardize=True via kwargs to enable.
 
 </details>
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR) | <code>None</code>
-`high_pass` |  | High pass cutoff frequency | <code>None</code>
-`low_pass` |  | Low pass cutoff frequency | <code>None</code>
-`**kwargs` |  | Additional arguments passed to nilearn.signal.clean | <code>{}</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -6902,15 +7183,6 @@ find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None 
 ```
 
 Identify spikes from Time Series Data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`global_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in global signal in standard deviations, or None to skip. | <code>3</code>
-`diff_spike_cutoff` | <code>[int](#int) or None</code> | cutoff to identify spikes in average frame difference in standard deviations, or None to skip. | <code>3</code>
-`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
-`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
 **Returns:**
 
@@ -6930,25 +7202,6 @@ Fit a model to brain imaging data.
 Creates and fits a model from string specification. The brain data
 (self.data) is always used as the target variable. Model and results
 are stored for later use with predict().
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
-`X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
-`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
-`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
-`fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
-`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
-`scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling before fitting via nilearn's per-voxel ``mean_scaling``. ``'auto'`` → False for both models (PSC is opt-in). Redundant with ``standardize='zscore'`` (warns). Applied before ``standardize``. | <code>'auto'</code>
-`standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. ``'center'``, ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge, ``None`` for glm. | <code>'auto'</code>
-`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
-`design_clean` | <code>bool, default=True</code> | GLM only. Run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
-`design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
-`design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
-`design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
-`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
 
 **Returns:**
 
@@ -7013,23 +7266,6 @@ negative limb its mirrored partner. Precedence: ``lower``/``upper``
 win; otherwise ``threshold`` sets the floor (ceiling auto);
 otherwise the window is fully auto.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`view` | <code>[str](#str)</code> | ``"ortho"`` (default), ``"axial"``, ``"coronal"``, ``"sagittal"``, or ``"render"`` (3D volume render). ``"surface"`` is no longer supported — use ``"render"`` or `plot_flatmap` / `plot_surf`. | <code>'ortho'</code>
-`threshold` | <code>[float](#float) \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). | <code>None</code>
-`lower` | <code>[float](#float) \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. | <code>None</code>
-`upper` | <code>[float](#float) \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
-`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
-`atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
-`opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
-`outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
-`colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (default ``True``). An explicit ``is_colorbar`` kwarg overrides this. | <code>True</code>
-`controls` | <code>[bool](#bool)</code> | Wrap the viewer in a `VBox` with an interactive threshold slider (default ``True``). ``False`` returns the bare `NiiVue`. Requires the ``ipywidgets`` optional dependency when ``True``. | <code>True</code>
-`**kwargs` |  | Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
-
 **Returns:**
 
 Type | Description
@@ -7046,14 +7282,6 @@ mean(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 
 Get mean of each voxel or image.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) preserves existing behavior. ``'roi'`` requires ``roi_mask`` and returns a BrainData of the same shape with each voxel painted with its parcel's mean per image (parcellation smoothing). | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -7067,14 +7295,6 @@ median(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 ```
 
 Get median of each voxel or image.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's median per image). | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 
 **Returns:**
 
@@ -7092,13 +7312,6 @@ Predict a BrainData spatial distribution from a linear combination.
 
 The predictors may be other BrainData instances or nibabel images.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`images` |  | BrainData instance of weight map | *required*
-`method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7112,27 +7325,6 @@ plot(*, method = 'glass', upper = None, lower = None, threshold = None, view = '
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
-`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold. | <code>None</code>
-`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold. | <code>None</code>
-`threshold` | <code>[float](#float)</code> | Convenience parameter for thresholding. | <code>None</code>
-`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
-`cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. Takes precedence over ``view``-based defaults. Either a list matching ``len(view)`` or a dict keyed by axis letter. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
-`bg_img` | <code>str/nibabel image</code> | Background image. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Matplotlib axis. | <code>None</code>
-`figsize` | <code>[tuple](#tuple)</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
-`title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
-`colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
-`save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
-`stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Default: 'mean'. | <code>'mean'</code>
-`limit` | <code>[int](#int)</code> | Maximum number of images to render when this BrainData contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. Warns when more images exist than ``limit``. | <code>3</code>
-`**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
 
 **Returns:**
 
@@ -7151,28 +7343,6 @@ plot_flatmap(*, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, tem
 ```
 
 Plot brain data on cortical flatmap.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`threshold` | <code>[float](#float)</code> | Values below this absolute threshold are masked. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Matplotlib colormap. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
-`vmax` | <code>[float](#float)</code> | Maximum value for colormap. | <code>None</code>
-`vmin` | <code>[float](#float)</code> | Minimum value for colormap. | <code>None</code>
-`template` | <code>[str](#str)</code> | Freesurfer surface resolution. Default: 'fsaverage5'. | <code>'fsaverage5'</code>
-`with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
-`curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature overlay. Default: 0.5. | <code>0.5</code>
-`curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature overlay. Default: 0.5. | <code>0.5</code>
-`transparency` | <code>BrainData, Nifti1Image, str, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent. ``"auto"`` (default) uses the instance's ``.mask``; pass ``None`` to disable masking. | <code>'auto'</code>
-`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
-`colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size as (width, height). Default: (12, 6). | <code>(12, 6)</code>
-`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm. Default: 3.0. | <code>3.0</code>
-`interpolation` | <code>[str](#str)</code> | Interpolation method. Default: 'linear'. | <code>'linear'</code>
-`axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
-`save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
 
 **Returns:**
 
@@ -7251,27 +7421,6 @@ information used. CV gives the honest *score*; the refit gives
 the publishable *map*. The CV-mean is one line away if you want
 it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`y` | <code>[array](#array) - [like](#like)</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``. Triggers MVPA mode. | <code>None</code>
-`X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape ``(n_samples, n_features)``. Triggers encoding mode. | <code>None</code>
-`spatial_scale` | <code>[str](#str)</code> | MVPA dispatch — ``'whole_brain'``, ``'searchlight'``, or ``'roi'``. | <code>'whole_brain'</code>
-`model` | <code>str or sklearn estimator</code> | Algorithm. String shortcuts:<br>- Classification: ``'svm'`` (LinearSVC), ``'logistic'``,   ``'lda'``, ``'ridge_classifier'``. - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.<br>Or pass any sklearn estimator / Pipeline (e.g., ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``). When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted to ``False`` (with a warning) so we don't wrap another StandardScaler around your pipeline. Pass ``standardize=True`` explicitly to override. | <code>'svm'</code>
-`cv` | <code>int or sklearn CV splitter</code> | ``int`` → KFold (regression) or StratifiedKFold (classification); pass a splitter for custom schemes (e.g., ``GroupKFold``). | <code>5</code>
-`standardize` | <code>[bool](#bool)</code> | Z-score features per fold before fitting. Default ``True``. Auto-flipped to ``False`` when ``model`` is a sklearn ``Pipeline`` (see ``model`` above). | <code>True</code>
-`reduce` | <code>[str](#str)</code> | Per-fold dimensionality reduction. Currently only ``'pca'`` supported. Default ``None``. Weight maps are back-projected through PCA to voxel space. | <code>None</code>
-`n_components` | <code>[int](#int)</code> | PCA components when ``reduce='pca'``. | <code>None</code>
-`scoring` | <code>[str](#str)</code> | Sklearn scoring string. Default ``'auto'`` → ``'accuracy'`` if classifier, ``'r2'`` if regressor. | <code>'auto'</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
-`roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
-`inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight / ROI. Default ``1``; searchlight on a real brain at higher ``n_jobs`` can be memory-heavy. | <code>1</code>
-`random_state` | <code>[int](#int)</code> | Seed for the shuffled fold splitter when ``cv`` is an int (MVPA mode). Default ``None`` (unseeded shuffle each call). Ignored when ``cv`` is a splitter object — set its own ``random_state`` instead. | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight / ROI. | <code>False</code>
-
 **Returns:**
 
 Type | Description
@@ -7328,15 +7477,6 @@ regions(*, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6,
 
 Extract brain connected regions into separate regions.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be kept. | <code>1350</code>
-`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions']. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser regions. | <code>6</code>
-`is_mask` | <code>[bool](#bool)</code> | Whether to treat as boolean mask. | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7354,13 +7494,6 @@ Generate a nilearn HTML report for a fitted GLM.
 Must be called after ``fit(model='glm', ...)``. Renders the design
 matrix, requested contrast maps, and model parameters as a
 self-contained HTML report.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrasts`. | <code>None</code>
-`**kwargs` |  | Forwarded to nilearn's ``generate_report`` (e.g. ``title``, ``threshold``, ``alpha``). | <code>{}</code>
 
 **Returns:**
 
@@ -7382,14 +7515,6 @@ resample_to(*, img = None, resolution = None, interpolation = None)
 ```
 
 Resample BrainData to match target image or resolution.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`img` |  | Target image for resampling (nibabel Nifti1Image, str/Path, or None). | <code>None</code>
-`resolution` |  | Target voxel size in mm (float/int for isotropic, or None). | <code>None</code>
-`interpolation` |  | Interpolation method ('nearest', 'linear', 'continuous', or None). | <code>None</code>
 
 **Returns:**
 
@@ -7413,13 +7538,6 @@ Two scaling modes are available:
 - **Voxel-wise scaling** (axis=0): Divides each voxel's time-series by
   its own temporal mean.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`scale_val` |  | (int/float) Target value for the mean after scaling. Default 100. | <code>100.0</code>
-`axis` |  | (int or None) None for grand-mean scaling (default), 0 for voxel-wise scaling. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7433,13 +7551,6 @@ similarity(image, metric = 'correlation')
 ```
 
 Calculate similarity to a single BrainData or nibabel image.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`image` |  | (BrainData, nifti) image to evaluate similarity | *required*
-`metric` |  | (str) Type of similarity     ['correlation','pearson','rank_correlation','spearman','dot_product','cosine'] | <code>'correlation'</code>
 
 **Returns:**
 
@@ -7455,12 +7566,6 @@ smooth(fwhm)
 
 Apply spatial smoothing using nilearn smooth_img().
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`fwhm` |  | (float) full width half maximum of gaussian spatial filter | *required*
-
 **Returns:**
 
 Type | Description
@@ -7474,14 +7579,6 @@ standardize(*, axis = 0, method = 'center', suppress_warnings = False)
 ```
 
 Standardize BrainData() instance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` | <code>[int](#int)</code> | 0 standardizes each voxel across observations (default). 1 standardizes each observation across voxels. | <code>0</code>
-`method` | <code>[str](#str)</code> | 'center' subtracts the mean (default). 'zscore' subtracts the mean and divides by standard deviation. | <code>'center'</code>
-`suppress_warnings` | <code>[bool](#bool)</code> | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: False. | <code>False</code>
 
 **Returns:**
 
@@ -7497,14 +7594,6 @@ std(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
 
 Get standard deviation of each voxel or image.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array). Ignored when ``spatial_scale='roi'``. | <code>0</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default) or ``'roi'`` (paints each voxel with its parcel's std per image). | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -7518,12 +7607,6 @@ sum(axis = 0)
 ```
 
 Get sum of each voxel or image.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` |  | 0 = across images (default, returns BrainData), 1 = within images (returns array) | <code>0</code>
 
 **Returns:**
 
@@ -7539,14 +7622,6 @@ temporal_resample(*, sampling_freq = None, target = None, target_type = 'hz')
 
 Resample BrainData timeseries to a new target frequency or number of samples.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`sampling_freq` |  | (float) sampling frequency of data in hertz | <code>None</code>
-`target` |  | (float) upsampling target | <code>None</code>
-`target_type` |  | (str) type of target can be [samples,seconds,hz] | <code>'hz'</code>
-
 **Returns:**
 
 Type | Description
@@ -7560,16 +7635,6 @@ threshold(*, upper = None, lower = None, binarize = False, coerce_nan = True, cl
 ```
 
 Threshold BrainData instance with optional cluster filtering.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. | <code>None</code>
-`binarize` | <code>[bool](#bool)</code> | return binarized image. Default False. | <code>False</code>
-`coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s. Default True. | <code>True</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. Default 0. | <code>0</code>
 
 **Returns:**
 
@@ -7617,18 +7682,6 @@ Tests whether the per-voxel mean across images differs from
 ``popmean``. Operates on a stack of images (e.g. subject-level
 contrast maps) with shape ``(n_samples, n_voxels)``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via `one_sample_permutation_test`. | <code>False</code>
-`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -7660,13 +7713,6 @@ ttest2(other, equal_var = True)
 
 Two-sample voxelwise t-test between two BrainData stacks.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
-`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7684,16 +7730,6 @@ Upload BrainData images and metadata to NeuroVault.
 Adds any columns in ``self.X`` to image metadata. The index is used as
 the image name.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`access_token` |  | (str, Required) Neurovault api access token | <code>None</code>
-`collection_name` |  | (str, Optional) name of new collection to create | <code>None</code>
-`collection_id` |  | (int, Optional) neurovault collection_id if adding images             to existing collection | <code>None</code>
-`img_type` |  | (str, Required) Neurovault map_type | <code>None</code>
-`img_modality` |  | (str, Required) Neurovault image modality | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7707,22 +7743,6 @@ write(file_name)
 ```
 
 Write out BrainData object to Nifti or HDF5 File.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`file_name` | <code>[str](#str) or [Path](#Path)</code> | Output file path (.nii/.nii.gz for NIfTI, .h5/.hdf5 for HDF5). | *required*
-
-######## `z_to_r`
-
-```python
-z_to_r()
-```
-
-Convert z score back into r value for each element of data object.
-
-
 
 ##### Methods
 
@@ -7793,6 +7813,156 @@ Name | Type | Description | Default
 `method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
 `axis` |  | (int) axis to align on (default: 0) | <code>0</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`mask` |  | (BrainData or nifti object) mask to apply to BrainData object. | *required*
+`resample_mask_to_brain` |  | (bool) Will resample mask to brain space before applying mask (default=False). | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance | *required*
+`image` |  | BrainData instance to compare masks with | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
+`axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
+`n_components` |  | (int) number of components. If None then retain         as many as possible (default: None). | <code>None</code>
+`**kwargs` |  | Additional keyword arguments passed to the decomposition algorithm. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`method` |  | ('linear','constant', optional) type of detrending | <code>'linear'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
+`**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
+`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean'     Note: 'median' and 'pca' require additional computation after extraction | <code>'mean'</code>
+`n_components` |  | If metric='pca', number of components to return | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR). Default: None. | <code>None</code>
+`high_pass` |  | High pass cutoff frequency. Default: None. | <code>None</code>
+`low_pass` |  | Low pass cutoff frequency. Default: None. | <code>None</code>
+`**kwargs` |  | Additional arguments passed to nilearn.signal.clean       Common options:       - confounds: Confound timeseries to remove       - sample_mask: Volumes to exclude (scrubbing)       - detrend: Enable detrending (default False)       - standardize: Enable standardization (default False)       - ensure_finite: Replace NaN/inf (default False) | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance of data to be applied | *required*
+`images` |  | BrainData instance of weight map | *required*
+`method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
+`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
+`is_mask` | <code>[bool](#bool)</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`scale_val` |  | (int/float) Target value for the mean after scaling. Default 100. | <code>100.0</code>
+`axis` |  | (int or None) Axis along which to compute the mean. None for grand-mean scaling (default, FSL/SPM style). 0 for voxel-wise scaling (AFNI style, each voxel scaled by its own temporal mean). | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`image` |  | (BrainData, nifti)  image to evaluate similarity | *required*
+`metric` |  | (str) Type of similarity     ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine'] | <code>'correlation'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`fwhm` |  | (float) full width half maximum of gaussian spatial filter | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
+`method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
+`suppress_warnings` |  | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: False) | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`sampling_freq` |  | (float) sampling frequency of data in hertz (default: None) | <code>None</code>
+`target` |  | (float) upsampling target (default: None) | <code>None</code>
+`target_type` |  | (str) type of target can be [samples,seconds,hz] (default: 'hz') | <code>'hz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`bd` |  | BrainData instance. | *required*
+`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+`coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s; default True | <code>True</code>
+`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. If > 0, uses     nilearn.image.threshold_img with cluster filtering.     Band-pass filtering (both upper AND lower) not supported     with cluster thresholding. Default 0 (disabled). | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -7836,14 +8006,6 @@ Mask BrainData instance using nilearn functionality.
 Note target data will be resampled into the same space as the mask. If you would like the mask
 resampled into the BrainData space, then set resample_mask_to_brain=True.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`mask` |  | (BrainData or nifti object) mask to apply to BrainData object. | *required*
-`resample_mask_to_brain` |  | (bool) Will resample mask to brain space before applying mask (default=False). | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7867,13 +8029,6 @@ check_masks(bd, image)
 
 Ensure two datasets use compatible masks, creating a union mask if needed.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance | *required*
-`image` |  | BrainData instance to compare masks with | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -7887,16 +8042,6 @@ decompose(bd, *, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
 ```
 
 Decompose a BrainData object.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
-`axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
-`n_components` |  | (int) number of components. If None then retain         as many as possible (default: None). | <code>None</code>
-`**kwargs` |  | Additional keyword arguments passed to the decomposition algorithm. | <code>{}</code>
 
 **Returns:**
 
@@ -7912,13 +8057,6 @@ detrend_data(bd, method = 'linear')
 
 Remove the linear trend from each voxel.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`method` |  | ('linear','constant', optional) type of detrending | <code>'linear'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -7932,17 +8070,6 @@ distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_ma
 ```
 
 Calculate distance between images within a BrainData() instance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
-`**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
 
 **Returns:**
 
@@ -7960,15 +8087,6 @@ Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
 This method now uses nilearn's NiftiLabelsMasker for efficient ROI extraction
 when dealing with labeled atlases (multiple ROIs).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
-`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean'     Note: 'median' and 'pca' require additional computation after extraction | <code>'mean'</code>
-`n_components` |  | If metric='pca', number of components to return | <code>None</code>
 
 **Returns:**
 
@@ -7998,16 +8116,6 @@ Apply butterworth filter to data. Wraps nilearn.signal.clean.
 
 Does not default to detrending and standardizing like nilearn
 implementation, but this can be overridden using kwargs.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR). Default: None. | <code>None</code>
-`high_pass` |  | High pass cutoff frequency. Default: None. | <code>None</code>
-`low_pass` |  | Low pass cutoff frequency. Default: None. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to nilearn.signal.clean       Common options:       - confounds: Confound timeseries to remove       - sample_mask: Volumes to exclude (scrubbing)       - detrend: Enable detrending (default False)       - standardize: Enable standardization (default False)       - ensure_finite: Replace NaN/inf (default False) | <code>{}</code>
 
 **Returns:**
 
@@ -8040,14 +8148,6 @@ Predict a BrainData spatial distribution from a linear combination.
 
 The predictors may be other BrainData instances or nibabel images.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance of data to be applied | *required*
-`images` |  | BrainData instance of weight map | *required*
-`method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -8061,12 +8161,6 @@ r_to_z(bd)
 ```
 
 Apply Fisher's r-to-z transformation to each data element.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
 
 **Returns:**
 
@@ -8100,16 +8194,6 @@ regions(bd, *, min_region_size = 1350, method = 'local_regions', smoothing_fwhm 
 
 Extract brain connected regions into separate regions.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
-`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
-`is_mask` | <code>[bool](#bool)</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -8138,14 +8222,6 @@ Two scaling modes are available:
 When scale_val=100 (default), the result can be interpreted as something
 akin to (but not exactly) "percent signal change."
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`scale_val` |  | (int/float) Target value for the mean after scaling. Default 100. | <code>100.0</code>
-`axis` |  | (int or None) Axis along which to compute the mean. None for grand-mean scaling (default, FSL/SPM style). 0 for voxel-wise scaling (AFNI style, each voxel scaled by its own temporal mean). | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -8170,14 +8246,6 @@ similarity(bd, image, metric = 'correlation')
 
 Calculate similarity to a single BrainData or nibabel image.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`image` |  | (BrainData, nifti)  image to evaluate similarity | *required*
-`metric` |  | (str) Type of similarity     ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine'] | <code>'correlation'</code>
-
 **Returns:**
 
 Type | Description
@@ -8192,13 +8260,6 @@ smooth(bd, fwhm)
 
 Apply spatial smoothing using nilearn's ``smooth_img``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`fwhm` |  | (float) full width half maximum of gaussian spatial filter | *required*
-
 **Returns:**
 
 Type | Description
@@ -8212,15 +8273,6 @@ standardize(bd, *, axis = 0, method = 'center', suppress_warnings = False)
 ```
 
 Standardize BrainData() instance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
-`method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
-`suppress_warnings` |  | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: False) | <code>False</code>
 
 **Returns:**
 
@@ -8242,15 +8294,6 @@ This function can up- or down-sample data.
 
 Note: this function can use quite a bit of RAM.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`sampling_freq` |  | (float) sampling frequency of data in hertz (default: None) | <code>None</code>
-`target` |  | (float) upsampling target (default: None) | <code>None</code>
-`target_type` |  | (str) type of target can be [samples,seconds,hz] (default: 'hz') | <code>'hz'</code>
-
 **Returns:**
 
 Type | Description
@@ -8268,17 +8311,6 @@ Threshold BrainData instance with optional cluster filtering.
 Provide upper and lower values or percentages to perform two-sided
 thresholding. Binarize will return a mask image respecting thresholds
 if provided, otherwise respecting every non-zero value.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`bd` |  | BrainData instance. | *required*
-`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
-`coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s; default True | <code>True</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. If > 0, uses     nilearn.image.threshold_img with cluster filtering.     Band-pass filtering (both upper AND lower) not supported     with cluster thresholding. Default 0 (disabled). | <code>0</code>
 
 **Returns:**
 
@@ -8303,12 +8335,6 @@ transform_pairwise_data(bd)
 
 Transform BrainData into pairwise comparisons.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -8322,12 +8348,6 @@ z_to_r(bd)
 ```
 
 Convert z score back into r value for each element of data object.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
 
 **Returns:**
 
@@ -8375,6 +8395,15 @@ Name | Type | Description | Default
 `max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
+`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
+`return_dict` |  | (bool) If True, always return dict even for simple stats.         If False, return BrainData for simple stats (when save_boots=False) | <code>False</code>
 
 **Returns:**
 
@@ -8450,15 +8479,6 @@ Convert bootstrap results dictionary to BrainData format.
 
 Helper method to convert numpy arrays from bootstrap functions into
 BrainData objects or dicts of BrainData objects.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
-`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
-`return_dict` |  | (bool) If True, always return dict even for simple stats.         If False, return BrainData for simple stats (when save_boots=False) | <code>False</code>
 
 **Returns:**
 
@@ -8548,6 +8568,17 @@ Name | Type | Description | Default
 
 </details>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`cache_dir`](#data-cache-dir) |  | 
+`category` |  | 
+
+
+
+######### Attributes####
+
 **Methods:**
 
 Name | Description
@@ -8559,17 +8590,6 @@ Name | Description
 `list_keys` | List all cached keys in this category.
 [`load`](#data-load) | Load cached data.
 `save` | Save arrays to cache.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`cache_dir`](#data-cache-dir) |  | 
-`category` |  | 
-
-
-
-######### Attributes####
 
 (data-cache-dir)=
 ###### `cache_dir`
@@ -8597,6 +8617,47 @@ clear() -> int
 
 Clear all cached files in this category.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`key` | <code>[str](#str)</code> | Cache key | *required*
+`ext` | <code>[str](#str)</code> | File extension | <code>'.npz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`key` | <code>[str](#str)</code> | Cache key | *required*
+`ext` | <code>[str](#str)</code> | File extension (default: ".npz") | <code>'.npz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`key` | <code>[str](#str)</code> | Cache key | *required*
+`ext` | <code>[str](#str)</code> | File extension (default: ".npz") | <code>'.npz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`ext` | <code>[str](#str)</code> | File extension to match | <code>'.npz'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`key` | <code>[str](#str)</code> | Cache key | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`key` | <code>[str](#str)</code> | Cache key | *required*
+`compressed` | <code>[bool](#bool)</code> | If True, use compressed npz format (smaller but slower) | <code>True</code>
+`**arrays` |  | Named arrays to cache | <code>{}</code>
+
 **Returns:**
 
 Type | Description
@@ -8610,13 +8671,6 @@ delete(key: str, ext: str = '.npz') -> bool
 ```
 
 Delete a cached file.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`key` | <code>[str](#str)</code> | Cache key | *required*
-`ext` | <code>[str](#str)</code> | File extension | <code>'.npz'</code>
 
 **Returns:**
 
@@ -8632,13 +8686,6 @@ exists(key: str, ext: str = '.npz') -> bool
 
 Check if a cache key exists.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`key` | <code>[str](#str)</code> | Cache key | *required*
-`ext` | <code>[str](#str)</code> | File extension (default: ".npz") | <code>'.npz'</code>
-
 **Returns:**
 
 Type | Description
@@ -8652,13 +8699,6 @@ get_path(key: str, ext: str = '.npz') -> Path
 ```
 
 Get the file path for a cache key.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`key` | <code>[str](#str)</code> | Cache key | *required*
-`ext` | <code>[str](#str)</code> | File extension (default: ".npz") | <code>'.npz'</code>
 
 **Returns:**
 
@@ -8674,12 +8714,6 @@ list_keys(ext: str = '.npz') -> list[str]
 
 List all cached keys in this category.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`ext` | <code>[str](#str)</code> | File extension to match | <code>'.npz'</code>
-
 **Returns:**
 
 Type | Description
@@ -8694,12 +8728,6 @@ load(key: str) -> dict | None
 
 Load cached data.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`key` | <code>[str](#str)</code> | Cache key | *required*
-
 **Returns:**
 
 Type | Description
@@ -8713,14 +8741,6 @@ save(key: str, compressed: bool = True, **arrays: bool) -> Path
 ```
 
 Save arrays to cache.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`key` | <code>[str](#str)</code> | Cache key | *required*
-`compressed` | <code>[bool](#bool)</code> | If True, use compressed npz format (smaller but slower) | <code>True</code>
-`**arrays` |  | Named arrays to cache | <code>{}</code>
 
 **Returns:**
 
@@ -8746,6 +8766,12 @@ Clear the nltools cache.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `category` | <code>[str](#str) \| None</code> | If provided, only clear this category. Otherwise clear all. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`mask_img` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI image to hash (typically a binary mask) | *required*
 
 **Returns:**
 
@@ -8780,12 +8806,6 @@ Compute a stable hash for a NIfTI mask image.
 The hash is based on the mask's shape, affine transformation, and the
 actual voxel positions. This ensures that masks with the same shape but
 different voxel locations (or different affines) produce different hashes.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`mask_img` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI image to hash (typically a binary mask) | *required*
 
 **Returns:**
 
@@ -8852,26 +8872,6 @@ Name | Type | Description | Default
 `data_img` |  | nibabel Nifti1Image object | *required*
 `mask_img` |  | nibabel Nifti1Image object (mask) | *required*
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | True if spaces match (no resampling needed), False otherwise
-
-######## `detect_and_update_mask`
-
-```python
-detect_and_update_mask(bd, data_img)
-```
-
-Detect best matching template from data and update mask if mask was None.
-
-Also handles resampling if needed based on the resample kwarg.
-
-This function is called during data loading to auto-detect template when mask=None.
-After detecting or falling back to a template, it checks if resampling is needed
-and resamples the data_img accordingly.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -8879,41 +8879,11 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `data_img` |  | nibabel Nifti1Image object from which to detect template | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
- | nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
-
-######## `detect_space`
-
-```python
-detect_space(mask)
-```
-
-Detect if mask is in MNI space or native space.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `mask` |  | nibabel Nifti1Image object | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` |  | 'mni' if mask is MNI template, 'native' otherwise
-
-######## `get_interpolation`
-
-```python
-get_interpolation(bd, img)
-```
-
-Get the interpolation method to use for a given image.
-
-Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
 
 **Parameters:**
 
@@ -8921,20 +8891,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `img` |  | nibabel image to check (used when interpolation='auto') | *required*
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Interpolation method. When 'auto', resolves to 'nearest' or 'continuous' based on data type. Otherwise returns the instance's configured interpolation setting.
-
-######## `initialize_mask`
-
-```python
-initialize_mask(bd, mask)
-```
-
-Initialize the mask image.
 
 **Parameters:**
 
@@ -9052,20 +9008,6 @@ Name | Type | Description | Default
 `mask` |  | A ``nibabel.Nifti1Image`` boolean/binary mask. | *required*
 `imgs` |  | List of space-aligned ``nibabel`` images to mask. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
- | ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
-
-######## `resample_to`
-
-```python
-resample_to(bd, *, img = None, resolution = None, interpolation = None)
-```
-
-Resample BrainData to match target image or resolution.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -9075,41 +9017,11 @@ Name | Type | Description | Default
 `resolution` |  | Target voxel size in mm. Can be: - float/int: Isotropic resolution (e.g., 2.0 = 2mm^3) - None (if using img parameter) | <code>None</code>
 `interpolation` |  | Interpolation method for resampling. Can be: - None (default): Uses instance's interpolation setting - 'nearest': Nearest-neighbor (for atlases, masks, labels) - 'linear': Linear interpolation - 'continuous': Higher-order spline (for stat maps) | <code>None</code>
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New BrainData instance with resampled data
-
-######## `to_nifti`
-
-```python
-to_nifti(bd)
-```
-
-Convert BrainData instance to a nibabel NIfTI image.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
- | nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
-
-######## `upload_neurovault`
-
-```python
-upload_neurovault(bd, *, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
-```
-
-Upload data to NeuroVault.
-
-Adds any columns in bd.X to image metadata. Index will be used as image name.
 
 **Parameters:**
 
@@ -9122,20 +9034,6 @@ Name | Type | Description | Default
 `img_type` | <code>[str](#str)</code> | NeuroVault map type. Required. | <code>None</code>
 `img_modality` | <code>[str](#str)</code> | NeuroVault image modality. Required. | <code>None</code>
 `**kwargs` |  | Additional keyword arguments passed to the NeuroVault API. | <code>{}</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | NeuroVault collection information.
-
-######## `warn_if_resampling`
-
-```python
-warn_if_resampling(bd, context = '')
-```
-
-Warn about resampling if verbose=True and resample=True.
 
 **Parameters:**
 
@@ -9158,6 +9056,128 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `file_name` | <code>[str](#str) or [Path](#pathlib.Path)</code> | Output file path. Supports .nii/.nii.gz (NIfTI) and .h5/.hdf5 (HDF5) formats. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`bool` |  | True if spaces match (no resampling needed), False otherwise
+
+######## `detect_and_update_mask`
+
+```python
+detect_and_update_mask(bd, data_img)
+```
+
+Detect best matching template from data and update mask if mask was None.
+
+Also handles resampling if needed based on the resample kwarg.
+
+This function is called during data loading to auto-detect template when mask=None.
+After detecting or falling back to a template, it checks if resampling is needed
+and resamples the data_img accordingly.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
+
+######## `detect_space`
+
+```python
+detect_space(mask)
+```
+
+Detect if mask is in MNI space or native space.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`str` |  | 'mni' if mask is MNI template, 'native' otherwise
+
+######## `get_interpolation`
+
+```python
+get_interpolation(bd, img)
+```
+
+Get the interpolation method to use for a given image.
+
+Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`str` |  | Interpolation method. When 'auto', resolves to 'nearest' or 'continuous' based on data type. Otherwise returns the instance's configured interpolation setting.
+
+######## `initialize_mask`
+
+```python
+initialize_mask(bd, mask)
+```
+
+Initialize the mask image.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
+
+######## `resample_to`
+
+```python
+resample_to(bd, *, img = None, resolution = None, interpolation = None)
+```
+
+Resample BrainData to match target image or resolution.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BrainData` |  | New BrainData instance with resampled data
+
+######## `to_nifti`
+
+```python
+to_nifti(bd)
+```
+
+Convert BrainData instance to a nibabel NIfTI image.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
+
+######## `upload_neurovault`
+
+```python
+upload_neurovault(bd, *, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
+```
+
+Upload data to NeuroVault.
+
+Adds any columns in bd.X to image metadata. Index will be used as image name.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | NeuroVault collection information.
+
+######## `warn_if_resampling`
+
+```python
+warn_if_resampling(bd, context = '')
+```
+
+Warn about resampling if verbose=True and resample=True.
 
 ###### `modeling`
 
@@ -9210,54 +9230,6 @@ Name | Type | Description | Default
 `contrasts` |  | Can be:<br>- str: a contrast expressed in terms of column names, e.g.   ``"conditionA - conditionB"`` or ``"2*conditionA - conditionB - conditionC"`` - array-like: a numeric contrast vector, one weight per regressor   (e.g. ``[1, -1, 0, 0]``) - dict: ``{name: contrast}`` for multiple contrasts at once | *required*
 `statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of:<br>- ``"t"`` (default): t-statistic map (for thresholding /   single-subject inference) - ``"z"``: z-score map - ``"p"``: p-value map - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this   when feeding into a second-level (group) analysis - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``   of BrainData maps for this one contrast. One fit, one call,   every view — effect size *and* inferential maps together so   group-level code never has to recompute beta separately. | <code>'t'</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | Depends on inputs:<br>- single contrast (str or array) + scalar ``statistic``:   a single BrainData. - single contrast + ``statistic="all"``: a flat dict of five   BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. - dict of contrasts + scalar ``statistic``: a dict   ``{name: BrainData}``. - dict of contrasts + ``statistic="all"``: a nested dict   ``{name: {"beta", "t", "z", "p", "se"}}``.
-
-**Examples:**
-
-```pycon
->>> data.fit(model="glm", X=dm)
->>> # Single-subject t-map, ready to threshold
->>> tmap = data.compute_contrasts("conditionA - conditionB")
->>> # Effect-size map for use as input to a group-level analysis
->>> beta = data.compute_contrasts(
-...     "conditionA - conditionB", statistic="beta"
-... )
->>> # Everything at once: threshold on res["t"], feed group on res["beta"]
->>> res = data.compute_contrasts(
-...     "conditionA - conditionB", statistic="all"
-... )
->>> res["t"].plot(threshold=3.09)
->>> group_effects.append(res["beta"])
-```
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-- String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
-- Column names must match design matrix columns exactly (case-sensitive).
-- For group analysis, stack per-subject effect-size maps
-  (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``)
-  and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
-  t-maps into a group one-sample test conflates effect magnitude with precision.
-
-</details>
-
-######## `compute_ridge_cv`
-
-```python
-compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto')
-```
-
-Held-out CV scores under a fixed Ridge α.
-
-Used only for the *fixed-α* + CV branch — alpha selection is now
-handled by ``Ridge.fit`` (which delegates to ``solve_ridge_cv``) and
-assembled into ``cv_results_`` by ``_assemble_ridge_cv_results``.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -9267,24 +9239,6 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | *required*
 `alpha` | <code>[float](#float)</code> | Fixed regularization strength. If None, extracted from ``bd.model_.alpha``. | <code>None</code>
 `backend` | <code>[str](#str)</code> | Computational backend ('numpy', 'torch', 'auto'). Default: 'auto' | <code>'auto'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
-
-######## `fit`
-
-```python
-fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
-```
-
-Fit a model to brain imaging data.
-
-Creates and fits a model from string specification. The brain data
-(bd.data) is always used as the target variable. Model and results
-are stored for later use with predict().
 
 **Parameters:**
 
@@ -9303,60 +9257,6 @@ Name | Type | Description | Default
 `design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
 `design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, backend, random_state - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`model_` | <code>[BaseModel](#BaseModel)</code> | Fitted model instance (Ridge, Glm, etc.). Set on bd when ``inplace=True``.
-`X_` | <code>[ndarray](#ndarray)</code> | Training data X, stored for predict() default.
-`cv_results_` | <code>[dict](#dict)</code> | Cross-validation results dict with keys 'scores', 'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
-`glm_betas` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
-`glm_t` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
-`glm_p` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
-`glm_se` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
-`glm_residual` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
-`glm_predicted` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
-`glm_r2` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
-`ridge_weights` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
-`ridge_fitted_values` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
-`ridge_scores` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
-
-**Examples:**
-
-```pycon
->>> # Old behavior (backward compatible): mutate self
->>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
->>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
->>> weights = brain_data.ridge_weights  # Access as attribute
->>>
->>> # New behavior: return Fit dataclass (result attrs / data unchanged)
->>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
->>> assert isinstance(fit, Fit)
->>> assert 'weights' in fit.available()
->>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
->>> # (model_/X_ ARE updated on brain_data so predict() works)
->>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
->>>
->>> # GLM with Fit dataclass
->>> fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
->>> assert 'betas' in fit_glm.available()
->>> assert 't_stats' in fit_glm.available()
-```
-
-######## `fit_glm`
-
-```python
-fit_glm(bd, X)
-```
-
-Fit GLM model and extract results (same logic as current regress()).
 
 **Parameters:**
 
@@ -9413,6 +9313,162 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `contrast_str` | <code>[str](#str)</code> | Contrast string like "A - B" or "2*A - B - C" | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`model` | <code>[str](#str)</code> | ``'ridge'`` or ``'glm'``. | *required*
+`scale` | <code>[bool](#bool) or [auto](#auto)</code> | Requested scale flag. | *required*
+`standardize` | <code>str, None, or 'auto'</code> | Requested standardize method. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance. | *required*
+`model` | <code>[str](#str)</code> | Model type ('ridge' or 'glm') | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance (must contain multiple images). | *required*
+`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
+`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
+`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` |  | Random seed for reproducibility. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
+`other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
+`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`model_` | <code>[BaseModel](#BaseModel)</code> | Fitted model instance (Ridge, Glm, etc.). Set on bd when ``inplace=True``.
+`X_` | <code>[ndarray](#ndarray)</code> | Training data X, stored for predict() default.
+`cv_results_` | <code>[dict](#dict)</code> | Cross-validation results dict with keys 'scores', 'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
+`glm_betas` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Beta coefficients (for model='glm')
+`glm_t` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | T-statistics (for model='glm')
+`glm_p` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | P-values (for model='glm')
+`glm_se` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standard errors (for model='glm')
+`glm_residual` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Residuals (for model='glm')
+`glm_predicted` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='glm')
+`glm_r2` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared values (for model='glm')
+`ridge_weights` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
+`ridge_fitted_values` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
+`ridge_scores` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | Depends on inputs:<br>- single contrast (str or array) + scalar ``statistic``:   a single BrainData. - single contrast + ``statistic="all"``: a flat dict of five   BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. - dict of contrasts + scalar ``statistic``: a dict   ``{name: BrainData}``. - dict of contrasts + ``statistic="all"``: a nested dict   ``{name: {"beta", "t", "z", "p", "se"}}``.
+
+**Examples:**
+
+```pycon
+>>> data.fit(model="glm", X=dm)
+>>> # Single-subject t-map, ready to threshold
+>>> tmap = data.compute_contrasts("conditionA - conditionB")
+>>> # Effect-size map for use as input to a group-level analysis
+>>> beta = data.compute_contrasts(
+...     "conditionA - conditionB", statistic="beta"
+... )
+>>> # Everything at once: threshold on res["t"], feed group on res["beta"]
+>>> res = data.compute_contrasts(
+...     "conditionA - conditionB", statistic="all"
+... )
+>>> res["t"].plot(threshold=3.09)
+>>> group_effects.append(res["beta"])
+```
+
+<details class="notes" open markdown="1">
+<summary>Notes</summary>
+
+- String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
+- Column names must match design matrix columns exactly (case-sensitive).
+- For group analysis, stack per-subject effect-size maps
+  (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``)
+  and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
+  t-maps into a group one-sample test conflates effect magnitude with precision.
+
+</details>
+
+######## `compute_ridge_cv`
+
+```python
+compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto')
+```
+
+Held-out CV scores under a fixed Ridge α.
+
+Used only for the *fixed-α* + CV branch — alpha selection is now
+handled by ``Ridge.fit`` (which delegates to ``solve_ridge_cv``) and
+assembled into ``cv_results_`` by ``_assemble_ridge_cv_results``.
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
+
+######## `fit`
+
+```python
+fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+```
+
+Fit a model to brain imaging data.
+
+Creates and fits a model from string specification. The brain data
+(bd.data) is always used as the target variable. Model and results
+are stored for later use with predict().
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
+
+**Examples:**
+
+```pycon
+>>> # Old behavior (backward compatible): mutate self
+>>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+>>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
+>>> weights = brain_data.ridge_weights  # Access as attribute
+>>>
+>>> # New behavior: return Fit dataclass (result attrs / data unchanged)
+>>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
+>>> assert isinstance(fit, Fit)
+>>> assert 'weights' in fit.available()
+>>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
+>>> # (model_/X_ ARE updated on brain_data so predict() works)
+>>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
+>>>
+>>> # GLM with Fit dataclass
+>>> fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+>>> assert 'betas' in fit_glm.available()
+>>> assert 't_stats' in fit_glm.available()
+```
+
+######## `fit_glm`
+
+```python
+fit_glm(bd, X)
+```
+
+Fit GLM model and extract results (same logic as current regress()).
+
 **Returns:**
 
 Type | Description
@@ -9433,14 +9489,6 @@ is opt-in for both models. Ridge standardizes its targets by default so a
 shared alpha regularizes voxels fairly; GLM does neither so betas stay in
 native units.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`model` | <code>[str](#str)</code> | ``'ridge'`` or ``'glm'``. | *required*
-`scale` | <code>[bool](#bool) or [auto](#auto)</code> | Requested scale flag. | *required*
-`standardize` | <code>str, None, or 'auto'</code> | Requested standardize method. | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -9454,13 +9502,6 @@ to_fit_dataclass(bd, model)
 ```
 
 Convert BrainData fit results to Fit dataclass.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`model` | <code>[str](#str)</code> | Model type ('ridge' or 'glm') | *required*
 
 **Returns:**
 
@@ -9480,19 +9521,6 @@ For a BrainData stack of images (e.g. subject-level contrast maps with
 shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
 from ``popmean``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance (must contain multiple images). | *required*
-`popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
-`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -9508,14 +9536,6 @@ ttest2(bd, other, equal_var = True)
 ```
 
 Two-sample voxelwise t-test between two BrainData stacks.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
-`other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
-`equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
 
 **Returns:**
 
@@ -9681,6 +9701,22 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `voxel_idx` | <code>[int](#int)</code> | Index of the center voxel | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`voxel_idx` | <code>[int](#int)</code> | Index of the center voxel (0 to n_voxels-1) | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
+
+
+
+####### Functions##
+
 **Returns:**
 
 Type | Description
@@ -9694,12 +9730,6 @@ get_neighbors(voxel_idx: int) -> np.ndarray
 ```
 
 Get indices of all voxels in the neighborhood of a given voxel.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`voxel_idx` | <code>[int](#int)</code> | Index of the center voxel (0 to n_voxels-1) | *required*
 
 **Returns:**
 
@@ -9720,16 +9750,6 @@ Iterate over all neighborhoods.
 Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
-
-
-
-####### Functions##
 
 (data-compute-searchlight-neighborhoods)=
 ###### `compute_searchlight_neighborhoods`
@@ -9794,15 +9814,6 @@ For a typical 2mm MNI mask (~50k voxels) with 10mm radius:
 
 BrainData plotting functions.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`auto_select_colormap`](#data-auto-select-colormap) | Auto-select colormap based on data characteristics.
-`plot_brain` | Plot BrainData instance using nilearn visualization or matplotlib.
-`plot_flatmap_brain` | Plot brain data on cortical flatmap.
-`prepare_save_paths` | Prepare save paths for multiple plot outputs.
-
 **Attributes:**
 
 Name | Type | Description
@@ -9812,6 +9823,15 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`auto_select_colormap`](#data-auto-select-colormap) | Auto-select colormap based on data characteristics.
+`plot_brain` | Plot BrainData instance using nilearn visualization or matplotlib.
+`plot_flatmap_brain` | Plot brain data on cortical flatmap.
+`prepare_save_paths` | Prepare save paths for multiple plot outputs.
 
 (data-default-slice-cut-coords)=
 ###### `DEFAULT_SLICE_CUT_COORDS`
@@ -9839,20 +9859,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | numpy array of brain data | *required*
 
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Colormap name
-
-######## `plot_brain`
-
-```python
-plot_brain(bd, *, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
-```
-
-Plot BrainData instance using nilearn visualization or matplotlib.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -9874,25 +9880,6 @@ Name | Type | Description | Default
 `stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Valid options: 'mean', 'median', 'std'. | <code>'mean'</code>
 `limit` | <code>[int](#int)</code> | Maximum number of images to render when ``bd`` contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. A warning is emitted if the data has more images than ``limit``. Ignored for single-image data and for matplotlib-based methods (``"timeseries"``, ``"histogram"``), which already aggregate across images. | <code>3</code>
 `**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
- | single-image data, the figure object (last one created if
- | ``method="slices"`` produced multiple per-axis figures). For
- | multi-image data with ``method`` in ``{"glass", "slices"}``, a list
- | of figures (one per image for glass; one per image-and-view pair for
- | slices). All figures auto-display in notebooks.
-
-######## `plot_flatmap_brain`
-
-```python
-plot_flatmap_brain(bd, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
-```
-
-Plot brain data on cortical flatmap.
 
 **Parameters:**
 
@@ -9916,6 +9903,46 @@ Name | Type | Description | Default
 `axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
 `save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`save` |  | Base save path (str or Path) | *required*
+`idx` | <code>[int](#int)</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`str` |  | Colormap name
+
+######## `plot_brain`
+
+```python
+plot_brain(bd, *, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
+```
+
+Plot BrainData instance using nilearn visualization or matplotlib.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
+ | single-image data, the figure object (last one created if
+ | ``method="slices"`` produced multiple per-axis figures). For
+ | multi-image data with ``method`` in ``{"glass", "slices"}``, a list
+ | of figures (one per image for glass; one per image-and-view pair for
+ | slices). All figures auto-display in notebooks.
+
+######## `plot_flatmap_brain`
+
+```python
+plot_flatmap_brain(bd, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+```
+
+Plot brain data on cortical flatmap.
+
 **Returns:**
 
 Type | Description
@@ -9929,13 +9956,6 @@ prepare_save_paths(save, idx = None)
 ```
 
 Prepare save paths for multiple plot outputs.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`save` |  | Base save path (str or Path) | *required*
-`idx` | <code>[int](#int)</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
 
 **Returns:**
 
@@ -9953,6 +9973,16 @@ with fields populated based on dispatch. Mirrors `BrainData.fit` /
 `Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
 self with attributes, ``inplace=False`` returns the dataclass.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`VALID_SPATIAL_SCALES`](#data-valid-spatial-scales) |  | 
+
+
+
+####### Attributes##
+
 **Methods:**
 
 Name | Description
@@ -9963,16 +9993,6 @@ Name | Description
 `predict_timeseries` | Predict voxel timeseries from a fitted encoding model.
 `resolve_model` | Resolve a string shortcut or pass through a sklearn estimator.
 `resolve_scoring` | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`VALID_SPATIAL_SCALES`](#data-valid-spatial-scales) |  | 
-
-
-
-####### Attributes##
 
 (data-valid-spatial-scales)=
 ###### `VALID_SPATIAL_SCALES`
@@ -10090,6 +10110,29 @@ Name | Type | Description | Default
 `stat_func` |  | Callable accepting an array and an ``axis`` kwarg. | *required*
 `axis` |  | 0 = across images, 1 = within images. | <code>0</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | brain data | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance (left operand unless *reverse* is True). | *required*
+`other` |  | The other operand (scalar, BrainData, or array). | *required*
+`operation` |  | Numpy ufunc (e.g. ``np.add``, ``np.subtract``). | *required*
+`operation_name` |  | Human-readable name for error messages. | *required*
+`inplace` |  | If True, mutate *bd* in place. | <code>False</code>
+`reverse` |  | If True, reverse operand order (for ``__rsub__`` etc.). | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData instance to copy. | *required*
+
 **Returns:**
 
 Type | Description
@@ -10118,12 +10161,6 @@ check_brain_data_is_single(data)
 
 Logical test if BrainData instance is a single image.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` |  | brain data | *required*
-
 **Returns:**
 
 Type | Description
@@ -10137,17 +10174,6 @@ perform_arithmetic(bd, other, operation, operation_name, inplace = False, revers
 ```
 
 Perform an arithmetic operation with validation.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance (left operand unless *reverse* is True). | *required*
-`other` |  | The other operand (scalar, BrainData, or array). | *required*
-`operation` |  | Numpy ufunc (e.g. ``np.add``, ``np.subtract``). | *required*
-`operation_name` |  | Human-readable name for error messages. | *required*
-`inplace` |  | If True, mutate *bd* in place. | <code>False</code>
-`reverse` |  | If True, reverse operand order (for ``__rsub__`` etc.). | <code>False</code>
 
 **Returns:**
 
@@ -10166,12 +10192,6 @@ Create a shallow copy of a BrainData for efficient method chaining.
 Creates a new BrainData instance that shares immutable objects (mask)
 but copies mutable attributes.  The data array is NOT copied — callers
 should handle data copying as needed.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance to copy. | *required*
 
 **Returns:**
 
@@ -10234,6 +10254,41 @@ Name | Type | Description | Default
 `other` |  | The operand to validate. | *required*
 `operation_name` |  | Name of operation (e.g., 'add', 'multiply'). | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain1` |  | First BrainData object. | *required*
+`brain2` |  | Second BrainData object. | *required*
+`operation` |  | Name of operation for error messages. | <code>'operation'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | Input data to validate. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`frame` |  | Input to validate. Can be ``None``, a ``str``/``Path`` pointing to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array. | *required*
+`data_shape` |  | Optional tuple of data shape to validate row count against. | <code>None</code>
+`frame_type` |  | Type of frame for error messages (e.g., "X", "Y"). | <code>'DataFrame'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data_shape` |  | Shape of the data array. | *required*
+`index` |  | Index to validate. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data_list` |  | List to validate. | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -10248,14 +10303,6 @@ validate_brain_data_shapes(brain1, brain2, operation = 'operation')
 
 Validate shape compatibility between two BrainData objects.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain1` |  | First BrainData object. | *required*
-`brain2` |  | Second BrainData object. | *required*
-`operation` |  | Name of operation for error messages. | <code>'operation'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -10269,12 +10316,6 @@ validate_data_type(data)
 ```
 
 Validate input data type for BrainData initialization.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` |  | Input data to validate. | *required*
 
 **Returns:**
 
@@ -10293,14 +10334,6 @@ Validate and process X or Y dataframes for BrainData.
 Accepts pandas DataFrames for user convenience but always returns a
 polars DataFrame. Internal BrainData state should be polars-only.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`frame` |  | Input to validate. Can be ``None``, a ``str``/``Path`` pointing to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array. | *required*
-`data_shape` |  | Optional tuple of data shape to validate row count against. | <code>None</code>
-`frame_type` |  | Type of frame for error messages (e.g., "X", "Y"). | <code>'DataFrame'</code>
-
 **Returns:**
 
 Type | Description
@@ -10316,13 +10349,6 @@ validate_index_operations(data_shape, index)
 
 Validate indexing operations for BrainData.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data_shape` |  | Shape of the data array. | *required*
-`index` |  | Index to validate. | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -10336,12 +10362,6 @@ validate_list_data(data_list)
 ```
 
 Validate that all items in a list are the same type.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data_list` |  | List to validate. | *required*
 
 **Returns:**
 
@@ -10416,6 +10436,83 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `atlas` | <code>[Atlas](#nltools.data.atlases.Atlas)</code> | A loaded deterministic `Atlas`. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | A BrainData (3D for a single map, 4D for a stack). | *required*
+`name` | <code>[str](#str)</code> | Volume name (shown in the colorbar / legend). | *required*
+`cmap` | <code>[str](#str)</code> | Resolved niivue positive colormap. | *required*
+`cmap_negative` | <code>[str](#str)</code> | niivue colormap for negative values. | *required*
+`cal_min` | <code>[float](#float) \| None</code> | Window floor, or ``None`` for niivue auto. | *required*
+`cal_max` | <code>[float](#float) \| None</code> | Window ceiling, or ``None`` for niivue auto. | *required*
+`opacity` | <code>[float](#float)</code> | Volume opacity in ``0..1``. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`nv` | <code>[NiiVue](#ipyniivue.NiiVue)</code> | The assembled viewer (from `build_viewer`). | *required*
+`bd` |  | The BrainData being viewed (source of the slider range). | *required*
+`cal_min` | <code>[float](#float) \| None</code> | Window floor the caller requested, or ``None`` for auto. | *required*
+`cal_max` | <code>[float](#float) \| None</code> | Window ceiling the caller requested, or ``None`` for auto. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | BrainData to view. | *required*
+`view` | <code>[str](#str)</code> | See `slice_type_for`. | <code>'ortho'</code>
+`cal_min` | <code>[float](#float) \| None</code> | Window floor (threshold), or ``None`` for auto. | <code>None</code>
+`cal_max` | <code>[float](#float) \| None</code> | Window ceiling, or ``None`` for auto. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Positive colormap (niivue or matplotlib name). | <code>'warm'</code>
+`atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas name, `Atlas`, or ``None``. | <code>None</code>
+`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | See `resolve_background`. | <code>None</code>
+`opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity. | <code>1.0</code>
+`outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width; ``0`` draws filled regions. | <code>0.0</code>
+`colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (the ``cmap`` scale). Only the stat map carries a colorbar; the background and atlas overlays are suppressed. An explicit ``is_colorbar`` in ``niivue_opts`` wins. | <code>True</code>
+`niivue_opts` | <code>[dict](#dict) \| None</code> | Extra kwargs forwarded verbatim to ``NiiVue(**opts)``. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`cmap` | <code>[str](#str)</code> | A (resolved) niivue positive colormap name. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n` | <code>[int](#int)</code> | Number of colors to generate. | *required*
+`seed` | <code>[int](#int)</code> | Rotates the starting hue; deterministic for a given seed. | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`affine` |  | 4x4 affine of the BrainData (``bd.mask.affine``), used to decide whether auto-MNI applies. | *required*
+`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``False`` → no background; a string/path → used as-is; ``None``/``True`` (auto) → the matching MNI template when the affine is standard space, else ``None``. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`name` | <code>[str](#str)</code> | A niivue or matplotlib colormap name (case-insensitive). | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`view` | <code>[str](#str)</code> | One of ``"ortho"``, ``"axial"``, ``"coronal"``, ``"sagittal"``, ``"render"``. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` |  | The BrainData being viewed. | *required*
+`cal_min` | <code>[float](#float) \| None</code> | Requested window floor, or ``None``. | *required*
+`cal_max` | <code>[float](#float) \| None</code> | Requested window ceiling, or ``None``. | *required*
+
 **Returns:**
 
 Type | Description
@@ -10438,18 +10535,6 @@ re-render. Thresholding is the divergent magnitude window
 side mirrors it via ``cmap_negative``. ``cal_min`` is the display floor;
 because niivue's overlay colormaps ramp alpha to 0 at the floor,
 sub-floor voxels render transparent (true thresholding).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | A BrainData (3D for a single map, 4D for a stack). | *required*
-`name` | <code>[str](#str)</code> | Volume name (shown in the colorbar / legend). | *required*
-`cmap` | <code>[str](#str)</code> | Resolved niivue positive colormap. | *required*
-`cmap_negative` | <code>[str](#str)</code> | niivue colormap for negative values. | *required*
-`cal_min` | <code>[float](#float) \| None</code> | Window floor, or ``None`` for niivue auto. | *required*
-`cal_max` | <code>[float](#float) \| None</code> | Window ceiling, or ``None`` for niivue auto. | *required*
-`opacity` | <code>[float](#float)</code> | Volume opacity in ``0..1``. | *required*
 
 **Returns:**
 
@@ -10474,15 +10559,6 @@ The niivue widget is exposed as ``.viewer`` and the slider as
 When the caller passed no ``cal_min``/``cal_max``, the volume window is
 left on niivue auto until the slider is first moved, so the default
 display matches ``controls=False``.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`nv` | <code>[NiiVue](#ipyniivue.NiiVue)</code> | The assembled viewer (from `build_viewer`). | *required*
-`bd` |  | The BrainData being viewed (source of the slider range). | *required*
-`cal_min` | <code>[float](#float) \| None</code> | Window floor the caller requested, or ``None`` for auto. | *required*
-`cal_max` | <code>[float](#float) \| None</code> | Window ceiling the caller requested, or ``None`` for auto. | *required*
 
 **Returns:**
 
@@ -10510,22 +10586,6 @@ Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
 so its outlines/opacity keep the stat map readable), loads it, applies
 the atlas label LUT / outline, and sets the slice type.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData to view. | *required*
-`view` | <code>[str](#str)</code> | See `slice_type_for`. | <code>'ortho'</code>
-`cal_min` | <code>[float](#float) \| None</code> | Window floor (threshold), or ``None`` for auto. | <code>None</code>
-`cal_max` | <code>[float](#float) \| None</code> | Window ceiling, or ``None`` for auto. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Positive colormap (niivue or matplotlib name). | <code>'warm'</code>
-`atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas name, `Atlas`, or ``None``. | <code>None</code>
-`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | See `resolve_background`. | <code>None</code>
-`opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity. | <code>1.0</code>
-`outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width; ``0`` draws filled regions. | <code>0.0</code>
-`colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (the ``cmap`` scale). Only the stat map carries a colorbar; the background and atlas overlays are suppressed. An explicit ``is_colorbar`` in ``niivue_opts`` wins. | <code>True</code>
-`niivue_opts` | <code>[dict](#dict) \| None</code> | Extra kwargs forwarded verbatim to ``NiiVue(**opts)``. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -10539,12 +10599,6 @@ divergent_partner(cmap: str) -> str
 ```
 
 Return the ``colormap_negative`` partner for a positive colormap.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`cmap` | <code>[str](#str)</code> | A (resolved) niivue positive colormap name. | *required*
 
 **Returns:**
 
@@ -10564,13 +10618,6 @@ Hues are spaced by the golden angle for maximal separation; saturation
 and value cycle through three bands so adjacent indices stay visually
 distinct. Atlases carry no color data, so this assigns region colors.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n` | <code>[int](#int)</code> | Number of colors to generate. | *required*
-`seed` | <code>[int](#int)</code> | Rotates the starting hue; deterministic for a given seed. | <code>0</code>
-
 **Returns:**
 
 Type | Description
@@ -10584,13 +10631,6 @@ resolve_background(affine, bg_img: str | bool | None) -> str | None
 ```
 
 Resolve the ``bg_img`` argument to a background-image path or ``None``.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`affine` |  | 4x4 affine of the BrainData (``bd.mask.affine``), used to decide whether auto-MNI applies. | *required*
-`bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``False`` → no background; a string/path → used as-is; ``None``/``True`` (auto) → the matching MNI template when the affine is standard space, else ``None``. | *required*
 
 **Returns:**
 
@@ -10621,12 +10661,6 @@ the closest niivue equivalent (with a warning, since the mapping is
 lossy). Anything else falls back to ``"warm"`` with a warning, because
 niivue renders unknown colormaps as flat gray with no error.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`name` | <code>[str](#str)</code> | A niivue or matplotlib colormap name (case-insensitive). | *required*
-
 **Returns:**
 
 Type | Description
@@ -10640,12 +10674,6 @@ slice_type_for(view: str) -> SliceType
 ```
 
 Map a ``view`` string to a niivue `SliceType`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`view` | <code>[str](#str)</code> | One of ``"ortho"``, ``"axial"``, ``"coronal"``, ``"sagittal"``, ``"render"``. | *required*
 
 **Returns:**
 
@@ -10665,14 +10693,6 @@ The slider spans the BrainData's finite value range, widened as needed to
 include an explicit ``cal_min``/``cal_max`` so the requested window is
 always representable (never silently clamped). Its initial handles sit at
 ``cal_min``/``cal_max`` when given, else at the data extremes.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | The BrainData being viewed. | *required*
-`cal_min` | <code>[float](#float) \| None</code> | Requested window floor, or ``None``. | *required*
-`cal_max` | <code>[float](#float) \| None</code> | Requested window ceiling, or ``None``. | *required*
 
 **Returns:**
 
@@ -10698,6 +10718,22 @@ BrainCollection — multi-subject brain-data container (v0.6.0).
 
 See ``SPEC.md`` for the full design contract.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
+
+
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`BrainCollection`](#data-braincollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
+[`BrainCollectionPipeline`](#data-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
+[`BrainCollectionWorkerError`](#data-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
+
 **Modules:**
 
 Name | Description
@@ -10708,20 +10744,6 @@ Name | Description
 [`io`](#data-io) | IO and constructors for BrainCollection.
 [`pipeline`](#data-pipeline) | Pipeline classes for BrainCollection.
 [`pipesteps`](#data-pipesteps) | Low-level pipeline primitives used by `BrainCollection`.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`BrainCollection`](#data-braincollection) | Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
-[`BrainCollectionPipeline`](#data-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
-[`BrainCollectionWorkerError`](#data-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
 
 ##### Classes
 
@@ -10758,6 +10780,27 @@ Internal state (mutable list at top level; per-item slots are parallel):
                                                 that produced these items
   _source_paths   list[Path | None]             per-item backing path
                                                 (None for in-memory only)
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
+`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
+`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
+`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
+`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
+`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+
+``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
+``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
+Resolved at construction and frozen on the instance.
+
+
+
+####### Attributes##
 
 **Methods:**
 
@@ -10804,27 +10847,6 @@ Name | Description
 [`unload`](#data-unload) | Drop in-memory data for items with backing paths. Returns ``self``.
 [`var`](#data-var) | Voxelwise variance across subjects as a single `BrainData`.
 [`write`](#data-write) | Write a clean, portable copy of the collection outside the cache root.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`cache_root`](#data-cache-root) | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
-`designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
-`is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
-`metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
-`n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
-`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
-
-``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
-``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
-Resolved at construction and frozen on the instance.
-
-
-
-####### Attributes##
 
 (data-cache-root)=
 ###### `cache_root`
@@ -10924,6 +10946,127 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
 `cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | A metadata column name, or a list/ndarray of length ``n_subjects`` giving each subject's group label. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`pattern` | <code>[str](#str)</code> | Glob pattern matching the per-subject brain image files. | *required*
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask image, path, or nltools template name. | *required*
+`design_pattern` | <code>[str](#str) \| None</code> | Optional glob matching per-subject design files, paired positionally with the brain images. | <code>None</code>
+`pattern_groups` | <code>[dict](#dict)[[str](#str), [int](#int)] \| [str](#str) \| None</code> | Regex capture-group spec used to extract metadata (e.g. subject/run) from each matched path. | <code>None</code>
+`sort` | <code>[bool](#bool)</code> | If True, sort matched paths before pairing (stable ordering). | <code>True</code>
+`cache_dir` | <code>[Path](#pathlib.Path) \| [str](#str) \| None</code> | Cache-directory precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a temp dir. | <code>'./.nltools_cache'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_paths` | <code>[list](#list)</code> | Per-subject brain image paths. | *required*
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask image, path, or nltools template name. | *required*
+`design_paths` | <code>[list](#list) \| None</code> | Optional per-subject design paths, aligned positionally with ``brain_paths`` (length must match, ``None`` entries allowed). | <code>None</code>
+`metadata` | <code>[DataFrame](#polars.DataFrame) \| [DataFrame](#pandas.DataFrame) \| [dict](#dict) \| None</code> | Optional per-subject metadata (polars/pandas DataFrame or dict-of-columns), one row per path. | <code>None</code>
+`cache_dir` | <code>[Path](#pathlib.Path) \| [str](#str) \| None</code> | Cache-directory precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a temp dir. | <code>'./.nltools_cache'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all subject pairs). | <code>'loo'</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
+`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | ``'loo'`` or ``'pairwise'`` (matches `isc`). | <code>'loo'</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
+`n_samples` | <code>[int](#int)</code> | Number of bootstrap resamples. | <code>5000</code>
+`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for the bootstrap RNG. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_permute` | <code>[int](#int)</code> | Number of sign-flip permutations. | <code>5000</code>
+`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
+`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
+`return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
+`n_permute` | <code>[int](#int)</code> | Number of label-shuffle permutations. | <code>5000</code>
+`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
+`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
+`return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`target` |  | Resampling target (image, affine/shape spec, or template) passed through to `BrainData.resample`. | *required*
+`interpolation` | <code>[str](#str)</code> | Interpolation method (``'continuous'``, ``'linear'``, ``'nearest'``). | <code>'continuous'</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` | <code>[int](#int)</code> | Axis along which to standardize (0 = across observations). | <code>0</code>
+`method` | <code>[str](#str)</code> | Standardization variant (e.g. ``'center'``, ``'zscore'``). | <code>'center'</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`lower` | <code>[float](#float) \| None</code> | Values below this are zeroed (or set NaN); ``None`` disables. | <code>None</code>
+`upper` | <code>[float](#float) \| None</code> | Values above this are zeroed (or set NaN); ``None`` disables. | <code>None</code>
+`binarize` | <code>[bool](#bool)</code> | If True, set surviving voxels to 1. | <code>False</code>
+`coerce_nan` | <code>[bool](#bool)</code> | If True, coerce thresholded-out voxels to NaN instead of 0. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`popmean` | <code>[float](#float)</code> | Null-hypothesis population mean to test against. | <code>0.0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
+`equal_var` | <code>[bool](#bool)</code> | If True, pooled-variance t-test; if False, Welch's test. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`directory` | <code>[Path](#pathlib.Path) \| [str](#str)</code> | Output directory (created if missing). | *required*
+`pattern` | <code>[str](#str)</code> | Filename template per item, formatted with ``i`` (item index). | <code>'image_{i:04d}.nii.gz'</code>
+`metadata_file` | <code>[str](#str) \| None</code> | CSV filename for the metadata table, or ``None`` to skip. | <code>'metadata.csv'</code>
+
 **Returns:**
 
 Type | Description
@@ -10939,12 +11082,6 @@ anova(groups: str | list | np.ndarray) -> dict
 ```
 
 One-way ANOVA across subjects grouped by ``groups``.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | A metadata column name, or a list/ndarray of length ``n_subjects`` giving each subject's group label. | *required*
 
 **Returns:**
 
@@ -11078,17 +11215,6 @@ from_glob(pattern: str, *, mask: nib.Nifti1Image | Path | str, design_pattern: s
 
 Build a collection by glob-matching brain images (and optional designs).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`pattern` | <code>[str](#str)</code> | Glob pattern matching the per-subject brain image files. | *required*
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask image, path, or nltools template name. | *required*
-`design_pattern` | <code>[str](#str) \| None</code> | Optional glob matching per-subject design files, paired positionally with the brain images. | <code>None</code>
-`pattern_groups` | <code>[dict](#dict)[[str](#str), [int](#int)] \| [str](#str) \| None</code> | Regex capture-group spec used to extract metadata (e.g. subject/run) from each matched path. | <code>None</code>
-`sort` | <code>[bool](#bool)</code> | If True, sort matched paths before pairing (stable ordering). | <code>True</code>
-`cache_dir` | <code>[Path](#pathlib.Path) \| [str](#str) \| None</code> | Cache-directory precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a temp dir. | <code>'./.nltools_cache'</code>
-
 **Returns:**
 
 Type | Description
@@ -11103,16 +11229,6 @@ from_paths(brain_paths: list, *, mask: nib.Nifti1Image | Path | str, design_path
 
 Build a collection from explicit lists of brain (and design) paths.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_paths` | <code>[list](#list)</code> | Per-subject brain image paths. | *required*
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str)</code> | Shared mask image, path, or nltools template name. | *required*
-`design_paths` | <code>[list](#list) \| None</code> | Optional per-subject design paths, aligned positionally with ``brain_paths`` (length must match, ``None`` entries allowed). | <code>None</code>
-`metadata` | <code>[DataFrame](#polars.DataFrame) \| [DataFrame](#pandas.DataFrame) \| [dict](#dict) \| None</code> | Optional per-subject metadata (polars/pandas DataFrame or dict-of-columns), one row per path. | <code>None</code>
-`cache_dir` | <code>[Path](#pathlib.Path) \| [str](#str) \| None</code> | Cache-directory precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a temp dir. | <code>'./.nltools_cache'</code>
-
 **Returns:**
 
 Type | Description
@@ -11126,14 +11242,6 @@ isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None
 ```
 
 Inter-subject correlation (ISC) across the time dimension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all subject pairs). | <code>'loo'</code>
-`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
-`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
 
 **Returns:**
 
@@ -11153,16 +11261,6 @@ Bootstrap inference on ISC (per-voxel p-values).
 
 Resamples subjects with replacement, recomputes ISC each draw, and
 derives a per-voxel two-tailed p-value from the null centered at 0.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | ``'loo'`` or ``'pairwise'`` (matches `isc`). | <code>'loo'</code>
-`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
-`n_samples` | <code>[int](#int)</code> | Number of bootstrap resamples. | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
-`random_state` | <code>[int](#int) \| None</code> | Seed for the bootstrap RNG. | <code>None</code>
 
 **Returns:**
 
@@ -11251,17 +11349,6 @@ permutation_test(*, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', r
 
 One-sample sign-flipping permutation test across subjects.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_permute` | <code>[int](#int)</code> | Number of sign-flip permutations. | <code>5000</code>
-`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
-`return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -11278,18 +11365,6 @@ permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int = 
 Two-sample permutation test between this collection and ``other``.
 
 Uses random label shuffling of the pooled subjects.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
-`n_permute` | <code>[int](#int)</code> | Number of label-shuffle permutations. | <code>5000</code>
-`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
-`return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
 
 **Returns:**
 
@@ -11331,16 +11406,6 @@ Resample every subject's image to a target space in parallel.
 
 Delegates to `BrainData.resample`.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`target` |  | Resampling target (image, affine/shape spec, or template) passed through to `BrainData.resample`. | *required*
-`interpolation` | <code>[str](#str)</code> | Interpolation method (``'continuous'``, ``'linear'``, ``'nearest'``). | <code>'continuous'</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
-`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
-
 **Returns:**
 
 Type | Description
@@ -11362,16 +11427,6 @@ standardize(*, axis: int = 0, method: str = 'center', n_jobs: int = -1, progress
 ```
 
 Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` | <code>[int](#int)</code> | Axis along which to standardize (0 = across observations). | <code>0</code>
-`method` | <code>[str](#str)</code> | Standardization variant (e.g. ``'center'``, ``'zscore'``). | <code>'center'</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
-`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
 
 **Returns:**
 
@@ -11415,18 +11470,6 @@ threshold(*, lower: float | None = None, upper: float | None = None, binarize: b
 
 Threshold every subject's image in parallel (delegates to `BrainData.threshold`).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`lower` | <code>[float](#float) \| None</code> | Values below this are zeroed (or set NaN); ``None`` disables. | <code>None</code>
-`upper` | <code>[float](#float) \| None</code> | Values above this are zeroed (or set NaN); ``None`` disables. | <code>None</code>
-`binarize` | <code>[bool](#bool)</code> | If True, set surviving voxels to 1. | <code>False</code>
-`coerce_nan` | <code>[bool](#bool)</code> | If True, coerce thresholded-out voxels to NaN instead of 0. | <code>True</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
-`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
-
 **Returns:**
 
 Type | Description
@@ -11453,12 +11496,6 @@ ttest(*, popmean: float = 0.0) -> dict
 
 One-sample t-test across subjects (delegates to `inference.ttest`).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`popmean` | <code>[float](#float)</code> | Null-hypothesis population mean to test against. | <code>0.0</code>
-
 **Returns:**
 
 Type | Description
@@ -11472,13 +11509,6 @@ ttest2(other: BrainCollection, *, equal_var: bool = True) -> dict
 ```
 
 Two-sample t-test between this collection and ``other`` (subject-level).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
-`equal_var` | <code>[bool](#bool)</code> | If True, pooled-variance t-test; if False, Welch's test. | <code>True</code>
 
 **Returns:**
 
@@ -11515,14 +11545,6 @@ Inverse of `BrainCollection.read`. Writes one NIfTI per item plus an
 optional metadata CSV, skipping the internal cache layout so the result
 is shareable/archival.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`directory` | <code>[Path](#pathlib.Path) \| [str](#str)</code> | Output directory (created if missing). | *required*
-`pattern` | <code>[str](#str)</code> | Filename template per item, formatted with ``i`` (item index). | <code>'image_{i:04d}.nii.gz'</code>
-`metadata_file` | <code>[str](#str) \| None</code> | CSV filename for the metadata table, or ``None`` to skip. | <code>'metadata.csv'</code>
-
 **Returns:**
 
 Type | Description
@@ -11545,6 +11567,18 @@ This class enables method chaining for preprocessing and prediction
 with proper cross-validation semantics for multi-subject neuroimaging
 analyses.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
+
+
+
+####### Attributes##
+
 **Attributes:**
 
 Name | Type | Description
@@ -11552,6 +11586,15 @@ Name | Type | Description
 `n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
 [`cv`](#data-cv) |  | The cross-validation scheme configuration.
 `n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-pipe) | Add custom sklearn transformer.
+[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
+`reduce` | Add dimensionality reduction step.
+[`standardize`](#data-standardize) | Add standardization step.
 
 **Examples:**
 
@@ -11564,27 +11607,6 @@ Name | Type | Description
 ...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`pipe`](#data-pipe) | Add custom sklearn transformer.
-[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
-`reduce` | Add dimensionality reduction step.
-[`standardize`](#data-standardize) | Add standardization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
-`cv` |  | CVScheme configuration. | <code>None</code>
-`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
-
-
-
-####### Attributes##
 
 ###### `cv`
 
@@ -11629,6 +11651,31 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `transformer` |  | sklearn-compatible transformer with fit/transform interface. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
+`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
+`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
+`**kwargs` |  | Passed to model constructor. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
+`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
+`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+
 **Returns:**
 
 Type | Description
@@ -11642,16 +11689,6 @@ predict(y, method: str = 'ridge', *, n_permute: int = 0, random_state: int = Non
 ```
 
 Execute pipeline with CV and return prediction results.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
-`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
-`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
-`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
-`**kwargs` |  | Passed to model constructor. | <code>{}</code>
 
 **Returns:**
 
@@ -11670,14 +11707,6 @@ reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | Non
 
 Add dimensionality reduction step.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
-`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
-`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
-
 **Returns:**
 
 Type | Description
@@ -11691,13 +11720,6 @@ standardize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
 ```
 
 Add standardization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
-`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
 
 **Returns:**
 
@@ -11817,6 +11839,16 @@ single parallel primitive (``_apply``), the worker-error type, and the
 HDF5 fit-bundle IO. Every per-subject method on ``BrainCollection`` routes
 through ``_apply`` here.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
+
+
+
+####### Attributes##
+
 **Classes:**
 
 Name | Description
@@ -11832,16 +11864,6 @@ Name | Description
 `read_ridge_bundle` | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 `write_glm_bundle` | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 `write_ridge_bundle` | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`BUNDLE_SCHEMA_VERSION`](#data-bundle-schema-version) |  | 
-
-
-
-####### Attributes##
 
 (data-bundle-schema-version)=
 ###### `BUNDLE_SCHEMA_VERSION`
@@ -12341,6 +12363,18 @@ This class enables method chaining for preprocessing and prediction
 with proper cross-validation semantics for multi-subject neuroimaging
 analyses.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
+
+
+
+######### Attributes####
+
 **Attributes:**
 
 Name | Type | Description
@@ -12348,6 +12382,15 @@ Name | Type | Description
 `n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
 [`cv`](#data-cv) |  | The cross-validation scheme configuration.
 `n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-pipe) | Add custom sklearn transformer.
+[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
+`reduce` | Add dimensionality reduction step.
+[`standardize`](#data-standardize) | Add standardization step.
 
 **Examples:**
 
@@ -12360,27 +12403,6 @@ Name | Type | Description
 ...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`pipe`](#data-pipe) | Add custom sklearn transformer.
-[`predict`](#data-predict) | Execute pipeline with CV and return prediction results.
-`reduce` | Add dimensionality reduction step.
-[`standardize`](#data-standardize) | Add standardization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
-`cv` |  | CVScheme configuration. | <code>None</code>
-`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
-
-
-
-######### Attributes####
 
 ###### `cv`
 
@@ -12424,6 +12446,31 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `transformer` |  | sklearn-compatible transformer with fit/transform interface. | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
+`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
+`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
+`**kwargs` |  | Passed to model constructor. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
+`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
+`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
+`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
+
 **Returns:**
 
 Type | Description
@@ -12437,16 +12484,6 @@ predict(y, method: str = 'ridge', *, n_permute: int = 0, random_state: int = Non
 ```
 
 Execute pipeline with CV and return prediction results.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
-`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
-`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
-`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
-`**kwargs` |  | Passed to model constructor. | <code>{}</code>
 
 **Returns:**
 
@@ -12465,14 +12502,6 @@ reduce(method: str = 'pca', n_components: int | None = None, **kwargs: int | Non
 
 Add dimensionality reduction step.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Reduction method ('pca', 'ica'). | <code>'pca'</code>
-`n_components` | <code>[int](#int) \| None</code> | Number of components to keep. | <code>None</code>
-`**kwargs` |  | Additional arguments for ReduceStep. | <code>{}</code>
-
 **Returns:**
 
 Type | Description
@@ -12486,13 +12515,6 @@ standardize(method: str = 'zscore', **kwargs: str) -> BrainCollectionPipeline
 ```
 
 Add standardization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Standardization method ('zscore', 'minmax'). | <code>'zscore'</code>
-`**kwargs` |  | Additional arguments for NormalizeStep. | <code>{}</code>
 
 **Returns:**
 
@@ -12514,14 +12536,6 @@ now lives on `BrainCollection` (`.cv().standardize().reduce().predict()`) and
 custom single-dataset preprocessing uses `model=make_pipeline(...)` on
 `BrainData.predict`.
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`base`](#data-base) | Low-level pipeline primitives for nltools.
-[`cv`](#data-cv) | Cross-validation scheme configuration for nltools pipelines.
-[`steps`](#data-steps) | Transform steps for nltools pipelines.
-
 **Classes:**
 
 Name | Description
@@ -12537,6 +12551,14 @@ Name | Description
 
 
 ####### Classes##
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`base`](#data-base) | Low-level pipeline primitives for nltools.
+[`cv`](#data-cv) | Cross-validation scheme configuration for nltools pipelines.
+[`steps`](#data-steps) | Transform steps for nltools pipelines.
 
 (data-cvscheme)=
 ###### `CVScheme`
@@ -12567,6 +12589,29 @@ Name | Type | Description | Default
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_loro`](#data-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
+
+
+
+######### Attributes####
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`n_splits`](#data-n-splits) | Return number of splits.
+`split` | Generate train/test indices for each fold.
+
 **Examples:**
 
 ```pycon
@@ -12588,29 +12633,6 @@ Name | Type | Description | Default
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`n_splits`](#data-n-splits) | Return number of splits.
-`split` | Generate train/test indices for each fold.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`is_loro`](#data-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-`k` | <code>[int](#int) \| None</code> | 
-`n` | <code>[int](#int)</code> | 
-`random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
-`split_by` | <code>[str](#str) \| None</code> | 
-
-
-
-######### Attributes####
 
 (data-is-loro)=
 ###### `is_loro`
@@ -12691,43 +12713,12 @@ Name | Type | Description | Default
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[int](#int)</code> | Number of splits/folds that will be generated.
-
-########## `split`
-
-```python
-split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
-```
-
-Generate train/test indices for each fold.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
-
-**Yields:**
-
-Type | Description
----- | -----------
-<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
-
-######## `FittedStack`
-
-```python
-FittedStack(steps: list[FittedTransform] = list()) -> None
-```
-
-Collection of fitted transforms for inverse transform support.
-
-Maintains the sequence of fitted transforms from a pipeline execution,
-enabling inverse transformation back to the original data space.
 
 **Attributes:**
 
@@ -12751,6 +12742,37 @@ Name | Description
 
 
 ######### Attributes####
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[int](#int)</code> | Number of splits/folds that will be generated.
+
+########## `split`
+
+```python
+split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]
+```
+
+Generate train/test indices for each fold.
+
+**Yields:**
+
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
+
+######## `FittedStack`
+
+```python
+FittedStack(steps: list[FittedTransform] = list()) -> None
+```
+
+Collection of fitted transforms for inverse transform support.
+
+Maintains the sequence of fitted transforms from a pipeline execution,
+enabling inverse transformation back to the original data space.
 
 (data-is-fully-invertible)=
 ###### `is_fully_invertible`
@@ -12805,6 +12827,17 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to inverse transform. | *required*
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`inverse_transform`](#data-inverse-transform) | Apply the inverse transformation to data.
+`transform` | Apply the learned transformation to data.
+
+
+
+######### Functions####
+
 **Returns:**
 
 Type | Description
@@ -12836,17 +12869,6 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 </details>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`inverse_transform`](#data-inverse-transform) | Apply the inverse transformation to data.
-`transform` | Apply the learned transformation to data.
-
-
-
-######### Functions####
-
 (data-inverse-transform)=
 ###### `inverse_transform`
 
@@ -12862,42 +12884,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to inverse transform. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Data in original space.
-
-########## `transform`
-
-```python
-transform(data: Any) -> Any
-```
-
-Apply the learned transformation to data.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to transform (typically ndarray or BrainData). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Transformed data.
-
-######## `NormalizeStep`
-
-```python
-NormalizeStep(method: str = 'zscore', axis: int = 0, invertible: bool = True) -> None
-```
-
-Normalization transform step.
-
-Computes normalization parameters from training data and applies
-the transformation to new data.
 
 **Parameters:**
 
@@ -12916,12 +12907,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Compute normalization parameters from data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -12933,6 +12918,43 @@ Name | Type | Description
 
 
 ######### Attributes####
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Compute normalization parameters from data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Any](#typing.Any)</code> | Data in original space.
+
+########## `transform`
+
+```python
+transform(data: Any) -> Any
+```
+
+Apply the learned transformation to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Any](#typing.Any)</code> | Transformed data.
+
+######## `NormalizeStep`
+
+```python
+NormalizeStep(method: str = 'zscore', axis: int = 0, invertible: bool = True) -> None
+```
+
+Normalization transform step.
+
+Computes normalization parameters from training data and applies
+the transformation to new data.
 
 (data-axis)=
 ###### `axis`
@@ -12971,23 +12993,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Training data to compute parameters from. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
-
-######## `PipeStep`
-
-```python
-PipeStep(transformer: Any = None) -> None
-```
-
-Wrapper for sklearn-compatible transformers.
-
-Allows any sklearn transformer with a fit/transform interface to be
-used as a pipeline step.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -13005,12 +13010,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Fit transformer to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -13021,6 +13020,29 @@ Name | Type | Description
 
 
 ######### Attributes####
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Fit transformer to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
+
+######## `PipeStep`
+
+```python
+PipeStep(transformer: Any = None) -> None
+```
+
+Wrapper for sklearn-compatible transformers.
+
+Allows any sklearn transformer with a fit/transform interface to be
+used as a pipeline step.
 
 (data-invertible)=
 ###### `invertible`
@@ -13064,23 +13086,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Training data. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
-
-######## `ReduceStep`
-
-```python
-ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
-```
-
-Dimensionality reduction step.
-
-Fits a dimensionality reduction model to training data and transforms
-new data to the reduced space.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -13098,12 +13103,6 @@ Examples:
 >>> reduced.shape
 (100, 10)
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Fit reduction model to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -13116,6 +13115,29 @@ Name | Type | Description
 
 
 ######### Attributes####
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Fit reduction model to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
+
+######## `ReduceStep`
+
+```python
+ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
+```
+
+Dimensionality reduction step.
+
+Fits a dimensionality reduction model to training data and transforms
+new data to the reduced space.
 
 ###### `invertible`
 
@@ -13167,21 +13189,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Training data, shape (n_samples, n_features). | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedReduce](#nltools.data.collection.pipesteps.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
-
-######## `TransformStep`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for pipeline transform steps.
-
-A transform step defines a transformation that can be fitted to data.
-Steps are added to a Pipeline and executed sequentially during CV.
-
 **Attributes:**
 
 Name | Type | Description
@@ -13203,6 +13210,21 @@ Name | Description
 
 
 ######### Attributes####
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[FittedReduce](#nltools.data.collection.pipesteps.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
+
+######## `TransformStep`
+
+Bases: <code>[Protocol](#typing.Protocol)</code>
+
+Protocol for pipeline transform steps.
+
+A transform step defines a transformation that can be fitted to data.
+Steps are added to a Pipeline and executed sequentially during CV.
 
 ###### `invertible`
 
@@ -13348,6 +13370,17 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to inverse transform. | *required*
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`inverse_transform`](#data-inverse-transform) | Apply the inverse transformation to data.
+`transform` | Apply the learned transformation to data.
+
+
+
+########### Functions######
+
 **Returns:**
 
 Type | Description
@@ -13379,17 +13412,6 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 </details>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`inverse_transform`](#data-inverse-transform) | Apply the inverse transformation to data.
-`transform` | Apply the learned transformation to data.
-
-
-
-########### Functions######
-
 ###### `inverse_transform`
 
 ```python
@@ -13404,40 +13426,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to inverse transform. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Data in original space.
-
-############ `transform`
-
-```python
-transform(data: Any) -> Any
-```
-
-Apply the learned transformation to data.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Data to transform (typically ndarray or BrainData). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Any](#typing.Any)</code> | Transformed data.
-
-########## `TransformStep`
-
-Bases: <code>[Protocol](#typing.Protocol)</code>
-
-Protocol for pipeline transform steps.
-
-A transform step defines a transformation that can be fitted to data.
-Steps are added to a Pipeline and executed sequentially during CV.
 
 **Attributes:**
 
@@ -13460,6 +13453,35 @@ Name | Description
 
 
 ########### Attributes######
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Any](#typing.Any)</code> | Data in original space.
+
+############ `transform`
+
+```python
+transform(data: Any) -> Any
+```
+
+Apply the learned transformation to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Any](#typing.Any)</code> | Transformed data.
+
+########## `TransformStep`
+
+Bases: <code>[Protocol](#typing.Protocol)</code>
+
+Protocol for pipeline transform steps.
+
+A transform step defines a transformation that can be fitted to data.
+Steps are added to a Pipeline and executed sequentially during CV.
 
 ###### `invertible`
 
@@ -13485,6 +13507,22 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Any](#typing.Any)</code> | Training data to fit on. | *required*
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`CVSchemeType`](#data-cvschemetype) |  | 
+
+
+
+######### Attributes####
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`CVScheme`](#data-cvscheme) | Cross-validation scheme configuration.
+
 **Returns:**
 
 Type | Description
@@ -13497,22 +13535,6 @@ Cross-validation scheme configuration for nltools pipelines.
 
 This module provides a unified interface for configuring cross-validation
 strategies used across nltools analysis pipelines.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`CVScheme`](#data-cvscheme) | Cross-validation scheme configuration.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`CVSchemeType`](#data-cvschemetype) |  | 
-
-
-
-######### Attributes####
 
 (data-cvschemetype)=
 ###### `CVSchemeType`
@@ -13553,6 +13575,29 @@ Name | Type | Description | Default
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`is_loro`](#data-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
+
+
+
+########### Attributes######
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`n_splits`](#data-n-splits) | Return number of splits.
+`split` | Generate train/test indices for each fold.
+
 **Examples:**
 
 ```pycon
@@ -13574,29 +13619,6 @@ Name | Type | Description | Default
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`n_splits`](#data-n-splits) | Return number of splits.
-`split` | Generate train/test indices for each fold.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`is_loro`](#data-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-`k` | <code>[int](#int) \| None</code> | 
-`n` | <code>[int](#int)</code> | 
-`random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
-`split_by` | <code>[str](#str) \| None</code> | 
-
-
-
-########### Attributes######
 
 ###### `is_loro`
 
@@ -13675,6 +13697,28 @@ Name | Type | Description | Default
 `data` | <code>[Any](#typing.Any)</code> | Data to split (unused for most schemes, kept for API consistency). | <code>None</code>
 `groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV. Required for 'loso' and 'loro'. | <code>None</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
+`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`FittedNormalize`](#data-fittednormalize) | Fitted normalization transform.
+`FittedPipe` | Fitted sklearn transformer wrapper.
+`FittedReduce` | Fitted dimensionality reduction transform.
+`NormalizeStep` | Normalization transform step.
+`PipeStep` | Wrapper for sklearn-compatible transformers.
+`ReduceStep` | Dimensionality reduction step.
+
+
+
+######### Classes####
+
 **Returns:**
 
 Type | Description
@@ -13688,13 +13732,6 @@ split(data: Any, groups: NDArray[np.intp] | None = None) -> Iterator[tuple[NDArr
 ```
 
 Generate train/test indices for each fold.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[Any](#typing.Any)</code> | Data to split (used for length). Can be any object with __len__ or a numpy array with shape attribute. | *required*
-`groups` | <code>[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)] \| None</code> | Group labels for grouped CV (runs, subjects, etc.). Required for 'loso' and 'loro' schemes. | <code>None</code>
 
 **Yields:**
 
@@ -13713,21 +13750,6 @@ Each step follows the fit/transform pattern:
 - `step.fit(data)` returns a FittedX object that holds learned parameters
 - `fitted.transform(data)` applies the transformation
 - `fitted.inverse_transform(data)` reverses the transformation (if invertible)
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`FittedNormalize`](#data-fittednormalize) | Fitted normalization transform.
-`FittedPipe` | Fitted sklearn transformer wrapper.
-`FittedReduce` | Fitted dimensionality reduction transform.
-`NormalizeStep` | Normalization transform step.
-`PipeStep` | Wrapper for sklearn-compatible transformers.
-`ReduceStep` | Dimensionality reduction step.
-
-
-
-######### Classes####
 
 (data-fittednormalize)=
 ###### `FittedNormalize`
@@ -13796,41 +13818,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Normalized data. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Data in original scale.
-
-############ `transform`
-
-```python
-transform(data: np.ndarray) -> np.ndarray
-```
-
-Apply normalization to data.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to normalize. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Normalized data.
-
-########## `FittedPipe`
-
-```python
-FittedPipe(transformer: Any) -> None
-```
-
-Fitted sklearn transformer wrapper.
-
-Holds a fitted sklearn transformer and delegates transform calls to it.
 
 **Attributes:**
 
@@ -13848,6 +13840,36 @@ Name | Description
 
 
 ########### Attributes######
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Data in original scale.
+
+############ `transform`
+
+```python
+transform(data: np.ndarray) -> np.ndarray
+```
+
+Apply normalization to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Normalized data.
+
+########## `FittedPipe`
+
+```python
+FittedPipe(transformer: Any) -> None
+```
+
+Fitted sklearn transformer wrapper.
+
+Holds a fitted sklearn transformer and delegates transform calls to it.
 
 (data-transformer)=
 ###### `transformer`
@@ -13874,41 +13896,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Transformed data. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Data in original space.
-
-############ `transform`
-
-```python
-transform(data: np.ndarray) -> np.ndarray
-```
-
-Apply the fitted transformer.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to transform. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Transformed data.
-
-########## `FittedReduce`
-
-```python
-FittedReduce(model: Any, method: str) -> None
-```
-
-Fitted dimensionality reduction transform.
-
-Holds the fitted sklearn model and applies transformations.
 
 **Attributes:**
 
@@ -13927,6 +13919,36 @@ Name | Description
 
 
 ########### Attributes######
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Data in original space.
+
+############ `transform`
+
+```python
+transform(data: np.ndarray) -> np.ndarray
+```
+
+Apply the fitted transformer.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Transformed data.
+
+########## `FittedReduce`
+
+```python
+FittedReduce(model: Any, method: str) -> None
+```
+
+Fitted dimensionality reduction transform.
+
+Holds the fitted sklearn model and applies transformations.
 
 (data-method)=
 ###### `method`
@@ -13959,42 +13981,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components). | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Reconstructed data, shape (n_samples, n_features).
-
-############ `transform`
-
-```python
-transform(data: np.ndarray) -> np.ndarray
-```
-
-Apply dimensionality reduction.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to reduce, shape (n_samples, n_features). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components).
-
-########## `NormalizeStep`
-
-```python
-NormalizeStep(method: str = 'zscore', axis: int = 0, invertible: bool = True) -> None
-```
-
-Normalization transform step.
-
-Computes normalization parameters from training data and applies
-the transformation to new data.
 
 **Parameters:**
 
@@ -14013,12 +14004,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Compute normalization parameters from data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -14030,6 +14015,43 @@ Name | Type | Description
 
 
 ########### Attributes######
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Compute normalization parameters from data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Reconstructed data, shape (n_samples, n_features).
+
+############ `transform`
+
+```python
+transform(data: np.ndarray) -> np.ndarray
+```
+
+Apply dimensionality reduction.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components).
+
+########## `NormalizeStep`
+
+```python
+NormalizeStep(method: str = 'zscore', axis: int = 0, invertible: bool = True) -> None
+```
+
+Normalization transform step.
+
+Computes normalization parameters from training data and applies
+the transformation to new data.
 
 ###### `axis`
 
@@ -14067,23 +14089,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Training data to compute parameters from. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
-
-########## `PipeStep`
-
-```python
-PipeStep(transformer: Any = None) -> None
-```
-
-Wrapper for sklearn-compatible transformers.
-
-Allows any sklearn transformer with a fit/transform interface to be
-used as a pipeline step.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -14101,12 +14106,6 @@ Examples:
 >>> np.allclose(data, restored)
 True
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Fit transformer to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -14117,6 +14116,29 @@ Name | Type | Description
 
 
 ########### Attributes######
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Fit transformer to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
+
+########## `PipeStep`
+
+```python
+PipeStep(transformer: Any = None) -> None
+```
+
+Wrapper for sklearn-compatible transformers.
+
+Allows any sklearn transformer with a fit/transform interface to be
+used as a pipeline step.
 
 ###### `invertible`
 
@@ -14159,23 +14181,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Training data. | *required*
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
-
-########## `ReduceStep`
-
-```python
-ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
-```
-
-Dimensionality reduction step.
-
-Fits a dimensionality reduction model to training data and transforms
-new data to the reduced space.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -14193,12 +14198,6 @@ Examples:
 >>> reduced.shape
 (100, 10)
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#data-fit) | Fit reduction model to data.
-
 **Attributes:**
 
 Name | Type | Description
@@ -14211,6 +14210,29 @@ Name | Type | Description
 
 
 ########### Attributes######
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#data-fit) | Fit reduction model to data.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
+
+########## `ReduceStep`
+
+```python
+ReduceStep(method: str = 'pca', n_components: int | None = None, random_state: int | None = None) -> None
+```
+
+Dimensionality reduction step.
+
+Fits a dimensionality reduction model to training data and transforms
+new data to the reduced space.
 
 ###### `invertible`
 
@@ -14277,6 +14299,14 @@ Provides HRF convolution, resampling, polynomial regressors, and diagnostic tool
 
 Uses composition pattern (wrapping pl.DataFrame) for clean metadata preservation.
 
+**Classes:**
+
+Name | Description
+---- | -----------
+[`DesignMatrix`](#data-designmatrix) | Represent experimental designs for neuroimaging with Polars.
+
+
+
 **Modules:**
 
 Name | Description
@@ -14288,14 +14318,6 @@ Name | Description
 [`regressors`](#data-regressors) | Provide standalone regressor functions for DesignMatrix.
 [`transforms`](#data-transforms) | Standalone transform functions for DesignMatrix.
 [`utils`](#data-utils) | Shared helpers for DesignMatrix submodules.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`DesignMatrix`](#data-designmatrix) | Represent experimental designs for neuroimaging with Polars.
-
-
 
 ##### Classes
 
@@ -14333,35 +14355,6 @@ Name | Type | Description
 `convolved` | <code>list of str</code> | Columns that have been convolved
 `confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
 `multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
-
-**Examples:**
-
-```pycon
->>> # Create from numpy array
->>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
-```
-
-```pycon
->>> # Add columns
->>> dm['stim'] = [0, 1, 1, 0] * 25
-```
-
-```pycon
->>> # Convolve with HRF — convolved columns get a `_c0` suffix
->>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
-```
-
-```pycon
->>> # Add polynomial drift terms
->>> dm_conv = dm_conv.add_poly(order=2)
-```
-
-```pycon
->>> # Multi-run concatenation (auto-separates polynomials)
->>> dm_run1 = DesignMatrix(...).add_poly(0)
->>> dm_run2 = DesignMatrix(...).add_poly(0)
->>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
-```
 
 **Methods:**
 
@@ -14406,6 +14399,35 @@ is anything other than an events file.
 
 
 ####### Attributes##
+
+**Examples:**
+
+```pycon
+>>> # Create from numpy array
+>>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
+```
+
+```pycon
+>>> # Add columns
+>>> dm['stim'] = [0, 1, 1, 0] * 25
+```
+
+```pycon
+>>> # Convolve with HRF — convolved columns get a `_c0` suffix
+>>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
+```
+
+```pycon
+>>> # Add polynomial drift terms
+>>> dm_conv = dm_conv.add_poly(order=2)
+```
+
+```pycon
+>>> # Multi-run concatenation (auto-separates polynomials)
+>>> dm_run1 = DesignMatrix(...).add_poly(0)
+>>> dm_run2 = DesignMatrix(...).add_poly(0)
+>>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+```
 
 (data-columns)=
 ###### `columns`
@@ -14502,6 +14524,136 @@ Name | Type | Description | Default
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
 `include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
+`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>DesignMatrix or list of DesignMatrix</code> | Design matrix/matrices to append. | *required*
+`axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). Default: 0. | <code>0</code>
+`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs (only applies when axis=0). Default: True. | <code>True</code>
+`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN values during vertical concatenation, or None to preserve nulls. Default: 0. | <code>0</code>
+`as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations (default 0) | <code>0</code>
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns from correlation check | <code>False</code>
+`thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh, default 0.95) | <code>0.95</code>
+`progress_bar` | <code>[bool](#bool)</code> | Print dropped column names. Default: False | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels). | <code>'hrf'</code>
+`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns). | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq) | *required*
+`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median' (default: 'mean') | <code>'mean'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`columns` | <code>list of str</code> | Column names to remove. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`value` | <code>[int](#int) or [float](#float)</code> | Value to replace NaN/null entries with. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | ``'matrix'`` | ``'timeseries'`` | ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
+`columns` | <code>list of str</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`rescale` | <code>[bool](#bool)</code> | ``'matrix'`` only. Rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
+`metric` | <code>[str](#str)</code> | ``'corr'`` only. ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`figsize` | <code>[tuple](#tuple)</code> | Figure size; sensible per-method default when omitted. | <code>None</code>
+`title` | <code>[str](#str)</code> | Axis title. | <code>None</code>
+`cmap` | <code>[str](#str)</code> | Colormap (``'matrix'`` / ``'corr'``). | <code>None</code>
+`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
+`**kwargs` |  | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``Axes.plot`` for ``'timeseries'``). | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[ndarray](#ndarray)</code> | New data array (must match number of rows in current DesignMatrix) | *required*
+`column_names` | <code>list of str</code> | Names for new data columns. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>[str](#str)</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`axis` | <code>int, default=0</code> | 0: sum down columns, 1: sum across rows. | <code>0</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
+`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns. Default: True. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
+`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab). | <code>'\t'</code>
+
+######## `zscore`
+
+```python
+zscore(columns: list[str] | None = None) -> DesignMatrix
+```
+
+Z-score standardize columns to mean zero and unit variance.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
+
 **Returns:**
 
 Name | Type | Description
@@ -14515,13 +14667,6 @@ add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
 ```
 
 Add Legendre polynomial drift terms.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
-`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -14537,18 +14682,6 @@ append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: b
 
 Concatenate design matrices.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>DesignMatrix or list of DesignMatrix</code> | Design matrix/matrices to append. | *required*
-`axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). Default: 0. | <code>0</code>
-`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs (only applies when axis=0). Default: True. | <code>True</code>
-`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
-`fill_na` | <code>int, float, or None</code> | Value to fill NaN values during vertical concatenation, or None to preserve nulls. Default: 0. | <code>0</code>
-`as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -14562,15 +14695,6 @@ clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thres
 ```
 
 Remove highly correlated columns.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations (default 0) | <code>0</code>
-`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns from correlation check | <code>False</code>
-`thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh, default 0.95) | <code>0.95</code>
-`progress_bar` | <code>[bool](#bool)</code> | Print dropped column names. Default: False | <code>False</code>
 
 **Returns:**
 
@@ -14590,13 +14714,6 @@ Convolved columns are always renamed to ``<col>_c{i}`` (where ``i`` is
 the kernel index, ``0`` for a single 1-D kernel). The source columns
 are dropped, and ``self.convolved`` lists the post-suffix names so
 downstream metadata stays in sync with the dataframe.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels). | <code>'hrf'</code>
-`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns). | <code>None</code>
 
 **Returns:**
 
@@ -14626,13 +14743,6 @@ corr(*, metric: str = 'pearson', columns: list[str] | None = None)
 
 Calculate column correlations as a similarity ``Adjacency``.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
-`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -14646,13 +14756,6 @@ downsample(target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq) | *required*
-`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median' (default: 'mean') | <code>'mean'</code>
 
 **Returns:**
 
@@ -14668,12 +14771,6 @@ drop(columns: list[str]) -> DesignMatrix
 
 Drop specified columns.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`columns` | <code>list of str</code> | Column names to remove. | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -14687,12 +14784,6 @@ fillna(value: int | float) -> DesignMatrix
 ```
 
 Fill NaN/null values with specified value.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`value` | <code>[int](#int) or [float](#float)</code> | Value to replace NaN/null entries with. | *required*
 
 **Returns:**
 
@@ -14717,21 +14808,6 @@ Dispatches over ``method`` (mirroring ``BrainData.plot``):
 - ``'corr'``: labeled correlation heatmap of the columns (reuses
   `corr`; diagonal restored to 1.0 for display).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | ``'matrix'`` | ``'timeseries'`` | ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
-`columns` | <code>list of str</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
-`rescale` | <code>[bool](#bool)</code> | ``'matrix'`` only. Rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
-`metric` | <code>[str](#str)</code> | ``'corr'`` only. ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
-`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size; sensible per-method default when omitted. | <code>None</code>
-`title` | <code>[str](#str)</code> | Axis title. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Colormap (``'matrix'`` / ``'corr'``). | <code>None</code>
-`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
-`**kwargs` |  | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``Axes.plot`` for ``'timeseries'``). | <code>{}</code>
-
 **Returns:**
 
 Type | Description
@@ -14745,13 +14821,6 @@ replace_data(data: np.ndarray, column_names: list[str] | None = None) -> DesignM
 ```
 
 Replace data columns while preserving confounds and metadata.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`data` | <code>[ndarray](#ndarray)</code> | New data array (must match number of rows in current DesignMatrix) | *required*
-`column_names` | <code>list of str</code> | Names for new data columns. | <code>None</code>
 
 **Returns:**
 
@@ -14767,13 +14836,6 @@ standardize(method: str = 'zscore', columns: list[str] | None = None) -> DesignM
 
 Standardize columns using the specified method.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -14787,12 +14849,6 @@ sum(axis: int = 0) -> pl.Series
 ```
 
 Compute the sum along an axis.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`axis` | <code>int, default=0</code> | 0: sum down columns, 1: sum across rows. | <code>0</code>
 
 **Returns:**
 
@@ -14836,13 +14892,6 @@ upsample(target: float, method: str = 'linear') -> DesignMatrix
 
 Increase temporal resolution to a target frequency.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
-`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -14856,12 +14905,6 @@ vif(exclude_confounds: bool = True) -> np.ndarray | None
 ```
 
 Compute the variance inflation factor for each column.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -14909,27 +14952,6 @@ Write DesignMatrix to file.
 
 Supports TSV (default), CSV, and HDF5 formats. Format is
 auto-detected from file extension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab). | <code>'\t'</code>
-
-######## `zscore`
-
-```python
-zscore(columns: list[str] | None = None) -> DesignMatrix
-```
-
-Z-score standardize columns to mean zero and unit variance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
 
 **Returns:**
 
@@ -14989,6 +15011,57 @@ Name | Type | Description | Default
 `as_confounds` | <code>[bool](#bool)</code> | Only applies to ``axis=1``. When True, all columns contributed by ``other`` are tracked as nuisance regressors in the result's ``.confounds`` — so they're skipped by ``.convolve()`` and kept separate across runs in later vertical appends. Useful when ``other`` is a pre-built DesignMatrix of confounds that hasn't already marked its columns. Default: False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
+`to_append` | <code>list of DesignMatrix</code> | Matrices whose columns to add. | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
+`as_confounds` | <code>[bool](#bool)</code> | If True, mark all columns contributed by ``to_append`` as nuisance/confounds in the result. | <code>False</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
+`to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
+`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs. | *required*
+`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
+`to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
+`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to inspect. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | The base design matrix (used for context only). | *required*
+`all_dms` | <code>list of DesignMatrix</code> | All matrices being concatenated. | *required*
+`unique_cols` | <code>list of str</code> | User-specified columns to separate (supports wildcards). | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`columns` | <code>list of str</code> | Column names to search. | *required*
+`pattern` | <code>[str](#str)</code> | Pattern to match (supports '*' as wildcard). - 'motion*' matches motion_x, motion_y - '*_motion' matches x_motion, y_motion - 'exact' matches only 'exact' | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -15003,15 +15076,6 @@ append_horizontal(dm: DesignMatrix, to_append: list[DesignMatrix], fill_na: int 
 
 Concatenate matrices horizontally by adding columns.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
-`to_append` | <code>list of DesignMatrix</code> | Matrices whose columns to add. | *required*
-`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
-`as_confounds` | <code>[bool](#bool)</code> | If True, mark all columns contributed by ``to_append`` as nuisance/confounds in the result. | <code>False</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -15025,17 +15089,6 @@ append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: 
 ```
 
 Concatenate matrices vertically with optional confound separation.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
-`to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
-`keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs. | *required*
-`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
-`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
-`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
 
 **Returns:**
 
@@ -15054,16 +15107,6 @@ Concatenate vertically with automatic confound separation.
 Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
 active only in their respective runs (sparse representation).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Base DesignMatrix instance. | *required*
-`to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
-`unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
-`fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
-`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -15077,12 +15120,6 @@ get_starting_run_idx(dm: DesignMatrix) -> int
 ```
 
 Determine the next run index for multi-run appending.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to inspect. | *required*
 
 **Returns:**
 
@@ -15098,14 +15135,6 @@ identify_columns_to_separate(dm: DesignMatrix, all_dms: list[DesignMatrix], uniq
 
 Identify columns that need run-specific separation.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | The base design matrix (used for context only). | *required*
-`all_dms` | <code>list of DesignMatrix</code> | All matrices being concatenated. | *required*
-`unique_cols` | <code>list of str</code> | User-specified columns to separate (supports wildcards). | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -15119,13 +15148,6 @@ match_column_pattern(columns: list[str], pattern: str) -> list[str]
 ```
 
 Match columns against a pattern with wildcard support.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`columns` | <code>list of str</code> | Column names to search. | *required*
-`pattern` | <code>[str](#str)</code> | Pattern to match (supports '*' as wildcard). - 'motion*' matches motion_x, motion_y - '*_motion' matches x_motion, y_motion - 'exact' matches only 'exact' | *required*
 
 **Returns:**
 
@@ -15173,6 +15195,21 @@ Name | Type | Description | Default
 `thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh). Default: 0.95. | <code>0.95</code>
 `progress_bar` | <code>[bool](#bool)</code> | Print dropped column names. Default: False. | <code>False</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. Spearman is computed as Pearson on column ranks. | <code>'pearson'</code>
+`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns. Default: True. | <code>True</code>
+
 **Returns:**
 
 Name | Type | Description
@@ -15193,14 +15230,6 @@ of the similarity-matrix tooling (``.plot()``, MDS, etc.). The Adjacency
 stores only the off-diagonal entries — self-correlation isn't a meaningful
 edge — so the unit diagonal is implicit; ``DesignMatrix.plot(method='corr')``
 restores it for display.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. Spearman is computed as Pearson on column ranks. | <code>'pearson'</code>
-`columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
 
 **Returns:**
 
@@ -15226,13 +15255,6 @@ Compute the variance inflation factor for each column.
 
 Uses diagonal elements of inverted correlation matrix
 (same method as Matlab and R).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -15287,6 +15309,41 @@ Name | Type | Description | Default
 `run_length` | <code>[int](#int)</code> | Number of TRs the run contains. | *required*
 `sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`path` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to a `.tsv` or `.csv` file. | *required*
+`run_length` | <code>[int](#int) \| [str](#str)</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
+`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
+`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab for TSV).  Ignored for HDF5 files. | <code>'\t'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`file_name` | <code>[str](#str)</code> | Output HDF5 file path. | *required*
+
 **Returns:**
 
 Type | Description
@@ -15312,14 +15369,6 @@ Dispatches on column inspection:
 files must provide an explicit integer (they have a variable row count
 per run, unlike confounds which are 1 row per TR).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`path` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to a `.tsv` or `.csv` file. | *required*
-`run_length` | <code>[int](#int) \| [str](#str)</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
-
 **Returns:**
 
 Type | Description
@@ -15338,12 +15387,6 @@ Convert a DesignMatrix to a NumPy array.
 
 Returns data columns as 2D numpy array (rows x columns).
 Column order is preserved from DataFrame.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
@@ -15371,12 +15414,6 @@ Convert DesignMatrix to pandas DataFrame.
 Uses dict-based conversion to avoid pyarrow dependency. This is slightly
 slower (~10-20%) than pyarrow-based conversion but removes the dependency.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-
 **Returns:**
 
 Type | Description
@@ -15402,14 +15439,6 @@ Write DesignMatrix to file.
 
 Supports TSV (default), CSV, and HDF5 formats. The format is
 automatically determined by file extension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab for TSV).  Ignored for HDF5 files. | <code>'\t'</code>
 
 **Returns:**
 
@@ -15442,13 +15471,6 @@ write_h5(dm: DesignMatrix, file_name: str) -> None
 
 Write DesignMatrix to HDF5 file with metadata.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`file_name` | <code>[str](#str)</code> | Output HDF5 file path. | *required*
-
 **Returns:**
 
 Type | Description
@@ -15463,15 +15485,6 @@ Standalone functions extracted from ``DesignMatrix`` methods. Each takes a
 ``DesignMatrix`` instance (``dm``) as its first argument. ``DesignMatrix.plot``
 dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`plot_corr`](#data-plot-corr) | Render a labeled correlation heatmap of the columns.
-`plot_designmatrix` | Visualize a DesignMatrix, dispatching over ``method``.
-`plot_matrix` | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
-`plot_timeseries` | Plot regressor time courses as overlaid lines.
-
 **Attributes:**
 
 Name | Type | Description
@@ -15481,6 +15494,15 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`plot_corr`](#data-plot-corr) | Render a labeled correlation heatmap of the columns.
+`plot_designmatrix` | Visualize a DesignMatrix, dispatching over ``method``.
+`plot_matrix` | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
+`plot_timeseries` | Plot regressor time courses as overlaid lines.
 
 (data-valid-plot-methods)=
 ###### `VALID_PLOT_METHODS`
@@ -15522,6 +15544,32 @@ Name | Type | Description | Default
 `save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
 `**kwargs` |  | Forwarded to ``seaborn.heatmap`` (e.g. ``annot=False``). | <code>{}</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`rescale` | <code>[bool](#bool)</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
+`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(4, 6)`` when a new figure is made. | <code>None</code>
+`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
+`cmap` | <code>[str](#str) \| None</code> | Colormap name. Default: ``'gray'``. | <code>None</code>
+`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
+`**kwargs` |  | Forwarded to ``seaborn.heatmap``. | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(8, 4)`` when a new figure is made. | <code>None</code>
+`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
+`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
+`**kwargs` |  | Forwarded to ``matplotlib.axes.Axes.plot`` for each line. | <code>{}</code>
+
 **Returns:**
 
 Type | Description
@@ -15552,20 +15600,6 @@ plot_matrix(dm: DesignMatrix, *, columns: list[str] | None = None, rescale: bool
 
 Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
-`rescale` | <code>[bool](#bool)</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
-`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(4, 6)`` when a new figure is made. | <code>None</code>
-`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
-`cmap` | <code>[str](#str) \| None</code> | Colormap name. Default: ``'gray'``. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
-`**kwargs` |  | Forwarded to ``seaborn.heatmap``. | <code>{}</code>
-
 **Returns:**
 
 Type | Description
@@ -15582,18 +15616,6 @@ Plot regressor time courses as overlaid lines.
 
 One line is drawn per column. Pass the same ``ax`` across calls to overlay
 multiple DesignMatrices (e.g. original vs. convolved).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
-`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(8, 4)`` when a new figure is made. | <code>None</code>
-`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
-`**kwargs` |  | Forwarded to ``matplotlib.axes.Axes.plot`` for each line. | <code>{}</code>
 
 **Returns:**
 
@@ -15640,6 +15662,22 @@ Name | Type | Description | Default
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
 `include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add polynomials to. | *required*
+`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
+`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to convolve. | *required*
+`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
+`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns) | <code>None</code>
+
 **Returns:**
 
 Name | Type | Description
@@ -15654,14 +15692,6 @@ add_poly(dm: DesignMatrix, order: int = 0, include_lower: bool = True) -> Design
 
 Add Legendre polynomial drift terms.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add polynomials to. | *required*
-`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
-`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -15675,14 +15705,6 @@ convolve(dm: DesignMatrix, conv_func: str | np.ndarray = 'hrf', columns: list[st
 ```
 
 Convolve columns with an HRF or custom kernel.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to convolve. | *required*
-`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
-`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns) | <code>None</code>
 
 **Returns:**
 
@@ -15759,6 +15781,29 @@ Name | Type | Description | Default
 `target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq). | *required*
 `method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median'. Default: 'mean'. | <code>'mean'</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
+`method` | <code>[str](#str)</code> | Standardization method. Options are: - 'zscore': Z-score standardization (mean=0, std=1) [default] - 'center': Mean centering only (mean=0) | <code>'zscore'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
+`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
+`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
+`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
+
 **Returns:**
 
 Name | Type | Description
@@ -15783,14 +15828,6 @@ Standardize columns using the specified method.
 This method provides a consistent API with BrainData and Collection
 for data normalization.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
-`method` | <code>[str](#str)</code> | Standardization method. Options are: - 'zscore': Z-score standardization (mean=0, std=1) [default] - 'center': Mean centering only (mean=0) | <code>'zscore'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -15813,14 +15850,6 @@ upsample(dm: DesignMatrix, target: float, method: str = 'linear') -> DesignMatri
 
 Increase temporal resolution using Polars-native interpolation.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
-`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -15842,13 +15871,6 @@ zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix
 
 Z-score standardize columns to mean zero and unit variance.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -15862,15 +15884,6 @@ Shared helpers for DesignMatrix submodules.
 These are internal utilities used by the facade and submodules — not part of the
 public API.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`copy_with`](#data-copy-with) | Create a new DesignMatrix with updated data and metadata.
-`df_passthrough` | Resolve ``name`` on ``dm.data``; re-wrap DataFrame results for allowlisted methods.
-`get_data_columns` | Get column names, optionally excluding confound regressors.
-`get_metadata` | Extract metadata as dict (for copying).
-
 **Attributes:**
 
 Name | Type | Description
@@ -15880,6 +15893,15 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`copy_with`](#data-copy-with) | Create a new DesignMatrix with updated data and metadata.
+`df_passthrough` | Resolve ``name`` on ``dm.data``; re-wrap DataFrame results for allowlisted methods.
+`get_data_columns` | Get column names, optionally excluding confound regressors.
+`get_metadata` | Extract metadata as dict (for copying).
 
 (data-wrap-as-designmatrix)=
 ###### `WRAP_AS_DESIGNMATRIX`
@@ -15914,6 +15936,19 @@ Name | Type | Description | Default
 `new_df` | <code>[DataFrame](#polars.DataFrame)</code> | New underlying data. | *required*
 `**metadata_updates` |  | Metadata attributes to override (e.g., convolved=['stim']). | <code>{}</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`exclude_confounds` | <code>bool, default=True</code> | If True, exclude nuisance columns tracked in ``dm.confounds`` from the result. | <code>True</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -15945,13 +15980,6 @@ This helper reduces code duplication across methods that need to
 distinguish between experimental regressors and nuisance/confound columns
 (polynomial drift, DCT cosines, motion, etc.).
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`exclude_confounds` | <code>bool, default=True</code> | If True, exclude nuisance columns tracked in ``dm.confounds`` from the result. | <code>True</code>
-
 **Returns:**
 
 Type | Description
@@ -15965,12 +15993,6 @@ get_metadata(dm: DesignMatrix) -> dict
 ```
 
 Extract metadata as dict (for copying).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
@@ -15987,6 +16009,15 @@ This module provides the Fit dataclass, which stores results from model fitting
 operations in nltools. It uses pure numpy arrays and has no dependencies on
 BrainData or other nltools data structures, making it suitable for standalone
 use with inference algorithms.
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`Fit`](#data-fit) | Immutable container for model fitting results.
+[`Predict`](#data-predict) | Immutable container for prediction / MVPA decoding results.
+
+
 
 **Examples:**
 
@@ -16046,15 +16077,6 @@ Introspection:
 >>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
 ```
 
-**Classes:**
-
-Name | Description
----- | -----------
-[`Fit`](#data-fit) | Immutable container for model fitting results.
-[`Predict`](#data-predict) | Immutable container for prediction / MVPA decoding results.
-
-
-
 ##### Classes
 
 ###### `Fit`
@@ -16085,15 +16107,6 @@ Attributes depend on model type and CV usage:
     cv_best_alpha (float): Selected alpha (if alpha='auto')
     cv_alpha_scores (ndarray): Alpha selection scores (if alpha='auto')
 
-**GLM:**
-    betas (ndarray): Beta coefficients, shape (n_regressors, n_voxels)
-    t_stats (ndarray): T-statistics, shape (n_regressors, n_voxels)
-    p_values (ndarray): P-values, shape (n_regressors, n_voxels)
-    se (ndarray): Standard errors, shape (n_regressors, n_voxels)
-    residuals (ndarray): Residuals, shape (n_samples, n_voxels)
-    fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
-    r2 (ndarray): R² values, shape (n_voxels,)
-
 **Attributes:**
 
 Name | Type | Description
@@ -16122,6 +16135,26 @@ Methods: `available` returns the list of non-None attribute names
 optionally excluding None values.
 
 </details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`asdict`](#data-asdict) | Convert to dictionary.
+[`available`](#data-available) | Return list of non-None attribute names.
+
+
+
+####### Attributes##
+
+**GLM:**
+    betas (ndarray): Beta coefficients, shape (n_regressors, n_voxels)
+    t_stats (ndarray): T-statistics, shape (n_regressors, n_voxels)
+    p_values (ndarray): P-values, shape (n_regressors, n_voxels)
+    se (ndarray): Standard errors, shape (n_regressors, n_voxels)
+    residuals (ndarray): Residuals, shape (n_samples, n_voxels)
+    fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
+    r2 (ndarray): R² values, shape (n_voxels,)
 
 **Examples:**
 
@@ -16185,17 +16218,6 @@ Export/serialization:
 - Private fields (starting with _) are excluded from available() and asdict().
 
 </details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`asdict`](#data-asdict) | Convert to dictionary.
-[`available`](#data-available) | Return list of non-None attribute names.
-
-
-
-####### Attributes##
 
 (data-betas)=
 ###### `betas`
@@ -16441,13 +16463,6 @@ always excluded).
 
 </details>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`asdict`](#data-asdict) | Convert to dictionary.
-[`available`](#data-available) | Return names of non-None fields (excludes private).
-
 **Attributes:**
 
 Name | Type | Description
@@ -16466,6 +16481,13 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`asdict`](#data-asdict) | Convert to dictionary.
+[`available`](#data-available) | Return names of non-None fields (excludes private).
 
 (data-accuracy-map)=
 ###### `accuracy_map`
@@ -16599,14 +16621,6 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject (default=None) | <code>None</code>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`calculate`](#data-calculate) | Calculate ROC metrics for single-interval classification.
-[`plot`](#data-plot) | Create a ROC plot.
-[`summary`](#data-summary) | Display a formatted summary of ROC analysis.
-
 **Attributes:**
 
 Name | Type | Description
@@ -16619,6 +16633,14 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`calculate`](#data-calculate) | Calculate ROC metrics for single-interval classification.
+[`plot`](#data-plot) | Create a ROC plot.
+[`summary`](#data-summary) | Display a formatted summary of ROC analysis.
 
 (data-binary-outcome)=
 ###### `binary_outcome`
@@ -16753,15 +16775,6 @@ Name | Type | Description
 `thresholded` |  | Thresholded statistical map.
 `isfit` |  | Whether fit() has been called.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import SimulateGrid
->>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
->>> sim.fit()
->>> sim.plot()
-```
-
 **Methods:**
 
 Name | Description
@@ -16776,6 +16789,15 @@ Name | Description
 
 
 ####### Attributes##
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import SimulateGrid
+>>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+>>> sim.fit()
+>>> sim.plot()
+```
 
 (data-correction)=
 ###### `correction`
@@ -16957,15 +16979,6 @@ Name | Type | Description
 `output_dir` |  | Output directory path.
 `random_state` |  | Random state for reproducible simulations.
 
-**Examples:**
-
-```pycon
->>> from nltools.data.simulator import Simulator
->>> sim = Simulator(random_state=42)
->>> # Create a dataset with signal in specific regions
->>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
-```
-
 **Methods:**
 
 Name | Description
@@ -16982,6 +16995,15 @@ Name | Description
 
 
 ####### Attributes##
+
+**Examples:**
+
+```pycon
+>>> from nltools.data.simulator import Simulator
+>>> sim = Simulator(random_state=42)
+>>> # Create a dataset with signal in specific regions
+>>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+```
 
 (data-brain-mask)=
 ###### `brain_mask`

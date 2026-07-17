@@ -5,12 +5,6 @@ nltools I/O utilities.
 
 HDF5 serialization for neuroimaging data types.
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`h5`](#io-h5) | HDF5 I/O utilities for nltools data types.
-
 **Methods:**
 
 Name | Description
@@ -20,6 +14,12 @@ Name | Description
 [`to_h5`](#io-to-h5) | Save BrainData or Adjacency objects to HDF5 files.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`h5`](#io-h5) | HDF5 I/O utilities for nltools data types.
 
 ### Methods
 

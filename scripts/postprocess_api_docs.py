@@ -78,6 +78,75 @@ def _strip_rst_directives(text: str) -> str:
 
 _HEADING_RE = re.compile(r"^(#{2,6}) ")
 
+# A griffe2md summary-table label line, e.g. ``**Methods:**`` / ``**Attributes:**``.
+_BLOCK_MARKER_RE = re.compile(r"^\*\*(\w[\w ]*?):\*\*\s*$")
+
+# Canonical order for member summary tables. griffe emits Functions before
+# Attributes (and Modules before Classes on module pages); this reorders each
+# run to a more natural reading order. Names not listed keep their relative
+# order and sort after the listed ones (stable sort).
+_SUMMARY_ORDER = [
+    "Parameters",
+    "Attributes",
+    "Classes",
+    "Functions",
+    "Methods",
+    "Modules",
+]
+
+
+def _summary_priority(name: str) -> int:
+    """Sort key for a summary block; unlisted names sort last, keeping their order."""
+    return _SUMMARY_ORDER.index(name) if name in _SUMMARY_ORDER else len(_SUMMARY_ORDER)
+
+
+def _reorder_summary_blocks(text: str) -> str:
+    """Reorder each run of summary tables to Parameters -> Attributes -> ... -> Modules.
+
+    griffe2md emits the member summary blocks (``**Methods:**``, ``**Attributes:**``,
+    ``**Classes:**``, ``**Modules:**``) in a less natural order — Functions before
+    Attributes, Modules before Classes. This rewrites each *contiguous run* of
+    ``**X:**`` blocks (a run is bounded by any heading line or EOF) into
+    `_SUMMARY_ORDER`.
+
+    Adapted from bossanova's `_reorder_summary_blocks`: bossanova demotes heading
+    levels so all summary tables land in a single pre-``## `` preamble, but nltools
+    keeps griffe's heading levels, so summary tables sit *after* each object heading
+    (module ``## ``, class ``#### ``). Operating per-run instead of per-preamble
+    covers both, and leaves per-member ``Parameters -> Returns -> Examples`` runs
+    untouched (Parameters is already first there, so the stable sort is a no-op).
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        if not _BLOCK_MARKER_RE.match(lines[i]):
+            out.append(lines[i])
+            i += 1
+            continue
+        # Collect a maximal run of consecutive summary blocks. Each block spans
+        # its marker line through the content up to (not including) the next
+        # marker or heading line.
+        run_start = i
+        blocks: list[tuple[str, list[str]]] = []
+        while i < n and (m := _BLOCK_MARKER_RE.match(lines[i])):
+            start = i
+            i += 1
+            while (
+                i < n
+                and not _BLOCK_MARKER_RE.match(lines[i])
+                and not _HEADING_RE.match(lines[i])
+            ):
+                i += 1
+            blocks.append((m.group(1), lines[start:i]))
+        if len(blocks) < 2:
+            out.extend(lines[run_start:i])
+            continue
+        for _, block_lines in sorted(blocks, key=lambda b: _summary_priority(b[0])):
+            out.extend(block_lines)
+    return "\n".join(out)
+
 
 def _remove_attributes_sections(text: str) -> str:
     """Drop every ``Attributes`` detail section, keeping the summary table.
@@ -264,6 +333,11 @@ def postprocess(text: str, prefix: str) -> str:
     # Rename "Functions" to "Methods" in category headings and summary labels
     text = re.sub(r"^(#{2,6}) Functions$", r"\1 Methods", text, flags=re.MULTILINE)
     text = re.sub(r"^\*\*Functions:\*\*$", "**Methods:**", text, flags=re.MULTILINE)
+
+    # Reorder member summary tables to a natural reading order (griffe emits
+    # Functions before Attributes, Modules before Classes). Runs after the
+    # Functions->Methods rename so blocks carry canonical labels.
+    text = _reorder_summary_blocks(text)
 
     # Remove "Bases: object" (noise for classes that only inherit from object)
     text = re.sub(r"\nBases: <code>\[object\]\(#object\)</code>\n", "\n", text)

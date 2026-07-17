@@ -80,6 +80,15 @@ Name | Type | Description | Default
 
 </details>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`cache_dir` |  | 
+`category` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -91,13 +100,6 @@ Name | Description
 [`list_keys`](#cache-list-keys) | List all cached keys in this category.
 [`load`](#cache-load) | Load cached data.
 [`save`](#cache-save) | Save arrays to cache.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`cache_dir` |  | 
-`category` |  | 
 
 ##### Methods
 

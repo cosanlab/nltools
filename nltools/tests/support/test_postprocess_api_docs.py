@@ -61,6 +61,71 @@ class TestStripRstDirectives:
         assert out == text
 
 
+class TestReorderSummaryBlocks:
+    """Summary tables reorder to Parameters -> Attributes -> Classes -> Methods.
+
+    griffe emits the member summary tables Functions-before-Attributes (and
+    Modules-before-Classes on module pages), a less natural reading order. The
+    reorder pass rewrites each contiguous run of `**X:**` summary blocks to the
+    canonical order, while leaving per-member Parameters/Returns/Examples runs
+    untouched (Parameters is already first there, so it is a no-op).
+    """
+
+    def _class_page(self):
+        # Mirrors docs/api/data/brain_data.md: a class heading followed by its
+        # constructor Parameters, a Methods summary table, an Attributes summary
+        # table, then a per-method detail section with its own runs.
+        return (
+            "## `BrainData`\n\n"
+            "The class docstring.\n\n"
+            "**Parameters:**\n\n"
+            "| Name | Type |\n| --- | --- |\n| `data` | str |\n\n"
+            "**Methods:**\n\n"
+            "| Name | Description |\n| --- | --- |\n| [`align`](#align) | Align. |\n\n"
+            "**Attributes:**\n\n"
+            "| Name | Description |\n| --- | --- |\n| `shape` | Shape. |\n\n"
+            "### Methods\n\n"
+            "#### `align`\n\n"
+            "Align the data.\n\n"
+            "**Parameters:**\n\n"
+            "| Name | Type |\n| --- | --- |\n| `target` | BrainData |\n\n"
+            "**Returns:**\n\n"
+            "BrainData\n\n"
+            "**Examples:**\n\n"
+            "```python\nbd.align(other)\n```\n"
+        )
+
+    def test_attributes_precede_methods_in_class_summary(self, postprocess_mod):
+        out = postprocess_mod._reorder_summary_blocks(self._class_page())
+        # In the class summary run, Attributes now comes before Methods.
+        assert out.index("**Attributes:**") < out.index("**Methods:**")
+        # The table rows travel with their block (no content scrambling).
+        assert out.index("| `shape` | Shape. |") < out.index("[`align`](#align)")
+
+    def test_per_method_run_is_untouched(self, postprocess_mod):
+        out = postprocess_mod._reorder_summary_blocks(self._class_page())
+        # Within the `align` detail, Parameters -> Returns -> Examples is kept:
+        # the method's Parameters is the LAST **Parameters:** on the page.
+        p = out.rfind("**Parameters:**")
+        assert p < out.index("**Returns:**") < out.index("**Examples:**")
+
+    def test_module_summary_puts_classes_before_modules(self, postprocess_mod):
+        page = (
+            "## `data`\n\n"
+            "**Modules:**\n\n"
+            "| Name | Description |\n| --- | --- |\n| `io` | IO. |\n\n"
+            "**Classes:**\n\n"
+            "| Name | Description |\n| --- | --- |\n| `BrainData` | Brain. |\n\n"
+            "### Classes\n\n#### `BrainData`\n\nThe class.\n"
+        )
+        out = postprocess_mod._reorder_summary_blocks(page)
+        assert out.index("**Classes:**") < out.index("**Modules:**")
+
+    def test_single_block_run_is_noop(self, postprocess_mod):
+        page = "## `x`\n\n**Parameters:**\n\n| a | b |\n| --- | --- |\n\n### Methods\n"
+        assert postprocess_mod._reorder_summary_blocks(page) == page
+
+
 class TestRemoveAttributesSections:
     """Attributes detail sections drop, but must not swallow class headings.
 

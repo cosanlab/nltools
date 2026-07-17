@@ -19,19 +19,6 @@ All public functions are re-exported here for convenience:
 from nltools.stats import fdr, zscore, isc  # all work
 ```
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`alignment`](#stats-alignment) | Data alignment — SRM, Procrustes, and state alignment.
-[`corrections`](#stats-corrections) | Multiple comparison corrections and thresholding.
-[`correlation`](#stats-correlation) | Similarity metrics and correlation.
-[`intersubject`](#stats-intersubject) | Intersubject correlation, functional connectivity, and phase synchrony.
-[`outliers`](#stats-outliers) | Outlier detection, robust statistics, and data normalization.
-[`permutation`](#stats-permutation) | Permutation tests for statistical inference.
-[`regression`](#stats-regression) | Standalone OLS regression on numpy arrays.
-[`timeseries`](#stats-timeseries) | Temporal signal processing — resampling, filtering, and basis functions.
-
 **Methods:**
 
 Name | Description
@@ -74,6 +61,19 @@ Name | Description
 [`zscore`](#stats-zscore) | Z-score every column of a Polars or pandas DataFrame/Series.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`alignment`](#stats-alignment) | Data alignment — SRM, Procrustes, and state alignment.
+[`corrections`](#stats-corrections) | Multiple comparison corrections and thresholding.
+[`correlation`](#stats-correlation) | Similarity metrics and correlation.
+[`intersubject`](#stats-intersubject) | Intersubject correlation, functional connectivity, and phase synchrony.
+[`outliers`](#stats-outliers) | Outlier detection, robust statistics, and data normalization.
+[`permutation`](#stats-permutation) | Permutation tests for statistical inference.
+[`regression`](#stats-regression) | Standalone OLS regression on numpy arrays.
+[`timeseries`](#stats-timeseries) | Temporal signal processing — resampling, filtering, and basis functions.
 
 ### Methods
 

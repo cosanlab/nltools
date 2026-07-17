@@ -13,6 +13,15 @@ on a normal Python kernel and in Pyodide / JupyterLite (pre-seed with
 `seed_resources` there). Arbitrary Neurovault collections are still available
 via `fetch_neurovault_collection`.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`EMOTION_METADATA` |  | Relpath of the emotion dataset's metadata table (its filename manifest).
+`PAIN_RESOURCES` | <code>[list](#list)[[str](#str)]</code> | Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
+
+
+
 **Methods:**
 
 Name | Description
@@ -23,13 +32,6 @@ Name | Description
 [`fetch_neurovault_collection`](#dataset-fetch-neurovault-collection) | Download images and metadata from a Neurovault collection.
 [`fetch_pain`](#dataset-fetch-pain) | Download and load the pain dataset from the nltools HF dataset.
 [`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`EMOTION_METADATA` |  | Relpath of the emotion dataset's metadata table (its filename manifest).
-`PAIN_RESOURCES` | <code>[list](#list)[[str](#str)]</code> | Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
 
 ### Classes
 

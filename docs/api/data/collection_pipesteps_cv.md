@@ -6,17 +6,19 @@ Cross-validation scheme configuration for nltools pipelines.
 This module provides a unified interface for configuring cross-validation
 strategies used across nltools analysis pipelines.
 
-**Classes:**
-
-Name | Description
----- | -----------
-[`CVScheme`](#data-collection-pipesteps-cv-cvscheme) | Cross-validation scheme configuration.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `CVSchemeType` |  | 
+
+
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`CVScheme`](#data-collection-pipesteps-cv-cvscheme) | Cross-validation scheme configuration.
 
 ### Classes
 
@@ -49,6 +51,27 @@ Name | Type | Description | Default
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`is_loro` | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
+`k` | <code>[int](#int) \| None</code> | 
+`n` | <code>[int](#int)</code> | 
+`random_state` | <code>[int](#int) \| None</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
+`split_by` | <code>[str](#str) \| None</code> | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`n_splits`](#data-collection-pipesteps-cv-n-splits) | Return number of splits.
+[`split`](#data-collection-pipesteps-cv-split) | Generate train/test indices for each fold.
+
 **Examples:**
 
 ```pycon
@@ -70,25 +93,6 @@ Name | Type | Description | Default
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`n_splits`](#data-collection-pipesteps-cv-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-cv-split) | Generate train/test indices for each fold.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`is_loro` | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
-`is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
-`k` | <code>[int](#int) \| None</code> | 
-`n` | <code>[int](#int)</code> | 
-`random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
-`split_by` | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 

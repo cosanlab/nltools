@@ -3,6 +3,14 @@
 
 BrainData plotting functions.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`DEFAULT_SLICE_CUT_COORDS` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -11,12 +19,6 @@ Name | Description
 [`plot_brain`](#data-braindata-plotting-plot-brain) | Plot BrainData instance using nilearn visualization or matplotlib.
 [`plot_flatmap_brain`](#data-braindata-plotting-plot-flatmap-brain) | Plot brain data on cortical flatmap.
 [`prepare_save_paths`](#data-braindata-plotting-prepare-save-paths) | Prepare save paths for multiple plot outputs.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`DEFAULT_SLICE_CUT_COORDS` |  | 
 
 ### Methods
 

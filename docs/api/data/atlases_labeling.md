@@ -8,17 +8,19 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`label_coords`](#data-atlases-labeling-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `CoordsLike` |  | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`label_coords`](#data-atlases-labeling-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 ### Classes
 

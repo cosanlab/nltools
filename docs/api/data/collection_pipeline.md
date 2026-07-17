@@ -34,6 +34,16 @@ This class enables method chaining for preprocessing and prediction
 with proper cross-validation semantics for multi-subject neuroimaging
 analyses.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
+`cv` |  | CVScheme configuration. | <code>None</code>
+`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
+
+
+
 **Attributes:**
 
 Name | Type | Description
@@ -41,6 +51,15 @@ Name | Type | Description
 `n_subjects` | <code>[int](#int)</code> | Number of subjects/images in the collection.
 `cv` |  | The cross-validation scheme configuration.
 `n_steps` | <code>[int](#int)</code> | Number of transform steps in the pipeline.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`pipe`](#data-collection-pipeline-pipe) | Add custom sklearn transformer.
+[`predict`](#data-collection-pipeline-predict) | Execute pipeline with CV and return prediction results.
+[`reduce`](#data-collection-pipeline-reduce) | Add dimensionality reduction step.
+[`standardize`](#data-collection-pipeline-standardize) | Add standardization step.
 
 **Examples:**
 
@@ -53,23 +72,6 @@ Name | Type | Description
 ...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`pipe`](#data-collection-pipeline-pipe) | Add custom sklearn transformer.
-[`predict`](#data-collection-pipeline-predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#data-collection-pipeline-reduce) | Add dimensionality reduction step.
-[`standardize`](#data-collection-pipeline-standardize) | Add standardization step.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | BrainCollection to wrap. | *required*
-`cv` |  | CVScheme configuration. | <code>None</code>
-`groups` | <code>[ndarray](#numpy.ndarray) \| None</code> | Group labels for CV splits. | <code>None</code>
 
 ##### Methods
 

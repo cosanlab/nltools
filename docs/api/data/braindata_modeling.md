@@ -147,12 +147,6 @@ Name | Type | Description | Default
 `design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, backend, random_state - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
-
 **Attributes:**
 
 Name | Type | Description
@@ -170,6 +164,12 @@ Name | Type | Description
 `ridge_weights` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Model coefficients (for model='ridge')
 `ridge_fitted_values` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | Fitted values (for model='ridge')
 `ridge_scores` | <code>[BrainData](#nltools.data.braindata.BrainData)</code> | R-squared scores (for model='ridge')
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
 
 **Examples:**
 

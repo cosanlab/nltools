@@ -38,14 +38,6 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject (default=None) | <code>None</code>
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`calculate`](#analysis-calculate) | Calculate ROC metrics for single-interval classification.
-[`plot`](#analysis-plot) | Create a ROC plot.
-[`summary`](#analysis-summary) | Display a formatted summary of ROC analysis.
-
 **Attributes:**
 
 Name | Type | Description
@@ -54,6 +46,16 @@ Name | Type | Description
 `forced_choice` |  | 
 `input_values` |  | 
 `method` |  | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`calculate`](#analysis-calculate) | Calculate ROC metrics for single-interval classification.
+[`plot`](#analysis-plot) | Create a ROC plot.
+[`summary`](#analysis-summary) | Display a formatted summary of ROC analysis.
 
 ##### Methods
 

@@ -8,6 +8,14 @@ with fields populated based on dispatch. Mirrors `BrainData.fit` /
 `Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
 self with attributes, ``inplace=False`` returns the dataclass.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`VALID_SPATIAL_SCALES` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -18,12 +26,6 @@ Name | Description
 [`predict_timeseries`](#data-braindata-prediction-predict-timeseries) | Predict voxel timeseries from a fitted encoding model.
 [`resolve_model`](#data-braindata-prediction-resolve-model) | Resolve a string shortcut or pass through a sklearn estimator.
 [`resolve_scoring`](#data-braindata-prediction-resolve-scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`VALID_SPATIAL_SCALES` |  | 
 
 ### Classes
 

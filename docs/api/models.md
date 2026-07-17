@@ -5,14 +5,6 @@ Model classes for neuroimaging analysis.
 
 Provides sklearn-compatible APIs for common neuroimaging analyses.
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`base`](#models-base) | Base classes for nltools models.
-[`glm`](#models-glm) | GLM model for neuroimaging data.
-[`ridge`](#models-ridge) | Ridge regression model for neuroimaging data.
-
 **Classes:**
 
 Name | Description
@@ -22,6 +14,14 @@ Name | Description
 [`Ridge`](#models-ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`base`](#models-base) | Base classes for nltools models.
+[`glm`](#models-glm) | GLM model for neuroimaging data.
+[`ridge`](#models-ridge) | Ridge regression model for neuroimaging data.
 
 ### Classes
 
@@ -162,6 +162,18 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 
 </details>
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#models-fit) | Fit GLM to fMRI data.
+[`predict`](#models-predict) | Predict from the fitted GLM.
+[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
+[`score`](#models-score) | Return mean R² across voxels and runs.
+
+
+
 **Examples:**
 
 ```pycon
@@ -214,16 +226,6 @@ For advanced use cases, access the internal FirstLevelModel via the
 ``glm_`` property to use any nilearn-specific functionality.
 
 </details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
-[`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Predict from the fitted GLM.
-[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
-[`score`](#models-score) | Return mean R² across voxels and runs.
 
 ##### Methods
 
@@ -443,6 +445,16 @@ Name | Type | Description
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
 `backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#models-fit) | Fit ridge regression model.
+[`predict`](#models-predict) | Predict using the ridge model.
+[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
+
+
+
 **Examples:**
 
 ```pycon
@@ -462,14 +474,6 @@ Ridge(alpha=1.0, backend='numpy')
 >>> model.fit([X1, X2], y)
 >>> print(f"Feature space weights: {model.deltas_}")
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#models-fit) | Fit ridge regression model.
-[`predict`](#models-predict) | Predict using the ridge model.
-[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
 
 ##### Methods
 
@@ -623,6 +627,19 @@ Name | Type | Description | Default
 `X` | <code>ndarray of shape (n_samples, n_features)</code> | Training data | *required*
 `y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Data to predict on | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test data | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -637,12 +654,6 @@ predict(X) -> np.ndarray | list
 
 Generate predictions for new data.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Data to predict on | *required*
-
 **Returns:**
 
 Name | Type | Description
@@ -656,13 +667,6 @@ score(X, y) -> float | np.ndarray
 ```
 
 Evaluate model performance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test data | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values | *required*
 
 **Returns:**
 
@@ -723,6 +727,20 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 
 </details>
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
+[`fit`](#models-fit) | Fit GLM to fMRI data.
+[`predict`](#models-predict) | Predict from the fitted GLM.
+[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
+[`score`](#models-score) | Return mean R² across voxels and runs.
+
+
+
+####### Attributes##
+
 **Examples:**
 
 ```pycon
@@ -775,20 +793,6 @@ For advanced use cases, access the internal FirstLevelModel via the
 ``glm_`` property to use any nilearn-specific functionality.
 
 </details>
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
-[`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Predict from the fitted GLM.
-[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
-[`score`](#models-score) | Return mean R² across voxels and runs.
-
-
-
-####### Attributes##
 
 (models-design-matrices)=
 ###### `design_matrices_`
@@ -907,6 +911,36 @@ Name | Type | Description | Default
 `contrast_def` | <code>str, array-like, or dict</code> | Contrast specification: - str: Regressor name (e.g., 'task') - array-like: Contrast vector (e.g., [1, -1, 0, 0]) - dict: Multiple contrasts with names as keys | *required*
 `output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>Nifti1Image or list of Nifti1Image</code> | 4D fMRI image(s) to fit. Can be single run or list of runs. | *required*
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`design_matrices` | <code>DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix</code> | Design matrix or list of design matrices (one per run). Each should have shape (n_scans, n_regressors). Accepts both pandas DataFrames and nltools DesignMatrix objects. | <code>None</code>
+`events` | <code>DataFrame or list of DataFrame</code> | Event specifications for automatic design matrix creation. Alternative to providing design_matrices directly. | <code>None</code>
+`**kwargs` |  | Additional arguments passed to FirstLevelModel.fit() | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>array-like, DataFrame, or None, default=None</code> | Design matrix to predict from.<br>- ``None``: return the fitted values on the training data (a   list of `Nifti1Image`, one per run), matching sklearn's   ``LinearRegression`` semantics. - array-like of shape (n_samples, n_regressors): return   ``X @ coef_`` as a 2-D ndarray (n_samples, n_voxels), mirroring   `Ridge.predict`. Requires a single-run fit. | <code>None</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrast`. | <code>None</code>
+`**kwargs` |  | Additional arguments forwarded to nilearn's `generate_report` (e.g. `title`, `threshold`, `alpha`). | <code>{}</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
+
 **Returns:**
 
 Type | Description
@@ -939,16 +973,6 @@ fit(X: nib.Nifti1Image | list[nib.Nifti1Image], y: None = None, *, design_matric
 
 Fit GLM to fMRI data.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>Nifti1Image or list of Nifti1Image</code> | 4D fMRI image(s) to fit. Can be single run or list of runs. | *required*
-`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
-`design_matrices` | <code>DataFrame, DesignMatrix, or list of DataFrame/DesignMatrix</code> | Design matrix or list of design matrices (one per run). Each should have shape (n_scans, n_regressors). Accepts both pandas DataFrames and nltools DesignMatrix objects. | <code>None</code>
-`events` | <code>DataFrame or list of DataFrame</code> | Event specifications for automatic design matrix creation. Alternative to providing design_matrices directly. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to FirstLevelModel.fit() | <code>{}</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -976,12 +1000,6 @@ predict(X: np.ndarray | pd.DataFrame | None = None) -> list[nib.Nifti1Image] | n
 
 Predict from the fitted GLM.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>array-like, DataFrame, or None, default=None</code> | Design matrix to predict from.<br>- ``None``: return the fitted values on the training data (a   list of `Nifti1Image`, one per run), matching sklearn's   ``LinearRegression`` semantics. - array-like of shape (n_samples, n_regressors): return   ``X @ coef_`` as a 2-D ndarray (n_samples, n_voxels), mirroring   `Ridge.predict`. Requires a single-run fit. | <code>None</code>
-
 **Returns:**
 
 Type | Description
@@ -1000,13 +1018,6 @@ Delegates to the underlying `FirstLevelModel.generate_report`, which
 renders the design matrix, requested contrast maps, and model
 parameters as a self-contained HTML report.
 
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrast`. | <code>None</code>
-`**kwargs` |  | Additional arguments forwarded to nilearn's `generate_report` (e.g. `title`, `threshold`, `alpha`). | <code>{}</code>
-
 **Returns:**
 
 Name | Type | Description
@@ -1023,13 +1034,6 @@ Return mean R² across voxels and runs.
 
 Computes average coefficient of determination (R²) from the fitted GLM.
 Higher values indicate better model fit.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
-`y` | <code>None</code> | Not used, present for sklearn API compatibility. | <code>None</code>
 
 **Returns:**
 
@@ -1123,6 +1127,18 @@ Name | Type | Description
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
 `backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#models-fit) | Fit ridge regression model.
+[`predict`](#models-predict) | Predict using the ridge model.
+[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
+
+
+
+####### Attributes##
+
 **Examples:**
 
 ```pycon
@@ -1142,18 +1158,6 @@ Ridge(alpha=1.0, backend='numpy')
 >>> model.fit([X1, X2], y)
 >>> print(f"Feature space weights: {model.deltas_}")
 ```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#models-fit) | Fit ridge regression model.
-[`predict`](#models-predict) | Predict using the ridge model.
-[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
-
-
-
-####### Attributes##
 
 (models-alpha)=
 ###### `alpha`
@@ -1250,6 +1254,19 @@ Name | Type | Description | Default
 `X` | <code>ndarray of shape (n_samples, n_features) or list of arrays</code> | Training data. If list, each element is a feature space for banded ridge. | *required*
 `y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Samples to predict | *required*
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test samples | *required*
+`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values for X | *required*
+
 **Returns:**
 
 Name | Type | Description
@@ -1263,12 +1280,6 @@ predict(X: np.ndarray) -> np.ndarray
 ```
 
 Predict using the ridge model.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Samples to predict | *required*
 
 **Returns:**
 
@@ -1286,13 +1297,6 @@ Return the coefficient of determination R^2 of the prediction.
 
 For multi-target regression (y is 2D), returns per-target R² scores.
 For single-target regression (y is 1D), returns a scalar R².
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test samples | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values for X | *required*
 
 **Returns:**
 

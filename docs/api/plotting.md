@@ -17,15 +17,6 @@ All public functions are re-exported here for convenience:
 from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
 ```
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`adjacency`](#plotting-adjacency) | Adjacency matrix visualization — stacked plots, distance, and silhouette.
-[`brain`](#plotting-brain) | Brain visualization — surface plots, flatmaps, and interactive viewers.
-[`decomposition`](#plotting-decomposition) | ICA/PCA component viewer — interactive decomposition explorer.
-[`prediction`](#plotting-prediction) | Model output visualization — ROC, SVM margin, regression, and logistic plots.
-
 **Methods:**
 
 Name | Description
@@ -44,6 +35,15 @@ Name | Description
 [`plot_surf`](#plotting-plot-surf) | Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
 
 
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`adjacency`](#plotting-adjacency) | Adjacency matrix visualization — stacked plots, distance, and silhouette.
+[`brain`](#plotting-brain) | Brain visualization — surface plots, flatmaps, and interactive viewers.
+[`decomposition`](#plotting-decomposition) | ICA/PCA component viewer — interactive decomposition explorer.
+[`prediction`](#plotting-prediction) | Model output visualization — ROC, SVM margin, regression, and logistic plots.
 
 ### Methods
 

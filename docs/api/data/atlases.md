@@ -13,14 +13,15 @@ The labeling logic was adapted from
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 > https://doi.org/10.21105/joss.01257
 
-**Modules:**
+**Attributes:**
 
-Name | Description
----- | -----------
-[`labeling`](#data-atlases-labeling) | Coordinate-level atlas labeling.
-[`loading`](#data-atlases-loading) | Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
-[`registry`](#data-atlases-registry) | Static registry of atlases hosted at ``nltools/niftis/atlases``.
-[`reporting`](#data-atlases-reporting) | Cluster reports — peak/cluster geometry plus atlas labels.
+Name | Type | Description
+---- | ---- | -----------
+[`ATLASES`](#data-atlases-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+
 
 **Classes:**
 
@@ -39,13 +40,14 @@ Name | Description
 [`list_atlases`](#data-atlases-list-atlases) | Return the sorted list of registered atlas names.
 [`load_atlas`](#data-atlases-load-atlas) | Lazy-load an atlas by registry name.
 
-**Attributes:**
+**Modules:**
 
-Name | Type | Description
----- | ---- | -----------
-[`ATLASES`](#data-atlases-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-`AtlasKind` |  | 
-`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+Name | Description
+---- | -----------
+[`labeling`](#data-atlases-labeling) | Coordinate-level atlas labeling.
+[`loading`](#data-atlases-loading) | Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
+[`registry`](#data-atlases-registry) | Static registry of atlases hosted at ``nltools/niftis/atlases``.
+[`reporting`](#data-atlases-reporting) | Cluster reports — peak/cluster geometry plus atlas labels.
 
 ### Classes
 
@@ -262,17 +264,19 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 
-**Methods:**
-
-Name | Description
----- | -----------
-[`label_coords`](#data-atlases-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `CoordsLike` |  | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`label_coords`](#data-atlases-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
 ##### Classes
 
@@ -422,6 +426,16 @@ files are fetched lazily by `load_atlas` via
 Atlases were sourced from atlasreader (BSD-3-Clause) and are subject to
 their original upstream licenses — see ``LICENSES.md`` in the HF dataset.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`ATLASES`](#data-atlases-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
+`AtlasKind` |  | 
+`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
+
+
+
 **Classes:**
 
 Name | Description
@@ -433,14 +447,6 @@ Name | Description
 Name | Description
 ---- | -----------
 [`list_atlases`](#data-atlases-list-atlases) | Return the sorted list of registered atlas names.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`ATLASES`](#data-atlases-atlases) | <code>[dict](#dict)[[str](#str), [AtlasMetadata](#nltools.data.atlases.registry.AtlasMetadata)]</code> | 
-`AtlasKind` |  | 
-`DEFAULT_ATLASES` | <code>[tuple](#tuple)[[str](#str), ...]</code> | 
 
 ##### Classes
 

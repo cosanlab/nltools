@@ -34,35 +34,6 @@ Name | Type | Description
 `confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
 `multi` | <code>[bool](#bool)</code> | True if created from multi-run concatenation
 
-**Examples:**
-
-```pycon
->>> # Create from numpy array
->>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
-```
-
-```pycon
->>> # Add columns
->>> dm['stim'] = [0, 1, 1, 0] * 25
-```
-
-```pycon
->>> # Convolve with HRF — convolved columns get a `_c0` suffix
->>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
-```
-
-```pycon
->>> # Add polynomial drift terms
->>> dm_conv = dm_conv.add_poly(order=2)
-```
-
-```pycon
->>> # Multi-run concatenation (auto-separates polynomials)
->>> dm_run1 = DesignMatrix(...).add_poly(0)
->>> dm_run2 = DesignMatrix(...).add_poly(0)
->>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
-```
-
 **Methods:**
 
 Name | Description
@@ -102,6 +73,37 @@ for FIR designs, PPI flows that build interaction terms before
 convolution, or pedagogical material that introduces convolution
 as a separate step. ``hrf_model`` is silently ignored when ``data``
 is anything other than an events file.
+
+
+
+**Examples:**
+
+```pycon
+>>> # Create from numpy array
+>>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
+```
+
+```pycon
+>>> # Add columns
+>>> dm['stim'] = [0, 1, 1, 0] * 25
+```
+
+```pycon
+>>> # Convolve with HRF — convolved columns get a `_c0` suffix
+>>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
+```
+
+```pycon
+>>> # Add polynomial drift terms
+>>> dm_conv = dm_conv.add_poly(order=2)
+```
+
+```pycon
+>>> # Multi-run concatenation (auto-separates polynomials)
+>>> dm_run1 = DesignMatrix(...).add_poly(0)
+>>> dm_run2 = DesignMatrix(...).add_poly(0)
+>>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+```
 
 ### Methods
 

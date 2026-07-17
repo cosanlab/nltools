@@ -19,6 +19,45 @@ Inspired by BROCCOLI's GPU permutation testing (Eklund et al. 2014).
 
 </details>
 
+**Classes:**
+
+Name | Description
+---- | -----------
+[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`circle_shift`](#algorithms-inference-circle-shift) | Circular shift for time-series data.
+[`correlation_permutation_test`](#algorithms-inference-correlation-permutation-test) | Correlation permutation test.
+[`distance_correlation`](#algorithms-inference-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+[`double_center`](#algorithms-inference-double-center) | Double center a 2d array.
+[`isc_group_permutation_test`](#algorithms-inference-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
+[`isc_permutation_test`](#algorithms-inference-isc-permutation-test) | Compute intersubject correlation with permutation testing.
+[`matrix_permutation_test`](#algorithms-inference-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
+[`one_sample_permutation_test`](#algorithms-inference-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
+[`phase_randomize`](#algorithms-inference-phase-randomize) | FFT-based phase randomization for time-series data.
+[`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
+[`two_sample_permutation_test`](#algorithms-inference-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
+[`u_center`](#algorithms-inference-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+
+
+
+**Modules:**
+
+Name | Description
+---- | -----------
+[`bootstrap`](#algorithms-inference-bootstrap) | Bootstrap inference utilities with CPU/GPU support.
+[`correlation`](#algorithms-inference-correlation) | Correlation permutation test implementations.
+[`isc`](#algorithms-inference-isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
+[`matrix`](#algorithms-inference-matrix) | Matrix permutation test implementations (Mantel test).
+[`one_sample`](#algorithms-inference-one-sample) | One-sample permutation test implementations.
+[`timeseries`](#algorithms-inference-timeseries) | Time-series permutation test implementations.
+[`two_sample`](#algorithms-inference-two-sample) | Two-sample permutation test implementations.
+[`utils`](#algorithms-inference-utils) | Utility functions for permutation testing.
+[`validation`](#algorithms-inference-validation) | Shared validation utilities for algorithms module.
+
 **Examples:**
 
 ```pycon
@@ -67,45 +106,6 @@ with BrainData objects, see nltools.data.brain_data.
 
 </details>
 
-**Modules:**
-
-Name | Description
----- | -----------
-[`bootstrap`](#algorithms-inference-bootstrap) | Bootstrap inference utilities with CPU/GPU support.
-[`correlation`](#algorithms-inference-correlation) | Correlation permutation test implementations.
-[`isc`](#algorithms-inference-isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
-[`matrix`](#algorithms-inference-matrix) | Matrix permutation test implementations (Mantel test).
-[`one_sample`](#algorithms-inference-one-sample) | One-sample permutation test implementations.
-[`timeseries`](#algorithms-inference-timeseries) | Time-series permutation test implementations.
-[`two_sample`](#algorithms-inference-two-sample) | Two-sample permutation test implementations.
-[`utils`](#algorithms-inference-utils) | Utility functions for permutation testing.
-[`validation`](#algorithms-inference-validation) | Shared validation utilities for algorithms module.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`circle_shift`](#algorithms-inference-circle-shift) | Circular shift for time-series data.
-[`correlation_permutation_test`](#algorithms-inference-correlation-permutation-test) | Correlation permutation test.
-[`distance_correlation`](#algorithms-inference-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
-[`double_center`](#algorithms-inference-double-center) | Double center a 2d array.
-[`isc_group_permutation_test`](#algorithms-inference-isc-group-permutation-test) | Compute ISC difference between groups with permutation testing.
-[`isc_permutation_test`](#algorithms-inference-isc-permutation-test) | Compute intersubject correlation with permutation testing.
-[`matrix_permutation_test`](#algorithms-inference-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`one_sample_permutation_test`](#algorithms-inference-one-sample-permutation-test) | One-sample permutation test using sign-flipping.
-[`phase_randomize`](#algorithms-inference-phase-randomize) | FFT-based phase randomization for time-series data.
-[`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
-[`two_sample_permutation_test`](#algorithms-inference-two-sample-permutation-test) | Two-sample permutation test using group label shuffling.
-[`u_center`](#algorithms-inference-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
-
-
-
 ### Classes
 
 (algorithms-inference-onlinebootstrapstats)=
@@ -128,25 +128,6 @@ Name | Type | Description | Default
 `save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
-**Examples:**
-
-```pycon
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`get_results`](#algorithms-inference-get-results) | Compute final bootstrap statistics.
-[`update`](#algorithms-inference-update) | Update statistics with a new bootstrap sample.
-
 **Attributes:**
 
 Name | Type | Description
@@ -158,6 +139,27 @@ Name | Type | Description
 `samples` |  | 
 `save_samples` |  | 
 `shape` |  | 
+
+
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`get_results`](#algorithms-inference-get-results) | Compute final bootstrap statistics.
+[`update`](#algorithms-inference-update) | Update statistics with a new bootstrap sample.
+
+**Examples:**
+
+```pycon
+>>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+>>> for i in range(1000):
+...     sample = np.random.randn(100)
+...     stats.update(sample)
+>>> results = stats.get_results()
+>>> print(results.keys())
+dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+```
 
 ##### Methods
 
@@ -995,18 +997,20 @@ True
 
 Bootstrap inference utilities with CPU/GPU support.
 
-**Classes:**
-
-Name | Description
----- | -----------
-[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
-
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
 `FITTED_METHODS` |  | 
 `SIMPLE_METHODS` |  | 
+
+
+
+**Classes:**
+
+Name | Description
+---- | -----------
+[`OnlineBootstrapStats`](#algorithms-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
 ##### Classes
 
@@ -1029,25 +1033,6 @@ Name | Type | Description | Default
 `save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
-**Examples:**
-
-```pycon
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`get_results`](#algorithms-inference-get-results) | Compute final bootstrap statistics.
-[`update`](#algorithms-inference-update) | Update statistics with a new bootstrap sample.
-
 **Attributes:**
 
 Name | Type | Description
@@ -1063,6 +1048,25 @@ Name | Type | Description
 
 
 ####### Attributes##
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`get_results`](#algorithms-inference-get-results) | Compute final bootstrap statistics.
+[`update`](#algorithms-inference-update) | Update statistics with a new bootstrap sample.
+
+**Examples:**
+
+```pycon
+>>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+>>> for i in range(1000):
+...     sample = np.random.randn(100)
+...     stats.update(sample)
+>>> results = stats.get_results()
+>>> print(results.keys())
+dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+```
 
 (algorithms-inference-m2)=
 ###### `M2`
@@ -1119,6 +1123,14 @@ get_results() -> dict[str, np.ndarray]
 
 Compute final bootstrap statistics.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`sample` | <code>[ndarray](#numpy.ndarray)</code> | New bootstrap sample with shape matching self.shape. | *required*
+
+
+
 **Returns:**
 
 Type | Description
@@ -1151,14 +1163,6 @@ update(sample: np.ndarray) -> None
 Update statistics with a new bootstrap sample.
 
 Uses Welford's algorithm for numerical stability.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`sample` | <code>[ndarray](#numpy.ndarray)</code> | New bootstrap sample with shape matching self.shape. | *required*
-
-
 
 ##### Methods
 
@@ -1484,6 +1488,14 @@ This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`MAX_INT` |  | 
+
+
+
 **Methods:**
 
 Name | Description
@@ -1492,12 +1504,6 @@ Name | Description
 [`double_center`](#algorithms-inference-double-center) | Double center a 2d array.
 [`matrix_permutation_test`](#algorithms-inference-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
 [`u_center`](#algorithms-inference-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`MAX_INT` |  | 
 
 ##### Methods
 
