@@ -188,31 +188,71 @@ class TestISCRoiMask:
 
 
 class TestAlign:
-    """Behavioral facade tests. Searchlight Procrustes needs more samples than
-    the tiny fixture provides — algorithm correctness is covered separately
-    in ``nltools.algorithms.alignment`` tests.
+    """Behavioral facade tests for ``BrainCollection.align``.
+
+    The facade feeds each subject to ``LocalAlignment`` as ``(n_voxels,
+    n_samples)`` (transposing ``BrainData``'s ``(n_samples, n_voxels)``) and
+    transposes the aligned result back; see ``nltools.algorithms.alignment``
+    for the underlying-algorithm correctness tests.
     """
 
-    @pytest.mark.skip(
-        reason="searchlight Procrustes needs >8 timepoints; algorithm "
-        "correctness covered in nltools.algorithms tests"
-    )
     def test_align_returns_collection(self, bc_inmem):
-        out = bc_inmem.align(method="procrustes", spatial_scale="searchlight")
+        # bc_inmem is 8 samples x 27 voxels: n_samples < n_voxels, which is the
+        # exact case that crashed before the facade transposed its input.
+        out = bc_inmem.align(method="procrustes", spatial_scale="searchlight", n_jobs=1)
         assert isinstance(out, BrainCollection)
+        # Orientation preserved end-to-end: aligned items keep (n_samples, n_voxels).
+        assert all(np.asarray(b.data).shape == (8, 27) for b in out)
 
-    @pytest.mark.skip(
-        reason="searchlight Procrustes needs >8 timepoints; algorithm "
-        "correctness covered in nltools.algorithms tests"
-    )
     def test_align_with_return_model_returns_tuple(self, bc_inmem):
         out, model = bc_inmem.align(
             method="procrustes",
             spatial_scale="searchlight",
             return_model=True,
+            n_jobs=1,
         )
         assert isinstance(out, BrainCollection)
         assert model is not None
+
+    def test_align_identical_subjects_align_to_each_other(
+        self, tiny_mask, tiny_brain_factory
+    ):
+        # Identical subjects must map to identical aligned outputs (symmetry);
+        # a transposed feed would scramble which axis is aligned and break this.
+        bd = tiny_brain_factory(n_obs=12, seed=7)
+        bc = BrainCollection([bd, bd, bd], mask=tiny_mask, lazy=False, cache_dir=None)
+        out = list(bc.align(spatial_scale="searchlight", radius_mm=10.0, n_jobs=1))
+        first = np.asarray(out[0].data)
+        for b in out[1:]:
+            np.testing.assert_allclose(np.asarray(b.data), first, atol=1e-5)
+
+    # --- cache= (F073): joint-op output persistence, uniform with other ops ---
+
+    def test_align_cache_true_writes_through(self, bc_inmem):
+        out = bc_inmem.align(spatial_scale="searchlight", cache=True, n_jobs=1)
+        assert not any(out.is_loaded)  # path-backed
+
+    def test_align_cache_false_stays_in_memory(self, bc_inmem):
+        out = bc_inmem.align(spatial_scale="searchlight", cache=False, n_jobs=1)
+        assert all(out.is_loaded)
+
+    def test_align_cache_auto_follows_inmem_source(self, bc_inmem):
+        out = bc_inmem.align(spatial_scale="searchlight", cache="auto", n_jobs=1)
+        assert all(out.is_loaded)
+
+    def test_align_cache_auto_follows_pathbacked_source(self, bc_pathbacked):
+        out = bc_pathbacked.align(spatial_scale="searchlight", cache="auto", n_jobs=1)
+        assert not any(out.is_loaded)
+
+    def test_align_cache_roundtrip_is_lossless(self, bc_inmem):
+        # Caching is a transparent memory/perf optimization: a path-backed result
+        # must equal the in-memory one to float32 precision, not a quantized approx.
+        cached = bc_inmem.align(spatial_scale="searchlight", cache=True, n_jobs=1)
+        inmem = bc_inmem.align(spatial_scale="searchlight", cache=False, n_jobs=1)
+        for a, b in zip(cached, inmem):
+            np.testing.assert_allclose(
+                np.asarray(a.data), np.asarray(b.data), rtol=0, atol=1e-6
+            )
 
     def test_align_facade_signature(self):
         import inspect

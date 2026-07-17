@@ -219,6 +219,53 @@ def _resolve_cache_mode(
     return bool(cache)
 
 
+def _persist_or_keep(
+    bc: BrainCollection,
+    brains: list,
+    *,
+    op: str,
+    op_kwargs: dict | None = None,
+    cache: Literal["auto", True, False] = "auto",
+    out_ext: str = ".nii.gz",
+) -> tuple[list, list, Path | None]:
+    """Persist joint-op output items to disk, or keep them in memory.
+
+    The caching counterpart to `_apply` for ops that compute all their
+    outputs jointly (every subject at once) rather than per-item — e.g.
+    `align`, which must materialize all subjects to fit its aligner. Resolves
+    ``cache=`` against the *source* items with the same ``'auto'`` rule as
+    `_apply` (cache when the source is path-backed), and when caching writes
+    each output ``BrainData`` to a fresh step subdir under ``bc.cache_root``
+    via `_atomic_write_nifti`.
+
+    Args:
+        bc: The source collection (its ``_items`` decide ``'auto'``; its
+            ``cache_root`` receives the step subdir).
+        brains: The freshly computed output ``BrainData`` items, in order.
+        op: Short op name for the step-subdir label (e.g. ``'align'``).
+        op_kwargs: Scalar kwargs to stamp into the subdir name.
+        cache: ``'auto'`` | ``True`` | ``False``.
+        out_ext: File extension for the persisted items.
+
+    Returns:
+        ``(items, source_paths, step_dir)``. When caching, ``items`` are the
+        written ``Path``s, ``source_paths`` mirror them, and ``step_dir`` is
+        the new subdir. Otherwise ``items`` are the in-memory ``brains``,
+        ``source_paths`` are all ``None``, and ``step_dir`` is ``None``.
+    """
+    do_cache = _resolve_cache_mode(bc._items, cache)
+    if not do_cache:
+        return list(brains), [None] * len(brains), None
+
+    step_dir = bc.cache_root / core.make_step_dirname(op, op_kwargs or {})
+    step_dir.mkdir(parents=True, exist_ok=True)
+    paths = [
+        _atomic_write_nifti(step_dir / f"sub-{i + 1:04d}{out_ext}", bd)
+        for i, bd in enumerate(brains)
+    ]
+    return paths, list(paths), step_dir
+
+
 def _stash_mask(bc: BrainCollection) -> Path:
     """Persist ``bc._mask`` to ``cache_root/_mask.nii.gz`` once.
 

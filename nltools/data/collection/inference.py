@@ -603,9 +603,13 @@ def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignme
     """
     from ..braindata import BrainData
     from ...algorithms.alignment.local import LocalAlignment
+    from . import execution
 
     _check_nonempty(bc)
-    arrays = [np.asarray(x) for x in _iter_arrays(bc)]
+    # LocalAlignment operates on (n_voxels, n_samples); BrainData.data is
+    # (n_samples, n_voxels), so transpose in and transpose the aligned result
+    # back before rewrapping.
+    arrays = [np.asarray(x).T for x in _iter_arrays(bc)]
 
     aligner = LocalAlignment(
         scheme=spatial_scale,
@@ -621,11 +625,19 @@ def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignme
     aligner.fit(arrays, mask=bc._mask)
     aligned = aligner.transform(arrays)
 
-    new_brains = [BrainData(arr.astype(np.float32), mask=bc._mask) for arr in aligned]
+    new_brains = [BrainData(arr.T.astype(np.float32), mask=bc._mask) for arr in aligned]
+    items, source_paths, step_dir = execution._persist_or_keep(
+        bc,
+        new_brains,
+        op="align",
+        op_kwargs={"method": method, "spatial_scale": spatial_scale},
+        cache=cache,
+    )
     new_bc = bc._clone(
-        _items=new_brains,
+        _items=items,
         _step_id=bc._next_step_id(),
-        _source_paths=[None] * len(new_brains),
+        _step_dirs=bc._step_dirs + ([step_dir] if step_dir else []),
+        _source_paths=source_paths,
     )
     if return_model:
         return new_bc, aligner
