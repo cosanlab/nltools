@@ -63,7 +63,7 @@ class BrainCollectionPipeline:
     @property
     def n_subjects(self) -> int:
         """Number of subjects/images."""
-        return self._bc.n_images
+        return self._bc.n_subjects
 
     @property
     def cv(self):

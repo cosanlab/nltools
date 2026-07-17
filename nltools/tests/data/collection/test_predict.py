@@ -299,6 +299,12 @@ class TestCVPipeline:
         pipe = bc_inmem.cv(method="loso")
         assert isinstance(pipe, BrainCollectionPipeline)
 
+    def test_pipeline_n_subjects_and_repr(self, bc_inmem):
+        """F067: n_subjects referenced a nonexistent BrainCollection.n_images."""
+        pipe = bc_inmem.cv(method="loso")
+        assert pipe.n_subjects == bc_inmem.n_subjects
+        assert repr(pipe)  # __repr__ interpolates n_subjects; must not raise
+
     def test_pipeline_standardize_step_added(self, bc_inmem):
         """SPEC §865: BrainCollectionPipeline.standardize() (renamed from normalize)."""
         assert bc_inmem.cv(method="loso").standardize().n_steps == 1
