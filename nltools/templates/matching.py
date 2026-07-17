@@ -32,6 +32,26 @@ class TemplateMatch:
     match_distance: float
 
 
+def detect_resolution(affine: np.ndarray) -> tuple[float, bool]:
+    """Detect voxel resolution (mm) and isotropy from a NIfTI affine.
+
+    Voxels are treated as isotropic when the per-axis sizes agree to within
+    three decimals. The reported resolution is that shared isotropic size, or
+    the mean of the per-axis sizes when non-isotropic.
+
+    Args:
+        affine: 4x4 affine matrix from a NIfTI image.
+
+    Returns:
+        tuple: ``(resolution_mm, is_isotropic)``.
+    """
+    res_array = np.abs(np.diag(affine[:3, :3]))
+    voxel_dims = np.unique(np.round(res_array, 3))
+    is_isotropic = len(voxel_dims) == 1
+    resolution_mm = float(voxel_dims[0]) if is_isotropic else float(np.mean(res_array))
+    return resolution_mm, is_isotropic
+
+
 def match_resolution(
     affine: np.ndarray,
     prefer_exact: bool = True,
@@ -54,11 +74,7 @@ def match_resolution(
     Raises:
         ValueError: If detected resolution is outside a reasonable range.
     """
-    res_array = np.abs(np.diag(affine[:3, :3]))
-    voxel_dims = np.unique(res_array)
-    resolution_float = (
-        float(voxel_dims[0]) if len(voxel_dims) == 1 else float(np.mean(res_array))
-    )
+    resolution_float, _ = detect_resolution(affine)
     resolution = int(np.round(resolution_float))
 
     if resolution < 1 or resolution > 10:
@@ -131,12 +147,11 @@ def is_standard_space(
         embedding in an error message.
     """
     del config  # accepted for symmetry with get_bg_image; not needed today
-    res_array = np.abs(np.diag(affine[:3, :3]))
-    voxel_dims = np.unique(np.round(res_array, 3))
-    if len(voxel_dims) != 1:
+    res, is_isotropic = detect_resolution(affine)
+    if not is_isotropic:
+        res_array = np.abs(np.diag(affine[:3, :3]))
         zooms = tuple(round(float(r), 2) for r in res_array)
         return False, f"voxels are non-isotropic (zooms={zooms} mm)"
-    res = float(voxel_dims[0])
     res_int = int(round(res))
     if abs(res - res_int) > 1e-3:
         return False, (
@@ -179,14 +194,13 @@ def get_bg_image(
 
     cfg = config if config is not None else get_brainspace()
 
-    res_array = np.abs(np.diag(affine[:3, :3]))
-    voxel_dims = np.unique(res_array)
-    if len(voxel_dims) != 1:
+    resolution_float, is_isotropic = detect_resolution(affine)
+    if not is_isotropic:
         raise ValueError(
             "Voxels are not isotropic and cannot be visualized in standard space"
         )
 
-    resolution = int(round(float(voxel_dims[0])))
+    resolution = int(round(resolution_float))
 
     if resolution not in SUPPORTED_RESOLUTIONS.get(cfg.template, []):
         return getattr(cfg, img_type)

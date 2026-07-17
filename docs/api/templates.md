@@ -690,6 +690,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
+[`detect_resolution`](#templates-detect-resolution) | Detect voxel resolution (mm) and isotropy from a NIfTI affine.
 [`get_bg_image`](#templates-get-bg-image) | Get a background image path matching a data resolution.
 [`is_standard_space`](#templates-is-standard-space) | Check whether an affine is compatible with our MNI templates.
 [`match_resolution`](#templates-match-resolution) | Find the best matching template for a given affine matrix.
@@ -759,6 +760,31 @@ template: str
 
 
 ##### Methods
+
+(templates-detect-resolution)=
+###### `detect_resolution`
+
+```python
+detect_resolution(affine: np.ndarray) -> tuple[float, bool]
+```
+
+Detect voxel resolution (mm) and isotropy from a NIfTI affine.
+
+Voxels are treated as isotropic when the per-axis sizes agree to within
+three decimals. The reported resolution is that shared isotropic size, or
+the mean of the per-axis sizes when non-isotropic.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a NIfTI image. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` | <code>[tuple](#tuple)[[float](#float), [bool](#bool)]</code> | ``(resolution_mm, is_isotropic)``.
 
 ###### `get_bg_image`
 

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 __all__ = ["SphereNeighborhoods", "compute_searchlight_neighborhoods"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class SphereNeighborhoods:
     """Precomputed sphere neighborhoods for a brain mask.
 

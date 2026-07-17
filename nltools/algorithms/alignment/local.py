@@ -386,7 +386,7 @@ class LocalAlignment:
         # Validate scheme/aggregation compatibility
         if self.scheme == "piecewise" and self.aggregation == "center":
             # Auto-switch to 'all' for piecewise (center-only doesn't make sense)
-            object.__setattr__(self, "aggregation", "all")
+            self.aggregation = "all"
         if self.scheme == "piecewise" and self.parcellation is None:
             raise ValueError("parcellation is required for piecewise scheme")
 

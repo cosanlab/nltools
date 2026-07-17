@@ -5,55 +5,34 @@ These tests verify that stats.permutation facades correctly delegate to
 algorithms.inference and that users can import from nltools.stats.
 """
 
+import importlib
+
 import numpy as np
+import pytest
+
+
+PERMUTATION_EXPORTS = [
+    "one_sample_permutation_test",
+    "two_sample_permutation_test",
+    "correlation_permutation_test",
+    "timeseries_correlation_permutation_test",
+    "circle_shift",
+    "phase_randomize",
+    "matrix_permutation_test",
+    "double_center",
+    "u_center",
+    "distance_correlation",
+]
 
 
 class TestStatsPermutationImports:
     """Verify all permutation functions are importable from nltools.stats."""
 
-    def test_import_one_sample(self):
-        from nltools.stats import one_sample_permutation_test  # noqa: F401
-
-    def test_import_two_sample(self):
-        from nltools.stats import two_sample_permutation_test  # noqa: F401
-
-    def test_import_correlation(self):
-        from nltools.stats import correlation_permutation_test  # noqa: F401
-
-    def test_import_timeseries_correlation(self):
-        from nltools.stats import timeseries_correlation_permutation_test  # noqa: F401
-
-    def test_import_circle_shift(self):
-        from nltools.stats import circle_shift  # noqa: F401
-
-    def test_import_phase_randomize(self):
-        from nltools.stats import phase_randomize  # noqa: F401
-
-    def test_import_matrix(self):
-        from nltools.stats import matrix_permutation_test  # noqa: F401
-
-    def test_import_double_center(self):
-        from nltools.stats import double_center  # noqa: F401
-
-    def test_import_u_center(self):
-        from nltools.stats import u_center  # noqa: F401
-
-    def test_import_distance_correlation(self):
-        from nltools.stats import distance_correlation  # noqa: F401
-
-    def test_import_from_permutation_submodule(self):
-        from nltools.stats.permutation import (  # noqa: F401
-            one_sample_permutation_test,
-            two_sample_permutation_test,
-            correlation_permutation_test,
-            timeseries_correlation_permutation_test,
-            circle_shift,
-            phase_randomize,
-            matrix_permutation_test,
-            double_center,
-            u_center,
-            distance_correlation,
-        )
+    @pytest.mark.parametrize("name", PERMUTATION_EXPORTS)
+    @pytest.mark.parametrize("module", ["nltools.stats", "nltools.stats.permutation"])
+    def test_export_is_importable(self, module, name):
+        """Each permutation function is exposed by both public modules."""
+        assert hasattr(importlib.import_module(module), name)
 
 
 class TestOneSamplePermutation:

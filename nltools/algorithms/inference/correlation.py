@@ -7,6 +7,7 @@ of correlations.
 
 import warnings
 import numpy as np
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
@@ -146,6 +147,19 @@ def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     return correlations
 
 
+def _select_corr_func(
+    metric: str,
+) -> Callable[[np.ndarray, np.ndarray], np.ndarray | float]:
+    """Return the correlation function for a metric name."""
+    if metric == "pearson":
+        return _pearson_correlation
+    if metric == "spearman":
+        return _spearman_correlation
+    if metric == "kendall":
+        return _kendall_correlation
+    raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+
+
 def _correlation_permutation_cpu_parallel(
     data1: np.ndarray,
     data2: np.ndarray,
@@ -188,14 +202,7 @@ def _correlation_permutation_cpu_parallel(
     n_samples, n_features = data1.shape
 
     # Select correlation function
-    if metric == "pearson":
-        corr_func = _pearson_correlation
-    elif metric == "spearman":
-        corr_func = _spearman_correlation
-    elif metric == "kendall":
-        corr_func = _kendall_correlation
-    else:
-        raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+    corr_func = _select_corr_func(metric)
 
     # Compute observed correlation
     if n_features == 1:
@@ -756,14 +763,7 @@ def correlation_permutation_test(
             rng = check_random_state(random_state)
 
             # Select correlation function
-            if metric == "pearson":
-                corr_func = _pearson_correlation
-            elif metric == "spearman":
-                corr_func = _spearman_correlation
-            elif metric == "kendall":
-                corr_func = _kendall_correlation
-            else:
-                raise NotImplementedError(f"Metric '{metric}' not yet implemented")
+            corr_func = _select_corr_func(metric)
 
             # Compute observed correlation
             if n_features == 1:
