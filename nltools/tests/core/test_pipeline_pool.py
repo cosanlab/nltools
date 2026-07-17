@@ -144,6 +144,81 @@ class TestPooledData:
         with pytest.raises(ValueError, match="No fitted state"):
             simple_pool.repool("residual")
 
+    def test_repool_extracts_from_dict_fitted_state(self):
+        """F111: repool must work for the real fitted_state shape.
+
+        FittedBrainCollection.pool(save_fitted=True) stores fitted_state as a
+        dict[str, BrainCollection] (keyed by stat) or a single BrainCollection —
+        never a list of per-subject dicts. Each item duck-types as an object
+        with a ``.data`` array; repool restacks the requested stat.
+        """
+
+        class _FakeBD:
+            def __init__(self, data):
+                self.data = data
+
+        class _FakeBC:
+            def __init__(self, arrs):
+                self._a = [_FakeBD(a) for a in arrs]
+
+            def __len__(self):
+                return len(self._a)
+
+            def __getitem__(self, i):
+                return self._a[i]
+
+        betas = _FakeBC([np.ones((2, 5)), np.full((2, 5), 2.0)])
+        tvals = _FakeBC([np.full((2, 5), 3.0), np.full((2, 5), 4.0)])
+        fitted = {"betas": betas, "t": tvals}
+        pool = PooledData(
+            data=np.stack([betas[i].data for i in range(2)]),
+            param="beta",
+            fitted_state=fitted,
+        )
+
+        # repool a different stat
+        repooled_t = pool.repool("t")
+        np.testing.assert_array_equal(
+            repooled_t.data, np.stack([tvals[i].data for i in range(2)])
+        )
+        assert repooled_t.param == "t"
+        # 'beta' must map to the 'betas' key
+        repooled_beta = pool.repool("beta")
+        np.testing.assert_array_equal(
+            repooled_beta.data, np.stack([betas[i].data for i in range(2)])
+        )
+        # unknown stat is a clear error
+        with pytest.raises(ValueError, match="not found"):
+            pool.repool("nonexistent")
+
+    def test_repool_extracts_from_single_collection(self):
+        """F111: single-BrainCollection fitted_state (e.g. ridge scores)."""
+
+        class _FakeBD:
+            def __init__(self, data):
+                self.data = data
+
+        class _FakeBC:
+            def __init__(self, arrs):
+                self._a = [_FakeBD(a) for a in arrs]
+
+            def __len__(self):
+                return len(self._a)
+
+            def __getitem__(self, i):
+                return self._a[i]
+
+        scores = _FakeBC([np.ones((1, 5)), np.full((1, 5), 2.0)])
+        pool = PooledData(
+            data=np.stack([scores[i].data for i in range(2)]),
+            param="scores",
+            fitted_state=scores,
+        )
+        repooled = pool.repool("scores")
+        np.testing.assert_array_equal(
+            repooled.data, np.stack([scores[i].data for i in range(2)])
+        )
+
     def test_save_load_npz(self, simple_pool):
         """Test save/load with npz format."""
         with tempfile.TemporaryDirectory() as tmpdir:

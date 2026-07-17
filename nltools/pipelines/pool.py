@@ -269,12 +269,37 @@ class PooledData:
         )
 
     def _extract_param(self, param: str) -> NDArray:
-        """Extract parameter from fitted state."""
-        # This depends on how fitted_state is structured
-        # For now, assume it's a list of dicts per subject
-        if isinstance(self.fitted_state, list):
-            return np.stack([s.get(param) for s in self.fitted_state])
-        raise ValueError(f"Cannot extract {param} from fitted state")
+        """Extract a parameter array from the saved fitted state.
+
+        Mirrors `FittedBrainCollection.pool`'s extraction. `fitted_state` is
+        either a single BrainCollection (e.g. GLM betas / ridge scores|weights)
+        or a `dict[str, BrainCollection]` keyed by stat name ('betas', 't', 'p',
+        'se', 'r2', 'residual', ...). Each item duck-types as an object with a
+        `.data` array; the result is a `(n_subjects, n_conditions, n_voxels)`
+        stack, matching what `pool()` produced.
+        """
+        fitted = self.fitted_state
+        if isinstance(fitted, dict):
+            # 'beta' is stored under the 'betas' key (matches pool()).
+            param_key = "betas" if param == "beta" else param
+            if param_key not in fitted:
+                raise ValueError(
+                    f"Parameter '{param}' not found in fitted state. "
+                    f"Available: {sorted(fitted)}"
+                )
+            data_to_pool = fitted[param_key]
+        elif isinstance(fitted, list):
+            # Legacy shape: a list of per-subject dicts.
+            return np.stack([s.get(param) for s in fitted])
+        else:
+            # Single BrainCollection result.
+            if param not in ("beta", "betas", "scores", "weights"):
+                raise ValueError(
+                    f"Parameter '{param}' not available from a single fitted "
+                    "result. Re-fit with return_stats=[...] to save more stats."
+                )
+            data_to_pool = fitted
+        return np.stack([data_to_pool[i].data for i in range(len(data_to_pool))])
 
     def save(self, path: str) -> None:
         """Save pooled data to disk.
