@@ -1,4 +1,4 @@
-"""External functions."""
+"""Public algorithms: alignment (SRM, HyperAlignment, LocalAlignment), HRFs, ridge, and permutation inference."""
 
 __all__ = [
     "SRM",

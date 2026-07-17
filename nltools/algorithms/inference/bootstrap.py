@@ -306,12 +306,12 @@ def _bootstrap_simple_cpu_parallel(
         - 'backend': Backend used (e.g., 'cpu-parallel-8')
 
     Examples:
-    >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
-    >>> result = _bootstrap_simple_cpu_parallel(data, 'mean', n_samples=1000)
-    >>> result['mean'].shape
-    (50,)
-    >>> result.keys()
-    dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', 'backend'])
+        >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
+        >>> result = _bootstrap_simple_cpu_parallel(data, 'mean', n_samples=1000)
+        >>> result['mean'].shape
+        (50,)
+        >>> result.keys()
+        dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', 'backend'])
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
@@ -451,11 +451,11 @@ def _bootstrap_ridge_weights_cpu_parallel(
         - 'backend': Backend used
 
     Examples:
-    >>> X = np.random.randn(100, 10)  # 100 samples, 10 features
-    >>> y = np.random.randn(100, 50)  # 100 samples, 50 voxels
-    >>> result = _bootstrap_ridge_weights_cpu_parallel(X, y, alpha=1.0)
-    >>> result['mean'].shape
-    (10, 50)
+        >>> X = np.random.randn(100, 10)  # 100 samples, 10 features
+        >>> y = np.random.randn(100, 50)  # 100 samples, 50 voxels
+        >>> result = _bootstrap_ridge_weights_cpu_parallel(X, y, alpha=1.0)
+        >>> result['mean'].shape
+        (10, 50)
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
@@ -602,12 +602,12 @@ def _bootstrap_ridge_predict_cpu_parallel(
         - 'backend': Backend used
 
     Examples:
-    >>> X = np.random.randn(100, 10)         # Training features
-    >>> y = np.random.randn(100, 50)         # Training targets (50 voxels)
-    >>> X_test = np.random.randn(20, 10)     # Test features
-    >>> result = _bootstrap_ridge_predict_cpu_parallel(X, y, X_test, alpha=1.0)
-    >>> result['mean'].shape
-    (20, 50)  # Predictions for 20 test samples, 50 voxels
+        >>> X = np.random.randn(100, 10)         # Training features
+        >>> y = np.random.randn(100, 50)         # Training targets (50 voxels)
+        >>> X_test = np.random.randn(20, 10)     # Test features
+        >>> result = _bootstrap_ridge_predict_cpu_parallel(X, y, X_test, alpha=1.0)
+        >>> result['mean'].shape
+        (20, 50)  # Predictions for 20 test samples, 50 voxels
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm

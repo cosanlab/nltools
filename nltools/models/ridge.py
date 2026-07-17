@@ -24,17 +24,17 @@ if TYPE_CHECKING:
 
 
 class Ridge(BaseModel):
-    """
-    Ridge regression with optional GPU acceleration and banded ridge support.
+    """Ridge regression with optional GPU acceleration and banded ridge support.
 
     Wraps nltools SVD-based ridge regression algorithms with
     scikit-learn compatible API. Supports single and multi-target
     regression with optional GPU acceleration via PyTorch.
 
-        Supports both regular ridge (single feature space) and banded ridge
-        (multiple feature spaces). The model automatically detects the input type:
-        - Array X: Single feature space → uses solve_ridge_cv
-        - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+    Supports both regular ridge (single feature space) and banded ridge
+    (multiple feature spaces). The model automatically detects the input type:
+
+    - Array X: Single feature space → uses solve_ridge_cv
+    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
 
     Args:
         alpha (float or 'auto', default=1.0): Regularization strength. If 'auto',

@@ -994,23 +994,23 @@ def isc_group_permutation_test(
         - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples:
-    >>> # Single-feature ISC group comparison
-    >>> group1 = np.random.randn(100, 10)  # 10 subjects
-    >>> group2 = np.random.randn(100, 10)
-    >>> result = isc_group_permutation_test(group1, group2, n_permute=1000)
-    >>> print(f"ISC difference: {result['isc_group_difference']:.3f}, p: {result['p']:.3f}")
+        >>> # Single-feature ISC group comparison
+        >>> group1 = np.random.randn(100, 10)  # 10 subjects
+        >>> group2 = np.random.randn(100, 10)
+        >>> result = isc_group_permutation_test(group1, group2, n_permute=1000)
+        >>> print(f"ISC difference: {result['isc_group_difference']:.3f}, p: {result['p']:.3f}")
 
-    >>> # Voxel-wise ISC group comparison with GPU acceleration
-    >>> group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
-    >>> group2_voxels = np.random.randn(100, 10, 5000)
-    >>> result = isc_group_permutation_test(
-    ...     group1_voxels,
-    ...     group2_voxels,
-    ...     summary_statistic='leave-one-out',
-    ...     parallel='gpu',  # GPU for LOO computation
-    ...     n_permute=5000
-    ... )
-    >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+        >>> # Voxel-wise ISC group comparison with GPU acceleration
+        >>> group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
+        >>> group2_voxels = np.random.randn(100, 10, 5000)
+        >>> result = isc_group_permutation_test(
+        ...     group1_voxels,
+        ...     group2_voxels,
+        ...     summary_statistic='leave-one-out',
+        ...     parallel='gpu',  # GPU for LOO computation
+        ...     n_permute=5000
+        ... )
+        >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
@@ -1589,25 +1589,25 @@ def isc_permutation_test(
         - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples:
-    >>> # Single-feature ISC
-    >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
-    >>> result = isc_permutation_test(data, n_permute=1000)
-    >>> print(f"ISC: {result['isc']:.3f}, p: {result['p']:.3f}")
+        >>> # Single-feature ISC
+        >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
+        >>> result = isc_permutation_test(data, n_permute=1000)
+        >>> print(f"ISC: {result['isc']:.3f}, p: {result['p']:.3f}")
 
-    >>> # Voxel-wise ISC with GPU acceleration
-    >>> data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
-    >>> result = isc_permutation_test(
-    ...     data_voxels,
-    ...     summary_statistic='leave-one-out',
-    ...     parallel='gpu',  # GPU for LOO computation
-    ...     n_permute=5000
-    ... )
-    >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+        >>> # Voxel-wise ISC with GPU acceleration
+        >>> data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
+        >>> result = isc_permutation_test(
+        ...     data_voxels,
+        ...     summary_statistic='leave-one-out',
+        ...     parallel='gpu',  # GPU for LOO computation
+        ...     n_permute=5000
+        ... )
+        >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
 
-    >>> # Compare LOO vs pairwise
-    >>> result_loo = isc_permutation_test(data, summary_statistic='leave-one-out')
-    >>> result_pair = isc_permutation_test(data, summary_statistic='pairwise')
-    >>> print(f"LOO: {result_loo['isc']:.3f}, Pairwise: {result_pair['isc']:.3f}")
+        >>> # Compare LOO vs pairwise
+        >>> result_loo = isc_permutation_test(data, summary_statistic='leave-one-out')
+        >>> result_pair = isc_permutation_test(data, summary_statistic='pairwise')
+        >>> print(f"LOO: {result_loo['isc']:.3f}, Pairwise: {result_pair['isc']:.3f}")
 
     References:
         Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
