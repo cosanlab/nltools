@@ -221,7 +221,7 @@ Name | Description
 ---- | -----------
 [`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Generate predictions from fitted GLM.
+[`predict`](#models-predict) | Return the fitted GLM's predicted values (predictions on training data).
 [`score`](#models-score) | Return mean R² across voxels and runs.
 
 ##### Methods
@@ -313,28 +313,25 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 predict(X = None)
 ```
 
-Generate predictions from fitted GLM.
+Return the fitted GLM's predicted values (predictions on training data).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>DataFrame or None, default=None</code> | Design matrix for generating predictions.<br>- If None: returns fitted values (predictions on training data) - If DataFrame: generates predictions using new design matrix   (not yet implemented) | <code>None</code>
+`X` | <code>None, default=None</code> | Not supported. Prediction from a *new* design matrix is not implemented, so any non-None X raises NotImplementedError rather than returning a wrong map. The parameter exists only to satisfy the `BaseModel.predict` contract; pass None (the default) to get fitted values. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image: Predicted brain activity for each run
+ | list of Nifti1Image: Fitted values for each run.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
 Follows sklearn's LinearRegression semantics where predict() without
 arguments returns fitted values (like calling predict(X_train)).
-
-Future enhancement will support predict(X=new_design_matrix) to
-generate predictions with different experimental designs.
 
 </details>
 
@@ -766,7 +763,7 @@ Name | Description
 ---- | -----------
 [`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Generate predictions from fitted GLM.
+[`predict`](#models-predict) | Return the fitted GLM's predicted values (predictions on training data).
 [`score`](#models-score) | Return mean R² across voxels and runs.
 
 
@@ -957,28 +954,25 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 predict(X = None)
 ```
 
-Generate predictions from fitted GLM.
+Return the fitted GLM's predicted values (predictions on training data).
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>DataFrame or None, default=None</code> | Design matrix for generating predictions.<br>- If None: returns fitted values (predictions on training data) - If DataFrame: generates predictions using new design matrix   (not yet implemented) | <code>None</code>
+`X` | <code>None, default=None</code> | Not supported. Prediction from a *new* design matrix is not implemented, so any non-None X raises NotImplementedError rather than returning a wrong map. The parameter exists only to satisfy the `BaseModel.predict` contract; pass None (the default) to get fitted values. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image: Predicted brain activity for each run
+ | list of Nifti1Image: Fitted values for each run.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
 Follows sklearn's LinearRegression semantics where predict() without
 arguments returns fitted values (like calling predict(X_train)).
-
-Future enhancement will support predict(X=new_design_matrix) to
-generate predictions with different experimental designs.
 
 </details>
 

@@ -3,18 +3,16 @@
 
 Pipeline classes for BrainCollection.
 
-Provides BrainCollectionPipeline for fluent pipeline API with cross-validation,
-and FittedBrainCollection for chaining pool() after fit(). CV-aware
-``predict()`` returns a ``BrainData`` with CV attributes attached
-(``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
-``fold_results``, ``cv_pipeline``).
+Provides BrainCollectionPipeline for a fluent pipeline API with
+cross-validation. CV-aware ``predict()`` returns a ``BrainData`` with CV
+attributes attached (``cv_scores``, ``cv_predictions``, ``mean_score``,
+``std_score``, ``fold_results``, ``cv_pipeline``).
 
 **Classes:**
 
 Name | Description
 ---- | -----------
 [`BrainCollectionPipeline`](#data-collection-pipeline-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
-[`FittedBrainCollection`](#data-collection-pipeline-fittedbraincollection) | Wrapper for fitted BrainCollection enabling pool() chaining.
 
 
 
@@ -168,94 +166,4 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with standardization step added.
-
-(data-collection-pipeline-fittedbraincollection)=
-#### `FittedBrainCollection`
-
-```python
-FittedBrainCollection(brain_collection: BrainCollection, fitted_results: BrainCollection | dict[str, BrainCollection], model: str, condition_names: list[str] | None = None)
-```
-
-Wrapper for fitted BrainCollection enabling pool() chaining.
-
-This class wraps the results of bc.fit() and provides the .pool()
-method for aggregating across subjects.
-
-The execution model:
-- fit() executes immediately (eager)
-- pool() aggregates the fitted parameters
-- pool() returns PooledData for second-level analysis
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`brain_collection` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The original collection that was fitted. | *required*
-`fitted_results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | The fitted results. Can be a BrainCollection (betas or scores) or a dict mapping stat names to BrainCollections (e.g., {'betas': ..., 't': ...}). | *required*
-`model` | <code>[str](#str)</code> | The model type that was fitted ('glm' or 'ridge'). | *required*
-`condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions/regressors from the design matrix. | <code>None</code>
-
-**Examples:**
-
-```pycon
->>> fitted = bc.fit(model='glm', X=dm)
->>> pool = fitted.pool(param='beta')
->>> result = pool.fit(model='ttest', contrast='A-B')
-```
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`pool`](#data-collection-pipeline-pool) | Pool fitted parameters across subjects.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`betas` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | Convenience accessor for beta coefficients from a GLM fit.
-`n_subjects` | <code>[int](#int)</code> | Number of subjects in the fitted collection.
-`results` | <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]</code> | Access the fitted results directly.
-
-##### Methods
-
-(data-collection-pipeline-pool)=
-###### `pool`
-
-```python
-pool(*, param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
-```
-
-Pool fitted parameters across subjects.
-
-Aggregates per-subject fitted results for group-level analysis.
-Returns a PooledData object that can be passed to second-level
-statistical tests.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`param` | <code>[str](#str)</code> | Parameter to pool. GLM options: 'beta', 't', 'r2', 'p', 'se', 'residual'. Ridge options: 'scores', 'weights'. Default is 'beta'. | <code>'beta'</code>
-`contrast` | <code>[str](#str) \| None</code> | Apply contrast before pooling. Format: 'A-B' or 'A+B'. Requires condition_names to be available. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Path template to save per-subject results before pooling. Supports {subject}, {idx} placeholders. | <code>None</code>
-`save_fitted` | <code>[bool](#bool)</code> | If True, save full fitted state for later repool(). | <code>False</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | Pooled data ready for second-level analysis.
-
-**Examples:**
-
-```pycon
->>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
->>> result = pool.fit(model='ttest', contrast='face-house')
-```
-
-```pycon
->>> # Pool t-statistics instead of betas
->>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
-```
 

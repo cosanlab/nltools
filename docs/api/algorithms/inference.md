@@ -183,53 +183,15 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
-Examples:
-**Basic usage:**
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+**Examples:**
 
-**Usage:**
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> from nltools.data import BrainData
->>>
->>> # Initialize with shape matching your data
->>> stats = OnlineBootstrapStats(
-...     shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-...     save_samples=False,  # Set True if you need 'samples' key
-...     percentiles=(2.5, 97.5)  # For confidence intervals
-... )
->>>
->>> # Update with each bootstrap sample
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)  # Pass 1D array of voxel values
->>>
->>> # Get results (equivalent to summarize_bootstrap output)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>>
->>> # Convert to BrainData if needed (reproduce old API format)
->>> mean_brain = bootstrap_samples[0].copy()
->>> mean_brain.data = result['mean']
->>> z_brain = bootstrap_samples[0].copy()
->>> z_brain.data = result['Z']
->>> p_brain = bootstrap_samples[0].copy()
->>> p_brain.data = result['p']
->>>
->>> # Result equivalent to old summarize_bootstrap():
->>> equivalent_result = {
-...     'mean': mean_brain,
-...     'Z': z_brain,
-...     'p': p_brain
-... }
->>> # Optionally include samples if save_samples=True:
->>> if 'samples' in result:
-...     equivalent_result['samples'] = result['samples']
+```python
+stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+for _ in range(1000):
+    stats.update(np.random.randn(100))
+results = stats.get_results()
+# results.keys() -> mean, std, Z, p, ci_lower, ci_upper
+```
 
 (algorithms-inference-update)=
 ###### `update`
@@ -1170,53 +1132,15 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
-Examples:
-**Basic usage:**
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+**Examples:**
 
-**Usage:**
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> from nltools.data import BrainData
->>>
->>> # Initialize with shape matching your data
->>> stats = OnlineBootstrapStats(
-...     shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-...     save_samples=False,  # Set True if you need 'samples' key
-...     percentiles=(2.5, 97.5)  # For confidence intervals
-... )
->>>
->>> # Update with each bootstrap sample
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)  # Pass 1D array of voxel values
->>>
->>> # Get results (equivalent to summarize_bootstrap output)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>>
->>> # Convert to BrainData if needed (reproduce old API format)
->>> mean_brain = bootstrap_samples[0].copy()
->>> mean_brain.data = result['mean']
->>> z_brain = bootstrap_samples[0].copy()
->>> z_brain.data = result['Z']
->>> p_brain = bootstrap_samples[0].copy()
->>> p_brain.data = result['p']
->>>
->>> # Result equivalent to old summarize_bootstrap():
->>> equivalent_result = {
-...     'mean': mean_brain,
-...     'Z': z_brain,
-...     'p': p_brain
-... }
->>> # Optionally include samples if save_samples=True:
->>> if 'samples' in result:
-...     equivalent_result['samples'] = result['samples']
+```python
+stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+for _ in range(1000):
+    stats.update(np.random.randn(100))
+results = stats.get_results()
+# results.keys() -> mean, std, Z, p, ci_lower, ci_upper
+```
 
 ######## `update`
 

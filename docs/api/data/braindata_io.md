@@ -86,7 +86,7 @@ Type | Description
 #### `detect_space`
 
 ```python
-detect_space(bd, mask)
+detect_space(mask)
 ```
 
 Detect if mask is in MNI space or native space.
@@ -95,7 +95,6 @@ Detect if mask is in MNI space or native space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance (unused, kept for API consistency). | *required*
 `mask` |  | nibabel Nifti1Image object | *required*
 
 **Returns:**

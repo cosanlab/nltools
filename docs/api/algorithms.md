@@ -4041,53 +4041,15 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
-Examples:
-**Basic usage:**
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+**Examples:**
 
-**Usage:**
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> from nltools.data import BrainData
->>>
->>> # Initialize with shape matching your data
->>> stats = OnlineBootstrapStats(
-...     shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-...     save_samples=False,  # Set True if you need 'samples' key
-...     percentiles=(2.5, 97.5)  # For confidence intervals
-... )
->>>
->>> # Update with each bootstrap sample
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)  # Pass 1D array of voxel values
->>>
->>> # Get results (equivalent to summarize_bootstrap output)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>>
->>> # Convert to BrainData if needed (reproduce old API format)
->>> mean_brain = bootstrap_samples[0].copy()
->>> mean_brain.data = result['mean']
->>> z_brain = bootstrap_samples[0].copy()
->>> z_brain.data = result['Z']
->>> p_brain = bootstrap_samples[0].copy()
->>> p_brain.data = result['p']
->>>
->>> # Result equivalent to old summarize_bootstrap():
->>> equivalent_result = {
-...     'mean': mean_brain,
-...     'Z': z_brain,
-...     'p': p_brain
-... }
->>> # Optionally include samples if save_samples=True:
->>> if 'samples' in result:
-...     equivalent_result['samples'] = result['samples']
+```python
+stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+for _ in range(1000):
+    stats.update(np.random.randn(100))
+results = stats.get_results()
+# results.keys() -> mean, std, Z, p, ci_lower, ci_upper
+```
 
 ######## `update`
 
@@ -5044,53 +5006,15 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
 
-Examples:
-**Basic usage:**
->>> stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
->>> for i in range(1000):
-...     sample = np.random.randn(100)
-...     stats.update(sample)
->>> results = stats.get_results()
->>> print(results.keys())
-dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
+**Examples:**
 
-**Usage:**
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> from nltools.data import BrainData
->>>
->>> # Initialize with shape matching your data
->>> stats = OnlineBootstrapStats(
-...     shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-...     save_samples=False,  # Set True if you need 'samples' key
-...     percentiles=(2.5, 97.5)  # For confidence intervals
-... )
->>>
->>> # Update with each bootstrap sample
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)  # Pass 1D array of voxel values
->>>
->>> # Get results (equivalent to summarize_bootstrap output)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>>
->>> # Convert to BrainData if needed (reproduce old API format)
->>> mean_brain = bootstrap_samples[0].copy()
->>> mean_brain.data = result['mean']
->>> z_brain = bootstrap_samples[0].copy()
->>> z_brain.data = result['Z']
->>> p_brain = bootstrap_samples[0].copy()
->>> p_brain.data = result['p']
->>>
->>> # Result equivalent to old summarize_bootstrap():
->>> equivalent_result = {
-...     'mean': mean_brain,
-...     'Z': z_brain,
-...     'p': p_brain
-... }
->>> # Optionally include samples if save_samples=True:
->>> if 'samples' in result:
-...     equivalent_result['samples'] = result['samples']
+```python
+stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
+for _ in range(1000):
+    stats.update(np.random.randn(100))
+results = stats.get_results()
+# results.keys() -> mean, std, Z, p, ci_lower, ci_upper
+```
 
 ########## `update`
 
@@ -6673,7 +6597,7 @@ Name | Description
 ###### `cross_val_predict_ridge`
 
 ```python
-cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
+cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
 ```
 
 Held-out ridge predictions per CV fold under a (per-target) alpha.
@@ -6703,7 +6627,6 @@ Name | Type | Description | Default
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
 `score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>4.0</code>
 
 **Returns:**
@@ -6893,7 +6816,7 @@ Type | Description
 ###### `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -6934,7 +6857,6 @@ Name | Type | Description | Default
 `diagonalize_method` | <code>[str](#str)</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
 `warn` | <code>[bool](#bool)</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
@@ -7004,7 +6926,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ###### `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7030,7 +6952,6 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
@@ -7315,7 +7236,7 @@ Name | Description
 ###### `cross_val_predict_ridge`
 
 ```python
-cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
+cross_val_predict_ridge(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, n_targets_batch: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0) -> dict[str, Any]
 ```
 
 Held-out ridge predictions per CV fold under a (per-target) alpha.
@@ -7345,7 +7266,6 @@ Name | Type | Description | Default
 `Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
 `score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>4.0</code>
 
 **Returns:**
@@ -7357,7 +7277,7 @@ Name | Type | Description
 ######## `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -7398,7 +7318,6 @@ Name | Type | Description | Default
 `diagonalize_method` | <code>[str](#str)</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
 `warn` | <code>[bool](#bool)</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
@@ -7467,7 +7386,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ######## `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7493,7 +7412,6 @@ Name | Type | Description | Default
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
 `conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
 `parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
@@ -7619,7 +7537,6 @@ duplication and ensure consistent behavior across the algorithms module.
 - extract_triangle_elements: Extract upper/lower triangle from matrices
 - permute_matrix_symmetric: Apply symmetric permutation (key for matrix tests)
 - ensure_2d: Ensure arrays are 2D (adds dimension if needed)
-- batch_or_skip: Elegant pattern for handling scalar vs per-target operations
 
 </details>
 
@@ -7640,7 +7557,6 @@ Example:
 
 Name | Description
 ---- | -----------
-[`batch_or_skip`](#algorithms-batch-or-skip) | Apply batch or skip if dimension is 1.
 [`ensure_2d`](#algorithms-ensure-2d) | Ensure array is 2D, adding dimension if needed.
 [`extract_triangle_elements`](#algorithms-extract-triangle-elements) | Extract triangle elements from square matrix.
 [`permute_matrix_symmetric`](#algorithms-permute-matrix-symmetric) | Apply symmetric row+column permutation to square matrix.
@@ -7648,48 +7564,6 @@ Name | Description
 
 
 ##### Methods
-
-(algorithms-batch-or-skip)=
-###### `batch_or_skip`
-
-```python
-batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray
-```
-
-Apply batch or skip if dimension is 1.
-
-This elegant pattern from himalaya handles both scalar and per-target
-operations without branching in the hot loop.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` | <code>[ndarray](#numpy.ndarray)</code> | Array to batch. | *required*
-`batch` | <code>[slice](#slice)</code> | Batch slice to apply. | *required*
-`axis` | <code>[int](#int)</code> | Axis to batch along (0 or 1). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Batched array, or original if dimension is 1.
-
-**Examples:**
-
-```pycon
->>> # Scalar alpha (shape: (1,))
->>> alphas = np.array([1.0])
->>> batch_or_skip(alphas, slice(0, 10), 0)  # Returns full array
-array([1.0])
-```
-
-```pycon
->>> # Per-target alpha (shape: (10,))
->>> alphas = np.array([1.0] * 10)
->>> batch_or_skip(alphas, slice(0, 5), 0).shape  # Returns slice
-(5,)
-```
 
 (algorithms-ensure-2d)=
 ###### `ensure_2d`

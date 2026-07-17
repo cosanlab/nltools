@@ -709,7 +709,6 @@ Holds statistical maps and provides thresholding utilities.
 Name | Description
 ---- | -----------
 [`threshold`](#pipelines-threshold) | Apply multiple comparison correction.
-[`to_nifti`](#pipelines-to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
@@ -744,22 +743,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[StatResult](#nltools.pipelines.pool.StatResult)</code> | New result with thresholded maps.
-
-(pipelines-to-nifti)=
-###### `to_nifti`
-
-```python
-to_nifti(path: str, mask: str = None) -> None
-```
-
-Save as NIfTI file.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`path` | <code>[str](#str)</code> | Output path. | *required*
-`mask` |  | Mask to use for reconstruction. | <code>None</code>
 
 (pipelines-transformstep)=
 #### `TransformStep`
@@ -1573,7 +1556,6 @@ Holds statistical maps and provides thresholding utilities.
 Name | Description
 ---- | -----------
 [`threshold`](#pipelines-threshold) | Apply multiple comparison correction.
-[`to_nifti`](#pipelines-to-nifti) | Save as NIfTI file.
 
 **Attributes:**
 
@@ -1644,21 +1626,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[StatResult](#nltools.pipelines.pool.StatResult)</code> | New result with thresholded maps.
-
-######## `to_nifti`
-
-```python
-to_nifti(path: str, mask: str = None) -> None
-```
-
-Save as NIfTI file.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`path` | <code>[str](#str)</code> | Output path. | *required*
-`mask` |  | Mask to use for reconstruction. | <code>None</code>
 
 (pipelines-steps)=
 #### `steps`

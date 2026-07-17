@@ -337,7 +337,7 @@ Type | Description
 #### `isc`
 
 ```python
-isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
+isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, metric: str = 'median') -> dict
 ```
 
 Inter-subject correlation (ISC) across the time dimension.
@@ -347,12 +347,8 @@ Inter-subject correlation (ISC) across the time dimension.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all subject pairs). | <code>'loo'</code>
-`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask to restrict the computation. | <code>None</code>
-`radius_mm` | <code>[float](#float) \| None</code> | Searchlight sphere radius in mm (when applicable). | <code>6.0</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
 
 **Returns:**
 
@@ -366,7 +362,7 @@ Type | Description
 #### `isc_test`
 
 ```python
-isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_samples: int = 5000, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False, random_state: int | None = None) -> dict
+isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, metric: str = 'median', random_state: int | None = None) -> dict
 ```
 
 Bootstrap inference on ISC (per-voxel p-values).
@@ -379,13 +375,9 @@ derives a per-voxel two-tailed p-value from the null centered at 0.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | ``'loo'`` or ``'pairwise'`` (matches `isc`). | <code>'loo'</code>
-`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask to restrict the computation. | <code>None</code>
-`radius_mm` | <code>[float](#float) \| None</code> | Searchlight sphere radius in mm (when applicable). | <code>6.0</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `n_samples` | <code>[int](#int)</code> | Number of bootstrap resamples. | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. | <code>False</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the bootstrap RNG. | <code>None</code>
 
 **Returns:**

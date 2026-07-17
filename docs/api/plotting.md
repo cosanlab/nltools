@@ -73,7 +73,7 @@ Type | Description
 #### `plot_between_label_distance`
 
 ```python
-plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, fontsize = 18, **kwargs)
+plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Heatmap of average pairwise distance between every label pair.
@@ -87,7 +87,6 @@ Name | Type | Description | Default
 `ax` |  | Matplotlib axis to plot on (optional). | <code>None</code>
 `permutation_test` |  | If True, also compute mean-difference and p-value matrices. | <code>True</code>
 `n_permute` |  | Number of permutations. | <code>5000</code>
-`fontsize` |  | Reserved for future use; currently unused. | <code>18</code>
 `**kwargs` |  | Passed to seaborn.heatmap. | <code>{}</code>
 
 **Returns:**
@@ -458,7 +457,7 @@ Name | Description
 ###### `plot_between_label_distance`
 
 ```python
-plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, fontsize = 18, **kwargs)
+plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Heatmap of average pairwise distance between every label pair.
@@ -472,7 +471,6 @@ Name | Type | Description | Default
 `ax` |  | Matplotlib axis to plot on (optional). | <code>None</code>
 `permutation_test` |  | If True, also compute mean-difference and p-value matrices. | <code>True</code>
 `n_permute` |  | Number of permutations. | <code>5000</code>
-`fontsize` |  | Reserved for future use; currently unused. | <code>18</code>
 `**kwargs` |  | Passed to seaborn.heatmap. | <code>{}</code>
 
 **Returns:**

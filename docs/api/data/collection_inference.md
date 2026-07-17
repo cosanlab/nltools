@@ -76,7 +76,7 @@ promoted to ``(1, n_voxels)`` before concatenation.
 #### `isc`
 
 ```python
-isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False) -> dict
+isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, metric: str = 'median') -> dict
 ```
 
 Inter-subject correlation across the time dimension.
@@ -86,6 +86,9 @@ correlated with the average of the others). method='pairwise' computes
 all subject pairs. Both materialize all subjects in v0.6.0; the
 streaming rewrite is deferred to a later release.
 
+Passing ``roi_mask`` restricts the computation to that ROI; the returned
+maps carry the ROI mask rather than the collection's whole-brain mask.
+
 Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
 for ``pairwise``.
 
@@ -93,13 +96,16 @@ for ``pairwise``.
 #### `isc_test`
 
 ```python
-isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float | None = 6.0, n_samples: int = 5000, metric: str = 'median', device: str = 'cpu', n_jobs: int = -1, progress_bar: bool = False, random_state: int | None = None) -> dict
+isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, metric: str = 'median', random_state: int | None = None) -> dict
 ```
 
 Bootstrap inference on ISC.
 
 Resamples subjects with replacement, recomputes ISC each draw, and
 derives a per-voxel p-value from the null distribution centered at 0.
+
+Passing ``roi_mask`` restricts the computation to that ROI; the returned
+maps carry the ROI mask rather than the collection's whole-brain mask.
 
 (data-collection-inference-max)=
 #### `max_`
