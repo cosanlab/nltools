@@ -8,7 +8,7 @@ attribute every voxel of every cluster to one or more atlases.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import nibabel as nb
 import nibabel.affines as nb_affines
@@ -21,6 +21,8 @@ from .loading import Atlas, load_atlas
 from .registry import DEFAULT_ATLASES
 
 if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
     from nltools.data import BrainData
 
 
@@ -57,7 +59,7 @@ class ClusterReport:
         self,
         *,
         output_dir: str | Path | None = None,
-    ) -> list[tuple[str, Any]] | None:
+    ) -> list[tuple[str, "Figure"]] | None:
         """Render an overview glass brain + one slice figure per cluster.
 
         Args:
@@ -75,7 +77,7 @@ class ClusterReport:
         from nilearn.plotting import plot_glass_brain, plot_stat_map
 
         thr_img = self.stat_img.to_nifti()
-        figures: list[tuple[str, Any]] = []
+        figures: list[tuple[str, Figure]] = []
 
         fig_overview = plt.figure(figsize=(10, 4))
         plot_glass_brain(

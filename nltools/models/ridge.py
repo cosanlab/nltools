@@ -6,6 +6,10 @@ Supports both regular ridge (single feature space) and banded ridge
 (multiple feature spaces) with optional random search over feature weights.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 from .base import BaseModel
 from ..algorithms.ridge import ridge_svd
@@ -14,6 +18,9 @@ from ..algorithms.ridge.solvers import (
     solve_banded_ridge_cv,
 )
 from ..algorithms.backends import resolve_backend
+
+if TYPE_CHECKING:
+    from ..algorithms.backends import Backend
 
 
 class Ridge(BaseModel):
@@ -87,18 +94,18 @@ class Ridge(BaseModel):
     def __init__(
         self,
         *,
-        alpha=1.0,
-        cv=None,
-        alphas=None,
-        n_iter=100,
-        concentration=None,
-        backend="numpy",
-        local_alpha=True,
-        fit_intercept=False,
-        conservative=False,
-        random_state=None,
-        progress_bar=False,
-    ):
+        alpha: float | str = 1.0,
+        cv: int | None = None,
+        alphas: list[float] | np.ndarray | None = None,
+        n_iter: int = 100,
+        concentration: float | list[float] | None = None,
+        backend: str | Backend = "numpy",
+        local_alpha: bool = True,
+        fit_intercept: bool = False,
+        conservative: bool = False,
+        random_state: int | None = None,
+        progress_bar: bool = False,
+    ) -> None:
         super().__init__()
         self.alpha = alpha
         self.cv = cv
@@ -112,7 +119,7 @@ class Ridge(BaseModel):
         self.random_state = random_state
         self.progress_bar = progress_bar
 
-    def fit(self, X, y):
+    def fit(self, X: np.ndarray | list[np.ndarray], y: np.ndarray) -> Ridge:
         """
         Fit ridge regression model.
 
@@ -287,7 +294,7 @@ class Ridge(BaseModel):
 
         return self
 
-    def predict(self, X):
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predict using the ridge model.
 
@@ -313,7 +320,7 @@ class Ridge(BaseModel):
 
         return y_pred
 
-    def score(self, X, y):
+    def score(self, X: np.ndarray, y: np.ndarray) -> float | np.ndarray:
         """
         Return the coefficient of determination R^2 of the prediction.
 
@@ -351,6 +358,6 @@ class Ridge(BaseModel):
 
         return r2
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """String representation of the model."""
         return f"Ridge(alpha={self.alpha}, backend='{self.backend}')"

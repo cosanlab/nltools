@@ -20,6 +20,7 @@ from .utils import copy_with, df_passthrough
 
 if TYPE_CHECKING:
     import pandas as pd
+    from matplotlib.figure import Figure
 
 
 def _is_pandas_dataframe(obj) -> bool:
@@ -455,7 +456,7 @@ class DesignMatrix:
         axis: int = 0,
         keep_separate: bool = True,
         unique_cols: list[str] | None = None,
-        fill_na: int | float = 0,
+        fill_na: int | float | None = 0,
         as_confounds: bool = False,
         progress_bar: bool = False,
     ) -> DesignMatrix:
@@ -469,8 +470,8 @@ class DesignMatrix:
                 (only applies when axis=0). Default: True.
             unique_cols (list of str, optional): Additional columns to keep separated
                 (supports wildcards).
-            fill_na (int or float): Value to fill NaN values during vertical
-                concatenation. Default: 0.
+            fill_na (int, float, or None): Value to fill NaN values during
+                vertical concatenation, or None to preserve nulls. Default: 0.
             as_confounds (bool): Only applies when ``axis=1``. If True, mark all
                 columns from ``dm`` as nuisance/confounds in the result — they
                 get skipped by ``.convolve()`` and separated across runs on
@@ -606,7 +607,7 @@ class DesignMatrix:
         cmap: str | None = None,
         save: str | None = None,
         **kwargs,
-    ):
+    ) -> Figure:
         """Visualize the design matrix.
 
         Dispatches over ``method`` (mirroring ``BrainData.plot``):

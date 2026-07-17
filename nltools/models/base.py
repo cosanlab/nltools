@@ -4,6 +4,8 @@ Base classes for nltools models.
 Provides sklearn-compatible API for neuroimaging analysis.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import numpy as np
 
@@ -23,11 +25,16 @@ class BaseModel(ABC):
         is_fitted_ (bool): Whether the model has been fitted
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.is_fitted_ = False
 
+    # NB: the abstract fit/predict/score params are intentionally left
+    # unannotated. Subclasses operate on different data modalities (Ridge on
+    # 2-D arrays, Glm on 4-D Nifti images), so no single tight parameter type
+    # is Liskov-substitutable across them. Return types are annotated broadly
+    # enough to cover every subclass; concrete types live on Ridge/Glm.
     @abstractmethod
-    def fit(self, X, y):
+    def fit(self, X, y) -> BaseModel:
         """
         Fit the model to training data.
 
@@ -44,7 +51,7 @@ class BaseModel(ABC):
         return self
 
     @abstractmethod
-    def predict(self, X):
+    def predict(self, X) -> np.ndarray | list:
         """
         Generate predictions for new data.
 
@@ -56,7 +63,7 @@ class BaseModel(ABC):
         """
 
     @abstractmethod
-    def score(self, X, y):
+    def score(self, X, y) -> float | np.ndarray:
         """
         Evaluate model performance.
 
@@ -68,7 +75,7 @@ class BaseModel(ABC):
             float: Model performance metric
         """
 
-    def _check_is_fitted(self):
+    def _check_is_fitted(self) -> None:
         """
         Check if model has been fitted.
 
@@ -81,7 +88,7 @@ class BaseModel(ABC):
                 "Call 'fit' with appropriate arguments before using this model."
             )
 
-    def _validate_X(self, X, reset=True):
+    def _validate_X(self, X: np.ndarray, reset: bool = True) -> np.ndarray:
         """
         Validate input data X.
 
@@ -113,7 +120,9 @@ class BaseModel(ABC):
 
         return X
 
-    def _validate_X_y(self, X, y):
+    def _validate_X_y(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Validate input data X and target y.
 

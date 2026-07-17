@@ -4,12 +4,21 @@ GLM model for neuroimaging data.
 Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 import nibabel as nib
 import warnings
 from .base import BaseModel
 from nilearn.glm.first_level import FirstLevelModel
 from nltools.templates import get_brainspace
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from nltools.data import DesignMatrix
 
 
 class Glm(BaseModel):
@@ -91,13 +100,13 @@ class Glm(BaseModel):
     def __init__(
         self,
         *,
-        t_r=None,
-        noise_model="ols",
-        smoothing_fwhm=None,
-        mask=None,
-        progress_bar=False,
+        t_r: float | None = None,
+        noise_model: str = "ols",
+        smoothing_fwhm: float | None = None,
+        mask: nib.Nifti1Image | None = None,
+        progress_bar: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         # Initialize BaseModel
         super().__init__()
 
@@ -132,8 +141,17 @@ class Glm(BaseModel):
         )
 
     def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn FirstLevelModel.fit
-        self, X, y=None, *, design_matrices=None, events=None, **kwargs
-    ):
+        self,
+        X: nib.Nifti1Image | list[nib.Nifti1Image],
+        y: None = None,
+        *,
+        design_matrices: pd.DataFrame
+        | DesignMatrix
+        | list[pd.DataFrame | DesignMatrix]
+        | None = None,
+        events: pd.DataFrame | list[pd.DataFrame] | None = None,
+        **kwargs,
+    ) -> Glm:
         """
         Fit GLM to fMRI data.
 
@@ -189,7 +207,7 @@ class Glm(BaseModel):
 
         return self
 
-    def _extract_coef(self):
+    def _extract_coef(self) -> None:
         """Cache ``coef_`` (betas) from the fitted run_glm results.
 
         nilearn stores the GLS parameter estimates as ``theta`` on each
@@ -239,7 +257,9 @@ class Glm(BaseModel):
 
         return converted
 
-    def predict(self, X=None):
+    def predict(
+        self, X: np.ndarray | pd.DataFrame | None = None
+    ) -> list[nib.Nifti1Image] | np.ndarray:
         """
         Predict from the fitted GLM.
 
@@ -275,7 +295,10 @@ class Glm(BaseModel):
                 "separately to predict from a new design."
             )
 
-        X = X.to_numpy() if hasattr(X, "to_numpy") else np.asarray(X)
+        # Accept pandas/polars DataFrames (both expose to_numpy) or raw arrays;
+        # getattr keeps the callable check off the typed ndarray branch.
+        to_numpy = getattr(X, "to_numpy", None)
+        X = to_numpy() if to_numpy is not None else np.asarray(X)
         if X.shape[1] != self.coef_.shape[0]:
             raise ValueError(
                 f"X has {X.shape[1]} columns but the model was fit with "
@@ -305,7 +328,7 @@ class Glm(BaseModel):
         self._check_is_fitted()
         return self._glm.generate_report(contrasts=contrasts, **kwargs)
 
-    def score(self, X=None, y=None):
+    def score(self, X: None = None, y: None = None) -> float:
         """
         Return mean R² across voxels and runs.
 
@@ -362,7 +385,11 @@ class Glm(BaseModel):
 
         return float(mean_r_square)
 
-    def compute_contrast(self, contrast_def, output_type="stat"):
+    def compute_contrast(
+        self,
+        contrast_def: str | np.ndarray | list | dict,
+        output_type: str = "stat",
+    ) -> nib.Nifti1Image | dict:
         """
         Compute contrast using nilearn for accurate statistical inference.
 
@@ -408,7 +435,7 @@ class Glm(BaseModel):
     # Properties for accessing FirstLevelModel attributes (advanced use)
 
     @property
-    def residuals(self):
+    def residuals(self) -> list[nib.Nifti1Image]:
         """
         Residuals from fitted GLM.
 
@@ -422,7 +449,7 @@ class Glm(BaseModel):
         return self._glm.residuals
 
     @property
-    def design_matrices_(self):
+    def design_matrices_(self) -> list[pd.DataFrame]:
         """
         Design matrices used in fitting.
 
@@ -436,7 +463,7 @@ class Glm(BaseModel):
         return self._glm.design_matrices_
 
     @property
-    def glm_(self):
+    def glm_(self) -> FirstLevelModel:
         """
         Access internal FirstLevelModel for advanced use.
 

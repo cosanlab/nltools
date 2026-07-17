@@ -51,7 +51,7 @@ Name | Description
 ###### `plot`
 
 ```python
-plot(*, output_dir: str | Path | None = None) -> list[tuple[str, Any]] | None
+plot(*, output_dir: str | Path | None = None) -> list[tuple[str, Figure]] | None
 ```
 
 Render an overview glass brain + one slice figure per cluster.
@@ -66,8 +66,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Any](#typing.Any)]] \| None</code> | ``(label, figure)`` tuples.
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``(label, figure)`` tuples.
 
 (data-atlases-reporting-to-csv)=
 ###### `to_csv`

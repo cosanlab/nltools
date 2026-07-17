@@ -154,7 +154,7 @@ Name | Type | Description
 #### `append`
 
 ```python
-append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
+append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -167,7 +167,7 @@ Name | Type | Description | Default
 `axis` | <code>[int](#int)</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). Default: 0. | <code>0</code>
 `keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs (only applies when axis=0). Default: True. | <code>True</code>
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
-`fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN values during vertical concatenation. Default: 0. | <code>0</code>
+`fill_na` | <code>int, float, or None</code> | Value to fill NaN values during vertical concatenation, or None to preserve nulls. Default: 0. | <code>0</code>
 `as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
 `progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
 
@@ -333,7 +333,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: str = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None)
+plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: str = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None) -> Figure
 ```
 
 Visualize the design matrix.
@@ -366,7 +366,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure: The figure containing the plot.
+<code>[Figure](#matplotlib.figure.Figure)</code> | matplotlib.figure.Figure: The figure containing the plot.
 
 (data-design-matrix-replace-data)=
 #### `replace_data`

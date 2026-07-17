@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from collections.abc import Iterator
 
 import numpy as np
@@ -350,7 +350,7 @@ class LocalAlignment:
     scheme: str = "searchlight"
     method: str = "procrustes"
     radius_mm: float = 10.0
-    parcellation: Any | None = None  # Nifti1Image
+    parcellation: nib.Nifti1Image | None = None
     n_features: int | None = None
     n_iter: int = 3
     aggregation: str = "center"
@@ -369,7 +369,7 @@ class LocalAlignment:
         default=None, repr=False
     )
     n_voxels_: int | None = field(default=None, repr=False)
-    mask_: Any | None = field(default=None, repr=False)  # Nifti1Image
+    mask_: nib.Nifti1Image | None = field(default=None, repr=False)
     backend_: Backend | None = field(default=None, repr=False)
 
     def __post_init__(self):

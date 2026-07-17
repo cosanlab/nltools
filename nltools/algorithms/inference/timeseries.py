@@ -21,6 +21,7 @@ from typing import Literal, TYPE_CHECKING
 from sklearn.utils import check_random_state
 
 from .utils import _compute_pvalue, _auto_batch_size
+from .validation import validate_tail_parameter
 from .correlation import (
     _pearson_correlation,
     _spearman_correlation,
@@ -592,7 +593,7 @@ def timeseries_correlation_permutation_test(
     method: Literal["circle_shift", "phase_randomize"] = "circle_shift",
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
-    tail: int = 2,
+    tail: int | str = 2,
     parallel: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
@@ -616,7 +617,10 @@ def timeseries_correlation_permutation_test(
             - 'phase_randomize': FFT-based (preserves power spectrum)
         n_permute: Number of permutations
         metric: Correlation type ('pearson', 'spearman', 'kendall')
-        tail: Test type (1=one-tailed, 2=two-tailed)
+        tail: Test type. Accepts int or string forms:
+            - 2 or 'two': Two-tailed (|obs| > |null|)
+            - 1 or 'upper': One-tailed upper (obs > null, positive effects)
+            - -1 or 'lower': One-tailed lower (obs < null, negative effects)
         parallel: Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
@@ -666,6 +670,10 @@ def timeseries_correlation_permutation_test(
     # Validate parallel parameter
     if parallel not in [None, "cpu", "gpu"]:
         raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+
+    # Validate tail up front (like one_sample/two_sample/matrix) so an invalid
+    # value fails immediately rather than after every permutation has run.
+    validate_tail_parameter(tail)
 
     # Validate inputs
     data1 = np.asarray(data1).squeeze()

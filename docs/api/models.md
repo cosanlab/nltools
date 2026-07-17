@@ -29,7 +29,7 @@ Name | Description
 #### `BaseModel`
 
 ```python
-BaseModel()
+BaseModel() -> None
 ```
 
 Bases: <code>[ABC](#abc.ABC)</code>
@@ -63,7 +63,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X, y)
+fit(X, y) -> BaseModel
 ```
 
 Fit the model to training data.
@@ -79,13 +79,13 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`BaseModel` |  | Fitted model instance
+`BaseModel` | <code>[BaseModel](#nltools.models.base.BaseModel)</code> | Fitted model instance
 
 (models-predict)=
 ###### `predict`
 
 ```python
-predict(X)
+predict(X) -> np.ndarray | list
 ```
 
 Generate predictions for new data.
@@ -100,13 +100,13 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`ndarray` |  | Predicted values
+`ndarray` | <code>[ndarray](#numpy.ndarray) \| [list](#list)</code> | Predicted values
 
 (models-score)=
 ###### `score`
 
 ```python
-score(X, y)
+score(X, y) -> float | np.ndarray
 ```
 
 Evaluate model performance.
@@ -122,13 +122,13 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`float` |  | Model performance metric
+`float` | <code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | Model performance metric
 
 (models-glm)=
 #### `Glm`
 
 ```python
-Glm(*, t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
+Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -231,7 +231,7 @@ Name | Description
 ###### `compute_contrast`
 
 ```python
-compute_contrast(contrast_def, output_type = 'stat')
+compute_contrast(contrast_def: str | np.ndarray | list | dict, output_type: str = 'stat') -> nib.Nifti1Image | dict
 ```
 
 Compute contrast using nilearn for accurate statistical inference.
@@ -251,7 +251,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
+<code>[Nifti1Image](#nibabel.Nifti1Image) \| [dict](#dict)</code> | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
 
 **Examples:**
 
@@ -274,7 +274,7 @@ Type | Description
 ###### `fit`
 
 ```python
-fit(X, y = None, *, design_matrices = None, events = None, **kwargs)
+fit(X: nib.Nifti1Image | list[nib.Nifti1Image], y: None = None, *, design_matrices: pd.DataFrame | DesignMatrix | list[pd.DataFrame | DesignMatrix] | None = None, events: pd.DataFrame | list[pd.DataFrame] | None = None, **kwargs: pd.DataFrame | list[pd.DataFrame] | None) -> Glm
 ```
 
 Fit GLM to fMRI data.
@@ -293,7 +293,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`Glm` |  | Fitted model instance (for method chaining)
+`Glm` | <code>[Glm](#nltools.models.glm.Glm)</code> | Fitted model instance (for method chaining)
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -311,7 +311,7 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 ###### `predict`
 
 ```python
-predict(X = None)
+predict(X: np.ndarray | pd.DataFrame | None = None) -> list[nib.Nifti1Image] | np.ndarray
 ```
 
 Predict from the fitted GLM.
@@ -326,7 +326,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
+<code>[list](#list)[[Nifti1Image](#nibabel.Nifti1Image)] \| [ndarray](#numpy.ndarray)</code> | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
 
 (models-report)=
 ###### `report`
@@ -357,7 +357,7 @@ Name | Type | Description
 ###### `score`
 
 ```python
-score(X = None, y = None)
+score(X: None = None, y: None = None) -> float
 ```
 
 Return mean R² across voxels and runs.
@@ -376,7 +376,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+`float` | <code>[float](#float)</code> | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -401,7 +401,7 @@ For voxel-wise R² maps, access `glm_.r_square` directly.
 #### `Ridge`
 
 ```python
-Ridge(*, alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = None, backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, backend: str | Backend = 'numpy', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -441,7 +441,7 @@ Name | Type | Description
 `alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 `cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#Backend)</code> | Backend instance used for computation
+`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
 
 **Examples:**
 
@@ -476,7 +476,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X, y)
+fit(X: np.ndarray | list[np.ndarray], y: np.ndarray) -> Ridge
 ```
 
 Fit ridge regression model.
@@ -495,12 +495,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`Ridge` |  | Fitted model instance
+`Ridge` | <code>[Ridge](#nltools.models.ridge.Ridge)</code> | Fitted model instance
 
 ###### `predict`
 
 ```python
-predict(X)
+predict(X: np.ndarray) -> np.ndarray
 ```
 
 Predict using the ridge model.
@@ -515,12 +515,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
+<code>[ndarray](#numpy.ndarray)</code> | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
 
 ###### `score`
 
 ```python
-score(X, y)
+score(X: np.ndarray, y: np.ndarray) -> float | np.ndarray
 ```
 
 Return the coefficient of determination R^2 of the prediction.
@@ -539,7 +539,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
+<code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
 
 
 
@@ -565,7 +565,7 @@ Name | Description
 ###### `BaseModel`
 
 ```python
-BaseModel()
+BaseModel() -> None
 ```
 
 Bases: <code>[ABC](#abc.ABC)</code>
@@ -611,7 +611,7 @@ is_fitted_ = False
 ###### `fit`
 
 ```python
-fit(X, y)
+fit(X, y) -> BaseModel
 ```
 
 Fit the model to training data.
@@ -627,12 +627,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`BaseModel` |  | Fitted model instance
+`BaseModel` | <code>[BaseModel](#nltools.models.base.BaseModel)</code> | Fitted model instance
 
 ######## `predict`
 
 ```python
-predict(X)
+predict(X) -> np.ndarray | list
 ```
 
 Generate predictions for new data.
@@ -647,12 +647,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`ndarray` |  | Predicted values
+`ndarray` | <code>[ndarray](#numpy.ndarray) \| [list](#list)</code> | Predicted values
 
 ######## `score`
 
 ```python
-score(X, y)
+score(X, y) -> float | np.ndarray
 ```
 
 Evaluate model performance.
@@ -668,7 +668,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`float` |  | Model performance metric
+`float` | <code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | Model performance metric
 
 #### `glm`
 
@@ -689,7 +689,7 @@ Name | Description
 ###### `Glm`
 
 ```python
-Glm(*, t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
+Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -794,7 +794,7 @@ Name | Description
 ###### `design_matrices_`
 
 ```python
-design_matrices_
+design_matrices_: list[pd.DataFrame]
 ```
 
 Design matrices used in fitting.
@@ -803,12 +803,12 @@ Design matrices used in fitting.
 
 Type | Description
 ---- | -----------
- | list of DataFrame: Design matrices for each run
+<code>[list](#list)[[DataFrame](#pandas.DataFrame)]</code> | list of DataFrame: Design matrices for each run
 
 ######## `glm_`
 
 ```python
-glm_
+glm_: FirstLevelModel
 ```
 
 Access internal FirstLevelModel for advanced use.
@@ -821,7 +821,7 @@ by the sklearn-compatible interface.
 
 Name | Type | Description
 ---- | ---- | -----------
-`FirstLevelModel` |  | Internal nilearn FirstLevelModel instance
+`FirstLevelModel` | <code>[FirstLevelModel](#nilearn.glm.first_level.FirstLevelModel)</code> | Internal nilearn FirstLevelModel instance
 
 **Examples:**
 
@@ -861,7 +861,7 @@ progress_bar = progress_bar
 ######## `residuals`
 
 ```python
-residuals
+residuals: list[nib.Nifti1Image]
 ```
 
 Residuals from fitted GLM.
@@ -870,7 +870,7 @@ Residuals from fitted GLM.
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image: Residual images for each run (observed - predicted)
+<code>[list](#list)[[Nifti1Image](#nibabel.Nifti1Image)]</code> | list of Nifti1Image: Residual images for each run (observed - predicted)
 
 ######## `smoothing_fwhm`
 
@@ -891,7 +891,7 @@ t_r = t_r
 ###### `compute_contrast`
 
 ```python
-compute_contrast(contrast_def, output_type = 'stat')
+compute_contrast(contrast_def: str | np.ndarray | list | dict, output_type: str = 'stat') -> nib.Nifti1Image | dict
 ```
 
 Compute contrast using nilearn for accurate statistical inference.
@@ -911,7 +911,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
+<code>[Nifti1Image](#nibabel.Nifti1Image) \| [dict](#dict)</code> | Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict with all maps.
 
 **Examples:**
 
@@ -934,7 +934,7 @@ Type | Description
 ######## `fit`
 
 ```python
-fit(X, y = None, *, design_matrices = None, events = None, **kwargs)
+fit(X: nib.Nifti1Image | list[nib.Nifti1Image], y: None = None, *, design_matrices: pd.DataFrame | DesignMatrix | list[pd.DataFrame | DesignMatrix] | None = None, events: pd.DataFrame | list[pd.DataFrame] | None = None, **kwargs: pd.DataFrame | list[pd.DataFrame] | None) -> Glm
 ```
 
 Fit GLM to fMRI data.
@@ -953,7 +953,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`Glm` |  | Fitted model instance (for method chaining)
+`Glm` | <code>[Glm](#nltools.models.glm.Glm)</code> | Fitted model instance (for method chaining)
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -971,7 +971,7 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 ######## `predict`
 
 ```python
-predict(X = None)
+predict(X: np.ndarray | pd.DataFrame | None = None) -> list[nib.Nifti1Image] | np.ndarray
 ```
 
 Predict from the fitted GLM.
@@ -986,7 +986,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
+<code>[list](#list)[[Nifti1Image](#nibabel.Nifti1Image)] \| [ndarray](#numpy.ndarray)</code> | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
 
 ######## `report`
 
@@ -1016,7 +1016,7 @@ Name | Type | Description
 ######## `score`
 
 ```python
-score(X = None, y = None)
+score(X: None = None, y: None = None) -> float
 ```
 
 Return mean R² across voxels and runs.
@@ -1035,7 +1035,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+`float` | <code>[float](#float)</code> | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1081,7 +1081,7 @@ Name | Description
 ###### `Ridge`
 
 ```python
-Ridge(*, alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = None, backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, backend: str | Backend = 'numpy', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -1121,7 +1121,7 @@ Name | Type | Description
 `alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 `cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#Backend)</code> | Backend instance used for computation
+`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
 
 **Examples:**
 
@@ -1235,7 +1235,7 @@ random_state = random_state
 ###### `fit`
 
 ```python
-fit(X, y)
+fit(X: np.ndarray | list[np.ndarray], y: np.ndarray) -> Ridge
 ```
 
 Fit ridge regression model.
@@ -1254,12 +1254,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`Ridge` |  | Fitted model instance
+`Ridge` | <code>[Ridge](#nltools.models.ridge.Ridge)</code> | Fitted model instance
 
 ######## `predict`
 
 ```python
-predict(X)
+predict(X: np.ndarray) -> np.ndarray
 ```
 
 Predict using the ridge model.
@@ -1274,12 +1274,12 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
+<code>[ndarray](#numpy.ndarray)</code> | ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
 
 ######## `score`
 
 ```python
-score(X, y)
+score(X: np.ndarray, y: np.ndarray) -> float | np.ndarray
 ```
 
 Return the coefficient of determination R^2 of the prediction.
@@ -1298,7 +1298,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
+<code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | float or ndarray: - If y is 1D: scalar R² - If y is 2D: array of shape (n_targets,) with per-target R² scores
 
 
 

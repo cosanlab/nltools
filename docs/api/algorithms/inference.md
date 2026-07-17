@@ -810,7 +810,7 @@ True
 #### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -831,7 +831,7 @@ Name | Type | Description | Default
 `method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int)</code> | Test type (1=one-tailed, 2=two-tailed) | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type. Accepts int or string forms: - 2 or 'two': Two-tailed (|obs| > |null|) - 1 or 'upper': One-tailed upper (obs > null, positive effects) - -1 or 'lower': One-tailed lower (obs < null, negative effects) | <code>2</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
@@ -1933,7 +1933,7 @@ True
 ###### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -1954,7 +1954,7 @@ Name | Type | Description | Default
 `method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int)</code> | Test type (1=one-tailed, 2=two-tailed) | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type. Accepts int or string forms: - 2 or 'two': Two-tailed (|obs| > |null|) - 1 or 'upper': One-tailed upper (obs > null, positive effects) - -1 or 'lower': One-tailed lower (obs < null, negative effects) | <code>2</code>
 `parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
