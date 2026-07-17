@@ -51,6 +51,59 @@ def test_plot_grid_simulation_already_fit():
     assert sim.thresholded is not None
 
 
+def test_sphere_builds_binary_region():
+    """F189: sphere() returns a 0/1 volume centered at p with the mask's shape."""
+    sim = Simulator(brain_mask=_small_mask())
+    center = [6, 6, 6]
+    A = sim.sphere(3, center)
+    assert A.shape == (12, 12, 12)
+    # Values are strictly binary and the center voxel is inside the sphere.
+    assert set(np.unique(A)) <= {0.0, 1.0}
+    assert A[6, 6, 6] == 1
+    assert A.sum() > 1
+
+
+def test_gaussian_normalizes_to_total_intensity():
+    """F189: gaussian() rescales the blob so its voxels sum to i_tot."""
+    sim = Simulator(brain_mask=_small_mask())
+    i_tot = 100.0
+    g = sim.gaussian(
+        mu=np.array([6, 6, 6]), sigma=np.array([2.0, 2.0, 2.0]), i_tot=i_tot
+    )
+    assert g.shape == (12, 12, 12)
+    # The blob is normalized so the total activation equals i_tot (mask is
+    # all-ones, so masking removes nothing).
+    assert np.isclose(g.sum(), i_tot)
+    assert np.all(g >= 0)
+
+
+@pytest.mark.filterwarnings("ignore:covariance is not symmetric positive-semidefinite")
+def test_create_cov_data_single_subject():
+    """F189: create_cov_data() lays reps into the 4th dim with a matching y."""
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+    sphere = sim.n_spheres(3, None)
+    mask = nib.Nifti1Image(sphere.astype(np.float32), affine=sim.brain_mask.affine)
+    reps = 8
+    sim.create_cov_data(cor=0.8, cov=0.4, sigma=1, mask=mask, reps=reps, n_sub=1)
+    assert sim.data.shape[-1] == reps
+    assert len(sim.y) == reps
+    assert sim.rep_id == [1] * reps
+
+
+@pytest.mark.filterwarnings("ignore:covariance is not symmetric positive-semidefinite")
+def test_create_cov_data_multi_subject_concats():
+    """F189: n_sub>1 concatenates per-subject reps and grows y/rep_id in step."""
+    sim = Simulator(brain_mask=_small_mask(), random_state=0)
+    sphere = sim.n_spheres(3, None)
+    mask = nib.Nifti1Image(sphere.astype(np.float32), affine=sim.brain_mask.affine)
+    reps, n_sub = 4, 2
+    sim.create_cov_data(cor=0.8, cov=0.4, sigma=1, mask=mask, reps=reps, n_sub=n_sub)
+    assert sim.data.shape[-1] == reps * n_sub
+    assert len(sim.y) == reps * n_sub
+    assert len(sim.rep_id) == reps * n_sub
+    assert set(sim.rep_id) == {1, 2}
+
+
 @pytest.mark.slow
 def test_simulator(tmpdir):
     sim = Simulator()

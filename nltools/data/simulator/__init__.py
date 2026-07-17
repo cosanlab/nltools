@@ -265,7 +265,11 @@ class Simulator:
 
         # Create n_reps with cov for each voxel within sphere
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
-        flat_sphere = apply_mask(mask, self.brain_mask)
+        # apply_mask on a single 3-D mask returns a 1-D vector; the logic below
+        # (flat_sphere.shape[1], np.where(...)[1]) assumes a 2-D (1, n_vox)
+        # array, so normalize to 2-D (matching create_ncov_data, which wraps its
+        # masks in a list and gets a 2-D result).
+        flat_sphere = np.atleast_2d(apply_mask(mask, self.brain_mask))
 
         n_vox = np.sum(flat_sphere == 1)
         cov_matrix = np.ones([n_vox + 1, n_vox + 1]) * cov
