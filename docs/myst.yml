@@ -22,6 +22,8 @@ project:
               url: /tutorials/basics-02_design_matrix.html
             - title: Adjacency Basics
               url: /tutorials/basics-03_adjacency.html
+            - title: BrainCollection Basics
+              url: /tutorials/basics-04_brain_collection.html
         - title: Workflows
           children:
             - title: GLM Analysis
