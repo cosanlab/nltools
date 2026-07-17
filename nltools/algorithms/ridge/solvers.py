@@ -50,7 +50,6 @@ def solve_banded_ridge_cv(
     warn: bool = True,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
-    n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
     random_state: int | None = None,
@@ -115,8 +114,6 @@ def solve_banded_ridge_cv(
             features. Defaults to True.
         parallel: Backend to use: "cpu", "gpu", or None.
             Defaults to "cpu".
-        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel="cpu". Defaults to -1.
         max_gpu_memory_gb: GPU memory budget in GB (only used if parallel="gpu").
             Defaults to 4.0.
         random_state: Random generator seed. Use an int for deterministic search.
@@ -643,7 +640,6 @@ def solve_ridge_cv(
     conservative: bool = False,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
-    n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
     random_state: int | None = None,
@@ -681,8 +677,6 @@ def solve_ridge_cv(
             Defaults to False.
         parallel: Backend to use: "cpu", "gpu", or None.
             Defaults to "cpu".
-        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel="cpu". Defaults to -1.
         max_gpu_memory_gb: GPU memory budget in GB (only used if parallel="gpu").
             Defaults to 4.0.
         random_state: Random generator seed. Use an int for deterministic search.
@@ -925,7 +919,6 @@ def cross_val_predict_ridge(
     score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
     # Backend parameters (grouped) — same vocabulary as solve_ridge_cv
     parallel: str | None = "cpu",
-    n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
 ) -> dict[str, Any]:
     """Held-out ridge predictions per CV fold under a (per-target) alpha.
@@ -963,8 +956,6 @@ def cross_val_predict_ridge(
             scores``. If None, uses R² in NumPy on CPU (cheap at one fold's
             size and decoupled from backend ops to avoid stray transfers).
         parallel: Backend to use: "cpu", "gpu", or None.
-        n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel="cpu".
         max_gpu_memory_gb: GPU memory budget in GB (only used if
             parallel="gpu").
 

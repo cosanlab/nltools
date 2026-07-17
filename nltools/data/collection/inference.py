@@ -44,15 +44,39 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _iter_arrays(bc: BrainCollection):
+def _iter_arrays(bc: BrainCollection, roi=None):
     """Yield one item's ``data`` array at a time.
 
     Loads path-backed items on the fly via ``bc._load_item`` (which builds a
     fresh ``BrainData`` without mutating ``bc._items``). Peak RAM stays at
-    ~1 subject's worth of data.
+    ~1 subject's worth of data. When *roi* is given (a BrainData already in the
+    collection's mask space, from `_resolve_roi`), each item is masked to the
+    ROI before being yielded, so downstream math sees only ROI voxels.
     """
     for i in range(len(bc._items)):
-        yield np.asarray(bc._load_item(i).data)
+        item = bc._load_item(i)
+        if roi is not None:
+            item = item.apply_mask(roi)
+        yield np.asarray(item.data)
+
+
+def _resolve_roi(bc: BrainCollection, roi_mask):
+    """Coerce *roi_mask* into the collection's space once. Returns (roi, out_mask).
+
+    The ROI must be built against ``bc._mask``: passing a raw Niimg straight to
+    ``BrainData.apply_mask`` would re-home it onto the *default* MNI152 mask,
+    which silently breaks any collection in another space. Resolving here also
+    keeps the resample to one pass rather than one per subject.
+
+    ``out_mask`` is the mask scoped results must carry, since ROI-masked arrays
+    span the ROI's voxels rather than the collection's whole-brain mask.
+    """
+    if roi_mask is None:
+        return None, bc._mask
+    from ..braindata.utils import check_brain_data
+
+    roi = check_brain_data(roi_mask, mask=bc._mask)
+    return roi, roi.to_nifti()
 
 
 def _make_braindata(arr: np.ndarray, mask: nib.Nifti1Image):
@@ -445,11 +469,7 @@ def isc(
     *,
     method: str = "loo",
     roi_mask: nib.Nifti1Image | Path | str | None = None,
-    radius_mm: float | None = 6.0,
     metric: str = "median",
-    device: str = "cpu",
-    n_jobs: int = -1,
-    progress_bar: bool = False,
 ) -> dict:
     """Inter-subject correlation across the time dimension.
 
@@ -458,6 +478,9 @@ def isc(
     all subject pairs. Both materialize all subjects in v0.6.0; the
     streaming rewrite is deferred to a later release.
 
+    Passing ``roi_mask`` restricts the computation to that ROI; the returned
+    maps carry the ROI mask rather than the collection's whole-brain mask.
+
     Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
     for ``pairwise``.
     """
@@ -465,7 +488,8 @@ def isc(
     if method not in ("loo", "pairwise"):
         raise ValueError(f"method must be 'loo' or 'pairwise', got {method!r}")
 
-    data = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
+    roi, out_mask = _resolve_roi(bc, roi_mask)
+    data = np.stack(list(_iter_arrays(bc, roi)), axis=0).astype(np.float64)
     n_subj = data.shape[0]
     if n_subj < 2:
         raise ValueError("isc requires at least 2 subjects")
@@ -478,7 +502,7 @@ def isc(
             corrs[i] = _pearson_per_voxel(data[i], template)
         agg = _aggregate_corrs(corrs, metric)
         return {
-            "isc": _make_braindata(agg, bc._mask),
+            "isc": _make_braindata(agg, out_mask),
             "per_subject": corrs,
         }
 
@@ -491,7 +515,7 @@ def isc(
         pair_corrs[k] = _pearson_per_voxel(data[i], data[j])
     agg = _aggregate_corrs(pair_corrs, metric)
     return {
-        "isc": _make_braindata(agg, bc._mask),
+        "isc": _make_braindata(agg, out_mask),
         "pairs": pair_corrs,
     }
 
@@ -501,26 +525,26 @@ def isc_test(
     *,
     method: str = "loo",
     roi_mask: nib.Nifti1Image | Path | str | None = None,
-    radius_mm: float | None = 6.0,
     n_samples: int = 5000,
     metric: str = "median",
-    device: str = "cpu",
-    n_jobs: int = -1,
-    progress_bar: bool = False,
     random_state: int | None = None,
 ) -> dict:
     """Bootstrap inference on ISC.
 
     Resamples subjects with replacement, recomputes ISC each draw, and
     derives a per-voxel p-value from the null distribution centered at 0.
+
+    Passing ``roi_mask`` restricts the computation to that ROI; the returned
+    maps carry the ROI mask rather than the collection's whole-brain mask.
     """
     rng = np.random.default_rng(random_state)
-    observed = isc(bc, method=method, metric=metric)
+    observed = isc(bc, method=method, roi_mask=roi_mask, metric=metric)
     obs_map = np.asarray(observed["isc"].data).reshape(-1)
     n_subj = len(bc)
 
+    roi, out_mask = _resolve_roi(bc, roi_mask)
     null = np.empty((n_samples, obs_map.size), dtype=np.float64)
-    data = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
+    data = np.stack(list(_iter_arrays(bc, roi)), axis=0).astype(np.float64)
     for k in range(n_samples):
         idx = rng.integers(0, n_subj, size=n_subj)
         sample_data = data[idx]
@@ -551,7 +575,7 @@ def isc_test(
     p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (n_samples + 1)
     return {
         "isc": observed["isc"],
-        "p": _make_braindata(p.reshape(obs_map.shape), bc._mask),
+        "p": _make_braindata(p.reshape(obs_map.shape), out_mask),
         "null_distribution": null,
     }
 

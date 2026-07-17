@@ -558,3 +558,38 @@ class TestCrossValPredictRidge:
         assert not np.allclose(uniform["predictions"], varied["predictions"])
         # Folds tell the same story for both calls.
         np.testing.assert_array_equal(uniform["folds"], varied["folds"])
+
+
+class TestF021NoDeadNJobs:
+    """F021: n_jobs was accepted and documented but never used by the solvers.
+
+    The ridge module's acceleration story is the vectorized/GPU backend
+    (``parallel=`` + ``max_gpu_memory_gb=``), not CPU joblib fan-out — the CV
+    and gamma loops are serial by design. Advertising n_jobs promised a knob
+    that did nothing, so it is gone rather than silently ignored.
+    """
+
+    @pytest.mark.parametrize(
+        "func_name",
+        ["solve_banded_ridge_cv", "solve_ridge_cv", "cross_val_predict_ridge"],
+    )
+    def test_solvers_do_not_advertise_n_jobs(self, func_name):
+        import inspect
+
+        import nltools.algorithms.ridge as ridge_mod
+
+        func = getattr(ridge_mod, func_name)
+        params = inspect.signature(func).parameters
+        assert "n_jobs" not in params, (
+            f"{func_name} advertises n_jobs but never uses it (F021)"
+        )
+
+    @pytest.mark.parametrize(
+        "func_name",
+        ["solve_banded_ridge_cv", "solve_ridge_cv", "cross_val_predict_ridge"],
+    )
+    def test_solver_docstrings_do_not_document_n_jobs(self, func_name):
+        import nltools.algorithms.ridge as ridge_mod
+
+        doc = getattr(ridge_mod, func_name).__doc__ or ""
+        assert "n_jobs" not in doc, f"{func_name} docstring still documents n_jobs"

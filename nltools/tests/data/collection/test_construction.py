@@ -160,8 +160,6 @@ class TestSignatures:
             "map",
             "apply",
             "align",
-            "isc",
-            "isc_test",
             "permutation_test",
             "permutation_test2",
         ],
@@ -186,14 +184,24 @@ class TestSignatures:
             "map",
             "apply",
             "align",
-            "isc",
-            "isc_test",
         ],
     )
     def test_parallel_ops_accept_progress_bar(self, method):
         params = self._params(getattr(BrainCollection, method))
         assert "progress_bar" in params
         assert params["progress_bar"].default is False
+
+    @pytest.mark.parametrize("method", ["isc", "isc_test"])
+    def test_serial_isc_ops_do_not_advertise_parallelism(self, method):
+        """F068: isc/isc_test are serial — they must not accept parallel kwargs.
+
+        They never route through the joblib machinery in execution.py, so
+        n_jobs/progress_bar/device were accepted-and-ignored no-ops. radius_mm
+        likewise only ever meant searchlight ISC, which does not exist.
+        """
+        params = self._params(getattr(BrainCollection, method))
+        for kwarg in ("n_jobs", "progress_bar", "device", "radius_mm"):
+            assert kwarg not in params, f"{method} should not advertise {kwarg}"
 
     def test_fit_default_model_is_glm(self):
         params = self._params(BrainCollection.fit)

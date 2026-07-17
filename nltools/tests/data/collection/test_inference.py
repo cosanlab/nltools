@@ -112,6 +112,81 @@ class TestISC:
         )
 
 
+class TestISCRoiMask:
+    """F068: roi_mask must actually restrict the computation, not be ignored."""
+
+    @staticmethod
+    def _half_mask(tiny_mask):
+        """An ROI covering a strict subset of tiny_mask's 27 voxels."""
+        import nibabel as nib
+
+        roi = np.zeros(tiny_mask.shape, dtype=np.int16)
+        roi[:2, :2, :2] = 1  # 8 of 27 voxels
+        return nib.Nifti1Image(roi, tiny_mask.affine)
+
+    def test_isc_roi_mask_restricts_output_voxels(self, bc_inmem, tiny_mask):
+        """Passing roi_mask must shrink the ISC map to the ROI's voxels."""
+        roi = self._half_mask(tiny_mask)
+        full = bc_inmem.isc(method="loo")
+        scoped = bc_inmem.isc(method="loo", roi_mask=roi)
+
+        n_full = np.asarray(full["isc"].data).reshape(-1).size
+        n_scoped = np.asarray(scoped["isc"].data).reshape(-1).size
+        assert n_full == 27
+        assert n_scoped == 8, (
+            f"roi_mask must restrict ISC to the ROI; got {n_scoped} voxels "
+            f"(whole-brain is {n_full}) — roi_mask was silently ignored"
+        )
+
+    def test_isc_roi_mask_matches_premasked_collection(self, bc_inmem, tiny_mask):
+        """isc(roi_mask=roi) == isc() on a collection already masked to roi."""
+        from nltools.data.braindata.utils import check_brain_data
+
+        roi = self._half_mask(tiny_mask)
+        scoped = bc_inmem.isc(method="loo", roi_mask=roi)
+
+        # The ROI must be coerced into the collection's space first: handing a
+        # raw Niimg to apply_mask re-homes it onto the default MNI152 mask.
+        roi_bd = check_brain_data(roi, mask=tiny_mask)
+        premasked = BrainCollection(
+            [bd.apply_mask(roi_bd) for bd in bc_inmem],
+            mask=roi_bd.to_nifti(),
+            lazy=False,
+            cache_dir=None,
+        )
+        expected = premasked.isc(method="loo")
+
+        np.testing.assert_allclose(
+            np.asarray(scoped["isc"].data).reshape(-1),
+            np.asarray(expected["isc"].data).reshape(-1),
+            rtol=1e-5,
+            atol=1e-6,
+        )
+
+    def test_isc_roi_mask_pairwise_restricts_output(self, bc_inmem, tiny_mask):
+        roi = self._half_mask(tiny_mask)
+        out = bc_inmem.isc(method="pairwise", roi_mask=roi)
+        assert np.asarray(out["isc"].data).reshape(-1).size == 8
+        assert out["pairs"].shape[1] == 8
+
+    def test_isc_test_roi_mask_restricts_output_voxels(self, bc_inmem, tiny_mask):
+        roi = self._half_mask(tiny_mask)
+        out = bc_inmem.isc_test(
+            method="loo", roi_mask=roi, n_samples=10, random_state=0
+        )
+        assert np.asarray(out["isc"].data).reshape(-1).size == 8
+        assert np.asarray(out["p"].data).reshape(-1).size == 8
+        assert out["null_distribution"].shape[1] == 8
+
+    @pytest.mark.parametrize("kwarg", ["radius_mm", "device", "n_jobs", "progress_bar"])
+    def test_removed_never_implemented_kwargs_rejected(self, bc_inmem, kwarg):
+        """F068: params that were accepted-but-ignored are gone, not silent."""
+        with pytest.raises(TypeError):
+            bc_inmem.isc(method="loo", **{kwarg: 1})
+        with pytest.raises(TypeError):
+            bc_inmem.isc_test(method="loo", n_samples=5, **{kwarg: 1})
+
+
 class TestAlign:
     """Behavioral facade tests. Searchlight Procrustes needs more samples than
     the tiny fixture provides — algorithm correctness is covered separately

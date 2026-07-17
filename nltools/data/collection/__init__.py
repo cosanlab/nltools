@@ -1171,23 +1171,17 @@ class BrainCollection:
         *,
         method: str = "loo",
         roi_mask: nib.Nifti1Image | Path | str | None = None,
-        radius_mm: float | None = 6.0,
         metric: str = "median",
-        device: str = "cpu",
-        n_jobs: int = -1,
-        progress_bar: bool = False,
     ) -> dict:
         """Inter-subject correlation (ISC) across the time dimension.
 
         Args:
             method: ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all
                 subject pairs).
-            roi_mask: Optional ROI/atlas mask to restrict the computation.
-            radius_mm: Searchlight sphere radius in mm (when applicable).
+            roi_mask: Optional ROI/atlas mask restricting the computation to
+                those voxels. The returned maps carry the ROI mask. If None,
+                ISC is computed across the collection's whole-brain mask.
             metric: Aggregation across subjects/pairs (e.g. ``'median'``).
-            device: Backend selector (currently informational).
-            n_jobs: Parallel worker count (``-1`` uses all cores).
-            progress_bar: If True, show a progress bar.
 
         Returns:
             Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or
@@ -1198,11 +1192,7 @@ class BrainCollection:
             self,
             method=method,
             roi_mask=roi_mask,
-            radius_mm=radius_mm,
             metric=metric,
-            device=device,
-            n_jobs=n_jobs,
-            progress_bar=progress_bar,
         )
 
     def isc_test(
@@ -1210,12 +1200,8 @@ class BrainCollection:
         *,
         method: str = "loo",
         roi_mask: nib.Nifti1Image | Path | str | None = None,
-        radius_mm: float | None = 6.0,
         n_samples: int = 5000,
         metric: str = "median",
-        device: str = "cpu",
-        n_jobs: int = -1,
-        progress_bar: bool = False,
         random_state: int | None = None,
     ) -> dict:
         """Bootstrap inference on ISC (per-voxel p-values).
@@ -1225,13 +1211,11 @@ class BrainCollection:
 
         Args:
             method: ``'loo'`` or ``'pairwise'`` (matches `isc`).
-            roi_mask: Optional ROI/atlas mask to restrict the computation.
-            radius_mm: Searchlight sphere radius in mm (when applicable).
+            roi_mask: Optional ROI/atlas mask restricting the computation to
+                those voxels. The returned maps carry the ROI mask. If None,
+                ISC is computed across the collection's whole-brain mask.
             n_samples: Number of bootstrap resamples.
             metric: Aggregation across subjects/pairs (e.g. ``'median'``).
-            device: Backend selector (currently informational).
-            n_jobs: Parallel worker count (``-1`` uses all cores).
-            progress_bar: If True, show a progress bar.
             random_state: Seed for the bootstrap RNG.
 
         Returns:
@@ -1242,12 +1226,8 @@ class BrainCollection:
             self,
             method=method,
             roi_mask=roi_mask,
-            radius_mm=radius_mm,
             n_samples=n_samples,
             metric=metric,
-            device=device,
-            n_jobs=n_jobs,
-            progress_bar=progress_bar,
             random_state=random_state,
         )
 

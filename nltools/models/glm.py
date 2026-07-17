@@ -216,36 +216,37 @@ class Glm(BaseModel):
 
     def predict(self, X=None):
         """
-        Generate predictions from fitted GLM.
+        Return the fitted GLM's predicted values (predictions on training data).
 
         Args:
-            X (DataFrame or None, default=None): Design matrix for generating
-                predictions.
-
-                - If None: returns fitted values (predictions on training data)
-                - If DataFrame: generates predictions using new design matrix
-                  (not yet implemented)
+            X (None, default=None): Not supported. Prediction from a *new*
+                design matrix is not implemented, so any non-None X raises
+                NotImplementedError rather than returning a wrong map. The
+                parameter exists only to satisfy the `BaseModel.predict`
+                contract; pass None (the default) to get fitted values.
 
         Returns:
-            list of Nifti1Image: Predicted brain activity for each run
+            list of Nifti1Image: Fitted values for each run.
+
+        Raises:
+            NotImplementedError: If X is not None.
 
         Note:
             Follows sklearn's LinearRegression semantics where predict() without
             arguments returns fitted values (like calling predict(X_train)).
-
-            Future enhancement will support predict(X=new_design_matrix) to
-            generate predictions with different experimental designs.
         """
         self._check_is_fitted()
 
         if X is None:
-            # Return fitted values (predictions on training data)
             return self._glm.predicted
-        # Future: Generate predictions with new design matrix
-        # Would compute: predicted_data = betas @ X.T at each voxel
+        # New-design prediction is a deferred FEATURE, not a missing one-liner:
+        # nilearn's FirstLevelModel exposes no betas (they'd have to come from
+        # per-regressor identity contrasts), and a single X is ambiguous for a
+        # model fit across multiple runs. Fail loudly until both are settled.
         raise NotImplementedError(
-            "Prediction with new design matrix not yet implemented. "
-            "Use predict() without arguments to get fitted values."
+            "Glm.predict(X=...) is not supported: prediction from a new design "
+            "matrix is not implemented. Call predict() with no arguments to get "
+            "fitted values, or use compute_contrast() for effects of interest."
         )
 
     def score(self, X=None, y=None):
