@@ -24,7 +24,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | `BrainCollection` redesign | **Not yet available (scaffold)** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
-| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity, `spatial_scale=` for spatial scope) | **Renamed** |
+| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scope; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
@@ -652,7 +652,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 
 | Method | Alternative | Migration Effort |
 |--------|-------------|------------------|
-| `BrainData.regress()` | `.fit(model='glm', X=design_matrix)` — the old method is removed and raises `NotImplementedError` | **Low** |
+| `BrainData.regress()` | `.fit(model='glm', X=design_matrix)` — the old method is removed entirely; calling it raises `AttributeError` | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, spatial_scale=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. `spatial_scale=` selects ``'whole_brain'``, ``'roi'``, or ``'searchlight'``; `method=` is no longer overloaded. See [Pattern 4](#pattern-4-machine-learning-classification-regression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
@@ -745,7 +745,7 @@ By default (`controls=True`) `iplot()` returns an `ipywidgets.VBox` stacking a t
 
 ### Pattern 1: GLM Regression
 
-**Status**: ⚠️ **REMOVED** — `BrainData.regress()` raises `NotImplementedError` in v0.6.0. It does not warn or delegate to another implementation.
+**Status**: ⚠️ **REMOVED** — `BrainData.regress()` is gone entirely in v0.6.0; calling it raises `AttributeError` (`'BrainData' object has no attribute 'regress'`). It does not warn or delegate to another implementation.
 
 Use the unified `.fit(model='glm', X=...)` API instead.
 
@@ -1290,7 +1290,7 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. For `Adjacency.similarity`, `method=` selects the permutation scheme (`'1d'` / `'2d'` / `None`) and the correlation type lives in the separate `metric=` slot (`'spearman'` / `'pearson'` / `'kendall'`). **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
 | Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
@@ -1536,7 +1536,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 # Per-ROI RSA: compute one RDM per parcel, score against a model RDM,
 # project the per-parcel scalars back to a voxel-space BrainData.
 rdms = brain.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas)
-brain_map = rdms.similarity(model_rdm, project=True, permutation_method=None)
+brain_map = rdms.similarity(model_rdm, project=True, method=None)  # method=None skips the permutation test
 ```
 
 **What's added**:
@@ -1929,7 +1929,7 @@ result = one_sample_permutation_test(data, parallel=None)
 
 **v0.6.0** (current):
 - ✅ New inference module available
-- ✅ Suffixed `*_permutation_test` functions are exported from both `nltools.stats` and `nltools.algorithms.inference`
+- ✅ Suffixed `*_permutation_test` functions are exported from both `nltools.stats` and `nltools.algorithms.inference` (exception: `isc_permutation_test` / `isc_group_permutation_test` live only in `nltools.algorithms.inference` — `nltools.stats` keeps the legacy `isc` / `isc_group` wrappers instead)
 - ❌ Unsuffixed permutation wrapper names are removed
 
 Future migration guidance will follow the APIs available in those releases.
@@ -1944,4 +1944,4 @@ Future migration guidance will follow the APIs available in those releases.
 
 ---
 
-*Last updated: 2026-04-20 for nltools v0.6.0*
+*Last updated: 2026-07-17 for nltools v0.6.0*
