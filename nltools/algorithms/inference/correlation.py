@@ -13,6 +13,7 @@ from scipy.stats import rankdata, kendalltau
 
 from nltools.algorithms.backends import Backend
 from .utils import _compute_pvalue, _auto_batch_size, EPSILON
+from .validation import validate_tail_parameter
 
 if TYPE_CHECKING:
     import torch
@@ -718,8 +719,7 @@ def correlation_permutation_test(
         raise ValueError(f"data1 must be 1D or 2D, got shape {data1.shape}")
     if data2.ndim not in [1, 2]:
         raise ValueError(f"data2 must be 1D or 2D, got shape {data2.shape}")
-    if tail not in [1, 2]:
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    tail = validate_tail_parameter(tail)
     if metric not in ["pearson", "spearman", "kendall"]:
         raise ValueError(
             f"metric must be 'pearson', 'spearman', or 'kendall', got '{metric}'"

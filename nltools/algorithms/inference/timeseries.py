@@ -72,7 +72,7 @@ def circle_shift(
     # 1D case
     if data.ndim == 1:
         if shift_amount is None:
-            shift_amount = rng.choice(np.arange(len(data)), replace=False)
+            shift_amount = rng.randint(1, len(data))
         shift_amount = int(shift_amount)
         return np.concatenate([data[-shift_amount:], data[:-shift_amount]])
 

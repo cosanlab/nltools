@@ -1326,3 +1326,36 @@ def test_stats_isc_group_backward_compatibility():
 
     assert "isc_group_difference" in result_df
     assert "p" in result_df
+
+
+def test_isc_group_bootstrap_ci_brackets_estimate():
+    """F013 regression: bootstrap CI must bracket the observed difference.
+
+    The bootstrap null is centered (``boot - observed_diff``) for the p-value,
+    but the reported CI must be built from the UNCENTERED draws so it brackets
+    the estimate — not zero. Groups are built with a large true ISC difference
+    so a CI centered on 0 would fail to contain the estimate.
+    """
+    rng = np.random.RandomState(0)
+    n_tp, n_subs = 40, 15  # data is (n_observations, n_subjects)
+    common = rng.randn(n_tp)
+    # group1: strong shared signal across subjects -> high ISC (~1)
+    group1 = np.column_stack([common + 0.1 * rng.randn(n_tp) for _ in range(n_subs)])
+    # group2: pure noise -> ISC ~ 0
+    group2 = np.column_stack([rng.randn(n_tp) for _ in range(n_subs)])
+
+    result = isc_group_permutation_test(
+        group1,
+        group2,
+        n_permute=200,
+        method="bootstrap",
+        random_state=42,
+        progress_bar=False,
+    )
+
+    obs = float(result["isc_group_difference"])
+    ci_lower, ci_upper = float(result["ci"][0]), float(result["ci"][1])
+    assert obs > 0.5, f"expected a large positive difference, got {obs}"
+    assert ci_lower <= obs <= ci_upper, (
+        f"CI ({ci_lower:.3f}, {ci_upper:.3f}) does not bracket estimate {obs:.3f}"
+    )

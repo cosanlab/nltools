@@ -56,7 +56,7 @@ def align(data, method="deterministic_srm", n_features=None, axis=0, *args, **kw
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are inputting data is a list.")
-    if not all(type(x) for x in data):
+    if len({type(x) for x in data}) > 1:
         raise ValueError("Make sure all objects in the list are the same type.")
     if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
         raise ValueError(
@@ -350,17 +350,29 @@ def procrustes_distance(
     elif mat2.shape[1] > mat1.shape[1]:
         mat1 = np.pad(mat1, ((0, 0), (0, mat2.shape[1] - mat1.shape[1])), "constant")
 
-    _, _, sse = procrust(mat1, mat2)
+    # `procrust` (scipy.spatial.procrustes) returns a disparity in [0, 1] where
+    # LOWER means more similar. Convert to a similarity (higher = more similar)
+    # so the reported statistic matches the documented "similarity between 0 and
+    # 1" and, critically, so the observed value and the permutation null live on
+    # the SAME scale. Previously the observed disparity was compared against a
+    # null of similarities, inverting the scales and yielding p ~ 1 for
+    # near-identical matrices.
+    _, _, disparity = procrust(mat1, mat2)
+    observed_similarity = 1 - disparity
 
-    stats = {"similarity": sse}
-    all_p = Parallel(n_jobs=n_jobs)(
+    null_disparities = Parallel(n_jobs=n_jobs)(
         delayed(procrust)(random_state.permutation(mat1), mat2)
         for _ in range(n_permute)
     )
-    all_p = [1 - x[2] for x in all_p]
+    null_similarity = [1 - x[2] for x in null_disparities]
 
     # Use _compute_pvalue from inference module (signature: obs_stat, null_dist, tail)
-    stats["p"] = float(_compute_pvalue(np.array(sse), np.array(all_p), tail=tail)[0])
+    stats = {"similarity": float(observed_similarity)}
+    stats["p"] = float(
+        _compute_pvalue(
+            np.array(observed_similarity), np.array(null_similarity), tail=tail
+        )[0]
+    )
 
     return stats
 

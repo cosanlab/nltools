@@ -11,6 +11,15 @@ from nltools.mask import create_sphere
 class TestAlign:
     """Test hyperalignment algorithms (SRM, Procrustes)."""
 
+    def test_mixed_types_raises(self):
+        """A list mixing types must raise a clear ValueError (F137).
+
+        The same-type guard previously used ``all(type(x) for x in data)``,
+        which is always truthy and never triggered.
+        """
+        with pytest.raises(ValueError, match="same type"):
+            align([np.zeros((10, 5)), [[1, 2], [3, 4]]])
+
     @pytest.fixture
     def simulated_brains(self):
         """Create simulated BrainData for alignment tests."""
@@ -96,6 +105,26 @@ class TestProcrustesDistance:
         assert "p" in result
         assert 0 <= result["p"] <= 1
         assert isinstance(result["similarity"], (float, np.floating))
+
+    def test_near_identical_matrices_are_significant(self):
+        """F136: near-identical matrices must yield a small p-value.
+
+        The observed statistic and the permutation null must live on the same
+        scale. Previously the observed disparity (~0 for similar matrices) was
+        compared against a null of similarities (~1), so a near-identical pair
+        got p ~ 1 instead of a small p.
+        """
+        np.random.seed(0)
+        mat1 = np.random.randn(20, 5)
+        mat2 = mat1 + np.random.randn(20, 5) * 0.01  # essentially identical
+        result = procrustes_distance(mat1, mat2, n_permute=500, random_state=42)
+        assert result["similarity"] > 0.5, (
+            f"near-identical matrices should be highly similar, got "
+            f"{result['similarity']}"
+        )
+        assert result["p"] < 0.05, (
+            f"near-identical matrices should be significant, got p={result['p']}"
+        )
 
 
 class TestAlignStates:

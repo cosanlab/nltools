@@ -44,6 +44,17 @@ class TestHolmBonf:
         thr = holm_bonf(p_values)
         assert thr == -1
 
+    def test_holm_bonf_respects_alpha(self):
+        """A stricter alpha must yield a stricter threshold (F135).
+
+        With p=[0.01, 0.4, 0.8] the smallest p (0.01) survives the step-down
+        threshold at alpha=0.05 (0.05/3 = 0.0167) but not at alpha=0.01
+        (0.01/3 = 0.0033), so the two alphas must return different results.
+        """
+        p_values = np.array([0.01, 0.4, 0.8])
+        assert holm_bonf(p_values, alpha=0.05) == 0.01
+        assert holm_bonf(p_values, alpha=0.01) == -1
+
 
 class TestThreshold:
     """Test statistical thresholding on BrainData."""

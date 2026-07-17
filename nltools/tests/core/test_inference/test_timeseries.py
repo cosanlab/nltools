@@ -41,6 +41,17 @@ class TestCircleShift:
         shifted2 = circle_shift(data, random_state=42)
         np.testing.assert_array_equal(shifted1, shifted2)
 
+    def test_random_shift_never_identity_1d(self):
+        """A random 1D shift must never be the identity (shift of 0) (F016).
+
+        The 1D path must draw from [1, len) like the 2D path, so no random
+        seed should leave the data unshifted.
+        """
+        data = np.arange(10)
+        for seed in range(200):
+            shifted = circle_shift(data, random_state=seed)
+            assert not np.array_equal(shifted, data), f"seed {seed} gave identity shift"
+
     def test_deterministic_with_seed_2d(self):
         """Test that circle_shift is deterministic with random_state for 2D."""
         data = np.random.randn(50, 5)  # Reduced from 100, 5 for tier1 speed

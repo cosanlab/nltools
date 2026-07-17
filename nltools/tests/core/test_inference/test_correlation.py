@@ -14,6 +14,22 @@ from nltools.tests.core.test_inference import (
 from nltools.algorithms.backends import check_gpu_available
 
 
+class TestCorrelationPermutationTail:
+    """F011: correlation_permutation_test must accept its documented tail values."""
+
+    @pytest.mark.parametrize("tail", ["two", "upper", "lower", 2, 1, -1])
+    def test_documented_tail_values_accepted(self, tail):
+        """String/-1 tails documented in the signature must not crash."""
+        rng = np.random.RandomState(0)
+        x = rng.randn(50)
+        y = -x + rng.randn(50) * 0.1
+        result = correlation_permutation_test(
+            x, y, n_permute=100, tail=tail, parallel=None
+        )
+        assert "p" in result
+        assert 0 < result["p"] <= 1
+
+
 class TestPearsonCorrelation:
     """Test Pearson correlation helper function."""
 
@@ -354,7 +370,7 @@ class TestCorrelationPermutation:
         x = np.random.randn(50)
         y = np.random.randn(50)
 
-        with pytest.raises(ValueError, match="tail must be 1 or 2"):
+        with pytest.raises(ValueError, match="tail must be"):
             correlation_permutation_test(x, y, tail=3)
 
     def test_invalid_data_shape(self):

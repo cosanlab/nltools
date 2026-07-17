@@ -1182,15 +1182,24 @@ def isc_group_permutation_test(
             # Shouldn't happen for single feature
             raise ValueError("Single feature should produce 1D null_dist")
 
-    # Compute confidence intervals
-    if null_dist.ndim == 1:
-        ci_lower = np.percentile(null_dist, (100 - ci_percentile) / 2)
-        ci_upper = np.percentile(null_dist, ci_percentile + (100 - ci_percentile) / 2)
+    # Compute confidence intervals.
+    # For method='bootstrap' the draws in null_dist are CENTERED
+    # (boot_estimate - observed_diff) so that the permutation-style p-value tests
+    # against H0: difference == 0. A confidence interval, however, must bracket
+    # the ESTIMATE, so we re-add observed_diff to recover the uncentered
+    # bootstrap distribution before taking percentiles (matching
+    # isc_permutation_test). For method='permute' the null is a label-permutation
+    # band around zero, not a bootstrap of the estimate; its percentiles describe
+    # the null spread and are left uncentered.
+    ci_source = null_dist + observed_diff if method == "bootstrap" else null_dist
+    if ci_source.ndim == 1:
+        ci_lower = np.percentile(ci_source, (100 - ci_percentile) / 2)
+        ci_upper = np.percentile(ci_source, ci_percentile + (100 - ci_percentile) / 2)
     else:
         # Voxel-wise: compute CI per voxel
-        ci_lower = np.nanpercentile(null_dist, (100 - ci_percentile) / 2, axis=0)
+        ci_lower = np.nanpercentile(ci_source, (100 - ci_percentile) / 2, axis=0)
         ci_upper = np.nanpercentile(
-            null_dist, ci_percentile + (100 - ci_percentile) / 2, axis=0
+            ci_source, ci_percentile + (100 - ci_percentile) / 2, axis=0
         )
 
     # Build result dictionary
