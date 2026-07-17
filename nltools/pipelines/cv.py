@@ -11,7 +11,7 @@ from collections.abc import Iterator
 import numpy as np
 from numpy.typing import NDArray
 
-CVSchemeType = Literal["kfold", "loso", "loro", "bootstrap", "permutation"]
+CVSchemeType = Literal["kfold", "loso", "loro", "bootstrap"]
 
 
 @dataclass
@@ -23,11 +23,14 @@ class CVScheme:
     - loso: leave-one-subject-out (for multi-subject)
     - loro: leave-one-run-out
     - bootstrap: bootstrap resampling
-    - permutation: permutation testing (shuffles targets)
+
+    For the label-permutation accuracy null (the classic MVPA permutation
+    test), use ``BrainCollectionPipeline.predict(n_permute=...)`` — it is a
+    dedicated outer loop over shuffled targets, not a train/test split.
 
     Args:
         k: Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'.
-        scheme: CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'.
+        scheme: CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'.
         split_by: Attribute to split by ('runs', 'subjects', 'sessions').
             Used for documentation purposes with loso/loro schemes.
         n: Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000.
@@ -48,9 +51,6 @@ class CVScheme:
 
         >>> # Bootstrap with 500 iterations
         >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
-
-        >>> # Permutation testing with 1000 permutations
-        >>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
     """
 
     k: int | None = None
@@ -119,8 +119,6 @@ class CVScheme:
             yield from self._group_split(n_samples, groups)
         elif self.scheme == "bootstrap":
             yield from self._bootstrap_split(n_samples)
-        elif self.scheme == "permutation":
-            yield from self._permutation_split(n_samples)
         else:
             raise ValueError(f"Unknown scheme: {self.scheme}")
 
@@ -230,40 +228,6 @@ class CVScheme:
             yielded += 1
             yield train_idx, test_idx
 
-    def _permutation_split(
-        self, n_samples: int
-    ) -> Iterator[tuple[NDArray[np.intp], NDArray[np.intp]]]:
-        """Generate permutation test splits.
-
-        For each permutation, returns all sample indices for training and
-        a permuted version of those indices for target shuffling.
-
-        In permutation testing, the model is trained on all data but with
-        shuffled target values. The train_idx represents the original order
-        and perm_idx represents how to shuffle the target variable y.
-
-        Args:
-            n_samples: Total number of samples.
-
-        Yields:
-            Tuple of (train_indices, permuted_indices) for each permutation.
-            train_indices: Original sample order (0, 1, 2, ..., n-1).
-            permuted_indices: Shuffled indices to apply to target variable.
-
-        Example:
-            >>> cv = CVScheme(scheme='permutation', n=100, random_state=42)
-            >>> for train_idx, perm_idx in cv.split(data):
-            ...     y_shuffled = y[perm_idx]  # Shuffle targets
-            ...     model.fit(X, y_shuffled)
-            ...     null_score = model.score(X, y_shuffled)
-        """
-        indices = np.arange(n_samples, dtype=np.intp)
-
-        for _ in range(self.n):
-            # Permuted indices for shuffling targets
-            perm_idx = self._rng.permutation(n_samples).astype(np.intp)
-            yield indices.copy(), perm_idx
-
     def n_splits(self, data: Any = None, groups: NDArray[np.intp] | None = None) -> int:
         """Return number of splits.
 
@@ -288,8 +252,6 @@ class CVScheme:
             return len(np.unique(groups))
         if self.scheme == "bootstrap":
             return self.n
-        if self.scheme == "permutation":
-            return self.n
         return 0
 
     def __repr__(self) -> str:
@@ -298,6 +260,4 @@ class CVScheme:
             return f"CVScheme(scheme='kfold', k={self.k})"
         if self.scheme == "bootstrap":
             return f"CVScheme(scheme='bootstrap', n={self.n})"
-        if self.scheme == "permutation":
-            return f"CVScheme(scheme='permutation', n={self.n})"
         return f"CVScheme(scheme='{self.scheme}', split_by='{self.split_by}')"

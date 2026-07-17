@@ -530,7 +530,7 @@ fitted.compute_contrasts("language - string", contrast_type="beta").ttest()
         self,
         *,
         k: int | None = None,
-        method: str = "kfold",          # kfold | loso | loro | bootstrap | permutation
+        method: str = "kfold",          # kfold | loso | loro | bootstrap
         split_by: str | None = None,
         groups: np.ndarray | None = None,
         n: int = 1000,

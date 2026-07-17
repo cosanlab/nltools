@@ -1334,7 +1334,7 @@ Internal `**kwargs` catch-alls have been removed from user-facing methods that d
 - `BrainData.bootstrap`: `backend`, `max_gpu_memory_gb`
 - `BrainData.ttest`, `Adjacency.ttest`: `n_permute`, `tail`, `return_null`, `n_jobs`, `random_state`
 - `Adjacency.similarity`: `tail`, `return_null`, `n_jobs`, `random_state`
-- `BrainData.cv`: `n` (iterations for bootstrap/permutation schemes)
+- `BrainData.cv`: `n` (iterations for the bootstrap scheme)
 
 **Dead `*args` / `**kwargs` dropped entirely**:
 - `BrainData.align` (never used internally)

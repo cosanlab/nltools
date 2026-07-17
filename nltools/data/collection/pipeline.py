@@ -139,19 +139,32 @@ class BrainCollectionPipeline:
         return self._add_step(PipeStep(transformer=transformer))
 
     def predict(  # nosemgrep: kwargs-internal-forwarding  # **kwargs forwards to the sklearn estimator constructor
-        self, y, method: str = "ridge", **kwargs
+        self,
+        y,
+        method: str = "ridge",
+        *,
+        n_permute: int = 0,
+        random_state=None,
+        **kwargs,
     ):
         """Execute pipeline with CV and return prediction results.
 
         Args:
             y: Target variable. For LOSO, shape should be (n_subjects,).
             method: Prediction algorithm ('ridge', 'svm', 'logistic', etc.)
+            n_permute: If ``> 0``, also build a label-permutation null of the
+                CV score — the classic MVPA permutation test. Each iteration
+                shuffles ``y``, re-runs the *same* cross-validation, and records
+                the mean score; the result gets ``permutation_scores`` (the null
+                array) and ``permutation_pvalue`` attached. Default 0 (no null).
+            random_state: Seed for the label shuffling (permutation null only).
             **kwargs: Passed to model constructor.
 
         Returns:
             ``BrainData`` carrying out-of-fold predictions plus CV attributes
             (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
-            ``fold_results``, ``cv_pipeline``).
+            ``fold_results``, ``cv_pipeline``). When ``n_permute > 0`` it also
+            carries ``permutation_scores`` and ``permutation_pvalue``.
 
         Raises:
             ValueError: If no CV context is set or if non-LOSO CV is used without groups.
@@ -165,9 +178,41 @@ class BrainCollectionPipeline:
         # Get data as list of numpy arrays
         subject_data = [bd.data for bd in self._bc]
 
+        result = self._run_cv(subject_data, y, method, kwargs)
+
+        if n_permute > 0:
+            # Dedicated permutation-accuracy null (thread #87): shuffle y,
+            # re-run the identical CV, collect the mean score. This is an
+            # outer loop over the whole CV, NOT a train/test split — which is
+            # why 'permutation' is not a CVScheme.
+            rng = np.random.default_rng(random_state)
+            observed = result.mean_score
+            null = np.empty(n_permute, dtype=np.float64)
+            for i in range(n_permute):
+                perm = self._run_cv(subject_data, rng.permutation(y), method, kwargs)
+                null[i] = perm.mean_score
+            result.permutation_scores = null
+            result.permutation_pvalue = (1.0 + int(np.sum(null >= observed))) / (
+                n_permute + 1
+            )
+
+        return result
+
+    def _run_cv(
+        self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict
+    ):
+        """Run one full CV pass (LOSO or pooled), returning the CV ``BrainData``.
+
+        Resets the CV scheme's RNG when a seed was set so the folds are
+        identical across the observed run and every permutation run — the null
+        then reflects only label shuffling, not fold jitter. Deterministic
+        schemes (loso/loro) are unaffected.
+        """
+        if self._cv.random_state is not None:
+            self._cv._rng = np.random.default_rng(self._cv.random_state)
         if self._cv.is_loso:
-            return self._execute_loso(subject_data, y, method, kwargs)
-        return self._execute_pooled_cv(subject_data, y, method, kwargs)
+            return self._execute_loso(subject_data, y, algorithm, model_kwargs)
+        return self._execute_pooled_cv(subject_data, y, algorithm, model_kwargs)
 
     def _execute_loso(
         self, subject_data: list, y: np.ndarray, algorithm: str, model_kwargs: dict

@@ -101,46 +101,17 @@ class TestCVScheme:
         for _, test_idx in splits:
             assert len(test_idx) >= 1
 
-    def test_permutation_split(self):
-        """Test permutation generates train indices and permuted indices."""
+    def test_permutation_scheme_removed(self):
+        """Thread #87 (F112): 'permutation' is no longer a CV scheme.
+
+        It was never a train/test split — the generic pooled-CV consumer
+        misread its (all_idx, perm_idx) tuple as (train, test) and produced a
+        coherent, non-null score. The label-permutation accuracy null now lives
+        in a dedicated outer loop (``BrainCollectionPipeline.predict(n_permute=)``).
+        """
         cv = CVScheme(scheme="permutation", n=10, random_state=42)
-        data = np.arange(50)
-
-        splits = list(cv.split(data))
-        assert len(splits) == 10  # Exactly n permutations
-
-        for train_idx, perm_idx in splits:
-            # Train indices should be original order
-            np.testing.assert_array_equal(train_idx, np.arange(50))
-            # Permuted indices should be a permutation
-            assert len(perm_idx) == 50
-            assert set(perm_idx) == set(range(50))
-            # Should be shuffled (very unlikely to be in order)
-            assert not np.array_equal(perm_idx, train_idx)
-
-    def test_permutation_n_splits(self):
-        """Test permutation n_splits returns n."""
-        cv = CVScheme(scheme="permutation", n=100)
-        assert cv.n_splits() == 100
-
-    def test_permutation_repr(self):
-        """Test permutation string representation."""
-        cv = CVScheme(scheme="permutation", n=500)
-        r = repr(cv)
-        assert "permutation" in r
-        assert "500" in r
-
-    def test_permutation_reproducibility(self):
-        """Test permutation splits are reproducible with same seed."""
-        cv1 = CVScheme(scheme="permutation", n=5, random_state=42)
-        cv2 = CVScheme(scheme="permutation", n=5, random_state=42)
-        data = np.arange(30)
-
-        splits1 = list(cv1.split(data))
-        splits2 = list(cv2.split(data))
-
-        for (t1, p1), (t2, p2) in zip(splits1, splits2):
-            np.testing.assert_array_equal(p1, p2)
+        with pytest.raises(ValueError, match="Unknown scheme"):
+            list(cv.split(np.arange(50)))
 
     def test_is_loso_property(self):
         """Test is_loso property."""

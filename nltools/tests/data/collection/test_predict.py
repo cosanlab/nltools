@@ -332,3 +332,37 @@ class TestCVPipeline:
         keys = out.fold_results[0]
         for required in ("test_idx", "train_idx", "predictions"):
             assert required in keys
+
+    def test_predict_no_permutation_null_by_default(self, bc_inmem):
+        """Without n_permute, no null is computed (default n_permute=0)."""
+        out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
+        assert not hasattr(out, "permutation_scores")
+        assert not hasattr(out, "permutation_pvalue")
+
+    def test_predict_permutation_null_attached(self, bc_inmem):
+        """Thread #87 (F112): predict(n_permute=) builds a label-permutation null.
+
+        The dedicated outer loop shuffles y, re-runs the *normal* CV, and
+        collects the mean score into a null distribution — the classic MVPA
+        permutation test that the removed 'permutation' CV scheme mishandled.
+        """
+        out = bc_inmem.cv(method="loso").predict(
+            y=np.array([0, 1, 0]), n_permute=20, random_state=0
+        )
+        # Observed CV result is still present and unchanged in shape.
+        assert isinstance(out, BrainData)
+        assert hasattr(out, "mean_score")
+        # Null distribution + p-value attached.
+        assert out.permutation_scores.shape == (20,)
+        assert 0.0 <= out.permutation_pvalue <= 1.0
+
+    def test_predict_permutation_null_reproducible(self, bc_inmem):
+        """Same random_state → identical null and p-value."""
+        a = bc_inmem.cv(method="loso").predict(
+            y=np.array([0, 1, 0]), n_permute=15, random_state=7
+        )
+        b = bc_inmem.cv(method="loso").predict(
+            y=np.array([0, 1, 0]), n_permute=15, random_state=7
+        )
+        np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
+        assert a.permutation_pvalue == b.permutation_pvalue
