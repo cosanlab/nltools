@@ -43,7 +43,7 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
     Returns:
         out: (dict) a dictionary containing a list of transformed subject
             matrices, a list of transformation matrices, the shared
-            response matrix, and the intersubject correlation of the shared resposnes
+            response matrix, and the intersubject correlation of the shared responses
 
     Examples:
         - Hyperalign using procrustes transform:

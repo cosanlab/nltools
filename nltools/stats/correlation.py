@@ -63,7 +63,7 @@ def transform_pairwise(X, y):
             not be considered.
 
     Returns:
-        X_trans: (np.array), shape (k, n_feaures)
+        X_trans: (np.array), shape (k, n_features)
             Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping
             values were not passed. If grouping variables exist, then returns
             values computed for each group.

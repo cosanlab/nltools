@@ -1,5 +1,4 @@
-"""
-Base classes for nltools models.
+"""Base classes for nltools models.
 
 Provides sklearn-compatible API for neuroimaging analysis.
 """
@@ -11,8 +10,7 @@ import numpy as np
 
 
 class BaseModel(ABC):
-    """
-    Abstract base class for all nltools models.
+    """Abstract base class for all nltools models.
 
     Follows scikit-learn API conventions:
     - fit(X, y) trains the model and returns self
@@ -35,8 +33,7 @@ class BaseModel(ABC):
     # enough to cover every subclass; concrete types live on Ridge/Glm.
     @abstractmethod
     def fit(self, X, y) -> BaseModel:
-        """
-        Fit the model to training data.
+        """Fit the model to training data.
 
         Args:
             X (ndarray of shape (n_samples, n_features)): Training data
@@ -52,8 +49,7 @@ class BaseModel(ABC):
 
     @abstractmethod
     def predict(self, X) -> np.ndarray | list:
-        """
-        Generate predictions for new data.
+        """Generate predictions for new data.
 
         Args:
             X (ndarray of shape (n_samples, n_features)): Data to predict on
@@ -64,8 +60,7 @@ class BaseModel(ABC):
 
     @abstractmethod
     def score(self, X, y) -> float | np.ndarray:
-        """
-        Evaluate model performance.
+        """Evaluate model performance.
 
         Args:
             X (ndarray of shape (n_samples, n_features)): Test data
@@ -76,8 +71,7 @@ class BaseModel(ABC):
         """
 
     def _check_is_fitted(self) -> None:
-        """
-        Check if model has been fitted.
+        """Check if model has been fitted.
 
         Raises:
             ValueError: If model has not been fitted yet
@@ -89,8 +83,7 @@ class BaseModel(ABC):
             )
 
     def _validate_X(self, X: np.ndarray, reset: bool = True) -> np.ndarray:
-        """
-        Validate input data X.
+        """Validate input data X.
 
         Args:
             X (array-like): Input data to validate
@@ -123,8 +116,7 @@ class BaseModel(ABC):
     def _validate_X_y(
         self, X: np.ndarray, y: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Validate input data X and target y.
+        """Validate input data X and target y.
 
         Args:
             X (array-like): Input data

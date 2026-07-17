@@ -1,5 +1,4 @@
-"""
-Ridge regression model for neuroimaging data.
+"""Ridge regression model for neuroimaging data.
 
 Wraps nltools.algorithms.ridge with sklearn-compatible API.
 Supports both regular ridge (single feature space) and banded ridge
@@ -120,8 +119,7 @@ class Ridge(BaseModel):
         self.progress_bar = progress_bar
 
     def fit(self, X: np.ndarray | list[np.ndarray], y: np.ndarray) -> Ridge:
-        """
-        Fit ridge regression model.
+        """Fit ridge regression model.
 
         Supports both regular ridge (single feature space) and banded ridge
         (multiple feature spaces). If X is a list, banded ridge is used.
@@ -295,8 +293,7 @@ class Ridge(BaseModel):
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Predict using the ridge model.
+        """Predict using the ridge model.
 
         Args:
             X (ndarray of shape (n_samples, n_features)): Samples to predict
@@ -321,8 +318,7 @@ class Ridge(BaseModel):
         return y_pred
 
     def score(self, X: np.ndarray, y: np.ndarray) -> float | np.ndarray:
-        """
-        Return the coefficient of determination R^2 of the prediction.
+        """Return the coefficient of determination R^2 of the prediction.
 
         For multi-target regression (y is 2D), returns per-target R² scores.
         For single-target regression (y is 1D), returns a scalar R².

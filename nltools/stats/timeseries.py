@@ -173,7 +173,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
         nsamples (int): number of observations (e.g. TRs)
         sampling_freq (float): sampling frequency in hertz (i.e. 1 / TR)
         filter_length (int): length of filter in seconds
-        unit_scale (true): assure that the basis functions are on the normalized range [-1, 1]; default True
+        unit_scale (bool): assure that the basis functions are on the normalized range [-1, 1]; default True
         drop (int): index of which early/slow bases to drop if any; default is
             to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
             first basis (i.e. linear/sigmoidal). Will cumulatively drop bases

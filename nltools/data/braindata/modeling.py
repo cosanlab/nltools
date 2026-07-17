@@ -954,7 +954,7 @@ def compute_contrasts(bd, contrasts, statistic="t"):
         >>> res["t"].plot(threshold=3.09)
         >>> group_effects.append(res["beta"])
 
-    Notes:
+    Note:
         - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
         - Column names must match design matrix columns exactly (case-sensitive).
         - For group analysis, stack per-subject effect-size maps

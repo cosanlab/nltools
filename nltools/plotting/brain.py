@@ -526,7 +526,7 @@ def plot_flatmap(
         >>> fig = plot_flatmap(brain, template='fsaverage6', figsize=(16, 8))
         >>> fig.savefig('flatmap.pdf', dpi=300)
 
-    Notes:
+    Note:
         - Data is projected from MNI152 space to fsaverage surface space.
           Small alignment differences are expected at boundaries.
         - Higher resolution templates (fsaverage6, fsaverage) produce

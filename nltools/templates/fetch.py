@@ -46,7 +46,7 @@ def fetch_resource(relpath: str) -> str:
         straight into anything that takes a NIfTI path — nilearn plotting
         and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
-    Notes:
+    Note:
         Resolution is memoized per ``relpath`` for the session — repeated
         calls (e.g. every default-mask ``BrainData`` construction) return the
         cached path with no work. On the first call for a file already in the
@@ -103,7 +103,7 @@ def list_resources(prefix: str | None = None) -> list[str]:
     Returns:
         Sorted list of relative paths usable with `fetch_resource`.
 
-    Notes:
+    Note:
         Hits the HF API once per session (cached). Not available in
         Pyodide — browser-deployed code should know its paths in advance
         and pre-seed via `seed_resources`.

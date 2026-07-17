@@ -46,7 +46,7 @@ def convolve(
         >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
         >>> dm_conv = convolve(dm, conv_func=kernels)
 
-    Notes:
+    Note:
         Convolved columns are always renamed to ``<col>_c{i}``; the source
         column is dropped. ``dm.convolved`` records the post-suffix names
         (the columns that actually exist in the returned dataframe), so

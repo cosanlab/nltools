@@ -1,5 +1,4 @@
-"""
-GLM model for neuroimaging data.
+"""GLM model for neuroimaging data.
 
 Wraps nilearn.glm.first_level.FirstLevelModel with sklearn-compatible API.
 """
@@ -22,8 +21,7 @@ if TYPE_CHECKING:
 
 
 class Glm(BaseModel):
-    """
-    General Linear Model for fMRI data analysis with sklearn-compatible API.
+    """General Linear Model for fMRI data analysis with sklearn-compatible API.
 
     Wraps nilearn.glm.first_level.FirstLevelModel using composition pattern,
     similar to how BrainData holds masker objects. Provides sklearn-style
@@ -152,8 +150,7 @@ class Glm(BaseModel):
         events: pd.DataFrame | list[pd.DataFrame] | None = None,
         **kwargs,
     ) -> Glm:
-        """
-        Fit GLM to fMRI data.
+        """Fit GLM to fMRI data.
 
         Args:
             X (Nifti1Image or list of Nifti1Image): 4D fMRI image(s) to fit.
@@ -228,8 +225,7 @@ class Glm(BaseModel):
         self.coef_ = coefs[0] if len(coefs) == 1 else coefs
 
     def _convert_design_matrices(self, design_matrices):
-        """
-        Convert DesignMatrix objects to pandas DataFrames for nilearn.
+        """Convert DesignMatrix objects to pandas DataFrames for nilearn.
 
         Args:
             design_matrices (DesignMatrix, DataFrame, or list of either): Design
@@ -260,8 +256,7 @@ class Glm(BaseModel):
     def predict(
         self, X: np.ndarray | pd.DataFrame | None = None
     ) -> list[nib.Nifti1Image] | np.ndarray:
-        """
-        Predict from the fitted GLM.
+        """Predict from the fitted GLM.
 
         Args:
             X (array-like, DataFrame, or None, default=None): Design matrix to
@@ -329,8 +324,7 @@ class Glm(BaseModel):
         return self._glm.generate_report(contrasts=contrasts, **kwargs)
 
     def score(self, X: None = None, y: None = None) -> float:
-        """
-        Return mean R² across voxels and runs.
+        """Return mean R² across voxels and runs.
 
         Computes average coefficient of determination (R²) from the fitted GLM.
         Higher values indicate better model fit.
@@ -390,8 +384,7 @@ class Glm(BaseModel):
         contrast_def: str | np.ndarray | list | dict,
         output_type: str = "stat",
     ) -> nib.Nifti1Image | dict:
-        """
-        Compute contrast using nilearn for accurate statistical inference.
+        """Compute contrast using nilearn for accurate statistical inference.
 
         This is the primary method for extracting results from a fitted GLM.
         Delegates to nilearn's FirstLevelModel.compute_contrast() for proper
@@ -436,8 +429,7 @@ class Glm(BaseModel):
 
     @property
     def residuals(self) -> list[nib.Nifti1Image]:
-        """
-        Residuals from fitted GLM.
+        """Residuals from fitted GLM.
 
         Returns:
             list of Nifti1Image: Residual images for each run (observed - predicted)
@@ -450,8 +442,7 @@ class Glm(BaseModel):
 
     @property
     def design_matrices_(self) -> list[pd.DataFrame]:
-        """
-        Design matrices used in fitting.
+        """Design matrices used in fitting.
 
         Returns:
             list of DataFrame: Design matrices for each run
@@ -464,8 +455,7 @@ class Glm(BaseModel):
 
     @property
     def glm_(self) -> FirstLevelModel:
-        """
-        Access internal FirstLevelModel for advanced use.
+        """Access internal FirstLevelModel for advanced use.
 
         Provides direct access to the wrapped nilearn FirstLevelModel
         instance for advanced users who need functionality not exposed

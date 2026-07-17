@@ -637,7 +637,7 @@ class BrainData:
             ...     "avg_effect": [0, 0.5, 0.5],
             ... })
 
-        Notes:
+        Note:
             - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
             - Column names must match design matrix columns exactly (case-sensitive)
             - Contrast weights should sum to zero for proper inference in most cases
@@ -945,7 +945,7 @@ class BrainData:
             BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData).
                 If ``inplace=False``, returns Fit dataclass with results.
 
-        Notes:
+        Note:
             After ``model="glm"``, the following per-regressor BrainData
             attributes are populated — one map per design-matrix column:
 

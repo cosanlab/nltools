@@ -175,7 +175,7 @@ def compute_searchlight_neighborhoods(
         >>> print(neighborhoods)
         SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
 
-    Notes:
+    Note:
         Cache location: ~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz
 
         For a typical 2mm MNI mask (~50k voxels) with 10mm radius:

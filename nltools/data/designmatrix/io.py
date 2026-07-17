@@ -192,7 +192,7 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
         >>> write(dm, "design_matrix.csv", sep=",")  # CSV format
         >>> write(dm, "design_matrix.h5")  # HDF5 format
 
-    Notes:
+    Note:
         TSV format is recommended for BIDS compatibility.
         HDF5 format preserves metadata (sampling_freq, convolved, confounds).
     """

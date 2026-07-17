@@ -42,7 +42,7 @@ def corr(
     Raises:
         ValueError: If ``metric`` is unknown or fewer than 2 columns remain.
 
-    Notes:
+    Note:
         Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
         yield NaN correlations.
     """
