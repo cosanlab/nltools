@@ -543,7 +543,13 @@ def isc_test(
             null[k] = _aggregate_corrs(pc, metric).reshape(-1)
 
     # Two-tailed p centered at 0 (ISC null hypothesis: no synchrony → ISC = 0).
-    p = (np.sum(np.abs(null) >= np.abs(obs_map), axis=0) + 1) / (n_permute + 1)
+    # The subject bootstrap is centered on the OBSERVED ISC, so it must be
+    # re-centered at 0 (subtract obs_map) before the comparison — otherwise the
+    # null sits on top of the observed value and every voxel gets p ≈ 0.5. This
+    # restores the pre-0.6.0 behavior (`_calc_pvalue(all_bootstraps - isc, isc)`)
+    # that the collection refactor dropped.
+    centered_null = null - obs_map
+    p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (n_permute + 1)
     return {
         "isc": observed["isc"],
         "p": _make_braindata(p.reshape(obs_map.shape), bc._mask),

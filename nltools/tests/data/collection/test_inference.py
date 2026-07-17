@@ -83,6 +83,34 @@ class TestISC:
         out = bc_inmem.isc_test(method="loo", n_permute=10)
         assert isinstance(out, dict)
 
+    def test_isc_test_synchronized_voxels_are_significant(self, tiny_mask):
+        """F066: strongly-synchronized voxels must yield a SMALL p-value.
+
+        The bootstrap null must be centered at 0 (subtract the observed ISC)
+        before the p-value comparison, matching the pre-0.6.0 implementation.
+        Without centering, the null sits on top of the observed value and every
+        voxel gets p~0.5 regardless of synchrony.
+        """
+        import nibabel as nib
+
+        from nltools.data import BrainCollection, BrainData
+
+        rng = np.random.default_rng(0)
+        n_obs = 40
+        common = rng.standard_normal((*tiny_mask.shape, n_obs)).astype(np.float32)
+        brains = []
+        for i in range(6):
+            noise = rng.standard_normal(common.shape).astype(np.float32) * 0.05
+            img = nib.Nifti1Image(common + noise, tiny_mask.affine)
+            brains.append(BrainData(img, mask=tiny_mask))
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+
+        out = bc.isc_test(method="loo", n_permute=200, random_state=0)
+        p = np.asarray(out["p"].data).reshape(-1)
+        assert p.min() < 0.05, (
+            f"synchronized voxels should be significant; min p was {p.min()}"
+        )
+
 
 class TestAlign:
     """Behavioral facade tests. Searchlight Procrustes needs more samples than
