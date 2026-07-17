@@ -90,7 +90,6 @@ old-tutorials/
 docs/tutorials/workflows/archive
 dartbrains/
 scripts/sub-*
-nltools/tests/io_tests/legacy_fixtures/
 *.nii.gz
 scratch/
 .playwright-cli/

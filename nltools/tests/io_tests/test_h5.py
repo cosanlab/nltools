@@ -11,18 +11,11 @@ import pytest
 
 from nltools.io import is_h5_path, load_brain_data_h5, to_h5
 
+# Committed tiny deepdish/PyTables fixtures; regenerate with
+# scripts/make_legacy_h5_fixtures.py.
 LEGACY_FIXTURES = Path(__file__).parent / "legacy_fixtures"
 LEGACY_BRAINDATA = LEGACY_FIXTURES / "legacy_braindata.h5"
 LEGACY_ADJACENCY = LEGACY_FIXTURES / "legacy_adjacency.h5"
-
-requires_legacy_braindata = pytest.mark.skipif(
-    not LEGACY_BRAINDATA.exists(),
-    reason="legacy braindata fixture not present (gitignored, copy from scripts/)",
-)
-requires_legacy_adjacency = pytest.mark.skipif(
-    not LEGACY_ADJACENCY.exists(),
-    reason="legacy adjacency fixture not present (gitignored, copy from scripts/)",
-)
 
 
 class TestIsH5Path:
@@ -91,36 +84,37 @@ class TestToH5Adjacency:
         assert os.path.exists(path)
 
 
-@requires_legacy_braindata
 class TestLegacyBrainDataH5:
     """Read deepdish/PyTables-format BrainData files written by nltools <= 0.5.1."""
 
     def test_loads_via_load_brain_data_h5(self):
         result = load_brain_data_h5(str(LEGACY_BRAINDATA))
-        assert result["data"].shape == (25, 51029)
-        assert result["data"].dtype == np.float64
+        assert result["data"].shape == (5, 20)
+        assert result["data"].dtype == np.float32
+        # Populated X/Y exercise the legacy deepdish frame-decode path.
         assert isinstance(result["X"], pl.DataFrame)
         assert isinstance(result["Y"], pl.DataFrame)
-        assert result["X"].is_empty()
-        assert result["Y"].is_empty()
+        assert result["X"].columns == ["intercept", "regressor"]
+        assert result["Y"].columns == ["condition"]
+        assert result["X"].shape == (5, 2)
+        assert result["Y"].shape == (5, 1)
 
     def test_mask_reconstructed_without_mask_file_name(self):
         result = load_brain_data_h5(str(LEGACY_BRAINDATA))
         assert result["load_mask"] is True
         assert isinstance(result["mask"], nib.Nifti1Image)
-        assert result["mask"].shape == (61, 73, 61)
+        assert result["mask"].shape == (8, 8, 8)
 
     def test_braindata_constructor(self):
         from nltools.data import BrainData
 
         bd = BrainData(str(LEGACY_BRAINDATA))
-        assert bd.data.shape == (25, 51029)
-        assert bd.X.is_empty()
-        assert bd.Y.is_empty()
-        assert bd.mask.shape == (61, 73, 61)
+        assert bd.data.shape == (5, 20)
+        assert not bd.X.is_empty()
+        assert not bd.Y.is_empty()
+        assert bd.mask.shape == (8, 8, 8)
 
 
-@requires_legacy_adjacency
 class TestLegacyAdjacencyH5:
     """Read deepdish/PyTables-format Adjacency files written by nltools <= 0.5.1."""
 
