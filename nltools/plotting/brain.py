@@ -431,6 +431,7 @@ def plot_surf(
 
 def plot_flatmap(
     brain,
+    *,
     threshold=None,
     cmap="RdBu_r",
     vmax=None,

@@ -457,7 +457,7 @@ class DesignMatrix:
         unique_cols: list[str] | None = None,
         fill_na: int | float = 0,
         as_confounds: bool = False,
-        verbose: bool = False,
+        progress_bar: bool = False,
     ) -> DesignMatrix:
         """Concatenate design matrices.
 
@@ -475,7 +475,7 @@ class DesignMatrix:
                 columns from ``dm`` as nuisance/confounds in the result — they
                 get skipped by ``.convolve()`` and separated across runs on
                 later vertical appends. Default: False.
-            verbose (bool): Print messages about confound separation. Default: False.
+            progress_bar (bool): Print messages about confound separation. Default: False.
 
         Returns:
             DesignMatrix: Concatenated design matrix.
@@ -490,7 +490,7 @@ class DesignMatrix:
             unique_cols=unique_cols,
             fill_na=fill_na,
             as_confounds=as_confounds,
-            verbose=verbose,
+            progress_bar=progress_bar,
         )
 
     def clean(
@@ -499,7 +499,7 @@ class DesignMatrix:
         fill_na: int | float | None = 0,
         exclude_confounds: bool = False,
         thresh: float = 0.95,
-        verbose: bool = True,
+        progress_bar: bool = False,
     ) -> DesignMatrix:
         """Remove highly correlated columns.
 
@@ -507,7 +507,7 @@ class DesignMatrix:
             fill_na (int, float, or None): Fill NaN values before checking correlations (default 0)
             exclude_confounds (bool): Skip confound/nuisance columns from correlation check
             thresh (float): Correlation threshold (drop if abs(r) >= thresh, default 0.95)
-            verbose (bool): Print dropped column names
+            progress_bar (bool): Print dropped column names. Default: False
 
         Returns:
             DesignMatrix: Cleaned matrix with highly correlated columns removed
@@ -519,7 +519,7 @@ class DesignMatrix:
             fill_na=fill_na,
             exclude_confounds=exclude_confounds,
             thresh=thresh,
-            verbose=verbose,
+            progress_bar=progress_bar,
         )
 
     def convolve(

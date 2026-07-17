@@ -145,7 +145,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
                 fill_na=design_clean_fill_na,
                 exclude_confounds=design_clean_exclude_confounds,
                 thresh=design_clean_thresh,
-                verbose=bd.verbose,
+                progress_bar=bd.verbose,
             )
     else:
         # Ridge: handle list (banded ridge) or array (regular ridge)

@@ -149,9 +149,7 @@ class TestDistanceSearchlight:
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
         model = Adjacency(np.abs(rng.standard_normal((n, n))), matrix_type="distance")
-        brain_map = rdms.similarity(
-            model, project=True, permutation_method=None, metric="spearman"
-        )
+        brain_map = rdms.similarity(model, project=True, method=None, metric="spearman")
         assert isinstance(brain_map, BrainData)
         assert brain_map.shape[-1] == minimal_brain_data.shape[-1]
 
@@ -289,9 +287,7 @@ class TestSimilarityProject:
             np.abs(rng.standard_normal((n, n))) + np.eye(n) * 0,
             matrix_type="distance",
         )
-        out = rdms.similarity(
-            model, project=True, permutation_method=None, metric="spearman"
-        )
+        out = rdms.similarity(model, project=True, method=None, metric="spearman")
         assert isinstance(out, BrainData)
         assert out.shape[-1] == minimal_brain_data.shape[-1]
 
@@ -303,14 +299,10 @@ class TestSimilarityProject:
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
         model = Adjacency(np.abs(rng.standard_normal((n, n))), matrix_type="distance")
-        results = rdms.similarity(
-            model, project=False, permutation_method=None, metric="spearman"
-        )
+        results = rdms.similarity(model, project=False, method=None, metric="spearman")
         per_roi = np.array([r["correlation"] for r in results])
         manual = rdms.to_brain(per_roi)
-        sugared = rdms.similarity(
-            model, project=True, permutation_method=None, metric="spearman"
-        )
+        sugared = rdms.similarity(model, project=True, method=None, metric="spearman")
         np.testing.assert_array_equal(np.asarray(manual.data), np.asarray(sugared.data))
 
     def test_project_true_errors_without_spatial_scale(self):
@@ -325,4 +317,4 @@ class TestSimilarityProject:
         rdms = Adjacency(mats, matrix_type="distance")
         model = Adjacency(mats[0], matrix_type="distance")
         with pytest.raises(ValueError, match="spatial_scale"):
-            rdms.similarity(model, project=True, permutation_method=None)
+            rdms.similarity(model, project=True, method=None)

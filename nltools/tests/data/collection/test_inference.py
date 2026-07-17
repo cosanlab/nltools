@@ -80,7 +80,7 @@ class TestISC:
         assert isinstance(out, dict)
 
     def test_isc_test_returns_dict(self, bc_inmem):
-        out = bc_inmem.isc_test(method="loo", n_permute=10)
+        out = bc_inmem.isc_test(method="loo", n_samples=10)
         assert isinstance(out, dict)
 
     def test_isc_test_synchronized_voxels_are_significant(self, tiny_mask):
@@ -105,7 +105,7 @@ class TestISC:
             brains.append(BrainData(img, mask=tiny_mask))
         bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
 
-        out = bc.isc_test(method="loo", n_permute=200, random_state=0)
+        out = bc.isc_test(method="loo", n_samples=200, random_state=0)
         p = np.asarray(out["p"].data).reshape(-1)
         assert p.min() < 0.05, (
             f"synchronized voxels should be significant; min p was {p.min()}"

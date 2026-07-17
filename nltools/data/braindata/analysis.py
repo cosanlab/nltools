@@ -37,13 +37,13 @@ def check_masks(bd, image):
     return data2, image2
 
 
-def similarity(bd, image, method="correlation"):
+def similarity(bd, image, metric="correlation"):
     """Calculate similarity to a single BrainData or nibabel image.
 
     Args:
         bd: BrainData instance.
         image: (BrainData, nifti)  image to evaluate similarity
-        method: (str) Type of similarity
+        metric: (str) Type of similarity
                 ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine']
 
     Returns:
@@ -61,14 +61,14 @@ def similarity(bd, image, method="correlation"):
         "dot_product",
         "cosine",
     ]
-    if method not in supported_metrics:
-        raise ValueError(f"method must be one of {supported_metrics}")
+    if metric not in supported_metrics:
+        raise ValueError(f"metric must be one of {supported_metrics}")
 
     image = check_brain_data(image)
     data2, image2 = check_masks(bd, image)
 
     # Delegate to functional core (stats.py)
-    return compute_similarity(data2, image2, method=method)
+    return compute_similarity(data2, image2, metric=metric)
 
 
 def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
@@ -760,15 +760,15 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     return out
 
 
-def standardize(bd, *, axis=0, method="center", verbose=True):
+def standardize(bd, *, axis=0, method="center", suppress_warnings=False):
     """Standardize BrainData() instance.
 
     Args:
         bd: BrainData instance.
         axis: 0 for observations 1 for voxels (default: 0)
         method: ['center','zscore'] (default: 'center')
-        verbose: If False, suppress sklearn numerical warnings that occur
-            when voxels have near-zero variance. (default: True)
+        suppress_warnings: If True, suppress sklearn numerical warnings that
+            occur when voxels have near-zero variance. (default: False)
 
     Returns:
         BrainData: Standardized BrainData instance.
@@ -792,14 +792,14 @@ def standardize(bd, *, axis=0, method="center", verbose=True):
     else:
         raise ValueError('method must be ["center","zscore"')
 
-    if verbose:
-        out.data = scale(bd.data, axis=axis, with_std=with_std)
-    else:
+    if suppress_warnings:
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", message="Numerical issues", category=UserWarning
             )
             out.data = scale(bd.data, axis=axis, with_std=with_std)
+    else:
+        out.data = scale(bd.data, axis=axis, with_std=with_std)
     return out
 
 

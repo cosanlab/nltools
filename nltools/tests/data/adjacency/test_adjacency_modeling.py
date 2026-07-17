@@ -181,3 +181,13 @@ class TestAdjacencyModeling:
 
         for i in dat.cluster_summary(clusters=clusters, summary="between").values():
             np.testing.assert_almost_equal(0, i, decimal=1)
+
+        # v0.6.0: aggregation choice is `method=` (was the reserved `metric=`)
+        cluster_median = dat.cluster_summary(clusters=clusters, method="median")
+        for i, j in zip(
+            np.array([1, 2, 3]),
+            np.array([cluster_median[x] for x in cluster_median]),
+        ):
+            np.testing.assert_almost_equal(i, j, decimal=1)
+        with pytest.raises(TypeError):
+            dat.cluster_summary(clusters=clusters, metric="median")

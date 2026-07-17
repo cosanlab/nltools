@@ -92,15 +92,15 @@ def isc(
     data,
     *,
     n_samples=5000,
-    metric="median",
+    summary="median",
     method="bootstrap",
     ci_percentile=95,
     exclude_self_corr=True,
-    return_null=False,
     tail=2,
+    metric="correlation",
+    return_null=False,
     n_jobs=-1,
     random_state=None,
-    sim_metric="correlation",
 ):
     """Compute pairwise intersubject correlation from observations by subjects array.
 
@@ -137,12 +137,12 @@ def isc(
     Args:
         data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         n_samples: (int) number of random samples/bootstraps
-        metric: (str) type of isc summary metric ['mean','median']
+        summary: (str) type of isc summary statistic ['mean','median'] (default: median)
         method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
         tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
-        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
+        metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
         return_null: (bool) Return the permutation distribution along with the p-value; default False
-        sim_metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
+        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
 
     Returns:
         stats: (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_distribution']
@@ -150,14 +150,16 @@ def isc(
     """
     data = _as_ndarray(data)
 
-    if metric not in ["mean", "median"]:
-        raise ValueError("metric must be ['mean', 'median']")
+    if summary not in ["mean", "median"]:
+        raise ValueError("summary must be ['mean', 'median']")
 
-    # Call inference module function with parameter mapping
+    # Call inference module function with parameter mapping. The inference layer
+    # keeps its legacy vocabulary (metric=summary statistic, sim_metric=distance
+    # metric); translate the canonical public names at the boundary.
     result = isc_permutation_test(
         data,
         n_permute=n_samples,  # Map n_samples -> n_permute
-        metric=metric,
+        metric=summary,
         summary_statistic="pairwise",  # Explicitly set to match original behavior
         method=method,
         ci_percentile=ci_percentile,
@@ -166,7 +168,7 @@ def isc(
         random_state=random_state,
         return_null=return_null,
         exclude_self_corr=exclude_self_corr,
-        sim_metric=sim_metric,
+        sim_metric=metric,
         progress_bar=False,  # Disable progress bar for backward compatibility
     )
 

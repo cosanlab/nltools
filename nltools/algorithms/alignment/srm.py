@@ -209,6 +209,7 @@ class SRM(BaseEstimator, TransformerMixin):
         self,
         X: list[np.ndarray],
         y: Any | None = None,
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
@@ -301,6 +302,7 @@ class SRM(BaseEstimator, TransformerMixin):
         self,
         X: list[np.ndarray],
         y: Any | None = None,
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray | None]:
@@ -348,8 +350,8 @@ class SRM(BaseEstimator, TransformerMixin):
                     return self.w_[subj_idx].T.dot(X[subj_idx])
                 return None
 
-            # Use stored n_jobs from fit if available, otherwise use provided
-            n_jobs_to_use = getattr(self, "_n_jobs", n_jobs)
+            # Prefer an explicitly-passed n_jobs; fall back to the fit-time value
+            n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
                 try:
@@ -786,6 +788,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         self,
         X: list[np.ndarray],
         y: Any | None = None,
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
         max_gpu_memory_gb: float = 4.0,
@@ -849,6 +852,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         self,
         X: list[np.ndarray],
         y: Any | None = None,
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray]:
@@ -893,8 +897,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 """Transform one subject."""
                 return self.w_[subj_idx].T.dot(X[subj_idx])
 
-            # Use stored n_jobs from fit if available, otherwise use provided
-            n_jobs_to_use = getattr(self, "_n_jobs", n_jobs)
+            # Prefer an explicitly-passed n_jobs; fall back to the fit-time value
+            n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
                 try:

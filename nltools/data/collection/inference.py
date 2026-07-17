@@ -502,8 +502,7 @@ def isc_test(
     method: str = "loo",
     roi_mask: nib.Nifti1Image | Path | str | None = None,
     radius_mm: float | None = 6.0,
-    n_permute: int = 5000,
-    permutation_method: str = "bootstrap",
+    n_samples: int = 5000,
     metric: str = "median",
     device: str = "cpu",
     n_jobs: int = -1,
@@ -520,9 +519,9 @@ def isc_test(
     obs_map = np.asarray(observed["isc"].data).reshape(-1)
     n_subj = len(bc)
 
-    null = np.empty((n_permute, obs_map.size), dtype=np.float64)
+    null = np.empty((n_samples, obs_map.size), dtype=np.float64)
     data = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
-    for k in range(n_permute):
+    for k in range(n_samples):
         idx = rng.integers(0, n_subj, size=n_subj)
         sample_data = data[idx]
         if method == "loo":
@@ -549,7 +548,7 @@ def isc_test(
     # restores the pre-0.6.0 behavior (`_calc_pvalue(all_bootstraps - isc, isc)`)
     # that the collection refactor dropped.
     centered_null = null - obs_map
-    p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (n_permute + 1)
+    p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (n_samples + 1)
     return {
         "isc": observed["isc"],
         "p": _make_braindata(p.reshape(obs_map.shape), bc._mask),
@@ -563,7 +562,7 @@ def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignme
     method: str = "procrustes",
     spatial_scale: str = "searchlight",
     radius_mm: float = 10.0,
-    parcellation: nib.Nifti1Image | None = None,
+    roi_mask: nib.Nifti1Image | None = None,
     n_features: int | None = None,
     n_iter: int = 3,
     device: str = "cpu",
@@ -588,11 +587,12 @@ def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignme
         scheme=spatial_scale,
         method=method,
         radius_mm=radius_mm,
-        parcellation=parcellation,
+        parcellation=roi_mask,
         n_features=n_features,
         n_iter=n_iter,
         parallel=device,
         n_jobs=n_jobs,
+        progress_bar=progress_bar,
     )
     aligner.fit(arrays, mask=bc._mask)
     aligned = aligner.transform(arrays)

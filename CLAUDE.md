@@ -49,6 +49,11 @@ Canonical kwarg names across the four data-class facades:
 
 **Facade translation**: internal algorithm-layer APIs (e.g. `CVScheme.scheme`, `LocalAlignment.scheme`, `Glm.noise_model`) may keep legacy names; the class facade translates at the boundary.
 
+**Documented naming exceptions** (deliberate deviations from the table, decided for v0.6.0):
+- `BrainData.fit(model='glm'|'ridge')` keeps `model=` (not `method=`): it selects an estimator **class**, not an algorithm variant, and reads naturally. (F175)
+- `Ridge(n_iter=...)` keeps `n_iter=` (a banned alias in general): it is the random-search iteration count, matching sklearn's `RandomizedSearchCV` name; no canonical name exists for that concept. (F105)
+- `compute_contrasts(statistic=...)` uses `statistic=` (not `method=`): it selects an output **statistic** map (t/z/p/beta/…), not an algorithm. (F077)
+
 ## Documentation
 
 Jupyter Book v2 (mystmd). API docs auto-generated via `griffe2md` (Google-style docstrings).

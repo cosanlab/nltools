@@ -27,6 +27,7 @@ def solve_banded_ridge_cv(
     # Required
     Xs: list[np.ndarray],
     Y: np.ndarray,
+    *,
     # Optional algorithm parameters
     n_iter: int | np.ndarray = 100,
     concentration: float | list[float] = [0.1, 1.0],
@@ -132,7 +133,7 @@ def solve_banded_ridge_cv(
                 Always returned on CPU (numpy array).
             - 'intercept': Intercept of shape (n_targets,), or None if
                 fit_intercept=False or return_weights=False.
-            - 'parallel': Backend used (for transparency).
+            - 'backend': Backend used (for transparency).
 
     Examples:
         >>> # Multiple feature spaces (banded ridge with random search)
@@ -508,7 +509,7 @@ def solve_banded_ridge_cv(
     result = {
         "deltas": deltas,
         "cv_scores": cv_scores,
-        "parallel": backend.name,
+        "backend": backend.name,
     }
 
     if return_weights:
@@ -619,6 +620,7 @@ def solve_ridge_cv(
     # Required
     X: np.ndarray,
     Y: np.ndarray,
+    *,
     # Optional algorithm parameters
     alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0],
     cv: int | BaseCrossValidator = 5,
@@ -688,7 +690,7 @@ def solve_ridge_cv(
                 Always returned on CPU (numpy array).
             - 'intercept': Per-target intercept of shape (n_targets,). Only present
                 when ``fit_intercept=True``.
-            - 'parallel': Backend used (for transparency).
+            - 'backend': Backend used (for transparency).
 
     Examples:
         >>> X = np.random.randn(100, 50)
@@ -881,7 +883,7 @@ def solve_ridge_cv(
         "best_alphas": best_alphas,
         "coefs": coefs,
         "cv_scores": scores,
-        "parallel": backend.name,
+        "backend": backend.name,
     }
     # Mirror solve_banded_ridge_cv: when intercept was fit, return the
     # per-target intercept derived from the same X/Y means used for
@@ -958,7 +960,7 @@ def cross_val_predict_ridge(
             - 'folds': (n_samples,) int fold index per row (CPU numpy).
             - 'scores': (n_splits, n_targets) per-fold R² (or
               ``score_func``) at the supplied alpha (CPU numpy).
-            - 'parallel': Backend used (for transparency).
+            - 'backend': Backend used (for transparency).
 
     Raises:
         TypeError: If ``cv`` is a single-use generator. Pass the splitter
@@ -1104,5 +1106,5 @@ def cross_val_predict_ridge(
         "predictions": predictions,
         "folds": folds,
         "scores": scores,
-        "parallel": backend.name,
+        "backend": backend.name,
     }

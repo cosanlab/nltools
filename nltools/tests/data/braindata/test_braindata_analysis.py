@@ -263,14 +263,14 @@ class TestBrainDataAnalysis:
 
     def test_similarity(self, minimal_brain_data):
         """Test similarity computation with different metrics."""
-        r = minimal_brain_data.similarity(minimal_brain_data, method="correlation")
+        r = minimal_brain_data.similarity(minimal_brain_data, metric="correlation")
         assert r.shape == (minimal_brain_data.shape[0], minimal_brain_data.shape[0])
-        r = minimal_brain_data.similarity(minimal_brain_data, method="dot_product")
+        r = minimal_brain_data.similarity(minimal_brain_data, metric="dot_product")
         assert r.shape == (minimal_brain_data.shape[0], minimal_brain_data.shape[0])
-        r = minimal_brain_data.similarity(minimal_brain_data, method="cosine")
+        r = minimal_brain_data.similarity(minimal_brain_data, metric="cosine")
         assert r.shape == (minimal_brain_data.shape[0], minimal_brain_data.shape[0])
 
-        r = minimal_brain_data.similarity(minimal_brain_data[0], method="correlation")
+        r = minimal_brain_data.similarity(minimal_brain_data[0], metric="correlation")
         assert len(r) == minimal_brain_data.shape[0]
 
     @pytest.mark.slow

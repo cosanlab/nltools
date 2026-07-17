@@ -12,15 +12,15 @@ class TestISC:
     """Test intersubject correlation calculation."""
 
     @pytest.mark.parametrize("method", ["bootstrap", "circle_shift", "phase_randomize"])
-    @pytest.mark.parametrize("metric", ["median", "mean"])
+    @pytest.mark.parametrize("summary", ["median", "mean"])
     def test_isc_methods_and_metrics(
-        self, multisubject_correlated_data, method, metric
+        self, multisubject_correlated_data, method, summary
     ):
-        """ISC with various methods and aggregation metrics."""
+        """ISC with various methods and aggregation summary statistics."""
         stats = isc(
             multisubject_correlated_data,
             method=method,
-            metric=metric,
+            summary=summary,
             n_samples=100,
             return_null=True,
         )

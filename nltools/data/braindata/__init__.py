@@ -715,7 +715,7 @@ class BrainData:
         return detrend_data(self, method=method)
 
     @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist via analysis.distance
-    def distance(
+    def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spatial.distance.cdist
         self,
         metric="euclidean",
         *,
@@ -729,6 +729,8 @@ class BrainData:
         Args:
             metric: (str) type of distance metric (can use any scipy.spatial.distance
                     metric supported by cdist)
+            **kwargs: Additional metric options forwarded to
+                ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski).
             spatial_scale: One of ``'whole_brain'`` (default), ``'roi'``, or
                 ``'searchlight'``. ``'whole_brain'`` returns a single
                 pairwise distance ``Adjacency`` between images. ``'roi'``
@@ -1620,12 +1622,12 @@ class BrainData:
         return scale_data(self, scale_val, axis)
 
     @coalesced_gc()
-    def similarity(self, image, method="correlation"):
+    def similarity(self, image, metric="correlation"):
         """Calculate similarity to a single BrainData or nibabel image.
 
         Args:
             image: (BrainData, nifti) image to evaluate similarity
-            method: (str) Type of similarity
+            metric: (str) Type of similarity
                     ['correlation','dot_product','cosine']
 
         Returns:
@@ -1633,7 +1635,7 @@ class BrainData:
         """
         from .analysis import similarity
 
-        return similarity(self, image, method=method)
+        return similarity(self, image, metric=metric)
 
     def smooth(self, fwhm):
         """Apply spatial smoothing using nilearn smooth_img().
@@ -1648,7 +1650,7 @@ class BrainData:
 
         return smooth(self, fwhm)
 
-    def standardize(self, *, axis=0, method="center", verbose=True):
+    def standardize(self, *, axis=0, method="center", suppress_warnings=False):
         """Standardize BrainData() instance.
 
         Args:
@@ -1656,15 +1658,17 @@ class BrainData:
                 1 standardizes each observation across voxels.
             method (str): 'center' subtracts the mean (default).
                 'zscore' subtracts the mean and divides by standard deviation.
-            verbose (bool): If False, suppress sklearn numerical warnings that
-                occur when voxels have near-zero variance. Default: True.
+            suppress_warnings (bool): If True, suppress sklearn numerical warnings
+                that occur when voxels have near-zero variance. Default: False.
 
         Returns:
             BrainData: Standardized BrainData instance.
         """
         from .analysis import standardize
 
-        return standardize(self, axis=axis, method=method, verbose=verbose)
+        return standardize(
+            self, axis=axis, method=method, suppress_warnings=suppress_warnings
+        )
 
     def std(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get standard deviation of each voxel or image.

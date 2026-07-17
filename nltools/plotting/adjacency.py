@@ -322,7 +322,14 @@ def _long_to_matrix(long_df, row_col, col_col, value_col, order):
 
 
 def plot_silhouette(
-    distance, labels, ax=None, permutation_test=True, n_permute=5000, **kwargs
+    distance,
+    labels,
+    *,
+    ax=None,
+    permutation_test=True,
+    n_permute=5000,
+    colors=None,
+    figsize=(6, 4),
 ):
     """Silhouette plot indicating between- vs within-label distance.
 
@@ -339,8 +346,8 @@ def plot_silhouette(
         permutation_test: If True, run a one-sample permutation test per cluster
             on positive-mean silhouette scores.
         n_permute: Number of permutations.
-        **kwargs: Optional. `colors` (list of RGB triplets, one per cluster) and
-            `figsize` (tuple) control the plot appearance.
+        colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
+        figsize: Figure size tuple. Default (6, 4).
 
     Returns:
         pl.DataFrame with columns [label, mean_silhouette]. If permutation_test
@@ -355,8 +362,8 @@ def plot_silhouette(
     n_clusters = len(unique)
     n = arr.shape[0]
 
-    colors = kwargs.get("colors", sns.color_palette("hls", n_clusters))
-    figsize = kwargs.get("figsize", (6, 4))
+    if colors is None:
+        colors = sns.color_palette("hls", n_clusters)
 
     sil = np.zeros(n, dtype=float)
     for idx in range(n):

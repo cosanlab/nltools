@@ -35,64 +35,64 @@ class TestComputeSimilarity:
 
     def test_correlation(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2, method="correlation")
+        result = compute_similarity(data1, data2, metric="correlation")
         assert result.shape == (10, 5)
         assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_pearson_alias(self, similarity_data):
         data1, data2 = similarity_data
-        r1 = compute_similarity(data1, data2, method="correlation")
-        r2 = compute_similarity(data1, data2, method="pearson")
+        r1 = compute_similarity(data1, data2, metric="correlation")
+        r2 = compute_similarity(data1, data2, metric="pearson")
         np.testing.assert_allclose(r1, r2, rtol=1e-7, atol=1e-10)
 
     def test_single_image(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2[0:1], method="correlation")
+        result = compute_similarity(data1, data2[0:1], metric="correlation")
         assert result.shape == (10,)
 
     def test_self_similarity(self, similarity_data):
         data1, _ = similarity_data
-        result = compute_similarity(data1, data1, method="correlation")
+        result = compute_similarity(data1, data1, metric="correlation")
         assert result.shape == (10, 10)
         np.testing.assert_allclose(np.diag(result), 1.0, rtol=1e-10)
 
     def test_spearman(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2, method="spearman")
+        result = compute_similarity(data1, data2, metric="spearman")
         assert result.shape == (10, 5)
         assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_rank_correlation_alias(self, similarity_data):
         data1, data2 = similarity_data
-        r1 = compute_similarity(data1, data2, method="spearman")
-        r2 = compute_similarity(data1, data2, method="rank_correlation")
+        r1 = compute_similarity(data1, data2, metric="spearman")
+        r2 = compute_similarity(data1, data2, metric="rank_correlation")
         np.testing.assert_allclose(r1, r2, rtol=1e-7, atol=1e-10)
 
     def test_dot_product(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2, method="dot_product")
+        result = compute_similarity(data1, data2, metric="dot_product")
         assert result.shape == (10, 5)
 
     def test_dot_product_single(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2[0:1], method="dot_product")
+        result = compute_similarity(data1, data2[0:1], metric="dot_product")
         assert result.shape == (10,)
 
     def test_cosine(self, similarity_data):
         data1, data2 = similarity_data
-        result = compute_similarity(data1, data2, method="cosine")
+        result = compute_similarity(data1, data2, metric="cosine")
         assert result.shape == (10, 5)
         assert np.all(result >= -1) and np.all(result <= 1)
 
     def test_cosine_self_similarity(self, similarity_data):
         data1, _ = similarity_data
-        result = compute_similarity(data1, data1, method="cosine")
+        result = compute_similarity(data1, data1, metric="cosine")
         np.testing.assert_allclose(np.diag(result), 1.0, rtol=1e-5)
 
-    def test_invalid_method(self, similarity_data):
+    def test_invalid_metric(self, similarity_data):
         data1, data2 = similarity_data
-        with pytest.raises(ValueError, match="method must be one of"):
-            compute_similarity(data1, data2, method="invalid")
+        with pytest.raises(ValueError, match="metric must be one of"):
+            compute_similarity(data1, data2, metric="invalid")
 
 
 class TestComputeMultivariateSimilarity:

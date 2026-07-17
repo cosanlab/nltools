@@ -330,6 +330,8 @@ class LocalAlignment:
         - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
     n_jobs : int, default=-1
         Number of jobs for CPU parallelization.
+    progress_bar : bool, default=False
+        Whether to display tqdm progress bars during fit and transform.
 
     Attributes:
     transforms_ : Dict[int, List[np.ndarray]]
@@ -369,6 +371,7 @@ class LocalAlignment:
     aggregation: str = "center"
     parallel: str | None = "cpu"
     n_jobs: int = -1
+    progress_bar: bool = False
 
     # Batching parameters (Phase 2)
     n_neighborhoods_batch: int | None = None  # None = auto-calculate
@@ -573,14 +576,17 @@ class LocalAlignment:
         logger.info(f"Fitting LocalAlignment with {n_regions} {region_type}")
 
         # Use batched iteration for memory efficiency
-        from tqdm import tqdm
-
         batch_gen = self._batch_neighborhoods(
             self.neighborhoods_, n_subjects, n_samples
         )
 
-        # Progress bar for total neighborhoods
-        pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
+        # Progress bar for total neighborhoods (opt-in via progress_bar)
+        if self.progress_bar:
+            from tqdm import tqdm
+
+            pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
+        else:
+            pbar = None
 
         # Determine parallelization strategy
         # CPU parallel: use joblib with numpy backend (each worker gets own numpy)
@@ -611,7 +617,8 @@ class LocalAlignment:
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
 
-                pbar.update(len(batch))
+                if pbar is not None:
+                    pbar.update(len(batch))
             else:
                 # Sequential processing (GPU mode or single-threaded)
                 # Pass backend for GPU acceleration
@@ -628,12 +635,14 @@ class LocalAlignment:
                     )
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
-                    pbar.update(1)
+                    if pbar is not None:
+                        pbar.update(1)
 
             # Explicit cleanup after each batch for memory efficiency
             del batch
 
-        pbar.close()
+        if pbar is not None:
+            pbar.close()
         logger.info("LocalAlignment fitting complete")
         return self
 
@@ -709,7 +718,7 @@ class LocalAlignment:
             aligned = [np.zeros((n_voxels, n_samples)) for _ in range(n_subjects)]
 
             for region_id, voxel_indices in self.neighborhoods_.iter_neighborhoods(
-                progress_bar=True
+                progress_bar=self.progress_bar
             ):
                 transforms = self.transforms_[region_id]
 

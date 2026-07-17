@@ -11,7 +11,7 @@ def similarity(
     adj,
     data,
     plot=False,
-    permutation_method="2d",
+    method="2d",
     n_permute=5000,
     metric="spearman",
     include_diag=False,
@@ -31,11 +31,11 @@ def similarity(
         adj (Adjacency): Adjacency instance.
         data (Adjacency or array): Adjacency data, or 1-d array same size as adj.data.
         plot (bool): If True, plot stacked adjacency matrices. Default False.
-        permutation_method (str): '1d', '2d', or None.
+        method (str): permutation scheme '1d', '2d', or None.
         n_permute (int): Number of permutations. Default 5000.
         metric (str): 'spearman', 'pearson', or 'kendall'.
         include_diag (bool): Only applies to 'directed' Adjacency types using
-            permutation_method=None or permutation_method='1d'. Default False
+            method=None or method='1d'. Default False
             (self-similarity is uninformative). Symmetric matrices never store
             the diagonal, so this flag is a no-op for them.
         nan_policy (str): How to handle NaN values. Options:
@@ -94,8 +94,8 @@ def similarity(
             # Instead, we warn and use propagate for 2D.
             if arr1.ndim == 2:
                 warnings.warn(
-                    "NaN values detected in 2D matrix data. For permutation_method='2d', "
-                    "NaN handling is limited. Consider using permutation_method='1d' or None, "
+                    "NaN values detected in 2D matrix data. For method='2d', "
+                    "NaN handling is limited. Consider using method='1d' or None, "
                     "or removing NaN values before calling similarity().",
                     UserWarning,
                 )
@@ -117,15 +117,15 @@ def similarity(
     else:
         data2 = data.copy()
 
-    if permutation_method is None:
+    if method is None:
         n_permute = 0
         similarity_func = correlation_permutation_test
-    elif permutation_method == "1d":
+    elif method == "1d":
         similarity_func = correlation_permutation_test
-    elif permutation_method == "2d":
+    elif method == "2d":
         similarity_func = matrix_permutation_test
     else:
-        raise ValueError("permutation_method must be ['1d','2d', or None']")
+        raise ValueError("method must be ['1d','2d', or None']")
 
     def _convert_data_similarity(
         data, permutation_method=None, include_diag=include_diag
@@ -157,8 +157,8 @@ def similarity(
     if adj.is_single_matrix:
         if plot:
             plot_stacked_adjacency(adj, data)
-        arr1 = _convert_data_similarity(data1, permutation_method=permutation_method)
-        arr2 = _convert_data_similarity(data2, permutation_method=permutation_method)
+        arr1 = _convert_data_similarity(data1, permutation_method=method)
+        arr2 = _convert_data_similarity(data2, permutation_method=method)
         arr1, arr2 = _handle_nans(arr1, arr2, nan_policy)
         return similarity_func(
             arr1,
@@ -177,9 +177,9 @@ def similarity(
         for i in a:
             plot_stacked_adjacency(adj, data, ax=i)
     results = []
-    arr2_base = _convert_data_similarity(data2, permutation_method=permutation_method)
+    arr2_base = _convert_data_similarity(data2, permutation_method=method)
     for x in adj:
-        arr1 = _convert_data_similarity(x, permutation_method=permutation_method)
+        arr1 = _convert_data_similarity(x, permutation_method=method)
         arr1_clean, arr2_clean = _handle_nans(arr1, arr2_base, nan_policy)
         results.append(
             similarity_func(
@@ -445,8 +445,15 @@ def stats_label_distance(adj, *, labels=None, n_permute=5000, n_jobs=-1):
     return stats
 
 
-def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
-    adj, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+def plot_silhouette(
+    adj,
+    *,
+    labels=None,
+    ax=None,
+    permutation_test=True,
+    n_permute=5000,
+    colors=None,
+    figsize=(6, 4),
 ):
     """Create a silhouette plot.
 
@@ -456,6 +463,8 @@ def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to mat
         ax: Matplotlib axis handle.
         permutation_test (bool): Whether to run a permutation test. Default True.
         n_permute (int): Number of permutations for the test. Default 5000.
+        colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
+        figsize: Figure size tuple. Default (6, 4).
 
     Returns:
         dict: Silhouette plot results including scores and optional permutation p-value.
@@ -478,11 +487,12 @@ def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to mat
         ax=ax,
         permutation_test=permutation_test,
         n_permute=n_permute,
-        **kwargs,
+        colors=colors,
+        figsize=figsize,
     )
 
 
-def cluster_summary(adj, *, clusters=None, metric="mean", summary="within"):
+def cluster_summary(adj, *, clusters=None, method="mean", summary="within"):
     """This function provides summaries of clusters within Adjacency matrices.
 
     It can compute mean/median of within and between cluster values. Requires a
@@ -491,15 +501,15 @@ def cluster_summary(adj, *, clusters=None, metric="mean", summary="within"):
     Args:
         adj (Adjacency): Adjacency instance
         clusters: (list) list of cluster labels
-        metric: (str) method to summarize mean or median. If 'None" then return all r values
+        method: (str) how to summarize, 'mean' or 'median'. If `None` then return all r values
         summary: (str) summarize within cluster or between clusters
 
     Returns:
         dict: (dict) within cluster means
 
     """
-    if metric not in ["mean", "median", None]:
-        raise ValueError("metric must be ['mean','median', None]")
+    if method not in ["mean", "median", None]:
+        raise ValueError("method must be ['mean','median', None]")
 
     distance = np.asarray(adj.squareform())
     clusters = np.asarray(clusters)
@@ -514,17 +524,17 @@ def cluster_summary(adj, *, clusters=None, metric="mean", summary="within"):
             within_vals = distance[np.ix_(mask_i, mask_i)][
                 np.triu_indices(mask_i.sum(), k=1)
             ]
-            if metric == "mean":
+            if method == "mean":
                 out[i] = float(np.mean(within_vals))
-            elif metric == "median":
+            elif method == "median":
                 out[i] = float(np.median(within_vals))
             else:
                 out[i] = within_vals
         elif summary == "between":
             between_block = distance[np.ix_(mask_i, ~mask_i)]
-            if metric == "mean":
+            if method == "mean":
                 out[i] = float(np.mean(between_block))
-            elif metric == "median":
+            elif method == "median":
                 out[i] = float(np.median(between_block))
             else:
                 out[i] = between_block

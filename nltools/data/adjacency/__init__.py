@@ -452,7 +452,7 @@ class Adjacency:
             random_state=random_state,
         )
 
-    def cluster_summary(self, *, clusters=None, metric="mean", summary="within"):
+    def cluster_summary(self, *, clusters=None, method="mean", summary="within"):
         """Provide summaries of clusters within Adjacency matrices.
 
         Computes mean/median of within and between cluster values. Requires a
@@ -460,7 +460,7 @@ class Adjacency:
 
         Args:
             clusters: (list) list of cluster labels
-            metric: (str) method to summarize mean or median. If 'None" then return all r values
+            method: (str) how to summarize, 'mean' or 'median'. If `None` then return all r values
             summary: (str) summarize within cluster or between clusters
 
         Returns:
@@ -469,7 +469,7 @@ class Adjacency:
         """
         from .stats import cluster_summary
 
-        return cluster_summary(self, clusters=clusters, metric=metric, summary=summary)
+        return cluster_summary(self, clusters=clusters, method=method, summary=summary)
 
     def copy(self):
         """Create a copy of Adjacency object."""
@@ -610,8 +610,9 @@ class Adjacency:
 
     def plot_mds(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_mds
         self,
+        *,
         n_components=2,
-        metric=True,
+        metric_mds=True,
         labels=None,
         labels_color=None,
         cmap=None,
@@ -619,14 +620,13 @@ class Adjacency:
         figsize=None,
         ax=None,
         n_jobs=-1,
-        *args,
         **kwargs,
     ):
         """Plot multidimensional scaling.
 
         Args:
             n_components: (int) Number of dimensions to project (can be 2 or 3)
-            metric: (bool) Perform metric or non-metric dimensional scaling; default
+            metric_mds: (bool) Perform metric (True) or non-metric (False) dimensional scaling; default True
             labels: (list) Can override labels stored in Adjacency Class
             labels_color: (str) list of colors for labels, if len(1) then make all same color
             cmap: colormap instance (default: plt.cm.hot_r)
@@ -640,23 +640,38 @@ class Adjacency:
 
         return plot_mds(
             self,
-            n_components,
-            metric,
-            labels,
-            labels_color,
-            cmap,
-            view,
-            figsize,
-            ax,
-            n_jobs,
-            *args,
+            n_components=n_components,
+            metric_mds=metric_mds,
+            labels=labels,
+            labels_color=labels_color,
+            cmap=cmap,
+            view=view,
+            figsize=figsize,
+            ax=ax,
+            n_jobs=n_jobs,
             **kwargs,
         )
 
-    def plot_silhouette(  # nosemgrep: kwargs-internal-forwarding  # forwards to matplotlib via plotting.plot_silhouette
-        self, *, labels=None, ax=None, permutation_test=True, n_permute=5000, **kwargs
+    def plot_silhouette(
+        self,
+        *,
+        labels=None,
+        ax=None,
+        permutation_test=True,
+        n_permute=5000,
+        colors=None,
+        figsize=(6, 4),
     ):
-        """Create a silhouette plot."""
+        """Create a silhouette plot.
+
+        Args:
+            labels: Numpy array of cluster/group labels (overrides stored labels).
+            ax: Matplotlib axis handle.
+            permutation_test: (bool) Whether to run a permutation test. Default True.
+            n_permute: (int) Number of permutations for the test. Default 5000.
+            colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
+            figsize: Figure size tuple. Default (6, 4).
+        """
         from .stats import plot_silhouette
 
         return plot_silhouette(
@@ -665,7 +680,8 @@ class Adjacency:
             ax=ax,
             permutation_test=permutation_test,
             n_permute=n_permute,
-            **kwargs,
+            colors=colors,
+            figsize=figsize,
         )
 
     def r_to_z(self):
@@ -693,8 +709,9 @@ class Adjacency:
     def similarity(
         self,
         data,
+        *,
         plot=False,
-        permutation_method="2d",
+        method="2d",
         n_permute=5000,
         metric="spearman",
         include_diag=False,
@@ -703,7 +720,6 @@ class Adjacency:
         return_null=False,
         n_jobs=-1,
         random_state=None,
-        *,
         project: bool = False,
     ):
         """Calculate similarity between two Adjacency matrices.
@@ -712,10 +728,10 @@ class Adjacency:
 
         Args:
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
-            permutation_method: (str) '1d','2d', or None
+            method: (str) permutation scheme '1d', '2d', or None
             metric: (str) 'spearman','pearson','kendall'
             include_diag: (bool) only applies to 'directed' Adjacency types using
-                permutation_method=None or permutation_method='1d'. Default False
+                method=None or method='1d'. Default False
                 (self-similarity is uninformative). Symmetric matrices never store
                 the diagonal, so this flag is a no-op for them.
             nan_policy: (str) How to handle NaN values. Options:
@@ -734,7 +750,7 @@ class Adjacency:
             self,
             data,
             plot=plot,
-            permutation_method=permutation_method,
+            method=method,
             n_permute=n_permute,
             metric=metric,
             include_diag=include_diag,

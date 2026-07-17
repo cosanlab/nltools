@@ -138,7 +138,7 @@ def test_ridge_cv_basic():
     assert "alpha" in result
     assert "coef" in result
     assert "cv_scores" in result
-    assert "parallel" in result or "backend" in result  # Accept both for now
+    assert "backend" in result
 
     # Check selected alpha
     assert result["alpha"] in [0.1, 1.0, 10.0]
@@ -268,8 +268,7 @@ def test_backend_selection():
     y_large = np.random.randn(300).astype(np.float32)
     result_large = ridge_cv(X_large, y_large, alphas=[1.0, 10.0], cv=3, parallel="gpu")
     assert result_large["coef"].shape == (50000,)
-    # Backend info may be in "parallel" or "backend" key
-    assert "parallel" in result_large or "backend" in result_large
+    assert "backend" in result_large
 
 
 # ============================================================================
@@ -478,6 +477,51 @@ class TestSolveRidgeCvIntercept:
         X_off = X.mean(axis=0)
         expected = Y_off - X_off @ result["coefs"]
         np.testing.assert_allclose(intercept, expected, rtol=1e-4, atol=1e-4)
+
+
+class TestSolverApiConsistency:
+    """F025/F028: keyword-only option tail and standardized `backend` result key."""
+
+    def test_solvers_options_are_keyword_only(self):
+        # solve_ridge_cv / solve_banded_ridge_cv must mark everything after the
+        # data args keyword-only, matching cross_val_predict_ridge.
+        import inspect
+        from nltools.algorithms.ridge import (
+            solve_ridge_cv,
+            solve_banded_ridge_cv,
+            cross_val_predict_ridge,
+        )
+
+        def positional_params(fn):
+            return [
+                name
+                for name, p in inspect.signature(fn).parameters.items()
+                if p.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+            ]
+
+        assert positional_params(solve_ridge_cv) == ["X", "Y"]
+        assert positional_params(solve_banded_ridge_cv) == ["Xs", "Y"]
+        # Sibling already conformed; guard against regressions.
+        assert positional_params(cross_val_predict_ridge) == ["X", "Y"]
+
+    def test_solvers_return_backend_key(self):
+        from nltools.algorithms.ridge import solve_ridge_cv, solve_banded_ridge_cv
+
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((40, 5)).astype(np.float32)
+        Y = rng.standard_normal((40, 3)).astype(np.float32)
+
+        result = solve_ridge_cv(X, Y, alphas=[1.0], cv=2, parallel="cpu")
+        assert "backend" in result
+        assert "parallel" not in result
+        assert result["backend"] == "numpy"
+
+        result_banded = solve_banded_ridge_cv(
+            [X], Y, n_iter=3, alphas=[1.0], cv=2, parallel="cpu"
+        )
+        assert "backend" in result_banded
+        assert "parallel" not in result_banded
+        assert result_banded["backend"] == "numpy"
 
 
 class TestCrossValPredictRidge:

@@ -108,7 +108,7 @@ def transform_pairwise(X, y):
     return X_trans, np.column_stack([np.array(y_new), np.array(y_group)])
 
 
-def compute_similarity(data1, data2, method="correlation"):
+def compute_similarity(data1, data2, metric="correlation"):
     """Compute similarity between two data arrays.
 
     This is the functional core implementation for similarity computation.
@@ -117,7 +117,7 @@ def compute_similarity(data1, data2, method="correlation"):
     Args:
         data1 (np.ndarray): First data array, shape (n_samples1, n_features)
         data2 (np.ndarray): Second data array, shape (n_samples2, n_features)
-        method (str): Type of similarity metric
+        metric (str): Type of similarity metric
             - 'correlation' or 'pearson': Pearson correlation
             - 'spearman' or 'rank_correlation': Spearman rank correlation
             - 'dot_product': Dot product
@@ -132,7 +132,7 @@ def compute_similarity(data1, data2, method="correlation"):
     Examples:
         >>> data1 = np.random.randn(10, 100)
         >>> data2 = np.random.randn(5, 100)
-        >>> sim = compute_similarity(data1, data2, method='correlation')
+        >>> sim = compute_similarity(data1, data2, metric='correlation')
         >>> sim.shape
         (10, 5)
     """
@@ -140,13 +140,13 @@ def compute_similarity(data1, data2, method="correlation"):
     data1 = np.atleast_2d(data1)
     data2 = np.atleast_2d(data2)
 
-    if method == "dot_product":
+    if metric == "dot_product":
         # Vectorized dot product
         if data2.shape[0] == 1:
             out = np.dot(data1, data2.T).squeeze()
         else:
             out = np.dot(data1, data2.T)
-    elif method in ["pearson", "correlation"]:
+    elif metric in ["pearson", "correlation"]:
         # Use np.corrcoef (BLAS-optimized) for Pearson correlation
         stacked = np.vstack([data1, data2])
         corr_matrix = np.corrcoef(stacked)
@@ -155,7 +155,7 @@ def compute_similarity(data1, data2, method="correlation"):
         # Extract correlations between data1 rows and data2 rows
         out = corr_matrix[:n_data1, n_data1 : n_data1 + n_data2]
         out = out.squeeze()
-    elif method in ["spearman", "rank_correlation"]:
+    elif metric in ["spearman", "rank_correlation"]:
         # Spearman correlation: rank-transform then use np.corrcoef
         data1_ranked = np.apply_along_axis(rankdata, axis=1, arr=data1)
         data2_ranked = np.apply_along_axis(rankdata, axis=1, arr=data2)
@@ -165,14 +165,14 @@ def compute_similarity(data1, data2, method="correlation"):
         n_data2 = data2.shape[0]
         out = corr_matrix[:n_data1, n_data1 : n_data1 + n_data2]
         out = out.squeeze()
-    elif method == "cosine":
+    elif metric == "cosine":
         # Use cdist with cosine metric, then convert distance to similarity
         out = cdist(data1, data2, metric="cosine").squeeze()
         out = 1 - out  # Convert distance to similarity
     else:
         raise ValueError(
-            f"method must be one of ['correlation', 'pearson', 'spearman', "
-            f"'rank_correlation', 'dot_product', 'cosine'], got '{method}'"
+            f"metric must be one of ['correlation', 'pearson', 'spearman', "
+            f"'rank_correlation', 'dot_product', 'cosine'], got '{metric}'"
         )
 
     return out

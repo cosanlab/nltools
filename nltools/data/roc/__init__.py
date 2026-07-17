@@ -25,10 +25,10 @@ class Roc:
     Args:
         input_values: nibabel data instance
         binary_outcome: vector of training labels
-        threshold_type: ['optimal_overall', 'optimal_balanced',
-                        'minimum_sdt_bias']
-        **kwargs: Additional keyword arguments to pass to the prediction
-                    algorithm
+        method: threshold-selection variant, one of `'optimal_overall'`,
+            `'optimal_balanced'`, `'minimum_sdt_bias'`
+        forced_choice: index indicating position for each unique subject
+            (default=None)
 
     """
 
@@ -37,9 +37,8 @@ class Roc:
         *,
         input_values=None,
         binary_outcome=None,
-        threshold_type="optimal_overall",
+        method="optimal_overall",
         forced_choice=None,
-        **kwargs,
     ):
         if len(input_values) != len(binary_outcome):
             raise ValueError(
@@ -49,15 +48,15 @@ class Roc:
         if not any(binary_outcome):
             raise ValueError("Data Problem: binary_outcome may not be boolean")
 
-        thr_type = ["optimal_overall", "optimal_balanced", "minimum_sdt_bias"]
-        if threshold_type not in thr_type:
+        valid_methods = ["optimal_overall", "optimal_balanced", "minimum_sdt_bias"]
+        if method not in valid_methods:
             raise ValueError(
-                "threshold_type must be ['optimal_overall', "
+                "method must be ['optimal_overall', "
                 "'optimal_balanced','minimum_sdt_bias']"
             )
 
         self.input_values = np.array(input_values)
-        self.threshold_type = deepcopy(threshold_type)
+        self.method = deepcopy(method)
         self.forced_choice = deepcopy(forced_choice)
         self.binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
 
@@ -67,7 +66,7 @@ class Roc:
         input_values=None,
         binary_outcome=None,
         criterion_values=None,
-        threshold_type="optimal_overall",
+        method="optimal_overall",
         forced_choice=None,
         balanced_acc=False,
     ):
@@ -79,16 +78,14 @@ class Roc:
             binary_outcome: vector of training labels
             criterion_values: (optional) criterion values for calculating fpr
                             & tpr
-            threshold_type: ['optimal_overall', 'optimal_balanced',
-                            'minimum_sdt_bias']
+            method: threshold-selection variant, one of `'optimal_overall'`,
+                            `'optimal_balanced'`, `'minimum_sdt_bias'`
             forced_choice: index indicating position for each unique subject
                             (default=None)
             balanced_acc: balanced accuracy for single-interval classification
                             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE
                             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR
                             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC
-            **kwargs: Additional keyword arguments to pass to the prediction
-                            algorithm
 
         """
 
@@ -171,16 +168,16 @@ class Roc:
 
         # Get criterion threshold
         if self.forced_choice is None:
-            self.threshold_type = threshold_type
-            if threshold_type == "optimal_balanced":
+            self.method = method
+            if method == "optimal_balanced":
                 mn = (self.tpr + self.fpr) / 2
                 self.class_thr = self.criterion_values[np.argmax(mn)]
-            elif threshold_type == "optimal_overall":
+            elif method == "optimal_overall":
                 n_corr_t = self.tpr * self.n_true
                 n_corr_f = (1 - self.fpr) * self.n_false
                 sm = n_corr_t + n_corr_f
                 self.class_thr = self.criterion_values[np.argmax(sm)]
-            elif threshold_type == "minimum_sdt_bias":
+            elif method == "minimum_sdt_bias":
                 # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
                 c_bias = (
                     norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.tpr)))
@@ -231,15 +228,15 @@ class Roc:
         p = np.mean(~self.misclass)
         self.accuracy_se = np.sqrt(p * (1 - p) / self.n)
 
-    def plot(self, plot_method="gaussian", balanced_acc=False):
+    def plot(self, *, method="gaussian", balanced_acc=False):
         """Create ROC Plot
 
         Create a specific kind of ROC curve plot, based on input values
         along a continuous distribution and a binary outcome variable (logical)
 
         Args:
-            plot_method: type of plot ['gaussian','observed']
-            binary_outcome: vector of training labels
+            method: type of plot, one of `'gaussian'`, `'observed'`
+            balanced_acc: balanced accuracy for single-interval classification
 
         Returns:
             fig
@@ -248,7 +245,7 @@ class Roc:
 
         self.calculate(balanced_acc=balanced_acc)  # Calculate ROC parameters
 
-        if plot_method == "gaussian":
+        if method == "gaussian":
             if self.forced_choice is not None:
                 sub_idx = np.unique(self.forced_choice)
                 diff_scores = []
@@ -296,10 +293,10 @@ class Roc:
             self.aucn = auc(self.fpr_smooth, self.tpr_smooth)
             fig = plot_roc(self.fpr_smooth, self.tpr_smooth)
 
-        elif plot_method == "observed":
+        elif method == "observed":
             fig = plot_roc(self.fpr, self.tpr)
         else:
-            raise ValueError("plot_method must be 'gaussian' or 'observed'")
+            raise ValueError("method must be 'gaussian' or 'observed'")
         return fig
 
     def summary(self):

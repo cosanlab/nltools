@@ -147,7 +147,7 @@ def clean(
     fill_na: int | float | None = 0,
     exclude_confounds: bool = False,
     thresh: float = 0.95,
-    verbose: bool = True,
+    progress_bar: bool = False,
 ) -> DesignMatrix:
     """Remove highly correlated columns.
 
@@ -162,7 +162,7 @@ def clean(
             Default: False.
         thresh (float): Correlation threshold (drop if abs(r) >= thresh).
             Default: 0.95.
-        verbose (bool): Print dropped column names. Default: True.
+        progress_bar (bool): Print dropped column names. Default: False.
 
     Returns:
         DesignMatrix: Cleaned matrix with highly correlated columns removed
@@ -188,7 +188,7 @@ def clean(
         cols_to_check = list(result.columns)
 
     if len(cols_to_check) <= 1:
-        if verbose:
+        if progress_bar:
             print("Only 1 column to check...skipping")
         return result
 
@@ -223,7 +223,7 @@ def clean(
 
             # Mark for removal if correlation exceeds threshold
             if r >= thresh and col_i not in keep and col_i not in remove:
-                if verbose:
+                if progress_bar:
                     print(
                         f"{col_i} and {col_j} correlated at {r:.2f} which is >= "
                         f"threshold of {thresh}. Dropping {col_j}"
@@ -241,6 +241,6 @@ def clean(
 
         # Return cleaned matrix
         return copy_with(result, new_df, confounds=new_confounds)
-    if verbose:
+    if progress_bar:
         print("Dropping columns not needed...skipping")
     return result

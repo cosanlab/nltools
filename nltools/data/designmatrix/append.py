@@ -89,7 +89,7 @@ def append(
     unique_cols: list[str] | None = None,
     fill_na: int | float | None = 0,
     as_confounds: bool = False,
-    verbose: bool = False,
+    progress_bar: bool = False,
 ) -> DesignMatrix:
     """Concatenate design matrices.
 
@@ -111,7 +111,7 @@ def append(
             and kept separate across runs in later vertical appends. Useful
             when ``other`` is a pre-built DesignMatrix of confounds that
             hasn't already marked its columns. Default: False.
-        verbose (bool): Print messages about confound separation. Default: False.
+        progress_bar (bool): Print messages about confound separation. Default: False.
 
     Returns:
         DesignMatrix: Concatenated design matrix.
@@ -159,7 +159,7 @@ def append(
                 "in the desired order."
             )
         return append_vertical(
-            dm, to_append, keep_separate, unique_cols, fill_na, verbose
+            dm, to_append, keep_separate, unique_cols, fill_na, progress_bar
         )
     raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
 
@@ -239,7 +239,7 @@ def append_vertical(
     keep_separate: bool,
     unique_cols: list[str] | None,
     fill_na: int | float | None,
-    verbose: bool,
+    progress_bar: bool,
 ) -> DesignMatrix:
     """Concatenate matrices vertically with optional confound separation.
 
@@ -251,7 +251,7 @@ def append_vertical(
             (supports wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
-        verbose (bool): Print messages about confound separation.
+        progress_bar (bool): Print messages about confound separation.
 
     Returns:
         DesignMatrix: New DesignMatrix with rows from all matrices.
@@ -275,7 +275,9 @@ def append_vertical(
         return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
 
     # Complex case: keep_separate=True - separate confound columns across runs
-    return append_vertical_with_separation(dm, to_append, unique_cols, fill_na, verbose)
+    return append_vertical_with_separation(
+        dm, to_append, unique_cols, fill_na, progress_bar
+    )
 
 
 def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
@@ -367,7 +369,7 @@ def append_vertical_with_separation(
     to_append: list[DesignMatrix],
     unique_cols: list[str] | None,
     fill_na: int | float | None,
-    verbose: bool,
+    progress_bar: bool,
 ) -> DesignMatrix:
     """Concatenate vertically with automatic confound separation.
 
@@ -381,7 +383,7 @@ def append_vertical_with_separation(
             (supports wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
-        verbose (bool): Print messages about confound separation.
+        progress_bar (bool): Print messages about confound separation.
 
     Returns:
         DesignMatrix: Concatenated DesignMatrix with run-separated confound columns
@@ -396,7 +398,7 @@ def append_vertical_with_separation(
         all_dms = [dm, *to_append]
         cols_to_sep = identify_columns_to_separate(dm, all_dms, unique_cols)
 
-        if verbose and cols_to_sep:
+        if progress_bar and cols_to_sep:
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
         processed_dfs = []
@@ -420,7 +422,7 @@ def append_vertical_with_separation(
         start_idx = get_starting_run_idx(dm)
         cols_to_sep = identify_columns_to_separate(dm, to_append, unique_cols)
 
-        if verbose and cols_to_sep:
+        if progress_bar and cols_to_sep:
             print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
         processed_dfs = [dm.data]

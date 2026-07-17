@@ -218,6 +218,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     def fit(
         self,
         data: list[np.ndarray],
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> "HyperAlignment":
@@ -383,6 +384,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
     def transform(
         self,
         data: list[np.ndarray],
+        *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray]:

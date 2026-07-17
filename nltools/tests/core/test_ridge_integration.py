@@ -208,7 +208,7 @@ class TestBackendManagement:
         Y = np.random.randn(50, 5)
 
         result = solve_ridge_cv(X, Y, alphas=[1.0], cv=2, parallel="cpu")
-        assert result["parallel"] == "numpy"
+        assert result["backend"] == "numpy"
 
     def test_none_defaults_to_cpu(self):
         """parallel=None should default to numpy backend."""
@@ -219,7 +219,7 @@ class TestBackendManagement:
         Y = np.random.randn(50, 5)
 
         result = solve_ridge_cv(X, Y, alphas=[1.0], cv=2, parallel=None)
-        assert result["parallel"] == "numpy"
+        assert result["backend"] == "numpy"
 
     @pytest.mark.skipif(
         not _torch_available(), reason="PyTorch not available for backend testing"

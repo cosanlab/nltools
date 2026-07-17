@@ -57,8 +57,9 @@ def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
 
 def plot_mds(
     adj,
+    *,
     n_components=2,
-    metric=True,
+    metric_mds=True,
     labels=None,
     labels_color=None,
     cmap=None,
@@ -66,7 +67,6 @@ def plot_mds(
     figsize=None,
     ax=None,
     n_jobs=-1,
-    *args,
     **kwargs,
 ):
     """Plot Multidimensional Scaling.
@@ -74,7 +74,7 @@ def plot_mds(
     Args:
         adj (Adjacency): Adjacency object to plot (must be a distance matrix).
         n_components (int): Number of dimensions to project (can be 2 or 3).
-        metric (bool): Perform metric or non-metric dimensional scaling. Default True.
+        metric_mds (bool): Perform metric (True) or non-metric (False) dimensional scaling. Default True.
         labels (list): Can override labels stored in Adjacency Class.
         labels_color (list): List of colors for labels.
         cmap: Colormap instance (default: ``plt.cm.hot_r``).
@@ -115,9 +115,8 @@ def plot_mds(
 
     # Run MDS
     mds = MDS(
-        *args,
         n_components=n_components,
-        metric=metric,
+        metric=metric_mds,
         n_jobs=n_jobs,
         dissimilarity="precomputed",
         **kwargs,
