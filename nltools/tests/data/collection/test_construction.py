@@ -200,9 +200,9 @@ class TestSignatures:
         assert params["model"].default == "glm"
 
     def test_compute_contrasts_default_type_is_beta(self):
-        """SPEC §1023: method defaults to 'beta'."""
+        """SPEC §1023: statistic defaults to 'beta'."""
         params = self._params(BrainCollection.compute_contrasts)
-        assert params["method"].default == "beta"
+        assert params["statistic"].default == "beta"
 
     def test_ttest_returns_dict_signature(self):
         sig = inspect.signature(BrainCollection.ttest)

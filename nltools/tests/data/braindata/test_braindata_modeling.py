@@ -76,7 +76,7 @@ class TestBrainDataModeling:
 
     @pytest.mark.slow
     def test_compute_contrasts_type_distinguishes_t_and_beta(self, minimal_brain_data):
-        """contrast_type='t' returns t-stats; contrast_type='beta' returns effect sizes.
+        """statistic='t' returns t-stats; statistic='beta' returns effect sizes.
 
         Regression guard: the earlier implementation always returned raw
         linear-combinations-of-betas (effect sizes) while advertising 't',
@@ -91,9 +91,11 @@ class TestBrainDataModeling:
         )
         minimal_brain_data.fit(model="glm", X=design_matrix)
 
-        t_map = minimal_brain_data.compute_contrasts("condA - condB", method="t")
-        beta_map = minimal_brain_data.compute_contrasts("condA - condB", method="beta")
-        z_map = minimal_brain_data.compute_contrasts("condA - condB", method="z")
+        t_map = minimal_brain_data.compute_contrasts("condA - condB", statistic="t")
+        beta_map = minimal_brain_data.compute_contrasts(
+            "condA - condB", statistic="beta"
+        )
+        z_map = minimal_brain_data.compute_contrasts("condA - condB", statistic="z")
 
         for m in (t_map, beta_map, z_map):
             assert isinstance(m, BrainData)
@@ -107,23 +109,23 @@ class TestBrainDataModeling:
         # They must not be the same array (they were, before the fix).
         assert not np.allclose(t_arr, b_arr), (
             "t-map and beta-map should differ; compute_contrasts is returning "
-            "raw effect sizes regardless of contrast_type"
+            "raw effect sizes regardless of statistic"
         )
         # z and t are monotonically related (sign preserved, magnitude close)
         assert np.all(np.sign(t_arr) == np.sign(z_arr))
         assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.999
 
     def test_compute_contrasts_invalid_type(self, minimal_brain_data):
-        """Unknown contrast_type raises ValueError with supported values listed."""
-        with pytest.raises(ValueError, match="method must be"):
+        """Unknown statistic raises ValueError with supported values listed."""
+        with pytest.raises(ValueError, match="statistic must be"):
             # not fitted yet but validation happens before that path; set dummy attr
             minimal_brain_data.glm_betas = minimal_brain_data[0]
             minimal_brain_data.model_ = object()
-            minimal_brain_data.compute_contrasts([1, -1, 0], method="F")
+            minimal_brain_data.compute_contrasts([1, -1, 0], statistic="F")
 
     @pytest.mark.slow
     def test_compute_contrasts_all_single_returns_bundle(self, minimal_brain_data):
-        """contrast_type='all' returns a flat dict with beta/t/z/p/se for one contrast."""
+        """statistic='all' returns a flat dict with beta/t/z/p/se for one contrast."""
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -133,7 +135,7 @@ class TestBrainDataModeling:
         )
         minimal_brain_data.fit(model="glm", X=design_matrix)
 
-        res = minimal_brain_data.compute_contrasts("condA - condB", method="all")
+        res = minimal_brain_data.compute_contrasts("condA - condB", statistic="all")
         assert isinstance(res, dict)
         assert set(res.keys()) == {"beta", "t", "z", "p", "se"}
         for key in ("beta", "t", "z", "p", "se"):
@@ -141,12 +143,12 @@ class TestBrainDataModeling:
             assert res[key].shape[-1] == minimal_brain_data.shape[1]
 
         # Consistency: individual calls agree with the bundle.
-        t_only = minimal_brain_data.compute_contrasts("condA - condB", method="t")
+        t_only = minimal_brain_data.compute_contrasts("condA - condB", statistic="t")
         np.testing.assert_allclose(np.asarray(t_only.data), np.asarray(res["t"].data))
 
     @pytest.mark.slow
     def test_compute_contrasts_all_dict_returns_nested(self, minimal_brain_data):
-        """contrast_type='all' + dict input returns nested {name: {beta,t,z,p,se}}."""
+        """statistic='all' + dict input returns nested {name: {beta,t,z,p,se}}."""
         design_matrix = pd.DataFrame(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
@@ -158,7 +160,7 @@ class TestBrainDataModeling:
 
         res = minimal_brain_data.compute_contrasts(
             {"A_vs_B": "condA - condB", "just_A": [0, 1, 0]},
-            method="all",
+            statistic="all",
         )
         assert set(res.keys()) == {"A_vs_B", "just_A"}
         for bundle in res.values():

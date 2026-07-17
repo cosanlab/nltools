@@ -837,7 +837,7 @@ def _contrast_all_to_bd(img_dict, mask):
     return out
 
 
-def compute_contrasts(bd, contrasts, method="t"):
+def compute_contrasts(bd, contrasts, statistic="t"):
     """Compute contrasts from a fitted GLM.
 
     Delegates to the underlying ``nilearn.FirstLevelModel.compute_contrast`` so
@@ -857,7 +857,7 @@ def compute_contrasts(bd, contrasts, method="t"):
             - array-like: a numeric contrast vector, one weight per regressor
               (e.g. ``[1, -1, 0, 0]``)
             - dict: ``{name: contrast}`` for multiple contrasts at once
-        method (str): What to return per contrast. One of:
+        statistic (str): Which statistic to return per contrast. One of:
 
             - ``"t"`` (default): t-statistic map (for thresholding /
               single-subject inference)
@@ -873,19 +873,19 @@ def compute_contrasts(bd, contrasts, method="t"):
     Returns:
         Depends on inputs:
 
-            - single contrast (str or array) + scalar ``method``:
+            - single contrast (str or array) + scalar ``statistic``:
               a single BrainData.
-            - single contrast + ``method="all"``: a flat dict of five
+            - single contrast + ``statistic="all"``: a flat dict of five
               BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``.
-            - dict of contrasts + scalar ``method``: a dict
+            - dict of contrasts + scalar ``statistic``: a dict
               ``{name: BrainData}``.
-            - dict of contrasts + ``method="all"``: a nested dict
+            - dict of contrasts + ``statistic="all"``: a nested dict
               ``{name: {"beta", "t", "z", "p", "se"}}``.
 
     Raises:
         RuntimeError: if ``.fit(model='glm')`` has not been run.
         ValueError: if the contrast vector length or a column name is invalid,
-            or if ``method`` is not one of the supported values.
+            or if ``statistic`` is not one of the supported values.
 
     Examples:
         >>> data.fit(model="glm", X=dm)
@@ -893,11 +893,11 @@ def compute_contrasts(bd, contrasts, method="t"):
         >>> tmap = data.compute_contrasts("conditionA - conditionB")
         >>> # Effect-size map for use as input to a group-level analysis
         >>> beta = data.compute_contrasts(
-        ...     "conditionA - conditionB", method="beta"
+        ...     "conditionA - conditionB", statistic="beta"
         ... )
         >>> # Everything at once: threshold on res["t"], feed group on res["beta"]
         >>> res = data.compute_contrasts(
-        ...     "conditionA - conditionB", method="all"
+        ...     "conditionA - conditionB", statistic="all"
         ... )
         >>> res["t"].plot(threshold=3.09)
         >>> group_effects.append(res["beta"])
@@ -906,7 +906,7 @@ def compute_contrasts(bd, contrasts, method="t"):
         - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
         - Column names must match design matrix columns exactly (case-sensitive).
         - For group analysis, stack per-subject effect-size maps
-          (``method="beta"`` or ``res["beta"]`` from ``method="all"``)
+          (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``)
           and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
           t-maps into a group one-sample test conflates effect magnitude with precision.
     """
@@ -922,12 +922,13 @@ def compute_contrasts(bd, contrasts, method="t"):
             ".fit(model='glm', X=design_matrix) to enable compute_contrasts."
         )
 
-    if method not in _CONTRAST_OUTPUT_TYPES:
+    if statistic not in _CONTRAST_OUTPUT_TYPES:
         raise ValueError(
-            f"method must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; got {method!r}"
+            f"statistic must be one of {sorted(_CONTRAST_OUTPUT_TYPES)}; "
+            f"got {statistic!r}"
         )
-    output_type = _CONTRAST_OUTPUT_TYPES[method]
-    want_all = method == "all"
+    output_type = _CONTRAST_OUTPUT_TYPES[statistic]
+    want_all = statistic == "all"
 
     # Normalize contrasts → {name: contrast_def}
     if isinstance(contrasts, (str, list, np.ndarray)):

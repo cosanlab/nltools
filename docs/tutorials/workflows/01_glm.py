@@ -210,7 +210,7 @@ def _(BrainData, DesignMatrix, get_sub_files, memory):
         events = DesignMatrix(f["events"], run_length=brain.shape[0], TR=f["TR"])
         confounds = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
         brain.fit(X=events.append(confounds, axis=1, as_confounds=True).add_poly(2))
-        return brain.design_matrix, brain.compute_contrasts(contrast, contrast_type="all")
+        return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
 
     return (first_level,)
 
@@ -226,7 +226,7 @@ def _(first_level):
 def _(mo):
     mo.md(
         r"""
-    The helper returns the `language > string` contrast as a bundle — `beta`, `t`, `z`, `p`, `se` — computed in one call with `contrast_type="all"`, so we can threshold the t-map here *and* reuse the β map for the group analysis below.
+    The helper returns the `language > string` contrast as a bundle — `beta`, `t`, `z`, `p`, `se` — computed in one call with `statistic="all"`, so we can threshold the t-map here *and* reuse the β map for the group analysis below.
     """
     )
     return
@@ -321,7 +321,7 @@ def _(mo):
     |---|---|---|
     | Build design | BIDS events → HRF-convolved regressors + confounds + drift | `DesignMatrix(events, run_length=, TR=)`, `.append(confounds, axis=1, as_confounds=True)`, `.add_poly()` |
     | First level | OLS at every voxel | `brain.fit(X=design)` |
-    | Contrast | Linear combination of βs (effect size + inference) | `brain.compute_contrasts("A - B", contrast_type="all")` |
+    | Contrast | Linear combination of βs (effect size + inference) | `brain.compute_contrasts("A - B", statistic="all")` |
     | Stack subjects | Concatenate first-level β maps | `concatenate([...])` |
     | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
     | Correction | FDR threshold | `nltools.stats.fdr`, `nltools.stats.threshold` |

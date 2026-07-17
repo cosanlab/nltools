@@ -401,7 +401,7 @@ Every method below has the same signature as the corresponding `BrainData` metho
         self,
         contrasts: str | list[str] | dict[str, np.ndarray],
         *,
-        contrast_type: str = "beta",   # "beta" | "t" | "z" | "p" | "se" | "all"
+        statistic: str = "beta",   # "beta" | "t" | "z" | "p" | "se" | "all"
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal['auto', True, False] = 'auto',
@@ -414,9 +414,9 @@ Every method below has the same signature as the corresponding `BrainData` metho
           - a dict {name: contrast_vector}
 
         Returns:
-          single contrast + single contrast_type → BrainCollection
+          single contrast + single statistic → BrainCollection
           multiple contrasts                     → dict[str, BrainCollection]
-          contrast_type="all"                    → dict["beta"|"t"|"z"|"p"|"se", BrainCollection]
+          statistic="all"                    → dict["beta"|"t"|"z"|"p"|"se", BrainCollection]
         """
 
     def predict(
@@ -442,7 +442,7 @@ The canonical "pick a contrast and group-test it" pattern:
 
 ```python
 fitted = bc.fit(model="glm", X=...)
-fitted.compute_contrasts("language - string", contrast_type="beta").ttest()
+fitted.compute_contrasts("language - string", statistic="beta").ttest()
 # {'mean': BrainData, 't': BrainData, 'z': BrainData, 'p': BrainData}
 ```
 
@@ -624,7 +624,7 @@ def make_design(ctx):
 
 result = (
     bc.fit(model="glm", X=make_design, n_jobs=-1, progress_bar=True)  # path-backed: HDF5 fit bundle per subject
-      .compute_contrasts("language - string", contrast_type="beta")    # path-backed: contrast nifti per subject
+      .compute_contrasts("language - string", statistic="beta")    # path-backed: contrast nifti per subject
       .ttest()                                                         # streams from disk → small dict[str, BrainData]
 )
 result["z"].plot(threshold=3.09)
@@ -635,7 +635,7 @@ Peak RAM through the whole chain: roughly `n_workers × 1 subject`. Intermediate
 To test a single regressor's beta (identity contrast), pass its name:
 
 ```python
-fitted.compute_contrasts("language", contrast_type="beta").ttest()
+fitted.compute_contrasts("language", statistic="beta").ttest()
 ```
 
 To stay warm in memory (e.g. when load+resample is the bottleneck and the dataset fits):
@@ -908,7 +908,7 @@ bc = BrainCollection.from_bids(root, mask=..., task='localizer')
 
 betas = (
     bc.fit(model='glm', X=make_design, n_jobs=-1)
-      .compute_contrasts('faces - houses', contrast_type='beta')
+      .compute_contrasts('faces - houses', statistic='beta')
 )
 
 result = betas.predict(

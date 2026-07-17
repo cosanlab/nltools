@@ -605,7 +605,7 @@ class BrainData:
             random_state=random_state,
         )
 
-    def compute_contrasts(self, contrasts, method="t"):
+    def compute_contrasts(self, contrasts, statistic="t"):
         """Compute contrasts from fitted GLM results.
 
         This method computes contrasts as linear combinations of the GLM beta coefficients.
@@ -620,17 +620,17 @@ class BrainData:
                   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}
                 - array: Numeric contrast vector matching the number of regressors
                   e.g., [1, -1, 0, 0] for a 4-regressor model
-            method (str): What to return per contrast. One of `"t"` (default,
-                t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` /
+            statistic (str): Which statistic to return per contrast. One of `"t"`
+                (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` /
                 `"effect_size"` (effect-size β map — use this when feeding a
                 second-level group analysis), or `"all"` (a bundle dict
                 `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`.
 
         Returns:
-            BrainData or dict: A single contrast with a scalar `method` returns a
-                `BrainData` map; with `method="all"` it returns a flat dict keyed by
+            BrainData or dict: A single contrast with a scalar `statistic` returns a
+                `BrainData` map; with `statistic="all"` it returns a flat dict keyed by
                 `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed
-                by contrast name (nested under the five keys when `contrast_type="all"`).
+                by contrast name (nested under the five keys when `statistic="all"`).
 
         Raises:
             RuntimeError: If .fit(model='glm') hasn't been called yet
@@ -653,7 +653,7 @@ class BrainData:
         """
         from .modeling import compute_contrasts
 
-        return compute_contrasts(self, contrasts, method=method)
+        return compute_contrasts(self, contrasts, statistic=statistic)
 
     def copy(self):
         """Create a deep copy of a BrainData instance.
@@ -927,7 +927,7 @@ class BrainData:
             you cannot correctly combine these per-regressor maps by hand
             because t-statistic arithmetic requires the off-diagonal elements
             of the parameter covariance matrix, which are not stored. Pass
-            ``contrast_type="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
+            ``statistic="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
             one contrast in a single call.
 
         Examples:

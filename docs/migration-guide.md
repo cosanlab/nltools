@@ -1298,6 +1298,7 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 | Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations`. |
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
+| Contrast output statistic | `contrast_type`, then briefly `method` | `statistic` | `BrainData.compute_contrasts` and `BrainCollection.compute_contrasts`. Selects which statistic map to return (`'t'`, `'z'`, `'p'`, `'beta'`/`'effect_size'`, or `'all'`), *not* an algorithm — so it is deliberately **not** `method=`, which is reserved for algorithm choice. |
 
 ### Migration examples
 
