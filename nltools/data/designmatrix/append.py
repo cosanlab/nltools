@@ -25,15 +25,22 @@ def _check_dtype_compatibility(dfs: list[pl.DataFrame]) -> None:
     """
     if len(dfs) < 2:
         return
-    base_schema = dict(dfs[0].schema)
-    for idx, df in enumerate(dfs[1:], start=1):
+    # Accumulate the first dtype (and defining frame index) seen for each column
+    # across ALL frames, so a mismatch between two later frames is caught even
+    # when the column is absent from dfs[0].
+    seen: dict[str, tuple[pl.DataType, int]] = {}
+    for idx, df in enumerate(dfs):
         for col, dtype in df.schema.items():
-            if col in base_schema and base_schema[col] != dtype:
+            if col not in seen:
+                seen[col] = (dtype, idx)
+                continue
+            first_dtype, first_idx = seen[col]
+            if first_dtype != dtype:
                 raise ValueError(
-                    f"Column {col!r} has mismatched dtype {base_schema[col]} "
-                    f"in dm[0] vs {dtype} in dm[{idx}]. Cast one side with "
-                    f".with_columns(pl.col({col!r}).cast(...)) to align dtypes "
-                    f"before appending."
+                    f"Column {col!r} has mismatched dtype {first_dtype} "
+                    f"in dm[{first_idx}] vs {dtype} in dm[{idx}]. Cast one side "
+                    f"with .with_columns(pl.col({col!r}).cast(...)) to align "
+                    f"dtypes before appending."
                 )
 
 

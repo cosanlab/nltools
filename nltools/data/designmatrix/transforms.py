@@ -141,16 +141,11 @@ def downsample(dm: DesignMatrix, target: float, **kwargs) -> DesignMatrix:
     # This replicates stats.downsample() logic: n_samples = sampling_freq / target
     n_samples = dm.sampling_freq / target
 
-    # Create grouping indices: [0,0,..., 1,1,..., 2,2,...] with n_samples repetitions
-    # This replicates: np.repeat(np.arange(1, data.shape[0] / n_samples, 1), n_samples)
-    # Note: stats.downsample starts at 1, but we start at 0 (doesn't affect grouping)
-    n_groups = int(dm.shape[0] / n_samples)
-    idx = pl.Series(np.repeat(np.arange(n_groups), int(n_samples)))
-
-    # Handle remainder samples (last incomplete group)
-    if dm.shape[0] > len(idx):
-        remainder = pl.Series(np.repeat(idx[-1] + 1, dm.shape[0] - len(idx)))
-        idx = pl.concat([idx, remainder])
+    # Assign each row to a group via floor(row / n_samples). For integer ratios
+    # this reproduces the old [0,0,1,1,...] grouping exactly; for non-integer
+    # ratios it spreads the leftover rows evenly across bins instead of lumping
+    # them all into one oversized final group (F083).
+    idx = pl.Series(np.floor(np.arange(dm.shape[0]) / n_samples).astype(int))
 
     # Add grouping index to dataframe
     df_with_idx = dm.data.with_columns(idx.alias("_group_idx"))
