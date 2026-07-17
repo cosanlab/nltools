@@ -5,9 +5,10 @@ name: CI
 # default fast test suite (slow + integration markers are skipped by pyproject
 # addopts). Manually triggerable via the Actions tab.
 #
-# Skip CI for a push by putting `ci skip` anywhere in the head commit message
-# (each job is guarded below). PRs always run — the guard only reads the push
-# head commit, which is absent on pull_request events.
+# Skip CI for a push by putting `[skip ci]` (or `[ci skip]`) in the head commit
+# message (each job is guarded below). The token is bracketed so that merely
+# mentioning "ci skip" in prose does not accidentally skip the run. PRs always
+# run — the guard only reads the push head commit, absent on pull_request events.
 on:
   push:
     branches:
@@ -22,7 +23,7 @@ on:
 
 jobs:
   lint:
-    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -58,7 +59,7 @@ jobs:
         run: uv run poe lint-api
 
   test:
-    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -121,7 +122,7 @@ jobs:
 
   pyodide:
     name: Pyodide smoke tests
-    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
