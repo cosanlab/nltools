@@ -4,6 +4,10 @@ name: CI
 # v0.6.0 dev branch and kept here so in-flight work still gets CI). Runs the
 # default fast test suite (slow + integration markers are skipped by pyproject
 # addopts). Manually triggerable via the Actions tab.
+#
+# Skip CI for a push by putting `ci skip` anywhere in the head commit message
+# (each job is guarded below). PRs always run — the guard only reads the push
+# head commit, which is absent on pull_request events.
 on:
   push:
     branches:
@@ -18,6 +22,7 @@ on:
 
 jobs:
   lint:
+    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -53,6 +58,7 @@ jobs:
         run: uv run poe lint-api
 
   test:
+    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -102,6 +108,7 @@ jobs:
 
   pyodide:
     name: Pyodide smoke tests
+    if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

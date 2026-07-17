@@ -1,11 +1,22 @@
 name: Docs
 
+# Build the docs on every push to the active branches (verifies the site still
+# builds) but only DEPLOY to GitHub Pages on a release — i.e. when a `v*` tag is
+# pushed (same trigger as release.yml, so docs go live alongside the PyPI
+# publish). A manual run can force a deploy via the `deploy` input.
 on:
   push:
     branches:
       - uv-cleanup
       - main
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy the built docs to GitHub Pages"
+        type: boolean
+        default: false
 
 # Manual prerequisite: Settings -> Pages -> Build and deployment -> Source = GitHub Actions.
 permissions:
@@ -61,6 +72,9 @@ jobs:
 
   deploy:
     needs: build
+    # Deploy only on a release tag push, or a manual run that opts in. Plain
+    # pushes to uv-cleanup/main build above but stop here (no deploy).
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
