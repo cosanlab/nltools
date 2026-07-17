@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import nibabel as nib
 import numpy as np
 import pytest
 
@@ -225,6 +226,30 @@ class TestAlign:
         first = np.asarray(out[0].data)
         for b in out[1:]:
             np.testing.assert_allclose(np.asarray(b.data), first, atol=1e-5)
+
+    def test_align_roi_scale_works(self, bc_inmem, tiny_mask):
+        # Regression: spatial_scale='roi' must flow through to LocalAlignment as
+        # the 'roi' scale. The facade previously passed it straight through under
+        # the old scheme='searchlight'|'piecewise' vocab, so the canonical 'roi'
+        # raised "Unknown ...". Now roi/whole_brain vocab is honored end-to-end.
+        parc = np.zeros(tiny_mask.shape, dtype=np.int16)
+        parc[:2] = 1  # 18 voxels
+        parc[2:] = 2  # 9 voxels
+        roi_mask = nib.Nifti1Image(parc, tiny_mask.affine)
+        out = bc_inmem.align(spatial_scale="roi", roi_mask=roi_mask, n_jobs=1)
+        assert isinstance(out, BrainCollection)
+        assert all(np.asarray(b.data).shape == (8, 27) for b in out)
+
+    def test_align_whole_brain_not_implemented(self, bc_inmem):
+        # Parity with BrainData.align: each facade validates the spatial_scale
+        # vocab up front and raises a clear NotImplementedError for the one scale
+        # it can't serve. Collection align is local-only (searchlight/roi).
+        with pytest.raises(NotImplementedError, match="whole_brain"):
+            bc_inmem.align(spatial_scale="whole_brain", n_jobs=1)
+
+    def test_align_invalid_spatial_scale_raises(self, bc_inmem):
+        with pytest.raises(ValueError, match="spatial_scale"):
+            bc_inmem.align(spatial_scale="bogus", n_jobs=1)
 
     # --- cache= (F073): joint-op output persistence, uniform with other ops ---
 

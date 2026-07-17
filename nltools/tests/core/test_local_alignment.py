@@ -65,7 +65,7 @@ def fitted_local_alignment(sample_multisubject_data, small_mask):
     from nltools.algorithms.alignment import LocalAlignment
 
     la = LocalAlignment(
-        scheme="searchlight",
+        spatial_scale="searchlight",
         method="procrustes",
         radius_mm=5.0,  # Small radius for test mask
         n_iter=2,
@@ -89,7 +89,7 @@ class TestLocalAlignmentInitialization:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment()
-        assert la.scheme == "searchlight"
+        assert la.spatial_scale == "searchlight"
         assert la.method == "procrustes"
         assert la.radius_mm == 10.0
         assert la.n_features is None
@@ -101,7 +101,7 @@ class TestLocalAlignmentInitialization:
         from nltools.algorithms.alignment import LocalAlignment
 
         la = LocalAlignment(
-            scheme="searchlight",
+            spatial_scale="searchlight",
             method="srm",
             radius_mm=8.0,
             n_features=10,
@@ -112,12 +112,12 @@ class TestLocalAlignmentInitialization:
         assert la.n_features == 10
         assert la.n_iter == 5
 
-    def test_init_invalid_scheme(self):
-        """Test that invalid scheme raises error."""
+    def test_init_invalid_spatial_scale(self):
+        """Test that invalid spatial_scale raises error."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        with pytest.raises(ValueError, match="Unknown scheme"):
-            LocalAlignment(scheme="invalid")
+        with pytest.raises(ValueError, match="Unknown spatial_scale"):
+            LocalAlignment(spatial_scale="invalid")
 
     def test_init_invalid_method(self):
         """Test that invalid method raises error."""
@@ -353,7 +353,7 @@ class TestLocalAlignmentNumericalProperties:
 
 
 class TestLocalAlignmentPiecewise:
-    """Test LocalAlignment with piecewise scheme."""
+    """Test LocalAlignment with roi scale."""
 
     @pytest.fixture
     def parcellation_and_mask(self):
@@ -381,7 +381,7 @@ class TestLocalAlignmentPiecewise:
         return parcellation, mask
 
     @pytest.fixture
-    def piecewise_data(self, parcellation_and_mask):
+    def roi_data(self, parcellation_and_mask):
         """Create multi-subject data matching the parcellation."""
         np.random.seed(42)
         n_voxels = 27  # 3x3x3
@@ -390,44 +390,44 @@ class TestLocalAlignmentPiecewise:
         data = [np.random.randn(n_voxels, n_samples) for _ in range(n_subjects)]
         return data
 
-    def test_piecewise_requires_parcellation(self):
-        """Test that piecewise scheme requires parcellation parameter."""
+    def test_roi_requires_parcellation(self):
+        """Test that roi scale requires parcellation parameter."""
         from nltools.algorithms.alignment import LocalAlignment
 
-        with pytest.raises(ValueError, match="parcellation is required"):
-            LocalAlignment(scheme="piecewise")
+        with pytest.raises(ValueError, match="roi_mask is required"):
+            LocalAlignment(spatial_scale="roi")
 
-    def test_piecewise_auto_aggregation(self, parcellation_and_mask):
-        """Test that piecewise auto-switches to 'all' aggregation."""
+    def test_roi_auto_aggregation(self, parcellation_and_mask):
+        """Test that roi-scale auto-switches to 'all' aggregation."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, _ = parcellation_and_mask
-        la = LocalAlignment(scheme="piecewise", parcellation=parcellation)
+        la = LocalAlignment(spatial_scale="roi", roi_mask=parcellation)
 
         # Should auto-switch from 'center' to 'all'
         assert la.aggregation == "all"
 
-    def test_piecewise_fit_returns_self(self, piecewise_data, parcellation_and_mask):
-        """Test that piecewise fit() returns self."""
+    def test_roi_fit_returns_self(self, roi_data, parcellation_and_mask):
+        """Test that roi-scale fit() returns self."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
         la = LocalAlignment(
-            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+            spatial_scale="roi", roi_mask=parcellation, n_iter=1, parallel=None
         )
 
-        result = la.fit(piecewise_data, mask)
+        result = la.fit(roi_data, mask)
         assert result is la
 
-    def test_piecewise_stores_transforms(self, piecewise_data, parcellation_and_mask):
-        """Test that piecewise fit stores transforms for each parcel."""
+    def test_roi_stores_transforms(self, roi_data, parcellation_and_mask):
+        """Test that roi-scale fit stores transforms for each parcel."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
         la = LocalAlignment(
-            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+            spatial_scale="roi", roi_mask=parcellation, n_iter=1, parallel=None
         )
-        la.fit(piecewise_data, mask)
+        la.fit(roi_data, mask)
 
         # Should have transforms for 3 parcels
         assert len(la.transforms_) == 3
@@ -437,56 +437,54 @@ class TestLocalAlignmentPiecewise:
         for parcel_id, transforms in la.transforms_.items():
             assert len(transforms) == 3  # 3 subjects
 
-    def test_piecewise_transform_output_shape(
-        self, piecewise_data, parcellation_and_mask
-    ):
-        """Test that piecewise transform produces correct output shapes."""
+    def test_roi_transform_output_shape(self, roi_data, parcellation_and_mask):
+        """Test that roi-scale transform produces correct output shapes."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
         la = LocalAlignment(
-            scheme="piecewise", parcellation=parcellation, n_iter=1, parallel=None
+            spatial_scale="roi", roi_mask=parcellation, n_iter=1, parallel=None
         )
-        aligned = la.fit_transform(piecewise_data, mask)
+        aligned = la.fit_transform(roi_data, mask)
 
-        assert len(aligned) == len(piecewise_data)
-        for i, (orig, trans) in enumerate(zip(piecewise_data, aligned)):
+        assert len(aligned) == len(roi_data)
+        for i, (orig, trans) in enumerate(zip(roi_data, aligned)):
             assert trans.shape == orig.shape, (
                 f"Subject {i}: shape mismatch {trans.shape} != {orig.shape}"
             )
 
-    def test_piecewise_with_srm(self, piecewise_data, parcellation_and_mask):
-        """Test piecewise with SRM method."""
+    def test_roi_with_srm(self, roi_data, parcellation_and_mask):
+        """Test roi scale with SRM method."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
         la = LocalAlignment(
-            scheme="piecewise",
-            parcellation=parcellation,
+            spatial_scale="roi",
+            roi_mask=parcellation,
             method="srm",
             n_features=5,
             n_iter=2,
             parallel=None,
         )
-        aligned = la.fit_transform(piecewise_data, mask)
+        aligned = la.fit_transform(roi_data, mask)
 
         assert len(aligned) == 3
         for a in aligned:
             assert a.shape == (27, 20)
 
-    def test_piecewise_with_hyperalignment(self, piecewise_data, parcellation_and_mask):
-        """Test piecewise with hyperalignment method."""
+    def test_roi_with_hyperalignment(self, roi_data, parcellation_and_mask):
+        """Test roi scale with hyperalignment method."""
         from nltools.algorithms.alignment import LocalAlignment
 
         parcellation, mask = parcellation_and_mask
         la = LocalAlignment(
-            scheme="piecewise",
-            parcellation=parcellation,
+            spatial_scale="roi",
+            roi_mask=parcellation,
             method="hyperalignment",
             n_iter=1,
             parallel=None,
         )
-        aligned = la.fit_transform(piecewise_data, mask)
+        aligned = la.fit_transform(roi_data, mask)
 
         assert len(aligned) == 3
         for a in aligned:
@@ -612,8 +610,8 @@ class TestLocalAlignmentBatching:
         for a1, a2 in zip(aligned1, aligned2):
             np.testing.assert_allclose(a1, a2, rtol=1e-10, atol=1e-10)
 
-    def test_piecewise_batching(self):
-        """Test batching with piecewise scheme."""
+    def test_roi_batching(self):
+        """Test batching with roi scale."""
         import nibabel as nib
 
         from nltools.algorithms.alignment import LocalAlignment
@@ -637,8 +635,8 @@ class TestLocalAlignmentBatching:
         data = [np.random.randn(27, 20) for _ in range(3)]
 
         la = LocalAlignment(
-            scheme="piecewise",
-            parcellation=parcellation,
+            spatial_scale="roi",
+            roi_mask=parcellation,
             n_iter=1,
             n_neighborhoods_batch=1,  # One parcel at a time
             parallel=None,

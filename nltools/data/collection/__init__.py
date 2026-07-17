@@ -1270,9 +1270,10 @@ class BrainCollection:
 
         Args:
             method: Alignment solver (e.g. ``'procrustes'``).
-            spatial_scale: Alignment scope (``'searchlight'``, ``'roi'``,
-                ``'whole_brain'``).
-            radius_mm: Searchlight sphere radius in mm.
+            spatial_scale: Alignment spatial scale — ``'searchlight'`` (default,
+                overlapping spheres) or ``'roi'`` (non-overlapping parcels).
+                Whole-brain alignment is not supported at the collection level.
+            radius_mm: Searchlight sphere radius in mm (``spatial_scale='searchlight'``).
             roi_mask: Parcellation/ROI mask (used when ``spatial_scale='roi'``).
             n_features: Optional target feature count for the common space.
             n_iter: LocalAlignment solver iteration count (not a permutation count).

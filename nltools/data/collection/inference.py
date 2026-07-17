@@ -606,16 +606,34 @@ def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignme
     from . import execution
 
     _check_nonempty(bc)
+    # Validate spatial_scale up front for parity with BrainData.align: each
+    # facade honors the canonical 'searchlight'/'roi'/'whole_brain' vocabulary
+    # and raises a clear NotImplementedError for the one scale it cannot serve
+    # (collection alignment is local-only; whole-brain is a single global
+    # transform, which lives on per-subject BrainData.align).
+    if spatial_scale == "whole_brain":
+        raise NotImplementedError(
+            "BrainCollection.align(spatial_scale='whole_brain') is not "
+            "implemented: collection alignment uses local schemes "
+            "('searchlight' or 'roi') via LocalAlignment. For a single global "
+            "transform, align individual BrainData objects with "
+            "BrainData.align(spatial_scale='whole_brain')."
+        )
+    if spatial_scale not in ("searchlight", "roi"):
+        raise ValueError(
+            "spatial_scale must be one of {'searchlight', 'roi', 'whole_brain'}, "
+            f"got {spatial_scale!r}"
+        )
     # LocalAlignment operates on (n_voxels, n_samples); BrainData.data is
     # (n_samples, n_voxels), so transpose in and transpose the aligned result
     # back before rewrapping.
     arrays = [np.asarray(x).T for x in _iter_arrays(bc)]
 
     aligner = LocalAlignment(
-        scheme=spatial_scale,
+        spatial_scale=spatial_scale,
         method=method,
         radius_mm=radius_mm,
-        parcellation=roi_mask,
+        roi_mask=roi_mask,
         n_features=n_features,
         n_iter=n_iter,
         parallel=device,

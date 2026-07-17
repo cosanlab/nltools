@@ -114,8 +114,8 @@ Materializes all subjects (algorithm constraint in v0.6.0).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Alignment solver (e.g. ``'procrustes'``). | <code>'procrustes'</code>
-`spatial_scale` | <code>[str](#str)</code> | Alignment scope (``'searchlight'``, ``'roi'``, ``'whole_brain'``). | <code>'searchlight'</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight sphere radius in mm. | <code>10.0</code>
+`spatial_scale` | <code>[str](#str)</code> | Alignment spatial scale — ``'searchlight'`` (default, overlapping spheres) or ``'roi'`` (non-overlapping parcels). Whole-brain alignment is not supported at the collection level. | <code>'searchlight'</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight sphere radius in mm (``spatial_scale='searchlight'``). | <code>10.0</code>
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| None</code> | Parcellation/ROI mask (used when ``spatial_scale='roi'``). | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Optional target feature count for the common space. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | LocalAlignment solver iteration count (not a permutation count). | <code>3</code>

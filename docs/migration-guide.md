@@ -13,7 +13,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **GLM regression** | `BrainData.regress()` | `.fit(model='glm', X=…)` | **Removed** |
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, model=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
-| **Spatial scope kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scope) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
+| **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
 | **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas).similarity(model_rdm, project=True)` — chain to a voxel-space `BrainData` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
@@ -24,7 +24,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | `BrainCollection` redesign | **Not yet available (scaffold)** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
-| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scope; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
+| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
@@ -1290,8 +1290,8 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. For `Adjacency.similarity`, `method=` selects the permutation scheme (`'1d'` / `'2d'` / `None`) and the correlation type lives in the separate `metric=` slot (`'spearman'` / `'pearson'` / `'kendall'`). **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
-| Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. For `Adjacency.similarity`, `method=` selects the permutation scheme (`'1d'` / `'2d'` / `None`) and the correlation type lives in the separate `metric=` slot (`'spearman'` / `'pearson'` / `'kendall'`). **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scale" row below. |
+| Spatial scale (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
 | Sphere / searchlight radius | `radius` (millimeters, but units were implicit) | `radius_mm` | `BrainData.predict` (searchlight), `BrainData.plot_flatmap`, `nltools.plotting.plot_surf`, and `plot_flatmap`. Pure-geometry helpers (`create_sphere`, `Simulator`) keep `radius`. |
@@ -1320,7 +1320,34 @@ adj.similarity(other, include_diag=False)     # explicit + now the default for d
 
 ### Algorithm-layer APIs are unchanged
 
-Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model`, `LocalAlignment.scheme` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
+Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
+
+(designmatrix-localalignment-scale)=
+### `LocalAlignment`: `scheme` → `spatial_scale`, `parcellation` → `roi_mask`
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — public class, no compat aliases
+
+`LocalAlignment` (in `nltools.algorithms.alignment`, re-exported from `nltools.algorithms`) now speaks the canonical spatial-scale vocabulary instead of the Bazeille-et-al. "scheme" naming, so it matches `BrainData.align` / `BrainCollection.align` and the rest of the API:
+
+| v0.5.x / earlier v0.6 dev | v0.6.0 |
+|---|---|
+| `scheme=` | `spatial_scale=` |
+| value `'piecewise'` | value `'roi'` |
+| `parcellation=` | `roi_mask=` |
+
+Values are `'searchlight'` (default, overlapping spheres) or `'roi'` (non-overlapping parcels — the "piecewise" scheme of Bazeille et al. 2021). The error/validation strings changed accordingly (`"Unknown scheme"` → `"Unknown spatial_scale"`, `"parcellation is required..."` → `"roi_mask is required for spatial_scale='roi'"`).
+
+```python
+from nltools.algorithms import LocalAlignment
+
+# OLD
+la = LocalAlignment(scheme='piecewise', parcellation=atlas, method='procrustes')
+
+# NEW
+la = LocalAlignment(spatial_scale='roi', roi_mask=atlas, method='procrustes')
+```
+
+This also fixed a latent bug where `BrainCollection.align(spatial_scale='roi')` forwarded `'roi'` straight into the old `scheme=` slot and raised `Unknown scheme: roi`. Both align facades now validate `spatial_scale` up front: `BrainData.align` supports `'whole_brain'`/`'roi'` (searchlight raises `NotImplementedError`); `BrainCollection.align` supports `'searchlight'`/`'roi'` (whole_brain raises `NotImplementedError`, since collection alignment is local-only — use per-subject `BrainData.align` for a global transform).
 
 ---
 

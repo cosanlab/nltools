@@ -29,7 +29,7 @@ Canonical kwarg names across the four data-class facades:
 | Concept | Canonical kwarg | Notes |
 |---|---|---|
 | Algorithm/variant choice | `method` | not `algorithm`, `scheme`, `kind`, `estimator`, `icc_type`, `extract_type`, `perm_type`, `mode` |
-| Spatial scope | `spatial_scale` | values: `'whole_brain' \| 'roi' \| 'searchlight'`. Used by `BrainData.predict`, `BrainData.distance` (and other future spatial-scale-aware methods). Distinct from `method=` (algorithm choice). Companion kwargs `roi_mask=`, `radius_mm=`. Vocabulary follows Jolly & Chang, 2021, *SCAN*. |
+| Spatial scale | `spatial_scale` | values: `'whole_brain' \| 'roi' \| 'searchlight'` (a given method may support a subset and raise `NotImplementedError` for the rest — e.g. `BrainData.align` has no `searchlight`; `BrainCollection.align` / `LocalAlignment` are local-only, no `whole_brain`). Used by `BrainData.predict` / `.distance` / `.align` / `.mean`/`.std`/`.median`, `BrainCollection.predict` / `.align`, and `LocalAlignment` (with companion `roi_mask=`). Distinct from `method=` (algorithm choice). Vocabulary follows Jolly & Chang, 2021, *SCAN*. |
 | Distance/similarity metric | `metric` | kept separate from `method` |
 | Parallel execution | `n_jobs: int = -1` | not `parallel=` (stats-layer internals still use `parallel=` but facades translate) |
 | GPU/CPU selection | `device: str = "cpu"` | BrainCollection only; separate from `n_jobs` |
@@ -47,7 +47,7 @@ Canonical kwarg names across the four data-class facades:
 
 **Keyword-only `*` marker**: required in `__init__` after the primary data arg, and in any public method with 3+ kwargs.
 
-**Facade translation**: internal algorithm-layer APIs (e.g. `CVScheme.scheme`, `LocalAlignment.scheme`, `Glm.noise_model`) may keep legacy names; the class facade translates at the boundary.
+**Facade translation**: internal algorithm-layer APIs (e.g. `CVScheme.scheme`, `Glm.noise_model`) may keep legacy names; the class facade translates at the boundary. (`LocalAlignment` was canonicalized in v0.6.0 — it uses `spatial_scale`/`roi_mask` directly, so `.align` facades pass straight through with no translation.)
 
 **Documented naming exceptions** (deliberate deviations from the table, decided for v0.6.0):
 - `BrainData.fit(model='glm'|'ridge')` keeps `model=` (not `method=`): it selects an estimator **class**, not an algorithm variant, and reads naturally. (F175)

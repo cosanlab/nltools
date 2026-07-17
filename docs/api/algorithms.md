@@ -380,7 +380,7 @@ Name | Type | Description
 #### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -392,10 +392,10 @@ or parcels) and applies center-only aggregation to preserve orthogonality.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`spatial_scale` | <code>[str](#str)</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
 `method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
-`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
-`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
+`roi_mask` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
 `aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
@@ -409,7 +409,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
 `template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or roi).
 `n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
 `mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
 
@@ -423,7 +423,7 @@ Name | Type | Description
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
 >>> # Build a mask whose nonzero voxels match the 1000-voxel data
 >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
->>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
+>>> la = LocalAlignment(spatial_scale='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 ```
@@ -498,10 +498,10 @@ transform(data: list[np.ndarray]) -> list[np.ndarray]
 
 Apply local transforms to data.
 
-For searchlight scheme with center-only aggregation: each voxel uses
+For the searchlight scale with center-only aggregation: each voxel uses
 the transform from the neighborhood where it was the center.
 
-For piecewise scheme: all voxels in each parcel use the same transform.
+For the roi scale: all voxels in each parcel use the same transform.
 
 **Parameters:**
 
@@ -1151,7 +1151,7 @@ Multi-subject functional alignment algorithms.
 
 This package provides algorithms for aligning functional data across subjects:
 
-- **LocalAlignment**: Searchlight/piecewise alignment (Bazeille et al. 2021)
+- **LocalAlignment**: Searchlight/ROI-scale alignment (Bazeille et al. 2021)
 - **HyperAlignment**: Iterative Procrustes alignment (Haxby et al. 2011)
 - **SRM** / **DetSRM**: Shared Response Model (Chen et al. 2015)
 
@@ -1560,7 +1560,7 @@ Name | Type | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -1572,10 +1572,10 @@ or parcels) and applies center-only aggregation to preserve orthogonality.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`spatial_scale` | <code>[str](#str)</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
 `method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
-`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
-`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
+`roi_mask` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
 `aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
@@ -1589,7 +1589,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
 `template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or roi).
 `n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
 `mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
 
@@ -1603,7 +1603,7 @@ Name | Type | Description
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
 >>> # Build a mask whose nonzero voxels match the 1000-voxel data
 >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
->>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
+>>> la = LocalAlignment(spatial_scale='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 ```
@@ -1702,12 +1702,6 @@ neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = field(defau
 parallel: str | None = 'cpu'
 ```
 
-######## `parcellation`
-
-```python
-parcellation: nib.Nifti1Image | None = None
-```
-
 ######## `progress_bar`
 
 ```python
@@ -1720,10 +1714,16 @@ progress_bar: bool = False
 radius_mm: float = 10.0
 ```
 
-######## `scheme`
+######## `roi_mask`
 
 ```python
-scheme: str = 'searchlight'
+roi_mask: nib.Nifti1Image | None = None
+```
+
+######## `spatial_scale`
+
+```python
+spatial_scale: str = 'searchlight'
 ```
 
 ######## `template_`
@@ -1792,10 +1792,10 @@ transform(data: list[np.ndarray]) -> list[np.ndarray]
 
 Apply local transforms to data.
 
-For searchlight scheme with center-only aggregation: each voxel uses
+For the searchlight scale with center-only aggregation: each voxel uses
 the transform from the neighborhood where it was the center.
 
-For piecewise scheme: all voxels in each parcel use the same transform.
+For the roi scale: all voxels in each parcel use the same transform.
 
 **Parameters:**
 
@@ -2258,8 +2258,9 @@ Name | Type | Description
 
 LocalAlignment: Neighborhood-based functional alignment.
 
-Implements searchlight and piecewise schemes from Bazeille et al. 2021.
-Uses center-only aggregation to preserve orthogonality of local transforms.
+Implements the ``'searchlight'`` and ``'roi'`` spatial scales (the searchlight
+and piecewise schemes of Bazeille et al. 2021). Uses center-only aggregation to
+preserve orthogonality of local transforms.
 
 **Classes:**
 
@@ -2276,7 +2277,7 @@ Name | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -2288,10 +2289,10 @@ or parcels) and applies center-only aggregation to preserve orthogonality.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`spatial_scale` | <code>[str](#str)</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
 `method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
-`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
-`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
+`roi_mask` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
 `n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
 `n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
 `aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
@@ -2305,7 +2306,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
 `template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or roi).
 `n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
 `mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
 
@@ -2319,7 +2320,7 @@ Name | Type | Description
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
 >>> # Build a mask whose nonzero voxels match the 1000-voxel data
 >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
->>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
+>>> la = LocalAlignment(spatial_scale='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
 ```
@@ -2417,12 +2418,6 @@ neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = field(defau
 parallel: str | None = 'cpu'
 ```
 
-########## `parcellation`
-
-```python
-parcellation: nib.Nifti1Image | None = None
-```
-
 ########## `progress_bar`
 
 ```python
@@ -2435,10 +2430,16 @@ progress_bar: bool = False
 radius_mm: float = 10.0
 ```
 
-########## `scheme`
+########## `roi_mask`
 
 ```python
-scheme: str = 'searchlight'
+roi_mask: nib.Nifti1Image | None = None
+```
+
+########## `spatial_scale`
+
+```python
+spatial_scale: str = 'searchlight'
 ```
 
 ########## `template_`
@@ -2507,10 +2508,10 @@ transform(data: list[np.ndarray]) -> list[np.ndarray]
 
 Apply local transforms to data.
 
-For searchlight scheme with center-only aggregation: each voxel uses
+For the searchlight scale with center-only aggregation: each voxel uses
 the transform from the neighborhood where it was the center.
 
-For piecewise scheme: all voxels in each parcel use the same transform.
+For the roi scale: all voxels in each parcel use the same transform.
 
 **Parameters:**
 

@@ -1,7 +1,8 @@
 """LocalAlignment: Neighborhood-based functional alignment.
 
-Implements searchlight and piecewise schemes from Bazeille et al. 2021.
-Uses center-only aggregation to preserve orthogonality of local transforms.
+Implements the ``'searchlight'`` and ``'roi'`` spatial scales (the searchlight
+and piecewise schemes of Bazeille et al. 2021). Uses center-only aggregation to
+preserve orthogonality of local transforms.
 """
 
 from __future__ import annotations
@@ -70,11 +71,12 @@ def _orthogonal_procrustes_backend(
 
 
 @dataclass
-class PiecewiseNeighborhoods:
-    """Neighborhoods from a brain parcellation for piecewise alignment.
+class RoiNeighborhoods:
+    """Neighborhoods from a brain parcellation for ROI-scale alignment.
 
-    Unlike searchlight (overlapping spheres), piecewise uses non-overlapping
-    parcels where each voxel belongs to exactly one region.
+    Unlike the searchlight scale (overlapping spheres), the ROI scale uses
+    non-overlapping parcels where each voxel belongs to exactly one region
+    (the piecewise scheme of Bazeille et al. 2021).
 
     Attributes:
         parcel_to_voxels: Dict mapping parcel_id → array of voxel indices
@@ -99,35 +101,32 @@ class PiecewiseNeighborhoods:
         if progress_bar:
             from tqdm import tqdm
 
-            iterator = tqdm(list(iterator), desc="Piecewise", unit="parcels")
+            iterator = tqdm(list(iterator), desc="ROI", unit="parcels")
 
         yield from iterator
 
     def __repr__(self) -> str:
-        return (
-            f"PiecewiseNeighborhoods(n_voxels={self.n_voxels}, "
-            f"n_parcels={self.n_parcels})"
-        )
+        return f"RoiNeighborhoods(n_voxels={self.n_voxels}, n_parcels={self.n_parcels})"
 
 
-def _compute_piecewise_neighborhoods(
-    parcellation: nib.Nifti1Image,
+def _compute_roi_neighborhoods(
+    roi_mask: nib.Nifti1Image,
     mask: nib.Nifti1Image,
-) -> PiecewiseNeighborhoods:
-    """Compute piecewise neighborhoods from a parcellation image.
+) -> RoiNeighborhoods:
+    """Compute ROI-scale (parcel) neighborhoods from a parcellation image.
 
     Args:
-        parcellation: NIfTI image with integer labels for each parcel.
+        roi_mask: NIfTI image with integer labels for each parcel.
             Background/unlabeled voxels should be 0.
         mask: Brain mask defining the voxel space.
 
     Returns:
-        PiecewiseNeighborhoods with parcel-to-voxel mappings.
+        RoiNeighborhoods with parcel-to-voxel mappings.
 
     Raises:
-        ValueError: If parcellation and mask have incompatible shapes.
+        ValueError: If roi_mask and mask have incompatible shapes.
     """
-    parc_data = parcellation.get_fdata().astype(int)
+    parc_data = roi_mask.get_fdata().astype(int)
     mask_data = mask.get_fdata().astype(bool)
 
     if parc_data.shape != mask_data.shape:
@@ -155,7 +154,7 @@ def _compute_piecewise_neighborhoods(
         if len(voxel_indices) > 0:
             parcel_to_voxels[int(parcel_id)] = voxel_indices
 
-    return PiecewiseNeighborhoods(
+    return RoiNeighborhoods(
         parcel_to_voxels=parcel_to_voxels,
         n_voxels=n_voxels,
         n_parcels=len(parcel_to_voxels),
@@ -299,14 +298,14 @@ class LocalAlignment:
     or parcels) and applies center-only aggregation to preserve orthogonality.
 
     Args:
-        scheme (str): Spatial scheme, either 'searchlight' (overlapping spheres) or
-            'piecewise' (non-overlapping parcels). Defaults to 'searchlight'.
+        spatial_scale (str): Spatial scale, either 'searchlight' (overlapping
+            spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'.
         method (str): Alignment method, one of 'procrustes', 'srm', or
             'hyperalignment'. Defaults to 'procrustes'.
-        radius_mm (float): Sphere radius in millimeters for the searchlight scheme.
+        radius_mm (float): Sphere radius in millimeters for the searchlight scale.
             Defaults to 10.0.
-        parcellation (Nifti1Image | None): Parcellation image for the piecewise scheme.
-            Required if `scheme='piecewise'`. Defaults to None.
+        roi_mask (Nifti1Image | None): Parcellation image for the ROI scale.
+            Required if `spatial_scale='roi'`. Defaults to None.
         n_features (int | None): Number of features for SRM. None uses full Procrustes
             (preserves dims). Defaults to None.
         n_iter (int): Number of iterations for alignment refinement. Defaults to 3.
@@ -324,7 +323,7 @@ class LocalAlignment:
             center voxel indices, values are lists of transform matrices (one per subject).
         template_ (dict[int, np.ndarray]): Per-neighborhood templates used for alignment.
         neighborhoods_ (SphereNeighborhoods | dict): Computed neighborhoods (searchlight
-            or piecewise).
+            or roi).
         n_voxels_ (int): Total number of voxels in the mask.
         mask_ (Nifti1Image): Brain mask used for fitting.
 
@@ -336,7 +335,7 @@ class LocalAlignment:
         >>> data = [np.random.randn(1000, 100) for _ in range(5)]
         >>> # Build a mask whose nonzero voxels match the 1000-voxel data
         >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
-        >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
+        >>> la = LocalAlignment(spatial_scale='searchlight', method='procrustes', radius_mm=10.0)
         >>> la.fit(data, mask)
         >>> aligned = la.transform(data)
 
@@ -347,10 +346,10 @@ class LocalAlignment:
     """
 
     # Configuration
-    scheme: str = "searchlight"
+    spatial_scale: str = "searchlight"
     method: str = "procrustes"
     radius_mm: float = 10.0
-    parcellation: nib.Nifti1Image | None = None
+    roi_mask: nib.Nifti1Image | None = None
     n_features: int | None = None
     n_iter: int = 3
     aggregation: str = "center"
@@ -374,21 +373,21 @@ class LocalAlignment:
 
     def __post_init__(self):
         """Validate parameters."""
-        if self.scheme not in ("searchlight", "piecewise"):
-            raise ValueError(f"Unknown scheme: {self.scheme}")
+        if self.spatial_scale not in ("searchlight", "roi"):
+            raise ValueError(f"Unknown spatial_scale: {self.spatial_scale}")
         if self.method not in ("procrustes", "srm", "hyperalignment"):
             raise ValueError(f"Unknown method: {self.method}")
         if self.aggregation not in ("center", "all"):
             raise ValueError(
                 f"Unknown aggregation: {self.aggregation}. "
-                "Supported: 'center' (searchlight), 'all' (piecewise)."
+                "Supported: 'center' (searchlight), 'all' (roi)."
             )
-        # Validate scheme/aggregation compatibility
-        if self.scheme == "piecewise" and self.aggregation == "center":
-            # Auto-switch to 'all' for piecewise (center-only doesn't make sense)
+        # Validate spatial_scale/aggregation compatibility
+        if self.spatial_scale == "roi" and self.aggregation == "center":
+            # Auto-switch to 'all' for roi (center-only doesn't make sense)
             self.aggregation = "all"
-        if self.scheme == "piecewise" and self.parcellation is None:
-            raise ValueError("parcellation is required for piecewise scheme")
+        if self.spatial_scale == "roi" and self.roi_mask is None:
+            raise ValueError("roi_mask is required for spatial_scale='roi'")
 
     def _init_backend(self) -> Backend:
         """Initialize backend based on parallel setting.
@@ -448,7 +447,7 @@ class LocalAlignment:
 
     def _batch_neighborhoods(
         self,
-        neighborhoods: SphereNeighborhoods | PiecewiseNeighborhoods,
+        neighborhoods: SphereNeighborhoods | RoiNeighborhoods,
         n_subjects: int,
         n_samples: int,
     ) -> Iterator[list[tuple[int, np.ndarray]]]:
@@ -458,7 +457,7 @@ class LocalAlignment:
         Only one batch is in memory at a time.
 
         Args:
-            neighborhoods: Computed neighborhoods (searchlight or piecewise)
+            neighborhoods: Computed neighborhoods (searchlight or roi)
             n_subjects: Number of subjects
             n_samples: Number of time samples
 
@@ -535,22 +534,20 @@ class LocalAlignment:
         # Initialize backend
         self.backend_ = self._init_backend()
 
-        # Compute neighborhoods based on scheme
-        if self.scheme == "searchlight":
+        # Compute neighborhoods based on spatial_scale
+        if self.spatial_scale == "searchlight":
             self.neighborhoods_ = compute_searchlight_neighborhoods(
                 mask, radius_mm=self.radius_mm
             )
-        elif self.scheme == "piecewise":
-            self.neighborhoods_ = _compute_piecewise_neighborhoods(
-                self.parcellation, mask
-            )
+        elif self.spatial_scale == "roi":
+            self.neighborhoods_ = _compute_roi_neighborhoods(self.roi_mask, mask)
 
         # Initialize storage for transforms and templates
         self.transforms_: dict[int, list[np.ndarray]] = {}
         self.template_: dict[int, np.ndarray] = {}
 
         # Fit local alignment for each neighborhood using batched processing
-        if self.scheme == "searchlight":
+        if self.spatial_scale == "searchlight":
             n_regions = self.neighborhoods_.n_voxels
             region_type = "searchlight spheres"
         else:
@@ -632,10 +629,10 @@ class LocalAlignment:
     def transform(self, data: list[np.ndarray]) -> list[np.ndarray]:
         """Apply local transforms to data.
 
-        For searchlight scheme with center-only aggregation: each voxel uses
+        For the searchlight scale with center-only aggregation: each voxel uses
         the transform from the neighborhood where it was the center.
 
-        For piecewise scheme: all voxels in each parcel use the same transform.
+        For the roi scale: all voxels in each parcel use the same transform.
 
         Args:
             data (list[np.ndarray]): List of subject data arrays, each shape

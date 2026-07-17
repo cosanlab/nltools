@@ -2,7 +2,7 @@
 
 This package provides algorithms for aligning functional data across subjects:
 
-- **LocalAlignment**: Searchlight/piecewise alignment (Bazeille et al. 2021)
+- **LocalAlignment**: Searchlight/ROI-scale alignment (Bazeille et al. 2021)
 - **HyperAlignment**: Iterative Procrustes alignment (Haxby et al. 2011)
 - **SRM** / **DetSRM**: Shared Response Model (Chen et al. 2015)
 """
