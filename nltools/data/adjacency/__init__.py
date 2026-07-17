@@ -742,6 +742,14 @@ class Adjacency:
             return_null: (bool) If True, also return the null distribution. Default False.
             n_jobs: (int) Number of parallel jobs. Default -1 (all cores).
             random_state: (int, optional) Random seed for reproducibility.
+            project: (bool) If True and this Adjacency has a spatial_scale, project
+                the per-matrix correlations back into brain space. Default False.
+
+        Returns:
+            dict or list or BrainData: A correlation result dict with keys 'r' and
+                'p' for a single matrix, a list of such dicts when this Adjacency
+                holds multiple matrices, or a `BrainData` when `project=True`
+                (per-matrix correlations projected via spatial_scale).
 
         """
         from .stats import similarity

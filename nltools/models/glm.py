@@ -42,7 +42,7 @@ class Glm(BaseModel):
         Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices_``
 
     Examples:
-        >>> from nltools.models import GLMModel
+        >>> from nltools.models import Glm
         >>> from nilearn.glm.first_level import make_first_level_design_matrix
         >>> import pandas as pd
         >>> import numpy as np
@@ -63,7 +63,7 @@ class Glm(BaseModel):
         >>> design_matrix = make_first_level_design_matrix(frame_times, events)
         >>>
         >>> # Fit GLM
-        >>> model = GLMModel(t_r=2.0, noise_model='ar1')
+        >>> model = Glm(t_r=2.0, noise_model='ar1')
         >>> model.fit(img, design_matrices=design_matrix)
         >>>
         >>> # Compute contrast
@@ -75,8 +75,8 @@ class Glm(BaseModel):
         >>> # Access residuals
         >>> residuals = model.residuals
 
-    Notes:
-        Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+    Note:
+        Unlike Ridge which works with 2D arrays (samples × features), Glm
         works with 4D neuroimaging data (x × y × z × time) and design matrices.
         Therefore, it does not use BaseModel's input validation methods.
 
@@ -149,9 +149,9 @@ class Glm(BaseModel):
             **kwargs: Additional arguments passed to FirstLevelModel.fit()
 
         Returns:
-            GLMModel: Fitted model instance (for method chaining)
+            Glm: Fitted model instance (for method chaining)
 
-        Notes:
+        Note:
             Unlike BaseModel's fit(), this method does not validate X as a 2D array
             because GLM works with 4D neuroimaging data. Input validation is
             delegated to nilearn's FirstLevelModel.
@@ -229,7 +229,7 @@ class Glm(BaseModel):
         Returns:
             list of Nifti1Image: Predicted brain activity for each run
 
-        Notes:
+        Note:
             Follows sklearn's LinearRegression semantics where predict() without
             arguments returns fitted values (like calling predict(X_train)).
 
@@ -262,7 +262,7 @@ class Glm(BaseModel):
         Returns:
             float: Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
-        Notes:
+        Note:
             Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
             which returns a list of Nifti1Image objects (one per run).
             Computes the mean across all non-NaN voxels and all runs.

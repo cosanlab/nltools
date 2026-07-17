@@ -49,7 +49,7 @@ Name | Description
 [`fdr`](#stats-fdr) | Determine an FDR threshold for an array of p-values.
 [`find_spikes`](#stats-find-spikes) | Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 [`fisher_r_to_z`](#stats-fisher-r-to-z) | Use Fisher transformation to convert correlation to z score.
-[`fisher_z_to_r`](#stats-fisher-z-to-r) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#stats-fisher-z-to-r) | Convert Fisher z back to a correlation coefficient.
 [`holm_bonf`](#stats-holm-bonf) | Compute Holm-Bonferroni-corrected p-values.
 [`isc`](#stats-isc) | Compute pairwise intersubject correlation from observations by subjects array.
 [`isc_group`](#stats-isc-group) | Compute difference in intersubject correlation between groups.
@@ -241,7 +241,7 @@ True
 #### `compute_similarity`
 
 ```python
-compute_similarity(data1, data2, method = 'correlation')
+compute_similarity(data1, data2, metric = 'correlation')
 ```
 
 Compute similarity between two data arrays.
@@ -255,7 +255,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | First data array, shape (n_samples1, n_features) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Second data array, shape (n_samples2, n_features) | *required*
-`method` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
+`metric` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
 
 **Returns:**
 
@@ -268,7 +268,7 @@ Type | Description
 ```pycon
 >>> data1 = np.random.randn(10, 100)
 >>> data2 = np.random.randn(5, 100)
->>> sim = compute_similarity(data1, data2, method='correlation')
+>>> sim = compute_similarity(data1, data2, metric='correlation')
 >>> sim.shape
 (10, 5)
 ```
@@ -468,13 +468,6 @@ Name | Type | Description
 ---- | ---- | -----------
 `z` |  | Fisher z-transformed correlation(s)
 
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-Clips r values to (-1, 1) range to avoid invalid arctanh inputs
-
-</details>
-
 (stats-fisher-z-to-r)=
 #### `fisher_z_to_r`
 
@@ -482,7 +475,19 @@ Clips r values to (-1, 1) range to avoid invalid arctanh inputs
 fisher_z_to_r(z)
 ```
 
-Use Fisher transformation to convert correlation to z score.
+Convert Fisher z back to a correlation coefficient.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`z` |  | Fisher z-transformed value(s) | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`r` |  | correlation coefficient(s)
 
 (stats-holm-bonf)=
 #### `holm_bonf`
@@ -514,7 +519,7 @@ Name | Type | Description
 #### `isc`
 
 ```python
-isc(data, *, n_samples = 5000, metric = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, return_null = False, tail = 2, n_jobs = -1, random_state = None, sim_metric = 'correlation')
+isc(data, *, n_samples = 5000, summary = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, tail = 2, metric = 'correlation', return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Compute pairwise intersubject correlation from observations by subjects array.
@@ -555,12 +560,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects | *required*
 `n_samples` |  | (int) number of random samples/bootstraps | <code>5000</code>
-`metric` |  | (str) type of isc summary metric ['mean','median'] | <code>'median'</code>
+`summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
 `method` |  | (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap) | <code>'bootstrap'</code>
 `tail` |  | (int) either 1 for one-tail or 2 for two-tailed test (default: 2) | <code>2</code>
-`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
 `return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
-`sim_metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
+`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
 
 **Returns:**
 
@@ -916,18 +921,18 @@ the smaller of the two.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1 ` |  | array_like Matrix, n rows represent points in k (columns) space `data1` is the reference data, after it is standardised, the data from `data2` will be transformed to fit the pattern in `data1` (must have >1 unique points). | *required*
-`data2 ` |  | array_like n rows of data in k space to be fit to `data1`.  Must be the  same shape ``(numrows, numcols)`` as data1 (must have >1 unique points). | *required*
+`data1` |  | Matrix whose n rows represent points in k (columns) space. `data1` is the reference data; after it is standardized, the data from `data2` will be transformed to fit the pattern in `data1` (must have >1 unique points). | *required*
+`data2` |  | n rows of data in k space to be fit to `data1`. Must be the same shape `(numrows, numcols)` as `data1` (must have >1 unique points). | *required*
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`mtx1` |  | array_like A standardized version of `data1`.
-`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
-`disparity` |  | float $M^{2}$ as defined above.
-`R` |  | (N, N) ndarray The matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of dot(data1, R) - data2, subject to dot(R.T, R) == I.
-`scale` |  | float Sum of the singular values of ``dot(data1.T, data2)``.
+`mtx1` |  | A standardized version of `data1`.
+`mtx2` |  | The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
+`disparity` |  | $M^{2}$ as defined above.
+`R` |  | The `(N, N)` matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of `dot(data1, R) - data2`, subject to `dot(R.T, R) == I`.
+`scale` |  | Sum of the singular values of `dot(data1.T, data2)`.
 
 (stats-procrustes-distance)=
 #### `procrustes_distance`
@@ -1375,18 +1380,18 @@ the smaller of the two.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1 ` |  | array_like Matrix, n rows represent points in k (columns) space `data1` is the reference data, after it is standardised, the data from `data2` will be transformed to fit the pattern in `data1` (must have >1 unique points). | *required*
-`data2 ` |  | array_like n rows of data in k space to be fit to `data1`.  Must be the  same shape ``(numrows, numcols)`` as data1 (must have >1 unique points). | *required*
+`data1` |  | Matrix whose n rows represent points in k (columns) space. `data1` is the reference data; after it is standardized, the data from `data2` will be transformed to fit the pattern in `data1` (must have >1 unique points). | *required*
+`data2` |  | n rows of data in k space to be fit to `data1`. Must be the same shape `(numrows, numcols)` as `data1` (must have >1 unique points). | *required*
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`mtx1` |  | array_like A standardized version of `data1`.
-`mtx2` |  | array_like The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
-`disparity` |  | float $M^{2}$ as defined above.
-`R` |  | (N, N) ndarray The matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of dot(data1, R) - data2, subject to dot(R.T, R) == I.
-`scale` |  | float Sum of the singular values of ``dot(data1.T, data2)``.
+`mtx1` |  | A standardized version of `data1`.
+`mtx2` |  | The orientation of `data2` that best fits `data1`. Centered, but not necessarily $tr(AA^{T}) = 1$.
+`disparity` |  | $M^{2}$ as defined above.
+`R` |  | The `(N, N)` matrix solution of the orthogonal Procrustes problem. Minimizes the Frobenius norm of `dot(data1, R) - data2`, subject to `dot(R.T, R) == I`.
+`scale` |  | Sum of the singular values of `dot(data1.T, data2)`.
 
 ###### `procrustes_distance`
 
@@ -1566,7 +1571,7 @@ Name | Description
 [`compute_multivariate_similarity`](#stats-compute-multivariate-similarity) | Compute multivariate similarity via OLS regression.
 [`compute_similarity`](#stats-compute-similarity) | Compute similarity between two data arrays.
 [`fisher_r_to_z`](#stats-fisher-r-to-z) | Use Fisher transformation to convert correlation to z score.
-[`fisher_z_to_r`](#stats-fisher-z-to-r) | Use Fisher transformation to convert correlation to z score.
+[`fisher_z_to_r`](#stats-fisher-z-to-r) | Convert Fisher z back to a correlation coefficient.
 [`transform_pairwise`](#stats-transform-pairwise) | Transform data into pairs with balanced labels for ranking.
 
 
@@ -1617,7 +1622,7 @@ True
 ###### `compute_similarity`
 
 ```python
-compute_similarity(data1, data2, method = 'correlation')
+compute_similarity(data1, data2, metric = 'correlation')
 ```
 
 Compute similarity between two data arrays.
@@ -1631,7 +1636,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | First data array, shape (n_samples1, n_features) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Second data array, shape (n_samples2, n_features) | *required*
-`method` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
+`metric` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
 
 **Returns:**
 
@@ -1644,7 +1649,7 @@ Type | Description
 ```pycon
 >>> data1 = np.random.randn(10, 100)
 >>> data2 = np.random.randn(5, 100)
->>> sim = compute_similarity(data1, data2, method='correlation')
+>>> sim = compute_similarity(data1, data2, metric='correlation')
 >>> sim.shape
 (10, 5)
 ```
@@ -1669,20 +1674,25 @@ Name | Type | Description
 ---- | ---- | -----------
 `z` |  | Fisher z-transformed correlation(s)
 
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-Clips r values to (-1, 1) range to avoid invalid arctanh inputs
-
-</details>
-
 ###### `fisher_z_to_r`
 
 ```python
 fisher_z_to_r(z)
 ```
 
-Use Fisher transformation to convert correlation to z score.
+Convert Fisher z back to a correlation coefficient.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`z` |  | Fisher z-transformed value(s) | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`r` |  | correlation coefficient(s)
 
 ###### `transform_pairwise`
 
@@ -1738,7 +1748,7 @@ Name | Description
 ###### `isc`
 
 ```python
-isc(data, *, n_samples = 5000, metric = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, return_null = False, tail = 2, n_jobs = -1, random_state = None, sim_metric = 'correlation')
+isc(data, *, n_samples = 5000, summary = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, tail = 2, metric = 'correlation', return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Compute pairwise intersubject correlation from observations by subjects array.
@@ -1779,12 +1789,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects | *required*
 `n_samples` |  | (int) number of random samples/bootstraps | <code>5000</code>
-`metric` |  | (str) type of isc summary metric ['mean','median'] | <code>'median'</code>
+`summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
 `method` |  | (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap) | <code>'bootstrap'</code>
 `tail` |  | (int) either 1 for one-tail or 2 for two-tailed test (default: 2) | <code>2</code>
-`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
 `return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
-`sim_metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
+`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
 
 **Returns:**
 

@@ -134,7 +134,7 @@ Name | Type | Description
 #### `cluster_summary`
 
 ```python
-cluster_summary(*, clusters = None, metric = 'mean', summary = 'within')
+cluster_summary(*, clusters = None, method = 'mean', summary = 'within')
 ```
 
 Provide summaries of clusters within Adjacency matrices.
@@ -147,7 +147,7 @@ list of cluster ids indicating the row/column of each cluster.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `clusters` |  | (list) list of cluster labels | <code>None</code>
-`metric` |  | (str) method to summarize mean or median. If 'None" then return all r values | <code>'mean'</code>
+`method` |  | (str) how to summarize, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
 `summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
 
 **Returns:**
@@ -326,7 +326,7 @@ Name | Type | Description
 #### `plot_mds`
 
 ```python
-plot_mds(n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
+plot_mds(*, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
 ```
 
 Plot multidimensional scaling.
@@ -336,7 +336,7 @@ Plot multidimensional scaling.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_components` |  | (int) Number of dimensions to project (can be 2 or 3) | <code>2</code>
-`metric` |  | (bool) Perform metric or non-metric dimensional scaling; default | <code>True</code>
+`metric_mds` |  | (bool) Perform metric (True) or non-metric (False) dimensional scaling; default True | <code>True</code>
 `labels` |  | (list) Can override labels stored in Adjacency Class | <code>None</code>
 `labels_color` |  | (str) list of colors for labels, if len(1) then make all same color | <code>None</code>
 `cmap` |  | colormap instance (default: plt.cm.hot_r) | <code>None</code>
@@ -349,10 +349,21 @@ Name | Type | Description | Default
 #### `plot_silhouette`
 
 ```python
-plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
 ```
 
 Create a silhouette plot.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`labels` |  | Numpy array of cluster/group labels (overrides stored labels). | <code>None</code>
+`ax` |  | Matplotlib axis handle. | <code>None</code>
+`permutation_test` |  | (bool) Whether to run a permutation test. Default True. | <code>True</code>
+`n_permute` |  | (int) Number of permutations for the test. Default 5000. | <code>5000</code>
+`colors` |  | Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette). | <code>None</code>
+`figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
 
 (data-adjacency-r-to-z)=
 #### `r_to_z`
@@ -391,7 +402,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(data, plot = False, permutation_method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
+similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices.
@@ -403,14 +414,21 @@ The default uses Spearman correlation and a permutation test.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
-`permutation_method` |  | (str) '1d','2d', or None | <code>'2d'</code>
+`method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
-`include_diag` |  | (bool) only applies to 'directed' Adjacency types using permutation_method=None or permutation_method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
+`include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
 `tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
 `return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
+`project` | <code>[bool](#bool)</code> | (bool) If True and this Adjacency has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | dict or list or BrainData: A correlation result dict with keys 'r' and 'p' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
 
 (data-adjacency-social-relations-model)=
 #### `social_relations_model`

@@ -5,53 +5,52 @@ operations in nltools. It uses pure numpy arrays and has no dependencies on
 BrainData or other nltools data structures, making it suitable for standalone
 use with inference algorithms.
 
-Examples
---------
-**Using with BrainData workflow:**
+Examples:
+    Using with BrainData workflow:
 
->>> from nltools.data import BrainData
->>> brain = BrainData(data="brain_data.nii.gz")
->>> fit = brain.fit(X=design_matrix, mode="ridge", cv_dict={"type": "kfold", "n_splits": 5})
->>> print(fit.available())
-['fitted_values', 'weights', 'scores', 'cv_scores', 'cv_mean_score', 'cv_predictions', 'cv_folds']
+    >>> from nltools.data import BrainData
+    >>> brain = BrainData(data="brain_data.nii.gz")
+    >>> fit = brain.fit(model="ridge", X=design_matrix, cv=5)
+    >>> print(fit.available())
+    ['fitted_values', 'weights', 'scores', 'cv_scores', 'cv_mean_score', 'cv_predictions', 'cv_folds']
 
-**Using with inference algorithms directly:**
+    Using with inference algorithms directly:
 
->>> from nltools.algorithms import ridge_cv
->>> import numpy as np
->>> X = np.random.randn(100, 5)
->>> y = np.random.randn(100, 1000)
->>> fit = ridge_cv(X, y, alpha=1.0, cv_dict={"type": "kfold", "n_splits": 5})
->>> fit.cv_mean_score.shape
-(1000,)
+    >>> from nltools.algorithms import ridge_cv
+    >>> import numpy as np
+    >>> X = np.random.randn(100, 5)
+    >>> y = np.random.randn(100, 1000)
+    >>> result = ridge_cv(X, y, cv=5)
+    >>> result["cv_scores"].shape
+    (5, 20, 1000)
 
-**Serialization/deserialization:**
+    Serialization/deserialization:
 
->>> # Save all non-None results
->>> np.savez("fit_results.npz", **fit.asdict())
->>>
->>> # Load and reconstruct
->>> loaded = np.load("fit_results.npz")
->>> fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
+    >>> # Save all non-None results
+    >>> np.savez("fit_results.npz", **fit.asdict())
+    >>>
+    >>> # Load and reconstruct
+    >>> loaded = np.load("fit_results.npz")
+    >>> fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
 
-**Export to .npz:**
+    Export to .npz:
 
->>> # Export only specific fields
->>> import numpy as np
->>> np.savez("weights_and_scores.npz",
-...          weights=fit.weights,
-...          scores=fit.scores)
+    >>> # Export only specific fields
+    >>> import numpy as np
+    >>> np.savez("weights_and_scores.npz",
+    ...          weights=fit.weights,
+    ...          scores=fit.scores)
 
-**Introspection:**
+    Introspection:
 
->>> # Check what's available
->>> if 'cv_scores' in fit.available():
-...     print(f"CV R² range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
->>>
->>> # Get as dict and convert to a polars DataFrame (for scalar and 1D arrays)
->>> import polars as pl
->>> results_dict = fit.asdict()
->>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
+    >>> # Check what's available
+    >>> if 'cv_scores' in fit.available():
+    ...     print(f"CV R² range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
+    >>>
+    >>> # Get as dict and convert to a polars DataFrame (for scalar and 1D arrays)
+    >>> import polars as pl
+    >>> results_dict = fit.asdict()
+    >>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
 """
 
 from dataclasses import asdict as dataclass_asdict
@@ -94,97 +93,77 @@ class Fit:
         fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
         r2 (ndarray): R² values, shape (n_voxels,)
 
-    Attributes
-    ----------
-    fitted_values : ndarray
-        Fitted values or predictions, always present
-    weights : ndarray, optional
-        Model coefficients (Ridge)
-    scores : ndarray, optional
-        R² scores (Ridge)
-    betas : ndarray, optional
-        Beta coefficients (GLM)
-    t_stats : ndarray, optional
-        T-statistics (GLM)
-    p_values : ndarray, optional
-        P-values (GLM)
-    se : ndarray, optional
-        Standard errors (GLM)
-    residuals : ndarray, optional
-        Residuals (GLM)
-    r2 : ndarray, optional
-        R² values (GLM)
-    cv_scores : ndarray, optional
-        Per-fold cross-validation scores
-    cv_mean_score : ndarray, optional
-        Mean cross-validation score across folds
-    cv_predictions : ndarray, optional
-        Out-of-fold predictions
-    cv_folds : ndarray, optional
-        Fold indices for each sample
-    cv_best_alpha : float, optional
-        Best alpha selected via cross-validation
-    cv_alpha_scores : ndarray, optional
-        Cross-validation scores for each alpha tested
+    Attributes:
+        fitted_values (ndarray): Fitted values or predictions, always present.
+        weights (ndarray | None): Model coefficients (Ridge).
+        scores (ndarray | None): R² scores (Ridge).
+        betas (ndarray | None): Beta coefficients (GLM).
+        t_stats (ndarray | None): T-statistics (GLM).
+        p_values (ndarray | None): P-values (GLM).
+        se (ndarray | None): Standard errors (GLM).
+        residuals (ndarray | None): Residuals (GLM).
+        r2 (ndarray | None): R² values (GLM).
+        cv_scores (ndarray | None): Per-fold cross-validation scores.
+        cv_mean_score (ndarray | None): Mean cross-validation score across folds.
+        cv_predictions (ndarray | None): Out-of-fold predictions.
+        cv_folds (ndarray | None): Fold indices for each sample.
+        cv_best_alpha (float | None): Best alpha selected via cross-validation.
+        cv_alpha_scores (ndarray | None): Cross-validation scores for each alpha tested.
 
-    Methods
-    -------
-    available() : list
-        Returns list of non-None attribute names (excludes private fields)
-    asdict(include_none=False) : dict
-        Converts to dictionary, optionally excluding None values
+    Note:
+        Methods: `available` returns the list of non-None attribute names
+        (excludes private fields); `asdict` converts to a dictionary,
+        optionally excluding None values.
 
-    Examples
-    --------
-    **Creating a Fit object (Ridge without CV):**
+    Examples:
+        Creating a Fit object (Ridge without CV):
 
-    >>> import numpy as np
-    >>> from nltools.data.fitresults import Fit
-    >>> fit = Fit(
-    ...     fitted_values=np.random.randn(100, 1000),
-    ...     weights=np.random.randn(5, 1000),
-    ...     scores=np.random.randn(1000)
-    ... )
-    >>> fit.available()
-    ['fitted_values', 'weights', 'scores']
+        >>> import numpy as np
+        >>> from nltools.data.fitresults import Fit
+        >>> fit = Fit(
+        ...     fitted_values=np.random.randn(100, 1000),
+        ...     weights=np.random.randn(5, 1000),
+        ...     scores=np.random.randn(1000)
+        ... )
+        >>> fit.available()
+        ['fitted_values', 'weights', 'scores']
 
-    **Creating a Fit object (Ridge with CV):**
+        Creating a Fit object (Ridge with CV):
 
-    >>> fit_cv = Fit(
-    ...     fitted_values=np.random.randn(100, 1000),
-    ...     weights=np.random.randn(5, 1000),
-    ...     scores=np.random.randn(1000),
-    ...     cv_scores=np.random.randn(5, 1000),
-    ...     cv_mean_score=np.random.randn(1000),
-    ...     cv_predictions=np.random.randn(100, 1000),
-    ...     cv_folds=np.arange(100) % 5
-    ... )
-    >>> 'cv_scores' in fit_cv.available()
-    True
+        >>> fit_cv = Fit(
+        ...     fitted_values=np.random.randn(100, 1000),
+        ...     weights=np.random.randn(5, 1000),
+        ...     scores=np.random.randn(1000),
+        ...     cv_scores=np.random.randn(5, 1000),
+        ...     cv_mean_score=np.random.randn(1000),
+        ...     cv_predictions=np.random.randn(100, 1000),
+        ...     cv_folds=np.arange(100) % 5
+        ... )
+        >>> 'cv_scores' in fit_cv.available()
+        True
 
-    **Immutability:**
+        Immutability:
 
-    >>> try:
-    ...     fit.scores = np.zeros(1000)  # Will raise FrozenInstanceError
-    ... except AttributeError:
-    ...     print("Cannot modify frozen dataclass")
-    Cannot modify frozen dataclass
+        >>> try:
+        ...     fit.scores = np.zeros(1000)  # Will raise FrozenInstanceError
+        ... except AttributeError:
+        ...     print("Cannot modify frozen dataclass")
+        Cannot modify frozen dataclass
 
-    **Export/serialization:**
+        Export/serialization:
 
-    >>> # Save to .npz
-    >>> np.savez("results.npz", **fit.asdict())
-    >>>
-    >>> # Load and reconstruct
-    >>> loaded = np.load("results.npz")
-    >>> fit_reloaded = Fit(**{k: loaded[k] for k in loaded.files})
+        >>> # Save to .npz
+        >>> np.savez("results.npz", **fit.asdict())
+        >>>
+        >>> # Load and reconstruct
+        >>> loaded = np.load("results.npz")
+        >>> fit_reloaded = Fit(**{k: loaded[k] for k in loaded.files})
 
-    Notes
-    -----
-    - Frozen dataclass ensures results cannot be accidentally modified
-    - All attributes are numpy arrays (except cv_best_alpha which is float)
-    - None values indicate that field was not computed for this model/method
-    - Private fields (starting with _) are excluded from available() and asdict()
+    Note:
+        - Frozen dataclass ensures results cannot be accidentally modified.
+        - All attributes are numpy arrays (except cv_best_alpha which is float).
+        - None values indicate that field was not computed for this model/method.
+        - Private fields (starting with _) are excluded from available() and asdict().
     """
 
     # Always available
@@ -218,18 +197,17 @@ class Fit:
         Returns:
             Names of attributes that are not None.
 
-        Examples
-        --------
-        >>> import numpy as np
-        >>> from nltools.data.fitresults import Fit
-        >>> fit = Fit(
-        ...     fitted_values=np.random.randn(100, 1000),
-        ...     weights=np.random.randn(5, 1000)
-        ... )
-        >>> fit.available()
-        ['fitted_values', 'weights']
-        >>> 'scores' in fit.available()
-        False
+        Examples:
+            >>> import numpy as np
+            >>> from nltools.data.fitresults import Fit
+            >>> fit = Fit(
+            ...     fitted_values=np.random.randn(100, 1000),
+            ...     weights=np.random.randn(5, 1000)
+            ... )
+            >>> fit.available()
+            ['fitted_values', 'weights']
+            >>> 'scores' in fit.available()
+            False
         """
         return [
             field_name
@@ -247,23 +225,22 @@ class Fit:
         Returns:
             Dictionary of attribute names to values.
 
-        Examples
-        --------
-        >>> import numpy as np
-        >>> from nltools.data.fitresults import Fit
-        >>> fit = Fit(
-        ...     fitted_values=np.random.randn(100, 1000),
-        ...     weights=np.random.randn(5, 1000),
-        ...     scores=None
-        ... )
-        >>> d = fit.asdict(include_none=False)
-        >>> 'scores' in d
-        False
-        >>> d = fit.asdict(include_none=True)
-        >>> 'scores' in d
-        True
-        >>> d['scores'] is None
-        True
+        Examples:
+            >>> import numpy as np
+            >>> from nltools.data.fitresults import Fit
+            >>> fit = Fit(
+            ...     fitted_values=np.random.randn(100, 1000),
+            ...     weights=np.random.randn(5, 1000),
+            ...     scores=None
+            ... )
+            >>> d = fit.asdict(include_none=False)
+            >>> 'scores' in d
+            False
+            >>> d = fit.asdict(include_none=True)
+            >>> 'scores' in d
+            True
+            >>> d['scores'] is None
+            True
         """
         # Get full dict from dataclass
         full_dict = dataclass_asdict(self)
@@ -282,73 +259,71 @@ class Fit:
 class Predict:
     """Immutable container for prediction / MVPA decoding results.
 
-    Mirrors `Fit`: frozen, all fields default to ``None``, populated
-    based on the dispatch path (``method``, ``y`` vs ``X``, ``refit``) used
+    Mirrors `Fit`: frozen, all fields default to `None`, populated
+    based on the dispatch path (`spatial_scale`, `y` vs `X`, `refit`) used
     by `BrainData.predict`. Fields not applicable to the call remain
-    ``None`` and are filtered from `available` and `asdict`.
+    `None` and are filtered from `available` and `asdict`.
 
     **Brain-space outputs are `BrainData` objects**, not raw arrays —
-    so ``result.weight_map.plot()`` works directly. Drop down to numpy via
-    ``result.weight_map.data`` if needed. Non-spatial fields (``predictions``,
-    ``cv_folds``, scalar scores) stay as numpy.
+    so `result.weight_map.plot()` works directly. Drop down to numpy via
+    `result.weight_map.data` if needed. Non-spatial fields (`predictions`,
+    `cv_folds`, scalar scores) stay as numpy.
 
     Field shapes by dispatch:
 
-    **method='whole_brain'** (with ``y``):
-        - ``predictions``: ``(n_samples,)`` ndarray, OOF predictions from CV
-        - ``scores``: ``(n_folds,)`` ndarray, per-fold score
-        - ``mean_score``: float, mean across folds
-        - ``std_score``: float, std across folds
-        - ``cv_folds``: ``(n_samples,)`` ndarray, fold index per sample
-        - ``weight_map``: BrainData ``(1, n_voxels)``, ``coef_`` from one
-          model fit on the **full** ``(X, y)``. The publishable map.
-        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``, per-fold
-          ``coef_`` stack — for stability analysis (e.g., across-fold std).
-        - ``estimator``: the fitted all-data sklearn estimator (use for
-          ``.predict()`` on new data).
+    **spatial_scale='whole_brain'** (with `y`):
+        - `predictions`: `(n_samples,)` ndarray, OOF predictions from CV
+        - `scores`: `(n_folds,)` ndarray, per-fold score
+        - `mean_score`: float, mean across folds
+        - `std_score`: float, std across folds
+        - `cv_folds`: `(n_samples,)` ndarray, fold index per sample
+        - `weight_map`: BrainData `(1, n_voxels)`, `coef_` from one
+          model fit on the **full** `(X, y)`. The publishable map.
+        - `fold_weight_maps`: BrainData `(n_folds, n_voxels)`, per-fold
+          `coef_` stack — for stability analysis (e.g., across-fold std).
+        - `estimator`: the fitted all-data sklearn estimator (use for
+          `.predict()` on new data).
 
-    **method='roi'** (with ``y``):
-        - ``scores``: ``(n_folds, n_rois)`` ndarray
-        - ``mean_score``: ``(n_rois,)`` ndarray, mean across folds per parcel
-        - ``std_score``: ``(n_rois,)`` ndarray
-        - ``roi_labels``: ``(n_rois,)`` ndarray of atlas integer IDs in the
-          same order as ``mean_score`` / ``std_score`` / ``scores`` axis 1
-        - ``accuracy_map``: BrainData ``(1, n_voxels)``, every voxel inside
+    **spatial_scale='roi'** (with `y`):
+        - `scores`: `(n_folds, n_rois)` ndarray
+        - `mean_score`: `(n_rois,)` ndarray, mean across folds per parcel
+        - `std_score`: `(n_rois,)` ndarray
+        - `roi_labels`: `(n_rois,)` ndarray of atlas integer IDs in the
+          same order as `mean_score` / `std_score` / `scores` axis 1
+        - `accuracy_map`: BrainData `(1, n_voxels)`, every voxel inside
           parcel *i* set to that parcel's mean accuracy (others NaN)
-        - ``weight_map``: BrainData ``(1, n_voxels)``, per-parcel ``coef_``
+        - `weight_map`: BrainData `(1, n_voxels)`, per-parcel `coef_`
           from each parcel's all-data fit, written back into voxel space
           (atlas is a label image so reassembly is disjoint). Voxels outside
           any parcel are NaN. Magnitudes across parcels are not directly
           comparable — different parcels live on different X distributions.
-        - ``fold_weight_maps``: BrainData ``(n_folds, n_voxels)``
-        - ``estimator``: ``dict[int, sklearn]`` keyed by atlas label
+        - `fold_weight_maps`: BrainData `(n_folds, n_voxels)`
+        - `estimator`: `dict[int, sklearn]` keyed by atlas label
 
-        If any parcel can't expose ``.coef_`` (non-linear model, ``SelectKBest``
-        in pipeline), ``weight_map`` / ``fold_weight_maps`` / ``estimator``
-        all collapse to ``None`` for the whole call.
+        If any parcel can't expose `.coef_` (non-linear model, `SelectKBest`
+        in pipeline), `weight_map` / `fold_weight_maps` / `estimator`
+        all collapse to `None` for the whole call.
 
-    **method='searchlight'** (with ``y``):
-        - ``accuracy_map``: BrainData ``(1, n_voxels)``, sphere-centered
+    **spatial_scale='searchlight'** (with `y`):
+        - `accuracy_map`: BrainData `(1, n_voxels)`, sphere-centered
           accuracy at each voxel
 
-    Note: encoding-model timeseries prediction (``bd.predict(X=...)``) returns
-    a ``BrainData`` directly, not a ``Predict`` — the natural container for a
-    voxel timeseries.
+    Note:
+        Encoding-model timeseries prediction (`bd.predict(X=...)`) returns
+        a `BrainData` directly, not a `Predict` — the natural container for a
+        voxel timeseries.
 
-    Why the all-data fit is canonical: the CV mean of per-fold ``coef_``
-    vectors doesn't correspond to any actual fitted estimator (each fold
-    saw a different subset). The all-data refit is a single, real model
-    with all the information used. CV gives the honest *score*; the refit
-    gives the publishable *map*. ``fold_weight_maps`` is still exposed for
-    stability analysis, and the CV-mean is one line away if you want it
-    (``fold_weight_maps.data.mean(axis=0)``).
+        Why the all-data fit is canonical: the CV mean of per-fold `coef_`
+        vectors doesn't correspond to any actual fitted estimator (each fold
+        saw a different subset). The all-data refit is a single, real model
+        with all the information used. CV gives the honest *score*; the refit
+        gives the publishable *map*. `fold_weight_maps` is still exposed for
+        stability analysis, and the CV-mean is one line away if you want it
+        (`fold_weight_maps.data.mean(axis=0)`).
 
-    Methods
-    -------
-    available() : list
-        Names of non-None fields (excludes private).
-    asdict(include_none=False) : dict
-        Convert to dict for serialization (private fields always excluded).
+        Methods: `available` returns the names of non-None fields (excludes
+        private); `asdict` converts to a dict for serialization (private fields
+        always excluded).
     """
 
     # MVPA / classification — populated when y given

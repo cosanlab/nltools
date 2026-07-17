@@ -15,10 +15,10 @@ def plot_dist_from_hyperplane(stats_output):
     """Plot SVM Classification Distance from Hyperplane.
 
     Args:
-        stats_output: a pandas file with prediction output
+        stats_output: pandas DataFrame with prediction output
 
     Returns:
-        fig: Will return a seaborn plot of distance from hyperplane
+        a seaborn FacetGrid of distance from hyperplane
 
     """
 
@@ -48,10 +48,10 @@ def plot_scatter(stats_output):
     """Plot Prediction Scatterplot.
 
     Args:
-        stats_output: a pandas file with prediction output
+        stats_output: pandas DataFrame with prediction output
 
     Returns:
-        fig: Will return a seaborn scatterplot
+        a seaborn FacetGrid scatterplot
 
     """
 
@@ -69,10 +69,10 @@ def plot_probability(stats_output):
     """Plot Classification Probability.
 
     Args:
-        stats_output: a pandas file with prediction output
+        stats_output: pandas DataFrame with prediction output
 
     Returns:
-        fig: Will return a seaborn scatterplot
+        a seaborn FacetGrid scatterplot
 
     """
     if "Probability_xval" in stats_output.columns:
@@ -93,7 +93,7 @@ def plot_roc(fpr, tpr):
         tpr: true positive rate from Roc.calculate
 
     Returns:
-        fig: Will return a matplotlib ROC plot
+        a matplotlib Figure
 
     """
 

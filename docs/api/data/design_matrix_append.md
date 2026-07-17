@@ -27,7 +27,7 @@ Name | Description
 #### `append`
 
 ```python
-append(dm: DesignMatrix, other: DesignMatrix, *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
+append(dm: DesignMatrix, other: DesignMatrix, *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -43,7 +43,7 @@ Name | Type | Description | Default
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
 `fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries introduced by the concatenation. Pass ``None`` to preserve nulls. Default: 0. | <code>0</code>
 `as_confounds` | <code>[bool](#bool)</code> | Only applies to ``axis=1``. When True, all columns contributed by ``other`` are tracked as nuisance regressors in the result's ``.confounds`` — so they're skipped by ``.convolve()`` and kept separate across runs in later vertical appends. Useful when ``other`` is a pre-built DesignMatrix of confounds that hasn't already marked its columns. Default: False. | <code>False</code>
-`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
 
 **Returns:**
 
@@ -79,7 +79,7 @@ Name | Type | Description
 #### `append_vertical`
 
 ```python
-append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
+append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, progress_bar: bool) -> DesignMatrix
 ```
 
 Concatenate matrices vertically with optional confound separation.
@@ -93,7 +93,7 @@ Name | Type | Description | Default
 `keep_separate` | <code>[bool](#bool)</code> | Whether to separate confound columns across runs. | *required*
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
 `fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
-`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
 
 **Returns:**
 
@@ -105,7 +105,7 @@ Name | Type | Description
 #### `append_vertical_with_separation`
 
 ```python
-append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, verbose: bool) -> DesignMatrix
+append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, progress_bar: bool) -> DesignMatrix
 ```
 
 Concatenate vertically with automatic confound separation.
@@ -121,7 +121,7 @@ Name | Type | Description | Default
 `to_append` | <code>list of DesignMatrix</code> | Matrices to stack below dm. | *required*
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | *required*
 `fill_na` | <code>int, float, or None</code> | Value to fill NaN/null entries with. Pass ``None`` to preserve nulls. | *required*
-`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. | *required*
 
 **Returns:**
 

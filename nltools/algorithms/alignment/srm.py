@@ -510,7 +510,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def transform_subject(self, X: np.ndarray) -> np.ndarray:
         """Transform a new subject using the existing model.
-        The subject is assumed to have recieved equivalent stimulation
+
+        The subject is assumed to have received equivalent stimulation.
 
         Args:
             X (2D array, shape=[voxels, timepoints]):
@@ -527,7 +528,7 @@ class SRM(BaseEstimator, TransformerMixin):
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
             raise ValueError(
-                "The number of timepoints(TRs) does not match theone in the model."
+                "The number of timepoints(TRs) does not match the one in the model."
             )
 
         w = self._update_transform_subject(X, self.s_)
@@ -998,7 +999,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     def transform_subject(self, X: np.ndarray) -> np.ndarray:
         """Transform a new subject using the existing model.
-        The subject is assumed to have recieved equivalent stimulation
+
+        The subject is assumed to have received equivalent stimulation.
 
         Args:
             X (2D array, shape=[voxels, timepoints]):
@@ -1015,7 +1017,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # Check the number of TRs in the subject
         if X.shape[1] != self.s_.shape[1]:
             raise ValueError(
-                "The number of timepoints(TRs) does not match theone in the model."
+                "The number of timepoints(TRs) does not match the one in the model."
             )
 
         w = self._update_transform_subject(X, self.s_)

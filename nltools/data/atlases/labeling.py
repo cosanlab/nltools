@@ -30,7 +30,7 @@ def _as_xyz_array(coords: CoordsLike) -> np.ndarray:
 def _xyz_to_ijk(coords_xyz: np.ndarray, affine: np.ndarray) -> np.ndarray:
     """Map MNI mm → integer voxel ijk via the inverse affine.
 
-    Out-of-bounds voxels get clamped to the origin (treated as background).
+    Solves the affine, rounds to the nearest voxel, and casts to int.
     """
     homog = np.hstack([coords_xyz, np.ones((coords_xyz.shape[0], 1))])
     ijk = np.linalg.solve(affine, homog.T)[:3].T

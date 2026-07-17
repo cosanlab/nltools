@@ -67,7 +67,7 @@ def hash_mask(mask_img: Nifti1Image) -> str:
         >>> import nibabel as nib
         >>> mask = nib.load("mask.nii.gz")
         >>> hash_mask(mask)
-        'a1b2c3d4e5f6g7h8'
+        'a1b2c3d4e5f60789'
     """
     mask_data = mask_img.get_fdata().astype(bool)
     affine = mask_img.affine

@@ -58,8 +58,15 @@ Generate spheres in brain-mask space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`radius` |  | vector of radius.  Will create multiple spheres if     len(radius) > 1 | <code>5</code>
-`centers` |  | a vector of sphere centers of the form [px, py, pz] or     [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+`coordinates` |  | a vector of sphere centers of the form `[px, py, pz]` or `[[px1, py1, pz1], ..., [pxn, pyn, pzn]]` | *required*
+`radius` |  | radius of the sphere(s). A scalar creates one sphere per center; a vector creates multiple spheres if `len(radius) > 1` | <code>5</code>
+`mask` |  | `Nifti1Image` (or path to a mask file) defining the brain space. Defaults to the package brain-space mask when None. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`Nifti1Image` |  | A binary image with the requested spheres in mask space.
 
 (mask-expand-mask)=
 #### `expand_mask`
@@ -131,7 +138,7 @@ with one binary row per ROI. Voxels whose atlas label is not in
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`values` |  | 1-D array of per-parcel scalars; ``len(values)`` must match ``len(roi_labels)`` (or the number of unique non-zero atlas labels when ``roi_labels`` is None). | *required*
+`values` |  | Per-parcel scalars, either 1-D `(n_parcels,)` for a single image or 2-D `(n_images, n_parcels)` for a stack of images. The trailing (parcel) axis must match `len(roi_labels)` (or the number of unique non-zero atlas labels when `roi_labels` is None). | *required*
 `atlas` |  | Labeled image — ``BrainData``, ``Nifti1Image``, or path-like. Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines differ. | *required*
 `source_mask` |  | ``Nifti1Image`` (or path) defining the output voxel grid. The returned ``BrainData`` is masked to this image. | *required*
 `roi_labels` |  | Integer atlas IDs in the same order as ``values``. If None, defaults to ``np.unique`` of the atlas with 0 stripped (sorted ascending). | <code>None</code>
@@ -141,8 +148,9 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | Single image, masked to ``source_mask``, with each
- |  | in-atlas voxel set to its parcel's scalar from ``values``.
+`BrainData` |  | Masked to `source_mask`, with each in-atlas voxel set to its
+ |  | parcel's scalar from `values`. Holds a single image when `values` is
+ |  | 1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
 **Examples:**
 

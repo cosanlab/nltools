@@ -82,7 +82,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to convolve. | *required*
 `conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
-`columns` | <code>list of str</code> | Columns to convolve (default: all non-polynomial columns) | <code>None</code>
+`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns) | <code>None</code>
 
 **Returns:**
 

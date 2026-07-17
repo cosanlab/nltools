@@ -19,11 +19,14 @@ ipywidgets = attempt_to_import(
 
 
 def component_viewer(output, tr=2.0):
-    """This a function to interactively view the results of a decomposition analysis.
+    """Interactively view the results of a `BrainData.decompose()` run.
 
     Args:
         output: (dict) output dictionary from running BrainData.decompose()
         tr: (float) repetition time of data
+
+    Returns:
+        None (renders interactive widgets inline)
     """
 
     if ipywidgets is None:
@@ -32,9 +35,12 @@ def component_viewer(output, tr=2.0):
         )
 
     def component_inspector(component, threshold):
-        """This a function to be used with ipywidgets to interactively view a decomposition analysis.
+        """Render one decomposition component, for use with ipywidgets interactive controls.
 
         Make sure you have tr and output assigned to variables.
+
+        Returns:
+            None (renders matplotlib figures inline)
 
         Example:
 

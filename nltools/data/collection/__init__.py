@@ -196,6 +196,23 @@ class BrainCollection:
         sort: bool = True,
         cache_dir: Path | str | None = "./.nltools_cache",
     ) -> BrainCollection:
+        """Build a collection by glob-matching brain images (and optional designs).
+
+        Args:
+            pattern: Glob pattern matching the per-subject brain image files.
+            mask: Shared mask image, path, or nltools template name.
+            design_pattern: Optional glob matching per-subject design files,
+                paired positionally with the brain images.
+            pattern_groups: Regex capture-group spec used to extract metadata
+                (e.g. subject/run) from each matched path.
+            sort: If True, sort matched paths before pairing (stable ordering).
+            cache_dir: Cache-directory precedence: explicit arg →
+                ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a
+                temp dir.
+
+        Returns:
+            A lazy, path-backed `BrainCollection`.
+        """
         return io.from_glob(
             cls,
             pattern,
@@ -216,6 +233,22 @@ class BrainCollection:
         metadata: pl.DataFrame | pd.DataFrame | dict | None = None,
         cache_dir: Path | str | None = "./.nltools_cache",
     ) -> BrainCollection:
+        """Build a collection from explicit lists of brain (and design) paths.
+
+        Args:
+            brain_paths: Per-subject brain image paths.
+            mask: Shared mask image, path, or nltools template name.
+            design_paths: Optional per-subject design paths, aligned positionally
+                with ``brain_paths`` (length must match, ``None`` entries allowed).
+            metadata: Optional per-subject metadata (polars/pandas DataFrame or
+                dict-of-columns), one row per path.
+            cache_dir: Cache-directory precedence: explicit arg →
+                ``NLTOOLS_CACHE_DIR`` env → ``./.nltools_cache``; ``None`` for a
+                temp dir.
+
+        Returns:
+            A lazy, path-backed `BrainCollection`.
+        """
         return io.from_paths(
             cls,
             brain_paths,
@@ -242,6 +275,7 @@ class BrainCollection:
 
     @property
     def n_subjects(self) -> int:
+        """Number of subjects (items) in the collection."""
         return len(self._items)
 
     @property
@@ -253,18 +287,21 @@ class BrainCollection:
 
     @property
     def mask(self) -> nib.Nifti1Image:
+        """Shared mask image for the collection. Raises if the mask is unset."""
         if self._mask is None:
             raise ValueError("mask not set")
         return self._mask
 
     @property
     def metadata(self) -> pl.DataFrame:
+        """Per-subject metadata as a polars DataFrame (one row per item)."""
         if self._metadata is None:
             raise ValueError("metadata not set")
         return self._metadata
 
     @property
     def designs(self) -> list:  # list[DesignMatrix | None]
+        """Per-subject paired designs (a copy of the list; ``None`` where unpaired)."""
         return list(self._designs)
 
     @property
@@ -291,11 +328,19 @@ class BrainCollection:
 
     @property
     def cache_root(self) -> Path:
+        """Run-scoped cache directory shared by clones. Raises if unset."""
         if self._cache_root is None:
             raise ValueError("cache_root not set (constructed with cache_dir=None?)")
         return self._cache_root
 
     def memory_estimate(self) -> str:
+        """Human-readable RAM estimate if every item were loaded into memory.
+
+        Returns:
+            A string reporting ``n_subjects``, the per-item shape (or "unknown"
+            for path-backed items not yet loaded), and an estimated float32
+            total in MB/GB.
+        """
         return io.memory_estimate(self)
 
     # ------------------------------------------------------------------
@@ -393,6 +438,7 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
+        """Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`)."""
         return self.apply(
             "smooth",
             fwhm=fwhm,
@@ -410,6 +456,18 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
+        """Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
+
+        Args:
+            axis: Axis along which to standardize (0 = across observations).
+            method: Standardization variant (e.g. ``'center'``, ``'zscore'``).
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+            cache: Cache policy for the result (``'auto'`` follows source state).
+
+        Returns:
+            A new `BrainCollection` of standardized items.
+        """
         return self.apply(
             "standardize",
             axis=axis,
@@ -427,6 +485,7 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
+        """Detrend every subject's image in parallel (delegates to `BrainData.detrend`)."""
         return self.apply(
             "detrend",
             method=method,
@@ -446,6 +505,20 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
+        """Threshold every subject's image in parallel (delegates to `BrainData.threshold`).
+
+        Args:
+            lower: Values below this are zeroed (or set NaN); ``None`` disables.
+            upper: Values above this are zeroed (or set NaN); ``None`` disables.
+            binarize: If True, set surviving voxels to 1.
+            coerce_nan: If True, coerce thresholded-out voxels to NaN instead of 0.
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+            cache: Cache policy for the result (``'auto'`` follows source state).
+
+        Returns:
+            A new `BrainCollection` of thresholded items.
+        """
         return self.apply(
             "threshold",
             lower=lower,
@@ -466,6 +539,22 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ) -> BrainCollection:
+        """Resample every subject's image to a target space in parallel.
+
+        Delegates to `BrainData.resample`.
+
+        Args:
+            target: Resampling target (image, affine/shape spec, or template)
+                passed through to `BrainData.resample`.
+            interpolation: Interpolation method (``'continuous'``, ``'linear'``,
+                ``'nearest'``).
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+            cache: Cache policy for the result (``'auto'`` follows source state).
+
+        Returns:
+            A new `BrainCollection` of resampled items.
+        """
         return self.apply(
             "resample",
             target=target,
@@ -734,10 +823,10 @@ class BrainCollection:
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
-    ):  # BrainData | BrainCollection
+    ):  # Predict | BrainCollection
         """Two distinct paths, dispatched by argument:
 
-          ``y=`` only    → group MVPA (subjects as samples) → ``BrainData``
+          ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
           ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
           both / neither → raise
 
@@ -793,7 +882,7 @@ class BrainCollection:
         n_jobs: int,
         progress_bar: bool,
     ):
-        """Group MVPA: subjects as samples → ``BrainData`` with CV attrs."""
+        """Group MVPA: subjects as samples → ``Predict`` dataclass with CV attrs."""
         from ..braindata import BrainData
 
         # Items must be single-map-per-subject (1, n_voxels) shape.
@@ -924,30 +1013,46 @@ class BrainCollection:
     # ------------------------------------------------------------------
 
     def concat(self) -> BrainData:
+        """Stack all subject maps into a single `BrainData` (subjects as rows)."""
         return inference.concat(self)
 
     def mean(self) -> BrainData:
+        """Voxelwise mean across subjects as a single `BrainData`."""
         return inference.mean(self)
 
     def std(self) -> BrainData:
+        """Voxelwise standard deviation across subjects as a single `BrainData`."""
         return inference.std(self)
 
     def var(self) -> BrainData:
+        """Voxelwise variance across subjects as a single `BrainData`."""
         return inference.var(self)
 
     def median(self) -> BrainData:
+        """Voxelwise median across subjects as a single `BrainData`."""
         return inference.median(self)
 
     def sum(self) -> BrainData:
+        """Voxelwise sum across subjects as a single `BrainData`."""
         return inference.sum_(self)
 
     def min(self) -> BrainData:
+        """Voxelwise minimum across subjects as a single `BrainData`."""
         return inference.min_(self)
 
     def max(self) -> BrainData:
+        """Voxelwise maximum across subjects as a single `BrainData`."""
         return inference.max_(self)
 
     def ttest(self, *, popmean: float = 0.0) -> dict:  # dict[str, BrainData]
+        """One-sample t-test across subjects (delegates to `inference.ttest`).
+
+        Args:
+            popmean: Null-hypothesis population mean to test against.
+
+        Returns:
+            Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps.
+        """
         return inference.ttest(self, popmean=popmean)
 
     def ttest2(
@@ -956,12 +1061,32 @@ class BrainCollection:
         *,
         equal_var: bool = True,
     ) -> dict:  # dict[str, BrainData]
+        """Two-sample t-test between this collection and ``other`` (subject-level).
+
+        Args:
+            other: The second collection to compare against.
+            equal_var: If True, pooled-variance t-test; if False, Welch's test.
+
+        Returns:
+            Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps (``mean`` is the
+            group difference).
+        """
         return inference.ttest2(self, other, equal_var=equal_var)
 
     def anova(
         self,
         groups: str | list | np.ndarray,
     ) -> dict:  # dict[str, BrainData]
+        """One-way ANOVA across subjects grouped by ``groups``.
+
+        Args:
+            groups: A metadata column name, or a list/ndarray of length
+                ``n_subjects`` giving each subject's group label.
+
+        Returns:
+            Dict with ``{'F', 'p'}`` `BrainData` maps plus ``df_between`` and
+            ``df_within`` degrees of freedom.
+        """
         return inference.anova(self, groups)
 
     def permutation_test(
@@ -974,6 +1099,20 @@ class BrainCollection:
         n_jobs: int = -1,
         random_state: int | None = None,
     ) -> dict:
+        """One-sample sign-flipping permutation test across subjects.
+
+        Args:
+            n_permute: Number of sign-flip permutations.
+            tail: 1 for one-tailed, 2 for two-tailed.
+            device: Backend selector (currently informational).
+            return_null: If True, include the null distribution in the result.
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            random_state: Seed for the sign-flip RNG.
+
+        Returns:
+            Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
+            ``'null_distribution'`` when ``return_null=True``.
+        """
         return inference.permutation_test(
             self,
             n_permute=n_permute,
@@ -995,6 +1134,23 @@ class BrainCollection:
         n_jobs: int = -1,
         random_state: int | None = None,
     ) -> dict:
+        """Two-sample permutation test between this collection and ``other``.
+
+        Uses random label shuffling of the pooled subjects.
+
+        Args:
+            other: The second collection to compare against.
+            n_permute: Number of label-shuffle permutations.
+            tail: 1 for one-tailed, 2 for two-tailed.
+            device: Backend selector (currently informational).
+            return_null: If True, include the null distribution in the result.
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            random_state: Seed for the shuffling RNG.
+
+        Returns:
+            Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
+            difference), plus ``'null_distribution'`` when ``return_null=True``.
+        """
         return inference.permutation_test2(
             self,
             other,
@@ -1021,6 +1177,23 @@ class BrainCollection:
         n_jobs: int = -1,
         progress_bar: bool = False,
     ) -> dict:
+        """Inter-subject correlation (ISC) across the time dimension.
+
+        Args:
+            method: ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all
+                subject pairs).
+            roi_mask: Optional ROI/atlas mask to restrict the computation.
+            radius_mm: Searchlight sphere radius in mm (when applicable).
+            metric: Aggregation across subjects/pairs (e.g. ``'median'``).
+            device: Backend selector (currently informational).
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+
+        Returns:
+            Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or
+            ``{'isc', 'pairs'}`` for ``method='pairwise'`` (``'isc'`` is a
+            `BrainData` map).
+        """
         return inference.isc(
             self,
             method=method,
@@ -1045,6 +1218,26 @@ class BrainCollection:
         progress_bar: bool = False,
         random_state: int | None = None,
     ) -> dict:
+        """Bootstrap inference on ISC (per-voxel p-values).
+
+        Resamples subjects with replacement, recomputes ISC each draw, and
+        derives a per-voxel two-tailed p-value from the null centered at 0.
+
+        Args:
+            method: ``'loo'`` or ``'pairwise'`` (matches `isc`).
+            roi_mask: Optional ROI/atlas mask to restrict the computation.
+            radius_mm: Searchlight sphere radius in mm (when applicable).
+            n_samples: Number of bootstrap resamples.
+            metric: Aggregation across subjects/pairs (e.g. ``'median'``).
+            device: Backend selector (currently informational).
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+            random_state: Seed for the bootstrap RNG.
+
+        Returns:
+            Dict ``{'isc', 'p', 'null_distribution'}`` (``'isc'`` and ``'p'`` are
+            `BrainData` maps).
+        """
         return inference.isc_test(
             self,
             method=method,
@@ -1073,6 +1266,29 @@ class BrainCollection:
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
     ):  # BrainCollection | tuple[BrainCollection, LocalAlignment]
+        """Functionally align subjects into a common space via `LocalAlignment`.
+
+        Materializes all subjects (algorithm constraint in v0.6.0).
+
+        Args:
+            method: Alignment solver (e.g. ``'procrustes'``).
+            spatial_scale: Alignment scope (``'searchlight'``, ``'roi'``,
+                ``'whole_brain'``).
+            radius_mm: Searchlight sphere radius in mm.
+            roi_mask: Parcellation/ROI mask (used when ``spatial_scale='roi'``).
+            n_features: Optional target feature count for the common space.
+            n_iter: LocalAlignment solver iteration count (not a permutation count).
+            device: Backend selector (``'cpu'``/``'gpu'``).
+            return_model: If True, also return the fitted `LocalAlignment`.
+            n_jobs: Parallel worker count (``-1`` uses all cores).
+            progress_bar: If True, show a progress bar.
+            cache: Cache policy for the result (``'auto'`` follows source state).
+
+        Returns:
+            A new `BrainCollection` of aligned data, or a
+            ``(BrainCollection, LocalAlignment)`` tuple when
+            ``return_model=True``.
+        """
         return inference.align(
             self,
             method=method,
@@ -1232,6 +1448,20 @@ class BrainCollection:
         pattern: str = "image_{i:04d}.nii.gz",
         metadata_file: str | None = "metadata.csv",
     ) -> list[Path]:
+        """Write a clean, portable copy of the collection outside the cache root.
+
+        Inverse of `BrainCollection.read`. Writes one NIfTI per item plus an
+        optional metadata CSV, skipping the internal cache layout so the result
+        is shareable/archival.
+
+        Args:
+            directory: Output directory (created if missing).
+            pattern: Filename template per item, formatted with ``i`` (item index).
+            metadata_file: CSV filename for the metadata table, or ``None`` to skip.
+
+        Returns:
+            List of written NIfTI paths, in item order.
+        """
         return io.write(self, directory, pattern=pattern, metadata_file=metadata_file)
 
     def cleanup(self) -> None:

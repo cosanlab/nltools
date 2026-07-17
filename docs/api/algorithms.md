@@ -132,7 +132,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model.
@@ -157,7 +157,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace.
@@ -185,7 +185,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -311,7 +312,7 @@ Name | Type | Description | Default
 ###### `fit`
 
 ```python
-fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -333,7 +334,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -379,7 +380,7 @@ Name | Type | Description
 #### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -387,54 +388,54 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-scheme : str, default='searchlight'
-    Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
-    (non-overlapping parcels).
-method : str, default='procrustes'
-    Alignment method: 'procrustes', 'srm', or 'hyperalignment'.
-radius_mm : float, default=10.0
-    Sphere radius in millimeters for searchlight scheme.
-parcellation : Nifti1Image, optional
-    Parcellation image for piecewise scheme. Required if scheme='piecewise'.
-n_features : int, optional
-    Number of features for SRM. None uses full Procrustes (preserves dims).
-n_iter : int, default=3
-    Number of iterations for alignment refinement.
-aggregation : str, default='center'
-    Aggregation method: 'center' (center-only, preserves orthogonality).
-parallel : str, optional
-    Parallelization: 'cpu', 'gpu', or None.
-    - None: Single-threaded numpy
-    - 'cpu': CPU parallelization with joblib
-    - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
-n_jobs : int, default=-1
-    Number of jobs for CPU parallelization.
+**Parameters:**
 
-transforms_ : Dict[int, List[np.ndarray]]
-    Per-neighborhood transforms. Keys are center voxel indices,
-    values are lists of transform matrices (one per subject).
-template_ : Dict[int, np.ndarray]
-    Per-neighborhood templates used for alignment.
-neighborhoods_ : SphereNeighborhoods or Dict
-    Computed neighborhoods (searchlight or piecewise).
-n_voxels_ : int
-    Total number of voxels in the mask.
-mask_ : Nifti1Image
-    Brain mask used for fitting.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
+`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
+`n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
+`aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch (falling back to numpy CPU if PyTorch is unavailable). Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
 
-Examples:
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
+`mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
+
+**Examples:**
+
+```pycon
 >>> import numpy as np
+>>> import nibabel as nib
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
+>>> # Build a mask whose nonzero voxels match the 1000-voxel data
+>>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
 >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
+```
 
-Notes:
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
+
+</details>
 
 **Methods:**
 
@@ -443,28 +444,6 @@ Name | Description
 [`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
 [`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#algorithms-transform) | Apply local transforms to data.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
-`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-`mask_` | <code>[Any](#typing.Any) \| None</code> | 
-`max_memory_gb` | <code>[float](#float)</code> | 
-`method` | <code>[str](#str)</code> | 
-`n_features` | <code>[int](#int) \| None</code> | 
-`n_iter` | <code>[int](#int)</code> | 
-`n_jobs` | <code>[int](#int)</code> | 
-`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
-`n_voxels_` | <code>[int](#int) \| None</code> | 
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`parallel` | <code>[str](#str) \| None</code> | 
-`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
-`radius_mm` | <code>[float](#float)</code> | 
-`scheme` | <code>[str](#str)</code> | 
-`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 ##### Methods
 
@@ -476,15 +455,18 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-    Subjects can have different numbers of samples - the underlying
-    alignment methods (SRM, HyperAlignment) handle this via zero-padding.
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-self : LocalAlignment
-    Fitted alignment model.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). Subjects can have different numbers of samples - the underlying alignment methods (SRM, HyperAlignment) handle this via zero-padding. | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`LocalAlignment` | <code>[LocalAlignment](#nltools.algorithms.alignment.local.LocalAlignment)</code> | The fitted alignment model (`self`).
 
 (algorithms-fit-transform)=
 ###### `fit_transform`
@@ -495,13 +477,18 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject.
 
 ###### `transform`
 
@@ -516,11 +503,17 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject, shape (n_voxels, n_samples).
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject, each shape (n_voxels, n_samples).
 
 (algorithms-srm)=
 #### `SRM`
@@ -614,7 +607,7 @@ Name | Description
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model.
@@ -639,7 +632,7 @@ Name | Type | Description
 ###### `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space.
@@ -666,7 +659,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -902,7 +896,7 @@ Name | Type | Description | Default
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
 `fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -929,7 +923,9 @@ Name | Type | Description
 
 - Uses R**2 (coefficient of determination) as the scoring metric
 - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-- When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
+- parallel='gpu' requires torch installed; with torch present but no GPU device it
+  runs on torch-CPU. It does not fall back to NumPy when torch is absent — use
+  parallel='auto' for that.
 
 </details>
 
@@ -977,7 +973,7 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
 `alpha` | <code>[float](#float)</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to None. | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -1293,7 +1289,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model.
@@ -1317,7 +1313,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace.
@@ -1344,7 +1340,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -1496,7 +1493,7 @@ n_iter = n_iter
 ###### `fit`
 
 ```python
-fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -1518,7 +1515,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -1563,7 +1560,7 @@ Name | Type | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -1571,54 +1568,54 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-scheme : str, default='searchlight'
-    Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
-    (non-overlapping parcels).
-method : str, default='procrustes'
-    Alignment method: 'procrustes', 'srm', or 'hyperalignment'.
-radius_mm : float, default=10.0
-    Sphere radius in millimeters for searchlight scheme.
-parcellation : Nifti1Image, optional
-    Parcellation image for piecewise scheme. Required if scheme='piecewise'.
-n_features : int, optional
-    Number of features for SRM. None uses full Procrustes (preserves dims).
-n_iter : int, default=3
-    Number of iterations for alignment refinement.
-aggregation : str, default='center'
-    Aggregation method: 'center' (center-only, preserves orthogonality).
-parallel : str, optional
-    Parallelization: 'cpu', 'gpu', or None.
-    - None: Single-threaded numpy
-    - 'cpu': CPU parallelization with joblib
-    - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
-n_jobs : int, default=-1
-    Number of jobs for CPU parallelization.
+**Parameters:**
 
-transforms_ : Dict[int, List[np.ndarray]]
-    Per-neighborhood transforms. Keys are center voxel indices,
-    values are lists of transform matrices (one per subject).
-template_ : Dict[int, np.ndarray]
-    Per-neighborhood templates used for alignment.
-neighborhoods_ : SphereNeighborhoods or Dict
-    Computed neighborhoods (searchlight or piecewise).
-n_voxels_ : int
-    Total number of voxels in the mask.
-mask_ : Nifti1Image
-    Brain mask used for fitting.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
+`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
+`n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
+`aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch (falling back to numpy CPU if PyTorch is unavailable). Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
 
-Examples:
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
+`mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
+
+**Examples:**
+
+```pycon
 >>> import numpy as np
+>>> import nibabel as nib
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
+>>> # Build a mask whose nonzero voxels match the 1000-voxel data
+>>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
 >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
+```
 
-Notes:
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
+
+</details>
 
 **Methods:**
 
@@ -1627,28 +1624,6 @@ Name | Description
 [`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
 [`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#algorithms-transform) | Apply local transforms to data.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
-`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-`mask_` | <code>[Any](#typing.Any) \| None</code> | 
-`max_memory_gb` | <code>[float](#float)</code> | 
-`method` | <code>[str](#str)</code> | 
-`n_features` | <code>[int](#int) \| None</code> | 
-`n_iter` | <code>[int](#int)</code> | 
-`n_jobs` | <code>[int](#int)</code> | 
-`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
-`n_voxels_` | <code>[int](#int) \| None</code> | 
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`parallel` | <code>[str](#str) \| None</code> | 
-`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
-`radius_mm` | <code>[float](#float)</code> | 
-`scheme` | <code>[str](#str)</code> | 
-`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -1733,6 +1708,12 @@ parallel: str | None = 'cpu'
 parcellation: Any | None = None
 ```
 
+######## `progress_bar`
+
+```python
+progress_bar: bool = False
+```
+
 ######## `radius_mm`
 
 ```python
@@ -1769,15 +1750,18 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-    Subjects can have different numbers of samples - the underlying
-    alignment methods (SRM, HyperAlignment) handle this via zero-padding.
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-self : LocalAlignment
-    Fitted alignment model.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). Subjects can have different numbers of samples - the underlying alignment methods (SRM, HyperAlignment) handle this via zero-padding. | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`LocalAlignment` | <code>[LocalAlignment](#nltools.algorithms.alignment.local.LocalAlignment)</code> | The fitted alignment model (`self`).
 
 ######## `fit_transform`
 
@@ -1787,13 +1771,18 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject.
 
 ######## `transform`
 
@@ -1808,11 +1797,17 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject, shape (n_voxels, n_samples).
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject, each shape (n_voxels, n_samples).
 
 ###### `SRM`
 
@@ -1929,7 +1924,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model.
@@ -1954,7 +1949,7 @@ Name | Type | Description
 ######## `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space.
@@ -1981,7 +1976,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -2193,7 +2189,7 @@ n_iter = n_iter
 ###### `fit`
 
 ```python
-fit(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
+fit(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> HyperAlignment
 ```
 
 Fit hyperalignment model to data.
@@ -2215,7 +2211,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(data: list[np.ndarray], parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(data: list[np.ndarray], *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Transform data to common space using fitted transformations.
@@ -2280,7 +2276,7 @@ Name | Description
 ###### `LocalAlignment`
 
 ```python
-LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(scheme: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, parcellation: Any | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float = 4.0, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: Any | None = None, backend_: Backend | None = None) -> None
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -2288,54 +2284,54 @@ Local (neighborhood-based) functional alignment across subjects.
 Learns alignment transforms within local neighborhoods (searchlight spheres
 or parcels) and applies center-only aggregation to preserve orthogonality.
 
-scheme : str, default='searchlight'
-    Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
-    (non-overlapping parcels).
-method : str, default='procrustes'
-    Alignment method: 'procrustes', 'srm', or 'hyperalignment'.
-radius_mm : float, default=10.0
-    Sphere radius in millimeters for searchlight scheme.
-parcellation : Nifti1Image, optional
-    Parcellation image for piecewise scheme. Required if scheme='piecewise'.
-n_features : int, optional
-    Number of features for SRM. None uses full Procrustes (preserves dims).
-n_iter : int, default=3
-    Number of iterations for alignment refinement.
-aggregation : str, default='center'
-    Aggregation method: 'center' (center-only, preserves orthogonality).
-parallel : str, optional
-    Parallelization: 'cpu', 'gpu', or None.
-    - None: Single-threaded numpy
-    - 'cpu': CPU parallelization with joblib
-    - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
-n_jobs : int, default=-1
-    Number of jobs for CPU parallelization.
+**Parameters:**
 
-transforms_ : Dict[int, List[np.ndarray]]
-    Per-neighborhood transforms. Keys are center voxel indices,
-    values are lists of transform matrices (one per subject).
-template_ : Dict[int, np.ndarray]
-    Per-neighborhood templates used for alignment.
-neighborhoods_ : SphereNeighborhoods or Dict
-    Computed neighborhoods (searchlight or piecewise).
-n_voxels_ : int
-    Total number of voxels in the mask.
-mask_ : Nifti1Image
-    Brain mask used for fitting.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`scheme` | <code>[str](#str)</code> | Spatial scheme, either 'searchlight' (overlapping spheres) or 'piecewise' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
+`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scheme. Defaults to 10.0. | <code>10.0</code>
+`parcellation` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the piecewise scheme. Required if `scheme='piecewise'`. Defaults to None. | <code>None</code>
+`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
+`n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
+`aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
+`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch (falling back to numpy CPU if PyTorch is unavailable). Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
 
-Examples:
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
+`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
+`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or piecewise).
+`n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
+`mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
+
+**Examples:**
+
+```pycon
 >>> import numpy as np
+>>> import nibabel as nib
 >>> from nltools.algorithms.alignment import LocalAlignment
 >>> # Create synthetic multi-subject data (voxels, samples)
 >>> data = [np.random.randn(1000, 100) for _ in range(5)]
+>>> # Build a mask whose nonzero voxels match the 1000-voxel data
+>>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
 >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
 >>> la.fit(data, mask)
 >>> aligned = la.transform(data)
+```
 
-Notes:
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
 Based on Bazeille et al. 2021 "An empirical evaluation of functional
 alignment using inter-subject decoding". Center-only aggregation is
 used to preserve local orthogonality of transforms.
+
+</details>
 
 **Methods:**
 
@@ -2344,28 +2340,6 @@ Name | Description
 [`fit`](#algorithms-fit) | Fit local alignment on multi-subject data.
 [`fit_transform`](#algorithms-fit-transform) | Fit alignment and transform data in one step.
 [`transform`](#algorithms-transform) | Apply local transforms to data.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-[`aggregation`](#algorithms-aggregation) | <code>[str](#str)</code> | 
-`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | 
-`mask_` | <code>[Any](#typing.Any) \| None</code> | 
-`max_memory_gb` | <code>[float](#float)</code> | 
-`method` | <code>[str](#str)</code> | 
-`n_features` | <code>[int](#int) \| None</code> | 
-`n_iter` | <code>[int](#int)</code> | 
-`n_jobs` | <code>[int](#int)</code> | 
-`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | 
-`n_voxels_` | <code>[int](#int) \| None</code> | 
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`parallel` | <code>[str](#str) \| None</code> | 
-`parcellation` | <code>[Any](#typing.Any) \| None</code> | 
-`radius_mm` | <code>[float](#float)</code> | 
-`scheme` | <code>[str](#str)</code> | 
-`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)] \| None</code> | 
-`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]] \| None</code> | 
 
 
 
@@ -2449,6 +2423,12 @@ parallel: str | None = 'cpu'
 parcellation: Any | None = None
 ```
 
+########## `progress_bar`
+
+```python
+progress_bar: bool = False
+```
+
 ########## `radius_mm`
 
 ```python
@@ -2485,15 +2465,18 @@ fit(data: list[np.ndarray], mask: nib.Nifti1Image) -> LocalAlignment
 
 Fit local alignment on multi-subject data.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-    Subjects can have different numbers of samples - the underlying
-    alignment methods (SRM, HyperAlignment) handle this via zero-padding.
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-self : LocalAlignment
-    Fitted alignment model.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). Subjects can have different numbers of samples - the underlying alignment methods (SRM, HyperAlignment) handle this via zero-padding. | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`LocalAlignment` | <code>[LocalAlignment](#nltools.algorithms.alignment.local.LocalAlignment)</code> | The fitted alignment model (`self`).
 
 ########## `fit_transform`
 
@@ -2503,13 +2486,18 @@ fit_transform(data: list[np.ndarray], mask: nib.Nifti1Image) -> list[np.ndarray]
 
 Fit alignment and transform data in one step.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
-mask : Nifti1Image
-    Brain mask defining the voxel space.
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject.
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject.
 
 ########## `transform`
 
@@ -2524,11 +2512,17 @@ the transform from the neighborhood where it was the center.
 
 For piecewise scheme: all voxels in each parcel use the same transform.
 
-data : List[np.ndarray]
-    List of subject data arrays, each shape (n_voxels, n_samples).
+**Parameters:**
 
-List[np.ndarray]
-    Aligned data for each subject, shape (n_voxels, n_samples).
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | list[np.ndarray]: Aligned data for each subject, each shape (n_voxels, n_samples).
 
 ###### `srm`
 
@@ -2730,7 +2724,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0) -> DetSRM
 ```
 
 Compute the Deterministic Shared Response Model.
@@ -2754,7 +2748,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray]
 ```
 
 Use the model to transform data to the Shared Response subspace.
@@ -2781,7 +2775,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -2910,7 +2905,7 @@ rand_seed = rand_seed
 ###### `fit`
 
 ```python
-fit(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
+fit(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, pad_samples: bool = True) -> SRM
 ```
 
 Compute the probabilistic Shared Response Model.
@@ -2935,7 +2930,7 @@ Name | Type | Description
 ########## `transform`
 
 ```python
-transform(X: list[np.ndarray], y: Any | None = None, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
+transform(X: list[np.ndarray], y: Any | None = None, *, parallel: str | None = 'cpu', n_jobs: int = -1) -> list[np.ndarray | None]
 ```
 
 Use the model to transform matrix to Shared Response space.
@@ -2962,7 +2957,8 @@ transform_subject(X: np.ndarray) -> np.ndarray
 ```
 
 Transform a new subject using the existing model.
-The subject is assumed to have recieved equivalent stimulation
+
+The subject is assumed to have received equivalent stimulation.
 
 **Parameters:**
 
@@ -6714,7 +6710,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'backend': Backend used (for transparency).
 
 (algorithms-generate-dirichlet-samples)=
 ###### `generate_dirichlet_samples`
@@ -6776,7 +6772,7 @@ Name | Type | Description | Default
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
 `fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -6803,7 +6799,9 @@ Name | Type | Description
 
 - Uses R**2 (coefficient of determination) as the scoring metric
 - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-- When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
+- parallel='gpu' requires torch installed; with torch present but no GPU device it
+  runs on torch-CPU. It does not fall back to NumPy when torch is absent — use
+  parallel='auto' for that.
 
 </details>
 
@@ -6850,7 +6848,7 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
 `alpha` | <code>[float](#float)</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to None. | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -6895,7 +6893,7 @@ Type | Description
 ###### `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -6944,7 +6942,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'backend': Backend used (for transparency).
 
 **Examples:**
 
@@ -7006,7 +7004,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ###### `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7040,7 +7038,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'backend': Backend used (for transparency).
 
 **Examples:**
 
@@ -7170,7 +7168,7 @@ Name | Type | Description | Default
 `alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
 `fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to "cpu". | <code>'cpu'</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -7197,7 +7195,9 @@ Name | Type | Description
 
 - Uses R**2 (coefficient of determination) as the scoring metric
 - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-- When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
+- parallel='gpu' requires torch installed; with torch present but no GPU device it
+  runs on torch-CPU. It does not fall back to NumPy when torch is absent — use
+  parallel='auto' for that.
 
 </details>
 
@@ -7244,7 +7244,7 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
 `y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
 `alpha` | <code>[float](#float)</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable) Defaults to None. | <code>None</code>
+`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>4.0</code>
 `random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
@@ -7352,12 +7352,12 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'predictions': (n_samples, n_targets) held-out per-target   predictions on the original Y scale (CPU numpy). - 'folds': (n_samples,) int fold index per row (CPU numpy). - 'scores': (n_splits, n_targets) per-fold R² (or   ``score_func``) at the supplied alpha (CPU numpy). - 'backend': Backend used (for transparency).
 
 ######## `solve_banded_ridge_cv`
 
 ```python
-solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_banded_ridge_cv(Xs: list[np.ndarray], Y: np.ndarray, *, n_iter: int | np.ndarray = 100, concentration: float | list[float] = [0.1, 1.0], alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, jitter_alphas: bool = False, return_weights: bool = True, diagonalize_method: str = 'svd', warn: bool = True, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve banded ridge regression with cross-validation using random search.
@@ -7406,7 +7406,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'deltas': Best log feature-space weights for each target,     shape (n_spaces, n_targets). deltas = log(gamma / alpha), where     gamma are the feature space weights. - 'cv_scores': Cross-validation scores per iteration, averaged over splits,     for the best alpha, shape (n_iter, n_targets). Always returned on CPU     (numpy array). - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,     shape (n_features_total, n_targets), or None if return_weights=False.     Always returned on CPU (numpy array). - 'intercept': Intercept of shape (n_targets,), or None if     fit_intercept=False or return_weights=False. - 'backend': Backend used (for transparency).
 
 **Examples:**
 
@@ -7467,7 +7467,7 @@ See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
 ######## `solve_ridge_cv`
 
 ```python
-solve_ridge_cv(X: np.ndarray, Y: np.ndarray, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+solve_ridge_cv(X: np.ndarray, Y: np.ndarray, *, alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0], cv: int | BaseCrossValidator = 5, local_alpha: bool = True, n_targets_batch: int | None = None, n_targets_batch_refit: int | None = None, n_alphas_batch: int | None = None, Y_in_cpu: bool = True, score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None, fit_intercept: bool = False, progress_bar: bool = False, conservative: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Solve ridge regression with cross-validation.
@@ -7501,7 +7501,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'parallel': Backend used (for transparency).
+`dict` | <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys: - 'best_alphas': Selected best alpha for each target (or same alpha repeated     if local_alpha=False), shape (n_targets,). - 'coefs': Ridge coefficients refit on entire dataset using best alphas,     shape (n_features, n_targets). Always returned on CPU (numpy array). - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).     Always returned on CPU (numpy array). - 'intercept': Per-target intercept of shape (n_targets,). Only present     when ``fit_intercept=True``. - 'backend': Backend used (for transparency).
 
 **Examples:**
 

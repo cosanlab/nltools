@@ -26,11 +26,15 @@ def create_sphere(coordinates, radius=5, mask=None):
     """Generate spheres in brain-mask space.
 
     Args:
-        radius: vector of radius.  Will create multiple spheres if
-                len(radius) > 1
-        centers: a vector of sphere centers of the form [px, py, pz] or
-                [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+        coordinates: a vector of sphere centers of the form `[px, py, pz]` or
+            `[[px1, py1, pz1], ..., [pxn, pyn, pzn]]`
+        radius: radius of the sphere(s). A scalar creates one sphere per
+            center; a vector creates multiple spheres if `len(radius) > 1`
+        mask: `Nifti1Image` (or path to a mask file) defining the brain space.
+            Defaults to the package brain-space mask when None.
 
+    Returns:
+        Nifti1Image: A binary image with the requested spheres in mask space.
     """
     from nltools.data import BrainData
 
@@ -275,9 +279,10 @@ def roi_to_brain_from_atlas(
     ``roi_labels`` (or whose label is 0) receive ``fill``.
 
     Args:
-        values: 1-D array of per-parcel scalars; ``len(values)`` must match
-            ``len(roi_labels)`` (or the number of unique non-zero atlas
-            labels when ``roi_labels`` is None).
+        values: Per-parcel scalars, either 1-D `(n_parcels,)` for a single
+            image or 2-D `(n_images, n_parcels)` for a stack of images. The
+            trailing (parcel) axis must match `len(roi_labels)` (or the number
+            of unique non-zero atlas labels when `roi_labels` is None).
         atlas: Labeled image — ``BrainData``, ``Nifti1Image``, or path-like.
             Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines
             differ.
@@ -289,8 +294,9 @@ def roi_to_brain_from_atlas(
         fill: Value for voxels not in any provided ROI. Default ``np.nan``.
 
     Returns:
-        BrainData: Single image, masked to ``source_mask``, with each
-        in-atlas voxel set to its parcel's scalar from ``values``.
+        BrainData: Masked to `source_mask`, with each in-atlas voxel set to its
+        parcel's scalar from `values`. Holds a single image when `values` is
+        1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
     Examples:
         >>> from nltools.mask import roi_to_brain_from_atlas

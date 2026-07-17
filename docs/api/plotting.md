@@ -30,7 +30,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#plotting-component-viewer) | This a function to interactively view the results of a decomposition analysis.
+[`component_viewer`](#plotting-component-viewer) | Interactively view the results of a `BrainData.decompose()` run.
 [`plot_between_label_distance`](#plotting-plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
 [`plot_dist_from_hyperplane`](#plotting-plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
 [`plot_flatmap`](#plotting-plot-flatmap) | Plot brain data on cortical flatmap.
@@ -54,7 +54,7 @@ Name | Description
 component_viewer(output, tr = 2.0)
 ```
 
-This a function to interactively view the results of a decomposition analysis.
+Interactively view the results of a `BrainData.decompose()` run.
 
 **Parameters:**
 
@@ -62,6 +62,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | None (renders interactive widgets inline)
 
 (plotting-plot-between-label-distance)=
 #### `plot_between_label_distance`
@@ -108,19 +114,19 @@ Plot SVM Classification Distance from Hyperplane.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn plot of distance from hyperplane
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid of distance from hyperplane
 
 (plotting-plot-flatmap)=
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -217,7 +223,7 @@ Create an interactive brain visualization with nilearn.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `brain` | <code>[BrainData](#nltools.BrainData)</code> | a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume) | *required*
-`threshold` | <code>[float](#float) / [str](#str)</code> | threshold to initialize the visualization, maybe be a percentile string; default 0 | <code>1e-06</code>
+`threshold` | <code>[float](#float) / [str](#str)</code> | threshold to initialize the visualization, may be a percentile string; default 1e-6 | <code>1e-06</code>
 `surface` | <code>[bool](#bool)</code> | whether to create a surface-based plot; default False | <code>False</code>
 `percentile_threshold` | <code>[bool](#bool)</code> | whether to interpret threshold values as percentiles | <code>False</code>
 `kwargs` |  | optional arguments to nilearn.view_img or nilearn.view_img_on_surf | <code>{}</code>
@@ -226,7 +232,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | interactive brain viewer widget
+ | None (renders widgets inline)
 
 (plotting-plot-mean-label-distance)=
 #### `plot_mean_label_distance`
@@ -269,13 +275,13 @@ Plot Classification Probability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn scatterplot
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid scatterplot
 
 (plotting-plot-roc)=
 #### `plot_roc`
@@ -295,9 +301,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a matplotlib ROC plot
+Type | Description
+---- | -----------
+ | a matplotlib Figure
 
 (plotting-plot-scatter)=
 #### `plot_scatter`
@@ -312,19 +318,19 @@ Plot Prediction Scatterplot.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn scatterplot
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid scatterplot
 
 (plotting-plot-silhouette)=
 #### `plot_silhouette`
 
 ```python
-plot_silhouette(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(distance, labels, *, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
 ```
 
 Silhouette plot indicating between- vs within-label distance.
@@ -344,7 +350,8 @@ Name | Type | Description | Default
 `ax` |  | Matplotlib axis to plot on (optional). | <code>None</code>
 `permutation_test` |  | If True, run a one-sample permutation test per cluster on positive-mean silhouette scores. | <code>True</code>
 `n_permute` |  | Number of permutations. | <code>5000</code>
-`**kwargs` |  | Optional. `colors` (list of RGB triplets, one per cluster) and `figsize` (tuple) control the plot appearance. | <code>{}</code>
+`colors` |  | Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette). | <code>None</code>
+`figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
 
 **Returns:**
 
@@ -509,7 +516,7 @@ Type | Description
 ###### `plot_silhouette`
 
 ```python
-plot_silhouette(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(distance, labels, *, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
 ```
 
 Silhouette plot indicating between- vs within-label distance.
@@ -529,7 +536,8 @@ Name | Type | Description | Default
 `ax` |  | Matplotlib axis to plot on (optional). | <code>None</code>
 `permutation_test` |  | If True, run a one-sample permutation test per cluster on positive-mean silhouette scores. | <code>True</code>
 `n_permute` |  | Number of permutations. | <code>5000</code>
-`**kwargs` |  | Optional. `colors` (list of RGB triplets, one per cluster) and `figsize` (tuple) control the plot appearance. | <code>{}</code>
+`colors` |  | Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette). | <code>None</code>
+`figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
 
 **Returns:**
 
@@ -582,7 +590,7 @@ Name | Description
 ###### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -678,7 +686,7 @@ Create an interactive brain visualization with nilearn.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `brain` | <code>[BrainData](#nltools.BrainData)</code> | a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume) | *required*
-`threshold` | <code>[float](#float) / [str](#str)</code> | threshold to initialize the visualization, maybe be a percentile string; default 0 | <code>1e-06</code>
+`threshold` | <code>[float](#float) / [str](#str)</code> | threshold to initialize the visualization, may be a percentile string; default 1e-6 | <code>1e-06</code>
 `surface` | <code>[bool](#bool)</code> | whether to create a surface-based plot; default False | <code>False</code>
 `percentile_threshold` | <code>[bool](#bool)</code> | whether to interpret threshold values as percentiles | <code>False</code>
 `kwargs` |  | optional arguments to nilearn.view_img or nilearn.view_img_on_surf | <code>{}</code>
@@ -687,7 +695,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | interactive brain viewer widget
+ | None (renders widgets inline)
 
 ###### `plot_surf`
 
@@ -743,7 +751,7 @@ ICA/PCA component viewer — interactive decomposition explorer.
 
 Name | Description
 ---- | -----------
-[`component_viewer`](#plotting-component-viewer) | This a function to interactively view the results of a decomposition analysis.
+[`component_viewer`](#plotting-component-viewer) | Interactively view the results of a `BrainData.decompose()` run.
 
 ##### Methods
 
@@ -753,7 +761,7 @@ Name | Description
 component_viewer(output, tr = 2.0)
 ```
 
-This a function to interactively view the results of a decomposition analysis.
+Interactively view the results of a `BrainData.decompose()` run.
 
 **Parameters:**
 
@@ -761,6 +769,12 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `output` |  | (dict) output dictionary from running BrainData.decompose() | *required*
 `tr` |  | (float) repetition time of data | <code>2.0</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | None (renders interactive widgets inline)
 
 (plotting-prediction)=
 #### `prediction`
@@ -792,13 +806,13 @@ Plot SVM Classification Distance from Hyperplane.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn plot of distance from hyperplane
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid of distance from hyperplane
 
 ###### `plot_probability`
 
@@ -812,13 +826,13 @@ Plot Classification Probability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn scatterplot
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid scatterplot
 
 ###### `plot_roc`
 
@@ -837,9 +851,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a matplotlib ROC plot
+Type | Description
+---- | -----------
+ | a matplotlib Figure
 
 ###### `plot_scatter`
 
@@ -853,11 +867,11 @@ Plot Prediction Scatterplot.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stats_output` |  | a pandas file with prediction output | *required*
+`stats_output` |  | pandas DataFrame with prediction output | *required*
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fig` |  | Will return a seaborn scatterplot
+Type | Description
+---- | -----------
+ | a seaborn FacetGrid scatterplot
 

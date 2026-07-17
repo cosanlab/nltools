@@ -154,7 +154,7 @@ Name | Type | Description
 #### `append`
 
 ```python
-append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
+append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -169,7 +169,7 @@ Name | Type | Description | Default
 `unique_cols` | <code>list of str</code> | Additional columns to keep separated (supports wildcards). | <code>None</code>
 `fill_na` | <code>[int](#int) or [float](#float)</code> | Value to fill NaN values during vertical concatenation. Default: 0. | <code>0</code>
 `as_confounds` | <code>[bool](#bool)</code> | Only applies when ``axis=1``. If True, mark all columns from ``dm`` as nuisance/confounds in the result — they get skipped by ``.convolve()`` and separated across runs on later vertical appends. Default: False. | <code>False</code>
-`verbose` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | Print messages about confound separation. Default: False. | <code>False</code>
 
 **Returns:**
 
@@ -181,7 +181,7 @@ Name | Type | Description
 #### `clean`
 
 ```python
-clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, progress_bar: bool = False) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -193,7 +193,7 @@ Name | Type | Description | Default
 `fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations (default 0) | <code>0</code>
 `exclude_confounds` | <code>[bool](#bool)</code> | Skip confound/nuisance columns from correlation check | <code>False</code>
 `thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh, default 0.95) | <code>0.95</code>
-`verbose` | <code>[bool](#bool)</code> | Print dropped column names | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Print dropped column names. Default: False | <code>False</code>
 
 **Returns:**
 
@@ -404,7 +404,7 @@ Standardize columns using the specified method.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
 
 **Returns:**
 
@@ -569,7 +569,7 @@ Z-score standardize columns to mean zero and unit variance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-polynomial columns. | <code>None</code>
+`columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
 
 **Returns:**
 

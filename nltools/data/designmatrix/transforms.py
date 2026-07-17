@@ -23,7 +23,7 @@ def zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix:
     Args:
         dm: DesignMatrix instance to transform.
         columns (list of str, optional): Columns to standardize. If None,
-            standardize all non-polynomial columns.
+            standardize all non-confound columns.
 
     Returns:
         DesignMatrix: New DesignMatrix with standardized columns
@@ -62,7 +62,7 @@ def standardize(
     Args:
         dm: DesignMatrix instance to transform.
         columns: Columns to standardize. If None, standardize all
-            non-polynomial columns.
+            non-confound columns.
         method: Standardization method. Options are:
             - 'zscore': Z-score standardization (mean=0, std=1) [default]
             - 'center': Mean centering only (mean=0)

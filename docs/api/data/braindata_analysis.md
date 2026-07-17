@@ -451,7 +451,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(bd, image, method = 'correlation')
+similarity(bd, image, metric = 'correlation')
 ```
 
 Calculate similarity to a single BrainData or nibabel image.
@@ -462,7 +462,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `image` |  | (BrainData, nifti)  image to evaluate similarity | *required*
-`method` |  | (str) Type of similarity     ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine'] | <code>'correlation'</code>
+`metric` |  | (str) Type of similarity     ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine'] | <code>'correlation'</code>
 
 **Returns:**
 
@@ -496,7 +496,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(bd, *, axis = 0, method = 'center', verbose = True)
+standardize(bd, *, axis = 0, method = 'center', suppress_warnings = False)
 ```
 
 Standardize BrainData() instance.
@@ -508,7 +508,7 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
 `method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
-`verbose` |  | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: True) | <code>True</code>
+`suppress_warnings` |  | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: False) | <code>False</code>
 
 **Returns:**
 

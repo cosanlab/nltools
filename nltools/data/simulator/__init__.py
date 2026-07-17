@@ -1,10 +1,4 @@
-"""
-NeuroLearn Simulator Tools
-==========================
-
-Tools to simulate multivariate data.
-
-"""
+"""Tools to simulate multivariate brain and grid data for testing analysis pipelines."""
 
 __all__ = ["SimulateGrid", "Simulator"]
 
@@ -48,7 +42,7 @@ class Simulator:
         >>> from nltools.data.simulator import Simulator
         >>> sim = Simulator(random_state=42)
         >>> # Create a dataset with signal in specific regions
-        >>> data = sim.create_data(y=[1, -1, 1, -1], sigma=1, n_reps=10)
+        >>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
     """
 
     def __init__(
@@ -70,7 +64,7 @@ class Simulator:
         self.random_state = check_random_state(random_state)
 
     def gaussian(self, mu, sigma, i_tot):
-        """create a 3D gaussian signal normalized to a given intensity
+        """Create a 3D gaussian signal normalized to a given intensity.
 
         Args:
             mu: average value of the gaussian signal (usually set to 0)
@@ -100,7 +94,7 @@ class Simulator:
         return g
 
     def sphere(self, r, p):
-        """create a sphere of given radius at some point p in the brain mask
+        """Create a sphere of given radius at some point p in the brain mask.
 
         Args:
             r: radius of the sphere
@@ -122,7 +116,7 @@ class Simulator:
         return activation.get_fdata()
 
     def normal_noise(self, mu, sigma):
-        """produce a normal noise distribution for all all points in the brain mask
+        """Produce a normal noise distribution for all points in the brain mask.
 
         Args:
             mu: average value of the gaussian signal (usually set to 0)
@@ -140,7 +134,7 @@ class Simulator:
         return m.get_fdata()
 
     def to_nifti(self, m):
-        """convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+        """Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
 
         Args:
             m: the 3D numpy matrix we wish to convert to .nii
@@ -155,7 +149,7 @@ class Simulator:
         return ni
 
     def n_spheres(self, radius, center):
-        """generate a set of spheres in the brain mask space
+        """Generate a set of spheres in the brain mask space.
 
         Args:
             radius: vector of radius.  Will create multiple spheres if len(radius) > 1
@@ -191,7 +185,7 @@ class Simulator:
     def create_data(
         self, levels, sigma, *, radius=5, center=None, reps=1, output_dir=None
     ):
-        """create simulated data with integers
+        """Create simulated data with discrete intensity levels.
 
         Args:
             levels: vector of intensities or class labels
@@ -200,7 +194,6 @@ class Simulator:
             center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
             reps: number of data repetitions useful for trials or subjects
             output_dir: string path of directory to output data.  If None, no data will be written
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
         import polars as pl
@@ -253,18 +246,16 @@ class Simulator:
     def create_cov_data(
         self, cor, cov, sigma, *, mask=None, reps=1, n_sub=1, output_dir=None
     ):
-        """create continuous simulated data with covariance
+        """Create continuous simulated data with covariance within a single region.
 
         Args:
             cor: amount of covariance between each voxel and Y variable
             cov: amount of covariance between voxels
             sigma: amount of noise to add
-            radius: vector of radius.  Will create multiple spheres if len(radius) > 1
-            center: center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]]
+            mask: region where activations are placed (a single mask image); defaults to a sphere if None
             reps: number of data repetitions
             n_sub: number of subjects to simulate
             output_dir: string path of directory to output data.  If None, no data will be written
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
 
@@ -366,17 +357,16 @@ class Simulator:
     def create_ncov_data(
         self, cor, cov, sigma, *, masks=None, reps=1, n_sub=1, output_dir=None
     ):
-        """create continuous simulated data with covariance
+        """Create continuous simulated data with covariance across multiple regions.
 
         Args:
             cor: amount of covariance between each voxel and Y variable (an int or a vector)
             cov: amount of covariance between voxels (an int or a matrix)
             sigma: amount of noise to add
-            mask: region(s) where we will have activations (list if more than one)
+            masks: region(s) where we will have activations (list if more than one)
             reps: number of data repetitions
             n_sub: number of subjects to simulate
             output_dir: string path of directory to output data.  If None, no data will be written
-            **kwargs: Additional keyword arguments to pass to the prediction algorithm
 
         """
 
@@ -534,7 +524,7 @@ class SimulateGrid:
     Examples:
         >>> from nltools.data.simulator import SimulateGrid
         >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
-        >>> sim.fit(n_permute=1000)
+        >>> sim.fit()
         >>> sim.plot()
     """
 
@@ -570,7 +560,7 @@ class SimulateGrid:
             self.signal_mask = None
 
     def _create_noise(self):
-        """Generate simualted data using object parameters
+        """Generate simulated data using object parameters.
 
         Returns:
             simulated_data (np.array): simulated noise using object parameters
@@ -581,7 +571,7 @@ class SimulateGrid:
         )
 
     def add_signal(self, signal_width=20, signal_amplitude=1):
-        """Add rectangular signal to self.data
+        """Add a rectangular signal to self.data.
 
         Args:
             signal_width (int): width of signal box
@@ -613,7 +603,7 @@ class SimulateGrid:
         self.signal_mask = mask
 
     def _run_ttest(self, data):
-        """Helper function to run ttest on data"""
+        """Run a one-sample t-test on data (helper function)."""
         flattened = data.reshape(self.grid_width * self.grid_width, self.n_subjects)
         t, p = ttest_1samp(flattened.T, 0)
         t = np.reshape(t, (self.grid_width, self.grid_width))
@@ -621,7 +611,7 @@ class SimulateGrid:
         return (t, p)
 
     def _run_permutation(self, data):
-        """Helper function to run a nonparametric one-sample permutation test"""
+        """Run a nonparametric one-sample permutation test (helper function)."""
         flattened = data.reshape(self.grid_width * self.grid_width, self.n_subjects)
         stats_all = []
         for i in range(flattened.shape[0]):
@@ -636,14 +626,14 @@ class SimulateGrid:
         return (mean, p)
 
     def fit(self):
-        """Run ttest on self.data"""
+        """Run a one-sample t-test on self.data."""
         if self.isfit:
             raise ValueError("Can't fit because ttest has already been run.")
         self.t_values, self.p_values = self._run_ttest(self.data)
         self.isfit = True
 
     def _threshold_simulation(self, t, p, threshold, threshold_type, correction=None):
-        """Helper function to threshold simulation
+        """Threshold a simulation (helper function).
 
         Args:
             threshold (float): threshold to apply to simulation
@@ -676,7 +666,7 @@ class SimulateGrid:
         return thresholded
 
     def threshold_simulation(self, threshold, threshold_type, correction=None):
-        """Threshold simulation
+        """Threshold the fitted simulation.
 
         Args:
             threshold (float): threshold to apply to simulation
@@ -701,7 +691,7 @@ class SimulateGrid:
             self.tp_percent = self._calc_true_positives(self.thresholded)
 
     def _calc_false_positives(self, thresholded):
-        """Calculate percent of grid containing false positives
+        """Calculate percent of grid containing false positives.
 
         Args:
             thresholded (np.array): thresholded grid
@@ -718,7 +708,7 @@ class SimulateGrid:
         return fp_percent
 
     def _calc_true_positives(self, thresholded):
-        """Calculate percent of mask containing true positives
+        """Calculate percent of mask containing true positives.
 
         Args:
             thresholded (np.array): thresholded grid
@@ -734,7 +724,7 @@ class SimulateGrid:
         return tp_percent
 
     def _calc_false_discovery_rate(self, thresholded):
-        """Calculate percent of activated voxels that are false positives
+        """Calculate percent of activated voxels that are false positives.
 
         Args:
             thresholded (np.array): thresholded grid
@@ -751,7 +741,7 @@ class SimulateGrid:
     def run_multiple_simulations(
         self, threshold, threshold_type, n_simulations=100, correction=None
     ):
-        """This method will run multiple simulations to calculate overall false positive rate"""
+        """Run multiple simulations to calculate the overall false positive rate."""
 
         if self.signal_mask is None:
             simulations = [
@@ -790,7 +780,7 @@ class SimulateGrid:
     def plot_grid_simulation(
         self, threshold, threshold_type, n_simulations=100, correction=None
     ):
-        """Create a plot of the simulations"""
+        """Create a plot of the simulations."""
         if not self.isfit:
             self.fit()
         if self.thresholded is None:

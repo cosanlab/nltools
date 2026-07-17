@@ -43,7 +43,7 @@ Type | Description
 #### `plot_mds`
 
 ```python
-plot_mds(adj, n_components = 2, metric = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, *args, **kwargs)
+plot_mds(adj, *, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
 ```
 
 Plot Multidimensional Scaling.
@@ -54,7 +54,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency object to plot (must be a distance matrix). | *required*
 `n_components` | <code>[int](#int)</code> | Number of dimensions to project (can be 2 or 3). | <code>2</code>
-`metric` | <code>[bool](#bool)</code> | Perform metric or non-metric dimensional scaling. Default True. | <code>True</code>
+`metric_mds` | <code>[bool](#bool)</code> | Perform metric (True) or non-metric (False) dimensional scaling. Default True. | <code>True</code>
 `labels` | <code>[list](#list)</code> | Can override labels stored in Adjacency Class. | <code>None</code>
 `labels_color` | <code>[list](#list)</code> | List of colors for labels. | <code>None</code>
 `cmap` |  | Colormap instance (default: ``plt.cm.hot_r``). | <code>None</code>

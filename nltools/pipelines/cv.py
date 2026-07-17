@@ -33,7 +33,8 @@ class CVScheme:
         scheme: CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'.
         split_by: Attribute to split by ('runs', 'subjects', 'sessions').
             Used for documentation purposes with loso/loro schemes.
-        n: Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000.
+        n: Number of resampling iterations (bootstrap draws or permutations).
+            Defaults to 1000.
         random_state: Random seed for reproducibility. If provided, sets the
             numpy random seed during initialization.
 

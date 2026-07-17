@@ -41,13 +41,13 @@ def plot_interactive_brain(
 
     Args:
         brain (nltools.BrainData): a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume)
-        threshold (float/str): threshold to initialize the visualization, maybe be a percentile string; default 0
+        threshold (float/str): threshold to initialize the visualization, may be a percentile string; default 1e-6
         surface (bool): whether to create a surface-based plot; default False
         percentile_threshold (bool): whether to interpret threshold values as percentiles
         kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
 
     Returns:
-        interactive brain viewer widget
+        None (renders widgets inline)
     """
 
     if ipywidgets is None:

@@ -148,6 +148,9 @@ def _decompose_ridge(
             when trying many alphas. Defaults to None (process all at once).
         method: Decomposition method. Currently only "svd" is supported.
             Defaults to "svd".
+        backend: `Backend` providing `.svd`/`.matmul`/`.expand_dims` used for the
+            decomposition. Effectively required: the default `None` is not handled and
+            will raise `AttributeError`. Pass a numpy or torch `Backend` instance.
 
     Yields:
         tuple: (matrices, alpha_batch) where:
@@ -218,6 +221,9 @@ def _select_best_alphas(
         alphas: Ridge regularization parameters of shape (n_alphas,).
         local_alpha: If True, select best alpha independently for each target.
             If False, select single best alpha for all targets.
+        backend: `Backend` providing `.asarray`/`.xp`/`.full` used for the array
+            operations. Effectively required: the default `None` is not handled and will
+            raise `AttributeError`. Pass a numpy or torch `Backend` instance.
         conservative: If True, select the largest alpha within 1 std of the best score.
             This provides more regularization when performance is similar.
             Defaults to False.
@@ -299,6 +305,9 @@ def _r2_score(
         y_true: True target values of shape (n_samples, n_targets).
         y_pred: Predicted target values of shape (n_samples, n_targets) or
             (n_alphas, n_samples, n_targets).
+        backend: `Backend` providing `.xp` (array module) used for the reductions.
+            Effectively required: the default `None` is not handled and will raise
+            `AttributeError`. Pass a numpy or torch `Backend` instance.
 
     Returns:
         np.ndarray: R² scores for each target. Shape (n_targets,) or (n_alphas, n_targets).

@@ -23,17 +23,20 @@ def fisher_r_to_z(r):
 
     Returns:
         z: Fisher z-transformed correlation(s)
-
-    Note:
-        Clips r values to (-1, 1) range to avoid invalid arctanh inputs
     """
-    # Clip r to valid range for arctanh to avoid invalid value warnings
     with np.errstate(invalid="ignore"):
         return np.arctanh(r)
 
 
 def fisher_z_to_r(z):
-    """Use Fisher transformation to convert correlation to z score."""
+    """Convert Fisher z back to a correlation coefficient.
+
+    Args:
+        z: Fisher z-transformed value(s)
+
+    Returns:
+        r: correlation coefficient(s)
+    """
     return np.tanh(z)
 
 

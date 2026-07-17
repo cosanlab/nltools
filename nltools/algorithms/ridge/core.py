@@ -82,7 +82,9 @@ def ridge_svd(
         parallel (str, optional): Execution backend.
             - None: Single-threaded NumPy (debugging/small problems)
             - "cpu": CPU-only using NumPy (default)
-            - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable)
+            - "gpu": GPU acceleration via PyTorch. Requires torch installed
+              (raises ImportError otherwise); degrades to torch-CPU only when no
+              GPU device is present. Use "auto" for torch-optional CPU fallback.
             Defaults to None.
         max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
             Defaults to 4.0.
@@ -217,7 +219,9 @@ def ridge_cv(
         parallel (str, optional): Execution backend.
             - None: Single-threaded NumPy (debugging/small problems)
             - "cpu": CPU-only using NumPy (default)
-            - "gpu": GPU acceleration via PyTorch (falls back to CPU if GPU unavailable)
+            - "gpu": GPU acceleration via PyTorch. Requires torch installed
+              (raises ImportError otherwise); degrades to torch-CPU only when no
+              GPU device is present. Use "auto" for torch-optional CPU fallback.
             Defaults to "cpu".
         max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
             Defaults to 4.0.
@@ -245,7 +249,9 @@ def ridge_cv(
     Notes:
         - Uses R**2 (coefficient of determination) as the scoring metric
         - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-        - When parallel='gpu' is requested but GPU is unavailable, gracefully falls back to CPU
+        - parallel='gpu' requires torch installed; with torch present but no GPU device it
+          runs on torch-CPU. It does not fall back to NumPy when torch is absent — use
+          parallel='auto' for that.
     """
     from sklearn.model_selection import check_cv
 

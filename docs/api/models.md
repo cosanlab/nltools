@@ -165,7 +165,7 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 **Examples:**
 
 ```pycon
->>> from nltools.models import GLMModel
+>>> from nltools.models import Glm
 >>> from nilearn.glm.first_level import make_first_level_design_matrix
 >>> import pandas as pd
 >>> import numpy as np
@@ -186,7 +186,7 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 >>> design_matrix = make_first_level_design_matrix(frame_times, events)
 >>>
 >>> # Fit GLM
->>> model = GLMModel(t_r=2.0, noise_model='ar1')
+>>> model = Glm(t_r=2.0, noise_model='ar1')
 >>> model.fit(img, design_matrices=design_matrix)
 >>>
 >>> # Compute contrast
@@ -199,10 +199,10 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 >>> residuals = model.residuals
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
-Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+Unlike Ridge which works with 2D arrays (samples × features), Glm
 works with 4D neuroimaging data (x × y × z × time) and design matrices.
 Therefore, it does not use BaseModel's input validation methods.
 
@@ -292,10 +292,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`GLMModel` |  | Fitted model instance (for method chaining)
+`Glm` |  | Fitted model instance (for method chaining)
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Unlike BaseModel's fit(), this method does not validate X as a 2D array
 because GLM works with 4D neuroimaging data. Input validation is
@@ -327,8 +327,8 @@ Type | Description
 ---- | -----------
  | list of Nifti1Image: Predicted brain activity for each run
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Follows sklearn's LinearRegression semantics where predict() without
 arguments returns fitted values (like calling predict(X_train)).
@@ -362,8 +362,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
 which returns a list of Nifti1Image objects (one per run).
@@ -710,7 +710,7 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 **Examples:**
 
 ```pycon
->>> from nltools.models import GLMModel
+>>> from nltools.models import Glm
 >>> from nilearn.glm.first_level import make_first_level_design_matrix
 >>> import pandas as pd
 >>> import numpy as np
@@ -731,7 +731,7 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 >>> design_matrix = make_first_level_design_matrix(frame_times, events)
 >>>
 >>> # Fit GLM
->>> model = GLMModel(t_r=2.0, noise_model='ar1')
+>>> model = Glm(t_r=2.0, noise_model='ar1')
 >>> model.fit(img, design_matrices=design_matrix)
 >>>
 >>> # Compute contrast
@@ -744,10 +744,10 @@ Access fitted results via properties: ``glm_``, ``residuals``, ``design_matrices
 >>> residuals = model.residuals
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
-Unlike Ridge which works with 2D arrays (samples × features), GLMModel
+Unlike Ridge which works with 2D arrays (samples × features), Glm
 works with 4D neuroimaging data (x × y × z × time) and design matrices.
 Therefore, it does not use BaseModel's input validation methods.
 
@@ -936,10 +936,10 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`GLMModel` |  | Fitted model instance (for method chaining)
+`Glm` |  | Fitted model instance (for method chaining)
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Unlike BaseModel's fit(), this method does not validate X as a 2D array
 because GLM works with 4D neuroimaging data. Input validation is
@@ -971,8 +971,8 @@ Type | Description
 ---- | -----------
  | list of Nifti1Image: Predicted brain activity for each run
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Follows sklearn's LinearRegression semantics where predict() without
 arguments returns fitted values (like calling predict(X_train)).
@@ -1006,8 +1006,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `float` |  | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
 which returns a list of Nifti1Image objects (one per run).

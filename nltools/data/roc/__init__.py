@@ -1,8 +1,7 @@
-"""
-NeuroLearn Analysis Tools
-=========================
-These tools provide the ability to quickly run
-machine-learning analyses on imaging data
+"""ROC (Receiver Operating Characteristic) analysis for single-interval classification.
+
+These tools provide the ability to quickly run receiver operating characteristic
+analyses on the output of machine-learning models applied to imaging data.
 """
 
 __all__ = ["Roc"]
@@ -15,7 +14,7 @@ from copy import deepcopy
 
 
 class Roc:
-    """Roc Class
+    """Compute receiver operating characteristic curves for single-interval or forced-choice classification.
 
     The Roc class is based on Tor Wager's Matlab roc_plot.m function and
     allows a user to easily run different types of receiver operator
@@ -23,7 +22,7 @@ class Roc:
     interval or forced choice.
 
     Args:
-        input_values: nibabel data instance
+        input_values: 1-D array/vector of continuous decision values (one per observation)
         binary_outcome: vector of training labels
         method: threshold-selection variant, one of `'optimal_overall'`,
             `'optimal_balanced'`, `'minimum_sdt_bias'`
@@ -70,11 +69,10 @@ class Roc:
         forced_choice=None,
         balanced_acc=False,
     ):
-        """Calculate Receiver Operating Characteristic plot (ROC) for
-        single-interval classification.
+        """Calculate ROC metrics for single-interval classification.
 
         Args:
-            input_values: nibabel data instance
+            input_values: 1-D array/vector of continuous decision values (one per observation)
             binary_outcome: vector of training labels
             criterion_values: (optional) criterion values for calculating fpr
                             & tpr
@@ -229,7 +227,7 @@ class Roc:
         self.accuracy_se = np.sqrt(p * (1 - p) / self.n)
 
     def plot(self, *, method="gaussian", balanced_acc=False):
-        """Create ROC Plot
+        """Create a ROC plot.
 
         Create a specific kind of ROC curve plot, based on input values
         along a continuous distribution and a binary outcome variable (logical)

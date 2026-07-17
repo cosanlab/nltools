@@ -1,10 +1,7 @@
 (simulator-simulator)=
 ## `simulator`
 
-NeuroLearn Simulator Tools
-==========================
-
-Tools to simulate multivariate data.
+Tools to simulate multivariate brain and grid data for testing analysis pipelines.
 
 **Classes:**
 
@@ -57,7 +54,7 @@ Name | Type | Description
 ```pycon
 >>> from nltools.data.simulator import SimulateGrid
 >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
->>> sim.fit(n_permute=1000)
+>>> sim.fit()
 >>> sim.plot()
 ```
 
@@ -65,12 +62,12 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`add_signal`](#simulator-add-signal) | Add rectangular signal to self.data
+[`add_signal`](#simulator-add-signal) | Add a rectangular signal to self.data.
 [`create_mask`](#simulator-create-mask) | Create a mask for where the signal is located in grid.
-[`fit`](#simulator-fit) | Run ttest on self.data
-[`plot_grid_simulation`](#simulator-plot-grid-simulation) | Create a plot of the simulations
-[`run_multiple_simulations`](#simulator-run-multiple-simulations) | This method will run multiple simulations to calculate overall false positive rate
-[`threshold_simulation`](#simulator-threshold-simulation) | Threshold simulation
+[`fit`](#simulator-fit) | Run a one-sample t-test on self.data.
+[`plot_grid_simulation`](#simulator-plot-grid-simulation) | Create a plot of the simulations.
+[`run_multiple_simulations`](#simulator-run-multiple-simulations) | Run multiple simulations to calculate the overall false positive rate.
+[`threshold_simulation`](#simulator-threshold-simulation) | Threshold the fitted simulation.
 
 ##### Methods
 
@@ -81,7 +78,7 @@ Name | Description
 add_signal(signal_width = 20, signal_amplitude = 1)
 ```
 
-Add rectangular signal to self.data
+Add a rectangular signal to self.data.
 
 **Parameters:**
 
@@ -106,7 +103,7 @@ Create a mask for where the signal is located in grid.
 fit()
 ```
 
-Run ttest on self.data
+Run a one-sample t-test on self.data.
 
 (simulator-plot-grid-simulation)=
 ###### `plot_grid_simulation`
@@ -115,7 +112,7 @@ Run ttest on self.data
 plot_grid_simulation(threshold, threshold_type, n_simulations = 100, correction = None)
 ```
 
-Create a plot of the simulations
+Create a plot of the simulations.
 
 (simulator-run-multiple-simulations)=
 ###### `run_multiple_simulations`
@@ -124,7 +121,7 @@ Create a plot of the simulations
 run_multiple_simulations(threshold, threshold_type, n_simulations = 100, correction = None)
 ```
 
-This method will run multiple simulations to calculate overall false positive rate
+Run multiple simulations to calculate the overall false positive rate.
 
 (simulator-threshold-simulation)=
 ###### `threshold_simulation`
@@ -133,7 +130,7 @@ This method will run multiple simulations to calculate overall false positive ra
 threshold_simulation(threshold, threshold_type, correction = None)
 ```
 
-Threshold simulation
+Threshold the fitted simulation.
 
 **Parameters:**
 
@@ -177,21 +174,21 @@ Name | Type | Description
 >>> from nltools.data.simulator import Simulator
 >>> sim = Simulator(random_state=42)
 >>> # Create a dataset with signal in specific regions
->>> data = sim.create_data(y=[1, -1, 1, -1], sigma=1, n_reps=10)
+>>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
 ```
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`create_cov_data`](#simulator-create-cov-data) | create continuous simulated data with covariance
-[`create_data`](#simulator-create-data) | create simulated data with integers
-[`create_ncov_data`](#simulator-create-ncov-data) | create continuous simulated data with covariance
-[`gaussian`](#simulator-gaussian) | create a 3D gaussian signal normalized to a given intensity
-[`n_spheres`](#simulator-n-spheres) | generate a set of spheres in the brain mask space
-[`normal_noise`](#simulator-normal-noise) | produce a normal noise distribution for all all points in the brain mask
-[`sphere`](#simulator-sphere) | create a sphere of given radius at some point p in the brain mask
-[`to_nifti`](#simulator-to-nifti) | convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+[`create_cov_data`](#simulator-create-cov-data) | Create continuous simulated data with covariance within a single region.
+[`create_data`](#simulator-create-data) | Create simulated data with discrete intensity levels.
+[`create_ncov_data`](#simulator-create-ncov-data) | Create continuous simulated data with covariance across multiple regions.
+[`gaussian`](#simulator-gaussian) | Create a 3D gaussian signal normalized to a given intensity.
+[`n_spheres`](#simulator-n-spheres) | Generate a set of spheres in the brain mask space.
+[`normal_noise`](#simulator-normal-noise) | Produce a normal noise distribution for all points in the brain mask.
+[`sphere`](#simulator-sphere) | Create a sphere of given radius at some point p in the brain mask.
+[`to_nifti`](#simulator-to-nifti) | Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
 
 ##### Methods
 
@@ -202,7 +199,7 @@ Name | Description
 create_cov_data(cor, cov, sigma, *, mask = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
-create continuous simulated data with covariance
+Create continuous simulated data with covariance within a single region.
 
 **Parameters:**
 
@@ -211,12 +208,10 @@ Name | Type | Description | Default
 `cor` |  | amount of covariance between each voxel and Y variable | *required*
 `cov` |  | amount of covariance between voxels | *required*
 `sigma` |  | amount of noise to add | *required*
-`radius` |  | vector of radius.  Will create multiple spheres if len(radius) > 1 | *required*
-`center` |  | center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+`mask` |  | region where activations are placed (a single mask image); defaults to a sphere if None | <code>None</code>
 `reps` |  | number of data repetitions | <code>1</code>
 `n_sub` |  | number of subjects to simulate | <code>1</code>
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
-`**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
 (simulator-create-data)=
 ###### `create_data`
@@ -225,7 +220,7 @@ Name | Type | Description | Default
 create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
 ```
 
-create simulated data with integers
+Create simulated data with discrete intensity levels.
 
 **Parameters:**
 
@@ -237,7 +232,6 @@ Name | Type | Description | Default
 `center` |  | center(s) of sphere(s) of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | <code>None</code>
 `reps` |  | number of data repetitions useful for trials or subjects | <code>1</code>
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
-`**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
 (simulator-create-ncov-data)=
 ###### `create_ncov_data`
@@ -246,7 +240,7 @@ Name | Type | Description | Default
 create_ncov_data(cor, cov, sigma, *, masks = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
-create continuous simulated data with covariance
+Create continuous simulated data with covariance across multiple regions.
 
 **Parameters:**
 
@@ -255,11 +249,10 @@ Name | Type | Description | Default
 `cor` |  | amount of covariance between each voxel and Y variable (an int or a vector) | *required*
 `cov` |  | amount of covariance between voxels (an int or a matrix) | *required*
 `sigma` |  | amount of noise to add | *required*
-`mask` |  | region(s) where we will have activations (list if more than one) | *required*
+`masks` |  | region(s) where we will have activations (list if more than one) | <code>None</code>
 `reps` |  | number of data repetitions | <code>1</code>
 `n_sub` |  | number of subjects to simulate | <code>1</code>
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
-`**kwargs` |  | Additional keyword arguments to pass to the prediction algorithm | *required*
 
 (simulator-gaussian)=
 ###### `gaussian`
@@ -268,7 +261,7 @@ Name | Type | Description | Default
 gaussian(mu, sigma, i_tot)
 ```
 
-create a 3D gaussian signal normalized to a given intensity
+Create a 3D gaussian signal normalized to a given intensity.
 
 **Parameters:**
 
@@ -285,7 +278,7 @@ Name | Type | Description | Default
 n_spheres(radius, center)
 ```
 
-generate a set of spheres in the brain mask space
+Generate a set of spheres in the brain mask space.
 
 **Parameters:**
 
@@ -301,7 +294,7 @@ Name | Type | Description | Default
 normal_noise(mu, sigma)
 ```
 
-produce a normal noise distribution for all all points in the brain mask
+Produce a normal noise distribution for all points in the brain mask.
 
 **Parameters:**
 
@@ -317,7 +310,7 @@ Name | Type | Description | Default
 sphere(r, p)
 ```
 
-create a sphere of given radius at some point p in the brain mask
+Create a sphere of given radius at some point p in the brain mask.
 
 **Parameters:**
 
@@ -333,7 +326,7 @@ Name | Type | Description | Default
 to_nifti(m)
 ```
 
-convert a numpy matrix to the nifti format and assign to it the brain_mask's affine matrix
+Convert a numpy matrix to the nifti format and assign it the brain_mask's affine matrix.
 
 **Parameters:**
 

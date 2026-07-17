@@ -50,6 +50,8 @@ def similarity(
     Returns:
         dict or list: Correlation result dict with keys 'r' and 'p', or a list of
             such dicts when adj contains multiple matrices.
+        BrainData when `project=True` (per-matrix correlations projected via
+            spatial_scale).
 
     """
     from nltools.data.adjacency import Adjacency

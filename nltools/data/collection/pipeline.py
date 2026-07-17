@@ -35,7 +35,7 @@ class BrainCollectionPipeline:
     Examples:
         >>> # Leave-one-subject-out with preprocessing
         >>> result = (bc
-        ...     .cv(scheme='loso')
+        ...     .cv(method='loso')
         ...     .standardize()
         ...     .reduce(n_components=50)
         ...     .predict(labels, method='svm'))
@@ -458,11 +458,10 @@ class FittedBrainCollection:
         model: The model type that was fitted ('glm' or 'ridge').
         condition_names: Names of conditions/regressors from the design matrix.
 
-    Examples
-    --------
-    >>> fitted = bc.fit(model='glm', X=dm)
-    >>> pool = fitted.pool(param='beta')
-    >>> result = pool.fit(model='ttest', contrast='A-B')
+    Examples:
+        >>> fitted = bc.fit(model='glm', X=dm)
+        >>> pool = fitted.pool(param='beta')
+        >>> result = pool.fit(model='ttest', contrast='A-B')
     """
 
     def __init__(
@@ -550,13 +549,12 @@ class FittedBrainCollection:
         Returns:
             Pooled data ready for second-level analysis.
 
-        Examples
-        --------
-        >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
-        >>> result = pool.fit(model='ttest', contrast='face-house')
+        Examples:
+            >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
+            >>> result = pool.fit(model='ttest', contrast='face-house')
 
-        >>> # Pool t-statistics instead of betas
-        >>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
+            >>> # Pool t-statistics instead of betas
+            >>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
         """
         from nltools.pipelines.pool import PooledData
 
@@ -619,17 +617,12 @@ class FittedBrainCollection:
     def _apply_contrast(self, data: np.ndarray, contrast: str) -> np.ndarray:
         """Apply contrast weights to pooled data.
 
-        Parameters
-        ----------
-        data : np.ndarray
-            Shape (n_subjects, n_conditions, n_voxels).
-        contrast : str
-            Contrast specification like 'A-B' or 'A+B'.
+        Args:
+            data (np.ndarray): Shape (n_subjects, n_conditions, n_voxels).
+            contrast (str): Contrast specification like 'A-B' or 'A+B'.
 
-        Returns
-        -------
-        np.ndarray
-            Shape (n_subjects, n_voxels) after contrast.
+        Returns:
+            np.ndarray: Shape (n_subjects, n_voxels) after contrast.
         """
         if self._condition_names is None:
             raise ValueError(

@@ -29,7 +29,7 @@ def convolve(
         dm: DesignMatrix to convolve.
         conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
             Can be 1D array (single kernel) or 2D (samples x kernels)
-        columns (list of str, optional): Columns to convolve (default: all non-polynomial columns)
+        columns (list of str, optional): Columns to convolve (default: all non-confound columns)
 
     Returns:
         DesignMatrix: New DesignMatrix with convolved columns

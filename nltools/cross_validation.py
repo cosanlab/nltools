@@ -25,13 +25,10 @@ class KFoldStratified(_BaseKFold):
     Extension of KFold from scikit-learn cross_validation model
 
     Args:
-        n_splits: int, default=3
-            Number of folds. Must be at least 2.
-        shuffle: boolean, optional
-            Whether to shuffle the data before splitting into batches.
-        random_state: None, int or RandomState
-            Pseudo-random number generator state used for random
-            sampling. If None, use default numpy RNG for shuffling
+        n_splits: Number of folds. Must be at least 2. Defaults to 3.
+        shuffle: Whether to shuffle the data before splitting into batches.
+        random_state: Pseudo-random number generator state used for random
+            sampling. If None, use the default numpy RNG for shuffling.
 
     """
 
@@ -65,20 +62,18 @@ class KFoldStratified(_BaseKFold):
         """Generate indices to split data into training and test set.
 
         Args:
-            X : array-like, shape (n_samples, n_features)
-                Training data, where n_samples is the number of samples
-                and n_features is the number of features.
-                Note that providing ``y`` is sufficient to generate the splits
-                and hence ``np.zeros(n_samples)`` may be used as a placeholder
-                for ``X`` instead of actual training data.
-            y : array-like, shape (n_samples,)
-                The target variable for supervised learning problems.
-                Stratification is done based on the y labels.
-            groups : (object) Always ignored, exists for compatibility.
+            X: Training data of shape `(n_samples, n_features)`, where
+                `n_samples` is the number of samples and `n_features` is the
+                number of features. Note that providing `y` is sufficient to
+                generate the splits, hence `np.zeros(n_samples)` may be used as
+                a placeholder for `X` instead of actual training data.
+            y: The target variable of shape `(n_samples,)` for supervised
+                learning problems. Stratification is done based on the y labels.
+            groups: Always ignored, exists for compatibility.
 
         Returns:
-            train : (ndarray) The training set indices for that split.
-            test : (ndarray) The testing set indices for that split.
+            train: The training set indices for that split (ndarray).
+            test: The testing set indices for that split (ndarray).
 
         """
         y = check_array(y, ensure_2d=False, dtype=None)

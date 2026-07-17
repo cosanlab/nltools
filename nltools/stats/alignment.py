@@ -242,29 +242,22 @@ def procrustes(data1, data2):
     the smaller of the two.
 
     Args:
-        data1 : array_like
-            Matrix, n rows represent points in k (columns) space `data1` is the
-            reference data, after it is standardised, the data from `data2`
-            will be transformed to fit the pattern in `data1` (must have >1
-            unique points).
-        data2 : array_like
-            n rows of data in k space to be fit to `data1`.  Must be the  same
-            shape ``(numrows, numcols)`` as data1 (must have >1 unique points).
+        data1: Matrix whose n rows represent points in k (columns) space.
+            `data1` is the reference data; after it is standardized, the data
+            from `data2` will be transformed to fit the pattern in `data1`
+            (must have >1 unique points).
+        data2: n rows of data in k space to be fit to `data1`. Must be the same
+            shape `(numrows, numcols)` as `data1` (must have >1 unique points).
 
     Returns:
-        mtx1 : array_like
-            A standardized version of `data1`.
-        mtx2 : array_like
-            The orientation of `data2` that best fits `data1`. Centered, but not
-            necessarily $tr(AA^{T}) = 1$.
-        disparity : float
-            $M^{2}$ as defined above.
-        R : (N, N) ndarray
-            The matrix solution of the orthogonal Procrustes problem.
-            Minimizes the Frobenius norm of dot(data1, R) - data2, subject to
-            dot(R.T, R) == I.
-        scale : float
-            Sum of the singular values of ``dot(data1.T, data2)``.
+        mtx1: A standardized version of `data1`.
+        mtx2: The orientation of `data2` that best fits `data1`. Centered, but
+            not necessarily $tr(AA^{T}) = 1$.
+        disparity: $M^{2}$ as defined above.
+        R: The `(N, N)` matrix solution of the orthogonal Procrustes problem.
+            Minimizes the Frobenius norm of `dot(data1, R) - data2`, subject to
+            `dot(R.T, R) == I`.
+        scale: Sum of the singular values of `dot(data1.T, data2)`.
     """
 
     mtx1 = np.array(data1, dtype=np.double, copy=True)

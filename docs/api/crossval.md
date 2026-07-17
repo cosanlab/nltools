@@ -39,9 +39,9 @@ Extension of KFold from scikit-learn cross_validation model
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_splits` |  | int, default=3 Number of folds. Must be at least 2. | <code>3</code>
-`shuffle` |  | boolean, optional Whether to shuffle the data before splitting into batches. | <code>False</code>
-`random_state` |  | None, int or RandomState Pseudo-random number generator state used for random sampling. If None, use default numpy RNG for shuffling | <code>None</code>
+`n_splits` |  | Number of folds. Must be at least 2. Defaults to 3. | <code>3</code>
+`shuffle` |  | Whether to shuffle the data before splitting into batches. | <code>False</code>
+`random_state` |  | Pseudo-random number generator state used for random sampling. If None, use the default numpy RNG for shuffling. | <code>None</code>
 
 **Methods:**
 
@@ -66,14 +66,14 @@ Generate indices to split data into training and test set.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X ` |  | array-like, shape (n_samples, n_features) Training data, where n_samples is the number of samples and n_features is the number of features. Note that providing ``y`` is sufficient to generate the splits and hence ``np.zeros(n_samples)`` may be used as a placeholder for ``X`` instead of actual training data. | *required*
-`y ` |  | array-like, shape (n_samples,) The target variable for supervised learning problems. Stratification is done based on the y labels. | *required*
-`groups ` |  | (object) Always ignored, exists for compatibility. | *required*
+`X` |  | Training data of shape `(n_samples, n_features)`, where `n_samples` is the number of samples and `n_features` is the number of features. Note that providing `y` is sufficient to generate the splits, hence `np.zeros(n_samples)` may be used as a placeholder for `X` instead of actual training data. | *required*
+`y` |  | The target variable of shape `(n_samples,)` for supervised learning problems. Stratification is done based on the y labels. | <code>None</code>
+`groups` |  | Always ignored, exists for compatibility. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`train` |  | (ndarray) The training set indices for that split.
-`test` |  | (ndarray) The testing set indices for that split.
+`train` |  | The training set indices for that split (ndarray).
+`test` |  | The testing set indices for that split (ndarray).
 

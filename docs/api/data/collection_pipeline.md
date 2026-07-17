@@ -49,7 +49,7 @@ Name | Type | Description
 ```pycon
 >>> # Leave-one-subject-out with preprocessing
 >>> result = (bc
-...     .cv(scheme='loso')
+...     .cv(method='loso')
 ...     .standardize()
 ...     .reduce(n_components=50)
 ...     .predict(labels, method='svm'))
@@ -195,11 +195,13 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | The model type that was fitted ('glm' or 'ridge'). | *required*
 `condition_names` | <code>[list](#list)[[str](#str)] \| None</code> | Names of conditions/regressors from the design matrix. | <code>None</code>
 
-Examples
---------
+**Examples:**
+
+```pycon
 >>> fitted = bc.fit(model='glm', X=dm)
 >>> pool = fitted.pool(param='beta')
 >>> result = pool.fit(model='ttest', contrast='A-B')
+```
 
 **Methods:**
 
@@ -245,11 +247,15 @@ Type | Description
 ---- | -----------
  | Pooled data ready for second-level analysis.
 
-Examples
---------
+**Examples:**
+
+```pycon
 >>> pool = bc.fit(model='glm', X=designs).pool(param='beta')
 >>> result = pool.fit(model='ttest', contrast='face-house')
+```
 
+```pycon
 >>> # Pool t-statistics instead of betas
 >>> pool = bc.fit(model='glm', X=dm, return_stats=['t']).pool(param='t')
+```
 

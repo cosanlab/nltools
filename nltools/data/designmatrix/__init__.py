@@ -708,7 +708,7 @@ class DesignMatrix:
         Args:
             method: Standardization method ('zscore' or 'center'). Default: 'zscore'.
             columns: Columns to standardize. If None, standardize all
-                non-polynomial columns.
+                non-confound columns.
 
         Returns:
             DesignMatrix: New DesignMatrix with standardized columns.
@@ -864,7 +864,7 @@ class DesignMatrix:
 
         Args:
             columns (list of str, optional): Columns to standardize. If None,
-                standardize all non-polynomial columns.
+                standardize all non-confound columns.
 
         Returns:
             DesignMatrix: New DesignMatrix with standardized columns

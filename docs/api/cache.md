@@ -320,7 +320,7 @@ Type | Description
 >>> import nibabel as nib
 >>> mask = nib.load("mask.nii.gz")
 >>> hash_mask(mask)
-'a1b2c3d4e5f6g7h8'
+'a1b2c3d4e5f60789'
 
 </details>
 

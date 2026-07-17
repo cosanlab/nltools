@@ -425,10 +425,11 @@ class BrainData:
                 ['probabilistic_srm','deterministic_srm','procrustes']
             axis: (int) axis to align on
             spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
-                ``'searchlight'``. ``'roi'`` / ``'searchlight'`` are not
-                yet implemented (per-parcel transforms + reassembly is a
-                follow-up slice).
-            roi_mask: Reserved for ``spatial_scale='roi'``.
+                ``'searchlight'``. ``'roi'`` is supported (per-parcel
+                transforms + reassembly, requires `roi_mask`). ``'searchlight'``
+                is not yet implemented (overlapping spheres have no canonical
+                per-voxel transform).
+            roi_mask: Atlas image used when `spatial_scale='roi'`.
             radius_mm: Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
@@ -1628,7 +1629,7 @@ class BrainData:
         Args:
             image: (BrainData, nifti) image to evaluate similarity
             metric: (str) Type of similarity
-                    ['correlation','dot_product','cosine']
+                    ['correlation','pearson','rank_correlation','spearman','dot_product','cosine']
 
         Returns:
             float or np.ndarray: Similarity value(s).

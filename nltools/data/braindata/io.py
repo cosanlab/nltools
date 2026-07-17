@@ -327,7 +327,7 @@ def _mask_images_fast(mask, imgs):
 
     Reproduces ``nilearn.masking.apply_mask``'s internals with the
     validate-and-binarize step (``load_mask_img`` + ``new_img_like``) hoisted
-    out of the per-image loop. Split out so the fallback in :func:`mask_images`
+    out of the per-image loop. Split out so the fallback in `mask_images`
     is testable in isolation.
     """
     from nilearn.image import new_img_like
@@ -802,6 +802,16 @@ def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to t
 
     if access_token is None:
         raise ValueError("You must supply a valid neurovault access token")
+
+    if img_type is None:
+        raise ValueError(
+            "You must supply img_type (the NeuroVault map type, e.g. 'Z' or 'T')"
+        )
+
+    if img_modality is None:
+        raise ValueError(
+            "You must supply img_modality (the NeuroVault image modality, e.g. 'fMRI-BOLD')"
+        )
 
     api = Client(access_token=access_token)
 

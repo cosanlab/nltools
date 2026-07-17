@@ -308,57 +308,51 @@ class LocalAlignment:
     or parcels) and applies center-only aggregation to preserve orthogonality.
 
     Args:
-    scheme : str, default='searchlight'
-        Spatial scheme: 'searchlight' (overlapping spheres) or 'piecewise'
-        (non-overlapping parcels).
-    method : str, default='procrustes'
-        Alignment method: 'procrustes', 'srm', or 'hyperalignment'.
-    radius_mm : float, default=10.0
-        Sphere radius in millimeters for searchlight scheme.
-    parcellation : Nifti1Image, optional
-        Parcellation image for piecewise scheme. Required if scheme='piecewise'.
-    n_features : int, optional
-        Number of features for SRM. None uses full Procrustes (preserves dims).
-    n_iter : int, default=3
-        Number of iterations for alignment refinement.
-    aggregation : str, default='center'
-        Aggregation method: 'center' (center-only, preserves orthogonality).
-    parallel : str, optional
-        Parallelization: 'cpu', 'gpu', or None.
-        - None: Single-threaded numpy
-        - 'cpu': CPU parallelization with joblib
-        - 'gpu': GPU acceleration via PyTorch (falls back to CPU if unavailable)
-    n_jobs : int, default=-1
-        Number of jobs for CPU parallelization.
-    progress_bar : bool, default=False
-        Whether to display tqdm progress bars during fit and transform.
+        scheme (str): Spatial scheme, either 'searchlight' (overlapping spheres) or
+            'piecewise' (non-overlapping parcels). Defaults to 'searchlight'.
+        method (str): Alignment method, one of 'procrustes', 'srm', or
+            'hyperalignment'. Defaults to 'procrustes'.
+        radius_mm (float): Sphere radius in millimeters for the searchlight scheme.
+            Defaults to 10.0.
+        parcellation (Nifti1Image | None): Parcellation image for the piecewise scheme.
+            Required if `scheme='piecewise'`. Defaults to None.
+        n_features (int | None): Number of features for SRM. None uses full Procrustes
+            (preserves dims). Defaults to None.
+        n_iter (int): Number of iterations for alignment refinement. Defaults to 3.
+        aggregation (str): Aggregation method: 'center' (center-only, preserves
+            orthogonality) or 'all'. Defaults to 'center'.
+        parallel (str | None): Parallelization mode. None runs single-threaded numpy,
+            'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch (falling back
+            to numpy CPU if PyTorch is unavailable). Defaults to 'cpu'.
+        n_jobs (int): Number of jobs for CPU parallelization. Defaults to -1.
+        progress_bar (bool): Whether to display tqdm progress bars during fit and
+            transform. Defaults to False.
 
     Attributes:
-    transforms_ : Dict[int, List[np.ndarray]]
-        Per-neighborhood transforms. Keys are center voxel indices,
-        values are lists of transform matrices (one per subject).
-    template_ : Dict[int, np.ndarray]
-        Per-neighborhood templates used for alignment.
-    neighborhoods_ : SphereNeighborhoods or Dict
-        Computed neighborhoods (searchlight or piecewise).
-    n_voxels_ : int
-        Total number of voxels in the mask.
-    mask_ : Nifti1Image
-        Brain mask used for fitting.
+        transforms_ (dict[int, list[np.ndarray]]): Per-neighborhood transforms. Keys are
+            center voxel indices, values are lists of transform matrices (one per subject).
+        template_ (dict[int, np.ndarray]): Per-neighborhood templates used for alignment.
+        neighborhoods_ (SphereNeighborhoods | dict): Computed neighborhoods (searchlight
+            or piecewise).
+        n_voxels_ (int): Total number of voxels in the mask.
+        mask_ (Nifti1Image): Brain mask used for fitting.
 
     Examples:
-    >>> import numpy as np
-    >>> from nltools.algorithms.alignment import LocalAlignment
-    >>> # Create synthetic multi-subject data (voxels, samples)
-    >>> data = [np.random.randn(1000, 100) for _ in range(5)]
-    >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
-    >>> la.fit(data, mask)
-    >>> aligned = la.transform(data)
+        >>> import numpy as np
+        >>> import nibabel as nib
+        >>> from nltools.algorithms.alignment import LocalAlignment
+        >>> # Create synthetic multi-subject data (voxels, samples)
+        >>> data = [np.random.randn(1000, 100) for _ in range(5)]
+        >>> # Build a mask whose nonzero voxels match the 1000-voxel data
+        >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
+        >>> la = LocalAlignment(scheme='searchlight', method='procrustes', radius_mm=10.0)
+        >>> la.fit(data, mask)
+        >>> aligned = la.transform(data)
 
-    Notes:
-    Based on Bazeille et al. 2021 "An empirical evaluation of functional
-    alignment using inter-subject decoding". Center-only aggregation is
-    used to preserve local orthogonality of transforms.
+    Note:
+        Based on Bazeille et al. 2021 "An empirical evaluation of functional
+        alignment using inter-subject decoding". Center-only aggregation is
+        used to preserve local orthogonality of transforms.
     """
 
     # Configuration
@@ -513,16 +507,14 @@ class LocalAlignment:
         """Fit local alignment on multi-subject data.
 
         Args:
-        data : List[np.ndarray]
-            List of subject data arrays, each shape (n_voxels, n_samples).
-            Subjects can have different numbers of samples - the underlying
-            alignment methods (SRM, HyperAlignment) handle this via zero-padding.
-        mask : Nifti1Image
-            Brain mask defining the voxel space.
+            data (list[np.ndarray]): List of subject data arrays, each shape
+                (n_voxels, n_samples). Subjects can have different numbers of samples -
+                the underlying alignment methods (SRM, HyperAlignment) handle this via
+                zero-padding.
+            mask (Nifti1Image): Brain mask defining the voxel space.
 
         Returns:
-        self : LocalAlignment
-            Fitted alignment model.
+            LocalAlignment: The fitted alignment model (`self`).
         """
         from nltools.data.braindata.neighborhoods import (
             compute_searchlight_neighborhoods,
@@ -655,12 +647,12 @@ class LocalAlignment:
         For piecewise scheme: all voxels in each parcel use the same transform.
 
         Args:
-        data : List[np.ndarray]
-            List of subject data arrays, each shape (n_voxels, n_samples).
+            data (list[np.ndarray]): List of subject data arrays, each shape
+                (n_voxels, n_samples).
 
         Returns:
-        List[np.ndarray]
-            Aligned data for each subject, shape (n_voxels, n_samples).
+            list[np.ndarray]: Aligned data for each subject, each shape
+                (n_voxels, n_samples).
         """
         if self.transforms_ is None:
             raise ValueError("Model must be fit before transform")
@@ -750,14 +742,12 @@ class LocalAlignment:
         """Fit alignment and transform data in one step.
 
         Args:
-        data : List[np.ndarray]
-            List of subject data arrays, each shape (n_voxels, n_samples).
-        mask : Nifti1Image
-            Brain mask defining the voxel space.
+            data (list[np.ndarray]): List of subject data arrays, each shape
+                (n_voxels, n_samples).
+            mask (Nifti1Image): Brain mask defining the voxel space.
 
         Returns:
-        List[np.ndarray]
-            Aligned data for each subject.
+            list[np.ndarray]: Aligned data for each subject.
         """
         return self.fit(data, mask).transform(data)
 

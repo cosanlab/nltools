@@ -99,8 +99,8 @@ Name | Type | Description | Default
 `target` |  | (BrainData) object to align to. | *required*
 `method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
 `axis` |  | (int) axis to align on | <code>0</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'roi'`` / ``'searchlight'`` are not yet implemented (per-parcel transforms + reassembly is a follow-up slice). | <code>'whole_brain'</code>
-`roi_mask` |  | Reserved for ``spatial_scale='roi'``. | <code>None</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'roi'`` is supported (per-parcel transforms + reassembly, requires `roi_mask`). ``'searchlight'`` is not yet implemented (overlapping spheres have no canonical per-voxel transform). | <code>'whole_brain'</code>
+`roi_mask` |  | Atlas image used when `spatial_scale='roi'`. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Reserved for ``spatial_scale='searchlight'``. | <code>10.0</code>
 
 **Returns:**
@@ -394,6 +394,7 @@ Calculate distance between images within a BrainData() instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist) | <code>'euclidean'</code>
+`**kwargs` |  | Additional metric options forwarded to ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski). | <code>{}</code>
 `spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per parcel and ``spatial_scale`` provenance attached for back-projection via ``Adjacency.to_brain()``. ``'searchlight'`` requires ``radius_mm`` (and is not yet implemented in this slice). | <code>'whole_brain'</code>
 `roi_mask` |  | Atlas image (BrainData / Nifti1Image / path) for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
@@ -985,7 +986,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(image, method = 'correlation')
+similarity(image, metric = 'correlation')
 ```
 
 Calculate similarity to a single BrainData or nibabel image.
@@ -995,7 +996,7 @@ Calculate similarity to a single BrainData or nibabel image.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `image` |  | (BrainData, nifti) image to evaluate similarity | *required*
-`method` |  | (str) Type of similarity     ['correlation','dot_product','cosine'] | <code>'correlation'</code>
+`metric` |  | (str) Type of similarity     ['correlation','pearson','rank_correlation','spearman','dot_product','cosine'] | <code>'correlation'</code>
 
 **Returns:**
 
@@ -1028,7 +1029,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(*, axis = 0, method = 'center', verbose = True)
+standardize(*, axis = 0, method = 'center', suppress_warnings = False)
 ```
 
 Standardize BrainData() instance.
@@ -1039,7 +1040,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` | <code>[int](#int)</code> | 0 standardizes each voxel across observations (default). 1 standardizes each observation across voxels. | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' subtracts the mean (default). 'zscore' subtracts the mean and divides by standard deviation. | <code>'center'</code>
-`verbose` | <code>[bool](#bool)</code> | If False, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: True. | <code>True</code>
+`suppress_warnings` | <code>[bool](#bool)</code> | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: False. | <code>False</code>
 
 **Returns:**
 
