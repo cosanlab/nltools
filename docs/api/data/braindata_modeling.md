@@ -16,6 +16,7 @@ Name | Description
 [`fit_glm`](#data-braindata-modeling-fit-glm) | Fit GLM model and extract results (same logic as current regress()).
 [`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
+[`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
 [`to_fit_dataclass`](#data-braindata-modeling-to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
 [`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
@@ -118,7 +119,7 @@ Name | Type | Description
 #### `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = True, scale_value = 100.0, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -137,8 +138,8 @@ Name | Type | Description | Default
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only): - int: Number of folds for k-fold CV (returns CV scores) - 'auto': Triggers alpha selection via CV (implies alpha='auto') - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True)) - None: No CV (default, backward compatible) | <code>None</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return a Fit dataclass with the results. In this case bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``bd.model_`` and ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so that ``predict()`` / ``compute_contrasts()`` still work off bd. Successive ``inplace=False`` fits therefore overwrite the model used by a later ``bd.predict()``. | <code>True</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. - If None: Uses bd.verbose (default) - If True: Shows progress bar for long-running operations - If False: No progress bar | <code>None</code>
-`scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. Calls bd.scale(scale_value) which divides all values by the global mean and multiplies by scale_value. This puts data in percent signal change units, which is standard for fMRI analysis. | <code>True</code>
-`scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. Only used if scale=True. | <code>100.0</code>
+`scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel ``mean_scaling`` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). ``'auto'`` resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with ``standardize='zscore'`` (a warning is raised for that combination). Applied before ``standardize``. | <code>'auto'</code>
+`standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. One of ``'center'`` (subtract the mean), ``'zscore'`` (subtract mean, divide by std), or ``None`` (off). ``'auto'`` resolves to ``'zscore'`` for ``model='ridge'`` (so a shared alpha regularizes voxels fairly) and ``None`` for ``model='glm'``. | <code>'auto'</code>
 `design_clean` | <code>bool, default=True</code> | GLM only. If True, run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
 `design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
 `design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
@@ -262,6 +263,35 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
  | np.array: Numeric contrast vector
+
+(data-braindata-modeling-resolve-preprocessing-defaults)=
+#### `resolve_preprocessing_defaults`
+
+```python
+resolve_preprocessing_defaults(model, scale, standardize)
+```
+
+Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
+
+Single source of truth shared by ``BrainData.fit`` and ``BrainCollection.fit``
+so both facades agree on per-model defaults. ``scale`` (percent-signal-change)
+is opt-in for both models. Ridge standardizes its targets by default so a
+shared alpha regularizes voxels fairly; GLM does neither so betas stay in
+native units.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`model` | <code>[str](#str)</code> | ``'ridge'`` or ``'glm'``. | *required*
+`scale` | <code>[bool](#bool) or [auto](#auto)</code> | Requested scale flag. | *required*
+`standardize` | <code>str, None, or 'auto'</code> | Requested standardize method. | *required*
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`tuple` |  | ``(scale, standardize)`` with any ``'auto'`` resolved.
 
 (data-braindata-modeling-to-fit-dataclass)=
 #### `to_fit_dataclass`

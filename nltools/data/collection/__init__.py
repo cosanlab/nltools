@@ -590,8 +590,8 @@ class BrainCollection:
         model: str = "glm",
         X: DesignMatrix | list | Callable | None = None,
         *,
-        scale: bool = True,
-        scale_value: float = 100.0,
+        scale: bool | str = "auto",
+        standardize: str | None = "auto",
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
@@ -610,6 +610,12 @@ class BrainCollection:
         if model not in ("glm", "ridge"):
             raise ValueError(f"unknown model {model!r}; expected 'glm' or 'ridge'")
 
+        # Resolve 'auto' sentinels once here so the per-subject bundles persist
+        # concrete scale/standardize values (shared logic with BrainData.fit).
+        from ..braindata.modeling import resolve_preprocessing_defaults
+
+        scale, standardize = resolve_preprocessing_defaults(model, scale, standardize)
+
         x_mode, x_value = self._resolve_x_arg(X)
 
         # Pre-generate step_id so the worker can stamp it into the bundle.
@@ -624,7 +630,7 @@ class BrainCollection:
                 x_mode=x_mode,
                 x_value=x_value,
                 scale=scale,
-                scale_value=scale_value,
+                standardize=standardize,
                 model_kwargs=model_kwargs,
                 step_id=step_id,
                 parent_step_id=parent_step_id,

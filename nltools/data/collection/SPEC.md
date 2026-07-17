@@ -132,7 +132,7 @@ Each step is eager. `bc.smooth().standardize()` produces *two* on-disk steps (sm
 ├── /X            (n_obs, n_regressors)
 ├── /mask         (embedded NIfTI bytes — bundle is portable)
 └── attrs:
-    ├── affine, regressor_names, scale, scale_value, model_kwargs
+    ├── affine, regressor_names, scale, standardize, model_kwargs
     ├── nltools_version, bundle_schema_version (int, starts at 1)
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
 ```
@@ -382,8 +382,8 @@ Every method below has the same signature as the corresponding `BrainData` metho
         model: str = "glm",
         X: DesignMatrix | list | Callable | None = None,
         *,
-        scale: bool = True,
-        scale_value: float = 100.0,
+        scale: bool | str = "auto",
+        standardize: str | None = "auto",
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal['auto', True, False] = 'auto',

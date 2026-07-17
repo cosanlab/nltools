@@ -4,9 +4,35 @@ Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
 """
 
+import warnings
+
 import numpy as np
 
 from .utils import shallow_copy
+
+
+def resolve_preprocessing_defaults(model, scale, standardize):
+    """Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
+
+    Single source of truth shared by ``BrainData.fit`` and ``BrainCollection.fit``
+    so both facades agree on per-model defaults. ``scale`` (percent-signal-change)
+    is opt-in for both models. Ridge standardizes its targets by default so a
+    shared alpha regularizes voxels fairly; GLM does neither so betas stay in
+    native units.
+
+    Args:
+        model (str): ``'ridge'`` or ``'glm'``.
+        scale (bool or 'auto'): Requested scale flag.
+        standardize (str, None, or 'auto'): Requested standardize method.
+
+    Returns:
+        tuple: ``(scale, standardize)`` with any ``'auto'`` resolved.
+    """
+    if scale == "auto":
+        scale = False
+    if standardize == "auto":
+        standardize = "zscore" if model == "ridge" else None
+    return scale, standardize
 
 
 def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn FirstLevelModel / ridge estimator
@@ -19,8 +45,8 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     fit_intercept=False,
     inplace=True,
     progress_bar=None,
-    scale=True,
-    scale_value=100.0,
+    scale="auto",
+    standardize="auto",
     design_clean=True,
     design_clean_thresh=0.95,
     design_clean_exclude_confounds=False,
@@ -56,12 +82,20 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             - If None: Uses bd.verbose (default)
             - If True: Shows progress bar for long-running operations
             - If False: No progress bar
-        scale (bool, default=True): Apply grand-mean scaling before fitting. Calls
-            bd.scale(scale_value) which divides all values by the global mean
-            and multiplies by scale_value. This puts data in percent signal change
-            units, which is standard for fMRI analysis.
-        scale_value (float, default=100.0): Target value for mean after scaling.
-            Only used if scale=True.
+        scale (bool or 'auto', default='auto'): Apply percent-signal-change
+            scaling to the data before fitting, via nilearn's per-voxel
+            ``mean_scaling`` (each voxel's time-series is divided by its own
+            temporal mean, de-meaned, and multiplied by 100). ``'auto'``
+            resolves to False for both models — PSC is opt-in. Useful for GLM
+            (interpretable % betas); for ridge it is redundant with
+            ``standardize='zscore'`` (a warning is raised for that combination).
+            Applied before ``standardize``.
+        standardize (str or None or 'auto', default='auto'): Standardize each
+            voxel across observations after scaling. One of ``'center'``
+            (subtract the mean), ``'zscore'`` (subtract mean, divide by std),
+            or ``None`` (off). ``'auto'`` resolves to ``'zscore'`` for
+            ``model='ridge'`` (so a shared alpha regularizes voxels fairly) and
+            ``None`` for ``model='glm'``.
         design_clean (bool, default=True): GLM only. If True, run
             ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly
             correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed.
@@ -200,10 +234,50 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             if hasattr(target, attr):
                 delattr(target, attr)
 
-    # Apply scaling before fitting (puts data in percent signal change units)
+    # Resolve per-model preprocessing defaults ('auto' sentinel).
+    scale, standardize = resolve_preprocessing_defaults(model, scale, standardize)
+
+    # scale (percent-signal-change) is redundant with z-scoring: per-voxel,
+    # zscore(mean_scaling(Y)) == zscore(Y), so the scale step does nothing.
+    # Warn rather than silently doing pointless work (and, with per-voxel
+    # standardize other than zscore, scaling a regression target only distorts
+    # its regularization — which is why ridge standardizes instead of scaling).
+    if scale and standardize == "zscore":
+        warnings.warn(
+            "scale=True is redundant with standardize='zscore': z-scoring "
+            "already absorbs percent-signal-change scaling, so the scale step "
+            "has no effect. Drop scale or use standardize='center'/None.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    # A ridge intercept is redundant once the targets are centered (any scaling
+    # or standardization de-means them), so fitting one adds nothing and usually
+    # signals a misunderstanding of the preprocessing. Warn loudly. Intercepts
+    # are for the raw-offset case (scale=False, standardize=None) — see
+    # test_ridge_intercept_no_centering_ok.
+    if model == "ridge" and fit_intercept and (scale or standardize is not None):
+        warnings.warn(
+            "fit_intercept=True is redundant for ridge when the data is centered "
+            "by scale/standardize (the default standardize='zscore' already "
+            "de-means each voxel), so the intercept is ~0 and adds nothing. Use "
+            "fit_intercept=True only with scale=False, standardize=None.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    # Preprocess before fitting: scale (percent signal change) THEN standardize.
+    # scale uses nilearn's per-voxel mean_scaling — the same transform
+    # FirstLevelModel applies internally — called explicitly here so it is
+    # user-controlled rather than an inherited nilearn default.
     if scale:
-        scaled = target.scale(scale_value)
-        target.data = scaled.data
+        from nilearn.glm.first_level import mean_scaling
+
+        target.data = mean_scaling(target.data, axis=0)[0]
+    if standardize is not None:
+        from .analysis import standardize as standardize_data
+
+        target.data = standardize_data(target, axis=0, method=standardize).data
 
     # Create model based on string
     if model == "ridge":

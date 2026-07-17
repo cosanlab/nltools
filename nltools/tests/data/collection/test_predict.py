@@ -30,8 +30,9 @@ class TestFitSignature:
 
     def test_fit_default_scale(self):
         sig = inspect.signature(BrainCollection.fit)
-        assert sig.parameters["scale"].default is True
-        assert sig.parameters["scale_value"].default == 100.0
+        assert sig.parameters["scale"].default == "auto"
+        assert sig.parameters["standardize"].default == "auto"
+        assert "scale_value" not in sig.parameters
 
     def test_fit_no_output_or_save_kwargs(self):
         """SPEC §"What's gone": ``output=`` / ``save=`` removed from fit."""

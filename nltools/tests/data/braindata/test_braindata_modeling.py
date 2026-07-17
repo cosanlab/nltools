@@ -443,37 +443,133 @@ class TestBrainDataModeling:
         with pytest.raises(ValueError, match="number of samples"):
             minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_wrong)
 
-    def test_fit_scale(self, minimal_brain_data):
-        """Test fit() scaling behavior: default, disabled, and custom value."""
+    def test_fit_scale_applies_mean_scaling(self, minimal_brain_data):
+        """scale=True applies nilearn per-voxel mean_scaling (percent signal change)."""
+        from nilearn.glm.first_level import mean_scaling
+
         X = np.random.randn(len(minimal_brain_data), 10)
-
-        # scale=True (default): mean → 100
         bd = minimal_brain_data.copy()
-        original_mean = bd.data.mean()
-        bd.fit(model="ridge", alpha=1.0, X=X)
-        assert bd.data.mean() != original_mean
-        np.testing.assert_allclose(bd.data.mean(), 100.0, rtol=0.1)
+        bd.data = bd.data + 100.0  # positive baseline -> clean PSC
+        orig = bd.data.copy()
+        bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize=None)
+        np.testing.assert_allclose(bd.data, mean_scaling(orig, axis=0)[0])
 
-        # scale=False: data unchanged
-        bd2 = minimal_brain_data.copy()
-        original_data = bd2.data.copy()
-        bd2.fit(model="ridge", alpha=1.0, X=X, scale=False)
-        np.testing.assert_allclose(bd2.data, original_data)
+    def test_fit_standardize_zscore(self, minimal_brain_data):
+        """standardize='zscore' z-scores each voxel across time; scale off = raw units."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        oracle = bd.standardize(method="zscore").data
+        bd.fit(model="ridge", alpha=1.0, X=X, scale=False, standardize="zscore")
+        np.testing.assert_allclose(bd.data, oracle)
 
-        # Custom scale_value
-        bd3 = minimal_brain_data.copy()
-        bd3.fit(model="ridge", alpha=1.0, X=X, scale=True, scale_value=1000.0)
-        np.testing.assert_allclose(bd3.data.mean(), 1000.0, rtol=0.1)
+    def test_fit_scale_then_standardize_order(self, minimal_brain_data):
+        """Preprocessing order is scale THEN standardize (a reversed order would
+        corrupt via mean_scaling on centered data)."""
+        from nilearn.glm.first_level import mean_scaling
+
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        orig = bd.data.copy()
+        scaled = bd.copy()
+        scaled.data = mean_scaling(orig, axis=0)[0]
+        oracle = scaled.standardize(method="center").data
+        bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize="center")
+        np.testing.assert_allclose(bd.data, oracle)
+
+    def test_fit_ridge_defaults_zscore_only(self, minimal_brain_data):
+        """Ridge 'auto' default: standardize='zscore', scale OFF (no warning)."""
+        import warnings
+
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        oracle = bd.standardize(method="zscore").data
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            bd.fit(model="ridge", alpha=1.0, X=X)  # no scale/standardize -> auto
+        assert not any("redundant" in str(wi.message) for wi in w)
+        np.testing.assert_allclose(bd.data, oracle)
+
+    def test_scale_zscore_redundant_warns(self, minimal_brain_data):
+        """scale=True + standardize='zscore' warns (scale is a no-op there)."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        with pytest.warns(UserWarning, match="redundant"):
+            bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize="zscore")
+
+    def test_fit_glm_defaults_no_preprocessing(self, minimal_brain_data):
+        """GLM 'auto' default: no scaling, no standardization — data untouched."""
+        design_matrix = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "X1": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        orig = bd.data.copy()
+        bd.fit(model="glm", noise_model="ols", X=design_matrix)
+        np.testing.assert_allclose(bd.data, orig)
+
+    def test_fit_scale_disabled_leaves_data_unchanged(self, minimal_brain_data):
+        """scale=False, standardize=None leaves data unchanged."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        orig = bd.data.copy()
+        bd.fit(model="ridge", alpha=1.0, X=X, scale=False, standardize=None)
+        np.testing.assert_allclose(bd.data, orig)
+
+    def test_ridge_intercept_with_centering_warns(self, minimal_brain_data):
+        """Ridge fit_intercept=True is redundant when the data is centered by
+        standardization/scaling — warn loudly."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        with pytest.warns(
+            UserWarning, match="intercept.*redundant|redundant.*intercept"
+        ):
+            bd.fit(
+                model="ridge", alpha=1.0, X=X, standardize="zscore", fit_intercept=True
+            )
+
+    def test_ridge_intercept_no_centering_ok(self, minimal_brain_data):
+        """fit_intercept=True is fine (no warning) when no centering is applied —
+        that is exactly the raw-offset case intercepts exist for."""
+        import warnings
+
+        X = np.random.randn(len(minimal_brain_data), 10)
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 100.0
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            bd.fit(
+                model="ridge",
+                alpha=1.0,
+                X=X,
+                scale=False,
+                standardize=None,
+                fit_intercept=True,
+            )
+        assert not any("intercept" in str(wi.message).lower() for wi in w)
+
+    def test_fit_scale_value_removed(self, minimal_brain_data):
+        """scale_value is gone (nilearn PSC is fixed at x100)."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        with pytest.raises(TypeError):
+            minimal_brain_data.fit(model="ridge", alpha=1.0, X=X, scale_value=1000.0)
 
     def test_fit_scale_inplace_false(self, minimal_brain_data):
-        """Test fit() with scale=True and inplace=False doesn't modify original."""
+        """fit() with preprocessing and inplace=False doesn't modify original."""
         from nltools.data.fitresults import Fit
 
         X = np.random.randn(len(minimal_brain_data), 10)
         original_data = minimal_brain_data.data.copy()
 
         result = minimal_brain_data.fit(
-            model="ridge", alpha=1.0, X=X, inplace=False, scale=True
+            model="ridge", alpha=1.0, X=X, inplace=False, scale=True, standardize=None
         )
 
         assert isinstance(result, Fit)
@@ -887,6 +983,7 @@ class TestBrainDataRidgeCV:
             alphas=np.logspace(-2, 2, 6),
             cv=KFold(5, shuffle=True, random_state=0),
             scale=False,
+            standardize=None,
             fit_intercept=True,
         )
         # Held-out predictions live on the original BOLD scale.

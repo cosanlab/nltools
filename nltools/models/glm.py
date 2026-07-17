@@ -125,6 +125,8 @@ class Glm(BaseModel):
             mask_img=self.mask,
             minimize_memory=False,  # Need this to access predictions
             standardize=False,  # User should standardize beforehand if needed
+            signal_scaling=False,  # Scaling is owned by BrainData.fit's explicit
+            # scale/standardize pipeline, not inherited from nilearn's default.
             drift_model=drift_model,  # Allow user to set, but warning will be suppressed when design matrices provided
             **kwargs,
         )

@@ -52,7 +52,7 @@ T = TypeVar("T")
 
 
 # Bumped on any breaking change to the on-disk HDF5 fit-bundle layout.
-BUNDLE_SCHEMA_VERSION = 1
+BUNDLE_SCHEMA_VERSION = 2
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +452,7 @@ def write_glm_bundle(
     affine: np.ndarray,
     regressor_names: list[str],
     scale: bool,
-    scale_value: float,
+    standardize: str | None,
     model_kwargs: dict,
     step_id: str,
     parent_step_id: str | None,
@@ -464,7 +464,7 @@ def write_glm_bundle(
 
     Layout (see SPEC §"HDF5 fit bundle"):
         /betas, /residuals, /sigma2, /r2, /X, /mask
-        attrs: affine, regressor_names, scale, scale_value, model_kwargs,
+        attrs: affine, regressor_names, scale, standardize, model_kwargs,
                nltools_version, bundle_schema_version,
                step_id, parent_step_id, op, kwargs (JSON-encoded).
 
@@ -487,7 +487,7 @@ def write_glm_bundle(
             "affine": np.asarray(affine),
             "regressor_names": json.dumps(list(regressor_names)),
             "scale": bool(scale),
-            "scale_value": float(scale_value),
+            "standardize": standardize or "",
             "model_kwargs": json.dumps(model_kwargs),
             "nltools_version": nltools_version,
             "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
@@ -520,7 +520,7 @@ def read_glm_bundle(path: Path) -> dict[str, Any]:
             "affine": np.asarray(attrs["affine"]),
             "regressor_names": json.loads(attrs["regressor_names"]),
             "scale": bool(attrs["scale"]),
-            "scale_value": float(attrs["scale_value"]),
+            "standardize": _to_str(attrs["standardize"]) or None,
             "model_kwargs": json.loads(attrs["model_kwargs"]),
             "step_id": _to_str(attrs["step_id"]),
             "parent_step_id": _to_str(attrs.get("parent_step_id", "")) or None,
@@ -999,7 +999,7 @@ def _fit_worker(
     x_mode: str,
     x_value: Any,
     scale: bool,
-    scale_value: float,
+    standardize: str | None,
     model_kwargs: dict,
     step_id: str,
     parent_step_id: str | None,
@@ -1013,7 +1013,7 @@ def _fit_worker(
             f"item {task.idx} has no design (X=None and self.designs[i] is None)"
         )
 
-    bd.fit(model=model, X=X, scale=scale, scale_value=scale_value, **model_kwargs)
+    bd.fit(model=model, X=X, scale=scale, standardize=standardize, **model_kwargs)
 
     if task.out_path is None:
         return bd
@@ -1029,7 +1029,7 @@ def _fit_worker(
             task.out_path,
             **bundle_data,
             scale=scale,
-            scale_value=scale_value,
+            standardize=standardize,
             model_kwargs=model_kwargs,
             step_id=step_id,
             parent_step_id=parent_step_id,

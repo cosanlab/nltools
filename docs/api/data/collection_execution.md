@@ -92,14 +92,14 @@ Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 #### `write_glm_bundle`
 
 ```python
-write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, sigma2: np.ndarray, r2: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], scale: bool, scale_value: float, model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, sigma2: np.ndarray, r2: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], scale: bool, standardize: str | None, model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
 ```
 
 Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 
 Layout (see SPEC §"HDF5 fit bundle"):
     /betas, /residuals, /sigma2, /r2, /X, /mask
-    attrs: affine, regressor_names, scale, scale_value, model_kwargs,
+    attrs: affine, regressor_names, scale, standardize, model_kwargs,
            nltools_version, bundle_schema_version,
            step_id, parent_step_id, op, kwargs (JSON-encoded).
 

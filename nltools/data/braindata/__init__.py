@@ -853,8 +853,8 @@ class BrainData:
         local_alpha=True,
         fit_intercept=False,
         inplace=True,
-        scale=True,
-        scale_value=100.0,
+        scale="auto",
+        standardize="auto",
         progress_bar=None,
         design_clean=True,
         design_clean_thresh=0.95,
@@ -888,8 +888,15 @@ class BrainData:
                 ``cv_results_``) are left unchanged, but ``self.model_`` and
                 ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on
                 self so ``predict()`` / ``compute_contrasts()`` still work.
-            scale (bool, default=True): Apply grand-mean scaling before fitting.
-            scale_value (float, default=100.0): Target value for mean after scaling.
+            scale (bool or 'auto', default='auto'): Apply percent-signal-change
+                scaling before fitting via nilearn's per-voxel ``mean_scaling``.
+                ``'auto'`` → False for both models (PSC is opt-in). Redundant
+                with ``standardize='zscore'`` (warns). Applied before
+                ``standardize``.
+            standardize (str or None or 'auto', default='auto'): Standardize
+                each voxel across observations after scaling. ``'center'``,
+                ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge,
+                ``None`` for glm.
             progress_bar (bool, optional): Display progress bar during fitting.
             design_clean (bool, default=True): GLM only. Run
                 ``DesignMatrix.clean()`` on ``X`` before fitting to drop
@@ -944,7 +951,7 @@ class BrainData:
             fit_intercept=fit_intercept,
             inplace=inplace,
             scale=scale,
-            scale_value=scale_value,
+            standardize=standardize,
             progress_bar=progress_bar,
             design_clean=design_clean,
             design_clean_thresh=design_clean_thresh,
