@@ -24,7 +24,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Multi-subject** | `Brain_Collection` | `BrainCollection` redesign | **Not yet available (scaffold)** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
-| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `icc_type=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity, `spatial_scale=` for spatial scope) | **Renamed** |
+| **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `permutation_method=` for similarity, `spatial_scale=` for spatial scope) | **Renamed** |
 | **Progress flag** | `show_progress=True` | `progress_bar=False` | **Renamed + default flipped** |
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
@@ -35,6 +35,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
 | **`nltools.prefs`** | Stateful template singleton | `set_brainspace()` / `get_brainspace()` / `with_brainspace()` | **Removed** |
 | **Neurovault helpers** | `download_collection`, `get_collection_image_metadata` | `fetch_neurovault_collection` | **Removed** |
+| **ICC reliability** | `BrainData.icc()`, `nltools.stats.compute_icc` | None — compute externally (e.g. `pingouin.intraclass_corr`) | **Removed** |
 
 ---
 
@@ -658,6 +659,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
+| `BrainData.icc()` | Removed — voxelwise intraclass correlation is out of scope for v0.6.0. Compute ICC externally (e.g. `pingouin.intraclass_corr`) on extracted values. The `nltools.stats.compute_icc` helper is also removed. | **Low** |
 | `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (`ipyniivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live-kernel only (Jupyter/marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
 :::{note}
@@ -1288,7 +1290,7 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 
 | Concept | Old kwarg(s) | New kwarg | Scope |
 |---|---|---|---|
-| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `icc_type`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the ICC/permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
+| Algorithm / variant choice | `algorithm`, `scheme`, `kind`, `noise_model`, `extract_type`, `mode`, `perm_type` | `method` (for `Adjacency.similarity` only: `permutation_method`, because `method` is already the metric selector) | Implemented facade methods including `BrainData.decompose`, `Adjacency.cluster`, `Adjacency.similarity`, and the permutation helpers. **Note:** `BrainData.predict` and `BrainData.distance` use the new `spatial_scale=` kwarg (not `method=`) for selecting `'whole_brain'`/`'roi'`/`'searchlight'` — see "Spatial scope" row below. |
 | Spatial scope (whole-brain / ROI / searchlight) | `method='whole_brain'\|'roi'\|'searchlight'` (predict only — overloaded with the algorithm slot, never canonical elsewhere) | `spatial_scale='whole_brain'\|'roi'\|'searchlight'` | `BrainData.predict` and `BrainData.distance`. Companion kwargs `roi_mask=` and `radius_mm=` are already canonical. Naming follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010). The `method=` slot is now reserved for algorithm choice everywhere. |
 | Classifier / sklearn estimator | `algorithm=` (predict), then briefly `estimator=` | `model=` | `BrainData.predict`. Mirrors `BrainData.fit(model=…)` (statistical-model name slot). String shortcuts: classification — `'svm'`, `'logistic'`, `'lda'`, `'ridge_classifier'`; regression — `'ridge'`, `'lasso'`, `'svr'`. Or pass any sklearn estimator / `Pipeline` directly. |
 | Progress indicator | `show_progress` (defaulted `True`) | `progress_bar` (defaults `False`, matching sklearn) | Implemented facade methods and their submodules. `verbose` is kept only where it controls log-level output (sklearn warning suppression in `standardize`, info prints in `DesignMatrix.clean` / `.append`). |
@@ -1317,7 +1319,7 @@ adj.similarity(other, include_diag=False)     # explicit + now the default for d
 
 ### Algorithm-layer APIs are unchanged
 
-Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model`, `compute_icc_voxelwise.icc_type`, `LocalAlignment.scheme` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
+Internal algorithm classes — `CVScheme.scheme`, `Glm.noise_model`, `LocalAlignment.scheme` — keep their legacy names. The class facades translate at the boundary. You only need to update code that calls the facade methods.
 
 ---
 

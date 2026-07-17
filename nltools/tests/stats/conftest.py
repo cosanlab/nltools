@@ -74,13 +74,6 @@ def outlier_data():
 
 
 @pytest.fixture
-def icc_data():
-    """Generate subjects x sessions data for ICC tests."""
-    np.random.seed(42)
-    return np.random.randn(10, 5)
-
-
-@pytest.fixture
 def sub_roi_data():
     """Generate multi-subject ROI timeseries data for ISFC tests."""
     np.random.seed(42)

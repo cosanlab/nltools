@@ -6,7 +6,7 @@ focused submodules:
 - **corrections**: Multiple comparison corrections (FDR, Holm-Bonferroni, thresholding)
 - **outliers**: Outlier detection, winsorizing, z-scoring
 - **timeseries**: Temporal signal processing (resampling, filtering, basis functions)
-- **correlation**: Similarity metrics, Fisher transforms, ICC
+- **correlation**: Similarity metrics, Fisher transforms
 - **alignment**: Data alignment (SRM, Procrustes, state alignment)
 - **intersubject**: ISC, ISFC, ISPS
 
@@ -25,7 +25,6 @@ from .correlation import (
     fisher_z_to_r,
     compute_similarity,
     compute_multivariate_similarity,
-    compute_icc,
     transform_pairwise,
 )
 from .alignment import align, procrustes, procrustes_distance, align_states
@@ -50,7 +49,6 @@ __all__ = [
     "align_states",
     "calc_bpm",
     "circle_shift",
-    "compute_icc",
     "compute_multivariate_similarity",
     "compute_similarity",
     "correlation_permutation_test",

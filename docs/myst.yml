@@ -112,7 +112,6 @@ project:
         - file: api/algorithms/inference_timeseries.md
         - file: api/algorithms/inference_matrix.md
         - file: api/algorithms/inference_isc.md
-        - file: api/algorithms/inference_icc.md
         - file: api/algorithms/inference_bootstrap.md
         - file: api/algorithms/inference_utils.md
     - title: Development

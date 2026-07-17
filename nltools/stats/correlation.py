@@ -1,4 +1,4 @@
-"""Similarity metrics, correlation, and reliability (ICC)."""
+"""Similarity metrics and correlation."""
 
 import itertools
 
@@ -7,7 +7,6 @@ from scipy.spatial.distance import cdist
 from scipy.stats import rankdata, t as t_dist
 
 __all__ = [
-    "compute_icc",
     "compute_multivariate_similarity",
     "compute_similarity",
     "fisher_r_to_z",
@@ -274,114 +273,3 @@ def compute_multivariate_similarity(y, X, method="ols"):
         "sigma": sigma,
         "residual": res,
     }
-
-
-def compute_icc(Y, icc_type="icc2"):
-    """Compute intraclass correlation coefficient (ICC).
-
-    This is the functional core implementation for ICC computation.
-    Used by BrainData.icc() to delegate computation to the functional core.
-
-    ICC Formulas are based on:
-    Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
-    assessing rater reliability. Psychological bulletin, 86(2), 420.
-
-    Code modified from nipype algorithms.icc
-    https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
-
-    Args:
-        Y (np.ndarray): Data array, shape (n_features, n_subjects) or (n_subjects, n_features)
-            If 2D with shape (n_subjects, n_features), will be transposed internally.
-            Final shape should be (n_subjects, n_sessions) where:
-            - n_subjects: number of subjects/rows
-            - n_sessions: number of sessions/columns
-        icc_type (str): Type of ICC to calculate
-            - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)
-            - 'icc2': Two-way random effects (subjects and sessions random) (default)
-            - 'icc3': Two-way mixed effects (subjects random, sessions fixed)
-
-    Returns:
-        float: Intraclass correlation coefficient
-
-    Examples:
-        >>> Y = np.random.randn(10, 5)  # 10 subjects, 5 sessions
-        >>> icc = compute_icc(Y, icc_type='icc2')
-        >>> isinstance(icc, (float, np.floating))
-        True
-    """
-    Y = np.asarray(Y)
-
-    # Ensure Y is in correct format: (n_subjects, n_sessions)
-    if Y.ndim == 1:
-        raise ValueError("Y must be 2D array")
-    if Y.ndim == 2:
-        # Assume (n_subjects, n_sessions) - transpose if needed based on convention
-        # But our optimized version expects (n_subjects, n_sessions), so use as-is
-        pass
-    else:
-        raise ValueError(f"Y must be 2D, got shape {Y.shape}")
-
-    n, k = Y.shape  # n subjects, k sessions
-
-    # Degrees of Freedom
-    dfc = k - 1
-    dfe = (n - 1) * (k - 1)
-    dfr = n - 1
-
-    # Sum Square Total
-    mean_Y = np.mean(Y)
-    SST = ((Y - mean_Y) ** 2).sum()
-
-    # Sum square column effect - between columns (sessions)
-    SSC = ((np.mean(Y, axis=0) - mean_Y) ** 2).sum() * n
-    # Handle edge case: single session (dfc = 0)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        MSC = SSC / dfc if dfc > 0 else np.nan
-
-    # Sum Square Row effect - between rows/subjects
-    SSR = ((np.mean(Y, axis=1) - mean_Y) ** 2).sum() * k
-    # Handle edge case: single subject (dfr = 0)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        MSR = SSR / dfr if dfr > 0 else np.nan
-
-    # Sum Square Error - compute efficiently using SST = SSC + SSR + SSE
-    SSE = SST - SSC - SSR
-    # Handle edge case: single subject or single session (dfe = 0)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        MSE = SSE / dfe if dfe > 0 else np.nan
-
-    # Small constant to prevent division by zero in ICC calculations
-    EPSILON = 1e-10
-
-    if icc_type == "icc1":
-        # ICC(1) - One-way random effects model
-        # Model: x_ij = mu + alpha_i + w_ij
-        # where alpha_i is random subject effect, w_ij is error
-        # ICC(1) = (MS_between - MS_within) / (MS_between + (k-1) * MS_within)
-        # For one-way model, we compute variance components differently:
-        # MS_between = variance between subjects (ignoring session effects)
-        # MS_within = variance within subjects (error)
-        # Note: ICC1 uses the same MSR and MSE as computed above, but interpretation differs
-        # ICC(1) assumes sessions are interchangeable (no session effect in model)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + EPSILON)
-
-    elif icc_type == "icc2":
-        # ICC(2,1) = (mean square subject - mean square error) /
-        # (mean square subject + (k-1)*mean square error +
-        # k*(mean square columns - mean square error)/n)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n + EPSILON)
-
-    elif icc_type == "icc3":
-        # ICC(3,1) = (mean square subject - mean square error) /
-        # (mean square subject + (k-1)*mean square error)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            ICC = (MSR - MSE) / (MSR + (k - 1) * MSE + EPSILON)
-
-    else:
-        raise ValueError(
-            f"icc_type must be 'icc1', 'icc2', or 'icc3', got '{icc_type}'"
-        )
-
-    return ICC

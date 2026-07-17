@@ -9,7 +9,7 @@ focused submodules:
 - **corrections**: Multiple comparison corrections (FDR, Holm-Bonferroni, thresholding)
 - **outliers**: Outlier detection, winsorizing, z-scoring
 - **timeseries**: Temporal signal processing (resampling, filtering, basis functions)
-- **correlation**: Similarity metrics, Fisher transforms, ICC
+- **correlation**: Similarity metrics, Fisher transforms
 - **alignment**: Data alignment (SRM, Procrustes, state alignment)
 - **intersubject**: ISC, ISFC, ISPS
 
@@ -25,7 +25,7 @@ Name | Description
 ---- | -----------
 [`alignment`](#stats-alignment) | Data alignment — SRM, Procrustes, and state alignment.
 [`corrections`](#stats-corrections) | Multiple comparison corrections and thresholding.
-[`correlation`](#stats-correlation) | Similarity metrics, correlation, and reliability (ICC).
+[`correlation`](#stats-correlation) | Similarity metrics and correlation.
 [`intersubject`](#stats-intersubject) | Intersubject correlation, functional connectivity, and phase synchrony.
 [`outliers`](#stats-outliers) | Outlier detection, robust statistics, and data normalization.
 [`permutation`](#stats-permutation) | Permutation tests for statistical inference.
@@ -40,7 +40,6 @@ Name | Description
 [`align_states`](#stats-align-states) | Align state weight maps by minimizing pairwise distance between group states.
 [`calc_bpm`](#stats-calc-bpm) | Calculate instantaneous BPM from beat to beat interval.
 [`circle_shift`](#stats-circle-shift) | Circular shift for time-series data.
-[`compute_icc`](#stats-compute-icc) | Compute intraclass correlation coefficient (ICC).
 [`compute_multivariate_similarity`](#stats-compute-multivariate-similarity) | Compute multivariate similarity via OLS regression.
 [`compute_similarity`](#stats-compute-similarity) | Compute similarity between two data arrays.
 [`correlation_permutation_test`](#stats-correlation-permutation-test) | Correlation permutation test.
@@ -195,47 +194,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Circularly shifted array, same shape as *data*.
-
-(stats-compute-icc)=
-#### `compute_icc`
-
-```python
-compute_icc(Y, icc_type = 'icc2')
-```
-
-Compute intraclass correlation coefficient (ICC).
-
-This is the functional core implementation for ICC computation.
-Used by BrainData.icc() to delegate computation to the functional core.
-
-ICC Formulas are based on:
-Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
-assessing rater reliability. Psychological bulletin, 86(2), 420.
-
-Code modified from nipype algorithms.icc
-https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`Y` | <code>[ndarray](#numpy.ndarray)</code> | Data array, shape (n_features, n_subjects) or (n_subjects, n_features) If 2D with shape (n_subjects, n_features), will be transposed internally. Final shape should be (n_subjects, n_sessions) where: - n_subjects: number of subjects/rows - n_sessions: number of sessions/columns | *required*
-`icc_type` | <code>[str](#str)</code> | Type of ICC to calculate - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable) - 'icc2': Two-way random effects (subjects and sessions random) (default) - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`float` |  | Intraclass correlation coefficient
-
-**Examples:**
-
-```pycon
->>> Y = np.random.randn(10, 5)  # 10 subjects, 5 sessions
->>> icc = compute_icc(Y, icc_type='icc2')
->>> isinstance(icc, (float, np.floating))
-True
-```
 
 (stats-compute-multivariate-similarity)=
 #### `compute_multivariate_similarity`
@@ -1599,13 +1557,12 @@ This function provides unique functionality not available in nilearn:
 (stats-correlation)=
 #### `correlation`
 
-Similarity metrics, correlation, and reliability (ICC).
+Similarity metrics and correlation.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_icc`](#stats-compute-icc) | Compute intraclass correlation coefficient (ICC).
 [`compute_multivariate_similarity`](#stats-compute-multivariate-similarity) | Compute multivariate similarity via OLS regression.
 [`compute_similarity`](#stats-compute-similarity) | Compute similarity between two data arrays.
 [`fisher_r_to_z`](#stats-fisher-r-to-z) | Use Fisher transformation to convert correlation to z score.
@@ -1615,46 +1572,6 @@ Name | Description
 
 
 ##### Methods
-
-###### `compute_icc`
-
-```python
-compute_icc(Y, icc_type = 'icc2')
-```
-
-Compute intraclass correlation coefficient (ICC).
-
-This is the functional core implementation for ICC computation.
-Used by BrainData.icc() to delegate computation to the functional core.
-
-ICC Formulas are based on:
-Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
-assessing rater reliability. Psychological bulletin, 86(2), 420.
-
-Code modified from nipype algorithms.icc
-https://github.com/nipy/nipype/blob/master/nipype/algorithms/icc.py
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`Y` | <code>[ndarray](#numpy.ndarray)</code> | Data array, shape (n_features, n_subjects) or (n_subjects, n_features) If 2D with shape (n_subjects, n_features), will be transposed internally. Final shape should be (n_subjects, n_sessions) where: - n_subjects: number of subjects/rows - n_sessions: number of sessions/columns | *required*
-`icc_type` | <code>[str](#str)</code> | Type of ICC to calculate - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable) - 'icc2': Two-way random effects (subjects and sessions random) (default) - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`float` |  | Intraclass correlation coefficient
-
-**Examples:**
-
-```pycon
->>> Y = np.random.randn(10, 5)  # 10 subjects, 5 sessions
->>> icc = compute_icc(Y, icc_type='icc2')
->>> isinstance(icc, (float, np.floating))
-True
-```
 
 ###### `compute_multivariate_similarity`
 

@@ -1,4 +1,4 @@
-"""Tests for nltools.stats.correlation — similarity, correlation metrics, and ICC."""
+"""Tests for nltools.stats.correlation — similarity and correlation metrics."""
 
 import numpy as np
 import pytest
@@ -8,7 +8,6 @@ from nltools.stats.correlation import (
     fisher_z_to_r,
     compute_similarity,
     compute_multivariate_similarity,
-    compute_icc,
     transform_pairwise,
 )
 
@@ -141,120 +140,6 @@ class TestComputeMultivariateSimilarity:
             compute_multivariate_similarity(
                 np.random.randn(100), np.random.randn(100, 5), method="ridge"
             )
-
-
-class TestComputeICC:
-    """Test intraclass correlation coefficient."""
-
-    def test_icc2(self, icc_data):
-        icc = compute_icc(icc_data, icc_type="icc2")
-        assert isinstance(icc, (float, np.floating))
-        assert -1 <= icc <= 1
-
-    def test_icc3(self, icc_data):
-        icc = compute_icc(icc_data, icc_type="icc3")
-        assert isinstance(icc, (float, np.floating))
-        assert -1 <= icc <= 1
-
-    def test_icc1(self, icc_data):
-        icc = compute_icc(icc_data, icc_type="icc1")
-        assert isinstance(icc, (float, np.floating))
-        assert -1 <= icc <= 1
-
-    def test_icc1_equals_icc3(self, icc_data):
-        """ICC1 and ICC3 use the same formula (different assumptions)."""
-        icc1 = compute_icc(icc_data, icc_type="icc1")
-        icc3 = compute_icc(icc_data, icc_type="icc3")
-        np.testing.assert_almost_equal(icc1, icc3, decimal=10)
-
-    def test_icc1_known_high_reliability(self):
-        """High between-subject variance should produce high ICC."""
-        np.random.seed(42)
-        subject_effects = np.linspace(-2, 2, 10)
-        Y = np.zeros((10, 5))
-        for i in range(10):
-            Y[i, :] = subject_effects[i] + np.random.randn(5) * 0.1
-        icc1 = compute_icc(Y, icc_type="icc1")
-        assert icc1 > 0.5
-
-    def test_icc_zero_reliability(self):
-        """Pure noise should produce ICC near 0 or negative."""
-        np.random.seed(42)
-        Y = np.random.randn(10, 5)
-        icc1 = compute_icc(Y, icc_type="icc1")
-        assert icc1 < 0.5
-
-    def test_icc_perfect_reliability(self):
-        """Identical values across sessions should produce ICC ~1."""
-        subject_effects = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        Y = np.zeros((5, 3))
-        for i in range(5):
-            Y[i, :] = subject_effects[i]
-        icc1 = compute_icc(Y, icc_type="icc1")
-        icc2 = compute_icc(Y, icc_type="icc2")
-        assert icc1 > 0.99
-        assert icc2 > 0.99
-
-    def test_icc2_le_icc1_with_session_effects(self):
-        """ICC2 should be <= ICC1 when session effects exist."""
-        np.random.seed(42)
-        subject_effects = np.linspace(-1, 1, 10)
-        session_effects = np.array([2.0, -2.0, 1.0, -1.0, 0.0])
-        Y = np.zeros((10, 5))
-        for i in range(10):
-            for j in range(5):
-                Y[i, j] = (
-                    subject_effects[i] + session_effects[j] + np.random.randn() * 0.1
-                )
-        icc1 = compute_icc(Y, icc_type="icc1")
-        icc2 = compute_icc(Y, icc_type="icc2")
-        assert icc2 <= icc1 + 1e-10
-
-    def test_icc_formula_manual(self):
-        """Verify against manual Shrout & Fleiss (1979) calculation."""
-        Y = np.array([[1.0, 1.1, 0.9], [2.0, 2.1, 1.9], [3.0, 3.1, 2.9]])
-        grand_mean = np.mean(Y)
-        n, k = Y.shape
-        SSR = ((np.mean(Y, axis=1) - grand_mean) ** 2).sum() * k
-        SSC = ((np.mean(Y, axis=0) - grand_mean) ** 2).sum() * n
-        SST = ((Y - grand_mean) ** 2).sum()
-        SSE = SST - SSR - SSC
-        MSR = SSR / (n - 1)
-        MSC = SSC / (k - 1)
-        MSE = SSE / ((n - 1) * (k - 1))
-        icc1_manual = (MSR - MSE) / (MSR + (k - 1) * MSE)
-        icc2_manual = (MSR - MSE) / (MSR + (k - 1) * MSE + k * (MSC - MSE) / n)
-
-        np.testing.assert_almost_equal(
-            compute_icc(Y, icc_type="icc1"), icc1_manual, decimal=10
-        )
-        np.testing.assert_almost_equal(
-            compute_icc(Y, icc_type="icc2"), icc2_manual, decimal=10
-        )
-
-    def test_icc_effect_size_sensitivity(self):
-        """Higher reliability should produce higher ICC values."""
-        reliability_levels = [
-            (1.0, 0.5),  # Low: high noise, low signal
-            (0.5, 0.5),  # Medium-low
-            (0.5, 1.0),  # Medium
-            (0.5, 2.0),  # High: low noise, high signal
-        ]
-        icc_values = []
-        for idx, (noise_level, signal_level) in enumerate(reliability_levels):
-            np.random.seed(42 + idx)
-            subject_effects = np.linspace(-signal_level, signal_level, 10)
-            Y = np.zeros((10, 5))
-            for i in range(10):
-                Y[i, :] = subject_effects[i] + np.random.randn(5) * noise_level
-            icc_values.append(compute_icc(Y, icc_type="icc1"))
-
-        for i in range(len(icc_values) - 1):
-            assert icc_values[i] <= icc_values[i + 1] + 0.05
-
-    def test_invalid_type(self, icc_data):
-        with pytest.raises(ValueError, match="icc_type must be"):
-            compute_icc(icc_data, icc_type="invalid")
 
 
 class TestTransformPairwise:

@@ -108,7 +108,6 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.algorithms.inference.timeseries", "algorithms/inference_timeseries.md"),
     ("nltools.algorithms.inference.matrix", "algorithms/inference_matrix.md"),
     ("nltools.algorithms.inference.isc", "algorithms/inference_isc.md"),
-    ("nltools.algorithms.inference.icc", "algorithms/inference_icc.md"),
     ("nltools.algorithms.inference.bootstrap", "algorithms/inference_bootstrap.md"),
     ("nltools.algorithms.inference.utils", "algorithms/inference_utils.md"),
     # --- pipelines ---

@@ -4,7 +4,7 @@
 BrainData analysis functions.
 
 Standalone functions extracted from BrainData class methods for similarity,
-distance, masking, ROI extraction, ICC, filtering, thresholding, decomposition,
+distance, masking, ROI extraction, filtering, thresholding, decomposition,
 alignment, smoothing, and other analytical operations.
 
 **Methods:**
@@ -21,7 +21,6 @@ Name | Description
 [`extract_roi`](#data-braindata-analysis-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 [`filter_data`](#data-braindata-analysis-filter-data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
 [`find_spikes_data`](#data-braindata-analysis-find-spikes-data) | Identify spikes from time-series data; see `find_spikes`.
-[`icc`](#data-braindata-analysis-icc) | Calculate voxelwise intraclass correlations for BrainData.
 [`multivariate_similarity`](#data-braindata-analysis-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
 [`r_to_z`](#data-braindata-analysis-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`reduce_per_roi`](#data-braindata-analysis-reduce-per-roi) | Apply a reducer within each parcel and paint results back to voxel space.
@@ -310,64 +309,6 @@ find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = Non
 ```
 
 Identify spikes from time-series data; see `find_spikes`.
-
-(data-braindata-analysis-icc)=
-#### `icc`
-
-```python
-icc(bd, n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
-```
-
-Calculate voxelwise intraclass correlations for BrainData.
-
-Computes ICC for each voxel independently, making it highly parallelizable.
-Supports GPU acceleration for large voxel counts.
-
-ICC Formulas are based on:
-Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
-assessing rater reliability. Psychological bulletin, 86(2), 420.
-
-icc1:  x_ij = mu + beta_j + w_ij
-icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`n_subjects` |  | Number of subjects in the data | *required*
-`n_sessions` |  | Number of sessions per subject | *required*
-`method` |  | Type of ICC to calculate     - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)     - 'icc2': Two-way random effects (subjects and sessions random) (default)     - 'icc3': Two-way mixed effects (subjects random, sessions fixed) | <code>'icc2'</code>
-`parallel` |  | Parallelization method     - None: Single-threaded vectorized NumPy (default, memory efficient)     - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels)     - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50x speedup) | <code>None</code>
-`n_jobs` |  | Number of CPU cores (-1 = all cores). Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` |  | GPU memory budget in GB. Only used when parallel='gpu' | <code>4.0</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance with ICC map (shape: (1, n_voxels))
-
-**Examples:**
-
-```pycon
->>> # Typical test-retest reliability analysis
->>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects x 3 sessions
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
->>> icc_map.shape
-(1, 238955)
->>> # Visualize ICC map
->>> icc_map.plot()
-```
-
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
-
-Data must be organized such that n_images = n_subjects * n_sessions.
-Images should be ordered as: [subject1_session1, subject1_session2, ...,
-subject2_session1, ...]
-
-</details>
 
 (data-braindata-analysis-multivariate-similarity)=
 #### `multivariate_similarity`

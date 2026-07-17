@@ -39,7 +39,6 @@ Name | Description
 [`filter`](#data-brain-data-filter) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
 [`find_spikes`](#data-brain-data-find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#data-brain-data-fit) | Fit a model to brain imaging data.
-[`icc`](#data-brain-data-icc) | Calculate voxel-wise intraclass correlation coefficient.
 [`iplot`](#data-brain-data-iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
 [`mean`](#data-brain-data-mean) | Get mean of each voxel or image.
 [`median`](#data-brain-data-median) | Get median of each voxel or image.
@@ -516,7 +515,7 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
-`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return Fit dataclass with results (self unchanged). | <code>True</code>
+`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
 `scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. | <code>True</code>
 `scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. | <code>100.0</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
@@ -560,40 +559,6 @@ one contrast in a single call.
 ```pycon
 >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
 >>> fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
-```
-
-(data-brain-data-icc)=
-#### `icc`
-
-```python
-icc(n_subjects, n_sessions, method = 'icc2', parallel = None, n_jobs = -1, max_gpu_memory_gb = 4.0)
-```
-
-Calculate voxel-wise intraclass correlation coefficient.
-
-ICC Formulas based on Shrout & Fleiss (1979).
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_subjects` |  | Number of subjects in the data | *required*
-`n_sessions` |  | Number of sessions per subject | *required*
-`method` |  | Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2' | <code>'icc2'</code>
-`parallel` |  | Parallelization method (None, 'cpu', 'gpu') | <code>None</code>
-`n_jobs` |  | Number of CPU cores (-1 = all cores) | <code>-1</code>
-`max_gpu_memory_gb` |  | GPU memory budget in GB | <code>4.0</code>
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance with ICC map (shape: (1, n_voxels))
-
-**Examples:**
-
-```pycon
->>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
 ```
 
 (data-brain-data-iplot)=
@@ -820,7 +785,7 @@ Type | Description
 #### `predict`
 
 ```python
-predict(*, y: np.ndarray | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, progress_bar: bool = False)
+predict(*, y: np.ndarray | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Predict voxel timeseries (encoding) or decode labels (MVPA).
@@ -887,6 +852,7 @@ Name | Type | Description | Default
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
 `inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Parallel jobs for searchlight / ROI. Default ``1``; searchlight on a real brain at higher ``n_jobs`` can be memory-heavy. | <code>1</code>
+`random_state` | <code>[int](#int)</code> | Seed for the shuffled fold splitter when ``cv`` is an int (MVPA mode). Default ``None`` (unseeded shuffle each call). Ignored when ``cv`` is a splitter object — set its own ``random_state`` instead. | <code>None</code>
 `progress_bar` | <code>[bool](#bool)</code> | Show progress bar for searchlight / ROI. | <code>False</code>
 
 **Returns:**

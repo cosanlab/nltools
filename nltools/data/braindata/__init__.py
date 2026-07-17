@@ -949,45 +949,6 @@ class BrainData:
             **kwargs,
         )
 
-    def icc(
-        self,
-        n_subjects,
-        n_sessions,
-        method="icc2",
-        parallel=None,
-        n_jobs=-1,
-        max_gpu_memory_gb=4.0,
-    ):
-        """Calculate voxel-wise intraclass correlation coefficient.
-
-        ICC Formulas based on Shrout & Fleiss (1979).
-
-        Args:
-            n_subjects: Number of subjects in the data
-            n_sessions: Number of sessions per subject
-            method: Type of ICC ('icc1', 'icc2', 'icc3'). Default: 'icc2'
-            parallel: Parallelization method (None, 'cpu', 'gpu')
-            n_jobs: Number of CPU cores (-1 = all cores)
-            max_gpu_memory_gb: GPU memory budget in GB
-
-        Returns:
-            BrainData: BrainData instance with ICC map (shape: (1, n_voxels))
-
-        Examples:
-            >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
-        """
-        from .analysis import icc
-
-        return icc(
-            self,
-            n_subjects,
-            n_sessions,
-            method=method,
-            parallel=parallel,
-            n_jobs=n_jobs,
-            max_gpu_memory_gb=max_gpu_memory_gb,
-        )
-
     def mean(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get mean of each voxel or image.
 

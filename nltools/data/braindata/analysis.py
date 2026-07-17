@@ -1,7 +1,7 @@
 """BrainData analysis functions.
 
 Standalone functions extracted from BrainData class methods for similarity,
-distance, masking, ROI extraction, ICC, filtering, thresholding, decomposition,
+distance, masking, ROI extraction, filtering, thresholding, decomposition,
 alignment, smoothing, and other analytical operations.
 """
 
@@ -648,91 +648,6 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
             "Mask must be binary (2 unique values) or labeled atlas (>2 unique values)"
         )
 
-    return out
-
-
-def icc(
-    bd,
-    n_subjects,
-    n_sessions,
-    method="icc2",
-    parallel=None,
-    n_jobs=-1,
-    max_gpu_memory_gb=4.0,
-):
-    """Calculate voxelwise intraclass correlations for BrainData.
-
-    Computes ICC for each voxel independently, making it highly parallelizable.
-    Supports GPU acceleration for large voxel counts.
-
-    ICC Formulas are based on:
-    Shrout, P. E., & Fleiss, J. L. (1979). Intraclass correlations: uses in
-    assessing rater reliability. Psychological bulletin, 86(2), 420.
-
-    icc1:  x_ij = mu + beta_j + w_ij
-    icc2/3:  x_ij = mu + alpha_i + beta_j + (ab)_ij + epsilon_ij
-
-    Args:
-        bd: BrainData instance.
-        n_subjects: Number of subjects in the data
-        n_sessions: Number of sessions per subject
-        method: Type of ICC to calculate
-                - 'icc1': One-way random effects (subjects random, sessions treated as interchangeable)
-                - 'icc2': Two-way random effects (subjects and sessions random) (default)
-                - 'icc3': Two-way mixed effects (subjects random, sessions fixed)
-        parallel: Parallelization method
-                - None: Single-threaded vectorized NumPy (default, memory efficient)
-                - 'cpu': CPU parallelization via joblib (for medium-sized problems, 1K-10K voxels)
-                - 'gpu': GPU acceleration via PyTorch (recommended for large voxel counts >10K, 10-50x speedup)
-        n_jobs: Number of CPU cores (-1 = all cores). Only used when parallel='cpu'
-        max_gpu_memory_gb: GPU memory budget in GB. Only used when parallel='gpu'
-
-    Returns:
-        BrainData: BrainData instance with ICC map (shape: (1, n_voxels))
-
-    Examples:
-        >>> # Typical test-retest reliability analysis
-        >>> data = BrainData(...)  # Shape: (60, 238955) = 20 subjects x 3 sessions
-        >>> icc_map = data.icc(n_subjects=20, n_sessions=3, method='icc2')
-        >>> icc_map.shape
-        (1, 238955)
-        >>> # Visualize ICC map
-        >>> icc_map.plot()
-
-    Notes:
-        Data must be organized such that n_images = n_subjects * n_sessions.
-        Images should be ordered as: [subject1_session1, subject1_session2, ...,
-        subject2_session1, ...]
-    """
-    from nltools.algorithms.inference.icc import compute_icc_voxelwise
-
-    # Validate data shape
-    n_images = bd.shape[0]
-
-    if n_images != n_subjects * n_sessions:
-        raise ValueError(
-            f"Number of images ({n_images}) must equal n_subjects * n_sessions "
-            f"({n_subjects} * {n_sessions} = {n_subjects * n_sessions}). "
-            f"Make sure images are organized as: "
-            f"[subject1_session1, subject1_session2, ..., subject2_session1, ...]"
-        )
-
-    # Compute voxel-wise ICC
-    icc_map = compute_icc_voxelwise(
-        bd.data,
-        n_subjects=n_subjects,
-        n_sessions=n_sessions,
-        icc_type=method,
-        parallel=parallel,
-        n_jobs=n_jobs,
-        max_gpu_memory_gb=max_gpu_memory_gb,
-    )
-
-    # Return as BrainData object (shape: (1, n_voxels))
-    out = shallow_copy(bd)
-    out.data = icc_map[np.newaxis, :]  # (1, n_voxels)
-    out.X = pl.DataFrame()
-    out.Y = pl.DataFrame()
     return out
 
 
