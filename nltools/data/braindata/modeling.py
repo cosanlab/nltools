@@ -579,41 +579,34 @@ def fit_glm(bd, X):
     # Fit Glm model
     bd.model_.fit(data_4d, design_matrices=[X])
 
-    # Extract results for each regressor (same as regress() lines 802-815)
+    # Betas come straight from the cached coef_ (assembled from run_glm theta),
+    # so the per-regressor maps stay in masked-array space with no Nifti
+    # round-trip. coef_ is (n_regressors, n_voxels).
+    bd.glm_betas = BrainData(data=bd.model_.coef_, mask=bd.mask)
+
+    # Per-regressor t / p / se via nilearn's FUNCTIONAL compute_contrast on the
+    # fitted (labels_, results_): arrays in masked space, no unmask. Correct for
+    # both OLS and AR noise models (per-voxel covariance lives in results_).
+    from nilearn.glm import compute_contrast as _compute_contrast
+
+    labels = bd.model_.glm_.labels_[0]
+    results = bd.model_.glm_.results_[0]
     n_regressors = X.shape[1]
-    beta_maps = []
-    t_maps = []
-    p_maps = []
-    se_maps = []
+    t_maps, p_maps, se_maps = [], [], []
+    for i in range(n_regressors):
+        con = np.zeros(n_regressors)
+        con[i] = 1.0
+        contrast = _compute_contrast(labels, results, con)
+        t_maps.append(contrast.stat().ravel())
+        p_maps.append(contrast.p_value().ravel())
+        se_maps.append(np.sqrt(np.abs(contrast.effect_variance().ravel())))
 
-    for i, col in enumerate(X.columns):
-        # Create contrast vector (1 for this regressor, 0 for others)
-        contrast = np.zeros(n_regressors)
-        contrast[i] = 1
+    bd.glm_t = BrainData(data=np.vstack(t_maps), mask=bd.mask)
+    bd.glm_p = BrainData(data=np.vstack(p_maps), mask=bd.mask)
+    bd.glm_se = BrainData(data=np.vstack(se_maps), mask=bd.mask)
 
-        # Compute contrast using Glm's compute_contrast method
-        results = bd.model_.compute_contrast(contrast, output_type="all")
-
-        # Store maps
-        beta_maps.append(results["effect_size"])
-        t_maps.append(results["stat"])
-        p_maps.append(results["p_value"])
-        se_maps.append(results["effect_variance"])
-
-    # Convert results to BrainData objects
-    bd.glm_betas = BrainData(beta_maps, mask=bd.mask)
-    bd.glm_t = BrainData(t_maps, mask=bd.mask)
-    bd.glm_p = BrainData(p_maps, mask=bd.mask)
-
-    # Convert effect variance to standard error (same as regress() lines 826-831)
-    se_data = []
-    for se_img in se_maps:
-        se_brain = BrainData(se_img, mask=bd.mask)
-        se_brain.data = np.sqrt(np.abs(se_brain.data))
-        se_data.append(se_brain)
-    bd.glm_se = BrainData(data=se_data, mask=bd.mask)
-
-    # Get residuals
+    # Residuals stay from nilearn: for AR noise models these are the whitened
+    # residuals, which Y - X@coef_ does not reproduce, so keep nilearn's.
     bd.glm_residual = BrainData(bd.model_.residuals, mask=bd.mask)
 
     # Predicted = original - residuals
