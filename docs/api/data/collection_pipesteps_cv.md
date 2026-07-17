@@ -1,4 +1,4 @@
-(pipelines-cv-cv)=
+(data-collection-pipesteps-cv-cv)=
 ## `cv`
 
 Cross-validation scheme configuration for nltools pipelines.
@@ -10,7 +10,7 @@ strategies used across nltools analysis pipelines.
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#pipelines-cv-cvscheme) | Cross-validation scheme configuration.
+[`CVScheme`](#data-collection-pipesteps-cv-cvscheme) | Cross-validation scheme configuration.
 
 **Attributes:**
 
@@ -20,7 +20,7 @@ Name | Type | Description
 
 ### Classes
 
-(pipelines-cv-cvscheme)=
+(data-collection-pipesteps-cv-cvscheme)=
 #### `CVScheme`
 
 ```python
@@ -44,7 +44,7 @@ dedicated outer loop over shuffled targets, not a train/test split.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
-`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'. | <code>'kfold'</code>
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'. | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
 `n` | <code>[int](#int)</code> | Number of resampling iterations (bootstrap draws or permutations). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
@@ -75,8 +75,8 @@ Name | Type | Description | Default
 
 Name | Description
 ---- | -----------
-[`n_splits`](#pipelines-cv-n-splits) | Return number of splits.
-[`split`](#pipelines-cv-split) | Generate train/test indices for each fold.
+[`n_splits`](#data-collection-pipesteps-cv-n-splits) | Return number of splits.
+[`split`](#data-collection-pipesteps-cv-split) | Generate train/test indices for each fold.
 
 **Attributes:**
 
@@ -87,12 +87,12 @@ Name | Type | Description
 `k` | <code>[int](#int) \| None</code> | 
 `n` | <code>[int](#int)</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
-`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | 
+`scheme` | <code>[CVSchemeType](#nltools.data.collection.pipesteps.cv.CVSchemeType)</code> | 
 `split_by` | <code>[str](#str) \| None</code> | 
 
 ##### Methods
 
-(pipelines-cv-n-splits)=
+(data-collection-pipesteps-cv-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -114,7 +114,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of splits/folds that will be generated.
 
-(pipelines-cv-split)=
+(data-collection-pipesteps-cv-split)=
 ###### `split`
 
 ```python

@@ -17,7 +17,8 @@ positional data args (e.g. ``fit(X, y)``) are not counted, so sklearn-style
 
 Scope: the public API surface where the convention binds — the four data-class
 facades plus public stats/models/mask/datasets functions. The algorithm-layer
-internals (``nltools/algorithms``, ``nltools/pipelines``) are excluded; a handful
+internals (``nltools/algorithms``, ``nltools/data/collection/pipesteps``) are
+excluded; a handful
 of public estimators there (SRM/Ridge/Glm) are covered because ``models/`` is in
 scope.
 
@@ -36,7 +37,10 @@ THRESHOLD = 3
 
 # Public API roots where the convention binds. Algorithm/pipeline internals are
 # intentionally excluded (facade-translation rule); models/ is included because
-# Ridge/Glm are public estimators the audit flagged (F103, F106).
+# Ridge/Glm are public estimators the audit flagged (F103, F106). The pipeline
+# primitives under data/collection/pipesteps are internals the BrainCollection
+# facade translates, so they are excluded via EXCLUDE_PARTS below even though
+# they now live under nltools/data.
 DEFAULT_ROOTS = [
     "nltools/data",
     "nltools/stats",
@@ -45,7 +49,7 @@ DEFAULT_ROOTS = [
     "nltools/datasets.py",
 ]
 
-EXCLUDE_PARTS = {"tests"}
+EXCLUDE_PARTS = {"tests", "pipesteps"}
 
 
 def iter_py_files(roots: list[str]) -> list[Path]:
@@ -56,9 +60,7 @@ def iter_py_files(roots: list[str]) -> list[Path]:
             files.append(p)
         elif p.is_dir():
             files.extend(
-                f
-                for f in p.rglob("*.py")
-                if not (EXCLUDE_PARTS & set(f.parts))
+                f for f in p.rglob("*.py") if not (EXCLUDE_PARTS & set(f.parts))
             )
     return files
 

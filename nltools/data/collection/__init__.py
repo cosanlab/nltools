@@ -1321,7 +1321,7 @@ class BrainCollection:
         See ``pipeline.py`` for the builder API. The pipeline's ``predict``
         terminal returns a ``BrainData`` with CV attrs attached.
         """
-        from ...pipelines.cv import CVScheme
+        from .pipesteps.cv import CVScheme
 
         cv_scheme = CVScheme(
             scheme=method,

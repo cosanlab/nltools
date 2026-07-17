@@ -93,6 +93,11 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.collection.inference", "data/collection_inference.md"),
     ("nltools.data.collection.io", "data/collection_io.md"),
     ("nltools.data.collection.pipeline", "data/collection_pipeline.md"),
+    # collection pipeline primitives (co-located under collection/pipesteps)
+    ("nltools.data.collection.pipesteps", "data/collection_pipesteps.md"),
+    ("nltools.data.collection.pipesteps.base", "data/collection_pipesteps_base.md"),
+    ("nltools.data.collection.pipesteps.cv", "data/collection_pipesteps_cv.md"),
+    ("nltools.data.collection.pipesteps.steps", "data/collection_pipesteps_steps.md"),
     # --- atlases ---
     ("nltools.data.atlases", "data/atlases.md"),
     ("nltools.data.atlases.registry", "data/atlases_registry.md"),
@@ -110,11 +115,6 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.algorithms.inference.isc", "algorithms/inference_isc.md"),
     ("nltools.algorithms.inference.bootstrap", "algorithms/inference_bootstrap.md"),
     ("nltools.algorithms.inference.utils", "algorithms/inference_utils.md"),
-    # --- pipelines ---
-    ("nltools.pipelines", "pipelines.md"),
-    ("nltools.pipelines.base", "pipelines/pipeline.md"),
-    ("nltools.pipelines.cv", "pipelines/cv.md"),
-    ("nltools.pipelines.steps", "pipelines/steps.md"),
 ]
 
 
@@ -163,7 +163,7 @@ def main() -> None:
     if args.clean:
         import shutil
 
-        for subdir in ["data", "algorithms", "pipelines"]:
+        for subdir in ["data", "algorithms"]:
             d = DOCS_API / subdir
             if d.exists():
                 shutil.rmtree(d)

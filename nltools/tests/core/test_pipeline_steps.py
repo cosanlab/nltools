@@ -9,7 +9,7 @@ Tests cover:
 import numpy as np
 import pytest
 
-from nltools.pipelines.steps import (
+from nltools.data.collection.pipesteps.steps import (
     FittedNormalize,
     FittedPipe,
     FittedReduce,

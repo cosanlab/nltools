@@ -8,8 +8,8 @@ Tests cover:
 import numpy as np
 import pytest
 
-from nltools.pipelines.base import FittedStack
-from nltools.pipelines.cv import CVScheme
+from nltools.data.collection.pipesteps.base import FittedStack
+from nltools.data.collection.pipesteps.cv import CVScheme
 
 
 class TestCVScheme:

@@ -1,4 +1,4 @@
-(pipelines-steps-steps)=
+(data-collection-pipesteps-steps-steps)=
 ## `steps`
 
 Transform steps for nltools pipelines.
@@ -15,18 +15,18 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`FittedNormalize`](#pipelines-steps-fittednormalize) | Fitted normalization transform.
-[`FittedPipe`](#pipelines-steps-fittedpipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#pipelines-steps-fittedreduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#pipelines-steps-normalizestep) | Normalization transform step.
-[`PipeStep`](#pipelines-steps-pipestep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#pipelines-steps-reducestep) | Dimensionality reduction step.
+[`FittedNormalize`](#data-collection-pipesteps-steps-fittednormalize) | Fitted normalization transform.
+[`FittedPipe`](#data-collection-pipesteps-steps-fittedpipe) | Fitted sklearn transformer wrapper.
+[`FittedReduce`](#data-collection-pipesteps-steps-fittedreduce) | Fitted dimensionality reduction transform.
+[`NormalizeStep`](#data-collection-pipesteps-steps-normalizestep) | Normalization transform step.
+[`PipeStep`](#data-collection-pipesteps-steps-pipestep) | Wrapper for sklearn-compatible transformers.
+[`ReduceStep`](#data-collection-pipesteps-steps-reducestep) | Dimensionality reduction step.
 
 
 
 ### Classes
 
-(pipelines-steps-fittednormalize)=
+(data-collection-pipesteps-steps-fittednormalize)=
 #### `FittedNormalize`
 
 ```python
@@ -50,12 +50,12 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#pipelines-steps-inverse-transform) | Reverse normalization.
-[`transform`](#pipelines-steps-transform) | Apply normalization to data.
+[`inverse_transform`](#data-collection-pipesteps-steps-inverse-transform) | Reverse normalization.
+[`transform`](#data-collection-pipesteps-steps-transform) | Apply normalization to data.
 
 ##### Methods
 
-(pipelines-steps-inverse-transform)=
+(data-collection-pipesteps-steps-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -76,7 +76,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Data in original scale.
 
-(pipelines-steps-transform)=
+(data-collection-pipesteps-steps-transform)=
 ###### `transform`
 
 ```python
@@ -97,7 +97,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Normalized data.
 
-(pipelines-steps-fittedpipe)=
+(data-collection-pipesteps-steps-fittedpipe)=
 #### `FittedPipe`
 
 ```python
@@ -118,8 +118,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#pipelines-steps-inverse-transform) | Apply inverse transform if supported.
-[`transform`](#pipelines-steps-transform) | Apply the fitted transformer.
+[`inverse_transform`](#data-collection-pipesteps-steps-inverse-transform) | Apply inverse transform if supported.
+[`transform`](#data-collection-pipesteps-steps-transform) | Apply the fitted transformer.
 
 ##### Methods
 
@@ -163,7 +163,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Transformed data.
 
-(pipelines-steps-fittedreduce)=
+(data-collection-pipesteps-steps-fittedreduce)=
 #### `FittedReduce`
 
 ```python
@@ -185,8 +185,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#pipelines-steps-inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
-[`transform`](#pipelines-steps-transform) | Apply dimensionality reduction.
+[`inverse_transform`](#data-collection-pipesteps-steps-inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
+[`transform`](#data-collection-pipesteps-steps-transform) | Apply dimensionality reduction.
 
 ##### Methods
 
@@ -230,7 +230,7 @@ Type | Description
 ---- | -----------
 <code>[ndarray](#numpy.ndarray)</code> | Reduced data, shape (n_samples, n_components).
 
-(pipelines-steps-normalizestep)=
+(data-collection-pipesteps-steps-normalizestep)=
 #### `NormalizeStep`
 
 ```python
@@ -263,7 +263,7 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#pipelines-steps-fit) | Compute normalization parameters from data.
+[`fit`](#data-collection-pipesteps-steps-fit) | Compute normalization parameters from data.
 
 **Attributes:**
 
@@ -275,7 +275,7 @@ Name | Type | Description
 
 ##### Methods
 
-(pipelines-steps-fit)=
+(data-collection-pipesteps-steps-fit)=
 ###### `fit`
 
 ```python
@@ -294,9 +294,9 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FittedNormalize](#nltools.pipelines.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
+<code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
 
-(pipelines-steps-pipestep)=
+(data-collection-pipesteps-steps-pipestep)=
 #### `PipeStep`
 
 ```python
@@ -329,7 +329,7 @@ True
 
 Name | Description
 ---- | -----------
-[`fit`](#pipelines-steps-fit) | Fit transformer to data.
+[`fit`](#data-collection-pipesteps-steps-fit) | Fit transformer to data.
 
 **Attributes:**
 
@@ -361,9 +361,9 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FittedPipe](#nltools.pipelines.steps.FittedPipe)</code> | Fitted transform wrapper.
+<code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
 
-(pipelines-steps-reducestep)=
+(data-collection-pipesteps-steps-reducestep)=
 #### `ReduceStep`
 
 ```python
@@ -396,7 +396,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#pipelines-steps-fit) | Fit reduction model to data.
+[`fit`](#data-collection-pipesteps-steps-fit) | Fit reduction model to data.
 
 **Attributes:**
 
@@ -427,5 +427,5 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FittedReduce](#nltools.pipelines.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
+<code>[FittedReduce](#nltools.data.collection.pipesteps.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
 

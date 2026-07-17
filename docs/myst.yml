@@ -69,6 +69,10 @@ project:
             - file: api/data/collection_inference.md
             - file: api/data/collection_io.md
             - file: api/data/collection_pipeline.md
+            - file: api/data/collection_pipesteps.md
+            - file: api/data/collection_pipesteps_base.md
+            - file: api/data/collection_pipesteps_cv.md
+            - file: api/data/collection_pipesteps_steps.md
         - title: Atlases
           children:
             - file: api/data/atlases.md
@@ -86,12 +90,6 @@ project:
         - file: api/dataset.md
         - file: api/crossval.md
         - file: api/analysis.md
-    - title: API Pipelines
-      children:
-        - file: api/pipelines.md
-        - file: api/pipelines/pipeline.md
-        - file: api/pipelines/cv.md
-        - file: api/pipelines/steps.md
     - title: API Utilities
       children:
         - file: api/utils.md

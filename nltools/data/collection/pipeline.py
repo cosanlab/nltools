@@ -101,7 +101,7 @@ class BrainCollectionPipeline:
         Returns:
             New pipeline with standardization step added.
         """
-        from nltools.pipelines.steps import NormalizeStep
+        from .pipesteps.steps import NormalizeStep
 
         return self._add_step(NormalizeStep(method=method, **kwargs))
 
@@ -118,7 +118,7 @@ class BrainCollectionPipeline:
         Returns:
             New pipeline with reduction step added.
         """
-        from nltools.pipelines.steps import ReduceStep
+        from .pipesteps.steps import ReduceStep
 
         return self._add_step(
             ReduceStep(method=method, n_components=n_components, **kwargs)
@@ -133,7 +133,7 @@ class BrainCollectionPipeline:
         Returns:
             New pipeline with custom step added.
         """
-        from nltools.pipelines.steps import PipeStep
+        from .pipesteps.steps import PipeStep
 
         return self._add_step(PipeStep(transformer=transformer))
 
@@ -227,7 +227,7 @@ class BrainCollectionPipeline:
         Returns:
             ``BrainData`` with CV attributes attached.
         """
-        from nltools.pipelines.base import FittedStack
+        from .pipesteps.base import FittedStack
 
         results = []
         n_subjects = len(subject_data)
@@ -327,7 +327,7 @@ class BrainCollectionPipeline:
         Raises:
             ValueError: If groups parameter is not set.
         """
-        from nltools.pipelines.base import FittedStack
+        from .pipesteps.base import FittedStack
 
         # Pool all data
         pooled_data = np.vstack(subject_data)

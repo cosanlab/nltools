@@ -1,4 +1,4 @@
-(pipelines-pipeline-base)=
+(data-collection-pipesteps-base-base)=
 ## `base`
 
 Low-level pipeline primitives for nltools.
@@ -13,15 +13,15 @@ native `.cv().standardize().reduce().predict()`.
 
 Name | Description
 ---- | -----------
-[`FittedStack`](#pipelines-pipeline-fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#pipelines-pipeline-fittedtransform) | Protocol for fitted transform objects.
-[`TransformStep`](#pipelines-pipeline-transformstep) | Protocol for pipeline transform steps.
+[`FittedStack`](#data-collection-pipesteps-base-fittedstack) | Collection of fitted transforms for inverse transform support.
+[`FittedTransform`](#data-collection-pipesteps-base-fittedtransform) | Protocol for fitted transform objects.
+[`TransformStep`](#data-collection-pipesteps-base-transformstep) | Protocol for pipeline transform steps.
 
 
 
 ### Classes
 
-(pipelines-pipeline-fittedstack)=
+(data-collection-pipesteps-base-fittedstack)=
 #### `FittedStack`
 
 ```python
@@ -37,7 +37,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-`steps` | <code>[list](#list)[[FittedTransform](#nltools.pipelines.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+`steps` | <code>[list](#list)[[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -49,12 +49,12 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#pipelines-pipeline-append) | Add a fitted transform to the stack.
-[`inverse_transform`](#pipelines-pipeline-inverse-transform) | Apply inverse transforms in reverse order.
+[`append`](#data-collection-pipesteps-base-append) | Add a fitted transform to the stack.
+[`inverse_transform`](#data-collection-pipesteps-base-inverse-transform) | Apply inverse transforms in reverse order.
 
 ##### Methods
 
-(pipelines-pipeline-append)=
+(data-collection-pipesteps-base-append)=
 ###### `append`
 
 ```python
@@ -67,9 +67,9 @@ Add a fitted transform to the stack.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`fitted_step` | <code>[FittedTransform](#nltools.pipelines.base.FittedTransform)</code> | Fitted transform to append. | *required*
+`fitted_step` | <code>[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
-(pipelines-pipeline-inverse-transform)=
+(data-collection-pipesteps-base-inverse-transform)=
 ###### `inverse_transform`
 
 ```python
@@ -98,7 +98,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 
 </details>
 
-(pipelines-pipeline-fittedtransform)=
+(data-collection-pipesteps-base-fittedtransform)=
 #### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -120,8 +120,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#pipelines-pipeline-inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#pipelines-pipeline-transform) | Apply the learned transformation to data.
+[`inverse_transform`](#data-collection-pipesteps-base-inverse-transform) | Apply the inverse transformation to data.
+[`transform`](#data-collection-pipesteps-base-transform) | Apply the learned transformation to data.
 
 
 
@@ -147,7 +147,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Data in original space.
 
-(pipelines-pipeline-transform)=
+(data-collection-pipesteps-base-transform)=
 ###### `transform`
 
 ```python
@@ -168,7 +168,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
-(pipelines-pipeline-transformstep)=
+(data-collection-pipesteps-base-transformstep)=
 #### `TransformStep`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -194,11 +194,11 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#pipelines-pipeline-fit) | Fit the transform to data.
+[`fit`](#data-collection-pipesteps-base-fit) | Fit the transform to data.
 
 ##### Methods
 
-(pipelines-pipeline-fit)=
+(data-collection-pipesteps-base-fit)=
 ###### `fit`
 
 ```python
@@ -217,5 +217,5 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FittedTransform](#nltools.pipelines.base.FittedTransform)</code> | Fitted transform object that can transform new data.
+<code>[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)</code> | Fitted transform object that can transform new data.
 
