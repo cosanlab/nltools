@@ -17,7 +17,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(bd, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.

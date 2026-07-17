@@ -24,7 +24,7 @@ Name | Description
 #### `add_dct_basis`
 
 ```python
-add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
+add_dct_basis(dm: DesignMatrix, *, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
 ```
 
 Add discrete cosine transform basis functions for high-pass filtering.

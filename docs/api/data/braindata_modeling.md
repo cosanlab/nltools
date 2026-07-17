@@ -28,7 +28,7 @@ Name | Description
 #### `compute_contrasts`
 
 ```python
-compute_contrasts(bd, contrasts, contrast_type = 't')
+compute_contrasts(bd, contrasts, statistic = 't')
 ```
 
 Compute contrasts from a fitted GLM.
@@ -47,13 +47,13 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `contrasts` |  | Can be:<br>- str: a contrast expressed in terms of column names, e.g.   ``"conditionA - conditionB"`` or ``"2*conditionA - conditionB - conditionC"`` - array-like: a numeric contrast vector, one weight per regressor   (e.g. ``[1, -1, 0, 0]``) - dict: ``{name: contrast}`` for multiple contrasts at once | *required*
-`contrast_type` | <code>[str](#str)</code> | What to return per contrast. One of:<br>- ``"t"`` (default): t-statistic map (for thresholding /   single-subject inference) - ``"z"``: z-score map - ``"p"``: p-value map - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this   when feeding into a second-level (group) analysis - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``   of BrainData maps for this one contrast. One fit, one call,   every view — effect size *and* inferential maps together so   group-level code never has to recompute beta separately. | <code>'t'</code>
+`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of:<br>- ``"t"`` (default): t-statistic map (for thresholding /   single-subject inference) - ``"z"``: z-score map - ``"p"``: p-value map - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this   when feeding into a second-level (group) analysis - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``   of BrainData maps for this one contrast. One fit, one call,   every view — effect size *and* inferential maps together so   group-level code never has to recompute beta separately. | <code>'t'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | Depends on inputs:<br>- single contrast (str or array) + scalar ``contrast_type``:   a single BrainData. - single contrast + ``contrast_type="all"``: a flat dict of five   BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. - dict of contrasts + scalar ``contrast_type``: a dict   ``{name: BrainData}``. - dict of contrasts + ``contrast_type="all"``: a nested dict   ``{name: {"beta", "t", "z", "p", "se"}}``.
+ | Depends on inputs:<br>- single contrast (str or array) + scalar ``statistic``:   a single BrainData. - single contrast + ``statistic="all"``: a flat dict of five   BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. - dict of contrasts + scalar ``statistic``: a dict   ``{name: BrainData}``. - dict of contrasts + ``statistic="all"``: a nested dict   ``{name: {"beta", "t", "z", "p", "se"}}``.
 
 **Examples:**
 
@@ -63,11 +63,11 @@ Type | Description
 >>> tmap = data.compute_contrasts("conditionA - conditionB")
 >>> # Effect-size map for use as input to a group-level analysis
 >>> beta = data.compute_contrasts(
-...     "conditionA - conditionB", contrast_type="beta"
+...     "conditionA - conditionB", statistic="beta"
 ... )
 >>> # Everything at once: threshold on res["t"], feed group on res["beta"]
 >>> res = data.compute_contrasts(
-...     "conditionA - conditionB", contrast_type="all"
+...     "conditionA - conditionB", statistic="all"
 ... )
 >>> res["t"].plot(threshold=3.09)
 >>> group_effects.append(res["beta"])
@@ -79,7 +79,7 @@ Type | Description
 - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
 - Column names must match design matrix columns exactly (case-sensitive).
 - For group analysis, stack per-subject effect-size maps
-  (``contrast_type="beta"`` or ``res["beta"]`` from ``contrast_type="all"``)
+  (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``)
   and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
   t-maps into a group one-sample test conflates effect magnitude with precision.
 
@@ -89,7 +89,7 @@ Type | Description
 #### `compute_ridge_cv`
 
 ```python
-compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto', **kwargs)
+compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto')
 ```
 
 Held-out CV scores under a fixed Ridge α.
@@ -107,7 +107,6 @@ Name | Type | Description | Default
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | *required*
 `alpha` | <code>[float](#float)</code> | Fixed regularization strength. If None, extracted from ``bd.model_.alpha``. | <code>None</code>
 `backend` | <code>[str](#str)</code> | Computational backend ('numpy', 'torch', 'auto'). Default: 'auto' | <code>'auto'</code>
-`**kwargs` |  | Additional kwargs (forward-compatibility). | <code>{}</code>
 
 **Returns:**
 
@@ -136,7 +135,7 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix, shape (n_samples, n_features) - For GLM: Design matrix with regressors (n_samples must match bd.data) - For Ridge: Feature matrix for prediction (n_samples must match bd.data) | <code>None</code>
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only): - int: Number of folds for k-fold CV (returns CV scores) - 'auto': Triggers alpha selection via CV (implies alpha='auto') - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True)) - None: No CV (default, backward compatible) | <code>None</code>
-`inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return Fit dataclass with results (bd unchanged). | <code>True</code>
+`inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return a Fit dataclass with the results. In this case bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``bd.model_`` and ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so that ``predict()`` / ``compute_contrasts()`` still work off bd. Successive ``inplace=False`` fits therefore overwrite the model used by a later ``bd.predict()``. | <code>True</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. - If None: Uses bd.verbose (default) - If True: Shows progress bar for long-running operations - If False: No progress bar | <code>None</code>
 `scale` | <code>bool, default=True</code> | Apply grand-mean scaling before fitting. Calls bd.scale(scale_value) which divides all values by the global mean and multiplies by scale_value. This puts data in percent signal change units, which is standard for fMRI analysis. | <code>True</code>
 `scale_value` | <code>float, default=100.0</code> | Target value for mean after scaling. Only used if scale=True. | <code>100.0</code>
@@ -178,11 +177,12 @@ Name | Type | Description
 >>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
 >>> weights = brain_data.ridge_weights  # Access as attribute
 >>>
->>> # New behavior: return Fit dataclass (self unchanged)
+>>> # New behavior: return Fit dataclass (result attrs / data unchanged)
 >>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
 >>> assert isinstance(fit, Fit)
 >>> assert 'weights' in fit.available()
->>> assert not hasattr(brain_data, 'ridge_weights')  # brain_data unchanged
+>>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
+>>> # (model_/X_ ARE updated on brain_data so predict() works)
 >>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
 >>>
 >>> # GLM with Fit dataclass
@@ -289,7 +289,7 @@ Name | Type | Description
 #### `ttest`
 
 ```python
-ttest(bd, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(bd, *, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 One-sample voxelwise t-test across images (axis 0).

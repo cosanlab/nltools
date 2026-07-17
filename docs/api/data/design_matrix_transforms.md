@@ -25,7 +25,7 @@ Name | Description
 #### `downsample`
 
 ```python
-downsample(dm: DesignMatrix, target: float, **kwargs: float) -> DesignMatrix
+downsample(dm: DesignMatrix, target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
@@ -36,7 +36,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
 `target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq). | *required*
-`**kwargs` |  | Additional keyword arguments:<br>- **method** (str): Aggregation method - 'mean' or 'median'.   Default: 'mean'. | <code>{}</code>
+`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median'. Default: 'mean'. | <code>'mean'</code>
 
 **Returns:**
 
@@ -89,7 +89,7 @@ Name | Type | Description
 #### `upsample`
 
 ```python
-upsample(dm: DesignMatrix, target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(dm: DesignMatrix, target: float, method: str = 'linear') -> DesignMatrix
 ```
 
 Increase temporal resolution using Polars-native interpolation.
@@ -101,7 +101,6 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
 `target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
 `method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
-`**kwargs` |  | Reserved for future extensions | <code>{}</code>
 
 **Returns:**
 

@@ -181,7 +181,7 @@ Name | Type | Description
 #### `clean`
 
 ```python
-clean(fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -269,7 +269,7 @@ Name | Type | Description
 #### `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+downsample(target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
@@ -467,7 +467,7 @@ Type | Description
 #### `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(target: float, method: str = 'linear') -> DesignMatrix
 ```
 
 Increase temporal resolution to a target frequency.

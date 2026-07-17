@@ -52,7 +52,7 @@ Name | Type | Description
 ...     .cv(scheme='loso')
 ...     .standardize()
 ...     .reduce(n_components=50)
-...     .predict(labels, algorithm='svm'))
+...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
@@ -100,7 +100,7 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(y, algorithm: str = 'ridge', **kwargs: str)
+predict(y, method: str = 'ridge', *, n_permute: int = 0, random_state: int = None, **kwargs: int)
 ```
 
 Execute pipeline with CV and return prediction results.
@@ -110,7 +110,9 @@ Execute pipeline with CV and return prediction results.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
-`algorithm` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
+`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
 `**kwargs` |  | Passed to model constructor. | <code>{}</code>
 
 **Returns:**
@@ -119,7 +121,8 @@ Type | Description
 ---- | -----------
  | ``BrainData`` carrying out-of-fold predictions plus CV attributes
  | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
- | ``fold_results``, ``cv_pipeline``).
+ | ``fold_results``, ``cv_pipeline``). When ``n_permute > 0`` it also
+ | carries ``permutation_scores`` and ``permutation_pvalue``.
 
 (data-collection-pipeline-reduce)=
 ###### `reduce`
@@ -218,7 +221,7 @@ Name | Type | Description
 ###### `pool`
 
 ```python
-pool(param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
+pool(*, param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
 ```
 
 Pool fitted parameters across subjects.

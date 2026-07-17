@@ -189,7 +189,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -260,7 +260,7 @@ Type | Description
 #### `compute_contrasts`
 
 ```python
-compute_contrasts(contrasts, contrast_type = 't')
+compute_contrasts(contrasts, statistic = 't')
 ```
 
 Compute contrasts from fitted GLM results.
@@ -273,13 +273,13 @@ Must be called after .fit(model='glm', X=design_matrix) has been run.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `contrasts` |  | Can be:<br>- str: A string specifying the contrast using column names   e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC" - dict: Dictionary with contrast names as keys and contrast strings/vectors as values   e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]} - array: Numeric contrast vector matching the number of regressors   e.g., [1, -1, 0, 0] for a 4-regressor model | *required*
-`contrast_type` | <code>[str](#str)</code> | What to return per contrast. One of `"t"` (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` / `"effect_size"` (effect-size β map — use this when feeding a second-level group analysis), or `"all"` (a bundle dict `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`. | <code>'t'</code>
+`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of `"t"` (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` / `"effect_size"` (effect-size β map — use this when feeding a second-level group analysis), or `"all"` (a bundle dict `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`. | <code>'t'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | BrainData or dict: A single contrast with a scalar `contrast_type` returns a `BrainData` map; with `contrast_type="all"` it returns a flat dict keyed by `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed by contrast name (nested under the five keys when `contrast_type="all"`).
+ | BrainData or dict: A single contrast with a scalar `statistic` returns a `BrainData` map; with `statistic="all"` it returns a flat dict keyed by `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed by contrast name (nested under the five keys when `statistic="all"`).
 
 **Examples:**
 
@@ -440,7 +440,7 @@ Type | Description
 #### `filter`
 
 ```python
-filter(sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
+filter(*, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
 Apply butterworth filter to data. Wraps nilearn.signal.clean.
@@ -549,7 +549,7 @@ regressor ``i`` only. For contrasts across regressors
 you cannot correctly combine these per-regressor maps by hand
 because t-statistic arithmetic requires the off-diagonal elements
 of the parameter covariance matrix, which are not stored. Pass
-``contrast_type="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
+``statistic="all"`` to get ``β``/``t``/``z``/``p``/``se`` for
 one contrast in a single call.
 
 </details>
@@ -688,7 +688,7 @@ Name | Type | Description
 #### `plot`
 
 ```python
-plot(method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
+plot(*, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
 ```
 
 Plot BrainData instance using nilearn visualization or matplotlib.
@@ -728,7 +728,7 @@ Type | Description
 #### `plot_flatmap`
 
 ```python
-plot_flatmap(threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(*, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -908,7 +908,7 @@ Apply Fisher's r-to-z transformation to each data element.
 #### `regions`
 
 ```python
-regions(min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(*, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -932,7 +932,7 @@ Name | Type | Description
 #### `resample_to`
 
 ```python
-resample_to(img = None, resolution = None, interpolation = None)
+resample_to(*, img = None, resolution = None, interpolation = None)
 ```
 
 Resample BrainData to match target image or resolution.
@@ -1028,7 +1028,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(axis = 0, method = 'center', verbose = True)
+standardize(*, axis = 0, method = 'center', verbose = True)
 ```
 
 Standardize BrainData() instance.
@@ -1095,7 +1095,7 @@ Type | Description
 #### `temporal_resample`
 
 ```python
-temporal_resample(sampling_freq = None, target = None, target_type = 'hz')
+temporal_resample(*, sampling_freq = None, target = None, target_type = 'hz')
 ```
 
 Resample BrainData timeseries to a new target frequency or number of samples.
@@ -1118,7 +1118,7 @@ Type | Description
 #### `threshold`
 
 ```python
-threshold(upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
+threshold(*, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
 ```
 
 Threshold BrainData instance with optional cluster filtering.
@@ -1173,7 +1173,7 @@ Name | Type | Description
 #### `ttest`
 
 ```python
-ttest(popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(*, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 One-sample voxelwise t-test across images (axis 0).
@@ -1243,7 +1243,7 @@ Name | Type | Description
 #### `upload_neurovault`
 
 ```python
-upload_neurovault(access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
+upload_neurovault(*, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
 ```
 
 Upload BrainData images and metadata to NeuroVault.

@@ -128,7 +128,7 @@ Name | Type | Description
 #### `Glm`
 
 ```python
-Glm(t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
+Glm(*, t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -273,7 +273,7 @@ Type | Description
 ###### `fit`
 
 ```python
-fit(X, y = None, design_matrices = None, events = None, **kwargs)
+fit(X, y = None, *, design_matrices = None, events = None, **kwargs)
 ```
 
 Fit GLM to fMRI data.
@@ -385,7 +385,7 @@ For voxel-wise R² maps, access `glm_.r_square` directly.
 #### `Ridge`
 
 ```python
-Ridge(alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = [0.1, 1.0], backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+Ridge(*, alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = None, backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -409,7 +409,7 @@ Name | Type | Description | Default
 `cv` | <code>int or None, default=None</code> | Number of cross-validation folds (only used if alpha='auto') | <code>None</code>
 `alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
 `n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
-`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>[0.1, 1.0]</code>
+`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>None</code>
 `backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
 `local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
@@ -673,7 +673,7 @@ Name | Description
 ###### `Glm`
 
 ```python
-Glm(t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
+Glm(*, t_r = None, noise_model = 'ols', smoothing_fwhm = None, mask = None, progress_bar = False, **kwargs)
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -917,7 +917,7 @@ Type | Description
 ######## `fit`
 
 ```python
-fit(X, y = None, design_matrices = None, events = None, **kwargs)
+fit(X, y = None, *, design_matrices = None, events = None, **kwargs)
 ```
 
 Fit GLM to fMRI data.
@@ -1050,7 +1050,7 @@ Name | Description
 ###### `Ridge`
 
 ```python
-Ridge(alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = [0.1, 1.0], backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
+Ridge(*, alpha = 1.0, cv = None, alphas = None, n_iter = 100, concentration = None, backend = 'numpy', local_alpha = True, fit_intercept = False, conservative = False, random_state = None, progress_bar = False)
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -1074,7 +1074,7 @@ Name | Type | Description | Default
 `cv` | <code>int or None, default=None</code> | Number of cross-validation folds (only used if alpha='auto') | <code>None</code>
 `alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
 `n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
-`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>[0.1, 1.0]</code>
+`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>None</code>
 `backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
 `local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
@@ -1146,7 +1146,7 @@ backend = backend
 ######## `concentration`
 
 ```python
-concentration = concentration
+concentration = [0.1, 1.0] if concentration is None else concentration
 ```
 
 ######## `conservative`

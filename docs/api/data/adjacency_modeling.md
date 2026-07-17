@@ -23,7 +23,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(adj, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.

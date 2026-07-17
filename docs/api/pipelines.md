@@ -54,14 +54,17 @@ Supports multiple CV strategies:
 - loso: leave-one-subject-out (for multi-subject)
 - loro: leave-one-run-out
 - bootstrap: bootstrap resampling
-- permutation: permutation testing (shuffles targets)
+
+For the label-permutation accuracy null (the classic MVPA permutation
+test), use ``BrainCollectionPipeline.predict(n_permute=...)`` — it is a
+dedicated outer loop over shuffled targets, not a train/test split.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
-`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'. | <code>'kfold'</code>
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'. | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
 `n` | <code>[int](#int)</code> | Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
@@ -86,11 +89,6 @@ Name | Type | Description | Default
 ```pycon
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
-```
-
-```pycon
->>> # Permutation testing with 1000 permutations
->>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
 ```
 
 **Methods:**
@@ -1106,14 +1104,17 @@ Supports multiple CV strategies:
 - loso: leave-one-subject-out (for multi-subject)
 - loro: leave-one-run-out
 - bootstrap: bootstrap resampling
-- permutation: permutation testing (shuffles targets)
+
+For the label-permutation accuracy null (the classic MVPA permutation
+test), use ``BrainCollectionPipeline.predict(n_permute=...)`` — it is a
+dedicated outer loop over shuffled targets, not a train/test split.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `k` | <code>[int](#int) \| None</code> | Number of folds (for kfold scheme). Defaults to 5 if scheme is 'kfold'. | <code>None</code>
-`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', 'bootstrap', or 'permutation'. | <code>'kfold'</code>
+`scheme` | <code>[CVSchemeType](#nltools.pipelines.cv.CVSchemeType)</code> | CV scheme type. One of 'kfold', 'loso', 'loro', or 'bootstrap'. | <code>'kfold'</code>
 `split_by` | <code>[str](#str) \| None</code> | Attribute to split by ('runs', 'subjects', 'sessions'). Used for documentation purposes with loso/loro schemes. | <code>None</code>
 `n` | <code>[int](#int)</code> | Number of bootstrap iterations (for bootstrap scheme). Defaults to 1000. | <code>1000</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. If provided, sets the numpy random seed during initialization. | <code>None</code>
@@ -1138,11 +1139,6 @@ Name | Type | Description | Default
 ```pycon
 >>> # Bootstrap with 500 iterations
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
-```
-
-```pycon
->>> # Permutation testing with 1000 permutations
->>> cv = CVScheme(scheme='permutation', n=1000, random_state=42)
 ```
 
 **Methods:**

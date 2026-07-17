@@ -169,7 +169,7 @@ Name | Type | Description
 ###### `cluster_summary`
 
 ```python
-cluster_summary(clusters = None, metric = 'mean', summary = 'within')
+cluster_summary(*, clusters = None, metric = 'mean', summary = 'within')
 ```
 
 Provide summaries of clusters within Adjacency matrices.
@@ -384,7 +384,7 @@ Name | Type | Description | Default
 ###### `plot_silhouette`
 
 ```python
-plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Create a silhouette plot.
@@ -509,7 +509,7 @@ Convert adjacency data back to square form.
 ###### `stats_label_distance`
 
 ```python
-stats_label_distance(labels = None, n_permute = 5000, n_jobs = -1)
+stats_label_distance(*, labels = None, n_permute = 5000, n_jobs = -1)
 ```
 
 Calculate permutation tests on within and between label distance.
@@ -573,7 +573,7 @@ Type | Description
 ###### `threshold`
 
 ```python
-threshold(upper = None, lower = None, binarize = False)
+threshold(*, upper = None, lower = None, binarize = False)
 ```
 
 Threshold an Adjacency instance.
@@ -667,7 +667,7 @@ Type | Description
 ###### `ttest`
 
 ```python
-ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -818,7 +818,7 @@ Resolved at construction and frozen on the instance.
 ###### `align`
 
 ```python
-align(*, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+align(*, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
 (data-anova)=
@@ -872,7 +872,7 @@ Wide brush — can kill sibling sessions in the same cwd. Prefer
 ###### `compute_contrasts`
 
 ```python
-compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, contrast_type: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
+compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, statistic: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
 ```
 
 Compute per-subject contrast maps from fit-bundle items.
@@ -881,10 +881,10 @@ Compute per-subject contrast maps from fit-bundle items.
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``contrast_type`` → ``BrainCollection``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``statistic`` → ``BrainCollection``
 <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts (single type)            → ``dict[str, BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``contrast_type='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``contrast_type='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``statistic='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``statistic='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
 
 Each per-subject NIfTI gets a JSON sidecar with lineage attrs
 (``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
@@ -1360,7 +1360,7 @@ Name | Type | Description
 ###### `clean`
 
 ```python
-clean(fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -1447,7 +1447,7 @@ Name | Type | Description
 ###### `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+downsample(target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
@@ -1642,7 +1642,7 @@ Type | Description
 ###### `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(target: float, method: str = 'linear') -> DesignMatrix
 ```
 
 Increase temporal resolution to a target frequency.
@@ -1982,7 +1982,7 @@ False
 #### `Roc`
 
 ```python
-Roc(input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
+Roc(*, input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
 ```
 
 Roc Class
@@ -2024,7 +2024,7 @@ Name | Type | Description
 ###### `calculate`
 
 ```python
-calculate(input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
+calculate(*, input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
 ```
 
 Calculate Receiver Operating Characteristic plot (ROC) for
@@ -2045,7 +2045,7 @@ Name | Type | Description | Default
 ###### `plot`
 
 ```python
-plot(plot_method = 'gaussian', balanced_acc = False, **kwargs)
+plot(plot_method = 'gaussian', balanced_acc = False)
 ```
 
 Create ROC Plot
@@ -2059,7 +2059,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `plot_method` |  | type of plot ['gaussian','observed'] | <code>'gaussian'</code>
 `binary_outcome` |  | vector of training labels | *required*
-`**kwargs` |  | Additional keyword arguments to pass to the prediction         algorithm | <code>{}</code>
 
 **Returns:**
 
@@ -2080,7 +2079,7 @@ Display a formatted summary of ROC analysis.
 #### `SimulateGrid`
 
 ```python
-SimulateGrid(grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
+SimulateGrid(*, grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
 ```
 
 Simulate 2D grid data for testing statistical methods.
@@ -2204,7 +2203,7 @@ Name | Type | Description | Default
 #### `Simulator`
 
 ```python
-Simulator(brain_mask = None, output_dir = None, random_state = None)
+Simulator(*, brain_mask = None, output_dir = None, random_state = None)
 ```
 
 Simulate fMRI data with realistic spatial and temporal characteristics.
@@ -2258,7 +2257,7 @@ Name | Description
 ###### `create_cov_data`
 
 ```python
-create_cov_data(cor, cov, sigma, mask = None, reps = 1, n_sub = 1, output_dir = None)
+create_cov_data(cor, cov, sigma, *, mask = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance
@@ -2281,7 +2280,7 @@ Name | Type | Description | Default
 ###### `create_data`
 
 ```python
-create_data(levels, sigma, radius = 5, center = None, reps = 1, output_dir = None)
+create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
 ```
 
 create simulated data with integers
@@ -2302,7 +2301,7 @@ Name | Type | Description | Default
 ###### `create_ncov_data`
 
 ```python
-create_ncov_data(cor, cov, sigma, masks = None, reps = 1, n_sub = 1, output_dir = None)
+create_ncov_data(cor, cov, sigma, *, masks = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance
@@ -2552,7 +2551,7 @@ issymmetric = f['issymmetric'][]
 ######## `labels`
 
 ```python
-labels = legacy['labels']
+labels = deepcopy(tmp.labels)
 ```
 
 ######## `matrix_type`
@@ -2688,7 +2687,7 @@ Name | Type | Description
 ######## `cluster_summary`
 
 ```python
-cluster_summary(clusters = None, metric = 'mean', summary = 'within')
+cluster_summary(*, clusters = None, metric = 'mean', summary = 'within')
 ```
 
 Provide summaries of clusters within Adjacency matrices.
@@ -2893,7 +2892,7 @@ Name | Type | Description | Default
 ######## `plot_silhouette`
 
 ```python
-plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Create a silhouette plot.
@@ -3012,7 +3011,7 @@ Convert adjacency data back to square form.
 ######## `stats_label_distance`
 
 ```python
-stats_label_distance(labels = None, n_permute = 5000, n_jobs = -1)
+stats_label_distance(*, labels = None, n_permute = 5000, n_jobs = -1)
 ```
 
 Calculate permutation tests on within and between label distance.
@@ -3073,7 +3072,7 @@ Type | Description
 ######## `threshold`
 
 ```python
-threshold(upper = None, lower = None, binarize = False)
+threshold(*, upper = None, lower = None, binarize = False)
 ```
 
 Threshold an Adjacency instance.
@@ -3163,7 +3162,7 @@ Type | Description
 ######## `ttest`
 
 ```python
-ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -3292,7 +3291,7 @@ Name | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(adj, stat, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -3629,7 +3628,7 @@ Name | Description
 ###### `cluster_summary`
 
 ```python
-cluster_summary(adj, clusters = None, metric = 'mean', summary = 'within')
+cluster_summary(adj, *, clusters = None, metric = 'mean', summary = 'within')
 ```
 
 This function provides summaries of clusters within Adjacency matrices.
@@ -3676,7 +3675,7 @@ Type | Description
 ######## `plot_silhouette`
 
 ```python
-plot_silhouette(adj, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(adj, *, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Create a silhouette plot.
@@ -3753,7 +3752,7 @@ Type | Description
 ######## `stats_label_distance`
 
 ```python
-stats_label_distance(adj, labels = None, n_permute = 5000, n_jobs = -1)
+stats_label_distance(adj, *, labels = None, n_permute = 5000, n_jobs = -1)
 ```
 
 Calculate permutation tests on within and between label distance.
@@ -3775,7 +3774,7 @@ Name | Type | Description
 ######## `threshold`
 
 ```python
-threshold(adj, upper = None, lower = None, binarize = False)
+threshold(adj, *, upper = None, lower = None, binarize = False)
 ```
 
 Threshold an Adjacency instance.
@@ -3802,7 +3801,7 @@ Name | Type | Description
 ######## `ttest`
 
 ```python
-ttest(adj, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.
@@ -4110,7 +4109,7 @@ Result of `BrainData.cluster_report`.
 
 Name | Type | Description
 ---- | ---- | -----------
-`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
 [`clusters`](#data-clusters) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
 `stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
 
@@ -4606,7 +4605,7 @@ Result of `BrainData.cluster_report`.
 
 Name | Type | Description
 ---- | ---- | -----------
-`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
 [`clusters`](#data-clusters) | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
 `stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
 
@@ -4915,7 +4914,7 @@ report shape would defeat the purpose) or when items are ragged.
 ###### `align`
 
 ```python
-align(*, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+align(*, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
 ######## `anova`
@@ -4964,7 +4963,7 @@ Wide brush — can kill sibling sessions in the same cwd. Prefer
 ######## `compute_contrasts`
 
 ```python
-compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, contrast_type: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
+compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, statistic: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
 ```
 
 Compute per-subject contrast maps from fit-bundle items.
@@ -4973,10 +4972,10 @@ Compute per-subject contrast maps from fit-bundle items.
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``contrast_type`` → ``BrainCollection``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``statistic`` → ``BrainCollection``
 <code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts (single type)            → ``dict[str, BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``contrast_type='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``contrast_type='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``statistic='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``statistic='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
 
 Each per-subject NIfTI gets a JSON sidecar with lineage attrs
 (``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
@@ -5274,7 +5273,7 @@ Name | Type | Description
 ...     .cv(scheme='loso')
 ...     .standardize()
 ...     .reduce(n_components=50)
-...     .predict(labels, algorithm='svm'))
+...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
@@ -5351,7 +5350,7 @@ Type | Description
 ######## `predict`
 
 ```python
-predict(y, algorithm: str = 'ridge', **kwargs: str)
+predict(y, method: str = 'ridge', *, n_permute: int = 0, random_state: int = None, **kwargs: int)
 ```
 
 Execute pipeline with CV and return prediction results.
@@ -5361,7 +5360,9 @@ Execute pipeline with CV and return prediction results.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
-`algorithm` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
+`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
 `**kwargs` |  | Passed to model constructor. | <code>{}</code>
 
 **Returns:**
@@ -5370,7 +5371,8 @@ Type | Description
 ---- | -----------
  | ``BrainData`` carrying out-of-fold predictions plus CV attributes
  | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
- | ``fold_results``, ``cv_pipeline``).
+ | ``fold_results``, ``cv_pipeline``). When ``n_permute > 0`` it also
+ | carries ``permutation_scores`` and ``permutation_pvalue``.
 
 ######## `reduce`
 
@@ -5714,7 +5716,7 @@ Name | Description
 ###### `align`
 
 ```python
-align(bc: BrainCollection, *, method: str = 'procrustes', scheme: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+align(bc: BrainCollection, *, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_mm: float = 10.0, parcellation: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
 Functional alignment via ``LocalAlignment``.
@@ -6063,7 +6065,7 @@ Name | Type | Description
 ...     .cv(scheme='loso')
 ...     .standardize()
 ...     .reduce(n_components=50)
-...     .predict(labels, algorithm='svm'))
+...     .predict(labels, method='svm'))
 >>> print(f"Mean accuracy: {result.mean_score:.2%}")
 ```
 
@@ -6139,7 +6141,7 @@ Type | Description
 ########## `predict`
 
 ```python
-predict(y, algorithm: str = 'ridge', **kwargs: str)
+predict(y, method: str = 'ridge', *, n_permute: int = 0, random_state: int = None, **kwargs: int)
 ```
 
 Execute pipeline with CV and return prediction results.
@@ -6149,7 +6151,9 @@ Execute pipeline with CV and return prediction results.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` |  | Target variable. For LOSO, shape should be (n_subjects,). | *required*
-`algorithm` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`method` | <code>[str](#str)</code> | Prediction algorithm ('ridge', 'svm', 'logistic', etc.) | <code>'ridge'</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — the classic MVPA permutation test. Each iteration shuffles ``y``, re-runs the *same* cross-validation, and records the mean score; the result gets ``permutation_scores`` (the null array) and ``permutation_pvalue`` attached. Default 0 (no null). | <code>0</code>
+`random_state` |  | Seed for the label shuffling (permutation null only). | <code>None</code>
 `**kwargs` |  | Passed to model constructor. | <code>{}</code>
 
 **Returns:**
@@ -6158,7 +6162,8 @@ Type | Description
 ---- | -----------
  | ``BrainData`` carrying out-of-fold predictions plus CV attributes
  | (``cv_scores``, ``cv_predictions``, ``mean_score``, ``std_score``,
- | ``fold_results``, ``cv_pipeline``).
+ | ``fold_results``, ``cv_pipeline``). When ``n_permute > 0`` it also
+ | carries ``permutation_scores`` and ``permutation_pvalue``.
 
 ########## `reduce`
 
@@ -6294,7 +6299,7 @@ Use this for backward compatibility or when pool() is not needed.
 ###### `pool`
 
 ```python
-pool(param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
+pool(*, param: str = 'beta', contrast: str | None = None, save: str | None = None, save_fitted: bool = False)
 ```
 
 Pool fitted parameters across subjects.
@@ -6616,7 +6621,7 @@ Name | Type | Description
 ######## `clean`
 
 ```python
-clean(fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -6700,7 +6705,7 @@ Name | Type | Description
 ######## `downsample`
 
 ```python
-downsample(target: float, method: str = 'mean', **kwargs: str) -> DesignMatrix
+downsample(target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
@@ -6889,7 +6894,7 @@ Type | Description
 ######## `upsample`
 
 ```python
-upsample(target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(target: float, method: str = 'linear') -> DesignMatrix
 ```
 
 Increase temporal resolution to a target frequency.
@@ -7029,7 +7034,7 @@ Name | Description
 ###### `append`
 
 ```python
-append(dm: DesignMatrix, other: DesignMatrix, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
+append(dm: DesignMatrix, other: DesignMatrix, *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, verbose: bool = False) -> DesignMatrix
 ```
 
 Concatenate design matrices.
@@ -7213,7 +7218,7 @@ Name | Description
 ###### `clean`
 
 ```python
-clean(dm: DesignMatrix, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
+clean(dm: DesignMatrix, *, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, verbose: bool = True) -> DesignMatrix
 ```
 
 Remove highly correlated columns.
@@ -7684,7 +7689,7 @@ Name | Description
 ###### `add_dct_basis`
 
 ```python
-add_dct_basis(dm: DesignMatrix, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
+add_dct_basis(dm: DesignMatrix, *, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
 ```
 
 Add discrete cosine transform basis functions for high-pass filtering.
@@ -7804,7 +7809,7 @@ Name | Description
 ###### `downsample`
 
 ```python
-downsample(dm: DesignMatrix, target: float, **kwargs: float) -> DesignMatrix
+downsample(dm: DesignMatrix, target: float, method: str = 'mean') -> DesignMatrix
 ```
 
 Reduce temporal resolution using Polars-native operations.
@@ -7815,7 +7820,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
 `target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq). | *required*
-`**kwargs` |  | Additional keyword arguments:<br>- **method** (str): Aggregation method - 'mean' or 'median'.   Default: 'mean'. | <code>{}</code>
+`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median'. Default: 'mean'. | <code>'mean'</code>
 
 **Returns:**
 
@@ -7866,7 +7871,7 @@ Name | Type | Description
 ######## `upsample`
 
 ```python
-upsample(dm: DesignMatrix, target: float, method: str = 'linear', **kwargs: str) -> DesignMatrix
+upsample(dm: DesignMatrix, target: float, method: str = 'linear') -> DesignMatrix
 ```
 
 Increase temporal resolution using Polars-native interpolation.
@@ -7878,7 +7883,6 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
 `target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
 `method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
-`**kwargs` |  | Reserved for future extensions | <code>{}</code>
 
 **Returns:**
 
@@ -8642,7 +8646,7 @@ Name | Description
 ###### `Roc`
 
 ```python
-Roc(input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
+Roc(*, input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
 ```
 
 Roc Class
@@ -8686,7 +8690,7 @@ Name | Type | Description
 ###### `binary_outcome`
 
 ```python
-binary_outcome = np.asarray(binary_outcome).flatten()
+binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
 ```
 
 ######## `forced_choice`
@@ -8698,7 +8702,7 @@ forced_choice = deepcopy(forced_choice)
 ######## `input_values`
 
 ```python
-input_values = deepcopy(input_values)
+input_values = np.array(input_values)
 ```
 
 ######## `threshold_type`
@@ -8714,7 +8718,7 @@ threshold_type = deepcopy(threshold_type)
 ###### `calculate`
 
 ```python
-calculate(input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
+calculate(*, input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
 ```
 
 Calculate Receiver Operating Characteristic plot (ROC) for
@@ -8735,7 +8739,7 @@ Name | Type | Description | Default
 ######## `plot`
 
 ```python
-plot(plot_method = 'gaussian', balanced_acc = False, **kwargs)
+plot(plot_method = 'gaussian', balanced_acc = False)
 ```
 
 Create ROC Plot
@@ -8749,7 +8753,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `plot_method` |  | type of plot ['gaussian','observed'] | <code>'gaussian'</code>
 `binary_outcome` |  | vector of training labels | *required*
-`**kwargs` |  | Additional keyword arguments to pass to the prediction         algorithm | <code>{}</code>
 
 **Returns:**
 
@@ -8790,7 +8793,7 @@ Name | Description
 ###### `SimulateGrid`
 
 ```python
-SimulateGrid(grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
+SimulateGrid(*, grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
 ```
 
 Simulate 2D grid data for testing statistical methods.
@@ -8999,7 +9002,7 @@ Name | Type | Description | Default
 ###### `Simulator`
 
 ```python
-Simulator(brain_mask = None, output_dir = None, random_state = None)
+Simulator(*, brain_mask = None, output_dir = None, random_state = None)
 ```
 
 Simulate fMRI data with realistic spatial and temporal characteristics.
@@ -9077,7 +9080,7 @@ random_state = check_random_state(random_state)
 ###### `create_cov_data`
 
 ```python
-create_cov_data(cor, cov, sigma, mask = None, reps = 1, n_sub = 1, output_dir = None)
+create_cov_data(cor, cov, sigma, *, mask = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance
@@ -9099,7 +9102,7 @@ Name | Type | Description | Default
 ######## `create_data`
 
 ```python
-create_data(levels, sigma, radius = 5, center = None, reps = 1, output_dir = None)
+create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
 ```
 
 create simulated data with integers
@@ -9119,7 +9122,7 @@ Name | Type | Description | Default
 ######## `create_ncov_data`
 
 ```python
-create_ncov_data(cor, cov, sigma, masks = None, reps = 1, n_sub = 1, output_dir = None)
+create_ncov_data(cor, cov, sigma, *, masks = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance

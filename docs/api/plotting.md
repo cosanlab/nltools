@@ -362,12 +362,15 @@ plot_stacked_adjacency(adjacency1, adjacency2, normalize = True, **kwargs)
 
 Create stacked adjacency to illustrate similarity.
 
+`adjacency1` is drawn in the upper triangle and `adjacency2` in the lower,
+consistently whether or not `normalize` is set.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adjacency1` |  | Adjacency instance 1. | *required*
-`adjacency2` |  | Adjacency instance 2. | *required*
+`adjacency1` |  | Adjacency instance shown in the upper triangle. | *required*
+`adjacency2` |  | Adjacency instance shown in the lower triangle. | *required*
 `normalize` |  | Normalize matrices before stacking. Default True. | <code>True</code>
 `**kwargs` |  | Passed through to seaborn.heatmap. | <code>{}</code>
 
@@ -543,12 +546,15 @@ plot_stacked_adjacency(adjacency1, adjacency2, normalize = True, **kwargs)
 
 Create stacked adjacency to illustrate similarity.
 
+`adjacency1` is drawn in the upper triangle and `adjacency2` in the lower,
+consistently whether or not `normalize` is set.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adjacency1` |  | Adjacency instance 1. | *required*
-`adjacency2` |  | Adjacency instance 2. | *required*
+`adjacency1` |  | Adjacency instance shown in the upper triangle. | *required*
+`adjacency2` |  | Adjacency instance shown in the lower triangle. | *required*
 `normalize` |  | Normalize matrices before stacking. Default True. | <code>True</code>
 `**kwargs` |  | Passed through to seaborn.heatmap. | <code>{}</code>
 

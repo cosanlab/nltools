@@ -269,7 +269,7 @@ Type | Description
 #### `resample_to`
 
 ```python
-resample_to(bd, img = None, resolution = None, interpolation = None)
+resample_to(bd, *, img = None, resolution = None, interpolation = None)
 ```
 
 Resample BrainData to match target image or resolution.
@@ -314,7 +314,7 @@ Type | Description
 #### `upload_neurovault`
 
 ```python
-upload_neurovault(bd, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
+upload_neurovault(bd, *, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
 ```
 
 Upload data to NeuroVault.

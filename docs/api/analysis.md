@@ -19,7 +19,7 @@ Name | Description
 #### `Roc`
 
 ```python
-Roc(input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
+Roc(*, input_values = None, binary_outcome = None, threshold_type = 'optimal_overall', forced_choice = None, **kwargs)
 ```
 
 Roc Class
@@ -61,7 +61,7 @@ Name | Type | Description
 ###### `calculate`
 
 ```python
-calculate(input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
+calculate(*, input_values = None, binary_outcome = None, criterion_values = None, threshold_type = 'optimal_overall', forced_choice = None, balanced_acc = False)
 ```
 
 Calculate Receiver Operating Characteristic plot (ROC) for
@@ -83,7 +83,7 @@ Name | Type | Description | Default
 ###### `plot`
 
 ```python
-plot(plot_method = 'gaussian', balanced_acc = False, **kwargs)
+plot(plot_method = 'gaussian', balanced_acc = False)
 ```
 
 Create ROC Plot
@@ -97,7 +97,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `plot_method` |  | type of plot ['gaussian','observed'] | <code>'gaussian'</code>
 `binary_outcome` |  | vector of training labels | *required*
-`**kwargs` |  | Additional keyword arguments to pass to the prediction         algorithm | <code>{}</code>
 
 **Returns:**
 

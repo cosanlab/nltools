@@ -134,7 +134,7 @@ Name | Type | Description
 #### `cluster_summary`
 
 ```python
-cluster_summary(clusters = None, metric = 'mean', summary = 'within')
+cluster_summary(*, clusters = None, metric = 'mean', summary = 'within')
 ```
 
 Provide summaries of clusters within Adjacency matrices.
@@ -349,7 +349,7 @@ Name | Type | Description | Default
 #### `plot_silhouette`
 
 ```python
-plot_silhouette(labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Create a silhouette plot.
@@ -474,7 +474,7 @@ Convert adjacency data back to square form.
 #### `stats_label_distance`
 
 ```python
-stats_label_distance(labels = None, n_permute = 5000, n_jobs = -1)
+stats_label_distance(*, labels = None, n_permute = 5000, n_jobs = -1)
 ```
 
 Calculate permutation tests on within and between label distance.
@@ -538,7 +538,7 @@ Type | Description
 #### `threshold`
 
 ```python
-threshold(upper = None, lower = None, binarize = False)
+threshold(*, upper = None, lower = None, binarize = False)
 ```
 
 Threshold an Adjacency instance.
@@ -632,7 +632,7 @@ Type | Description
 #### `ttest`
 
 ```python
-ttest(permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
 Calculate ttest across samples.

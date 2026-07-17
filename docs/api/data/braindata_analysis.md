@@ -270,7 +270,7 @@ Type | Description
 #### `filter_data`
 
 ```python
-filter_data(bd, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
+filter_data(bd, *, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
 Apply butterworth filter to data. Wraps nilearn.signal.clean.
@@ -379,7 +379,7 @@ Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 #### `regions`
 
 ```python
-regions(bd, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
+regions(bd, *, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
 ```
 
 Extract brain connected regions into separate regions.
@@ -496,7 +496,7 @@ Type | Description
 #### `standardize`
 
 ```python
-standardize(bd, axis = 0, method = 'center', verbose = True)
+standardize(bd, *, axis = 0, method = 'center', verbose = True)
 ```
 
 Standardize BrainData() instance.
@@ -520,7 +520,7 @@ Name | Type | Description
 #### `temporal_resample`
 
 ```python
-temporal_resample(bd, sampling_freq = None, target = None, target_type = 'hz')
+temporal_resample(bd, *, sampling_freq = None, target = None, target_type = 'hz')
 ```
 
 Resample a BrainData time series to a target frequency or sample count.
@@ -550,7 +550,7 @@ Type | Description
 #### `threshold_data`
 
 ```python
-threshold_data(bd, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
+threshold_data(bd, *, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
 ```
 
 Threshold BrainData instance with optional cluster filtering.

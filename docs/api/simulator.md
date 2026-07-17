@@ -21,7 +21,7 @@ Name | Description
 #### `SimulateGrid`
 
 ```python
-SimulateGrid(grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
+SimulateGrid(*, grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
 ```
 
 Simulate 2D grid data for testing statistical methods.
@@ -145,7 +145,7 @@ Name | Type | Description | Default
 #### `Simulator`
 
 ```python
-Simulator(brain_mask = None, output_dir = None, random_state = None)
+Simulator(*, brain_mask = None, output_dir = None, random_state = None)
 ```
 
 Simulate fMRI data with realistic spatial and temporal characteristics.
@@ -199,7 +199,7 @@ Name | Description
 ###### `create_cov_data`
 
 ```python
-create_cov_data(cor, cov, sigma, mask = None, reps = 1, n_sub = 1, output_dir = None)
+create_cov_data(cor, cov, sigma, *, mask = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance
@@ -222,7 +222,7 @@ Name | Type | Description | Default
 ###### `create_data`
 
 ```python
-create_data(levels, sigma, radius = 5, center = None, reps = 1, output_dir = None)
+create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
 ```
 
 create simulated data with integers
@@ -243,7 +243,7 @@ Name | Type | Description | Default
 ###### `create_ncov_data`
 
 ```python
-create_ncov_data(cor, cov, sigma, masks = None, reps = 1, n_sub = 1, output_dir = None)
+create_ncov_data(cor, cov, sigma, *, masks = None, reps = 1, n_sub = 1, output_dir = None)
 ```
 
 create continuous simulated data with covariance
