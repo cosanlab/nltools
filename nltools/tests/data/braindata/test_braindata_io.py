@@ -10,6 +10,27 @@ from nltools.templates import get_brainspace
 
 
 class TestBrainDataIO:
+    def test_write_nifti_is_lossless_for_float_data(self, tmp_path):
+        """Writing float brain data to NIfTI must not quantize (mask dtype leak).
+
+        ``to_nifti`` used to inherit the mask's int8 dtype, scale-quantizing
+        stat maps/betas/cache items to ~1 LSB on save. The on-disk dtype must
+        follow the data, so a float32 round-trip is exact.
+        """
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        rng = np.random.default_rng(0)
+        vol = rng.standard_normal((4, 4, 4, 5)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask)
+
+        out = tmp_path / "map.nii.gz"
+        bd.write(out)
+
+        assert np.dtype(nib.load(out).get_data_dtype()) == np.float32
+        reloaded = BrainData(out, mask=mask)
+        np.testing.assert_array_equal(np.asarray(reloaded.data), np.asarray(bd.data))
+
     @pytest.mark.slow
     def test_load(self, tmpdir):
         """Test loading BrainData from various sources and formats."""
