@@ -781,21 +781,6 @@ def ttest2(bd, other, equal_var=True):
     return {"t": t_bd, "p": p_bd}
 
 
-def regress(bd, design_matrix=None, method="ols"):
-    """Deprecated: Use fit(model='glm', X=design_matrix) instead.
-
-    Args:
-        bd: BrainData instance.
-        design_matrix: Design matrix (unused, raises error).
-        method: Noise model (unused, raises error).
-    """
-    raise NotImplementedError(
-        "The regress() method has been removed in v0.6.0. "
-        "Use fit(model='glm', X=design_matrix) instead. "
-        "See migration guide for examples."
-    )
-
-
 _CONTRAST_OUTPUT_TYPES = {
     "t": "stat",
     "z": "z_score",

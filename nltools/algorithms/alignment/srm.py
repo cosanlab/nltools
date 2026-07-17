@@ -649,7 +649,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         )
                         w_new = u_subject.dot(v_subject)
                         rho2_new = trace_xtx[subj_idx]
-                        rho2_new += -2 * np.sum(w_new * a_subject).sum()
+                        rho2_new += -2 * np.sum(w_new * a_subject)
                         rho2_new += trace_sigma_s
                         rho2_new /= samples * voxels[subj_idx]
                         return w_new, rho2_new
@@ -697,7 +697,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         )
                         w[subject] = u_subject.dot(v_subject)
                         rho2[subject] = trace_xtx[subject]
-                        rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
+                        rho2[subject] += -2 * np.sum(w[subject] * a_subject)
                         rho2[subject] += trace_sigma_s
                         rho2[subject] /= samples * voxels[subject]
                     else:

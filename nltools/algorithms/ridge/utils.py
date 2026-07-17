@@ -15,6 +15,40 @@ if TYPE_CHECKING:
     from nltools.algorithms.backends import Backend
 
 
+def _auto_n_targets_batch(
+    max_gpu_memory_gb: float,
+    n_samples: int,
+    n_alphas_batch: int,
+    n_targets: int,
+) -> int:
+    """Derive a GPU target-batch size from a memory budget.
+
+    Used by the CV solvers when ``n_targets_batch`` is left unset and
+    ``parallel='gpu'`` so ``max_gpu_memory_gb`` actually bounds GPU
+    allocation instead of processing all targets at once.
+
+    The dominant target-scaling GPU tensor in the CV loop is the
+    alpha-batched prediction block (~``n_alphas_batch * n_samples`` float32
+    elements per target); a 5x overhead factor keeps peak allocation clear
+    of the budget. This mirrors the batch-sizing used by the (now-removed)
+    ICC GPU path. The result is floored at 1000 targets and capped at
+    ``n_targets``.
+
+    Args:
+        max_gpu_memory_gb: GPU memory budget in GB.
+        n_samples: Number of training samples.
+        n_alphas_batch: Resolved alpha batch size.
+        n_targets: Total number of targets (columns of Y).
+
+    Returns:
+        int: Target batch size in ``[min(1000, n_targets), n_targets]``.
+    """
+    bytes_per_element = 4  # float32
+    memory_per_target = max(1, n_alphas_batch * n_samples * bytes_per_element * 5)
+    n_targets_batch = int(max_gpu_memory_gb * 1e9 / memory_per_target)
+    return max(min(1000, n_targets), min(n_targets_batch, n_targets))
+
+
 def generate_dirichlet_samples(
     n_samples: int,
     n_kernels: int,
@@ -82,43 +116,6 @@ def generate_dirichlet_samples(
     gammas = gammas[:n_samples]
 
     return gammas
-
-
-def _batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
-    """Apply batch or skip if dimension is 1.
-
-    This elegant pattern from himalaya handles both scalar and per-target
-    operations without branching in the hot loop.
-
-    Args:
-        array: Array to batch.
-        batch: Batch slice to apply.
-        axis: Axis to batch along (0 or 1).
-
-    Returns:
-        np.ndarray: Batched array, or original if dimension is 1.
-
-    Examples:
-        >>> # Scalar alpha (shape: (1,))
-        >>> alphas = np.array([1.0])
-        >>> _batch_or_skip(alphas, slice(0, 10), 0)  # Returns full array
-        array([1.0])
-
-        >>> # Per-target alphas (shape: (100,))
-        >>> alphas = np.random.randn(100)
-        >>> _batch_or_skip(alphas, slice(0, 10), 0).shape  # Returns batch
-        (10,)
-    """
-    # If dimension is 1, skip batching (broadcast will handle it)
-    if array.shape[axis] == 1:
-        return array
-
-    # Otherwise apply batch
-    if axis == 0:
-        return array[batch]
-    if axis == 1:
-        return array[:, batch]
-    raise NotImplementedError(f"Batching not implemented for axis={axis}")
 
 
 def _decompose_ridge(

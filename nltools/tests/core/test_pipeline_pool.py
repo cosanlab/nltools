@@ -323,11 +323,6 @@ class TestStatResult:
         with pytest.raises(ValueError, match="No p-values"):
             result.threshold()
 
-    def test_to_nifti_not_implemented(self, t_result):
-        """Test to_nifti raises NotImplementedError."""
-        with pytest.raises(NotImplementedError):
-            t_result.to_nifti("test.nii")
-
     def test_repr_ttest(self, t_result):
         """Test t-test repr."""
         r = repr(t_result)

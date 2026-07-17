@@ -196,7 +196,6 @@ def plot_between_label_distance(
     ax=None,
     permutation_test=True,
     n_permute=5000,
-    fontsize=18,
     **kwargs,
 ):
     """Heatmap of average pairwise distance between every label pair.
@@ -207,7 +206,6 @@ def plot_between_label_distance(
         ax: Matplotlib axis to plot on (optional).
         permutation_test: If True, also compute mean-difference and p-value matrices.
         n_permute: Number of permutations.
-        fontsize: Reserved for future use; currently unused.
         **kwargs: Passed to seaborn.heatmap.
 
     Returns:
@@ -219,7 +217,6 @@ def plot_between_label_distance(
         are long format with columns [label1, label2, <value>] so they can
         be pivoted to a matrix if needed.
     """
-    del fontsize  # kept for API parity, not used
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)
     if labels_arr.shape[0] != arr.shape[0]:

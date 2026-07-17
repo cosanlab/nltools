@@ -504,7 +504,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     masked._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
     from .io import detect_space
 
-    masked._space = detect_space(masked, mask_img)
+    masked._space = detect_space(mask_img)
 
     # Preserve 1D output for single images (backward compatibility)
     if (len(masked.shape) > 1) & (masked.shape[0] == 1):

@@ -367,16 +367,6 @@ class TestAllDataRefit:
         assert result.weight_map.shape == (n_voxels,)
 
 
-class TestPredictMulti:
-    def test_predict_multi_deprecated(self, minimal_brain_data):
-        """Deprecated .predict_multi() raises NotImplementedError pointing
-        at the future Model class (per migration guide)."""
-        with pytest.raises(
-            NotImplementedError, match="predict_multi.*deprecated.*Model class"
-        ):
-            minimal_brain_data.predict_multi(algorithm="svm")
-
-
 # ---------------------------------------------------------------------------
 # Brain-space wrapping — spatial fields are BrainData, not raw arrays
 # ---------------------------------------------------------------------------

@@ -17,16 +17,12 @@ import numpy as np
 if TYPE_CHECKING:
     from nltools.data.atlases import Atlas, ClusterReport
 
-from nltools.utils import attempt_to_import, coalesced_gc
+from nltools.utils import coalesced_gc
 
 from .utils import check_brain_data
 
 warnings.filterwarnings("ignore", category=UserWarning, module="nilearn")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
-
-# Optional dependencies
-nx = attempt_to_import("networkx", "nx")
-MAX_INT = np.iinfo(np.int32).max
 
 __all__ = ["BrainData"]
 
@@ -1547,36 +1543,6 @@ class BrainData:
             method=method,
             smoothing_fwhm=smoothing_fwhm,
             is_mask=is_mask,
-        )
-
-    def regress(self, design_matrix=None, method="ols"):
-        """Deprecated: Use fit(model='glm', X=design_matrix) instead.
-
-        **Deprecated:** Since version 0.6.0. Use `fit` with ``model='glm'``
-        instead.
-        """
-        from .modeling import regress
-
-        return regress(
-            self,
-            design_matrix=design_matrix,
-            method=method,
-        )
-
-    def predict_multi(  # nosemgrep: kwargs-internal-forwarding  # deprecated no-op; tolerates any legacy args to raise a helpful error
-        self, *args, **kwargs
-    ):
-        """Deprecated: removed in v0.6.0; will return in a future Model class.
-
-        Per the v0.6 migration guide, the multi-method MVPA wrapper has
-        been removed. Use `predict` for whole-brain MVPA, or compose
-        sklearn estimators directly via the new Model API.
-        """
-        raise NotImplementedError(
-            "BrainData.predict_multi() is deprecated and was removed in "
-            "v0.6.0. It will return in a future Model class. For now, use "
-            ".predict(y=...) for whole-brain MVPA, or compose sklearn "
-            "estimators directly. See the migration guide."
         )
 
     def resample_to(self, *, img=None, resolution=None, interpolation=None):

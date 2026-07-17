@@ -9,22 +9,6 @@ from nltools.data import BrainData
 
 
 class TestBrainDataModeling:
-    def test_regress_removed(self, minimal_brain_data):
-        """Verify regress() has been removed with clear migration path."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.randn(len(minimal_brain_data)),
-            },
-            index=None,
-        )
-
-        with pytest.raises(
-            NotImplementedError,
-            match="regress.*has been removed.*Use fit.*model='glm'",
-        ):
-            minimal_brain_data.regress(design_matrix)
-
     def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
         """Test error when compute_contrasts() called before fit()."""
         with pytest.raises(RuntimeError, match="Must run .fit"):

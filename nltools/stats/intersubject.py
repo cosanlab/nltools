@@ -5,8 +5,6 @@ __all__ = ["isc", "isc_group", "isfc", "isps"]
 import numpy as np
 import polars as pl
 from scipy.signal import hilbert
-from sklearn.metrics import pairwise_distances
-from sklearn.utils import check_random_state
 
 from nltools.algorithms.inference import isc_permutation_test
 from nltools.algorithms.inference.matrix import _compute_cross_correlation
@@ -34,58 +32,6 @@ def _as_ndarray(data, name="data"):
     raise ValueError(
         f"{name} must be a numpy array, polars DataFrame, or pandas DataFrame"
     )
-
-
-def _bootstrap_isc(
-    similarity_matrix, metric="median", exclude_self_corr=True, random_state=None
-):
-    """Helper function to compute bootstrapped ISC from Adjacency Instance.
-
-    This function implements the subject-wise bootstrap method discussed in Chen et al., 2016.
-
-    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
-    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the group level.
-    NeuroImage, 142, 248-259.
-
-    Args:
-
-        similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
-        metric: (str) type of summary statistic (Default: median)
-        exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
-        random_state: random_state instance for permutation
-
-    Returns:
-
-        isc: summary statistic of bootstrapped similarity matrix
-
-    """
-    from nltools.data import Adjacency
-
-    if not isinstance(similarity_matrix, Adjacency):
-        raise ValueError("similarity_matrix must be an Adjacency instance.")
-
-    random_state = check_random_state(random_state)
-
-    square = similarity_matrix.squareform()
-    n_sub = square.shape[0]
-    np.fill_diagonal(square, 1)
-
-    bootstrap_subject = sorted(
-        random_state.choice(np.arange(n_sub), size=n_sub, replace=True)
-    )
-    bootstrap_sample = Adjacency(
-        square[bootstrap_subject, :][:, bootstrap_subject], matrix_type="similarity"
-    )
-
-    if exclude_self_corr:
-        bootstrap_sample.data[bootstrap_sample.data == 1] = np.nan
-
-    if metric == "mean":
-        return np.tanh(bootstrap_sample.r_to_z().mean())
-    if metric == "median":
-        return bootstrap_sample.median()
-    raise ValueError(f"metric must be 'mean' or 'median', got {metric!r}")
 
 
 def isc(
@@ -179,133 +125,6 @@ def isc(
 
     # Return dict with same keys as original function
     return result
-
-
-def _compute_isc_group(group1, group2, metric="median"):
-    """Compute the intersubject correlation difference between two groups.
-
-    Accepts either:
-    1) an observations by subjects array
-    2) or an Adjacency instance of a similarity matrix.
-
-    Args:
-        group1: (pd.DataFrame, np.array, Adjacency) group1 data or similarity matrix
-        group2: (pd.DataFrame, np.array,Adjacency)  group2 data or similarity matrix
-        metric: (str) type of isc metric ['mean','median']
-
-    Returns:
-        isc: (float) intersubject correlation coefficient difference across groups
-
-    """
-    from nltools.data import Adjacency
-
-    def _is_matrix_like(x):
-        if isinstance(x, np.ndarray):
-            return True
-        if isinstance(x, pl.DataFrame):
-            return True
-        try:
-            import pandas as pd
-        except ImportError:
-            return False
-        return isinstance(x, pd.DataFrame)
-
-    if _is_matrix_like(group1) and _is_matrix_like(group2):
-        group1 = _as_ndarray(group1, name="group1")
-        group2 = _as_ndarray(group2, name="group2")
-        if group1.shape[0] != group2.shape[0]:
-            raise ValueError(
-                "group1 has a different number of observations from group2."
-            )
-
-        similarity_group1 = Adjacency(
-            1 - pairwise_distances(group1.T, metric="correlation"),
-            matrix_type="similarity",
-        )
-        similarity_group2 = Adjacency(
-            1 - pairwise_distances(group2.T, metric="correlation"),
-            matrix_type="similarity",
-        )
-    elif isinstance(group1, (Adjacency)) and isinstance(group2, (Adjacency)):
-        similarity_group1 = group1
-        similarity_group2 = group2
-    else:
-        raise ValueError(
-            "group1 and group2 data must either be a observation by feature matrix or Adjacency instances."
-        )
-
-    if metric == "mean":
-        isc_group1 = np.tanh(similarity_group1.r_to_z().mean())
-        isc_group2 = np.tanh(similarity_group2.r_to_z().mean())
-    elif metric == "median":
-        isc_group1 = similarity_group1.median()
-        isc_group2 = similarity_group2.median()
-    return isc_group1 - isc_group2
-
-
-def _permute_isc_group(similarity_matrix, group, metric="median", random_state=None):
-    """Helper function to compute ISC differences between groups from Adjacency instance.
-
-    This function implements the subject-wise permutation method discussed in Chen et al., 2016.
-
-    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
-    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the group level.
-    NeuroImage, 142, 248-259.
-
-    Args:
-
-        similarity_matrix: (Adjacency) Adjacency matrix of pairwise correlation values
-        group: (numpy array) Array indicating group 1 and group 2 order (i.e., np.array([1,1,1,2,2,2]))
-        metric: (str) type of summary statistic (Default: median)
-        exclude_self_corr: (bool) set correlations with random draws of same subject to NaN (Default: True)
-        random_state: random_state instance for permutation
-
-    Returns:
-
-        isc: summary statistic of bootstrapped similarity matrix
-
-    """
-    from nltools.data import Adjacency
-
-    if not isinstance(similarity_matrix, Adjacency):
-        raise ValueError("similarity_matrix must be an Adjacency instance.")
-
-    if not isinstance(group, np.ndarray):
-        raise ValueError("group must be a numpy array.")
-
-    if len(group) != similarity_matrix.n_nodes:
-        raise ValueError(
-            "Group array must be the same length as the similarity matrix."
-        )
-
-    if len(np.unique(group)) != 2:
-        raise ValueError("There must only be 2 unique group ids in the group array.")
-
-    random_state = check_random_state(random_state)
-
-    group1_id, group2_id = np.unique(group)
-    permute_group = permute_group = random_state.permutation(group)
-    permute_order = np.concatenate(
-        [
-            np.where(permute_group == group1_id)[0],
-            np.where(permute_group == group2_id)[0],
-        ]
-    )
-
-    permuted_matrix = similarity_matrix.squareform()[permute_order, :][:, permute_order]
-    group1_similarity_permuted = Adjacency(
-        permuted_matrix[group == group1_id, :][:, group == group1_id],
-        matrix_type="similarity",
-    )
-    group2_similarity_permuted = Adjacency(
-        permuted_matrix[group == group2_id, :][:, group == group2_id],
-        matrix_type="similarity",
-    )
-
-    return _compute_isc_group(
-        group1_similarity_permuted, group2_similarity_permuted, metric=metric
-    )
 
 
 def isc_group(

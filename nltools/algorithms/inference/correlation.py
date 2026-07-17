@@ -484,10 +484,6 @@ def _correlation_permutation_gpu_batched(
             # data1_device: (n_samples, n_features)
             # Use advanced indexing: perm_data1[b, s, f] = data1[batch_indices[b, s], f]
             # Result shape: (current_batch_size, n_samples, n_features)
-            # Create batch indices for advanced indexing
-            batch_idx = torch.arange(
-                current_batch_size, device=batch_indices_device.device
-            )[:, None]  # (current_batch_size, 1)
             perm_data1 = data1_device[
                 batch_indices_device
             ]  # (current_batch_size, n_samples, n_features)

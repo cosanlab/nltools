@@ -7,7 +7,6 @@ Key functions:
     - extract_triangle_elements: Extract upper/lower triangle from matrices
     - permute_matrix_symmetric: Apply symmetric permutation (key for matrix tests)
     - ensure_2d: Ensure arrays are 2D (adds dimension if needed)
-    - batch_or_skip: Elegant pattern for handling scalar vs per-target operations
 
 Usage:
     These utilities are used throughout the algorithms module for consistent
@@ -109,37 +108,3 @@ def ensure_2d(array: np.ndarray, name: str = "array") -> np.ndarray:
     raise ValueError(
         f"{name} must be 1D or 2D, got shape {array.shape} ({array.ndim}D)"
     )
-
-
-def batch_or_skip(array: np.ndarray, batch: slice, axis: int) -> np.ndarray:
-    """Apply batch or skip if dimension is 1.
-
-    This elegant pattern from himalaya handles both scalar and per-target
-    operations without branching in the hot loop.
-
-    Args:
-        array: Array to batch.
-        batch: Batch slice to apply.
-        axis: Axis to batch along (0 or 1).
-
-    Returns:
-        Batched array, or original if dimension is 1.
-
-    Examples:
-        >>> # Scalar alpha (shape: (1,))
-        >>> alphas = np.array([1.0])
-        >>> batch_or_skip(alphas, slice(0, 10), 0)  # Returns full array
-        array([1.0])
-
-        >>> # Per-target alpha (shape: (10,))
-        >>> alphas = np.array([1.0] * 10)
-        >>> batch_or_skip(alphas, slice(0, 5), 0).shape  # Returns slice
-        (5,)
-    """
-    if array.shape[axis] == 1:
-        return array
-    if axis == 0:
-        return array[batch]
-    if axis == 1:
-        return array[:, batch]
-    raise ValueError(f"axis must be 0 or 1, got {axis}")

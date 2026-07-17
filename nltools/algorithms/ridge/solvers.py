@@ -20,6 +20,8 @@ from collections.abc import Callable
 from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
 
+from .utils import _auto_n_targets_batch
+
 from ..backends import resolve_backend
 
 
@@ -268,13 +270,21 @@ def solve_banded_ridge_cv(
         X = X - X_offset[None, :]
         Y = Y - Y_offset[None, :]
 
-    # Set batch sizes
-    if n_targets_batch is None:
-        n_targets_batch = n_targets
-    if n_targets_batch_refit is None:
-        n_targets_batch_refit = n_targets_batch
+    # Set batch sizes. When running on GPU with no explicit target batch,
+    # derive one from max_gpu_memory_gb so the budget actually bounds
+    # allocation instead of processing all targets at once.
     if n_alphas_batch is None:
         n_alphas_batch = len(alphas)
+    if n_targets_batch is None:
+        n_targets_batch = (
+            _auto_n_targets_batch(
+                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+            )
+            if parallel == "gpu"
+            else n_targets
+        )
+    if n_targets_batch_refit is None:
+        n_targets_batch_refit = n_targets_batch
 
     # Set score function
     if score_func is None:
@@ -525,7 +535,6 @@ def _refit_banded_ridge(
     X: np.ndarray,
     Y: np.ndarray,
     best_alphas: np.ndarray,
-    alphas: np.ndarray,
     n_targets_batch: int | None,
     n_alphas_batch: int | None,
     Y_in_cpu: bool,
@@ -537,7 +546,6 @@ def _refit_banded_ridge(
         X: Full feature matrix of shape (n_samples, n_features).
         Y: Full target matrix of shape (n_samples, n_targets).
         best_alphas: Selected best alpha for each target, shape (n_targets,).
-        alphas: All candidate alphas, shape (n_alphas,).
         n_targets_batch: Batch size for targets.
         n_alphas_batch: Batch size for alphas.
         Y_in_cpu: Whether Y is stored on CPU.
@@ -761,13 +769,21 @@ def solve_ridge_cv(
         X = X - X_offset[None, :]
         Y = Y - Y_offset[None, :]
 
-    # Set batch sizes
-    if n_targets_batch is None:
-        n_targets_batch = n_targets
-    if n_targets_batch_refit is None:
-        n_targets_batch_refit = n_targets_batch
+    # Set batch sizes. When running on GPU with no explicit target batch,
+    # derive one from max_gpu_memory_gb so the budget actually bounds
+    # allocation instead of processing all targets at once.
     if n_alphas_batch is None:
         n_alphas_batch = len(alphas)
+    if n_targets_batch is None:
+        n_targets_batch = (
+            _auto_n_targets_batch(
+                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+            )
+            if parallel == "gpu"
+            else n_targets
+        )
+    if n_targets_batch_refit is None:
+        n_targets_batch_refit = n_targets_batch
 
     # Set score function
     if score_func is None:
@@ -866,7 +882,6 @@ def solve_ridge_cv(
         X=X,
         Y=Y,
         best_alphas=best_alphas,
-        alphas=alphas,
         n_targets_batch=n_targets_batch_refit,
         n_alphas_batch=n_alphas_batch,
         Y_in_cpu=Y_in_cpu,
@@ -1009,12 +1024,19 @@ def cross_val_predict_ridge(
     # Y onto backend (CPU or device, controlled by Y_in_cpu)
     Y_b = backend.asarray(Y_np, dtype=dtype, device="cpu" if Y_in_cpu else device)
 
-    # Resolve batch sizes
-    if n_targets_batch is None:
-        n_targets_batch = n_targets
+    # Resolve batch sizes. On GPU with no explicit target batch, derive one
+    # from max_gpu_memory_gb so the budget actually bounds allocation.
     unique_alphas = np.unique(alphas_per_target)
     if n_alphas_batch is None:
         n_alphas_batch = len(unique_alphas)
+    if n_targets_batch is None:
+        n_targets_batch = (
+            _auto_n_targets_batch(
+                max_gpu_memory_gb, n_samples, n_alphas_batch, n_targets
+            )
+            if parallel == "gpu"
+            else n_targets
+        )
 
     # Setup CV
     if isinstance(cv, int):
@@ -1068,7 +1090,6 @@ def cross_val_predict_ridge(
             X=X_train_c,
             Y=Y_train_c,
             best_alphas=alphas_per_target,
-            alphas=alphas_per_target,  # unused internally; uses unique(best_alphas)
             n_targets_batch=n_targets_batch,
             n_alphas_batch=n_alphas_batch,
             Y_in_cpu=False,  # Y_train_c lives on backend already

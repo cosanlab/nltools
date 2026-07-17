@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def _orthogonal_procrustes_backend(
     A: np.ndarray, B: np.ndarray, backend: Backend
-) -> tuple[np.ndarray, float]:
+) -> np.ndarray:
     """GPU-compatible orthogonal Procrustes using Backend.svd().
 
     Finds the orthogonal matrix R that minimizes ||A - B @ R||_F.
@@ -41,11 +41,11 @@ def _orthogonal_procrustes_backend(
 
     Returns:
         R: Orthogonal matrix, shape (m, m)
-        scale: Sum of singular values (not used, kept for compatibility)
     """
     if backend.name == "numpy":
         # Use scipy for numpy backend (more efficient)
-        return orthogonal_procrustes(A, B)
+        R, _ = orthogonal_procrustes(A, B)
+        return R
 
     # GPU path: Compute SVD of B.T @ A
     # The solution is R = V @ U.T where U, s, V.T = svd(B.T @ A)
@@ -56,7 +56,7 @@ def _orthogonal_procrustes_backend(
     M = backend.matmul(B_device.T if hasattr(B_device, "T") else B_device.t(), A_device)
 
     # SVD: M = U @ diag(s) @ Vt
-    U, s, Vt = backend.svd(M, full_matrices=False)
+    U, _, Vt = backend.svd(M, full_matrices=False)
 
     # R = V @ U.T = Vt.T @ U.T
     if backend.name.startswith("torch"):
@@ -65,11 +65,8 @@ def _orthogonal_procrustes_backend(
         R = torch.matmul(
             Vt.T if hasattr(Vt, "T") else Vt.t(), U.T if hasattr(U, "T") else U.t()
         )
-        scale = s.sum().item()
-        return backend.to_numpy(R).astype(np.float64), scale
-    R = Vt.T @ U.T
-    scale = s.sum()
-    return R, scale
+        return backend.to_numpy(R).astype(np.float64)
+    return Vt.T @ U.T
 
 
 @dataclass
@@ -81,13 +78,11 @@ class PiecewiseNeighborhoods:
 
     Attributes:
         parcel_to_voxels: Dict mapping parcel_id → array of voxel indices
-        voxel_to_parcel: Array mapping voxel_idx → parcel_id
         n_voxels: Total number of voxels
         n_parcels: Number of parcels (excluding background)
     """
 
     parcel_to_voxels: dict[int, np.ndarray]
-    voxel_to_parcel: np.ndarray
     n_voxels: int
     n_parcels: int
 
@@ -160,12 +155,8 @@ def _compute_piecewise_neighborhoods(
         if len(voxel_indices) > 0:
             parcel_to_voxels[int(parcel_id)] = voxel_indices
 
-    # Build voxel → parcel mapping
-    voxel_to_parcel = parcel_labels.copy()
-
     return PiecewiseNeighborhoods(
         parcel_to_voxels=parcel_to_voxels,
-        voxel_to_parcel=voxel_to_parcel,
         n_voxels=n_voxels,
         n_parcels=len(parcel_to_voxels),
     )
@@ -289,7 +280,7 @@ def _fit_local_procrustes(
         for i, x in enumerate(centered):
             # Solve Procrustes: min ||template - x @ R.T||_F s.t. R orthogonal
             # scipy's orthogonal_procrustes: R, scale = argmin ||A - B @ R||_F
-            R, _ = _orthogonal_procrustes_backend(template.T, x.T, backend)
+            R = _orthogonal_procrustes_backend(template.T, x.T, backend)
             # R transforms x.T to align with template.T, so aligned = x.T @ R
             # But we want row-wise (voxels), so: aligned = R.T @ x
             transforms[i] = R.T

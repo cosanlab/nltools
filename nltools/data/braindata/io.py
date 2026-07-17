@@ -100,7 +100,7 @@ def initialize_mask(bd, mask):
     bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
 
     # Determine space (MNI or native) based on mask
-    bd._space = detect_space(bd, bd.mask)
+    bd._space = detect_space(bd.mask)
 
 
 def get_interpolation(bd, img):
@@ -179,7 +179,7 @@ def detect_and_update_mask(bd, data_img):
             bd.mask = detected_mask
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-            bd._space = detect_space(bd, bd.mask)
+            bd._space = detect_space(bd.mask)
 
         return _resample_to_mask(
             bd,
@@ -202,11 +202,10 @@ def detect_and_update_mask(bd, data_img):
         )
 
 
-def detect_space(bd, mask):
+def detect_space(mask):
     """Detect if mask is in MNI space or native space.
 
     Args:
-        bd: BrainData instance (unused, kept for API consistency).
         mask: nibabel Nifti1Image object
 
     Returns:
@@ -466,7 +465,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
                 # Update voxel resolution and space
                 affine = bd.mask.affine
                 bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-                bd._space = detect_space(bd, bd.mask)
+                bd._space = detect_space(bd.mask)
             else:
                 raise ValueError(
                     "Source BrainData mask and provided mask are in different spaces. "
@@ -477,7 +476,7 @@ def load_from_brain_data(bd, brain_data, mask=None):
             bd.mask = new_mask
             affine = bd.mask.affine
             bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-            bd._space = detect_space(bd, bd.mask)
+            bd._space = detect_space(bd.mask)
     else:
         # Use source mask
         bd.mask = brain_data.mask
@@ -518,7 +517,7 @@ def load_from_h5(bd, file_path, mask):
         affine = bd.mask.affine
         bd._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
         # Determine space (MNI or native) based on mask
-        bd._space = detect_space(bd, bd.mask)
+        bd._space = detect_space(bd.mask)
     elif mask is not None and not h5_data.get("load_mask", True):
         warnings.warn(
             "Existing mask found in HDF5 file but is being ignored because "

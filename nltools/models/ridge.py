@@ -238,13 +238,6 @@ class Ridge(BaseModel):
 
             # Squeeze alpha_ if single target (backward compatibility)
             if (
-                y_was_1d
-                and isinstance(self.alpha_, np.ndarray)
-                and self.alpha_.ndim == 1
-                and self.alpha_.shape[0] == 1
-            ):
-                self.alpha_ = float(self.alpha_[0])
-            elif (
                 isinstance(self.alpha_, np.ndarray)
                 and self.alpha_.ndim == 1
                 and self.alpha_.shape[0] == 1

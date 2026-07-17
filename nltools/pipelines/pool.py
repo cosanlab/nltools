@@ -271,8 +271,8 @@ class PooledData:
     def _extract_param(self, param: str) -> NDArray:
         """Extract a parameter array from the saved fitted state.
 
-        Mirrors `FittedBrainCollection.pool`'s extraction. `fitted_state` is
-        either a single BrainCollection (e.g. GLM betas / ridge scores|weights)
+        `fitted_state` is either a single BrainCollection (e.g. GLM betas /
+        ridge scores|weights)
         or a `dict[str, BrainCollection]` keyed by stat name ('betas', 't', 'p',
         'se', 'r2', 'residual', ...). Each item duck-types as an object with a
         `.data` array; the result is a `(n_subjects, n_conditions, n_voxels)`
@@ -440,16 +440,6 @@ class StatResult:
             contrast=self.contrast,
             df=self.df,
         )
-
-    def to_nifti(self, path: str, mask=None) -> None:
-        """Save as NIfTI file.
-
-        Args:
-            path: Output path.
-            mask: Mask to use for reconstruction.
-        """
-        # Placeholder - would need mask to reconstruct 3D
-        raise NotImplementedError("to_nifti requires mask integration")
 
     def __repr__(self) -> str:
         if self.t_map is not None:

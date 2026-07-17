@@ -11,7 +11,6 @@ from nilearn.masking import apply_mask, unmask
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
 from nltools.stats import fdr
-from nltools.stats import one_sample_permutation_test
 from nltools.templates import get_brainspace
 import csv
 from copy import deepcopy
@@ -276,7 +275,6 @@ class Simulator:
         mv_sim = self.random_state.multivariate_normal(
             np.zeros([n_vox + 1]), cov_matrix, size=reps
         )
-        print(mv_sim)
         y = mv_sim[:, 0]
         self.y = y
         mv_sim = mv_sim[:, 1:]
@@ -400,7 +398,6 @@ class Simulator:
         # Build covariance matrix with each variable correlated with y amount 'cor' and each other amount 'cov'
         flat_masks = apply_mask(masks, self.brain_mask)
 
-        print("Building correlation/covariation matrix...")
         n_vox = np.sum(
             flat_masks == 1, axis=1
         )  # this is a list, each entry contains number voxels for given mask
@@ -426,11 +423,9 @@ class Simulator:
         np.fill_diagonal(cov_matrix, 1)  # set diagonal to 1
 
         # these operations happen in one vector that we'll later split into the separate regions
-        print("Generating multivariate normal distribution...")
         mv_sim_l = self.random_state.multivariate_normal(
             np.zeros([np.sum(n_vox) + 1]), cov_matrix, size=reps
         )
-        print(mv_sim_l)
 
         self.y = mv_sim_l[:, 0]
         mv_sim = mv_sim_l[:, 1:]
@@ -440,7 +435,6 @@ class Simulator:
             for mask_i in range(len(masks)):
                 start = int(np.sum(n_vox[:mask_i]))
                 stop = int(start + n_vox[mask_i])
-                print(rep, start, stop)
                 new_dats[rep, np.where(flat_masks[mask_i, :] == 1)] = mv_sim[
                     rep, start:stop
                 ]
@@ -451,8 +445,6 @@ class Simulator:
         )  # append 3d simulated data to list
         self.rep_id = [1] * len(self.y)
 
-        print("Generating subject-level noise...")
-        print("y == " + str(self.y.shape))
         if n_sub > 1:
             self.y = list(self.y)
             y = list(self.y)
@@ -465,13 +457,9 @@ class Simulator:
                 self.data = nib.concat_images([self.data, next_subj], axis=3)
 
                 y += list(self.y + self.random_state.randn(len(self.y)) * sigma)
-                print("y == " + str(len(y)))
                 self.rep_id += [s + 1] * len(mv_sim[:, 0])
             self.y = np.array(y)
 
-        print("Saving to " + str(output_dir))
-        print("dat == " + str(self.data.shape))
-        print("y == " + str(self.y.shape))
         if output_dir is not None:
             if type(output_dir) is str:
                 if not os.path.isdir(output_dir):
@@ -610,21 +598,6 @@ class SimulateGrid:
         p = np.reshape(p, (self.grid_width, self.grid_width))
         return (t, p)
 
-    def _run_permutation(self, data):
-        """Run a nonparametric one-sample permutation test (helper function)."""
-        flattened = data.reshape(self.grid_width * self.grid_width, self.n_subjects)
-        stats_all = []
-        for i in range(flattened.shape[0]):
-            stats = one_sample_permutation_test(flattened[i, :])
-            stats_all.append(stats)
-        mean = np.reshape(
-            np.array([x["mean"] for x in stats_all]), (self.grid_width, self.grid_width)
-        )
-        p = np.reshape(
-            np.array([x["p"] for x in stats_all]), (self.grid_width, self.grid_width)
-        )
-        return (mean, p)
-
     def fit(self):
         """Run a one-sample t-test on self.data."""
         if self.isfit:
@@ -645,10 +618,6 @@ class SimulateGrid:
         if correction == "fdr":
             if threshold_type != "q":
                 raise ValueError("Must specify a q value when using fdr")
-
-        if correction == "permutation":
-            if threshold_type != "p":
-                raise ValueError("Must specify a p value when using permutation")
 
         thresholded = deepcopy(t)
         if threshold_type == "t":
