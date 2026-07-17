@@ -234,43 +234,6 @@ def validate_list_data(data_list):
     )
 
 
-def validate_index_operations(data_shape, index):
-    """Validate indexing operations for BrainData.
-
-    Args:
-        data_shape: Shape of the data array.
-        index: Index to validate.
-
-    Returns:
-        str: Type of indexing ('single', 'slice', 'array').
-
-    Raises:
-        IndexError: If index is out of bounds.
-    """
-    n_images = data_shape[0] if len(data_shape) > 1 else 1
-
-    if isinstance(index, (int, np.integer)):
-        if index < -n_images or index >= n_images:
-            raise IndexError(
-                f"Index {index} is out of bounds for data with {n_images} images"
-            )
-        return "single"
-    if isinstance(index, slice):
-        return "slice"
-    # Convert to array for validation
-    try:
-        index_array = np.array(index).flatten()
-        if np.any((index_array < -n_images) | (index_array >= n_images)):
-            raise IndexError(
-                f"Some indices are out of bounds for data with {n_images} images"
-            )
-        return "array"
-    except (ValueError, TypeError):
-        raise TypeError(
-            f"Index must be int, slice, or array-like. Received {type(index).__name__}"
-        )
-
-
 def validate_append_shapes(data1_shape, data2_shape):
     """Validate shape compatibility for appending BrainData objects.
 

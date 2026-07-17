@@ -6,7 +6,6 @@ duplication and ensure consistent behavior across the algorithms module.
 Key functions:
     - extract_triangle_elements: Extract upper/lower triangle from matrices
     - permute_matrix_symmetric: Apply symmetric permutation (key for matrix tests)
-    - ensure_2d: Ensure arrays are 2D (adds dimension if needed)
 
 Usage:
     These utilities are used throughout the algorithms module for consistent
@@ -81,30 +80,3 @@ def permute_matrix_symmetric(
                [5, 3, 4]])
     """
     return matrix[permutation][:, permutation]
-
-
-def ensure_2d(array: np.ndarray, name: str = "array") -> np.ndarray:
-    """Ensure array is 2D, adding dimension if needed.
-
-    Args:
-        array: Input array (1D or 2D)
-        name: Name for error messages
-
-    Returns:
-        2D array (shape [n, 1] if input was 1D)
-
-    Examples:
-        >>> x = np.array([1, 2, 3])
-        >>> ensure_2d(x).shape
-        (3, 1)
-        >>> x2d = np.array([[1, 2], [3, 4]])
-        >>> ensure_2d(x2d).shape
-        (2, 2)
-    """
-    if array.ndim == 1:
-        return array[:, np.newaxis]
-    if array.ndim == 2:
-        return array
-    raise ValueError(
-        f"{name} must be 1D or 2D, got shape {array.shape} ({array.ndim}D)"
-    )

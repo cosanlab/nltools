@@ -10216,7 +10216,6 @@ Name | Description
 `validate_brain_data_shapes` | Validate shape compatibility between two BrainData objects.
 `validate_data_type` | Validate input data type for BrainData initialization.
 `validate_frame` | Validate and process X or Y dataframes for BrainData.
-`validate_index_operations` | Validate indexing operations for BrainData.
 `validate_list_data` | Validate that all items in a list are the same type.
 
 
@@ -10280,13 +10279,6 @@ Name | Type | Description | Default
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data_shape` |  | Shape of the data array. | *required*
-`index` |  | Index to validate. | *required*
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
 `data_list` |  | List to validate. | *required*
 
 **Returns:**
@@ -10340,20 +10332,6 @@ Type | Description
 ---- | -----------
  | pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
  | ``frame`` is ``None``.
-
-######## `validate_index_operations`
-
-```python
-validate_index_operations(data_shape, index)
-```
-
-Validate indexing operations for BrainData.
-
-**Returns:**
-
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Type of indexing ('single', 'slice', 'array').
 
 ######## `validate_list_data`
 

@@ -6053,19 +6053,15 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#algorithms-validate-alpha) | Validate regularization parameter alpha.
-`validate_array_shape` | Validate array dimensionality.
+[`validate_array_shape`](#algorithms-validate-array-shape) | Validate array dimensionality.
 `validate_array_shape_range` | Validate array dimensionality is within a range.
 `validate_bootstrap_data` | Validate input data for bootstrapping.
 `validate_bootstrap_method` | Validate bootstrap method name.
 `validate_how_parameter` | Validate 'how' parameter for matrix operations.
-`validate_isc_parameters` | Validate ISC parameter values.
 `validate_metric_parameter` | Validate metric parameter.
-`validate_n_samples` | Validate number of samples.
 `validate_parallel_parameter` | Validate parallel parameter.
 `validate_parallel_parameter_matrix` | Validate parallel parameter for matrix operations.
 `validate_percentiles` | Validate percentile values for confidence intervals.
-`validate_same_first_dimension` | Validate two arrays have same first dimension.
 `validate_same_shape` | Validate two arrays have same shape.
 `validate_shape_compatibility` | Validate that X and y have compatible shapes for regression.
 `validate_square_matrix` | Validate matrix is square.
@@ -6075,23 +6071,8 @@ Name | Description
 
 ####### Functions##
 
-(algorithms-validate-alpha)=
-###### `validate_alpha`
-
-```python
-validate_alpha(alpha: float, name: str = 'alpha') -> None
-```
-
-Validate regularization parameter alpha.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
-
-######## `validate_array_shape`
+(algorithms-validate-array-shape)=
+###### `validate_array_shape`
 
 ```python
 validate_array_shape(array: np.ndarray, expected_ndim: int, name: str = 'array') -> None
@@ -6169,22 +6150,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `how` | <code>[str](#str)</code> | How parameter value | *required*
 
-######## `validate_isc_parameters`
-
-```python
-validate_isc_parameters(metric: str, summary_statistic: str, method: str | None = None) -> None
-```
-
-Validate ISC parameter values.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
-`summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
-`method` | <code>[str](#str) \| None</code> | Resampling method (optional) | <code>None</code>
-
 ######## `validate_metric_parameter`
 
 ```python
@@ -6200,22 +6165,6 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Metric parameter value | *required*
 `allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
-
-######## `validate_n_samples`
-
-```python
-validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
-```
-
-Validate number of samples.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_samples` | <code>[int](#int)</code> | Number of samples | *required*
-`min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
 
 ######## `validate_parallel_parameter`
 
@@ -6258,23 +6207,6 @@ Validate percentile values for confidence intervals.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
-
-######## `validate_same_first_dimension`
-
-```python
-validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
-```
-
-Validate two arrays have same first dimension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
-`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
-`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
-`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
 ######## `validate_same_shape`
 
@@ -6392,7 +6324,6 @@ Name | Description
 [`generate_bootstrap_indices`](#algorithms-generate-bootstrap-indices) | Generate bootstrap indices deterministically for resampling.
 [`generate_seeds`](#algorithms-generate-seeds) | Generate random seeds for deterministic parallelization.
 [`generate_sign_flips`](#algorithms-generate-sign-flips) | Generate random sign-flip matrix for one-sample permutation tests.
-[`get_random_state`](#algorithms-get-random-state) | Get RandomState instance from seed.
 
 
 
@@ -6526,34 +6457,6 @@ True
 - Values are uniformly sampled from {+1, -1} (matching stats.py order)
 - Returns NumPy array (device transfer handled by caller)
 - Memory cost: n_permute × n_samples × 1 byte (negligible for typical use)
-
-</details>
-
-(algorithms-get-random-state)=
-###### `get_random_state`
-
-```python
-get_random_state(random_state: int | None = None)
-```
-
-Get RandomState instance from seed.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`random_state` | <code>[int](#int) \| None</code> | Random seed (int, RandomState, or None) | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
- | RandomState instance
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-Uses sklearn.utils.check_random_state for consistency
 
 </details>
 
@@ -7545,7 +7448,6 @@ duplication and ensure consistent behavior across the algorithms module.
 
 - extract_triangle_elements: Extract upper/lower triangle from matrices
 - permute_matrix_symmetric: Apply symmetric permutation (key for matrix tests)
-- ensure_2d: Ensure arrays are 2D (adds dimension if needed)
 
 </details>
 
@@ -7566,46 +7468,12 @@ Example:
 
 Name | Description
 ---- | -----------
-[`ensure_2d`](#algorithms-ensure-2d) | Ensure array is 2D, adding dimension if needed.
 [`extract_triangle_elements`](#algorithms-extract-triangle-elements) | Extract triangle elements from square matrix.
 [`permute_matrix_symmetric`](#algorithms-permute-matrix-symmetric) | Apply symmetric row+column permutation to square matrix.
 
 
 
 ##### Methods
-
-(algorithms-ensure-2d)=
-###### `ensure_2d`
-
-```python
-ensure_2d(array: np.ndarray, name: str = 'array') -> np.ndarray
-```
-
-Ensure array is 2D, adding dimension if needed.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array` | <code>[ndarray](#numpy.ndarray)</code> | Input array (1D or 2D) | *required*
-`name` | <code>[str](#str)</code> | Name for error messages | <code>'array'</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | 2D array (shape [n, 1] if input was 1D)
-
-**Examples:**
-
-```pycon
->>> x = np.array([1, 2, 3])
->>> ensure_2d(x).shape
-(3, 1)
->>> x2d = np.array([[1, 2], [3, 4]])
->>> ensure_2d(x2d).shape
-(2, 2)
-```
 
 (algorithms-extract-triangle-elements)=
 ###### `extract_triangle_elements`

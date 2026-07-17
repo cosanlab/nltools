@@ -22,21 +22,6 @@ import numpy as np
 from sklearn.utils import check_random_state
 
 
-def get_random_state(random_state: int | None = None):
-    """Get RandomState instance from seed.
-
-    Args:
-        random_state: Random seed (int, RandomState, or None)
-
-    Returns:
-        RandomState instance
-
-    Note:
-        Uses sklearn.utils.check_random_state for consistency
-    """
-    return check_random_state(random_state)
-
-
 def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray:
     """Generate random seeds for deterministic parallelization.
 

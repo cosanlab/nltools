@@ -2142,19 +2142,15 @@ Example:
 
 Name | Description
 ---- | -----------
-[`validate_alpha`](#algorithms-inference-validate-alpha) | Validate regularization parameter alpha.
 [`validate_array_shape`](#algorithms-inference-validate-array-shape) | Validate array dimensionality.
 [`validate_array_shape_range`](#algorithms-inference-validate-array-shape-range) | Validate array dimensionality is within a range.
 [`validate_bootstrap_data`](#algorithms-inference-validate-bootstrap-data) | Validate input data for bootstrapping.
 [`validate_bootstrap_method`](#algorithms-inference-validate-bootstrap-method) | Validate bootstrap method name.
 [`validate_how_parameter`](#algorithms-inference-validate-how-parameter) | Validate 'how' parameter for matrix operations.
-[`validate_isc_parameters`](#algorithms-inference-validate-isc-parameters) | Validate ISC parameter values.
 [`validate_metric_parameter`](#algorithms-inference-validate-metric-parameter) | Validate metric parameter.
-[`validate_n_samples`](#algorithms-inference-validate-n-samples) | Validate number of samples.
 [`validate_parallel_parameter`](#algorithms-inference-validate-parallel-parameter) | Validate parallel parameter.
 [`validate_parallel_parameter_matrix`](#algorithms-inference-validate-parallel-parameter-matrix) | Validate parallel parameter for matrix operations.
 [`validate_percentiles`](#algorithms-inference-validate-percentiles) | Validate percentile values for confidence intervals.
-[`validate_same_first_dimension`](#algorithms-inference-validate-same-first-dimension) | Validate two arrays have same first dimension.
 [`validate_same_shape`](#algorithms-inference-validate-same-shape) | Validate two arrays have same shape.
 [`validate_shape_compatibility`](#algorithms-inference-validate-shape-compatibility) | Validate that X and y have compatible shapes for regression.
 [`validate_square_matrix`](#algorithms-inference-validate-square-matrix) | Validate matrix is square.
@@ -2163,22 +2159,6 @@ Name | Description
 
 
 ##### Methods
-
-(algorithms-inference-validate-alpha)=
-###### `validate_alpha`
-
-```python
-validate_alpha(alpha: float, name: str = 'alpha') -> None
-```
-
-Validate regularization parameter alpha.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`alpha` | <code>[float](#float)</code> | Regularization parameter | *required*
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'alpha'</code>
 
 (algorithms-inference-validate-array-shape)=
 ###### `validate_array_shape`
@@ -2263,23 +2243,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `how` | <code>[str](#str)</code> | How parameter value | *required*
 
-(algorithms-inference-validate-isc-parameters)=
-###### `validate_isc_parameters`
-
-```python
-validate_isc_parameters(metric: str, summary_statistic: str, method: str | None = None) -> None
-```
-
-Validate ISC parameter values.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`metric` | <code>[str](#str)</code> | Summary statistic metric | *required*
-`summary_statistic` | <code>[str](#str)</code> | ISC computation method | *required*
-`method` | <code>[str](#str) \| None</code> | Resampling method (optional) | <code>None</code>
-
 (algorithms-inference-validate-metric-parameter)=
 ###### `validate_metric_parameter`
 
@@ -2296,23 +2259,6 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Metric parameter value | *required*
 `allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
-
-(algorithms-inference-validate-n-samples)=
-###### `validate_n_samples`
-
-```python
-validate_n_samples(n_samples: int, min_samples: int = 2, name: str = 'n_samples') -> None
-```
-
-Validate number of samples.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`n_samples` | <code>[int](#int)</code> | Number of samples | *required*
-`min_samples` | <code>[int](#int)</code> | Minimum required samples | <code>2</code>
-`name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'n_samples'</code>
 
 (algorithms-inference-validate-parallel-parameter)=
 ###### `validate_parallel_parameter`
@@ -2358,24 +2304,6 @@ Validate percentile values for confidence intervals.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentile values (lower, upper) | *required*
-
-(algorithms-inference-validate-same-first-dimension)=
-###### `validate_same_first_dimension`
-
-```python
-validate_same_first_dimension(array1: np.ndarray, array2: np.ndarray, name1: str = 'array1', name2: str = 'array2') -> None
-```
-
-Validate two arrays have same first dimension.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`array1` | <code>[ndarray](#numpy.ndarray)</code> | First array | *required*
-`array2` | <code>[ndarray](#numpy.ndarray)</code> | Second array | *required*
-`name1` | <code>[str](#str)</code> | Name of first array for error message | <code>'array1'</code>
-`name2` | <code>[str](#str)</code> | Name of second array for error message | <code>'array2'</code>
 
 (algorithms-inference-validate-same-shape)=
 ###### `validate_same_shape`

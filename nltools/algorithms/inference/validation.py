@@ -145,30 +145,6 @@ def validate_same_shape(
         )
 
 
-def validate_same_first_dimension(
-    array1: np.ndarray,
-    array2: np.ndarray,
-    name1: str = "array1",
-    name2: str = "array2",
-) -> None:
-    """Validate two arrays have same first dimension.
-
-    Args:
-        array1: First array
-        array2: Second array
-        name1: Name of first array for error message
-        name2: Name of second array for error message
-
-    Raises:
-        ValueError: If arrays have different first dimensions
-    """
-    if array1.shape[0] != array2.shape[0]:
-        raise ValueError(
-            f"{name1} and {name2} must have same first dimension, "
-            f"got {array1.shape[0]} and {array2.shape[0]}"
-        )
-
-
 def validate_metric_parameter(
     metric: str,
     allowed: list[str],
@@ -216,23 +192,6 @@ def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
 
 
-def validate_n_samples(
-    n_samples: int, min_samples: int = 2, name: str = "n_samples"
-) -> None:
-    """Validate number of samples.
-
-    Args:
-        n_samples: Number of samples
-        min_samples: Minimum required samples
-        name: Name of parameter for error message
-
-    Raises:
-        ValueError: If n_samples is less than min_samples
-    """
-    if n_samples < min_samples:
-        raise ValueError(f"{name} must be at least {min_samples}, got {n_samples}")
-
-
 def validate_percentiles(percentiles: tuple[float, float]) -> None:
     """Validate percentile values for confidence intervals.
 
@@ -257,20 +216,6 @@ def validate_percentiles(percentiles: tuple[float, float]) -> None:
         raise ValueError(
             f"Lower percentile ({lower}) must be less than upper ({upper})"
         )
-
-
-def validate_alpha(alpha: float, name: str = "alpha") -> None:
-    """Validate regularization parameter alpha.
-
-    Args:
-        alpha: Regularization parameter
-        name: Name of parameter for error message
-
-    Raises:
-        ValueError: If alpha is negative
-    """
-    if alpha < 0:
-        raise ValueError(f"{name} must be >= 0, got {alpha}")
 
 
 def validate_shape_compatibility(
@@ -344,32 +289,3 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
             f"Need at least 2 samples for bootstrap, got {n_samples}. "
             f"Bootstrap requires resampling, which needs multiple samples."
         )
-
-
-def validate_isc_parameters(
-    metric: str,
-    summary_statistic: str,
-    method: str | None = None,
-) -> None:
-    """Validate ISC parameter values.
-
-    Args:
-        metric: Summary statistic metric
-        summary_statistic: ISC computation method
-        method: Resampling method (optional)
-
-    Raises:
-        ValueError: If any parameter is invalid
-    """
-    if metric not in ["median", "mean"]:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
-
-    if summary_statistic not in ["leave-one-out", "pairwise"]:
-        raise ValueError(
-            f"summary_statistic must be 'leave-one-out' or 'pairwise', "
-            f"got {summary_statistic}"
-        )
-
-    if method is not None:
-        if method not in ["permute", "bootstrap"]:
-            raise ValueError(f"method must be 'permute' or 'bootstrap', got {method}")
