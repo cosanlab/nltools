@@ -3,13 +3,13 @@
 These tests verify that:
 1. Shallow copying is actually shallow (not deep)
 2. Data independence is maintained (no accidental mutations)
-3. Performance improvements are real and measurable
+3. Efficiency is verified structurally (shared mask, no deep copy of data)
+   rather than via wall-clock timing, which is noise-dominated on small data
 4. All updated methods use efficient copying
 """
 
 import pytest
 import numpy as np
-import time
 from copy import deepcopy
 from nltools.data import BrainData
 from nltools.data.braindata.utils import shallow_copy
@@ -61,17 +61,13 @@ def test_scale_efficient(sim_brain_data):
 
 @pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
 def test_method_chaining_efficiency(sim_brain_data):
-    """Test that method chaining is efficient"""
+    """Test that method chaining shares the mask and never mutates the original"""
 
-    # Measure time for chained operations
-    start = time.time()
     result = sim_brain_data.scale(100.0).standardize()
-    elapsed = time.time() - start
 
-    # Should be reasonably fast (under 1 second for small data)
-    assert elapsed < 1.0, f"Chained operations took {elapsed:.3f} seconds"
-
-    # Verify result is independent
+    # Efficiency is structural, not clock-based: the mask is shared (no deep
+    # copy) while the data array is a fresh, independent buffer.
+    assert result.mask is sim_brain_data.mask
     assert result.data is not sim_brain_data.data
     assert result.shape == sim_brain_data.shape
 
@@ -107,32 +103,24 @@ def test_scale_with_different_values(sim_brain_data):
         assert scaled.data is not sim_brain_data.data
 
 
-@pytest.mark.slow
-def test_comparison_with_deepcopy():
-    """Compare performance of shallow copy vs deep copy"""
+def test_shallow_vs_deepcopy_sharing():
+    """Shallow copy shares the underlying arrays; deepcopy does not."""
 
-    # Create a larger BrainData for performance testing
     s1 = create_sphere([12, 10, -8], radius=10)
     brain = BrainData([s1] * 10)  # 10 images
 
-    # Measure deep copy time
-    start = time.time()
     deep_copied = deepcopy(brain)
-    deep_time = time.time() - start
-
-    # Measure shallow copy time
-    start = time.time()
     shallow_copied = shallow_copy(brain)
-    shallow_time = time.time() - start
 
-    # Shallow copy should be much faster
-    assert shallow_time < deep_time * 0.5, (
-        f"Shallow copy ({shallow_time:.4f}s) should be much faster than "
-        f"deep copy ({deep_time:.4f}s)"
-    )
+    # The efficiency guarantee, verified structurally rather than by clock:
+    # a shallow copy shares the data buffer with the source, whereas deepcopy
+    # duplicates it. (The mask is a shared immutable resource in both cases.)
+    assert shallow_copied.data is brain.data
+    assert deep_copied.data is not brain.data
 
-    # Both should have the same data initially
-    assert np.array_equal(shallow_copied.data, deep_copied.data)
+    # All three carry identical values
+    assert np.array_equal(shallow_copied.data, brain.data)
+    assert np.array_equal(deep_copied.data, brain.data)
 
 
 def test_shallow_copy_is_truly_shallow(sim_brain_data):
@@ -208,34 +196,20 @@ def test_all_arithmetic_methods_efficient(sim_brain_data):
     assert id(result.data) != id(sim_brain_data.data), "Should have new data"
 
 
-@pytest.mark.slow
 def test_transform_methods_efficient():
-    """Test that transform methods (scale, standardize, etc.) are efficient"""
+    """Transform methods share the mask and leave the source data untouched."""
 
-    # Create a larger dataset for meaningful timing
     s1 = create_sphere([12, 10, -8], radius=10)
     brain = BrainData([s1] * 20)  # 20 images
+    original_data = brain.data.copy()
 
-    # Time transform chain
-    start = time.time()
-    _ = brain.scale(100.0).standardize()
-    transform_time = time.time() - start
+    result = brain.scale(100.0).standardize()
 
-    # Time equivalent deep copy operations
-    start = time.time()
-    copy1 = deepcopy(brain)
-    copy1.data = copy1.data / copy1.data.mean() * 100.0
-    copy2 = deepcopy(copy1)
-    from sklearn.preprocessing import scale
-
-    copy2.data = scale(copy2.data, axis=0, with_std=True)
-    deep_copy_time = time.time() - start
-
-    # Transform chain should be significantly faster
-    assert transform_time < deep_copy_time * 0.75, (
-        f"Transform chain ({transform_time:.4f}s) should be faster than "
-        f"deep copy approach ({deep_copy_time:.4f}s)"
-    )
+    # No deep copy of the mask, an independent data buffer, and the source
+    # data is never mutated in place by the transform chain.
+    assert result.mask is brain.mask
+    assert result.data is not brain.data
+    assert np.array_equal(brain.data, original_data)
 
 
 def test_getitem_efficiency(sim_brain_data):
