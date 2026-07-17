@@ -80,3 +80,32 @@ def test_cluster_report_survives_subpeaks():
     assert (peaks["volume_mm3"].to_numpy() > 0).all()
     assert peaks["n_voxels"].null_count() == 0
     assert (peaks["n_voxels"].to_numpy() > 0).all()
+
+
+def test_peaks_cluster_id_shares_integer_label_space():
+    """F043: peaks.cluster_id must use the SAME integer id space as clusters.
+
+    Previously peaks.cluster_id came from nilearn (strings '1'/'1a', ordered by
+    peak stat) while clusters.cluster_id was renumbered by size (int) — different
+    orderings AND dtypes, so the two tables couldn't be joined. Peak ids are now
+    looked up in the renumbered label volume, so they share one integer space and
+    sub-peaks inherit their parent cluster's id.
+    """
+    bd = _two_peak_brain()
+    peaks, clusters, thr = cluster_report_data(
+        bd, stat_threshold=3.0, cluster_threshold=5, atlas="aal"
+    )
+    assert peaks["cluster_id"].dtype == pl.Int64
+    assert clusters["cluster_id"].dtype == pl.Int64
+
+    peak_ids = set(peaks["cluster_id"].to_list())
+    cluster_ids = set(clusters["cluster_id"].to_list())
+    assert peak_ids <= cluster_ids, (
+        f"peak cluster_ids {peak_ids} are not a subset of cluster ids "
+        f"{cluster_ids} — the tables are not joinable"
+    )
+    # The two local maxima form ONE connected cluster -> one shared id.
+    assert len(peak_ids) == 1
+    # And a join actually works.
+    joined = peaks.join(clusters, on="cluster_id", how="inner")
+    assert joined.height == peaks.height

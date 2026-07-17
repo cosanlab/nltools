@@ -32,6 +32,8 @@ class ClusterReport:
         peaks: Polars DataFrame, one row per peak (incl. sub-peaks). Columns
             ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``,
             ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
+            ``cluster_id`` shares the integer id space of ``clusters`` (they are
+            joinable); sub-peaks carry their parent cluster's id.
         clusters: Polars DataFrame, one row per cluster. Columns
             ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``,
             ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8
@@ -282,6 +284,7 @@ def _build_clusters_dataframe(
 def _build_peaks_dataframe(
     thr_img: nb.Nifti1Image,
     *,
+    renumbered: np.ndarray,
     stat_threshold: float | None,
     two_sided: bool,
     min_distance: float,
@@ -289,7 +292,13 @@ def _build_peaks_dataframe(
     prob_threshold: float,
     voxel_volume_mm3: float,
 ) -> pl.DataFrame:
-    """Use nilearn's get_clusters_table for peaks/sub-peaks, then add labels."""
+    """Use nilearn's get_clusters_table for peaks/sub-peaks, then add labels.
+
+    ``cluster_id`` is looked up in the ``renumbered`` label volume (the same
+    size-ordered integer labelling used by the clusters table) so the two tables
+    share one id space and can be joined; sub-peaks inherit their parent
+    cluster's id automatically.
+    """
     import pandas as pd
     from nilearn.reporting import get_clusters_table
 
@@ -303,7 +312,7 @@ def _build_peaks_dataframe(
     )
     if len(table) == 0:
         schema = {
-            "cluster_id": pl.Utf8,
+            "cluster_id": pl.Int64,
             "x": pl.Float64,
             "y": pl.Float64,
             "z": pl.Float64,
@@ -332,9 +341,17 @@ def _build_peaks_dataframe(
         int
     )
 
+    # Look up each peak's (sub-peak's) voxel in the renumbered label volume so
+    # cluster_id shares the clusters table's size-ordered integer id space
+    # (F043). Sub-peaks fall inside their parent cluster, so they inherit its id.
+    peak_ijk = _clip_to_box(_xyz_to_ijk(coords, thr_img.affine), renumbered.shape)
+    peak_cluster_ids = renumbered[
+        peak_ijk[:, 0], peak_ijk[:, 1], peak_ijk[:, 2]
+    ].astype(np.int64)
+
     base = pl.DataFrame(
         {
-            "cluster_id": [str(c) for c in table["Cluster ID"].tolist()],
+            "cluster_id": peak_cluster_ids,
             "x": coords[:, 0],
             "y": coords[:, 1],
             "z": coords[:, 2],
@@ -408,6 +425,7 @@ def cluster_report_data(
 
     peaks = _build_peaks_dataframe(
         thr_img,
+        renumbered=renumbered,
         stat_threshold=stat_threshold,
         two_sided=two_sided,
         min_distance=min_distance,
