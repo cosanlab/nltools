@@ -18,7 +18,6 @@ import os
 import nibabel as nib
 from nltools.templates import get_brainspace
 import numpy as np
-import warnings
 from nilearn.masking import intersect_masks
 
 
@@ -136,13 +135,20 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
     Overlapping areas are ignored.
 
     Args:
-        mask: nibabel or BrainData instance
-        custom_mask: nibabel instance or string to file path; optional
+        mask: nibabel or BrainData instance holding 2+ separate masks
+            (stacked along the first axis).
+        auto_label: If True (default), label the collapsed regions with
+            sequential integers (1, 2, 3, …) in mask order. If False, keep each
+            mask's own values as its label.
+        custom_mask: nibabel instance or string to file path; optional.
 
     Returns:
         out: BrainData instance of a mask with different integers indicating
-            different masks
+            different masks.
 
+    Raises:
+        ValueError: If ``mask`` is neither a nibabel nor BrainData instance, or
+            if it holds fewer than 2 masks (nothing to collapse).
     """
 
     from nltools.data import BrainData
@@ -153,45 +159,42 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
         else:
             raise ValueError("Make sure mask is a nibabel or BrainData instance.")
 
-    if len(mask.shape) > 1:
-        if len(mask) > 1:
-            out = mask.create_empty()
+    if len(mask.shape) <= 1 or len(mask) <= 1:
+        raise ValueError(
+            "collapse_mask requires 2+ separate masks (stacked along the first "
+            "axis) to collapse into an integer-labeled mask; got a single mask."
+        )
 
-            # Create list of masks and find any overlaps
-            m_list = []
-            for x in range(len(mask)):
-                m_list.append(mask[x].to_nifti())
-            intersect = intersect_masks(m_list, threshold=1, connected=False)
-            intersect = BrainData(
-                nib.Nifti1Image(np.abs(intersect.get_fdata() - 1), intersect.affine),
-                mask=custom_mask,
+    out = mask.create_empty()
+
+    # Create list of masks and find any overlaps
+    m_list = []
+    for x in range(len(mask)):
+        m_list.append(mask[x].to_nifti())
+    intersect = intersect_masks(m_list, threshold=1, connected=False)
+    intersect = BrainData(
+        nib.Nifti1Image(np.abs(intersect.get_fdata() - 1), intersect.affine),
+        mask=custom_mask,
+    )
+
+    merge = []
+    if auto_label:
+        # Combine all masks into sequential order
+        # ignoring any areas of overlap
+        for i in range(len(m_list)):
+            merge.append(
+                np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
+                * (i + 1)
             )
-
-            merge = []
-            if auto_label:
-                # Combine all masks into sequential order
-                # ignoring any areas of overlap
-                for i in range(len(m_list)):
-                    merge.append(
-                        np.multiply(
-                            BrainData(m_list[i], mask=custom_mask).data, intersect.data
-                        )
-                        * (i + 1)
-                    )
-                out.data = np.sum(np.array(merge).T, 1).astype(int)
-            else:
-                # Collapse masks using value as label
-                for i in range(len(m_list)):
-                    merge.append(
-                        np.multiply(
-                            BrainData(m_list[i], mask=custom_mask).data, intersect.data
-                        )
-                    )
-                out.data = np.sum(np.array(merge).T, 1)
-            return out
+        out.data = np.sum(np.array(merge).T, 1).astype(int)
     else:
-        warnings.warn("Doesn't need to be collapased")
-    return None
+        # Collapse masks using value as label
+        for i in range(len(m_list)):
+            merge.append(
+                np.multiply(BrainData(m_list[i], mask=custom_mask).data, intersect.data)
+            )
+        out.data = np.sum(np.array(merge).T, 1)
+    return out
 
 
 def roi_to_brain(data, mask_x):

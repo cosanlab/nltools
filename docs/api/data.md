@@ -14855,7 +14855,7 @@ Name | Type | Description
 ###### `binary_outcome`
 
 ```python
-binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
+binary_outcome = binary_outcome
 ```
 
 ######## `forced_choice`

@@ -94,7 +94,7 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """
     _require_h5()
     if obj_type not in ["brain_data", "adjacency"]:
-        raise TypeError("obj_type must be one of 'brain_data' or 'adjacency'")
+        raise ValueError("obj_type must be one of 'brain_data' or 'adjacency'")
 
     if obj_type == "brain_data":
         with h5File(file_name, "w") as f:

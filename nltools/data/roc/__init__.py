@@ -44,8 +44,12 @@ class Roc:
                 "Data Problem: input_value and binary_outcomeare different lengths."
             )
 
-        if not any(binary_outcome):
-            raise ValueError("Data Problem: binary_outcome may not be boolean")
+        binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
+        if binary_outcome.all() or not binary_outcome.any():
+            raise ValueError(
+                "Data Problem: binary_outcome must contain both positive and "
+                "negative cases (True and False)."
+            )
 
         valid_methods = ["optimal_overall", "optimal_balanced", "minimum_sdt_bias"]
         if method not in valid_methods:
@@ -57,7 +61,7 @@ class Roc:
         self.input_values = np.array(input_values)
         self.method = deepcopy(method)
         self.forced_choice = deepcopy(forced_choice)
-        self.binary_outcome = np.asarray(binary_outcome).astype(bool).flatten()
+        self.binary_outcome = binary_outcome
 
     def calculate(
         self,

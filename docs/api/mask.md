@@ -36,14 +36,15 @@ Overlapping areas are ignored.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask` |  | nibabel or BrainData instance | *required*
-`custom_mask` |  | nibabel instance or string to file path; optional | <code>None</code>
+`mask` |  | nibabel or BrainData instance holding 2+ separate masks (stacked along the first axis). | *required*
+`auto_label` |  | If True (default), label the collapsed regions with sequential integers (1, 2, 3, …) in mask order. If False, keep each mask's own values as its label. | <code>True</code>
+`custom_mask` |  | nibabel instance or string to file path; optional. | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | BrainData instance of a mask with different integers indicating different masks
+`out` |  | BrainData instance of a mask with different integers indicating different masks.
 
 (mask-create-sphere)=
 #### `create_sphere`

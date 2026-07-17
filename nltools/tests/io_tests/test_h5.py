@@ -57,7 +57,7 @@ class TestToH5BrainData:
     """Tests for to_h5 with brain_data type (round-trip via fixtures)."""
 
     def test_invalid_obj_type_raises(self, sim_brain_data, tmp_path):
-        with pytest.raises(TypeError, match="obj_type"):
+        with pytest.raises(ValueError, match="obj_type"):
             to_h5(sim_brain_data, str(tmp_path / "bad.h5"), obj_type="invalid")
 
     def test_round_trip(self, sim_brain_data, tmp_path):

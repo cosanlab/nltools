@@ -13,6 +13,8 @@ Follows himalaya's implementation patterns:
 
 from __future__ import annotations
 
+import numbers
+
 import numpy as np
 import warnings
 from typing import Any
@@ -31,7 +33,7 @@ def solve_banded_ridge_cv(
     Y: np.ndarray,
     *,
     # Optional algorithm parameters
-    n_iter: int | np.ndarray = 100,
+    n_iter: int | np.integer | np.ndarray = 100,
     concentration: float | list[float] = [0.1, 1.0],
     alphas: float | np.ndarray | list[float] = [0.1, 1.0, 10.0],
     cv: int | BaseCrossValidator = 5,
@@ -200,10 +202,13 @@ def solve_banded_ridge_cv(
     n_spaces = len(Xs)
     n_samples = Xs[0].shape[0]
 
-    # Generate or use provided gammas
-    if isinstance(n_iter, int):
+    # Generate or use provided gammas. n_iter is dual-purpose: an integer count
+    # (number of random Dirichlet feature-weight samples to search) OR an
+    # explicit (n_iter, n_spaces) gamma array. numbers.Integral accepts numpy
+    # integer scalars (np.int64) as well as Python int.
+    if isinstance(n_iter, numbers.Integral):
         gammas = generate_dirichlet_samples(
-            n_samples=n_iter,
+            n_samples=int(n_iter),
             n_kernels=n_spaces,
             concentration=concentration,
             random_state=random_state,
