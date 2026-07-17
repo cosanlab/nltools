@@ -14,9 +14,6 @@ from nltools.data import BrainCollection, BrainData
 from nltools.data.collection import BrainCollectionPipeline
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 # ---------------------------------------------------------------------------
 # Signatures (pass on scaffold)
 # ---------------------------------------------------------------------------

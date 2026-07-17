@@ -9,9 +9,6 @@ from nltools.data import BrainCollection
 from nltools.tests.data.collection.conftest import HAS_FAKE_BIDS
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 class TestFromPaths:
     def test_from_paths_basic(self, tiny_mask, tiny_nifti_paths):
         bc = BrainCollection.from_paths(

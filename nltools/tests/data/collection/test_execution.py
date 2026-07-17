@@ -19,9 +19,6 @@ from nltools.data.collection import (
 from nltools.data.collection import core, execution
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 # ---------------------------------------------------------------------------
 # core.py helpers — these we can implement / verify on the scaffold
 # ---------------------------------------------------------------------------

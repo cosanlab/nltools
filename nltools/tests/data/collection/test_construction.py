@@ -14,9 +14,6 @@ from nltools.data import BrainCollection
 from nltools.data.collection import BrainCollectionWorkerError, BUNDLE_SCHEMA_VERSION
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 # ---------------------------------------------------------------------------
 # Public surface — these pass on the scaffold
 # ---------------------------------------------------------------------------

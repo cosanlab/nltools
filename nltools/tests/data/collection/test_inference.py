@@ -9,9 +9,6 @@ import pytest
 from nltools.data import BrainCollection, BrainData
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 class TestReductionShape:
     """SPEC §"Group reductions": collapse subjects → BrainData (or dict)."""
 

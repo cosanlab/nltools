@@ -9,9 +9,6 @@ import pytest
 from nltools.data import BrainCollection, BrainData
 
 
-XFAIL = pytest.mark.xfail(reason="not implemented", strict=True)
-
-
 class TestGetItem:
     def test_int_returns_braindata(self, bc_inmem):
         bd = bc_inmem[0]

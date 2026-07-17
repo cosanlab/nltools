@@ -118,15 +118,11 @@ def bc_inmem(tiny_mask, tiny_brain_factory):
     """Three-subject in-memory collection.
 
     Returns a ``BrainCollection`` already constructed with loaded ``BrainData``.
-    Skipped if ``__init__`` is still a stub.
     """
     from nltools.data import BrainCollection
 
     brains = [tiny_brain_factory(n_obs=8, seed=i) for i in range(3)]
-    try:
-        return BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
-    except NotImplementedError:
-        pytest.skip("BrainCollection.__init__ not yet implemented")
+    return BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
 
 
 @pytest.fixture(scope="function")
@@ -134,12 +130,9 @@ def bc_pathbacked(tiny_mask, tiny_nifti_paths, tmp_path):
     """Three-subject collection constructed from on-disk paths."""
     from nltools.data import BrainCollection
 
-    try:
-        return BrainCollection.from_paths(
-            tiny_nifti_paths, mask=tiny_mask, cache_dir=tmp_path / "cache"
-        )
-    except NotImplementedError:
-        pytest.skip("BrainCollection.from_paths not yet implemented")
+    return BrainCollection.from_paths(
+        tiny_nifti_paths, mask=tiny_mask, cache_dir=tmp_path / "cache"
+    )
 
 
 @pytest.fixture(scope="function")
@@ -194,13 +187,10 @@ def bc_with_designs(tiny_mask, tiny_brain_factory, tiny_design_factory, tmp_path
 
     brains = [tiny_brain_factory(n_obs=8, seed=i) for i in range(3)]
     designs = [tiny_design_factory(n_obs=8, seed=10 + i) for i in range(3)]
-    try:
-        return BrainCollection(
-            brains,
-            mask=tiny_mask,
-            designs=designs,
-            lazy=False,
-            cache_dir=tmp_path / "cache",
-        )
-    except NotImplementedError:
-        pytest.skip("BrainCollection.__init__ not yet implemented")
+    return BrainCollection(
+        brains,
+        mask=tiny_mask,
+        designs=designs,
+        lazy=False,
+        cache_dir=tmp_path / "cache",
+    )
