@@ -185,6 +185,33 @@ class TestHyperAlignmentFit:
             "With auto_pad=True, all transformation matrices should have same shape"
         )
 
+    def test_fit_auto_pad_zero_pads_to_max_not_truncates(
+        self, sample_data_different_sizes
+    ):
+        """F001: auto_pad must zero-pad up to the LARGEST feature count.
+
+        Previously it truncated every subject to the smallest feature count
+        (silent data loss). Features are the row axis; the fixture has 50/45/52
+        features, so the common space must be 52-dimensional, not 45.
+        """
+        from nltools.algorithms import HyperAlignment
+
+        max_features = max(x.shape[0] for x in sample_data_different_sizes)
+        n_samples = sample_data_different_sizes[0].shape[1]
+        assert max_features == 52  # guard the fixture assumption
+
+        hyper = HyperAlignment(auto_pad=True).fit(sample_data_different_sizes)
+
+        # Common template s_ is (features, samples) — must keep the max features.
+        assert hyper.s_.shape == (max_features, n_samples), (
+            f"expected zero-padding to {max_features} features, got {hyper.s_.shape}"
+        )
+        for i, w in enumerate(hyper.w_):
+            assert w.shape == (max_features, max_features), (
+                f"subject {i} transform {w.shape} was truncated below "
+                f"{max_features} features"
+            )
+
     def test_fit_auto_pad_false_raises_error(self, sample_data_different_sizes):
         """Test fit with auto_pad=False raises error for different-sized matrices."""
         from nltools.algorithms import HyperAlignment

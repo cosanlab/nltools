@@ -266,23 +266,18 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
         ## STAGE 0: STANDARDIZE SIZE AND SHAPE ##
         if self.auto_pad:
-            # Find dimensions
-            sizes_0 = [x.shape[0] for x in data]
-            sizes_1 = [x.shape[1] for x in data]
+            # Zero-pad every subject's feature axis (rows) up to the LARGEST
+            # feature count, as documented, so no subject's features are dropped.
+            # (The sample axis / columns is already validated equal above.)
+            R = max(x.shape[0] for x in data)
 
-            # Use minimum rows (features) and maximum cols (samples)
-            R = min(sizes_0)
-            C = max(sizes_1)
-
-            # Pad to standardized size
             m = []
             for x in data:
-                y = x[0:R, :]  # Truncate to min features
-                missing = C - y.shape[1]
+                missing = R - x.shape[0]
                 if missing > 0:
-                    add = np.zeros((y.shape[0], missing))
-                    y = np.append(y, add, axis=1)
-                m.append(y)
+                    add = np.zeros((missing, x.shape[1]), dtype=x.dtype)
+                    x = np.vstack([x, add])
+                m.append(np.asarray(x, dtype=float).copy())
         else:
             # Verify all same size
             shapes = [x.shape for x in data]
