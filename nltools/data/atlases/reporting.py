@@ -259,10 +259,11 @@ def _build_clusters_dataframe(
             "volume_mm3": float(n_vox * voxel_volume_mm3),
             "n_voxels": int(n_vox),
         }
+        # World (mm) coords are atlas-independent; compute once per cluster
+        # rather than re-running the transform for each atlas.
+        world_xyz = nb_affines.apply_affine(affine, ijk)
         for atlas in atlas_objs:
-            atlas_ijk = _xyz_to_ijk(
-                nb_affines.apply_affine(affine, ijk), atlas.image.affine
-            )
+            atlas_ijk = _xyz_to_ijk(world_xyz, atlas.image.affine)
             atlas_ijk = _clip_to_box(atlas_ijk, atlas.image.shape)
             row[atlas.name] = _cluster_label_string(atlas, atlas_ijk, prob_threshold)
         rows.append(row)

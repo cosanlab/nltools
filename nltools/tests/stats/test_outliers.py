@@ -5,7 +5,7 @@ import pandas as pd
 import polars as pl
 import pytest
 
-from nltools.stats.outliers import winsorize, find_spikes, zscore
+from nltools.stats.outliers import trim, winsorize, find_spikes, zscore
 
 
 class TestWinsorize:
@@ -102,6 +102,39 @@ class TestWinsorize:
             ]
         )
         assert np.round(np.mean(out)) == np.round(np.mean(expected))
+
+
+class TestTrim:
+    """Test trimming outliers to null (as opposed to winsorize's clamping)."""
+
+    def test_quantile_nulls_outliers(self, outlier_data):
+        """Quantile trim nulls values outside [q_low, q_high] without clamping."""
+        out = trim(outlier_data, cutoff={"quantile": [0.05, 0.95]})
+        in_vals = outlier_data["x"].to_list()
+        out_vals = out["x"].to_list()
+        # The high outlier (1053, index 4) and the low value (-40) are nulled.
+        assert out["x"].null_count() == 2
+        assert out_vals[4] is None
+        # Trim replaces with null rather than clamping: every surviving value
+        # is exactly its original (winsorize would substitute the cutoff).
+        for orig, new in zip(in_vals, out_vals):
+            if new is not None:
+                assert new == orig
+
+    def test_std_nulls_outliers(self, outlier_data):
+        """Std trim nulls the extreme high outlier and leaves the rest intact."""
+        out = trim(outlier_data, cutoff={"std": [2, 2]})
+        out_vals = out["x"].to_list()
+        # Only 1053 exceeds mean ± 2·std (it inflates std enough to keep -40 in).
+        assert out["x"].null_count() == 1
+        assert out_vals[4] is None
+
+    def test_series_input_returns_series(self, outlier_data):
+        """A Series input yields a Series output (not a 1-col DataFrame)."""
+        series = outlier_data["x"]
+        out = trim(series, cutoff={"std": [2, 2]})
+        assert isinstance(out, pl.Series)
+        assert out.null_count() == 1
 
 
 class TestZscore:

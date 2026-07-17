@@ -2,6 +2,7 @@
 
 import numpy as np
 import polars as pl
+import pytest
 
 from nltools.stats.timeseries import downsample, upsample, calc_bpm, make_cosine_basis
 
@@ -74,6 +75,30 @@ class TestMakeCosineBasis:
         assert basis.shape[0] == n_timepoints
         assert basis.shape[1] >= 1
 
+    def test_column_count_matches_filter_length(self):
+        """Basis column count follows order = trunc(2·n·f/L + 1) minus intercept.
+
+        For n=128, sampling_freq=1: filter_length=128 → order 3 → 2 bases;
+        filter_length=32 → order 9 → 8 bases. A shorter filter (higher cutoff)
+        admits more drift bases.
+        """
+        assert make_cosine_basis(128, 1, 128, drop=0).shape == (128, 2)
+        assert make_cosine_basis(128, 1, 32, drop=0).shape == (128, 8)
+
+    def test_columns_near_orthogonal(self):
+        """DCT basis columns are mutually orthogonal (off-diagonal Gram ≈ 0)."""
+        basis = make_cosine_basis(128, 1, 32, drop=0)
+        gram = basis.T @ basis
+        off_diagonal = gram - np.diag(np.diag(gram))
+        assert np.abs(off_diagonal).max() < 1e-8
+
+    def test_drop_removes_leading_columns(self):
+        """drop=k removes the k lowest-frequency bases, keeping the remainder."""
+        full = make_cosine_basis(128, 1, 32, drop=0)
+        dropped = make_cosine_basis(128, 1, 32, drop=2)
+        assert dropped.shape[1] == full.shape[1] - 2
+        np.testing.assert_allclose(dropped, full[:, 2:])
+
 
 class TestCalcBpm:
     """Test beats-per-minute calculation."""
@@ -87,3 +112,12 @@ class TestCalcBpm:
         bpm_values = result.to_numpy() if hasattr(result, "to_numpy") else result.values
         assert np.all(bpm_values > 60)
         assert np.all(bpm_values < 80)
+
+    def test_bpm_mapping_not_hardcoded(self):
+        """BPM = 60·sampling_freq/beat_interval across several inputs."""
+        # 1000 samples between beats at 1000 Hz = 1 s interval = 60 BPM.
+        assert calc_bpm(1000, sampling_freq=1000) == pytest.approx(60.0)
+        # Halving the interval doubles the rate.
+        assert calc_bpm(500, sampling_freq=1000) == pytest.approx(120.0)
+        # A different sampling frequency scales linearly.
+        assert calc_bpm(2, sampling_freq=1) == pytest.approx(30.0)
