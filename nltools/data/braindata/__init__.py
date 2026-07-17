@@ -1,10 +1,4 @@
-"""Represent brain image data with the BrainData class.
-
-# NeuroLearn Brain Data
-
-Classes to represent brain image data.
-
-"""
+"""Represent brain image data with the BrainData class."""
 
 import os
 import warnings  # noqa: F401

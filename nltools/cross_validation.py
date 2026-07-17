@@ -1,9 +1,4 @@
-"""Provide cross-validation data classes.
-
-Scikit-learn compatible classes for performing various
-types of cross-validation
-
-"""
+"""Scikit-learn-compatible cross-validation data classes."""
 
 __all__ = ["KFoldStratified"]
 

@@ -1,7 +1,4 @@
-"""Shared random state utilities for algorithms module.
-
-This module provides common random state handling to ensure consistent
-random number generation across the algorithms module.
+"""Shared random-state utilities for deterministic parallel execution.
 
 Key features:
     - Deterministic parallelization: Pre-generates seeds for reproducible parallel execution

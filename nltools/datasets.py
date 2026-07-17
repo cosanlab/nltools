@@ -1,7 +1,5 @@
 """Dataset download and example-data utilities.
 
-# NeuroLearn datasets
-
 Functions to help download example datasets. The curated example datasets
 (`fetch_pain`, `fetch_emotion_ratings`) are hosted on the ``nltools/niftis``
 Hugging Face dataset and resolve through the same `fetch_resource` /

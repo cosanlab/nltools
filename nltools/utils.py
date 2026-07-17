@@ -1,8 +1,4 @@
-"""Provide cross-cutting utilities for nltools.
-
-Cross-cutting utilities used across the nltools package.
-
-"""
+"""Cross-cutting utilities used across the nltools package."""
 
 __all__ = [
     "all_same",

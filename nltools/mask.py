@@ -1,10 +1,4 @@
-"""Utilities for creating and manipulating brain masks.
-
-# NeuroLearn Mask Classes
-
-Classes to represent masks
-
-"""
+"""Utilities for creating and manipulating brain masks."""
 
 __all__ = [
     "collapse_mask",

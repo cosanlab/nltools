@@ -1,7 +1,4 @@
-"""Shared shape manipulation utilities for algorithms module.
-
-This module provides common shape manipulation functions to reduce code
-duplication and ensure consistent behavior across the algorithms module.
+"""Shared shape-manipulation helpers for triangle extraction and symmetric permutation.
 
 Key functions:
     - extract_triangle_elements: Extract upper/lower triangle from matrices
