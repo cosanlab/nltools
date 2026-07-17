@@ -1,9 +1,11 @@
 name: Docs
 
-# Build the docs on every push to the active branches (verifies the site still
-# builds) but only DEPLOY to GitHub Pages on a release — i.e. when a `v*` tag is
-# pushed (same trigger as release.yml, so docs go live alongside the PyPI
-# publish). A manual run can force a deploy via the `deploy` input.
+# On every push to the active branches, build + EXECUTE the docs site (running the
+# tutorial notebooks doubles as a test layer) but skip the slow WASM bake and do NOT
+# deploy. Only on a release — i.e. when a `v*` tag is pushed (same trigger as
+# release.yml, so docs go live alongside the PyPI publish) — build the full site
+# including the interactive WASM pages and deploy to GitHub Pages. A manual run can
+# force the full build + deploy via the `deploy` input.
 on:
   push:
     branches:
@@ -64,11 +66,21 @@ jobs:
       - name: Build wheel
         run: uv build --wheel
 
-      # Build + execute the docs with the installed packages (NOT the WASM/Pyodide
-      # runtime): docs-build runs the tutorials through a real Jupyter kernel to bake
-      # outputs, then also emits the interactive WASM pages. BASE_URL deploys under
-      # the /nltools GitHub Pages subpath.
-      - name: Build docs for GitHub Pages
+      # Non-release build (the common case): regenerate sources, then build + EXECUTE
+      # the MyST site through a real Jupyter kernel. Running every tutorial end-to-end
+      # doubles as a test layer. Skips the slow docs-wasm bake (headless Pyodide +
+      # micropip per notebook) — those interactive pages are only needed for the
+      # deployed site, so they run release-only below.
+      - name: Build + execute docs (test layer; no WASM)
+        if: ${{ !(startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy)) }}
+        run: |
+          uv run poe docs-generate
+          uv run poe docs-site
+
+      # Release / manual deploy: full build INCLUDING the interactive WASM pages,
+      # under the /nltools GitHub Pages subpath.
+      - name: Build docs for GitHub Pages (full, incl WASM)
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
         env:
           BASE_URL: /nltools
         run: uv run poe docs-build
