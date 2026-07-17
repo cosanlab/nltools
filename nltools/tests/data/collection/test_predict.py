@@ -34,6 +34,30 @@ class TestFitSignature:
         assert sig.parameters["standardize"].default == "auto"
         assert "scale_value" not in sig.parameters
 
+    def test_fit_glm_ar1_raises_not_implemented(self, tmp_path):
+        """AR noise models are OLS-only in the collection closed form -> refuse
+        rather than silently approximate; point users to per-subject BrainData."""
+        import numpy as np
+        import pytest
+        from nibabel import Nifti1Image
+
+        from nltools.data import BrainData, BrainCollection
+
+        rng = np.random.default_rng(0)
+        img = Nifti1Image(
+            (rng.standard_normal((4, 4, 4, 20))).astype("float32"), np.eye(4)
+        )
+        mask = Nifti1Image(np.ones((4, 4, 4), dtype="int8"), np.eye(4))
+        bc = BrainCollection(
+            [BrainData(img, mask=mask)], mask=mask, lazy=False, cache_dir=None
+        )
+
+        import pandas as pd
+
+        design = pd.DataFrame({"Intercept": np.ones(20), "A": rng.standard_normal(20)})
+        with pytest.raises(NotImplementedError, match="noise_model='ols'"):
+            bc.fit(model="glm", X=design, noise_model="ar1")
+
     def test_fit_no_output_or_save_kwargs(self):
         """SPEC §"What's gone": ``output=`` / ``save=`` removed from fit."""
         sig = inspect.signature(BrainCollection.fit)

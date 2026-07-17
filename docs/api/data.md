@@ -1548,6 +1548,7 @@ Name | Description
 [`predict`](#data-predict) | Predict voxel timeseries (encoding) or decode labels (MVPA).
 [`r_to_z`](#data-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regions`](#data-regions) | Extract brain connected regions into separate regions.
+[`report`](#data-report) | Generate a nilearn HTML report for a fitted GLM.
 [`resample_to`](#data-resample-to) | Resample BrainData to match target image or resolution.
 [`scale`](#data-scale) | Scale data via mean scaling.
 [`similarity`](#data-similarity) | Calculate similarity to a single BrainData or nibabel image.
@@ -2413,6 +2414,39 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance with extracted ROIs as data.
+
+(data-report)=
+###### `report`
+
+```python
+report(contrasts = None, **kwargs)
+```
+
+Generate a nilearn HTML report for a fitted GLM.
+
+Must be called after ``fit(model='glm', ...)``. Renders the design
+matrix, requested contrast maps, and model parameters as a
+self-contained HTML report.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrasts`. | <code>None</code>
+`**kwargs` |  | Forwarded to nilearn's ``generate_report`` (e.g. ``title``, ``threshold``, ``alpha``). | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`HTMLReport` |  | nilearn report; call ``.save_as_html(path)`` or display it in a notebook.
+
+**Examples:**
+
+```pycon
+>>> brain.fit(model='glm', X=design_matrix)
+>>> brain.report(contrasts='conditionA - conditionB').save_as_html('report.html')
+```
 
 (data-resample-to)=
 ###### `resample_to`
@@ -6375,6 +6409,7 @@ Name | Description
 [`predict`](#data-predict) | Predict voxel timeseries (encoding) or decode labels (MVPA).
 [`r_to_z`](#data-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
 [`regions`](#data-regions) | Extract brain connected regions into separate regions.
+[`report`](#data-report) | Generate a nilearn HTML report for a fitted GLM.
 [`resample_to`](#data-resample-to) | Resample BrainData to match target image or resolution.
 [`scale`](#data-scale) | Scale data via mean scaling.
 [`similarity`](#data-similarity) | Calculate similarity to a single BrainData or nibabel image.
@@ -7307,6 +7342,38 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `BrainData` |  | BrainData instance with extracted ROIs as data.
+
+######## `report`
+
+```python
+report(contrasts = None, **kwargs)
+```
+
+Generate a nilearn HTML report for a fitted GLM.
+
+Must be called after ``fit(model='glm', ...)``. Renders the design
+matrix, requested contrast maps, and model parameters as a
+self-contained HTML report.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrasts`. | <code>None</code>
+`**kwargs` |  | Forwarded to nilearn's ``generate_report`` (e.g. ``title``, ``threshold``, ``alpha``). | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`HTMLReport` |  | nilearn report; call ``.save_as_html(path)`` or display it in a notebook.
+
+**Examples:**
+
+```pycon
+>>> brain.fit(model='glm', X=design_matrix)
+>>> brain.report(contrasts='conditionA - conditionB').save_as_html('report.html')
+```
 
 ######## `resample_to`
 

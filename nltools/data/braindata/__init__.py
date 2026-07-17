@@ -652,6 +652,40 @@ class BrainData:
 
         return compute_contrasts(self, contrasts, statistic=statistic)
 
+    def report(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn generate_report
+        self, contrasts=None, **kwargs
+    ):
+        """Generate a nilearn HTML report for a fitted GLM.
+
+        Must be called after ``fit(model='glm', ...)``. Renders the design
+        matrix, requested contrast maps, and model parameters as a
+        self-contained HTML report.
+
+        Args:
+            contrasts (str, list, or dict, optional): Contrast(s) to render,
+                same forms as `compute_contrasts`.
+            **kwargs: Forwarded to nilearn's ``generate_report`` (e.g. ``title``,
+                ``threshold``, ``alpha``).
+
+        Returns:
+            HTMLReport: nilearn report; call ``.save_as_html(path)`` or display
+                it in a notebook.
+
+        Raises:
+            RuntimeError: If a GLM has not been fit yet.
+
+        Examples:
+            >>> brain.fit(model='glm', X=design_matrix)
+            >>> brain.report(contrasts='conditionA - conditionB').save_as_html('report.html')
+        """
+        from nltools.models import Glm
+
+        if not isinstance(getattr(self, "model_", None), Glm):
+            raise RuntimeError(
+                "report() requires a fitted GLM; call fit(model='glm', ...) first."
+            )
+        return self.model_.report(contrasts=contrasts, **kwargs)
+
     def copy(self):
         """Create a deep copy of a BrainData instance.
 

@@ -610,6 +610,18 @@ class BrainCollection:
         if model not in ("glm", "ridge"):
             raise ValueError(f"unknown model {model!r}; expected 'glm' or 'ridge'")
 
+        # AR noise models need per-voxel whitened covariance, which the
+        # serializable OLS closed-form contrast path cannot represent. Refuse
+        # rather than silently returning OLS-approximated stats; users who need
+        # AR can loop BrainData.fit(model='glm', noise_model='ar1') per subject.
+        if model == "glm" and model_kwargs.get("noise_model", "ols") != "ols":
+            raise NotImplementedError(
+                "BrainCollection.fit only supports noise_model='ols' for GLM; "
+                f"got {model_kwargs.get('noise_model')!r}. AR noise models are "
+                "available per-subject via BrainData.fit(model='glm', "
+                "noise_model='ar1'); loop over subjects manually if you need them."
+            )
+
         # Resolve 'auto' sentinels once here so the per-subject bundles persist
         # concrete scale/standardize values (shared logic with BrainData.fit).
         from ..braindata.modeling import resolve_preprocessing_defaults

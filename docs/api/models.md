@@ -208,7 +208,7 @@ Therefore, it does not use BaseModel's input validation methods.
 
 The predict() method follows sklearn's LinearRegression semantics:
 - predict() returns fitted values (predictions on training data)
-- predict(X) would generate predictions with new design matrix (future feature)
+- predict(X) returns X @ coef_ for a new design matrix (single-run fits)
 
 For advanced use cases, access the internal FirstLevelModel via the
 ``glm_`` property to use any nilearn-specific functionality.
@@ -221,7 +221,8 @@ Name | Description
 ---- | -----------
 [`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Return the fitted GLM's predicted values (predictions on training data).
+[`predict`](#models-predict) | Predict from the fitted GLM.
+[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
 [`score`](#models-score) | Return mean R² across voxels and runs.
 
 ##### Methods
@@ -313,27 +314,45 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 predict(X = None)
 ```
 
-Return the fitted GLM's predicted values (predictions on training data).
+Predict from the fitted GLM.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>None, default=None</code> | Not supported. Prediction from a *new* design matrix is not implemented, so any non-None X raises NotImplementedError rather than returning a wrong map. The parameter exists only to satisfy the `BaseModel.predict` contract; pass None (the default) to get fitted values. | <code>None</code>
+`X` | <code>array-like, DataFrame, or None, default=None</code> | Design matrix to predict from.<br>- ``None``: return the fitted values on the training data (a   list of `Nifti1Image`, one per run), matching sklearn's   ``LinearRegression`` semantics. - array-like of shape (n_samples, n_regressors): return   ``X @ coef_`` as a 2-D ndarray (n_samples, n_voxels), mirroring   `Ridge.predict`. Requires a single-run fit. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image: Fitted values for each run.
+ | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
 
-<details class="note" open markdown="1">
-<summary>Note</summary>
+(models-report)=
+###### `report`
 
-Follows sklearn's LinearRegression semantics where predict() without
-arguments returns fitted values (like calling predict(X_train)).
+```python
+report(contrasts = None, **kwargs)
+```
 
-</details>
+Generate a nilearn HTML report for the fitted GLM.
+
+Delegates to the underlying `FirstLevelModel.generate_report`, which
+renders the design matrix, requested contrast maps, and model
+parameters as a self-contained HTML report.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrast`. | <code>None</code>
+`**kwargs` |  | Additional arguments forwarded to nilearn's `generate_report` (e.g. `title`, `threshold`, `alpha`). | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`HTMLReport` |  | nilearn report object; call `.save_as_html(path)` or display it in a notebook.
 
 ###### `score`
 
@@ -750,7 +769,7 @@ Therefore, it does not use BaseModel's input validation methods.
 
 The predict() method follows sklearn's LinearRegression semantics:
 - predict() returns fitted values (predictions on training data)
-- predict(X) would generate predictions with new design matrix (future feature)
+- predict(X) returns X @ coef_ for a new design matrix (single-run fits)
 
 For advanced use cases, access the internal FirstLevelModel via the
 ``glm_`` property to use any nilearn-specific functionality.
@@ -763,7 +782,8 @@ Name | Description
 ---- | -----------
 [`compute_contrast`](#models-compute-contrast) | Compute contrast using nilearn for accurate statistical inference.
 [`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Return the fitted GLM's predicted values (predictions on training data).
+[`predict`](#models-predict) | Predict from the fitted GLM.
+[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
 [`score`](#models-score) | Return mean R² across voxels and runs.
 
 
@@ -954,27 +974,44 @@ keep DesignMatrix Polars-native while maintaining nilearn integration.
 predict(X = None)
 ```
 
-Return the fitted GLM's predicted values (predictions on training data).
+Predict from the fitted GLM.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>None, default=None</code> | Not supported. Prediction from a *new* design matrix is not implemented, so any non-None X raises NotImplementedError rather than returning a wrong map. The parameter exists only to satisfy the `BaseModel.predict` contract; pass None (the default) to get fitted values. | <code>None</code>
+`X` | <code>array-like, DataFrame, or None, default=None</code> | Design matrix to predict from.<br>- ``None``: return the fitted values on the training data (a   list of `Nifti1Image`, one per run), matching sklearn's   ``LinearRegression`` semantics. - array-like of shape (n_samples, n_regressors): return   ``X @ coef_`` as a 2-D ndarray (n_samples, n_voxels), mirroring   `Ridge.predict`. Requires a single-run fit. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | list of Nifti1Image: Fitted values for each run.
+ | list of Nifti1Image or ndarray: Fitted values (X is None) or new-X predictions (X given).
 
-<details class="note" open markdown="1">
-<summary>Note</summary>
+######## `report`
 
-Follows sklearn's LinearRegression semantics where predict() without
-arguments returns fitted values (like calling predict(X_train)).
+```python
+report(contrasts = None, **kwargs)
+```
 
-</details>
+Generate a nilearn HTML report for the fitted GLM.
+
+Delegates to the underlying `FirstLevelModel.generate_report`, which
+renders the design matrix, requested contrast maps, and model
+parameters as a self-contained HTML report.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str, list, or dict</code> | Contrast(s) to render, same forms as `compute_contrast`. | <code>None</code>
+`**kwargs` |  | Additional arguments forwarded to nilearn's `generate_report` (e.g. `title`, `threshold`, `alpha`). | <code>{}</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`HTMLReport` |  | nilearn report object; call `.save_as_html(path)` or display it in a notebook.
 
 ######## `score`
 

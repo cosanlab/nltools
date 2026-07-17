@@ -555,6 +555,42 @@ class TestBrainDataModeling:
             )
         assert not any("intercept" in str(wi.message).lower() for wi in w)
 
+    def test_glm_predict_new_design_returns_brain_data(self, minimal_brain_data):
+        """F182: bd.predict(X=new_design) works for GLM and returns BrainData
+        holding X_new @ coef_ (parity with the Ridge facade path)."""
+        design = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "X1": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", noise_model="ols", X=design)
+
+        X_new = np.column_stack(
+            [np.ones(6), np.random.randn(6)]
+        )  # 6 new timepoints, same 2 regressors
+        pred = minimal_brain_data.predict(X=X_new)
+
+        assert isinstance(pred, BrainData)
+        assert pred.data.shape == (6, minimal_brain_data.shape[1])
+        np.testing.assert_allclose(pred.data, X_new @ minimal_brain_data.model_.coef_)
+
+    def test_glm_report_returns_html(self, minimal_brain_data):
+        """bd.report() delegates to nilearn and returns an HTMLReport."""
+        design = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "X1": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", noise_model="ols", X=design)
+        rep = minimal_brain_data.report(contrasts={"X1": np.array([0.0, 1.0])})
+        assert type(rep).__name__ == "HTMLReport"
+
+    def test_report_requires_fitted_glm(self, minimal_brain_data):
+        with pytest.raises(RuntimeError, match="requires a fitted GLM"):
+            minimal_brain_data.report(contrasts={"X1": np.array([0.0, 1.0])})
+
     def test_fit_scale_value_removed(self, minimal_brain_data):
         """scale_value is gone (nilearn PSC is fixed at x100)."""
         X = np.random.randn(len(minimal_brain_data), 10)

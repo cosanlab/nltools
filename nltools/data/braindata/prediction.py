@@ -124,14 +124,12 @@ def predict_timeseries(bd, *, X=None):
                 f"{expected} features"
             )
 
-    if isinstance(bd.model_, Glm):
-        if using_training_data:
-            y_pred_list = bd.model_.predict()
-            y_pred = BrainData(y_pred_list, mask=bd.mask).data
-        else:
-            raise NotImplementedError(
-                "Prediction with new design matrix not yet implemented for GLM."
-            )
+    if isinstance(bd.model_, Glm) and using_training_data:
+        # Training-data fitted values come back as nilearn Nifti images; remask
+        # to the BrainData array space. New-design prediction (X given) goes
+        # through model.predict(X) = X @ coef_, identical to the Ridge path.
+        y_pred_list = bd.model_.predict()
+        y_pred = BrainData(y_pred_list, mask=bd.mask).data
     else:
         y_pred = bd.model_.predict(X)
 

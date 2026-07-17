@@ -82,7 +82,7 @@ class Glm(BaseModel):
 
         The predict() method follows sklearn's LinearRegression semantics:
         - predict() returns fitted values (predictions on training data)
-        - predict(X) would generate predictions with new design matrix (future feature)
+        - predict(X) returns X @ coef_ for a new design matrix (single-run fits)
 
         For advanced use cases, access the internal FirstLevelModel via the
         ``glm_`` property to use any nilearn-specific functionality.
@@ -184,7 +184,30 @@ class Glm(BaseModel):
         # Set BaseModel fitted state
         self.is_fitted_ = True
 
+        # Cache the beta matrix so predict(X) mirrors Ridge (X @ coef_).
+        self._extract_coef()
+
         return self
+
+    def _extract_coef(self):
+        """Cache ``coef_`` (betas) from the fitted run_glm results.
+
+        nilearn stores the GLS parameter estimates as ``theta`` on each
+        per-AR-bin ``RegressionResults`` (keyed by ``labels_``); assembling
+        them across bins yields the full ``(n_regressors, n_voxels)`` beta
+        matrix directly from arrays — no unmasking to a Nifti. Sets ``coef_``
+        to that 2-D array for a single-run fit, or a list of them per run.
+        """
+        coefs = []
+        for run in range(len(self._glm.labels_)):
+            labels = self._glm.labels_[run]
+            results = self._glm.results_[run]
+            n_reg = self._glm.design_matrices_[run].shape[1]
+            beta = np.zeros((n_reg, labels.shape[0]))
+            for lab in results:
+                beta[:, labels == lab] = results[lab].theta
+            coefs.append(beta)
+        self.coef_ = coefs[0] if len(coefs) == 1 else coefs
 
     def _convert_design_matrices(self, design_matrices):
         """
@@ -218,38 +241,69 @@ class Glm(BaseModel):
 
     def predict(self, X=None):
         """
-        Return the fitted GLM's predicted values (predictions on training data).
+        Predict from the fitted GLM.
 
         Args:
-            X (None, default=None): Not supported. Prediction from a *new*
-                design matrix is not implemented, so any non-None X raises
-                NotImplementedError rather than returning a wrong map. The
-                parameter exists only to satisfy the `BaseModel.predict`
-                contract; pass None (the default) to get fitted values.
+            X (array-like, DataFrame, or None, default=None): Design matrix to
+                predict from.
+
+                - ``None``: return the fitted values on the training data (a
+                  list of `Nifti1Image`, one per run), matching sklearn's
+                  ``LinearRegression`` semantics.
+                - array-like of shape (n_samples, n_regressors): return
+                  ``X @ coef_`` as a 2-D ndarray (n_samples, n_voxels), mirroring
+                  `Ridge.predict`. Requires a single-run fit.
 
         Returns:
-            list of Nifti1Image: Fitted values for each run.
+            list of Nifti1Image or ndarray: Fitted values (X is None) or new-X
+                predictions (X given).
 
         Raises:
-            NotImplementedError: If X is not None.
-
-        Note:
-            Follows sklearn's LinearRegression semantics where predict() without
-            arguments returns fitted values (like calling predict(X_train)).
+            NotImplementedError: If X is given for a multi-run fit (a single new
+                design is ambiguous across runs — fit per run instead).
+            ValueError: If X's column count does not match the fitted design.
         """
         self._check_is_fitted()
 
         if X is None:
             return self._glm.predicted
-        # New-design prediction is a deferred FEATURE, not a missing one-liner:
-        # nilearn's FirstLevelModel exposes no betas (they'd have to come from
-        # per-regressor identity contrasts), and a single X is ambiguous for a
-        # model fit across multiple runs. Fail loudly until both are settled.
-        raise NotImplementedError(
-            "Glm.predict(X=...) is not supported: prediction from a new design "
-            "matrix is not implemented. Call predict() with no arguments to get "
-            "fitted values, or use compute_contrast() for effects of interest."
-        )
+
+        if isinstance(self.coef_, list):
+            raise NotImplementedError(
+                "predict(X) with a new design is only supported for single-run "
+                "GLM fits; this model was fit on multiple runs. Fit each run "
+                "separately to predict from a new design."
+            )
+
+        X = X.to_numpy() if hasattr(X, "to_numpy") else np.asarray(X)
+        if X.shape[1] != self.coef_.shape[0]:
+            raise ValueError(
+                f"X has {X.shape[1]} columns but the model was fit with "
+                f"{self.coef_.shape[0]} regressors."
+            )
+        return X @ self.coef_
+
+    def report(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn generate_report
+        self, contrasts=None, **kwargs
+    ):
+        """Generate a nilearn HTML report for the fitted GLM.
+
+        Delegates to the underlying `FirstLevelModel.generate_report`, which
+        renders the design matrix, requested contrast maps, and model
+        parameters as a self-contained HTML report.
+
+        Args:
+            contrasts (str, list, or dict, optional): Contrast(s) to render,
+                same forms as `compute_contrast`.
+            **kwargs: Additional arguments forwarded to nilearn's
+                `generate_report` (e.g. `title`, `threshold`, `alpha`).
+
+        Returns:
+            HTMLReport: nilearn report object; call `.save_as_html(path)` or
+                display it in a notebook.
+        """
+        self._check_is_fitted()
+        return self._glm.generate_report(contrasts=contrasts, **kwargs)
 
     def score(self, X=None, y=None):
         """
