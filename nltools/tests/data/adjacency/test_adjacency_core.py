@@ -2,6 +2,7 @@
 indexing, arithmetic, copy, squareform, append, aggregation, distance."""
 
 import numpy as np
+import polars as pl
 import pytest
 from scipy.stats import pearsonr
 
@@ -182,6 +183,36 @@ class TestAdjacencyCore:
         assert a.sum() == n * (n - 1) / 2
         a = Adjacency([a, a])
         assert a.sum().data.sum() == n * (n - 1)
+
+    def test_list_of_adjacency_preserves_y_and_labels(self):
+        """Adjacency([adj1, adj2]) must preserve concatenated Y and labels (F032)."""
+        n = 4
+        labels = ["a", "b", "c", "d"]
+        a1 = Adjacency(
+            np.ones((n, n)),
+            matrix_type="directed",
+            labels=labels,
+            Y=pl.DataFrame({"grp": [1]}),
+        )
+        a2 = Adjacency(
+            np.ones((n, n)) * 2,
+            matrix_type="directed",
+            labels=labels,
+            Y=pl.DataFrame({"grp": [2]}),
+        )
+        stacked = Adjacency([a1, a2])
+        assert stacked.Y.shape[0] == 2
+        assert stacked.Y["grp"].to_list() == [1, 2]
+        assert stacked.labels == labels
+
+    def test_directed_flat_stack_not_collapsed(self):
+        """directed_flat 2-D stack must stay a stack, not collapse to 1-D (F038)."""
+        n = 4
+        stack = np.arange(3 * n * n, dtype=float).reshape(3, n * n)
+        adj = Adjacency(stack, matrix_type="directed_flat")
+        assert not adj.is_single_matrix
+        assert len(adj) == 3
+        assert adj.data.shape == (3, n * n)
 
     def test_distance(self, sim_adjacency_multiple):
         """Test distance matrix computation."""

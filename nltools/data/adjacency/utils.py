@@ -69,7 +69,10 @@ def import_single_data(data, matrix_type=None):
             is_single_matrix = test_is_single_matrix(data)
         elif matrix_type.lower() == "directed_flat":
             matrix_type = "directed"
-            data = np.asarray(data).flatten()
+            # Collapse a single flat vector stored as an (n_features, 1) column
+            # (e.g. a long-format CSV) to 1-D, but leave a genuine 2-D stack of
+            # directed flat vectors, (n_matrices, n_features), intact.
+            data = np.squeeze(np.asarray(data))
             issymmetric = False
             is_single_matrix = test_is_single_matrix(data)
         elif matrix_type.lower() in ["distance", "similarity", "directed"]:

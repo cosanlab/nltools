@@ -144,6 +144,21 @@ class TestAdjacencyStats:
             np.sum(sim_adjacency_directed.threshold(lower=0.4, binarize=True).data) == 6
         )
 
+    def test_threshold_zero_cutoff(self):
+        """A cutoff of 0.0 must be treated as provided, not falsy (F033)."""
+        data = np.array([[0.0, -2.0, 3.0], [-2.0, 0.0, 4.0], [3.0, 4.0, 0.0]])
+        adj = Adjacency(data, matrix_type="directed")
+        assert (adj.data < 0).sum() == 2
+
+        # One-sided upper=0.0 must zero everything below 0 (not be a no-op).
+        thr = adj.threshold(upper=0.0)
+        assert (thr.data < 0).sum() == 0
+
+        # Two-sided lower=0.0 must engage the two-sided branch: values strictly
+        # between 0.0 and 3.5 are zeroed; negatives (< lower) survive.
+        thr2 = adj.threshold(lower=0.0, upper=3.5)
+        assert (thr2.data == -2.0).sum() == 2
+
     def test_fisher_r_to_z(self, sim_adjacency_single):
         """Test Fisher r-to-z transformation."""
         np.testing.assert_almost_equal(

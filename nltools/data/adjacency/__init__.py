@@ -84,32 +84,38 @@ class Adjacency:
                 tmp = concatenate(data)
                 for item in ["data", "matrix_type", "Y", "issymmetric"]:
                     setattr(self, item, getattr(tmp, item))
+                self.is_single_matrix = False
+                # Return early (mirroring the h5/legacy branches) so the
+                # concatenated Y and labels are not clobbered by the None
+                # constructor params below.
+                self.labels = deepcopy(tmp.labels)
+                self.spatial_scale = spatial_scale
+                return
 
             # File paths or array/dataframes
             # NOTE: We don't support list of hdf5 filepaths! Only .csvs
-            else:
-                d_all = []
-                symmetric_all = []
-                matrix_type_all = []
-                for d in data:
-                    (
-                        data_tmp,
-                        issymmetric_tmp,
-                        matrix_type_tmp,
-                        _,
-                    ) = import_single_data(d, matrix_type=matrix_type)
-                    d_all.append(data_tmp)
-                    symmetric_all.append(issymmetric_tmp)
-                    matrix_type_all.append(matrix_type_tmp)
+            d_all = []
+            symmetric_all = []
+            matrix_type_all = []
+            for d in data:
+                (
+                    data_tmp,
+                    issymmetric_tmp,
+                    matrix_type_tmp,
+                    _,
+                ) = import_single_data(d, matrix_type=matrix_type)
+                d_all.append(data_tmp)
+                symmetric_all.append(issymmetric_tmp)
+                matrix_type_all.append(matrix_type_tmp)
 
-                if not all_same(symmetric_all):
-                    raise ValueError("Not all matrices are of the same symmetric type.")
-                if not all_same(matrix_type_all):
-                    raise ValueError("Not all matrices are of the same matrix type.")
+            if not all_same(symmetric_all):
+                raise ValueError("Not all matrices are of the same symmetric type.")
+            if not all_same(matrix_type_all):
+                raise ValueError("Not all matrices are of the same matrix type.")
 
-                self.data = np.array(d_all)
-                self.issymmetric = symmetric_all[0]
-                self.matrix_type = matrix_type_all[0]
+            self.data = np.array(d_all)
+            self.issymmetric = symmetric_all[0]
+            self.matrix_type = matrix_type_all[0]
             self.is_single_matrix = False
 
         # File path
