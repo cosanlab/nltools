@@ -236,6 +236,58 @@ class TestKFoldStratifiedInputValidation:
         assert len(splits_without) == len(splits_with)
 
 
+class TestKFoldStratifiedShuffle:
+    """Regression tests for F150: shuffle/random_state must affect folds."""
+
+    @staticmethod
+    def _fold_assignment(cv, y):
+        """Return the per-sample test-fold labels produced by cv."""
+        n = len(y)
+        folds = np.full(n, -1)
+        for k, (_, test) in enumerate(cv.split(np.zeros(n), y)):
+            folds[test] = k
+        return folds
+
+    def test_shuffle_true_differs_by_seed(self):
+        """shuffle=True with two seeds yields different fold assignments."""
+        # Many tied y values so within-stratum permutation can reorder folds.
+        y = np.repeat(np.arange(10), 5).astype(float)  # 50 samples, ties
+
+        cv1 = KFoldStratified(n_splits=5, shuffle=True, random_state=1)
+        cv2 = KFoldStratified(n_splits=5, shuffle=True, random_state=999)
+
+        folds1 = self._fold_assignment(cv1, y)
+        folds2 = self._fold_assignment(cv2, y)
+
+        assert not np.array_equal(folds1, folds2)
+
+    def test_shuffle_true_reproducible(self):
+        """Same seed reproduces the same folds."""
+        y = np.repeat(np.arange(10), 5).astype(float)
+        cv_a = KFoldStratified(n_splits=5, shuffle=True, random_state=7)
+        cv_b = KFoldStratified(n_splits=5, shuffle=True, random_state=7)
+        np.testing.assert_array_equal(
+            self._fold_assignment(cv_a, y), self._fold_assignment(cv_b, y)
+        )
+
+    def test_shuffle_false_deterministic(self):
+        """shuffle=False is deterministic and ignores random_state."""
+        y = np.repeat(np.arange(10), 5).astype(float)
+        cv1 = KFoldStratified(n_splits=5, shuffle=False)
+        cv2 = KFoldStratified(n_splits=5, shuffle=False)
+        np.testing.assert_array_equal(
+            self._fold_assignment(cv1, y), self._fold_assignment(cv2, y)
+        )
+
+    def test_shuffle_still_stratifies(self):
+        """Shuffling ties preserves balanced (stratified) fold means."""
+        np.random.seed(0)
+        y = np.arange(100).astype(float)
+        cv = KFoldStratified(n_splits=5, shuffle=True, random_state=3)
+        fold_means = [y[test].mean() for _, test in cv.split(np.zeros(len(y)), y)]
+        assert np.std(fold_means) < 5.0
+
+
 class TestKFoldStratifiedComparison:
     """Comparison tests with sklearn's KFold."""
 

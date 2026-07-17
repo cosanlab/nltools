@@ -290,6 +290,7 @@ def _build_peaks_dataframe(
     voxel_volume_mm3: float,
 ) -> pl.DataFrame:
     """Use nilearn's get_clusters_table for peaks/sub-peaks, then add labels."""
+    import pandas as pd
     from nilearn.reporting import get_clusters_table
 
     thresh = 0.0 if stat_threshold is None else float(stat_threshold)
@@ -320,6 +321,17 @@ def _build_peaks_dataframe(
         coords, atlas=atlas_names, prob_threshold=prob_threshold
     ).drop(["x", "y", "z"])
 
+    # nilearn emits one row per peak AND per sub-peak; sub-peak rows carry an
+    # empty string '' in 'Cluster Size (mm3)'. Coerce to numeric (sub-peaks ->
+    # NaN) and forward-fill so each sub-peak inherits its parent peak's cluster
+    # size (nilearn lists the parent peak row immediately before its sub-peaks).
+    cluster_size = pd.to_numeric(table["Cluster Size (mm3)"], errors="coerce").ffill()
+    volume_mm3 = cluster_size.to_numpy(dtype=float)
+    # Guard .astype(int) against any residual NaN (would yield platform garbage).
+    n_voxels = np.rint(np.nan_to_num(volume_mm3, nan=0.0) / voxel_volume_mm3).astype(
+        int
+    )
+
     base = pl.DataFrame(
         {
             "cluster_id": [str(c) for c in table["Cluster ID"].tolist()],
@@ -327,12 +339,8 @@ def _build_peaks_dataframe(
             "y": coords[:, 1],
             "z": coords[:, 2],
             "peak_stat": table["Peak Stat"].to_numpy(dtype=float),
-            "volume_mm3": table["Cluster Size (mm3)"].to_numpy(dtype=float),
-            "n_voxels": (
-                table["Cluster Size (mm3)"].to_numpy(dtype=float) / voxel_volume_mm3
-            )
-            .round()
-            .astype(int),
+            "volume_mm3": volume_mm3,
+            "n_voxels": n_voxels,
         }
     )
     return pl.concat([base, labels], how="horizontal")

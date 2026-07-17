@@ -318,9 +318,13 @@ def solve_banded_ridge_cv(
 
     # Random search loop over gamma samples
     for ii, gamma in enumerate(progress_iter):
-        # Scale each feature space by sqrt(gamma)
+        # Scale each feature space by sqrt(gamma) on a fresh copy so the
+        # original X is never mutated. Dividing X back by sqrt(gamma) in place
+        # would write NaN/Inf whenever a Dirichlet weight underflows to exactly
+        # 0 (division by zero), poisoning every subsequent iteration.
+        X_scaled = backend.copy(X)
         for kk in range(n_spaces):
-            X[:, slices[kk]] *= xp.sqrt(gamma[kk])
+            X_scaled[:, slices[kk]] *= xp.sqrt(gamma[kk])
 
         # Jitter alphas if requested
         if jitter_alphas:
@@ -331,14 +335,14 @@ def solve_banded_ridge_cv(
         scores = backend.zeros_like(X, shape=(n_splits, len(alphas), n_targets))
 
         # Cross-validation loop
-        for jj, (train_idx, val_idx) in enumerate(cv.split(X)):
+        for jj, (train_idx, val_idx) in enumerate(cv.split(X_scaled)):
             # Keep CPU copies for indexing CPU-resident Y
             train_idx_cpu = train_idx
             val_idx_cpu = val_idx
             train_idx = backend.asarray(train_idx)
             val_idx = backend.asarray(val_idx)
-            X_train = X[train_idx]
-            X_val = X[val_idx]
+            X_train = X_scaled[train_idx]
+            X_val = X_scaled[val_idx]
 
             # Handle intercept per fold
             if fit_intercept:
@@ -433,7 +437,7 @@ def solve_banded_ridge_cv(
                 )
 
                 for matrix, alpha_batch in _decompose_ridge(
-                    Xtrain=X,
+                    Xtrain=X_scaled,
                     alphas=used_alphas,
                     n_alphas_batch=min(len(used_alphas), n_alphas_batch),
                     method=diagonalize_method,
@@ -484,11 +488,7 @@ def solve_banded_ridge_cv(
 
             del update_indices
 
-        del mask, scores
-
-        # Reset scaling for next iteration
-        for kk in range(n_spaces):
-            X[:, slices[kk]] /= xp.sqrt(gamma[kk])
+        del mask, scores, X_scaled
 
     # Compute deltas: log(gamma / alpha)
     deltas = xp.log(best_gammas / best_alphas[None, :])

@@ -150,13 +150,29 @@ class PooledData:
                 else:
                     raise ValueError("Two-sample t-test requires exactly 2 groups")
         elif model == "paired_ttest":
+            # paired_ttest compares the two conditions directly; a contrast
+            # would collapse them to a single vector, so accepting one and
+            # ignoring it (returning uncontrasted results labeled with the
+            # contrast) is worse than refusing it outright.
+            if contrast is not None:
+                raise ValueError(
+                    "contrast is not supported for model='paired_ttest'; "
+                    "it compares the two conditions directly."
+                )
             if self.n_conditions != 2:
                 raise ValueError("Paired t-test requires exactly 2 conditions")
             t_vals, p_vals = stats.ttest_rel(
                 self.data[:, 0, :], self.data[:, 1, :], axis=0
             )
         elif model == "anova":
-            # F-test across conditions
+            # F-test across conditions; a contrast would collapse the
+            # conditions the ANOVA is meant to test across, so refuse it
+            # rather than silently ignore it.
+            if contrast is not None:
+                raise ValueError(
+                    "contrast is not supported for model='anova'; "
+                    "it tests across all conditions."
+                )
             if self.n_conditions is None:
                 raise ValueError("ANOVA requires multi-condition data (3D array)")
             n_cond = self.n_conditions  # Store in local variable for type checker
@@ -373,15 +389,13 @@ class StatResult:
             raise ValueError("No p-values to threshold")
 
         if method == "fdr":
-            # Benjamini-Hochberg FDR
-            # Note: false_discovery_control returns adjusted p-values
-            # We need to mask based on significance
-            try:
-                adjusted_p = false_discovery_control(self.p_map.ravel())
-                mask = adjusted_p.reshape(self.p_map.shape) < alpha
-            except Exception:
-                # Fallback for older scipy
-                mask = self.p_map < alpha
+            # Benjamini-Hochberg FDR. false_discovery_control returns adjusted
+            # p-values (scipy >= 1.11, which the project already requires). No
+            # bare-except fallback to uncorrected thresholding: a failure here
+            # (NaNs, shape errors) must surface rather than silently return
+            # uncorrected significance while the user believes FDR was applied.
+            adjusted_p = false_discovery_control(self.p_map.ravel())
+            mask = adjusted_p.reshape(self.p_map.shape) < alpha
         elif method == "bonferroni":
             adjusted_p = np.minimum(self.p_map * self.p_map.size, 1.0)
             mask = adjusted_p < alpha

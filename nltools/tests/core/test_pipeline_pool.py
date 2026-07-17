@@ -97,6 +97,19 @@ class TestPooledData:
         assert isinstance(result, StatResult)
         assert result.contrast == "face-house"
 
+    def test_paired_ttest_rejects_contrast(self):
+        """F119: paired_ttest must not silently ignore a contrast."""
+        np.random.seed(42)
+        data = np.random.randn(10, 2, 100)
+        pool = PooledData(data=data, param="beta", condition_names=["A", "B"])
+        with pytest.raises(ValueError, match="contrast is not supported"):
+            pool.fit(model="paired_ttest", contrast="A-B")
+
+    def test_anova_rejects_contrast(self, multicond_pool):
+        """F119: anova must not silently ignore a contrast."""
+        with pytest.raises(ValueError, match="contrast is not supported"):
+            multicond_pool.fit(model="anova", contrast="face-house")
+
     def test_fit_multiple_contrasts(self, multicond_pool):
         """Test fitting multiple contrasts returns ResultDict."""
         results = multicond_pool.fit(
@@ -196,6 +209,15 @@ class TestStatResult:
         assert isinstance(thresholded, StatResult)
         # Thresholded map should have zeros where not significant
         assert thresholded.t_map is not None
+
+    def test_threshold_fdr_no_silent_uncorrected_fallback(self):
+        """F120: an FDR failure must raise, not silently return uncorrected."""
+        # NaNs make scipy's false_discovery_control raise; the old bare-except
+        # fell back to an uncorrected p < alpha mask without warning.
+        p_map = np.array([0.001, 0.04, 0.5, 0.6, np.nan])
+        result = StatResult(t_map=np.arange(5.0), p_map=p_map)
+        with pytest.raises(Exception):
+            result.threshold(method="fdr", alpha=0.05)
 
     def test_threshold_bonferroni(self, t_result):
         """Test Bonferroni thresholding."""

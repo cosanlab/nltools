@@ -89,6 +89,18 @@ class TestCVScheme:
             # Train may have duplicates (bootstrap)
             assert len(np.unique(train_idx)) < len(train_idx)
 
+    def test_bootstrap_n_splits_matches_yielded(self):
+        """F113: n_splits() must equal the number of folds split() yields."""
+        # Small n_samples makes empty-OOB draws frequent (~22% for n_samples=3),
+        # which the old code silently skipped, making split() yield fewer than
+        # n_splits(). The redraw fix must still produce exactly n splits.
+        cv = CVScheme(scheme="bootstrap", n=20, random_state=42)
+        data = np.arange(3)
+        splits = list(cv.split(data))
+        assert len(splits) == cv.n_splits() == 20
+        for _, test_idx in splits:
+            assert len(test_idx) >= 1
+
     def test_permutation_split(self):
         """Test permutation generates train indices and permuted indices."""
         cv = CVScheme(scheme="permutation", n=10, random_state=42)

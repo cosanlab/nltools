@@ -185,28 +185,49 @@ class CVScheme:
         """Generate bootstrap splits with out-of-bag as test.
 
         Uses bootstrap sampling with replacement for training, and
-        out-of-bag (OOB) samples as the test set. Skips iterations
-        where no OOB samples exist (rare but possible).
+        out-of-bag (OOB) samples as the test set. Redraws (rather than
+        skipping) any bootstrap sample whose OOB set is empty so that
+        exactly ``n`` splits are always yielded, keeping ``split()`` and
+        ``n_splits()`` in agreement.
 
         Args:
             n_samples: Total number of samples.
 
         Yields:
             Tuple of (train_indices, test_indices) for each bootstrap iteration.
+
+        Raises:
+            RuntimeError: If ``n`` non-empty-OOB draws cannot be produced
+                (e.g. ``n_samples`` too small for reliable OOB testing).
         """
         indices = np.arange(n_samples)
 
-        for _ in range(self.n):
+        # Redraw empty-OOB samples so exactly self.n splits are produced. Cap
+        # attempts to avoid an infinite loop for degenerate n_samples (e.g. 1),
+        # where a non-empty OOB set is impossible.
+        max_attempts = self.n * 100 + 100
+        yielded = 0
+        attempts = 0
+        while yielded < self.n:
+            if attempts >= max_attempts:
+                raise RuntimeError(
+                    f"bootstrap could not produce {self.n} splits with "
+                    f"non-empty out-of-bag sets after {attempts} draws "
+                    f"(n_samples={n_samples}); too few samples for reliable "
+                    "out-of-bag testing."
+                )
+            attempts += 1
             train_idx = self._rng.choice(indices, size=n_samples, replace=True)
             # Out-of-bag samples as test
             oob_mask = np.ones(n_samples, dtype=bool)
             oob_mask[np.unique(train_idx)] = False
             test_idx = indices[oob_mask]
 
-            # Skip if no OOB samples (rare)
+            # Redraw if no OOB samples (rare)
             if len(test_idx) == 0:
                 continue
 
+            yielded += 1
             yield train_idx, test_idx
 
     def _permutation_split(

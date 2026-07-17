@@ -8,6 +8,7 @@ types of cross-validation
 __all__ = ["KFoldStratified"]
 
 from sklearn.model_selection._split import _BaseKFold
+from sklearn.utils import check_random_state
 from sklearn.utils.validation import check_array
 import numpy as np
 
@@ -39,10 +40,20 @@ class KFoldStratified(_BaseKFold):
 
     def _make_test_folds(self, X, y=None, groups=None):
         y_arr = np.asarray(y).ravel()
-        order = np.argsort(y_arr, kind="stable")
-        test_folds = np.full(len(y_arr), np.nan)
+        n = len(y_arr)
+        if self.shuffle:
+            # Sort by y (stratification) but break ties randomly so that
+            # shuffle/random_state actually vary the fold assignment. lexsort
+            # uses the last key as the primary sort, so y_arr stays primary and
+            # the random tiebreak only reorders samples that share a y value.
+            rng = check_random_state(self.random_state)
+            tiebreak = rng.permutation(n)
+            order = np.lexsort((tiebreak, y_arr))
+        else:
+            order = np.argsort(y_arr, kind="stable")
+        test_folds = np.full(n, np.nan)
         for k in range(self.n_splits):
-            test_folds[order[np.arange(k, len(y_arr), self.n_splits)]] = k
+            test_folds[order[np.arange(k, n, self.n_splits)]] = k
         return test_folds
 
     def _iter_test_masks(self, X=None, y=None, groups=None):
