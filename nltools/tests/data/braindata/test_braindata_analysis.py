@@ -41,6 +41,33 @@ class TestBrainDataAnalysis:
         assert isinstance(result_no_resample, BrainData)
         assert result_no_resample.shape[1] == mask_bd.data.astype(bool).sum()
 
+    def test_apply_mask_raw_niimg_inherits_target_space(self):
+        """A raw Niimg mask is homed onto the target's space, not default MNI152.
+
+        Regression: apply_mask used to coerce a raw nifti mask via
+        check_brain_data() with no space context, re-homing it onto the
+        package-default MNI152 template. For any BrainData in a non-default
+        space this silently mismatched and then failed loudly on affine
+        mismatch inside nilearn's apply_mask.
+        """
+        # Non-MNI space: 4mm isotropic, small grid, offset origin.
+        aff = np.diag([4.0, 4.0, 4.0, 1.0])
+        aff[:3, 3] = [-20, -20, -20]
+        shape = (10, 10, 10)
+        rng = np.random.default_rng(0)
+
+        custom_mask = nb.Nifti1Image(np.ones(shape, np.int16), aff)
+        data_img = nb.Nifti1Image(rng.standard_normal(shape).astype(np.float32), aff)
+        bd = BrainData(data_img, mask=custom_mask)
+
+        # Raw Niimg sub-mask in the SAME non-default space.
+        box = np.zeros(shape, np.int16)
+        box[2:7, 2:7, 2:7] = 1
+        raw_mask = nb.Nifti1Image(box, aff)
+
+        masked = bd.apply_mask(raw_mask)
+        assert masked.shape[0] == int(box.sum())
+
     def test_apply_mask_invalid_4d(self, sim_brain_data):
         """Multi-volume mask should raise clear error."""
         s1 = create_sphere([12, 10, -8], radius=10)

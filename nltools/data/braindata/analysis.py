@@ -480,7 +480,11 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     from .utils import check_brain_data, check_brain_data_is_single
 
     masked = shallow_copy(bd)
-    mask = check_brain_data(mask)
+    # Coerce raw Niimg-like masks into the *target's* space, not the default
+    # MNI152 template. Without bd.mask as context, check_brain_data re-homes a
+    # raw nifti onto the package-default mask, which silently mismatches (and
+    # then loudly fails) for any BrainData in a non-default space.
+    mask = check_brain_data(mask, mask=bd.mask)
     if not check_brain_data_is_single(mask):
         raise ValueError("Mask must be a single image")
 
