@@ -39,6 +39,10 @@ class TestIsH5Path:
             ("data.nii.gz", False),
             ("data.npy", False),
             ("h5_in_name.csv", False),
+            # F158: substring matches must not misclassify non-h5 paths.
+            ("results.h5.summary.csv", False),
+            (".h5cache/data.nii", False),
+            ("archive.hdf5.tar.gz", False),
         ],
     )
     def test_string_paths(self, path, expected):

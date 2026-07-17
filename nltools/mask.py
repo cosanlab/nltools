@@ -80,7 +80,10 @@ def create_sphere(coordinates, radius=5, mask=None):
                 raise ValueError(
                     "Make sure length of radius list matcheslength of coordinate list."
                 )
-        elif isinstance(radius, int):
+        else:
+            # A single scalar radius (int/float/np scalar) applies to every
+            # coordinate. Broadened from the old `isinstance(radius, int)` check
+            # so float / numpy-scalar radii no longer fall through to `zip`.
             radius = [radius] * len(coordinates)
         out = BrainData(
             nib.Nifti1Image(np.zeros_like(mask.get_fdata()), affine=mask.affine),
@@ -116,7 +119,7 @@ def expand_mask(mask, custom_mask=None):
         raise ValueError("Make sure mask is a nibabel or BrainData instance.")
     mask.data = np.round(mask.data).astype(int)
     tmp = []
-    for i in np.nonzero(np.unique(mask.data))[0]:
+    for i in np.unique(mask.data[mask.data != 0]):
         tmp.append((mask.data == i) * 1)
     out = mask.create_empty()
     out.data = np.array(tmp)
@@ -244,7 +247,7 @@ def roi_to_brain(data, mask_x):
                     "Data must have the same number of rows as rois in mask"
                 )
         out = mask_x.copy()
-        out.data = np.ones((arr.shape[1], out.data.shape[1]))
+        out.data = np.zeros((arr.shape[1], out.data.shape[1]))
         for roi in range(len(mask_x)):
             roi_data = arr[roi, :].reshape(-1, 1)
             out.data[:, mask_x[roi].data == 1] = np.repeat(

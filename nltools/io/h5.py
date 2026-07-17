@@ -54,7 +54,7 @@ def is_h5_path(file_name) -> bool:
 
     if isinstance(file_name, Path):
         file_name = str(file_name)
-    return ".h5" in file_name or ".hdf5" in file_name
+    return file_name.lower().endswith((".h5", ".hdf5"))
 
 
 def _write_polars_frame(h5_file, name, df, compression):

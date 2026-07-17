@@ -330,6 +330,13 @@ class TestGetBgImage:
         path = get_bg_image(_isotropic_affine(2.0), img_type="brain", config=cfg)
         assert "fmriprep" in path
 
+    def test_near_integer_resolution_rounds_not_truncates(self):
+        # F153: a 1.999mm affine must round to the 2mm background, not truncate
+        # to 1 and silently fall back to the config default image.
+        cfg = BrainSpaceConfig(template="default", resolution=3)
+        path = get_bg_image(_isotropic_affine(1.999), img_type="brain", config=cfg)
+        assert path == resolve_paths("default", 2)["brain"]
+
 
 # ---------------------------------------------------------------------------
 # is_standard_space

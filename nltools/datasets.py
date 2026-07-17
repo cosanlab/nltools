@@ -117,13 +117,13 @@ def download_nifti(url, data_dir=None):
         local_filename = data_dir / local_filename
 
     try:
-        r = requests.get(url, stream=True)
-        r.raise_for_status()
+        with requests.get(url, stream=True, timeout=(10, 60)) as r:
+            r.raise_for_status()
 
-        with open(local_filename, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1024):
-                if chunk:  # filter out keep-alive new chunks
-                    f.write(chunk)
+            with open(local_filename, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:  # filter out keep-alive new chunks
+                        f.write(chunk)
     except requests.RequestException as e:
         raise ValueError(f"Failed to download {url}: {e}")
 

@@ -39,9 +39,10 @@ class TestDownloadNifti:
     @patch("nltools.datasets.requests")
     def test_successful_download(self, mock_requests):
         """Should download file successfully"""
-        # Setup mock response
+        # Setup mock response (used as a context manager)
         mock_response = MagicMock()
         mock_response.iter_content.return_value = [b"test data"]
+        mock_response.__enter__.return_value = mock_response
         mock_requests.get.return_value = mock_response
 
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -51,6 +52,20 @@ class TestDownloadNifti:
             expected_path = os.path.join(tmp_dir, "test.nii.gz")
             assert result == expected_path
             assert os.path.exists(expected_path)
+
+    @patch("nltools.datasets.requests")
+    def test_passes_timeout(self, mock_requests):
+        """F160: download_nifti must pass a connect/read timeout to requests.get."""
+        mock_response = MagicMock()
+        mock_response.iter_content.return_value = [b"test data"]
+        mock_response.__enter__.return_value = mock_response
+        mock_requests.get.return_value = mock_response
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            download_nifti("http://example.com/test.nii.gz", data_dir=tmp_dir)
+
+        _, kwargs = mock_requests.get.call_args
+        assert kwargs.get("timeout") == (10, 60)
 
 
 class TestFetchNeurovaultCollection:

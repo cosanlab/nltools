@@ -186,7 +186,7 @@ def get_bg_image(
             "Voxels are not isotropic and cannot be visualized in standard space"
         )
 
-    resolution = int(voxel_dims[0])
+    resolution = int(round(float(voxel_dims[0])))
 
     if resolution not in SUPPORTED_RESOLUTIONS.get(cfg.template, []):
         return getattr(cfg, img_type)
