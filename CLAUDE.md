@@ -65,15 +65,19 @@ Canonical kwarg names across the four data-class facades:
 Jupyter Book v2 (mystmd). API docs auto-generated via `griffe2md` (Google-style docstrings).
 
 ```bash
-uv run poe docs-generate   # regenerate API docs only
-uv run poe docs-build      # generate + myst build --site + marimo/WASM tutorials
-uv run poe docs-marimo     # export tutorial notebooks to WASM pages (--base-url for /nltools/)
+uv run poe docs-generate   # regen sources: API docs (griffe2md) + tutorial .md (marimo → MyST-NB)
+uv run poe docs-site       # myst build --site --html --EXECUTE (bakes tutorial outputs); BASE_URL=/nltools for subpath
+uv run poe docs-wasm       # export tutorials to interactive WASM pages (opt-in; honors BASE_URL)
+uv run poe docs-build      # full: docs-generate → docs-site → docs-wasm (CI runs this with BASE_URL=/nltools)
 uv run poe docs-preview    # myst start (live preview of the site + gallery)
 uv run poe docs-clean      # rm _build
-uv run poe tutorials       # static-check + run every tutorial notebook end-to-end
+uv run poe tutorials       # static-check + run every tutorial notebook end-to-end (fast; no MyST)
 uv run poe changelog       # regenerate docs/changelog.md from git history (git-cliff)
 uv run poe release         # full release: bump version, build, smoke-test, changelog, tag, publish
 ```
+
+The `*-pages` task variants are gone — a single `BASE_URL` env var (unset = root/local, `/nltools` =
+GitHub Pages subpath) parameterizes `docs-site`/`docs-wasm`/`docs-build`.
 
 - Config: `docs/myst.yml` (TOC + site), `[tool.griffe2md]` in `pyproject.toml`
 - API generation script: `scripts/build_api_docs.py` (postprocess: strips residual RST roles,
@@ -81,16 +85,29 @@ uv run poe release         # full release: bump version, build, smoke-test, chan
 - Changelog: `cliff.toml` (git-cliff config) → `docs/changelog.md`; badge CSS in `docs/_static/custom.css`
 - Release: `scripts/release.py` (uv/poe workflow); version lives ONLY in `pyproject.toml`
 - Tutorials: **marimo `.py` notebooks** under `docs/tutorials/{basics,workflows}/` are the single
-  source of truth. `scripts/build_marimo_wasm.py` exports each to a self-contained interactive
-  **WASM page** (`marimo export html-wasm --mode run --show-code --execute`) served under
-  `_build/html/tutorials/<group>-<name>.html`; the MyST `tutorials/index.md` is a gallery linking
-  to them. Each notebook has a PEP 723 header for the PyPI stack (auto-micropip'd in-browser) and an
-  `IN_WASM` cell that installs the nltools dev wheel from a build-hosted URL; `--execute` bakes
-  outputs at build time via a `file://` wheel injected into PEP 723. See `marimo-learning.md` for the
-  full mechanics. (The old `marimo_to_myst.py` `.md`-render + JupyterLite pipeline is retired.)
-  Local check: `uv run poe tutorials`. **In-browser data**: `01_glm`/`03_mvpa` + all basics seed
-  trimmed data from HF `nltools/niftis`; `02_encoding`/`04_isc` still need trimmed subsets hosted
-  before their data cells run in WASM (they run locally today).
+  source of truth, rendered TWO ways from the same `.py`:
+  - **Static (default).** `scripts/marimo_to_myst.py` (`marimo export md` → MyST-NB `{code-cell}`
+    markdown) generates a sibling `.md` per notebook, run in `docs-generate` alongside the API docs
+    and **committed** (parity with `docs/api/*.md`). MyST executes these at build (`docs-site
+    --execute`) with the **installed packages** (a real `python3` Jupyter kernel — `docs-site`
+    self-registers it via `ipykernel install --sys-prefix`) to bake outputs. These `.md` are the
+    TOC/gallery pages. The converter maps marimo `hide_code=True` → `remove-input`, drops the WASM
+    "Running live in your browser" admonition, and injects an "Open interactive version" banner
+    linking to the WASM page.
+  - **Interactive (opt-in).** `scripts/build_marimo_wasm.py` exports each to a self-contained
+    **WASM page** (`marimo export html-wasm --mode run --show-code --execute`) at
+    `_build/html/tutorials/<group>-<name>.html`. PEP 723 header for the PyPI stack (auto-micropip'd
+    in-browser); an `IN_WASM` cell installs the nltools dev wheel from a build-hosted URL. See
+    `marimo-learning.md` for the full mechanics.
+  - **Notebook structure for both modes**: WASM-only plumbing lives in `hide_code=True` cells
+    (`IN_WASM` def, micropip install, HF `seed_resources`) so it runs but stays hidden in static;
+    each data-load cell is **split** so the browser seeding is a hidden cell yielding a `browser_*`
+    object and the visible cell shows the clean local loader (`if IN_WASM: X = browser_X else: X =
+    fetch_local()`). Don't blanket-strip cells mentioning `IN_WASM` — some interleave real logic.
+  - Local checks: `uv run poe tutorials` (runs each `.py` end-to-end, no MyST) or `docs-site` (full
+    MyST execute build). **Data**: all four workflow datasets + the basics now seed trimmed subsets
+    from HF `nltools/niftis` (`tutorials/{glm,encoding,isc,mvpa}/`); static/local runs fetch via
+    nilearn (`else` branch) so they never need HF.
 
 ### Docstring style — Google-style Markdown, NO RST
 

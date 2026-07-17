@@ -30,7 +30,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import sys
 
@@ -115,25 +115,26 @@ def _(mo):
     return
 
 
-@app.cell
-async def _(
-    IN_WASM, BrainData, concatenate, fetch_resource, memory, np, seed_resources
-):
-    from nilearn.datasets import fetch_miyawaki2008
-
+@app.cell(hide_code=True)
+async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
+    # In-browser only: seed the trimmed run subset and wrap it in a Bunch that
+    # mimics nilearn's fetch_miyawaki2008() (.func/.label/.mask/.background).
+    # `browser_encoding` stays None locally, where the visible cell below loads
+    # from nilearn. Imports/vars are underscore-aliased to stay cell-local
+    # (marimo defines each name once across cells).
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+    browser_encoding = None
     if IN_WASM:
-        from sklearn.utils import Bunch
+        from sklearn.utils import Bunch as _Bunch
 
         _runs = [f"{_i:02d}" for _i in range(1, 9)]
-        encoding_resources = (
+        _encoding_resources = (
             [f"tutorials/encoding/run-{_r}_bold.nii.gz" for _r in _runs]
             + [f"tutorials/encoding/run-{_r}_label.csv" for _r in _runs]
             + ["tutorials/encoding/mask.nii.gz", "tutorials/encoding/background.nii.gz"]
         )
-        await seed_resources(encoding_resources)
-        # Stand-in for nilearn's Bunch: same .func/.label/.mask/.background attrs
-        # the load + plot cells read, backed by the trimmed HF-hosted subset.
-        DATASET = Bunch(
+        await seed_resources(_encoding_resources)
+        browser_encoding = _Bunch(
             func=[
                 fetch_resource(f"tutorials/encoding/run-{_r}_bold.nii.gz")
                 for _r in _runs
@@ -144,6 +145,15 @@ async def _(
             mask=fetch_resource("tutorials/encoding/mask.nii.gz"),
             background=fetch_resource("tutorials/encoding/background.nii.gz"),
         )
+    return (browser_encoding,)
+
+
+@app.cell
+def _(IN_WASM, browser_encoding, BrainData, concatenate, memory, np):
+    from nilearn.datasets import fetch_miyawaki2008
+
+    if IN_WASM:
+        DATASET = browser_encoding
     else:
         DATASET = fetch_miyawaki2008(verbose=0)
 

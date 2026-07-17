@@ -5,6 +5,11 @@ project:
     - name: Luke J. Chang
     - name: Eshin Jolly
   github: cosanlab/nltools
+  # Notebook-execution settings (read by MyST-NB): drop the stray matplotlib repr
+  # strings (e.g. `Text(0.5, 1.0, …)`, `<Axes: …>`) that plotting cells leave as
+  # text output when their last expression isn't silenced.
+  settings:
+    output_matplotlib_strings: remove
   toc:
     - file: index.md
     - file: migration-guide.md
@@ -13,27 +18,21 @@ project:
       children:
         - title: Basics
           children:
-            # Interactive marimo/WASM notebooks (built by scripts/build_marimo_wasm.py).
-            # These are literal URLs; MyST does not apply BASE_URL to them, so the
-            # docs-site-pages perl rewrite prefixes /nltools on GitHub Pages.
-            - title: BrainData Basics
-              url: /tutorials/basics-01_brain_data.html
-            - title: DesignMatrix Basics
-              url: /tutorials/basics-02_design_matrix.html
-            - title: Adjacency Basics
-              url: /tutorials/basics-03_adjacency.html
-            - title: BrainCollection Basics
-              url: /tutorials/basics-04_brain_collection.html
+            # Static tutorial pages: MyST-NB markdown auto-generated from the marimo
+            # .py notebooks by scripts/marimo_to_myst.py (run in docs-generate) and
+            # executed at build time (--execute) to bake outputs. The interactive
+            # marimo/WASM version of each (built by scripts/build_marimo_wasm.py) is
+            # linked as an opt-in from the tutorial gallery + each page.
+            - file: tutorials/basics/01_brain_data.md
+            - file: tutorials/basics/02_design_matrix.md
+            - file: tutorials/basics/03_adjacency.md
+            - file: tutorials/basics/04_brain_collection.md
         - title: Workflows
           children:
-            - title: GLM Analysis
-              url: /tutorials/workflows-01_glm.html
-            - title: Encoding Models
-              url: /tutorials/workflows-02_encoding.html
-            - title: Multivariate Pattern Analysis
-              url: /tutorials/workflows-03_mvpa.html
-            - title: Inter-Subject Correlation
-              url: /tutorials/workflows-04_isc.html
+            - file: tutorials/workflows/01_glm.md
+            - file: tutorials/workflows/02_encoding.md
+            - file: tutorials/workflows/03_mvpa.md
+            - file: tutorials/workflows/04_isc.md
     - title: Data Classes
       children:
         - file: api/data/brain_data.md
@@ -137,5 +136,4 @@ site:
     favicon: ./logo.png
     style: ./_static/custom.css
     folders: true
-    output_matplotlib_strings: remove
   template: book-theme

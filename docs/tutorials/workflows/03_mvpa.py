@@ -30,7 +30,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import sys
 
@@ -113,14 +113,19 @@ def _(mo):
     return
 
 
-@app.cell
-async def _(IN_WASM, BrainData, fetch_resource, memory, np, pd, seed_resources):
-    from nilearn.datasets import fetch_haxby
-
+@app.cell(hide_code=True)
+async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
+    # In-browser only: seed the trimmed Haxby subset plus the ancillary MNI/atlas
+    # resources the analysis and plots fetch, and wrap the BOLD in a Bunch that
+    # mimics nilearn's fetch_haxby(). `browser_haxby` stays None locally, where
+    # the visible cell below loads from nilearn. Imports/vars are underscore-
+    # aliased to stay cell-local (marimo defines each name once across cells).
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+    browser_haxby = None
     if IN_WASM:
-        from sklearn.utils import Bunch
+        from sklearn.utils import Bunch as _Bunch
 
-        mvpa_resources = [
+        _mvpa_resources = [
             "tutorials/mvpa/bold.nii.gz",
             "tutorials/mvpa/labels.txt",
             # Ancillary resources the analysis/plots fetch — must be pre-seeded in Pyodide.
@@ -133,11 +138,20 @@ async def _(IN_WASM, BrainData, fetch_resource, memory, np, pd, seed_resources):
             "default/3mm-MNI152-2009fsl-brain.nii.gz",
             "default/3mm-MNI152-2009fsl-T1.nii.gz",
         ]
-        await seed_resources(mvpa_resources)
-        HAXBY = Bunch(
+        await seed_resources(_mvpa_resources)
+        browser_haxby = _Bunch(
             func=[fetch_resource("tutorials/mvpa/bold.nii.gz")],
             session_target=[fetch_resource("tutorials/mvpa/labels.txt")],
         )
+    return (browser_haxby,)
+
+
+@app.cell
+def _(IN_WASM, browser_haxby, BrainData, memory, np, pd):
+    from nilearn.datasets import fetch_haxby
+
+    if IN_WASM:
+        HAXBY = browser_haxby
     else:
         HAXBY = fetch_haxby(subjects=[2], verbose=0)
 
@@ -301,7 +315,7 @@ def _(category_patterns, fetch_resource, model_rdm):
     # myst: remove-stderr
     atlas_path_rsa = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     roi_rdms = category_patterns.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas_path_rsa)
-    rsa_map = roi_rdms.similarity(model_rdm, metric="spearman", permutation_method=None, project=True)
+    rsa_map = roi_rdms.similarity(model_rdm, metric="spearman", method=None, project=True)
     rsa_map.plot(method="slices", title="ROI RSA: where category geometry matches animacy", cmap="RdBu_r", colorbar=True)
     return
 

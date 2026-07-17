@@ -64,8 +64,14 @@ jobs:
       - name: Build wheel
         run: uv build --wheel
 
+      # Build + execute the docs with the installed packages (NOT the WASM/Pyodide
+      # runtime): docs-build runs the tutorials through a real Jupyter kernel to bake
+      # outputs, then also emits the interactive WASM pages. BASE_URL deploys under
+      # the /nltools GitHub Pages subpath.
       - name: Build docs for GitHub Pages
-        run: uv run poe docs-build-pages
+        env:
+          BASE_URL: /nltools
+        run: uv run poe docs-build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0

@@ -30,7 +30,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import sys
 
@@ -112,17 +112,21 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 async def _(IN_WASM, wasm_ready):
+    # In-browser only: seed the trimmed BIDS subset into the IDBFS cache and
+    # resolve each subject's files from it. `browser_get_sub_files` stays None
+    # locally, where the visible cell below loads from nilearn instead. Imports
+    # are underscore-aliased to keep them cell-local (marimo defines each name
+    # once across cells).
     _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    import json
-    from pathlib import Path
-
-    from nilearn.datasets import fetch_language_localizer_demo_dataset
-    from nilearn.interfaces.bids import get_bids_files
-    from nltools.templates import fetch_resource, seed_resources
-
+    browser_get_sub_files = None
     if IN_WASM:
+        import json as _json
+        from pathlib import Path as _Path
+
+        from nltools.templates import fetch_resource as _fetch, seed_resources as _seed
+
         _pyodide_subjects = [f"{_subject:02d}" for _subject in range(1, 9)]
 
         def _resource_paths(sub: str) -> dict:
@@ -148,23 +152,36 @@ async def _(IN_WASM, wasm_ready):
             "default/3mm-MNI152-2009fsl-brain.nii.gz",
             "default/3mm-MNI152-2009fsl-T1.nii.gz",
         ]
-        await seed_resources(_glm_resources)
+        await _seed(_glm_resources)
 
         _pyodide_files = {}
         for _sub in _pyodide_subjects:
             _relpaths = _resource_paths(_sub)
-            _sidecar = fetch_resource(_relpaths["sidecar"])
+            _sidecar = _fetch(_relpaths["sidecar"])
             _pyodide_files[_sub] = {
-                "bold": fetch_resource(_relpaths["bold"]),
-                "events": fetch_resource(_relpaths["events"]),
-                "confounds": fetch_resource(_relpaths["confounds"]),
-                "TR": json.loads(Path(_sidecar).read_text())["RepetitionTime"],
+                "bold": _fetch(_relpaths["bold"]),
+                "events": _fetch(_relpaths["events"]),
+                "confounds": _fetch(_relpaths["confounds"]),
+                "TR": _json.loads(_Path(_sidecar).read_text())["RepetitionTime"],
             }
 
-        def get_sub_files(sub: str) -> dict:
+        def browser_get_sub_files(sub: str) -> dict:
             """Resolve one subject's trimmed browser-ready tutorial files."""
             return _pyodide_files[sub]
 
+    return (browser_get_sub_files,)
+
+
+@app.cell
+def _(IN_WASM, browser_get_sub_files):
+    import json
+    from pathlib import Path
+
+    from nilearn.datasets import fetch_language_localizer_demo_dataset
+    from nilearn.interfaces.bids import get_bids_files
+
+    if IN_WASM:
+        get_sub_files = browser_get_sub_files
     else:
         DATASET = fetch_language_localizer_demo_dataset(verbose=0)
         DATA_DIR = Path(DATASET["data_dir"])

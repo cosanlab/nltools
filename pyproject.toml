@@ -218,56 +218,48 @@ help = "Clear MyST execute cache to force re-running all code cells on next buil
 shell = """cd docs && myst clean --execute -y"""
 
 [tool.poe.tasks.docs-generate]
-help = "Generate API docs from source with griffe2md"
-shell = """python scripts/build_api_docs.py"""
-
-[tool.poe.tasks.docs-site]
-help = "Build MyST site data and static HTML after API docs have been generated"
+help = "Generate API docs (griffe2md) and tutorial markdown (marimo → MyST-NB) from source"
 shell = """
 set -eu
+python scripts/build_api_docs.py
+python scripts/marimo_to_myst.py --all
+"""
+
+# Build + EXECUTE the MyST site: runs every tutorial code-cell through a Jupyter
+# kernel to bake outputs (figures, prints). Set BASE_URL (e.g. /nltools) to deploy
+# under a GitHub Pages subpath; leave it unset for a root/local build.
+[tool.poe.tasks.docs-site]
+help = "Build the MyST site and execute tutorials to bake outputs (set BASE_URL=/nltools for a subpath deploy)"
+shell = """
+set -eu
+# MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
+# each page's kernelspec). Register it into the active venv so a fresh env (CI, a
+# new clone) can execute — idempotent, and a no-op harm if already present.
+python -m ipykernel install --sys-prefix --name python3 --display-name 'Python 3' >/dev/null 2>&1 || true
 cd docs
 myst build --site --html --execute
 # Standalone interactive Design Tour page (not a MyST page; copied verbatim).
 cp public/design-tour.html _build/html/design-tour.html
+# MyST does not apply BASE_URL to literal url: TOC/card links (the interactive
+# tutorial links + the Design Tour link). On a subpath deploy, prefix them. The
+# (?<![\\w-]) guard keeps it idempotent (skips already-prefixed links).
+if [ -n "${BASE_URL:-}" ]; then
+  find _build/html -type f -name '*.html' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
+  find _build/html -type f -name '*.json' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
+fi
 """
 
-[tool.poe.tasks.docs-site-pages]
-help = "Build MyST site for the /nltools/ GitHub Pages subpath"
-shell = """
-set -eu
-cd docs
-BASE_URL=/nltools myst build --site --html --execute
-# Standalone interactive Design Tour page (not a MyST page; copied verbatim).
-cp public/design-tour.html _build/html/design-tour.html
-# MyST does not apply BASE_URL to literal TOC/card url entries (the interactive
-# tutorial links + the Design Tour link). Prefix /nltools.
-find _build/html -type f -name "*.html" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g; s{(?<!/nltools)/design-tour\\.html}{/nltools/design-tour.html}g' {} +
-find _build/html -type f -name "*.json" -exec perl -pi -e 's{(?<!/nltools)/tutorials/((?:basics|workflows)-)}{/nltools/tutorials/$1}g; s{(?<!/nltools)/design-tour\\.html}{/nltools/design-tour.html}g' {} +
-"""
+[tool.poe.tasks.docs-wasm]
+help = "Export the marimo tutorials to interactive WASM pages under _build/html/tutorials (honors BASE_URL)"
+shell = """python scripts/build_marimo_wasm.py ${BASE_URL:+--base-url ${BASE_URL}/}"""
 
 [tool.poe.tasks.docs-build]
-help = "Generate API docs, build MyST, then add the interactive marimo/WASM tutorials"
+help = "Full docs build: regenerate sources → build + execute the site → add interactive WASM pages (set BASE_URL=/nltools for GitHub Pages)"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
-  { ref = "docs-marimo" },
+  { ref = "docs-wasm" },
 ]
-
-[tool.poe.tasks.docs-build-pages]
-help = "Generate API docs and build the MyST site plus marimo/WASM tutorials for GitHub Pages"
-sequence = [
-  { ref = "docs-generate" },
-  { ref = "docs-site-pages" },
-  { ref = "docs-marimo-pages" },
-]
-
-[tool.poe.tasks.docs-marimo]
-help = "Export tutorial marimo notebooks to interactive WASM pages under _build/html/tutorials"
-cmd = "python scripts/build_marimo_wasm.py"
-
-[tool.poe.tasks.docs-marimo-pages]
-help = "Export tutorial WASM pages for the /nltools/ GitHub Pages subpath"
-cmd = "python scripts/build_marimo_wasm.py --base-url /nltools/"
 
 [tool.poe.tasks.docs-preview]
 help = "Live preview the MyST site (API reference + tutorial gallery)"

@@ -30,7 +30,7 @@ def _():
     return (mo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import sys
 
@@ -124,28 +124,40 @@ def _(mo):
     return
 
 
-@app.cell
-async def _(IN_WASM, BrainData, fetch_resource, memory, np, seed_resources):
-    from nilearn.datasets import fetch_development_fmri
-
-    # In-browser the movie subjects stream from HF into IDBFS, so keep the seed
-    # light (6 × ~6 MB); locally use the full 12 nilearn ships.
-    N_SUBJECTS = 6 if IN_WASM else 12
-
+@app.cell(hide_code=True)
+async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
+    # In-browser only: seed a light 6-subject movie subset + the ROI atlas, and
+    # wrap the BOLD in a Bunch mimicking nilearn's fetch_development_fmri().
+    # `browser_movie` stays None locally, where the visible cell below loads from
+    # nilearn. (6 matches N_SUBJECTS in the browser; see the visible cell.)
+    # Imports/vars are underscore-aliased to stay cell-local.
+    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+    browser_movie = None
     if IN_WASM:
-        from sklearn.utils import Bunch
+        from sklearn.utils import Bunch as _Bunch
 
-        _subs = [f"{_i:02d}" for _i in range(1, N_SUBJECTS + 1)]
-        isc_resources = [
+        _subs = [f"{_i:02d}" for _i in range(1, 7)]
+        _isc_resources = [
             f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz" for _s in _subs
         ] + ["masks/default/3mm-MNI152-2009fsl-k50.nii.gz"]
-        await seed_resources(isc_resources)
-        DATA = Bunch(
+        await seed_resources(_isc_resources)
+        browser_movie = _Bunch(
             func=[
                 fetch_resource(f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz")
                 for _s in _subs
             ]
         )
+    return (browser_movie,)
+
+
+@app.cell
+def _(IN_WASM, browser_movie, BrainData, fetch_resource, memory, np):
+    from nilearn.datasets import fetch_development_fmri
+
+    # In-browser a light 6-subject subset streams from HF; locally use the full 12.
+    N_SUBJECTS = 6 if IN_WASM else 12
+    if IN_WASM:
+        DATA = browser_movie
     else:
         DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
 

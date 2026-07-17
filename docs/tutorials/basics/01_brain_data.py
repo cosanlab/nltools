@@ -60,7 +60,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import sys
 
@@ -343,7 +343,7 @@ def _(brains):
 @app.cell
 def _(brains):
     # Standardization / z-scoring across images
-    z_scored = brains.standardize(method="zscore", verbose=False)
+    z_scored = brains.standardize(method="zscore")
     print(f"Z-scored mean: {z_scored.mean().data.mean():.6f}")
     print(f"Z-scored std:  {z_scored.std().data.mean():.4f}")
     return
