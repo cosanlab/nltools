@@ -824,8 +824,10 @@ def filter_data(bd, sampling_freq=None, high_pass=None, low_pass=None, **kwargs)
     if high_pass is None and low_pass is None:
         raise ValueError("high_pass and/or low_pass cutoff must be provided!")
 
-    standardize = kwargs.get("standardize", False)
-    detrend = kwargs.get("detrend", False)
+    # Pop (not get) so these are not also forwarded via **kwargs below;
+    # otherwise clean() receives detrend/standardize twice -> TypeError.
+    standardize = kwargs.pop("standardize", False)
+    detrend = kwargs.pop("detrend", False)
 
     # Optimized: Use shallow copy instead of deepcopy
     out = shallow_copy(bd)

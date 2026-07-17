@@ -145,7 +145,9 @@ class CacheManager:
         path = self.get_path(key)
         if not path.exists():
             return None
-        return dict(np.load(path, allow_pickle=True))
+        # allow_pickle stays False (default): the cache stores only numeric
+        # arrays, and unpickling a tampered file is a code-exec vector.
+        return dict(np.load(path))
 
     def save(self, key: str, compressed: bool = True, **arrays) -> Path:
         """Save arrays to cache.

@@ -38,6 +38,7 @@ def predict(
     radius_mm: float = 10.0,
     inplace: bool = False,
     n_jobs: int = 1,
+    random_state: int | None = None,
     progress_bar: bool = False,
 ):
     """Dispatch BrainData prediction to timeseries encoding or MVPA decoding.
@@ -67,6 +68,7 @@ def predict(
             radius_mm=radius_mm,
             inplace=inplace,
             n_jobs=n_jobs,
+            random_state=random_state,
             progress_bar=progress_bar,
         )
     return predict_timeseries(bd, X=X)
@@ -162,7 +164,8 @@ def predict_mvpa(
     radius_mm: float,
     inplace: bool,
     n_jobs: int,
-    progress_bar: bool,
+    random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> Predict | Any:
     """Cross-validated decoding. Returns Predict (or self if inplace=True)."""
     from sklearn.base import is_classifier
@@ -183,9 +186,9 @@ def predict_mvpa(
     # Resolve CV
     if isinstance(cv, int):
         cv_splitter = (
-            StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
+            StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
             if classifier
-            else KFold(n_splits=cv, shuffle=True, random_state=42)
+            else KFold(n_splits=cv, shuffle=True, random_state=random_state)
         )
     else:
         cv_splitter = cv

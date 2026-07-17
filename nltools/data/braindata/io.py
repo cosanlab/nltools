@@ -537,10 +537,11 @@ def load_from_url(bd, url):
     import nibabel as nib
     from nltools.datasets import download_nifti
 
-    tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
-    os.makedirs(tmp_dir)
-    downloaded_file = nib.load(download_nifti(url, data_dir=tmp_dir))
-    load_from_file(bd, downloaded_file)
+    # TemporaryDirectory guarantees a unique name and removes the download
+    # (avoids the os.times()-based collision + leak in the old code).
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        downloaded_file = nib.load(download_nifti(url, data_dir=tmp_dir))
+        load_from_file(bd, downloaded_file)
 
 
 def load_from_file(bd, data):
@@ -809,14 +810,14 @@ def upload_neurovault(
     else:
         try:
             collection = api.create_collection(collection_name)
-        except ValueError:
-            print(
-                "Collection Name already exists.  Pick a "
+        except ValueError as e:
+            raise ValueError(
+                "Collection Name already exists. Pick a "
                 "different name or specify an existing collection id"
-            )
+            ) from e
 
-    tmp_dir = os.path.join(tempfile.gettempdir(), str(os.times()[-1]))
-    os.makedirs(tmp_dir)
+    # mkdtemp guarantees a unique dir (the old os.times() name could collide).
+    tmp_dir = tempfile.mkdtemp()
 
     def add_image_to_collection(api, collection, dat, tmp_dir, index_id=0, **kwargs):
         """Upload an image to a NeuroVault collection.

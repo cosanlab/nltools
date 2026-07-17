@@ -45,7 +45,13 @@ def fit(
             - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
             - None: No CV (default, backward compatible)
         inplace (bool, default=True): If True, mutate bd and return bd (backward compatible).
-            If False, return Fit dataclass with results (bd unchanged).
+            If False, return a Fit dataclass with the results. In this case
+            bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` /
+            ``cv_results_``) are left unchanged, but ``bd.model_`` and
+            ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so
+            that ``predict()`` / ``compute_contrasts()`` still work off bd.
+            Successive ``inplace=False`` fits therefore overwrite the model
+            used by a later ``bd.predict()``.
         progress_bar (bool, optional): Display progress bar during fitting.
             - If None: Uses bd.verbose (default)
             - If True: Shows progress bar for long-running operations
@@ -98,11 +104,12 @@ def fit(
         >>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
         >>> weights = brain_data.ridge_weights  # Access as attribute
         >>>
-        >>> # New behavior: return Fit dataclass (self unchanged)
+        >>> # New behavior: return Fit dataclass (result attrs / data unchanged)
         >>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
         >>> assert isinstance(fit, Fit)
         >>> assert 'weights' in fit.available()
-        >>> assert not hasattr(brain_data, 'ridge_weights')  # brain_data unchanged
+        >>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
+        >>> # (model_/X_ ARE updated on brain_data so predict() works)
         >>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
         >>>
         >>> # GLM with Fit dataclass
@@ -358,9 +365,11 @@ def _assemble_ridge_cv_results(bd, X, cv):
     # alpha_scores has the candidate alphas in the order solve_ridge_cv saw
     # them (i.e., the model's `alphas` attr). Recover that order to do the
     # lookup.
+    # Match by nearest VALUE, not searchsorted: the alpha grid is whatever
+    # the user passed and may be unsorted, so searchsorted would return the
+    # wrong column (and thus per-fold scores for the wrong alpha).
     alpha_grid = np.asarray(bd.model_.alphas)
-    best_idx = np.searchsorted(alpha_grid, best_alpha_arr)
-    # Guard against floating-point ties: clip and verify.
+    best_idx = np.argmin(np.abs(alpha_grid[:, None] - best_alpha_arr[None, :]), axis=0)
     best_idx = np.clip(best_idx, 0, n_alphas - 1)
 
     # scores[s, v] = alpha_scores[s, best_idx[v], v]

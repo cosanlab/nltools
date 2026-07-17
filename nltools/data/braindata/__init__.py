@@ -879,7 +879,11 @@ class BrainData:
                 the Ridge model — center X and y on the training fold mean
                 per fold and recover the intercept after.
             inplace (bool, default=True): If True, mutate self and return self.
-                If False, return Fit dataclass with results (self unchanged).
+                If False, return a Fit dataclass with the results. ``self.data``
+                and the result attributes (``ridge_*`` / ``glm_*`` /
+                ``cv_results_``) are left unchanged, but ``self.model_`` and
+                ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on
+                self so ``predict()`` / ``compute_contrasts()`` still work.
             scale (bool, default=True): Apply grand-mean scaling before fitting.
             scale_value (float, default=100.0): Target value for mean after scaling.
             progress_bar (bool, optional): Display progress bar during fitting.
@@ -1387,6 +1391,7 @@ class BrainData:
         radius_mm: float = 10.0,
         inplace: bool = False,
         n_jobs: int = 1,
+        random_state: "int | None" = None,
         progress_bar: bool = False,
     ):
         """Predict voxel timeseries (encoding) or decode labels (MVPA).
@@ -1477,6 +1482,10 @@ class BrainData:
             n_jobs (int): Parallel jobs for searchlight / ROI. Default ``1``;
                 searchlight on a real brain at higher ``n_jobs`` can be
                 memory-heavy.
+            random_state (int, optional): Seed for the shuffled fold splitter
+                when ``cv`` is an int (MVPA mode). Default ``None`` (unseeded
+                shuffle each call). Ignored when ``cv`` is a splitter object —
+                set its own ``random_state`` instead.
             progress_bar (bool): Show progress bar for searchlight / ROI.
 
         Returns:
@@ -1528,6 +1537,7 @@ class BrainData:
             radius_mm=radius_mm,
             inplace=inplace,
             n_jobs=n_jobs,
+            random_state=random_state,
             progress_bar=progress_bar,
         )
 
