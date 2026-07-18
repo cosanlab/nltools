@@ -116,7 +116,7 @@ class TestSignatures:
         ],
     )
     def test_collection_returning_ops_accept_cache(self, method):
-        """SPEC §"Coverage rule": methods that return a BrainCollection accept cache=."""
+        """Coverage rule: methods that return a BrainCollection accept cache=."""
         params = self._params(getattr(BrainCollection, method))
         assert "cache" in params, f"{method} missing cache="
         assert params["cache"].default == "auto"
@@ -138,7 +138,7 @@ class TestSignatures:
         ],
     )
     def test_reductions_do_not_accept_cache(self, method):
-        """SPEC §"Coverage rule": reductions don't accept cache=."""
+        """Coverage rule: reductions don't accept cache=."""
         params = self._params(getattr(BrainCollection, method))
         assert "cache" not in params, f"{method} should not accept cache="
 
@@ -205,7 +205,7 @@ class TestSignatures:
         assert params["model"].default == "glm"
 
     def test_compute_contrasts_default_type_is_beta(self):
-        """SPEC §1023: statistic defaults to 'beta'."""
+        """Statistic defaults to 'beta'."""
         params = self._params(BrainCollection.compute_contrasts)
         assert params["statistic"].default == "beta"
 
@@ -225,7 +225,7 @@ class TestSignatures:
         assert params["cv"].default == "loso"
 
     def test_isc_default_method_loo(self):
-        """SPEC §"Cross-subject ops": ``method='loo'`` default."""
+        """Cross-subject ops: ``method='loo'`` default."""
         params = self._params(BrainCollection.isc)
         assert params["method"].default == "loo"
 
@@ -277,7 +277,7 @@ class TestInit:
         tmp_path,
         monkeypatch,
     ):
-        """SPEC §"Capture timing": cache root is frozen at construction."""
+        """Capture timing: cache root is frozen at construction."""
         brains = [tiny_brain_factory(seed=0)]
         monkeypatch.chdir(tmp_path)
         bc = BrainCollection(
@@ -301,7 +301,7 @@ class TestInit:
         tmp_path,
         monkeypatch,
     ):
-        """SPEC §"Cache location": NLTOOLS_CACHE_DIR env overrides default."""
+        """Cache location: NLTOOLS_CACHE_DIR env overrides default."""
         env_root = tmp_path / "env_cache"
         monkeypatch.setenv("NLTOOLS_CACHE_DIR", str(env_root))
         brains = [tiny_brain_factory(seed=0)]
@@ -343,7 +343,7 @@ class TestProperties:
 
 class TestLifecycle:
     def test_del_is_noop(self):
-        """SPEC §"`__del__` is a no-op."""
+        """`__del__` is a no-op."""
         bc = BrainCollection.__new__(BrainCollection)
         # Should not raise even on uninitialized instance.
         assert bc.__del__() is None

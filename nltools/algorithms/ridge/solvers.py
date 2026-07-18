@@ -183,7 +183,7 @@ def solve_banded_ridge_cv(
         - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
-        See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
+        See ``docs/development/ridge-internals.md`` for detailed algorithm explanation.
     """
     from .utils import (
         _decompose_ridge,
@@ -734,7 +734,7 @@ def solve_ridge_cv(
         - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
 
         See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
-        See ``nltools.algorithms.ridge.DESIGN.md`` for detailed algorithm explanation.
+        See ``docs/development/ridge-internals.md`` for detailed algorithm explanation.
     """
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score
 

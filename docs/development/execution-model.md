@@ -265,8 +265,9 @@ thread oversubscription inside each worker.
 
 - **Reductions** (`concat()`, `mean()`, `ttest()`) stream over already-loaded or
   path-backed data in the main process — faster than the pickling overhead.
-- **ISC / alignment** have their own parallel scheme inside `nltools.algorithms.*`. The
-  collection passes `n_jobs`/`device` through but doesn't double-wrap.
+- **Alignment** has its own parallel scheme inside `nltools.algorithms.*`. The
+  collection passes `n_jobs`/`device` through but doesn't double-wrap. (ISC runs in
+  `inference.py` and takes only `method`/`roi_mask`/`metric` — no `n_jobs`/`device`.)
 
 > **Note.** `isc(method='loo')` streams: pass 1 accumulates the subject sum (one `T×V`
 > array), pass 2 re-streams forming each subject's template `(sum − subject)/(n−1)` and
@@ -279,5 +280,6 @@ thread oversubscription inside each worker.
 ## GPU
 
 `device="cpu" | "gpu"` is orthogonal to `n_jobs`. `n_jobs` controls subject-level
-parallelism; `device` controls the within-subject backend. ISC, permutation tests, and
-alignment accept both — pass-through.
+parallelism; `device` controls the within-subject backend. `align` and the permutation
+tests accept both — pass-through (though the permutation `n_jobs` is currently unused).
+ISC (`isc`/`isc_test`) accepts neither.

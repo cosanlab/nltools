@@ -26,7 +26,7 @@ from nltools.data.collection import core, execution
 
 class TestRunIdAndStepDirs:
     def test_make_run_id_format(self):
-        """SPEC §"Cache location": ``run_id = {timestamp}_{uuid8}``, lex-sortable."""
+        """Cache location: ``run_id = {timestamp}_{uuid8}``, lex-sortable."""
         run_id = core.make_run_id()
         assert re.match(r"^\d{8}T\d{6}_[0-9a-f]{8}$", run_id)
         assert core.is_run_id(run_id)
@@ -36,7 +36,7 @@ class TestRunIdAndStepDirs:
         assert len(ids) == 50
 
     def test_make_step_dirname_includes_op_and_kwargs(self):
-        """SPEC §"Parallel write safety": step subdir name is unique per call."""
+        """Parallel write safety: step subdir name is unique per call."""
         name = core.make_step_dirname("smooth", {"fwhm": 6.0})
         assert "smooth" in name
         assert "fwhm-6.0" in name
@@ -258,7 +258,7 @@ class TestApplyDispatch:
 
 
 class TestCacheKnob:
-    """SPEC §"The cache= knob"."""
+    """The cache= knob."""
 
     def test_auto_path_backed_source_writes_through(self, bc_pathbacked):
         out = bc_pathbacked.smooth(fwhm=6.0, cache="auto")
@@ -288,7 +288,7 @@ class TestStepLineage:
         assert any("standardize" in n for n in names)
 
     def test_each_eager_step_is_separate_subdir(self, bc_pathbacked):
-        """SPEC §"Eager, no fused chains": two on-disk steps, not fused."""
+        """Eager, no fused chains: two on-disk steps, not fused."""
         chained = bc_pathbacked.smooth(fwhm=6.0).standardize()
         steps = chained.steps()
         assert len(steps) >= 2
@@ -316,7 +316,7 @@ class TestParallelWriteSafety:
 
 class TestErrorPropagation:
     def test_worker_error_includes_subject_context(self, bc_pathbacked):
-        """SPEC §"Errors": fail fast, message embeds subject + original error."""
+        """Errors: fail fast, message embeds subject + original error."""
 
         def boom(bd):
             raise ValueError("kaboom")
@@ -352,7 +352,7 @@ class TestErrorPropagation:
 
 
 class TestBundleIO:
-    """SPEC §"HDF5 fit bundle"."""
+    """HDF5 fit bundle."""
 
     def test_glm_bundle_layout(self, tmp_path):
         path = tmp_path / "sub-01_fit.h5"
@@ -431,7 +431,7 @@ class TestBundleIO:
 
 class TestNestedParallelismGuard:
     def test_inner_n_jobs_capped_when_outer_parallel(self, bc_pathbacked):
-        """SPEC §"Nested parallelism": ``inner_max_num_threads=1`` by default."""
+        """Nested parallelism: ``inner_max_num_threads=1`` by default."""
         # Behavioral check: just ensure the call returns successfully.
         # Implementation details verified separately.
         out = bc_pathbacked.smooth(fwhm=6.0, n_jobs=2)

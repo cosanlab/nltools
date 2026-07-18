@@ -1,6 +1,6 @@
 """fit / compute_contrasts / predict / cv() — the modeling surface.
 
-SPEC §"predict and cv() — two distinct prediction paths" sets the contracts.
+predict and cv() are two distinct prediction paths, each with its own contract.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ class TestFitSignature:
             bc.fit(model="glm", X=design, noise_model="ar1")
 
     def test_fit_no_output_or_save_kwargs(self):
-        """SPEC §"What's gone": ``output=`` / ``save=`` removed from fit."""
+        """What's gone: ``output=`` / ``save=`` removed from fit."""
         sig = inspect.signature(BrainCollection.fit)
         assert "output" not in sig.parameters
         assert "save" not in sig.parameters
@@ -74,7 +74,7 @@ class TestComputeContrastsSignature:
 
 class TestPredictSignature:
     def test_dispatch_args_default_none(self):
-        """SPEC §"bc.predict — dispatch by argument": both default None."""
+        """bc.predict — dispatch by argument: both default None."""
         sig = inspect.signature(BrainCollection.predict)
         assert sig.parameters["y"].default is None
         assert sig.parameters["X_new"].default is None
@@ -251,7 +251,7 @@ class TestComputeContrastsBehavior:
 
 
 class TestPredictDispatch:
-    """SPEC §1021: dispatch is by argument, not by item state."""
+    """Dispatch is by argument, not by item state."""
 
     def test_both_args_raises(self, bc_inmem):
         with pytest.raises(ValueError):
@@ -331,13 +331,13 @@ class TestCVPipeline:
         assert repr(pipe)  # __repr__ interpolates n_subjects; must not raise
 
     def test_pipeline_standardize_step_added(self, bc_inmem):
-        """SPEC §865: BrainCollectionPipeline.standardize() (renamed from normalize)."""
+        """BrainCollectionPipeline.standardize() (renamed from normalize)."""
         assert bc_inmem.cv(method="loso").standardize().n_steps == 1
         # And confirm the old name is gone from the public surface.
         assert not hasattr(bc_inmem.cv(method="loso"), "normalize")
 
     def test_cv_predict_returns_braindata(self, bc_inmem):
-        """SPEC §942: bc.cv(...).predict(...) returns the same BrainData type."""
+        """bc.cv(...).predict(...) returns the same BrainData type."""
         out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
         assert isinstance(out, BrainData)
         assert hasattr(out, "cv_scores")

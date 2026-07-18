@@ -10,7 +10,7 @@ from nltools.data import BrainCollection, BrainData
 
 
 class TestReductionShape:
-    """SPEC §"Group reductions": collapse subjects → BrainData (or dict)."""
+    """Group reductions: collapse subjects → BrainData (or dict)."""
 
     @pytest.mark.parametrize(
         "method",
@@ -44,7 +44,7 @@ class TestReductionShape:
 
 
 class TestStreaming:
-    """SPEC §"Streaming algorithms": path-backed inputs stream when possible."""
+    """Streaming: path-backed inputs stream when possible."""
 
     def test_mean_streams_from_path_backed(self, bc_pathbacked):
         out = bc_pathbacked.mean()

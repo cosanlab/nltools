@@ -57,7 +57,7 @@ class TestFromGlob:
 
 @pytest.mark.skipif(not HAS_FAKE_BIDS, reason="nilearn fake-BIDS not available")
 class TestFromBIDS:
-    """SPEC §"`from_bids` — concrete design"."""
+    """`from_bids` — concrete design."""
 
     # nilearn's fake BIDS has fmriprep derivatives in space=T1w with
     # desc=preproc and desc=fmriprep — pin to the preproc one.
@@ -91,7 +91,7 @@ class TestFromBIDS:
         fake_bids_root,
         tiny_mask,
     ):
-        """SPEC §"Edge cases": ``task=None + pair_events=True`` → silently downgrade."""
+        """Edge cases: ``task=None + pair_events=True`` → silently downgrade."""
         bc = BrainCollection.from_bids(
             fake_bids_root,
             mask=tiny_mask,
