@@ -48,6 +48,25 @@ def _torch():
         return None
 
 
+def gpu_device() -> str | None:
+    """Return the concrete GPU device string for this host, or None if CPU-only.
+
+    Mirrors the auto-detection in `nltools.algorithms.backends` (cuda → mps →
+    cpu): benchmarks pass the algorithm-layer `parallel="gpu"` alias, which
+    self-selects the device, while the harness needs the concrete string
+    ("cuda"/"mps") to pick the right memory probe. Prefer this over hardcoding a
+    device so the GPU legs run on CUDA and Apple-Silicon hosts alike.
+    """
+    torch = _torch()
+    if torch is None:
+        return None
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return None
+
+
 def _psutil():
     try:
         import psutil
