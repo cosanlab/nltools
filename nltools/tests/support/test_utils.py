@@ -5,7 +5,30 @@ import gc
 import numpy as np
 import pandas as pd
 
-from nltools.utils import coalesced_gc
+from nltools.utils import all_same, coalesced_gc
+
+
+class TestAllSame:
+    """``all_same()`` must actually detect an unequal element."""
+
+    def test_detects_unequal_element(self):
+        """The documented example: a differing item yields False (was broken —
+        `np.all(generator)` wraps the generator in a truthy 0-d object array).
+        """
+        assert all_same([1, 1, 1]) is True or all_same([1, 1, 1])
+        assert not all_same([1, 2, 1])
+
+    def test_all_equal_and_single_and_empty(self):
+        assert all_same([5, 5, 5])
+        assert all_same(["a", "a"])
+        assert all_same([7])  # single item trivially all-same
+
+    def test_handles_array_like_items(self):
+        """`np` import implies array items were intended; equal vs unequal arrays."""
+        a, b = np.array([1, 2, 3]), np.array([1, 2, 3])
+        c = np.array([1, 9, 3])
+        assert all_same([a, b])
+        assert not all_same([a, c])
 
 
 class TestCoalescedGC:

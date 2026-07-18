@@ -60,7 +60,11 @@ def regress(X, Y, method: str = "ols", stats: str = "full"):
 
     res = Y - X @ b
     df_scalar = X.shape[0] - X.shape[1]
-    sigma = np.std(res, axis=0, ddof=X.shape[1])  # (n_targets,)
+    # Unbiased residual SE from *uncentered* RSS: sqrt(RSS / (n - p)). Correct for
+    # both intercept and intercept-free models. np.std(res, ddof=p) would center
+    # the residuals, underestimating RSS when X has no intercept (a supported
+    # usage — see the docstring). Matches stats/correlation.py; see GH #287.
+    sigma = np.sqrt((res**2).sum(axis=0) / df_scalar)  # (n_targets,)
     xtx_inv_diag = np.diag(np.linalg.pinv(X.T @ X))  # (n_regressors,)
     se = np.sqrt(xtx_inv_diag)[:, np.newaxis] * sigma[np.newaxis, :]
 

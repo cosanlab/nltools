@@ -681,13 +681,17 @@ class BrainData:
         return self.model_.report(contrasts=contrasts, **kwargs)
 
     def copy(self):
-        """Create a deep copy of a BrainData instance.
+        """Create a copy of a BrainData instance (data deep-copied).
 
-        All attributes including data, fitted models, and results are deep copied.
-        Use this when you need a complete independent copy.
+        The `data` array and most attributes are deep-copied, so mutating the
+        copy's data leaves the original untouched. **Fitted state is shared, not
+        copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
+        `masker` are held by reference (this avoids pickling unpicklable Backend
+        objects — see `__deepcopy__`). Mutating those on the copy mutates the
+        original; refit the copy if you need independent fit results.
 
         Returns:
-            BrainData: Deep copied instance
+            BrainData: A copy with independent data but shared fitted state.
         """
         return deepcopy(self)
 
