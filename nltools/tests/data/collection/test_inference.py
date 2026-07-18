@@ -77,6 +77,107 @@ class TestISC:
         out = bc_inmem.isc(method="loo")
         assert isinstance(out, dict)
 
+    def test_isc_loo_streams_without_materializing_all_subjects(
+        self, tiny_mask, tmp_path
+    ):
+        """loo ISC must stream (two-pass Welford), not stack all N subjects.
+
+        The whole point of `BrainCollection` is that whole-brain reductions never
+        hold every subject in RAM at once — `mean()`/`ttest()` stream one subject
+        at a time. loo ISC is expressible the same way (pass 1: accumulate the
+        sum; pass 2: template = (sum - subject)/(n-1), correlate), so peak
+        concurrent subject arrays must stay ~1 regardless of N. The pre-fix
+        implementation did `np.stack(list(_iter_arrays(...)))`, forcing all N
+        resident — this instruments `_iter_arrays` to catch that.
+        """
+        import weakref
+
+        from nltools.data import BrainCollection
+        from nltools.data.collection import inference
+
+        # A 6-subject path-backed collection so materialization (max_live=6) is
+        # unambiguously distinct from streaming (max_live<=2).
+        paths = []
+        for i in range(6):
+            rng = np.random.default_rng(i)
+            vol = rng.standard_normal(tiny_mask.shape + (8,)).astype(np.float32)
+            p = tmp_path / f"iscsub-{i:02d}.nii.gz"
+            nib.save(nib.Nifti1Image(vol, tiny_mask.affine), p)
+            paths.append(str(p))
+        bc = BrainCollection(
+            paths, mask=tiny_mask, lazy=True, cache_dir=str(tmp_path / ".c")
+        )
+
+        orig = inference._iter_arrays
+        live = 0
+        max_live = 0
+
+        def _tracking(collection, roi=None):
+            nonlocal live, max_live
+            for arr in orig(collection, roi):
+                live += 1
+                max_live = max(max_live, live)
+
+                def _dec(*_):
+                    nonlocal live
+                    live -= 1
+
+                weakref.finalize(arr, _dec)
+                yield arr
+
+        inference._iter_arrays = _tracking
+        try:
+            bc.isc(method="loo", metric="median")
+        finally:
+            inference._iter_arrays = orig
+
+        assert max_live <= 2, (
+            f"isc(loo) held {max_live} subject arrays at once (N=6); it must "
+            "stream (<=2). It is materializing all subjects — the streaming "
+            "rewrite is not wired up."
+        )
+
+    def test_isc_loo_streaming_matches_reference(self, tiny_mask, tmp_path):
+        """Streaming loo ISC must be numerically identical to the direct stack.
+
+        Guards the refactor: the two-pass streaming result must match a
+        straightforward materialize-then-compute reference to float tolerance.
+        """
+        from nltools.data import BrainCollection
+
+        paths, arrays = [], []
+        for i in range(5):
+            rng = np.random.default_rng(100 + i)
+            vol = rng.standard_normal(tiny_mask.shape + (12,)).astype(np.float32)
+            p = tmp_path / f"refsub-{i:02d}.nii.gz"
+            nib.save(nib.Nifti1Image(vol, tiny_mask.affine), p)
+            paths.append(str(p))
+            # In-mask (T, V) view matching what the collection yields.
+            m = np.asarray(tiny_mask.dataobj) > 0
+            arrays.append(vol[m].T.astype(np.float64))  # (12, n_vox)
+
+        bc = BrainCollection(
+            paths, mask=tiny_mask, lazy=True, cache_dir=str(tmp_path / ".c")
+        )
+        got = np.asarray(bc.isc(method="loo", metric="median")["isc"].data).reshape(-1)
+
+        # Reference: leave-one-out template, per-voxel Pearson, median across subj.
+        data = np.stack(arrays, axis=0)  # (n_subj, T, V)
+        n = data.shape[0]
+        total = data.sum(axis=0)
+        corrs = np.empty((n, data.shape[2]))
+        for i in range(n):
+            tmpl = (total - data[i]) / (n - 1)
+            a = data[i] - data[i].mean(0)
+            b = tmpl - tmpl.mean(0)
+            den = np.sqrt((a**2).sum(0)) * np.sqrt((b**2).sum(0))
+            out = np.zeros(data.shape[2])
+            np.divide((a * b).sum(0), den, out=out, where=den > 0)
+            corrs[i] = out
+        ref = np.median(corrs, axis=0)
+
+        np.testing.assert_allclose(got, ref, rtol=1e-6, atol=1e-8)
+
     def test_isc_test_returns_dict(self, bc_inmem):
         out = bc_inmem.isc_test(method="loo", n_samples=10)
         assert isinstance(out, dict)
