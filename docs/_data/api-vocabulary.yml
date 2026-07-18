@@ -1,0 +1,76 @@
+# Canonical v0.6.0 kwarg vocabulary — SINGLE SOURCE OF TRUTH.
+#
+# This file is the machine-readable source for the canonical-kwarg vocabulary that
+# the rest of the docs render. `scripts/build_api_vocabulary.py` injects rendered
+# tables from here into both:
+#   - docs/development/index.md         (the 2-column prose table)
+#   - docs/public/design-tour.html      (the 3-column table + "exceptions" callout)
+# between `<!-- AUTOGEN:api-vocabulary ... -->` marker pairs. Edit the vocabulary
+# HERE, then run `uv run poe docs-generate` (or `python scripts/build_api_vocabulary.py`)
+# to propagate. CI (`poe lint-api`) runs the generator in `--check` mode and fails
+# if the committed tables have drifted from this file.
+#
+# The HUMAN canon is CLAUDE.md's "API Conventions (v0.6.0)" table — keep this in
+# sync with it. (CLAUDE.md is prose Claude reads directly; it is not generated.)
+#
+# Per-row fields:
+#   concept    — the concept the kwarg names (shared by both tables).
+#   kwarg      — the bare canonical name; the design-tour "Canonical kwarg" cell
+#                renders it as <code>{kwarg}</code>.
+#   tour_note  — the design-tour "Notes" cell, written in Markdown. Inline
+#                `code` spans and *emphasis* are converted to HTML; `·` chips are
+#                literal. Used only by the design tour.
+#   index_md   — the index.md "Canonical kwarg" cell, written as raw Markdown
+#                (e.g. a `code` span, possibly with a value set or qualifier).
+#                Table pipes are escaped automatically at render time — author
+#                them as plain `|`.
+
+stats:
+  data_classes: 4
+  algorithm_families: 3
+  compute_backends: 2
+
+vocabulary:
+  - concept: "Algorithm / variant choice"
+    kwarg: "method"
+    tour_note: "not `algorithm`/`scheme`/`kind`/`estimator`"
+    index_md: "`method`"
+  - concept: "Spatial scale"
+    kwarg: "spatial_scale"
+    tour_note: "`'whole_brain'` · `'roi'` · `'searchlight'`"
+    index_md: "`spatial_scale` (`'whole_brain' | 'roi' | 'searchlight'`)"
+  - concept: "Distance / similarity metric"
+    kwarg: "metric"
+    tour_note: "kept separate from `method`"
+    index_md: "`metric`"
+  - concept: "Subject-level parallelism"
+    kwarg: "n_jobs"
+    tour_note: "default `-1`"
+    index_md: "`n_jobs: int = -1`"
+  - concept: "GPU / CPU selection"
+    kwarg: "device"
+    tour_note: "orthogonal to `n_jobs`"
+    index_md: "`device: str = \"cpu\"`"
+  - concept: "Backend (algorithms layer)"
+    kwarg: "parallel"
+    tour_note: "`None` · `'cpu'` · `'gpu'`"
+    index_md: "`parallel: None | 'cpu' | 'gpu'`"
+  - concept: "Progress indicator"
+    kwarg: "progress_bar"
+    tour_note: "`verbose` reserved for log-level"
+    index_md: "`progress_bar: bool = False`"
+  - concept: "Permutation count"
+    kwarg: "n_permute"
+    tour_note: "distinct from…"
+    index_md: "`n_permute`"
+  - concept: "Bootstrap sample count"
+    kwarg: "n_samples"
+    tour_note: "…the bootstrap count"
+    index_md: "`n_samples`"
+
+# Deliberate deviations from the table (design-tour "exceptions" callout).
+# Rendered as Markdown → HTML. Keep in sync with CLAUDE.md exceptions F175/F105/F077.
+exceptions:
+  - "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
+  - "`Ridge(n_iter=)` matches sklearn's random-search name."
+  - "`compute_contrasts(statistic=)` selects an output map (t/z/p/β), not an algorithm."

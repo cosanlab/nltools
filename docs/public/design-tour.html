@@ -476,6 +476,7 @@
 <table>
   <thead><tr><th>Concept</th><th>Canonical kwarg</th><th>Notes</th></tr></thead>
   <tbody>
+    <!-- AUTOGEN:api-vocabulary:tour-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
     <tr><td>Algorithm / variant choice</td><td><code>method</code></td><td>not <code>algorithm</code>/<code>scheme</code>/<code>kind</code>/<code>estimator</code></td></tr>
     <tr><td>Spatial scale</td><td><code>spatial_scale</code></td><td><code>'whole_brain'</code> · <code>'roi'</code> · <code>'searchlight'</code></td></tr>
     <tr><td>Distance / similarity metric</td><td><code>metric</code></td><td>kept separate from <code>method</code></td></tr>
@@ -485,14 +486,14 @@
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
     <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
+    <!-- /AUTOGEN:api-vocabulary:tour-table -->
   </tbody>
 </table>
 
 <div class="callout">
-  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an
-  estimator <em>class</em>, not a variant. <code>Ridge(n_iter=)</code> matches sklearn's
-  random-search name. <code>compute_contrasts(statistic=)</code> selects an output map (t/z/p/β),
-  not an algorithm. Each is documented, not an oversight.
+  <!-- AUTOGEN:api-vocabulary:tour-exceptions — generated from docs/_data/api-vocabulary.yml; run `uv run poe docs-generate` to update -->
+  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. <code>Ridge(n_iter=)</code> matches sklearn's random-search name. <code>compute_contrasts(statistic=)</code> selects an output map (t/z/p/β), not an algorithm. Each is documented, not an oversight.
+  <!-- /AUTOGEN:api-vocabulary:tour-exceptions -->
 </div>
 </section>
 

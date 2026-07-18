@@ -48,17 +48,19 @@ The four facades share one kwarg vocabulary (v0.6.0). The full table lives in th
 [`CLAUDE.md`](https://github.com/cosanlab/nltools/blob/main/CLAUDE.md); the load-bearing
 names:
 
+<!-- AUTOGEN:api-vocabulary:index-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
 | Concept | Canonical kwarg |
 |---|---|
 | Algorithm / variant choice | `method` |
 | Spatial scale | `spatial_scale` (`'whole_brain' \| 'roi' \| 'searchlight'`) |
 | Distance / similarity metric | `metric` |
 | Subject-level parallelism | `n_jobs: int = -1` |
-| GPU/CPU selection | `device: str = "cpu"` (BrainCollection) |
-| Backend / parallel execution (algorithms) | `parallel: None \| 'cpu' \| 'gpu'` |
+| GPU / CPU selection | `device: str = "cpu"` |
+| Backend (algorithms layer) | `parallel: None \| 'cpu' \| 'gpu'` |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
+<!-- /AUTOGEN:api-vocabulary:index-table -->
 
 ## The internals pages
 
