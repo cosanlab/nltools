@@ -18,10 +18,12 @@ def bootstrap(
     n_jobs=-1,
     random_state=None,
 ):
-    """Bootstrap statistics using efficient online algorithms.
+    """Bootstrap statistics with CPU parallelization or GPU acceleration.
 
-    Uses memory-efficient bootstrap infrastructure with CPU parallelization or GPU acceleration.
     Supports simple aggregation statistics and fitted model statistics (Ridge).
+    Note: the CPU path pre-generates all resample indices and collects every
+    per-sample result, so peak memory grows with ``n_samples`` (it is not a
+    streaming/online accumulator).
 
     Args:
         bd: BrainData instance.
@@ -44,10 +46,12 @@ def bootstrap(
 
     Returns:
         BrainData or dict:
-            - For simple stats: Returns BrainData with bootstrap mean
+            - For simple stats (with ``save_boots=False``): Returns BrainData
+              with bootstrap mean
             - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
               'ci_lower', 'ci_upper' (all BrainData objects)
-            - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
+            - If ``save_boots=True``: Returns a dict (even for simple stats)
+              with an added 'samples' key holding all samples as a raw ndarray
 
     Examples:
         >>> # Simple aggregation
@@ -273,7 +277,9 @@ def convert_bootstrap_results_to_brain_data(
     Returns:
         BrainData or dict:
             - If return_dict=False and save_boots=False: Returns BrainData with mean
-            - Otherwise: Returns dict with BrainData objects for each statistic
+            - Otherwise: Returns dict with BrainData objects for each statistic.
+              The optional 'samples' entry (when save_boots=True) is a raw
+              ndarray, not a BrainData.
     """
     if save_boots:
         # Return dict with samples

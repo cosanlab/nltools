@@ -70,6 +70,13 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             - 'auto': Triggers alpha selection via CV (implies alpha='auto')
             - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
             - None: No CV (default, backward compatible)
+        local_alpha (bool, default=True): Ridge only. If True, select a
+            separate best alpha per voxel; if False, select a single shared
+            alpha across all voxels. Forwarded to ``Ridge``.
+        fit_intercept (bool, default=False): Ridge only. If True, fit an
+            intercept term. Redundant (and warned against) when the data is
+            already centered via ``scale`` or ``standardize``. Forwarded to
+            ``Ridge``.
         inplace (bool, default=True): If True, mutate bd and return bd (backward compatible).
             If False, return a Fit dataclass with the results. In this case
             bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` /
@@ -553,7 +560,7 @@ def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
 
 
 def fit_glm(bd, X):
-    """Fit GLM model and extract results (same logic as current regress()).
+    """Fit GLM model and extract results.
 
     Args:
         bd: BrainData instance.
@@ -664,7 +671,9 @@ def to_fit_dataclass(bd, model):
                 cv_predictions = cv_results["predictions"].data  # (n_samples, n_voxels)
 
             cv_folds = cv_results.get("folds")  # (n_samples,)
-            cv_best_alpha = cv_results.get("best_alpha")  # float or None
+            cv_best_alpha = cv_results.get(
+                "best_alpha"
+            )  # (n_voxels,) per-voxel α, or scalar when local_alpha=False (or None)
             cv_alpha_scores = cv_results.get(
                 "alpha_scores"
             )  # (n_folds, n_alphas, n_voxels) or None
@@ -751,14 +760,18 @@ def ttest(
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
         tail: Tail of the test (1 or 2). Default 2.
-        return_null: If True, also return the null distribution. Default False.
+        return_null: Currently has no effect. The returned dict always
+            contains exactly ``{"mean", "t", "z", "p"}`` and the null
+            distribution is discarded even when this is True. Default False.
         n_jobs: Number of parallel jobs. Default -1 (all cores).
         random_state: Random seed for reproducibility.
 
     Returns:
         dict with four BrainData keys:
 
-            - ``"mean"``: voxelwise mean across images (effect-size estimate).
+            - ``"mean"``: voxelwise mean across images minus ``popmean``
+              (i.e. ``mean(images) - popmean``, an effect-size estimate;
+              equals the raw voxelwise mean only when ``popmean=0``).
             - ``"t"``: parametric one-sample t-statistic.
             - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching
               nilearn's ``output_type='z_score'``. Useful for thresholding

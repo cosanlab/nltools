@@ -23,14 +23,14 @@ Examples:
 
     >>> # Voxel-wise test with GPU acceleration
     >>> data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
-    >>> result = one_sample_permutation_test(data, n_permute=10000, backend='torch')
+    >>> result = one_sample_permutation_test(data, n_permute=10000, parallel='gpu')
     >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
 
 Performance:
     - CPU (NumPy): Good for small problems (< 5K permutations)
     - GPU (PyTorch): Excellent for large problems (> 5K permutations)
     - CPU Parallel (joblib): Efficient fallback when GPU unavailable
-    - Auto-selection: Use backend='auto' for best performance
+    - Select with parallel='cpu' | 'gpu' | None (no 'auto' selector)
 
 References:
     Eklund, A., Dufort, P., Villani, M., & LaConte, S. M. (2014).
