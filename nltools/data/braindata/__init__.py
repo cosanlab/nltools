@@ -557,7 +557,7 @@ class BrainData:
         save_boots=False,
         percentiles=(2.5, 97.5),
         X_test=None,
-        backend=None,
+        device="cpu",
         max_gpu_memory_gb=4.0,
         n_jobs=-1,
         random_state=None,
@@ -575,9 +575,10 @@ class BrainData:
             save_boots: (bool) If True, store all bootstrap samples. Default: False
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
-            backend: (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch'
-                (GPU if available), or 'auto' (auto-select). Ignored for simple stats.
-            max_gpu_memory_gb: (float) Maximum GPU memory to use when backend is 'torch'
+            device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
+                'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if
+                present, else CPU). Ignored for simple stats. Default: 'cpu'
+            max_gpu_memory_gb: (float) Maximum GPU memory to use when device is 'gpu'
                 or 'auto'. Default: 4.0
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
@@ -603,7 +604,7 @@ class BrainData:
             save_boots=save_boots,
             percentiles=percentiles,
             X_test=X_test,
-            backend=backend,
+            device=device,
             max_gpu_memory_gb=max_gpu_memory_gb,
             n_jobs=n_jobs,
             random_state=random_state,
@@ -895,6 +896,7 @@ class BrainData:
         *,
         X=None,
         cv=None,
+        device="cpu",
         local_alpha=True,
         fit_intercept=False,
         inplace=True,
@@ -921,6 +923,10 @@ class BrainData:
                 splitter object (e.g. ``KFold(5, shuffle=True)``,
                 ``GroupKFold(8)``) for non-contiguous folds. Generators
                 (``splitter.split(X)``) are rejected.
+            device (str, default='cpu'): Ridge only. Compute device for the
+                ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on
+                CUDA/MPS when available), or ``'auto'`` (GPU if present, else
+                CPU). Ignored when ``model='glm'``.
             local_alpha (bool, default=True): Ridge only. If True, select
                 α independently per voxel via ``solve_ridge_cv``. If False,
                 pick a single α shared across all voxels.
@@ -992,6 +998,7 @@ class BrainData:
             model=model,
             X=X,
             cv=cv,
+            device=device,
             local_alpha=local_alpha,
             fit_intercept=fit_intercept,
             inplace=inplace,

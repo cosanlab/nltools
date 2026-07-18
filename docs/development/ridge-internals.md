@@ -162,10 +162,21 @@ X_dev = backend.asarray(X, device="cuda")
 U, s, Vt = backend.svd(X_dev)
 ```
 
-**Selection.** The public solvers take `parallel: None | 'cpu' | 'gpu'`, translated to a
-concrete backend. The constructor also accepts explicit `"numpy"`, `"torch"`, `"auto"`.
+**Selection.** The algorithm-layer solvers (`ridge_svd`, `ridge_cv`, `solve_ridge_cv`,
+`cross_val_predict_ridge`) take `parallel: None | 'cpu' | 'gpu'`, translated to a
+concrete backend. `resolve_backend` also accepts explicit `"numpy"`, `"torch"`, `"auto"`.
 Resolved `.name` values are hyphenated: `numpy`, `torch-cpu`, `torch-cuda`, `torch-mps`.
 `"torch"` auto-detects and will pick CUDA/MPS if present — it is not CPU-only.
+
+> **Facade boundary (v0.6.0).** `parallel=` is an *internal* name. The public
+> surface — `Ridge(device=...)`, `BrainData.fit(model='ridge', device=...)`, and
+> `BrainData.bootstrap(device=...)` — exposes the canonical **`device: str = "cpu"`**
+> (`'cpu'` / `'gpu'` / `'auto'`) and translates to `parallel=` at the boundary
+> (`resolve_backend(device).device in ("cuda","mps") → 'gpu'`). No `backend=` or
+> `parallel=` kwarg reaches the public facade; the `.semgrep/rules.yml`
+> `banned-kwarg-device` rule enforces this. The fitted `Ridge.backend_` attribute
+> (the resolved `Backend`, whose `.name` reports e.g. `torch-cuda`) is a distinct,
+> retained concept.
 
 **Backends:**
 

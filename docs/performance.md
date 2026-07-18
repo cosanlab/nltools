@@ -43,7 +43,7 @@ nltools provides two computational backends:
 - **Best for**: Large datasets, cross-validation, production workflows
 
 ### Auto Selection
-- **Recommendation**: Use `backend='auto'` for intelligent selection
+- **Recommendation**: Use `device='auto'` for intelligent selection
 - **How it works**: Evaluates problem size and chooses optimal backend
 - **Fallback**: Automatically uses NumPy if PyTorch unavailable
 
@@ -160,19 +160,23 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 
 ### When to Use Each Backend
 
-**Use NumPy (`backend='numpy'`) when:**
+Set the compute device on the public API with `device=` (`'cpu'` / `'gpu'` /
+`'auto'`) — e.g. `Ridge(device='gpu')`, `brain.fit(model='ridge', device='auto')`,
+`brain.bootstrap(stat='weights', device='gpu')`.
+
+**Use CPU (`device='cpu'`, NumPy) when:**
 - Problem size < 10 million elements (e.g., 100 samples × 100k features)
 - Prototyping or exploratory analysis
 - GPU not available
 - Running on shared systems where GPU access is limited
 
-**Use PyTorch (`backend='torch'`) when:**
+**Use GPU (`device='gpu'`, PyTorch) when:**
 - Problem size > 30 million elements
 - Running cross-validation (especially 5-fold or more)
 - Fitting many models in a loop (e.g., searchlight)
 - Production workflows where speed matters
 
-**Use Auto (`backend='auto'`) when:**
+**Use Auto (`device='auto'`) when:**
 - Unsure about problem size
 - Want code to work optimally across systems
 - Developing reusable analysis scripts
@@ -186,14 +190,14 @@ Based on our benchmarks:
 problem_size = n_samples * n_features * cv_folds
 
 if problem_size < 10_000_000:
-    # Use NumPy (GPU overhead not worth it)
-    backend = 'numpy'
+    # Use CPU (GPU overhead not worth it)
+    device = 'cpu'
 elif problem_size > 30_000_000:
     # Use GPU if available (significant speedup)
-    backend = 'torch'
+    device = 'gpu'
 else:
     # Medium range: auto-select based on GPU availability
-    backend = 'auto'
+    device = 'auto'
 ```
 
 ### Memory Considerations
@@ -235,7 +239,7 @@ if not available:
 **Solutions:**
 - **CUDA**: Install PyTorch with CUDA support: `pip install torch --index-url https://download.pytorch.org/whl/cu118`
 - **MPS (Apple Silicon)**: Ensure PyTorch ≥2.0: `pip install torch>=2.0`
-- **Fallback**: Use `backend='numpy'` explicitly
+- **Fallback**: Use `device='cpu'` explicitly
 
 #### MPS (Apple Silicon) SVD Limitation
 
@@ -252,7 +256,7 @@ and will fall back to run on the CPU.
 - Performance may not exceed NumPy with Accelerate framework
 
 **Solutions:**
-- Use `backend='numpy'` explicitly on Apple Silicon
+- Use `device='cpu'` explicitly on Apple Silicon
 - NumPy with Accelerate is often faster than MPS for ridge regression
 - Wait for future PyTorch versions with improved MPS SVD support
 
@@ -262,7 +266,7 @@ and will fall back to run on the CPU.
 
 **Solutions:**
 1. Reduce problem size (subset voxels, downsample data)
-2. Use NumPy backend: `backend='numpy'`
+2. Use the CPU device: `device='cpu'`
 3. Process in batches if applicable
 4. Use systems with more GPU memory
 
@@ -291,14 +295,14 @@ from nltools.algorithms.backends import Backend
 X = np.random.randn(300, 100000)
 y = np.random.randn(300)
 
-# Time NumPy
+# Time NumPy (algorithm-layer solvers use the internal `parallel=` name)
 start = time.time()
-coef_np = ridge_svd(X, y, backend='numpy')
+coef_np = ridge_svd(X, y, parallel='cpu')
 time_np = time.time() - start
 
 # Time PyTorch
 start = time.time()
-coef_torch = ridge_svd(X, y, backend='torch')
+coef_torch = ridge_svd(X, y, parallel='gpu')
 time_torch = time.time() - start
 
 print(f"NumPy: {time_np:.3f}s")
@@ -309,10 +313,10 @@ print(f"Speedup: {time_np/time_torch:.1f}x")
 ### 2. Use Auto-Selection for Portability
 ```python
 # Good: Works optimally everywhere
-result = ridge_cv(X, y, backend='auto')
+result = ridge_cv(X, y, parallel='auto')
 
 # Less portable: Assumes GPU available
-result = ridge_cv(X, y, backend='torch')
+result = ridge_cv(X, y, parallel='gpu')
 ```
 
 ### 3. Batch GPU Operations
@@ -320,10 +324,10 @@ result = ridge_cv(X, y, backend='torch')
 # Good: Minimize host-device transfers
 backend = Backend('torch')
 X_device = backend.to_device(X)
-results = [ridge_svd(X_device, y, backend=backend) for y in y_list]
+results = [ridge_svd(X_device, y, parallel=backend) for y in y_list]
 
 # Less efficient: Transfer on every call
-results = [ridge_svd(X, y, backend='torch') for y in y_list]
+results = [ridge_svd(X, y, parallel='gpu') for y in y_list]
 ```
 
 ### 4. Monitor Resource Usage

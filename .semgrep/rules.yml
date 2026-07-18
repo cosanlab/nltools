@@ -98,6 +98,40 @@ rules:
         - "nltools/pipelines/"
         - "scripts/"
 
+  # ── Device selection must be `device: str = "cpu"` ─────────────────────────
+  # Banning `backend=` as a *kwarg* (device selector) closes the gap the ridge
+  # audit surfaced: `parallel=` was already banned, but `backend=` slipped
+  # through and leaked to the Ridge / bootstrap facades. Canonical is
+  # `device: str = "cpu"` ('cpu'/'gpu'/'auto'); the facade translates to the
+  # algorithm layer's `parallel=`. This bans the kwarg only — a `'backend'`
+  # result-dict KEY (a reported backend name like 'torch-cuda') and the fitted
+  # `backend_` attribute are distinct concepts and are NOT matched here.
+  # The Backend class + resolve_backend live under algorithms/ (path-excluded),
+  # so their legitimate `backend=` constructor param is unaffected.
+  - id: banned-kwarg-device
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Public API uses `backend=` to select a compute device. The canonical name
+      is `device: str = "cpu"` ('cpu'/'gpu'/'auto'; CLAUDE.md API table). The
+      algorithm layer may keep `backend=`/`parallel=`, but the public facade must
+      expose `device` and translate at the boundary. (A reported backend *name*
+      under a result-dict key or the `backend_` fitted attribute is fine.)
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., backend=$X, ...): ..."
+          - pattern: "def $F(..., backend: $T = $X, ...): ..."
+          - pattern: "def $F(..., backend: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "nltools/algorithms/"
+        - "nltools/pipelines/"
+        - "scripts/"
+
   # ── Permutation count must be `n_permute` (bootstrap: `n_samples`) ──────────
   - id: banned-kwarg-permutation-count
     languages: [python]

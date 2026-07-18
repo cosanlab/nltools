@@ -13,7 +13,7 @@ def bootstrap(
     save_boots=False,
     percentiles=(2.5, 97.5),
     X_test=None,
-    backend=None,
+    device="cpu",
     max_gpu_memory_gb=4.0,
     n_jobs=-1,
     random_state=None,
@@ -36,10 +36,10 @@ def bootstrap(
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
         X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
                Required if stat='predict'
-        backend: (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch'
-            (GPU if available), or 'auto' (auto-select). Ignored for simple stats.
-            Default: None
-        max_gpu_memory_gb: (float) Maximum GPU memory to use when backend is 'torch'
+        device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
+            'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if
+            present, else CPU). Ignored for simple stats. Default: 'cpu'
+        max_gpu_memory_gb: (float) Maximum GPU memory to use when device is 'gpu'
             or 'auto'. Default: 4.0
         n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
         random_state: (int, optional) Random seed for reproducibility
@@ -66,7 +66,7 @@ def bootstrap(
 
         >>> # Ridge weights bootstrap (GPU accelerated)
         >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='weights', n_samples=1000, backend='torch')
+        >>> boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
         >>> assert 'mean' in boot
         >>> assert isinstance(boot['mean'], BrainData)
 
@@ -112,19 +112,23 @@ def bootstrap(
         auto_select_backend,
     )
 
-    # Determine if we should use GPU
+    # Determine if we should use GPU. `device='gpu'` demands a real GPU;
+    # `device='auto'` uses one when present and silently falls back to CPU.
+    # The resolved `Backend` instance is threaded to the algorithm-layer GPU
+    # helpers (which keep the internal `backend=` name).
     use_gpu = False
-    if backend == "torch" or backend == "auto":
+    backend = None
+    if device in ("gpu", "auto"):
         if check_gpu_available()[0]:
             use_gpu = True
-            if backend == "auto":
+            if device == "auto":
                 backend = auto_select_backend(bd.data.shape[0], bd.data.shape[1])
             else:
                 backend = Backend("torch")
-        elif backend == "torch":
+        elif device == "gpu":
             raise ValueError(
-                "GPU backend requested but GPU not available. "
-                "Use backend=None or backend='auto' for CPU fallback."
+                "GPU requested via device='gpu' but no GPU is available. "
+                "Use device='cpu' or device='auto' for CPU fallback."
             )
 
     # Get data as numpy array

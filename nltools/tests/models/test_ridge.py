@@ -173,12 +173,13 @@ class TestRidgeBackend:
         X = np.random.randn(100, 50).astype(np.float32)
         y = np.random.randn(100).astype(np.float32)
 
-        model = Ridge(alpha=1.0, backend="numpy")
+        model = Ridge(alpha=1.0, device="cpu")
         model.fit(X, y)
         y_pred = model.predict(X)
 
         assert y_pred.shape == (100,)
         assert model.backend_.name == "numpy"
+        assert repr(model) == "Ridge(alpha=1.0, device='cpu')"
 
     @pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
     def test_torch_backend(self):
@@ -187,7 +188,7 @@ class TestRidgeBackend:
         X = np.random.randn(100, 50).astype(np.float32)
         y = np.random.randn(100).astype(np.float32)
 
-        model = Ridge(alpha=1.0, backend="torch")
+        model = Ridge(alpha=1.0, device="gpu")
         model.fit(X, y)
         y_pred = model.predict(X)
 
@@ -201,28 +202,33 @@ class TestRidgeBackend:
         X = np.random.randn(100, 50).astype(np.float32)
         y = np.random.randn(100).astype(np.float32)
 
-        model_cpu = Ridge(alpha=1.0, backend="numpy")
+        model_cpu = Ridge(alpha=1.0, device="cpu")
         model_cpu.fit(X, y)
         pred_cpu = model_cpu.predict(X)
 
-        model_gpu = Ridge(alpha=1.0, backend="torch")
+        model_gpu = Ridge(alpha=1.0, device="gpu")
         model_gpu.fit(X, y)
         pred_gpu = model_gpu.predict(X)
 
         np.testing.assert_allclose(pred_gpu, pred_cpu, rtol=1e-3, atol=1e-6)
 
-    def test_auto_backend(self):
-        """Ridge should select backend automatically."""
+    def test_auto_device(self):
+        """Ridge should select the compute device automatically."""
         np.random.seed(42)
         X = np.random.randn(100, 50).astype(np.float32)
         y = np.random.randn(100).astype(np.float32)
 
-        model = Ridge(alpha=1.0, backend="auto")
+        model = Ridge(alpha=1.0, device="auto")
         model.fit(X, y)
         y_pred = model.predict(X)
 
         assert y_pred.shape == (100,)
         assert model.backend_.name in ["numpy", "torch-cpu", "torch-cuda", "torch-mps"]
+
+    def test_backend_kwarg_rejected(self):
+        """The retired `backend=` alias is no longer a valid Ridge kwarg."""
+        with pytest.raises(TypeError):
+            Ridge(alpha=1.0, backend="numpy")
 
 
 class TestRidgeFitIntercept:

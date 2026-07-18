@@ -282,7 +282,8 @@ def circle_shift(
 
 def phase_randomize(
     data: np.ndarray,
-    backend: str | None = None,
+    *,
+    device: str | None = "cpu",
     random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """FFT-based phase randomization for time-series data.
@@ -294,7 +295,9 @@ def phase_randomize(
     Args:
         data: Input time-series, shape ``(n_timepoints,)`` or
             ``(n_timepoints, n_features)``.
-        backend: Computation backend (``None`` for NumPy, ``'torch'`` for GPU).
+        device: Compute device — ``'cpu'`` (NumPy FFT, float64; default),
+            ``'gpu'`` (PyTorch FFT on CUDA/MPS, float32), or ``'auto'`` (use a
+            GPU if present, else CPU).
         random_state: Seed for reproducibility.
 
     Returns:
@@ -303,6 +306,16 @@ def phase_randomize(
     from nltools.algorithms.inference.timeseries import (
         phase_randomize as _engine,
     )
+
+    # Translate the facade `device` selector to the engine's `backend` name.
+    if device in ("gpu",):
+        backend = "torch"
+    elif device == "auto":
+        from nltools.algorithms.backends import check_gpu_available
+
+        backend = "torch" if check_gpu_available()[0] else "numpy"
+    else:  # 'cpu' / None
+        backend = "numpy"
 
     return _engine(data, backend=backend, random_state=random_state)
 
