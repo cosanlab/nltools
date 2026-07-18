@@ -47,6 +47,7 @@ dev = [
     "jupyter-book>=2.1.4",
     "jupytext>=1.18.1",
     "marimo>=0.23",
+    "mystmd>=1.10.1",
     "networkx>=3.5",
     "poethepoet>=0.40.0",
     "pytest>=8.4",
