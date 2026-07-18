@@ -3,7 +3,12 @@
 This guide provides detailed performance benchmarks and recommendations for choosing between CPU (NumPy) and GPU (PyTorch) backends in nltools algorithms.
 
 :::{note} Benchmark provenance
-The numbers below were generated on the environment reported under [Benchmark Results](#benchmark-results) (macOS 23.6.0, Python 3.10.17, NumPy 2.2.6, PyTorch 2.9.0). They are **not** re-run on each doc build and no timestamped result artifact is committed alongside them, so treat them as indicative rather than current — absolute timings will drift with hardware and library versions. Regenerate with `uv run python benchmarks/benchmarking.py` to get numbers for your own setup.
+The numbers under [Benchmark Results](#benchmark-results) are generated from a
+committed artifact (`benchmarks/results/*.parquet` + an `.env.json` recording the
+host, Python, NumPy, and PyTorch versions) by `uv run python -m benchmarks.build_docs`.
+They are **not** re-run on each doc build, so treat them as indicative rather than
+current — absolute timings drift with hardware and library versions. Regenerate for
+your own setup with `uv run python -m benchmarks.run` (see `benchmarks/benchmarking-guide.md`).
 :::
 
 ---
@@ -47,82 +52,107 @@ nltools provides two computational backends:
 (benchmark-results)=
 ## Benchmark Results
 
-**System:** macOS 23.6.0 (Apple Silicon, arm64)
-**Python:** 3.10.17 | **NumPy:** 2.2.6 | **PyTorch:** 2.9.0
-**GPU:** Apple Metal Performance Shaders (MPS)
+:::{note} Scale & scope
+These reference numbers are from an Apple-Silicon **MPS** run at whole-brain-ish
+3mm scale (~20k voxels; `BrainCollection` over 20–50 on-disk subjects). At this
+size ridge is dominated by parallel-pool setup, so CPU≈MPS — the large GPU wins
+land at 2mm (~230k voxels) and on CUDA, which is a separate run on a GPU host
+(the harness produces one artifact per host). The standout here is the
+`BrainCollection` **memory** story and CPU parallel scaling, below.
+:::
 
-### Problem Size Scaling
+<!-- BENCH:START -->
+:::{note} Auto-generated
+This block is generated from `benchmarks/results/*.parquet` by `uv run python -m benchmarks.build_docs`. Do not edit by hand.
+:::
 
-How performance scales with dataset dimensions:
+**Host:** Eshin-M3-Air  
+**Platform:** macOS-15.7.4-arm64-arm-64bit  
+**Python:** 3.11.14  
+**NumPy:** 2.4.4  
+**PyTorch:** 2.11.0  
+**nltools:** 0.5.1  
+**GPU:** MPS
 
-| Dataset Size | NumPy (CPU) | PyTorch (MPS) | Speedup |
-|--------------|-------------|---------------|---------|
-| Small: 100×1k | 0.006s | 0.014s | **0.4x** (slower) |
-| Medium: 300×50k | 1.44s | 0.67s | **2.2x** |
-| Large: 1000×200k | 43.0s | 30.0s | **1.4x** |
+### GPU speedup
 
-**Key findings:**
-- **Small problems**: GPU overhead outweighs benefits (NumPy **2.5x faster**)
-- **Medium problems**: GPU provides significant speedup (**2.2x faster**)
-- **Large problems**: GPU reduces compute time by 30% (**1.4x faster**)
+#### ridge — GPU speedup (mps)
 
-### Cross-Validation Impact
+| Condition | CPU | MPS | Speedup |
+|---|--:|--:|--:|
+| ridge_cv[1000x20000f100] | 15.15 s | 14.71 s | **1.03×** |
+| ridge_cv[500x20000f50] | 12.96 s | 12.89 s | **1.01×** |
 
-Effect of cross-validation on computation time:
+#### inference — GPU speedup (mps)
 
-| Dataset | NumPy (no CV) | NumPy (5-fold) | PyTorch (5-fold) | CV Speedup |
-|---------|---------------|----------------|------------------|------------|
-| 300×100k | 3.42s | 141.0s | 85.5s | **1.6x** |
+| Condition | CPU | MPS | Speedup |
+|---|--:|--:|--:|
+| correlation[perm=1000] | 76.7 ms | 68.3 ms | **1.12×** |
+| correlation[perm=3000] | 110.6 ms | 193.6 ms | **0.57×** |
+| one_sample[perm=1000] | 310.9 ms | 179.3 ms | **1.73×** |
+| one_sample[perm=3000] | 576.3 ms | 438.5 ms | **1.31×** |
+| two_sample[perm=1000] | 264.9 ms | 173.3 ms | **1.53×** |
+| two_sample[perm=3000] | 397.9 ms | 501.5 ms | **0.79×** |
 
-**Key findings:**
-- Cross-validation multiplies computation by ~40x (not just 5x due to hyperparameter search)
-- GPU becomes **1.6x faster** with CV due to increased workload
-- Auto-selection correctly chooses GPU when `cv > 1` for medium/large datasets
+### Memory scaling
 
-### Auto Backend Selection Validation
+#### collection — peak RSS: lazy vs in-memory `.mean()`
 
-Testing the `auto_select_backend()` heuristics:
+| N subjects | lazy | in-memory |
+|---:|--:|--:|
+| 20 | 0.0 MB | 29.9 MB |
+| 50 | 0.0 MB | 103.3 MB |
 
-| Scenario | Problem Size | CV Folds | Expected | Actual | Correct? |
-|----------|--------------|----------|----------|--------|----------|
-| Small, no CV | 100×1k | 1 | numpy | numpy | ✅ |
-| Medium with CV | 300×100k | 5 | torch | torch-mps | ✅ |
-| Large | 1000×200k | 1 | torch | torch-mps | ✅ |
+### Full results
 
-**Key findings:**
-- Auto-selection **correctly identifies optimal backend** for all scenarios
-- Conservative thresholds prevent GPU overhead for borderline cases
-- Falls back gracefully when GPU unavailable
+#### ridge
 
----
+| Condition | Device | Time | Peak RSS | GPU mem |
+|---|---|--:|--:|--:|
+| BrainData.fit[ridge,200x20000] | cpu | 239.0 ms | 0.1 MB | - |
+| ridge_cv[1000x20000f100] | cpu | 15.15 s | 0.0 MB | - |
+| ridge_cv[1000x20000f100] | mps | 14.71 s | 0.2 MB | - |
+| ridge_cv[500x20000f50] | cpu | 12.96 s | 0.0 MB | - |
+| ridge_cv[500x20000f50] | mps | 12.89 s | 0.1 MB | - |
 
-## Real-World Use Cases
+#### predict
 
-Performance on realistic fMRI analysis workflows:
+| Condition | Device | Time | Peak RSS | GPU mem |
+|---|---|--:|--:|--:|
+| roi[50parcels] | cpu | 1.27 s | 0.5 MB | - |
+| searchlight[60x400] | cpu | 452.0 ms | 0.2 MB | - |
+| whole_brain[200x20000] | cpu | 630.2 ms | 0.0 MB | - |
 
-### Whole-Brain Prediction (300 samples × 100k voxels, 5-fold CV)
+#### inference
 
-**Scenario**: Predicting behavioral outcomes from whole-brain activity
+| Condition | Device | Time | Peak RSS | GPU mem |
+|---|---|--:|--:|--:|
+| correlation[perm=1000] | cpu | 76.7 ms | 0.0 MB | - |
+| correlation[perm=1000] | mps | 68.3 ms | 0.0 MB | - |
+| correlation[perm=3000] | cpu | 110.6 ms | 0.0 MB | - |
+| correlation[perm=3000] | mps | 193.6 ms | 0.2 MB | - |
+| one_sample[perm=1000] | cpu | 310.9 ms | 0.6 MB | - |
+| one_sample[perm=1000] | mps | 179.3 ms | 0.0 MB | - |
+| one_sample[perm=3000] | cpu | 576.3 ms | 16.6 MB | - |
+| one_sample[perm=3000] | mps | 438.5 ms | 0.0 MB | - |
+| two_sample[perm=1000] | cpu | 264.9 ms | 1.5 MB | - |
+| two_sample[perm=1000] | mps | 173.3 ms | 1.9 MB | - |
+| two_sample[perm=3000] | cpu | 397.9 ms | 10.9 MB | - |
+| two_sample[perm=3000] | mps | 501.5 ms | 2.9 MB | - |
 
-| Backend | Time | Memory | Use Case |
-|---------|------|--------|----------|
-| NumPy | 119.5s | ~444 MB | Prototyping, limited compute |
-| PyTorch (MPS) | 88.4s | ~131 MB | Production, iterative analysis |
-| **Speedup** | **1.4x** | - | GPU recommended |
+#### collection
 
-**Recommendation**: GPU provides **31-second speedup** (26% faster) for this common workflow.
-
-### Searchlight Preparation (1000 samples × 200k features)
-
-**Scenario**: Computing ridge regression for searchlight seeds
-
-| Backend | Time | Memory | Use Case |
-|---------|------|--------|----------|
-| NumPy | 47.2s | - | Small ROI, limited iterations |
-| PyTorch (MPS) | 26.9s | ~820 MB | Whole-brain, many iterations |
-| **Speedup** | **1.8x** | - | GPU strongly recommended |
-
-**Recommendation**: GPU enables **44% faster** whole-brain searchlight computation.
+| Condition | Device | Time | Peak RSS | GPU mem |
+|---|---|--:|--:|--:|
+| apply[standardize,N=20,n_jobs=-1] | cpu | 520.4 ms | 36.0 MB | - |
+| apply[standardize,N=20,n_jobs=1] | cpu | 1.72 s | 12.9 MB | - |
+| apply[standardize,N=50,n_jobs=-1] | cpu | 1.30 s | 28.1 MB | - |
+| apply[standardize,N=50,n_jobs=1] | cpu | 4.29 s | 69.5 MB | - |
+| mean[in_memory,N=20] | cpu | 2.84 s | 29.9 MB | - |
+| mean[in_memory,N=50] | cpu | 7.13 s | 103.3 MB | - |
+| mean[lazy,N=20] | cpu | 2.86 s | 0.0 MB | - |
+| mean[lazy,N=50] | cpu | 7.19 s | 0.0 MB | - |
+<!-- BENCH:END -->
 
 ---
 

@@ -114,6 +114,8 @@ markers = [
     "integration: End-to-end pipelines on real data (skipped by default)",
     "gpu: Tests requiring CUDA/GPU hardware",
 ]
+# Only collect the package suite; benchmarks/ carries its own scripts + smoke tests.
+testpaths = ["nltools/tests"]
 # Default: fast unit tests only. Skip slow + integration for iteration speed.
 # Run slow tests:        pytest -m slow
 # Run integration tests: pytest -m integration
