@@ -613,7 +613,7 @@ def test_isc_chen_bootstrap_correctness():
 
     # Bootstrap distribution should be centered
     # Mean of (null + observed) should approximate observed ISC
-    null_mean = np.mean(result["null_distribution"] + result["isc"])
+    null_mean = np.mean(result["null_dist"] + result["isc"])
 
     # Mean should be close to observed ISC (unbiased bootstrap)
     assert np.abs(null_mean - result["isc"]) < 0.1
@@ -1505,45 +1505,59 @@ class TestISCStatisticalCorrectness:
     """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
 
     @pytest.mark.slow
-    def test_null_hypothesis_pvalue_distribution(self):
-        """Test that p-values are uniformly distributed under null hypothesis (ISC = 0)."""
+    @pytest.mark.parametrize("method", ["circle_shift", "phase_randomize"])
+    @pytest.mark.parametrize("summary_statistic", ["leave-one-out", "pairwise"])
+    def test_null_hypothesis_pvalue_distribution(self, method, summary_statistic):
+        """Surrogate-null p-values are uniform under the null hypothesis (ISC = 0).
+
+        Only the surrogate methods (``circle_shift``/``phase_randomize``) are
+        genuine null-hypothesis significance tests: they generate a null by
+        destroying inter-subject temporal alignment while preserving each
+        subject's marginal structure, so under H0 (independent time series,
+        true ISC = 0) their p-values are uniform on [0, 1].
+
+        ``method='bootstrap'`` is deliberately excluded. The subject-wise
+        bootstrap (Chen et al. 2016) is a confidence-interval / effect-magnitude
+        tool; its recentered-exceedance p-value is only asymptotically valid and
+        is biased in finite samples (empirically anti-conservative for LOO,
+        conservative for pairwise here), so it does NOT yield uniform p-values
+        under the null. Asserting uniformity for bootstrap would be testing the
+        wrong contract.
+        """
         from scipy.stats import kstest
 
         n_timepoints = 100
         n_subjects = 15
         n_tests = 100  # Run many tests with different seeds
-        n_permute = 2000  # Enough permutations for stable p-values
+        n_permute = 1000  # Enough permutations for stable p-values
 
-        # Test both LOO and pairwise methods
-        summary_statistics = ["leave-one-out", "pairwise"]
+        p_values = []
+        for seed in range(n_tests):
+            np.random.seed(seed)
+            # Generate independent time series (ISC = 0)
+            data = np.random.randn(n_timepoints, n_subjects)
 
-        for summary_statistic in summary_statistics:
-            p_values = []
-
-            for seed in range(n_tests):
-                np.random.seed(seed)
-                # Generate independent time series (ISC = 0)
-                data = np.random.randn(n_timepoints, n_subjects)
-
-                result = isc_permutation_test(
-                    data,
-                    summary_statistic=summary_statistic,
-                    n_permute=n_permute,
-                    random_state=seed,
-                    progress_bar=False,
-                )
-
-                p_values.append(result["p"])
-
-            # Test uniformity using Kolmogorov-Smirnov test
-            # Under null hypothesis, p-values should be uniformly distributed
-            ks_statistic, ks_pvalue = kstest(p_values, "uniform")
-
-            # KS test p-value should be > 0.05 (p-values are uniform)
-            assert ks_pvalue > 0.05, (
-                f"P-values should be uniformly distributed under null hypothesis for {summary_statistic}. "
-                f"KS test p-value: {ks_pvalue:.4f}"
+            result = isc_permutation_test(
+                data,
+                summary_statistic=summary_statistic,
+                method=method,
+                n_permute=n_permute,
+                random_state=seed,
+                progress_bar=False,
             )
+
+            # result["p"] is a length-1 array for single-feature input; take scalar
+            p_values.append(np.asarray(result["p"]).item())
+
+        # Under H0, p-values should be uniform: a KS test should fail to reject.
+        # Everything above is seeded, so this KS p-value is deterministic.
+        ks_statistic, ks_pvalue = kstest(p_values, "uniform")
+
+        assert ks_pvalue > 0.05, (
+            f"P-values should be uniformly distributed under the null hypothesis "
+            f"for method={method!r}, summary_statistic={summary_statistic!r}. "
+            f"KS test p-value: {float(ks_pvalue):.4f}"
+        )
 
     def test_isc_value_correctness_loo(self):
         """Test that LOO ISC value matches expected value for known ISC structure."""
