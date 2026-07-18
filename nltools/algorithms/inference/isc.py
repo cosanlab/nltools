@@ -190,7 +190,9 @@ def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
             - (n_observations, n_subjects): Single feature
             - (n_observations, n_subjects, n_voxels): Voxel-wise
         backend: Computation backend. Use 'torch' for GPU acceleration on
-            voxel-wise data. Defaults to 'numpy'.
+            voxel-wise data. The 'torch' backend supports **only**
+            `sim_metric='correlation'` and raises `ValueError` for any other
+            metric. Defaults to 'numpy'.
         sim_metric: Similarity metric. Options:
             - 'correlation': Pearson correlation (uses optimized np.corrcoef)
             - 'spearman': Spearman rank correlation (rank-transform then np.corrcoef)
@@ -1577,7 +1579,9 @@ def isc_permutation_test(
             Defaults to 'cpu'.
         n_jobs: Number of CPU cores for parallelization (-1 = all cores).
             Only used when parallel='cpu'. Defaults to -1.
-        max_gpu_memory_gb: GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.
+        max_gpu_memory_gb: Accepted for API symmetry with the other permutation
+            tests, but the ISC GPU path currently loads all voxels in one batch
+            and does not chunk by this budget. Defaults to 4.
         random_state: Random seed for reproducibility.
 
     Returns:
@@ -1658,7 +1662,18 @@ def isc_permutation_test(
         compute_backend = "torch"
         bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
 
-    # Input validation
+    # Input validation: GPU pairwise ISC only implements correlation. Fail fast
+    # on the contradictory combo rather than deep inside the compute call, and
+    # match the sibling isc_group_permutation_test (which also rejects it).
+    if (
+        parallel == "gpu"
+        and summary_statistic == "pairwise"
+        and sim_metric != "correlation"
+    ):
+        raise ValueError(
+            f"GPU pairwise ISC only supports sim_metric='correlation', got "
+            f"{sim_metric!r}. Use parallel='cpu' for other similarity metrics."
+        )
 
     # Phase 1: Compute ISC (run once)
     if summary_statistic == "leave-one-out":
@@ -1675,9 +1690,11 @@ def isc_permutation_test(
             raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
 
     else:  # pairwise
-        # Compute pairwise correlation matrix (condensed form)
+        # Compute pairwise correlation matrix (condensed form). Honor the
+        # resolved backend so parallel='gpu' actually engages the GPU for the
+        # observed pairwise computation (was hardcoded to numpy — a silent no-op).
         pairwise_condensed = _compute_pairwise_isc(
-            data, backend="numpy", sim_metric=sim_metric
+            data, backend=compute_backend, sim_metric=sim_metric
         )
         n_subjects = data.shape[1]
 
@@ -1775,7 +1792,7 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
                 if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
@@ -1783,7 +1800,7 @@ def isc_permutation_test(
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend="numpy", sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, sim_metric=sim_metric
                 )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
@@ -1822,7 +1839,7 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
                 if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
@@ -1830,7 +1847,7 @@ def isc_permutation_test(
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend="numpy", sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, sim_metric=sim_metric
                 )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)

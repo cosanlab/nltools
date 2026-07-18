@@ -493,7 +493,7 @@ def test_isc_gpu_matches_cpu():
     result_cpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -502,7 +502,7 @@ def test_isc_gpu_matches_cpu():
     result_gpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -639,7 +639,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -649,7 +649,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -663,43 +663,46 @@ def test_isc_gpu_speedup_loo():
 
 
 @pytest.mark.slow
-def test_isc_gpu_speedup_pairwise():
-    """GPU provides speedup for voxel-wise pairwise computation."""
-    torch = pytest.importorskip("torch")
+def test_isc_gpu_pairwise_matches_cpu():
+    """GPU pairwise ISC matches CPU within float32 tolerance.
 
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
+    Correctness guard for the GPU pairwise wiring (parallel='gpu' now routes the
+    observed pairwise compute to the torch backend). Unlike LOO, pairwise GPU
+    does NOT provide a meaningful speedup for the full permutation test: the
+    default-method bootstrap resamples the precomputed condensed matrix on CPU
+    (only the single observed compute is on GPU), and `_compute_pairwise_isc_gpu`
+    extracts the per-voxel upper triangles in a CPU squareform loop. So this
+    asserts numerical agreement, not speed. (Previously asserted >3× speedup —
+    an assumption that never ran on the Apple-Silicon dev box and does not hold.)
+    """
+    _ = pytest.importorskip("torch")
 
     np.random.seed(42)
-    data = np.random.randn(100, 50, 5000)  # 5K voxels
+    data = np.random.randn(80, 20, 200)  # (n_obs, n_subjects, n_voxels)
 
-    import time
-
-    start = time.time()
-    _ = isc_permutation_test(
+    result_cpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
+        random_state=42,
         progress_bar=False,
     )
-    cpu_time = time.time() - start
-
-    start = time.time()
-    _ = isc_permutation_test(
+    result_gpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
+        random_state=42,
         progress_bar=False,
     )
-    gpu_time = time.time() - start
 
-    speedup = cpu_time / gpu_time
-    print(f"\nPairwise GPU Speedup: {speedup:.1f}×")
-
-    # Expect at least 3× speedup
-    assert speedup > 3.0
+    np.testing.assert_allclose(
+        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-6
+    )
 
 
 # =============================================================================
@@ -916,30 +919,66 @@ def test_isc_sim_metric_affects_pairwise_computation():
     assert isinstance(result_cosine["isc"], (float, np.floating))
 
 
-def test_isc_sim_metric_gpu_warning():
-    """GPU backend warns when sim_metric != 'correlation'."""
-    torch = pytest.importorskip("torch")
+def test_isc_gpu_pairwise_non_correlation_raises():
+    """GPU pairwise ISC only implements sim_metric='correlation'.
 
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
+    Requesting `parallel='gpu'` with a non-correlation metric is contradictory —
+    the GPU pairwise kernel computes correlation only. It must fail fast with a
+    clear ValueError (consistent with the sibling `isc_group_permutation_test`),
+    not silently ignore the GPU request. The guard runs before any torch call,
+    so no GPU/CUDA is needed to exercise it.
 
+    (Pre-0.6.0 this asserted a UserWarning + CPU fallback via the removed
+    `backend=` kwarg; that behavior no longer exists.)
+    """
     np.random.seed(42)
-    data = np.random.randn(100, 10, 50)  # Voxel-wise for GPU
+    data = np.random.randn(100, 10, 50)  # (n_obs, n_subjects, n_voxels)
 
-    # Should warn when using non-correlation metric with GPU
-    with pytest.warns(UserWarning, match="sim_metric.*not supported with GPU"):
-        result = isc_permutation_test(
+    with pytest.raises(ValueError, match="only supports sim_metric='correlation'"):
+        isc_permutation_test(
             data,
             summary_statistic="pairwise",
             sim_metric="euclidean",
-            backend="torch",
-            n_permute=100,
+            parallel="gpu",
+            n_permute=10,
             random_state=42,
             progress_bar=False,
         )
 
-    # Should still complete (falls back to CPU)
-    assert "isc" in result
+
+def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
+    """parallel='gpu' must route the pairwise compute to the torch backend.
+
+    Regression guard for the wiring fix: the observed pairwise ISC previously
+    hardcoded `backend='numpy'` even under `parallel='gpu'`, making the GPU a
+    silent no-op. Spy on `_compute_pairwise_isc` and assert it's invoked with
+    `backend='torch'`. No CUDA needed — torch falls back to its CPU device.
+    """
+    pytest.importorskip("torch")
+    from nltools.algorithms.inference import isc as isc_mod
+
+    seen = []
+    orig = isc_mod._compute_pairwise_isc
+
+    def _spy(data, backend="numpy", sim_metric="correlation"):
+        seen.append(backend)
+        return orig(data, backend=backend, sim_metric=sim_metric)
+
+    monkeypatch.setattr(isc_mod, "_compute_pairwise_isc", _spy)
+
+    np.random.seed(0)
+    data = np.random.randn(60, 8, 40)
+    isc_mod.isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        parallel="gpu",
+        n_permute=10,
+        random_state=0,
+        progress_bar=False,
+    )
+    assert "torch" in seen, (
+        f"pairwise parallel='gpu' used backends {seen}; expected 'torch'."
+    )
 
 
 def test_isc_exclude_self_corr_pairwise_only():
