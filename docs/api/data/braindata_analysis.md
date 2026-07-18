@@ -19,7 +19,7 @@ Name | Description
 [`detrend_data`](#data-braindata-analysis-detrend-data) | Remove the linear trend from each voxel.
 [`distance`](#data-braindata-analysis-distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#data-braindata-analysis-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter_data`](#data-braindata-analysis-filter-data) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`filter_data`](#data-braindata-analysis-filter-data) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes_data`](#data-braindata-analysis-find-spikes-data) | Identify spikes from time-series data; see `find_spikes`.
 [`multivariate_similarity`](#data-braindata-analysis-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
 [`r_to_z`](#data-braindata-analysis-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
@@ -273,7 +273,7 @@ Type | Description
 filter_data(bd, *, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
-Apply butterworth filter to data. Wraps nilearn.signal.clean.
+Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
 Does not default to detrending and standardizing like nilearn
 implementation, but this can be overridden using kwargs.
@@ -333,7 +333,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | dictionary of regression statistics in BrainData instances {'beta','t','p','df','residual'}
+`out` |  | dictionary of raw regression statistics (numpy arrays/scalars, not BrainData) with keys {'beta','t','p','df','sigma','residual'}
 
 (data-braindata-analysis-r-to-z)=
 #### `r_to_z`

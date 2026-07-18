@@ -112,7 +112,7 @@ Name | Type | Description
 
 ```pycon
 >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
->>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
+>>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 18 samples)
 ```
 
 (data-design-matrix-transforms-zscore)=

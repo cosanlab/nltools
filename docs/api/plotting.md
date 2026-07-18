@@ -196,8 +196,8 @@ High resolution for publication:
 >>> fig.savefig('flatmap.pdf', dpi=300)
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - Data is projected from MNI152 space to fsaverage surface space.
   Small alignment differences are expected at boundaries.
@@ -659,8 +659,8 @@ High resolution for publication:
 >>> fig.savefig('flatmap.pdf', dpi=300)
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - Data is projected from MNI152 space to fsaverage surface space.
   Small alignment differences are expected at boundaries.

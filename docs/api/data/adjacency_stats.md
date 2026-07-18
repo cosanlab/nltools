@@ -147,13 +147,13 @@ Name | Type | Description | Default
 `return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
+`project` | <code>[bool](#bool)</code> | If True and adj has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | dict or list: Correlation result dict with keys 'r' and 'p', or a list of such dicts when adj contains multiple matrices.
- | BrainData when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict | list | BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' (or a list of such dicts when adj contains multiple matrices); a `BrainData` when `project=True`, holding the per-matrix correlations projected back into brain space via the spatial_scale.
 
 (data-adjacency-stats-stats-label-distance)=
 #### `stats_label_distance`

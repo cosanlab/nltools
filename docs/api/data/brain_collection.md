@@ -10,7 +10,7 @@ Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
 Constructed via ``__init__`` (explicit lists) or one of the classmethod
 factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
 
-See ``SPEC.md`` §"Public API" for the full contract; key invariants:
+See ``docs/development/execution-model.md`` for the full contract; key invariants:
   - Per-subject ops route through ``execution._apply`` and return a
     lightweight clone via ``self._clone(...)`` over the same cache root.
   - Path-backed by default after parallel ops; ``cache='auto'`` follows
@@ -44,7 +44,7 @@ Name | Type | Description
 `metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
 `n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
 `n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
 ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
@@ -82,8 +82,8 @@ Name | Description
 [`min`](#data-brain-collection-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-brain-collection-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-brain-collection-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-brain-collection-predict) | Two distinct paths, dispatched by argument:
-[`read`](#data-brain-collection-read) | Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+[`predict`](#data-brain-collection-predict) | Predict via one of two paths, dispatched by argument.
+[`read`](#data-brain-collection-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-brain-collection-resample) | Resample every subject's image to a target space in parallel.
 [`smooth`](#data-brain-collection-smooth) | Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
 [`standardize`](#data-brain-collection-standardize) | Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
@@ -282,7 +282,7 @@ from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: s
 
 Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
 
-Full design and edge cases: SPEC §"``from_bids`` — concrete design".
+Full design and edge cases: see ``docs/development/execution-model.md``.
 
 (data-brain-collection-from-glob)=
 #### `from_glob`
@@ -486,7 +486,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
 
 **Returns:**
@@ -516,7 +516,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
 
 **Returns:**
@@ -533,7 +533,7 @@ Type | Description
 predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Two distinct paths, dispatched by argument:
+Predict via one of two paths, dispatched by argument.
 
   ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
   ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
@@ -549,7 +549,14 @@ Two distinct paths, dispatched by argument:
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+Read a collection previously saved by ``write()``.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Does not recover from cache subdirs in v0.6.0.
+
+</details>
 
 (data-brain-collection-resample)=
 #### `resample`

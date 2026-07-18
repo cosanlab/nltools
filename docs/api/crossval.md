@@ -1,10 +1,7 @@
 (crossval-cross-validation)=
 ## `cross_validation`
 
-Provide cross-validation data classes.
-
-Scikit-learn compatible classes for performing various
-types of cross-validation
+Scikit-learn-compatible cross-validation data classes.
 
 **Classes:**
 
@@ -29,11 +26,10 @@ Stratify continuous targets across K-fold cross-validation.
 
 Unlike the scikit-learn equivalent, this iterator stratifies continuous data.
 
-Provides train/test indices to split data in train test sets. Split
-dataset into k consecutive folds while ensuring that same subject is
-held out within each fold.  Each fold is then used a validation set
-once while the k - 1 remaining folds form the training set.
-Extension of KFold from scikit-learn cross_validation model
+Provides train/test indices to split data in train test sets. Samples are
+ordered by their continuous target ``y`` and dealt round-robin into k folds
+so each fold spans the full range of ``y``. Each fold is then used as a
+validation set once while the k - 1 remaining folds form the training set.
 
 **Parameters:**
 

@@ -75,8 +75,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` | <code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column names.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
 yield NaN correlations.

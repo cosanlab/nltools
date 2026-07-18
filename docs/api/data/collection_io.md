@@ -40,7 +40,7 @@ Returns a dict with keys: ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
 ``sample_masks``, ``metadata_rows``, ``TRs``. Each list is the same length
 (one entry per BOLD file). Anything missing for an item is ``None``.
 
-Errors per SPEC §"Edge cases / errors":
+Errors (see ``docs/development/execution-model.md``):
   - Missing TR with ``TR='infer'``: raise.
   - ``task=None`` + ``pair_events=True``: caller silently downgrades.
   - fmriprep absent + ``confounds_strategy`` set: raise.
@@ -61,7 +61,7 @@ events/confounds DataFrames. Per-item ``DesignMatrix`` is built from the
 events DataFrame; convolution / drift / confound merging is **not** done
 here — that's the user's ``transform_designs`` step.
 
-See SPEC §"``from_bids`` — concrete design" for edge cases.
+See ``docs/development/execution-model.md`` for edge cases.
 
 (data-collection-io-from-glob)=
 #### `from_glob`

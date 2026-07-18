@@ -139,7 +139,7 @@ Threshold the fitted simulation.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `threshold` | <code>[float](#float)</code> | threshold to apply to simulation | *required*
-`threshhold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
+`threshold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
 
 #### `Simulator`
 
@@ -289,7 +289,7 @@ Generate a set of spheres in the brain mask space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `radius` |  | vector of radius.  Will create multiple spheres if len(radius) > 1 | *required*
-`centers` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+`center` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
 (simulator-normal-noise)=
 ###### `normal_noise`

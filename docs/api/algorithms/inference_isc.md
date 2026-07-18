@@ -92,13 +92,17 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
-Examples:
+**Examples:**
+
+```pycon
 >>> # Single-feature ISC group comparison
 >>> group1 = np.random.randn(100, 10)  # 10 subjects
 >>> group2 = np.random.randn(100, 10)
 >>> result = isc_group_permutation_test(group1, group2, n_permute=1000)
 >>> print(f"ISC difference: {result['isc_group_difference']:.3f}, p: {result['p']:.3f}")
+```
 
+```pycon
 >>> # Voxel-wise ISC group comparison with GPU acceleration
 >>> group1_voxels = np.random.randn(100, 10, 5000)  # 5K voxels
 >>> group2_voxels = np.random.randn(100, 10, 5000)
@@ -110,6 +114,7 @@ Examples:
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+```
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -161,7 +166,7 @@ Name | Type | Description | Default
 `sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
 `parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4. | <code>4.0</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Accepted for API symmetry with the other permutation tests, but the ISC GPU path currently loads all voxels in one batch and does not chunk by this budget. Defaults to 4. | <code>4.0</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
@@ -175,12 +180,16 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
-Examples:
+**Examples:**
+
+```pycon
 >>> # Single-feature ISC
 >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
 >>> result = isc_permutation_test(data, n_permute=1000)
 >>> print(f"ISC: {result['isc']:.3f}, p: {result['p']:.3f}")
+```
 
+```pycon
 >>> # Voxel-wise ISC with GPU acceleration
 >>> data_voxels = np.random.randn(100, 50, 5000)  # 5K voxels
 >>> result = isc_permutation_test(
@@ -190,11 +199,14 @@ Examples:
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
+```
 
+```pycon
 >>> # Compare LOO vs pairwise
 >>> result_loo = isc_permutation_test(data, summary_statistic='leave-one-out')
 >>> result_pair = isc_permutation_test(data, summary_statistic='pairwise')
 >>> print(f"LOO: {result_loo['isc']:.3f}, Pairwise: {result_pair['isc']:.3f}")
+```
 
 <details class="references" open markdown="1">
 <summary>References</summary>

@@ -189,8 +189,8 @@ Type | Description
 >>> write(dm, "design_matrix.h5")  # HDF5 format
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 TSV format is recommended for BIDS compatibility.
 HDF5 format preserves metadata (sampling_freq, convolved, confounds).

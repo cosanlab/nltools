@@ -1,8 +1,6 @@
 (utils-utils)=
 ## `utils`
 
-Provide cross-cutting utilities for nltools.
-
 Cross-cutting utilities used across the nltools package.
 
 **Methods:**

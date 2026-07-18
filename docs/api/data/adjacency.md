@@ -19,6 +19,7 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | (SpatialScale, optional) spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space | <code>None</code>
 
 **Attributes:**
 
@@ -320,9 +321,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`f` |  | violin plot handles
+Type | Description
+---- | -----------
+ | None
 
 (data-adjacency-plot-mds)=
 #### `plot_mds`
@@ -416,7 +417,9 @@ The default uses Spearman correlation and a permutation test.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
+`plot` |  | (bool) plot the two stacked adjacency matrices being compared. Default False | <code>False</code>
 `method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
+`n_permute` |  | (int) number of permutations for the p-value. Default 5000 | <code>5000</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
 `include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
@@ -430,7 +433,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict or list or BrainData: A correlation result dict with keys 'r' and 'p' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
 
 (data-adjacency-social-relations-model)=
 #### `social_relations_model`
@@ -441,11 +444,11 @@ social_relations_model(summarize_results = True, nan_replace = True)
 
 Estimate the social relations model from a matrix for a round-robin design.
 
-X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+$$X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}$$
 
-where X_{ij} is the score for person i rating person j, m is the group mean,
-\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
+$\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
+is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
 This model is primarily concerned with partioning the variance of the various effects.
 

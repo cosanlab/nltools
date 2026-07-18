@@ -99,7 +99,7 @@ write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, si
 
 Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 
-Layout (see SPEC §"HDF5 fit bundle"):
+Layout (see ``docs/development/execution-model.md``):
     /betas, /residuals, /sigma2, /r2, /X, /mask
     attrs: affine, regressor_names, scale, standardize, model_kwargs,
            nltools_version, bundle_schema_version,

@@ -130,8 +130,8 @@ Type | Description
 <code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
 <code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Resolution is memoized per ``relpath`` for the session — repeated
 calls (e.g. every default-mask ``BrainData`` construction) return the
@@ -233,8 +233,8 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with `fetch_resource`.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Hits the HF API once per session (cached). Not available in
 Pyodide — browser-deployed code should know its paths in advance
@@ -609,8 +609,8 @@ Type | Description
 <code>[str](#str)</code> | straight into anything that takes a NIfTI path — nilearn plotting
 <code>[str](#str)</code> | and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Resolution is memoized per ``relpath`` for the session — repeated
 calls (e.g. every default-mask ``BrainData`` construction) return the
@@ -645,8 +645,8 @@ Type | Description
 ---- | -----------
 <code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with `fetch_resource`.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Hits the HF API once per session (cached). Not available in
 Pyodide — browser-deployed code should know its paths in advance

@@ -13,7 +13,7 @@ Name | Description
 [`compute_contrasts`](#data-braindata-modeling-compute-contrasts) | Compute contrasts from a fitted GLM.
 [`compute_ridge_cv`](#data-braindata-modeling-compute-ridge-cv) | Held-out CV scores under a fixed Ridge α.
 [`fit`](#data-braindata-modeling-fit) | Fit a model to brain imaging data.
-[`fit_glm`](#data-braindata-modeling-fit-glm) | Fit GLM model and extract results (same logic as current regress()).
+[`fit_glm`](#data-braindata-modeling-fit-glm) | Fit GLM model and extract results.
 [`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
 [`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
@@ -75,8 +75,8 @@ Type | Description
 >>> group_effects.append(res["beta"])
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
 - Column names must match design matrix columns exactly (case-sensitive).
@@ -91,7 +91,7 @@ Type | Description
 #### `compute_ridge_cv`
 
 ```python
-compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto')
+compute_ridge_cv(bd, X, cv, alpha = None, device = 'cpu')
 ```
 
 Held-out CV scores under a fixed Ridge α.
@@ -108,7 +108,7 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#ndarray)</code> | Training features, shape (n_samples, n_features). | *required*
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | *required*
 `alpha` | <code>[float](#float)</code> | Fixed regularization strength. If None, extracted from ``bd.model_.alpha``. | <code>None</code>
-`backend` | <code>[str](#str)</code> | Computational backend ('numpy', 'torch', 'auto'). Default: 'auto' | <code>'auto'</code>
+`device` | <code>[str](#str)</code> | Compute device ('cpu'/'gpu'/'auto'). Default: 'cpu'. | <code>'cpu'</code>
 
 **Returns:**
 
@@ -120,7 +120,7 @@ Name | Type | Description
 #### `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -137,6 +137,9 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix, shape (n_samples, n_features) - For GLM: Design matrix with regressors (n_samples must match bd.data) - For Ridge: Feature matrix for prediction (n_samples must match bd.data) | <code>None</code>
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only): - int: Number of folds for k-fold CV (returns CV scores) - 'auto': Triggers alpha selection via CV (implies alpha='auto') - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True)) - None: No CV (default, backward compatible) | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Forwarded to ``Ridge`` and the CV evaluation. Ignored for ``model='glm'``. | <code>'cpu'</code>
+`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to ``Ridge``. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Ridge only. If True, fit an intercept term. Redundant (and warned against) when the data is already centered via ``scale`` or ``standardize``. Forwarded to ``Ridge``. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return a Fit dataclass with the results. In this case bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``bd.model_`` and ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so that ``predict()`` / ``compute_contrasts()`` still work off bd. Successive ``inplace=False`` fits therefore overwrite the model used by a later ``bd.predict()``. | <code>True</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. - If None: Uses bd.verbose (default) - If True: Shows progress bar for long-running operations - If False: No progress bar | <code>None</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel ``mean_scaling`` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). ``'auto'`` resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with ``standardize='zscore'`` (a warning is raised for that combination). Applied before ``standardize``. | <code>'auto'</code>
@@ -145,7 +148,7 @@ Name | Type | Description | Default
 `design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
 `design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
 `design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
-`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, backend, random_state - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
+`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, random_state (device is a named param above) - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
 
 **Attributes:**
 
@@ -200,7 +203,7 @@ Type | Description
 fit_glm(bd, X)
 ```
 
-Fit GLM model and extract results (same logic as current regress()).
+Fit GLM model and extract results.
 
 **Parameters:**
 
@@ -221,7 +224,7 @@ glm_r2, and design_matrix on bd.
 #### `fit_ridge`
 
 ```python
-fit_ridge(bd, X, cv = None, **kwargs)
+fit_ridge(bd, X, cv = None, device = 'cpu', **kwargs)
 ```
 
 Fit Ridge model and extract results.
@@ -233,7 +236,8 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `X` | <code>[ndarray](#ndarray)</code> | Training features | *required*
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification | <code>None</code>
-`**kwargs` | <code>[dict](#dict)</code> | Additional arguments for CV (alpha, alphas, backend, etc.) | <code>{}</code>
+`device` | <code>str, default='cpu'</code> | Compute device ('cpu'/'gpu'/'auto') for the held-out CV evaluation, forwarded to ``compute_ridge_cv``. | <code>'cpu'</code>
+`**kwargs` | <code>[dict](#dict)</code> | Additional arguments for CV (alpha, etc.) | <code>{}</code>
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -338,7 +342,7 @@ Name | Type | Description | Default
 `permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
 `tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
 
@@ -346,7 +350,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images (effect-size estimate). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching   nilearn's ``output_type='z_score'``. Useful for thresholding   on z at small df where t tails are heavier than normal. - ``"p"``: p-value (parametric, or permutation-based when   ``permutation=True``).
+ | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images minus ``popmean``   (i.e. ``mean(images) - popmean``, an effect-size estimate;   equals the raw voxelwise mean only when ``popmean=0``). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching   nilearn's ``output_type='z_score'``. Useful for thresholding   on z at small df where t tails are heavier than normal. - ``"p"``: p-value (parametric, or permutation-based when   ``permutation=True``).
  | The effect size is always returned alongside the inferential maps so
  | group-level code never has to compute the mean separately.
 

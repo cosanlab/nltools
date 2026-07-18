@@ -202,8 +202,8 @@ SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
 
 </details>
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Cache location: ~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz
 

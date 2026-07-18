@@ -107,6 +107,7 @@ Name | Type | Description | Default
 `with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
 `curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature. Default: 0.5. | <code>0.5</code>
 `curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature. Default: 0.5. | <code>0.5</code>
+`transparency` | <code>[str](#str) or [float](#float) or [array](#array) - [like](#like)</code> | Transparency/alpha applied to the surface data. ``'auto'`` (default) lets the renderer choose. | <code>'auto'</code>
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>

@@ -54,6 +54,7 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | (SpatialScale, optional) spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space | <code>None</code>
 
 **Attributes:**
 
@@ -355,9 +356,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`f` |  | violin plot handles
+Type | Description
+---- | -----------
+ | None
 
 (data-plot-mds)=
 ###### `plot_mds`
@@ -451,7 +452,9 @@ The default uses Spearman correlation and a permutation test.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
+`plot` |  | (bool) plot the two stacked adjacency matrices being compared. Default False | <code>False</code>
 `method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
+`n_permute` |  | (int) number of permutations for the p-value. Default 5000 | <code>5000</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
 `include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
@@ -465,7 +468,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict or list or BrainData: A correlation result dict with keys 'r' and 'p' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
 
 (data-social-relations-model)=
 ###### `social_relations_model`
@@ -476,11 +479,11 @@ social_relations_model(summarize_results = True, nan_replace = True)
 
 Estimate the social relations model from a matrix for a round-robin design.
 
-X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+$$X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}$$
 
-where X_{ij} is the score for person i rating person j, m is the group mean,
-\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
+$\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
+is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
 This model is primarily concerned with partioning the variance of the various effects.
 
@@ -746,7 +749,7 @@ Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
 Constructed via ``__init__`` (explicit lists) or one of the classmethod
 factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
 
-See ``SPEC.md`` §"Public API" for the full contract; key invariants:
+See ``docs/development/execution-model.md`` for the full contract; key invariants:
   - Per-subject ops route through ``execution._apply`` and return a
     lightweight clone via ``self._clone(...)`` over the same cache root.
   - Path-backed by default after parallel ops; ``cache='auto'`` follows
@@ -780,7 +783,7 @@ Name | Type | Description
 `metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
 `n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
 `n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
 ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
@@ -818,8 +821,8 @@ Name | Description
 [`min`](#data-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-predict) | Two distinct paths, dispatched by argument:
-[`read`](#data-read) | Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+[`predict`](#data-predict) | Predict via one of two paths, dispatched by argument.
+[`read`](#data-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-resample) | Resample every subject's image to a target space in parallel.
 [`smooth`](#data-smooth) | Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
 [`standardize`](#data-standardize) | Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
@@ -1018,7 +1021,7 @@ from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: s
 
 Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
 
-Full design and edge cases: SPEC §"``from_bids`` — concrete design".
+Full design and edge cases: see ``docs/development/execution-model.md``.
 
 (data-from-glob)=
 ###### `from_glob`
@@ -1220,7 +1223,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
 
 **Returns:**
@@ -1250,7 +1253,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
 
 **Returns:**
@@ -1267,7 +1270,7 @@ Type | Description
 predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Two distinct paths, dispatched by argument:
+Predict via one of two paths, dispatched by argument.
 
   ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
   ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
@@ -1283,7 +1286,14 @@ Two distinct paths, dispatched by argument:
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+Read a collection previously saved by ``write()``.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Does not recover from cache subdirs in v0.6.0.
+
+</details>
 
 (data-resample)=
 ###### `resample`
@@ -1519,6 +1529,10 @@ Name | Type | Description | Default
 `data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from - numpy array (1D ``(n_voxels,)`` for a single image or 2D   ``(n_images, n_voxels)`` for a stack). The ``mask`` argument   is required and must define the same number of in-mask voxels. | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
+`Y` |  | Optional per-image target/label values, stored as a polars DataFrame (``.Y``). Default None. If ``data`` is a BrainData with a ``.Y``, that value is inherited when this is None. | <code>None</code>
+`X` |  | Optional per-image design/feature values, stored as a polars DataFrame (``.X``). Default None. If ``data`` is a BrainData with an ``.X``, that value is inherited when this is None. | <code>None</code>
+`h5_compression` | <code>str, default='gzip'</code> | Compression filter used when writing HDF5 (``.h5``/``.hdf5``) output. | <code>'gzip'</code>
+`verbose` | <code>bool, default=False</code> | Emit informational messages during loading and other operations. | <code>False</code>
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
@@ -1550,13 +1564,13 @@ Name | Description
 [`bootstrap`](#data-bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_report`](#data-cluster-report) | Generate a cluster report with anatomical labels.
 [`compute_contrasts`](#data-compute-contrasts) | Compute contrasts from fitted GLM results.
-[`copy`](#data-copy) | Create a deep copy of a BrainData instance.
+[`copy`](#data-copy) | Create a copy of a BrainData instance (data deep-copied).
 [`create_empty`](#data-create-empty) | Create a copy of BrainData with empty data array.
 [`decompose`](#data-decompose) | Decompose BrainData object.
 [`detrend`](#data-detrend) | Remove linear trend from each voxel.
 [`distance`](#data-distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#data-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter`](#data-filter) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`filter`](#data-filter) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes`](#data-find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#data-fit) | Fit a model to brain imaging data.
 [`iplot`](#data-iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
@@ -1635,7 +1649,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | BrainData instance to append. | *required*
 `ignore_attrs` |  | (bool) If True, skip concatenation of X and Y     attributes. Useful when appending images where .X or .Y     have different column counts. Default False. | <code>False</code>
-`kwargs` |  | Optional arguments passed to pandas concat for X/Y. | <code>{}</code>
+`kwargs` |  | Currently ignored. X/Y are concatenated with polars'     ``pl.concat(..., how="vertical_relaxed")``, which takes no     caller-supplied options. | <code>{}</code>
 
 **Returns:**
 
@@ -1692,7 +1706,7 @@ Name | Type | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -1709,8 +1723,8 @@ Name | Type | Description | Default
 `save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
@@ -1795,8 +1809,8 @@ Type | Description
 ... })
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
 - Column names must match design matrix columns exactly (case-sensitive)
@@ -1810,16 +1824,20 @@ Type | Description
 copy()
 ```
 
-Create a deep copy of a BrainData instance.
+Create a copy of a BrainData instance (data deep-copied).
 
-All attributes including data, fitted models, and results are deep copied.
-Use this when you need a complete independent copy.
+The `data` array and most attributes are deep-copied, so mutating the
+copy's data leaves the original untouched. **Fitted state is shared, not
+copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
+`masker` are held by reference (this avoids pickling unpicklable Backend
+objects — see `__deepcopy__`). Mutating those on the copy mutates the
+original; refit the copy if you need independent fit results.
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | Deep copied instance
+`BrainData` |  | A copy with independent data but shared fitted state.
 
 (data-create-empty)=
 ###### `create_empty`
@@ -1942,7 +1960,7 @@ Type | Description
 filter(*, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
-Apply butterworth filter to data. Wraps nilearn.signal.clean.
+Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1995,7 +2013,7 @@ Type | Description
 ###### `fit`
 
 ```python
-fit(model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -2011,6 +2029,7 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Ignored when ``model='glm'``. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
@@ -2029,8 +2048,8 @@ Type | Description
 ---- | -----------
  | BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 After ``model="glm"``, the following per-regressor BrainData
 attributes are populated — one map per design-matrix column:
@@ -3816,7 +3835,7 @@ Threshold the fitted simulation.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `threshold` | <code>[float](#float)</code> | threshold to apply to simulation | *required*
-`threshhold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
+`threshold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
 
 (data-simulator)=
 #### `Simulator`
@@ -3967,7 +3986,7 @@ Generate a set of spheres in the brain mask space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `radius` |  | vector of radius.  Will create multiple spheres if len(radius) > 1 | *required*
-`centers` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+`center` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
 (data-normal-noise)=
 ###### `normal_noise`
@@ -4071,6 +4090,7 @@ Name | Type | Description | Default
 `matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
 `Y` |  | Pandas DataFrame of training labels | <code>None</code>
 `labels` |  | (list) optional node labels | <code>None</code>
+`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | (SpatialScale, optional) spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space | <code>None</code>
 
 **Attributes:**
 
@@ -4395,7 +4415,9 @@ Name | Type | Description | Default
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[Adjacency](#nltools.data.adjacency.Adjacency) or [array](#array)</code> | Adjacency data, or 1-d array same size as self.data | *required*
+`plot` |  | (bool) plot the two stacked adjacency matrices being compared. Default False | <code>False</code>
 `method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
+`n_permute` |  | (int) number of permutations for the p-value. Default 5000 | <code>5000</code>
 `metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
 `include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
@@ -4624,9 +4646,9 @@ Can pass in any sns.heatmap argument
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`f` |  | violin plot handles
+Type | Description
+---- | -----------
+ | None
 
 ######## `plot_mds`
 
@@ -4656,7 +4678,7 @@ The default uses Spearman correlation and a permutation test.
 
 Type | Description
 ---- | -----------
- | dict or list or BrainData: A correlation result dict with keys 'r' and 'p' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
 
 ######## `social_relations_model`
 
@@ -4666,11 +4688,11 @@ social_relations_model(summarize_results = True, nan_replace = True)
 
 Estimate the social relations model from a matrix for a round-robin design.
 
-X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+$$X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}$$
 
-where X_{ij} is the score for person i rating person j, m is the group mean,
-\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
+$\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
+is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
 This model is primarily concerned with partioning the variance of the various effects.
 
@@ -5059,11 +5081,11 @@ social_relations_model(adj, summarize_results = True, nan_replace = True)
 
 Estimate the social relations model from a matrix for a round-robin design.
 
-X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+$$X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}$$
 
-where X_{ij} is the score for person i rating person j, m is the group mean,
-\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
+$\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
+is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
 This model is primarily concerned with partioning the variance of the various effects.
 
@@ -5322,6 +5344,7 @@ Name | Type | Description | Default
 `return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
+`project` | <code>[bool](#bool)</code> | If True and adj has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Parameters:**
 
@@ -5420,8 +5443,7 @@ The default uses Spearman correlation and a permutation test.
 
 Type | Description
 ---- | -----------
- | dict or list: Correlation result dict with keys 'r' and 'p', or a list of such dicts when adj contains multiple matrices.
- | BrainData when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict | list | BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' (or a list of such dicts when adj contains multiple matrices); a `BrainData` when `project=True`, holding the per-matrix correlations projected back into brain space via the spatial_scale.
 
 ######## `stats_label_distance`
 
@@ -6349,10 +6371,6 @@ Type | Description
 
 Represent brain image data with the BrainData class.
 
-# NeuroLearn Brain Data
-
-Classes to represent brain image data.
-
 **Classes:**
 
 Name | Description
@@ -6396,6 +6414,10 @@ Name | Type | Description | Default
 `data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from - numpy array (1D ``(n_voxels,)`` for a single image or 2D   ``(n_images, n_voxels)`` for a stack). The ``mask`` argument   is required and must define the same number of in-mask voxels. | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
+`Y` |  | Optional per-image target/label values, stored as a polars DataFrame (``.Y``). Default None. If ``data`` is a BrainData with a ``.Y``, that value is inherited when this is None. | <code>None</code>
+`X` |  | Optional per-image design/feature values, stored as a polars DataFrame (``.X``). Default None. If ``data`` is a BrainData with an ``.X``, that value is inherited when this is None. | <code>None</code>
+`h5_compression` | <code>str, default='gzip'</code> | Compression filter used when writing HDF5 (``.h5``/``.hdf5``) output. | <code>'gzip'</code>
+`verbose` | <code>bool, default=False</code> | Emit informational messages during loading and other operations. | <code>False</code>
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
@@ -6429,13 +6451,13 @@ Name | Description
 [`bootstrap`](#data-bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_report`](#data-cluster-report) | Generate a cluster report with anatomical labels.
 [`compute_contrasts`](#data-compute-contrasts) | Compute contrasts from fitted GLM results.
-[`copy`](#data-copy) | Create a deep copy of a BrainData instance.
+[`copy`](#data-copy) | Create a copy of a BrainData instance (data deep-copied).
 [`create_empty`](#data-create-empty) | Create a copy of BrainData with empty data array.
 [`decompose`](#data-decompose) | Decompose BrainData object.
 [`detrend`](#data-detrend) | Remove linear trend from each voxel.
 [`distance`](#data-distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#data-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter`](#data-filter) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`filter`](#data-filter) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes`](#data-find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#data-fit) | Fit a model to brain imaging data.
 [`iplot`](#data-iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
@@ -6568,7 +6590,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | BrainData instance to append. | *required*
 `ignore_attrs` |  | (bool) If True, skip concatenation of X and Y     attributes. Useful when appending images where .X or .Y     have different column counts. Default False. | <code>False</code>
-`kwargs` |  | Optional arguments passed to pandas concat for X/Y. | <code>{}</code>
+`kwargs` |  | Currently ignored. X/Y are concatenated with polars'     ``pl.concat(..., how="vertical_relaxed")``, which takes no     caller-supplied options. | <code>{}</code>
 
 **Parameters:**
 
@@ -6592,8 +6614,8 @@ Name | Type | Description | Default
 `save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
@@ -6673,6 +6695,7 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Ignored when ``model='glm'``. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
@@ -6979,7 +7002,7 @@ Name | Type | Description
 ######## `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -7049,8 +7072,8 @@ Type | Description
 ... })
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
 - Column names must match design matrix columns exactly (case-sensitive)
@@ -7064,16 +7087,20 @@ Type | Description
 copy()
 ```
 
-Create a deep copy of a BrainData instance.
+Create a copy of a BrainData instance (data deep-copied).
 
-All attributes including data, fitted models, and results are deep copied.
-Use this when you need a complete independent copy.
+The `data` array and most attributes are deep-copied, so mutating the
+copy's data leaves the original untouched. **Fitted state is shared, not
+copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
+`masker` are held by reference (this avoids pickling unpicklable Backend
+objects — see `__deepcopy__`). Mutating those on the copy mutates the
+original; refit the copy if you need independent fit results.
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | Deep copied instance
+`BrainData` |  | A copy with independent data but shared fitted state.
 
 ######## `create_empty`
 
@@ -7160,7 +7187,7 @@ Type | Description
 filter(*, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
-Apply butterworth filter to data. Wraps nilearn.signal.clean.
+Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -7194,7 +7221,7 @@ Type | Description
 ######## `fit`
 
 ```python
-fit(model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -7209,8 +7236,8 @@ Type | Description
 ---- | -----------
  | BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 After ``model="glm"``, the following per-regressor BrainData
 attributes are populated — one map per design-matrix column:
@@ -7769,7 +7796,7 @@ Name | Description
 `detrend_data` | Remove the linear trend from each voxel.
 [`distance`](#data-distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#data-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-`filter_data` | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+`filter_data` | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 `find_spikes_data` | Identify spikes from time-series data; see `find_spikes`.
 [`multivariate_similarity`](#data-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
 [`r_to_z`](#data-r-to-z) | Apply Fisher's r-to-z transformation to each data element.
@@ -8112,7 +8139,7 @@ Type | Description
 filter_data(bd, *, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
-Apply butterworth filter to data. Wraps nilearn.signal.clean.
+Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
 Does not default to detrending and standardizing like nilearn
 implementation, but this can be overridden using kwargs.
@@ -8152,7 +8179,7 @@ The predictors may be other BrainData instances or nibabel images.
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | dictionary of regression statistics in BrainData instances {'beta','t','p','df','residual'}
+`out` |  | dictionary of raw regression statistics (numpy arrays/scalars, not BrainData) with keys {'beta','t','p','df','sigma','residual'}
 
 ######## `r_to_z`
 
@@ -8363,7 +8390,7 @@ Bootstrap functions extracted from BrainData methods.
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#data-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`bootstrap`](#data-bootstrap) | Bootstrap statistics with CPU parallelization or GPU acceleration.
 `convert_bootstrap_results_to_brain_data` | Convert bootstrap results dictionary to BrainData format.
 
 
@@ -8373,13 +8400,15 @@ Name | Description
 ###### `bootstrap`
 
 ```python
-bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
-Bootstrap statistics using efficient online algorithms.
+Bootstrap statistics with CPU parallelization or GPU acceleration.
 
-Uses memory-efficient bootstrap infrastructure with CPU parallelization or GPU acceleration.
 Supports simple aggregation statistics and fitted model statistics (Ridge).
+Note: the CPU path pre-generates all resample indices and collects every
+per-sample result, so peak memory grows with ``n_samples`` (it is not a
+streaming/online accumulator).
 
 **Parameters:**
 
@@ -8391,8 +8420,8 @@ Name | Type | Description | Default
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
-`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. Default: None | <code>None</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
@@ -8409,7 +8438,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or dict: - For simple stats: Returns BrainData with bootstrap mean - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',   'ci_lower', 'ci_upper' (all BrainData objects) - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
+ | BrainData or dict: - For simple stats (with ``save_boots=False``): Returns BrainData   with bootstrap mean - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',   'ci_lower', 'ci_upper' (all BrainData objects) - If ``save_boots=True``: Returns a dict (even for simple stats)   with an added 'samples' key holding all samples as a raw ndarray
 
 **Examples:**
 
@@ -8430,7 +8459,7 @@ Type | Description
 ```pycon
 >>> # Ridge weights bootstrap (GPU accelerated)
 >>> brain.fit(X=dm, model='ridge', alpha=1.0)
->>> boot = brain.bootstrap(stat='weights', n_samples=1000, backend='torch')
+>>> boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
 >>> assert 'mean' in boot
 >>> assert isinstance(boot['mean'], BrainData)
 ```
@@ -8484,7 +8513,7 @@ BrainData objects or dicts of BrainData objects.
 
 Type | Description
 ---- | -----------
- | BrainData or dict: - If return_dict=False and save_boots=False: Returns BrainData with mean - Otherwise: Returns dict with BrainData objects for each statistic
+ | BrainData or dict: - If return_dict=False and save_boots=False: Returns BrainData with mean - Otherwise: Returns dict with BrainData objects for each statistic.   The optional 'samples' entry (when save_boots=True) is a raw   ndarray, not a BrainData.
 
 (data-cache)=
 ###### `cache`
@@ -9193,7 +9222,7 @@ Name | Description
 [`compute_contrasts`](#data-compute-contrasts) | Compute contrasts from a fitted GLM.
 `compute_ridge_cv` | Held-out CV scores under a fixed Ridge α.
 [`fit`](#data-fit) | Fit a model to brain imaging data.
-`fit_glm` | Fit GLM model and extract results (same logic as current regress()).
+`fit_glm` | Fit GLM model and extract results.
 `fit_ridge` | Fit Ridge model and extract results.
 `parse_contrast_string` | Parse a contrast string into a numeric contrast vector.
 `resolve_preprocessing_defaults` | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
@@ -9238,7 +9267,7 @@ Name | Type | Description | Default
 `X` | <code>[ndarray](#ndarray)</code> | Training features, shape (n_samples, n_features). | *required*
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification. | *required*
 `alpha` | <code>[float](#float)</code> | Fixed regularization strength. If None, extracted from ``bd.model_.alpha``. | <code>None</code>
-`backend` | <code>[str](#str)</code> | Computational backend ('numpy', 'torch', 'auto'). Default: 'auto' | <code>'auto'</code>
+`device` | <code>[str](#str)</code> | Compute device ('cpu'/'gpu'/'auto'). Default: 'cpu'. | <code>'cpu'</code>
 
 **Parameters:**
 
@@ -9248,6 +9277,9 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix, shape (n_samples, n_features) - For GLM: Design matrix with regressors (n_samples must match bd.data) - For Ridge: Feature matrix for prediction (n_samples must match bd.data) | <code>None</code>
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification (Ridge only): - int: Number of folds for k-fold CV (returns CV scores) - 'auto': Triggers alpha selection via CV (implies alpha='auto') - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True)) - None: No CV (default, backward compatible) | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Forwarded to ``Ridge`` and the CV evaluation. Ignored for ``model='glm'``. | <code>'cpu'</code>
+`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to ``Ridge``. | <code>True</code>
+`fit_intercept` | <code>bool, default=False</code> | Ridge only. If True, fit an intercept term. Redundant (and warned against) when the data is already centered via ``scale`` or ``standardize``. Forwarded to ``Ridge``. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return a Fit dataclass with the results. In this case bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``bd.model_`` and ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so that ``predict()`` / ``compute_contrasts()`` still work off bd. Successive ``inplace=False`` fits therefore overwrite the model used by a later ``bd.predict()``. | <code>True</code>
 `progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. - If None: Uses bd.verbose (default) - If True: Shows progress bar for long-running operations - If False: No progress bar | <code>None</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel ``mean_scaling`` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). ``'auto'`` resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with ``standardize='zscore'`` (a warning is raised for that combination). Applied before ``standardize``. | <code>'auto'</code>
@@ -9256,7 +9288,7 @@ Name | Type | Description | Default
 `design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
 `design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
 `design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
-`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, backend, random_state - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
+`**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, random_state (device is a named param above) - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
 
 **Parameters:**
 
@@ -9276,7 +9308,7 @@ glm_r2, and design_matrix on bd.
 ######## `fit_ridge`
 
 ```python
-fit_ridge(bd, X, cv = None, **kwargs)
+fit_ridge(bd, X, cv = None, device = 'cpu', **kwargs)
 ```
 
 Fit Ridge model and extract results.
@@ -9288,7 +9320,8 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `X` | <code>[ndarray](#ndarray)</code> | Training features | *required*
 `cv` | <code>int, 'auto', or sklearn CV splitter</code> | Cross-validation specification | <code>None</code>
-`**kwargs` | <code>[dict](#dict)</code> | Additional arguments for CV (alpha, alphas, backend, etc.) | <code>{}</code>
+`device` | <code>str, default='cpu'</code> | Compute device ('cpu'/'gpu'/'auto') for the held-out CV evaluation, forwarded to ``compute_ridge_cv``. | <code>'cpu'</code>
+`**kwargs` | <code>[dict](#dict)</code> | Additional arguments for CV (alpha, etc.) | <code>{}</code>
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -9337,7 +9370,7 @@ Name | Type | Description | Default
 `permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
 `tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
+`return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
 
@@ -9391,8 +9424,8 @@ Type | Description
 >>> group_effects.append(res["beta"])
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
 - Column names must match design matrix columns exactly (case-sensitive).
@@ -9406,7 +9439,7 @@ Type | Description
 ######## `compute_ridge_cv`
 
 ```python
-compute_ridge_cv(bd, X, cv, alpha = None, backend = 'auto')
+compute_ridge_cv(bd, X, cv, alpha = None, device = 'cpu')
 ```
 
 Held-out CV scores under a fixed Ridge α.
@@ -9424,7 +9457,7 @@ Name | Type | Description
 ######## `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -9467,7 +9500,7 @@ Type | Description
 fit_glm(bd, X)
 ```
 
-Fit GLM model and extract results (same logic as current regress()).
+Fit GLM model and extract results.
 
 **Returns:**
 
@@ -9525,7 +9558,7 @@ from ``popmean``.
 
 Type | Description
 ---- | -----------
- | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images (effect-size estimate). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching   nilearn's ``output_type='z_score'``. Useful for thresholding   on z at small df where t tails are heavier than normal. - ``"p"``: p-value (parametric, or permutation-based when   ``permutation=True``).
+ | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images minus ``popmean``   (i.e. ``mean(images) - popmean``, an effect-size estimate;   equals the raw voxelwise mean only when ``popmean=0``). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching   nilearn's ``output_type='z_score'``. Useful for thresholding   on z at small df where t tails are heavier than normal. - ``"p"``: p-value (parametric, or permutation-based when   ``permutation=True``).
  | The effect size is always returned alongside the inferential maps so
  | group-level code never has to compute the mean separately.
 
@@ -9799,8 +9832,8 @@ SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
 
 </details>
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Cache location: ~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz
 
@@ -9894,6 +9927,7 @@ Name | Type | Description | Default
 `with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
 `curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature. Default: 0.5. | <code>0.5</code>
 `curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature. Default: 0.5. | <code>0.5</code>
+`transparency` | <code>[str](#str) or [float](#float) or [array](#array) - [like](#like)</code> | Transparency/alpha applied to the surface data. ``'auto'`` (default) lets the renderer choose. | <code>'auto'</code>
 `colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
 `colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
 `figsize` | <code>[tuple](#tuple)</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
@@ -10150,7 +10184,8 @@ Return *data* as a BrainData, coercing Niimg-like inputs if needed.
 If *data* is already a BrainData, the optional *mask* is applied via
 `BrainData.apply_mask`.  Otherwise *data* is passed through
 `BrainData`, which dispatches on type (file path, list of paths,
-URL, h5, ``nib.Nifti1Image``).  Unsupported types raise ``TypeError`` from
+URL, h5, ``nib.Nifti1Image``, numpy array).  Unsupported types raise
+``TypeError`` from
 `validate_data_type`.
 
 ######## `check_brain_data_is_single`
@@ -10313,7 +10348,7 @@ Validate input data type for BrainData initialization.
 
 Name | Type | Description
 ---- | ---- | -----------
-`str` |  | Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'none').
+`str` |  | Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'array', 'none').
 
 ######## `validate_frame`
 
@@ -10694,7 +10729,7 @@ BrainCollection — multi-subject brain-data container (v0.6.0).
 
 </details>
 
-See ``SPEC.md`` for the full design contract.
+See ``docs/development/execution-model.md`` for the design contract.
 
 **Attributes:**
 
@@ -10736,7 +10771,7 @@ Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
 Constructed via ``__init__`` (explicit lists) or one of the classmethod
 factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
 
-See ``SPEC.md`` §"Public API" for the full contract; key invariants:
+See ``docs/development/execution-model.md`` for the full contract; key invariants:
   - Per-subject ops route through ``execution._apply`` and return a
     lightweight clone via ``self._clone(...)`` over the same cache root.
   - Path-backed by default after parallel ops; ``cache='auto'`` follows
@@ -10770,7 +10805,7 @@ Name | Type | Description
 `metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
 `n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
 `n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
-`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+`shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
 ``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
@@ -10810,8 +10845,8 @@ Name | Description
 [`min`](#data-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-predict) | Two distinct paths, dispatched by argument:
-[`read`](#data-read) | Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+[`predict`](#data-predict) | Predict via one of two paths, dispatched by argument.
+[`read`](#data-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-resample) | Resample every subject's image to a target space in parallel.
 [`smooth`](#data-smooth) | Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
 [`standardize`](#data-standardize) | Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
@@ -10889,7 +10924,7 @@ Voxel count from the mask. Raises if mask is unset.
 shape: tuple[int, int | None, int]
 ```
 
-``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
+Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``n_obs`` is ``None`` when any item is path-backed (loading just to
 report shape would defeat the purpose) or when items are ragged.
@@ -10977,7 +11012,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
 
 **Parameters:**
@@ -10989,7 +11024,7 @@ Name | Type | Description | Default
 `tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
 
 **Parameters:**
@@ -11183,7 +11218,7 @@ from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: s
 
 Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
 
-Full design and edge cases: SPEC §"``from_bids`` — concrete design".
+Full design and edge cases: see ``docs/development/execution-model.md``.
 
 ######## `from_glob`
 
@@ -11357,7 +11392,7 @@ Type | Description
 predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Two distinct paths, dispatched by argument:
+Predict via one of two paths, dispatched by argument.
 
   ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
   ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
@@ -11372,7 +11407,14 @@ Two distinct paths, dispatched by argument:
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Inverse of ``write()``. Does not recover from cache subdirs in v0.6.0.
+Read a collection previously saved by ``write()``.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Does not recover from cache subdirs in v0.6.0.
+
+</details>
 
 ######## `resample`
 
@@ -11940,7 +11982,7 @@ write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, si
 
 Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 
-Layout (see SPEC §"HDF5 fit bundle"):
+Layout (see ``docs/development/execution-model.md``):
     /betas, /residuals, /sigma2, /r2, /X, /mask
     attrs: affine, regressor_names, scale, standardize, model_kwargs,
            nltools_version, bundle_schema_version,
@@ -12108,7 +12150,8 @@ permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int = 2, d
 
 Sign-flipping permutation test across subjects (one-sample).
 
-Per SPEC streaming-algorithms table, sign-flipping needs all subjects
+Per the streaming-algorithms table in
+``docs/development/execution-model.md``, sign-flipping needs all subjects
 in memory by design. ``device`` is currently informational; backend
 selection is deferred to the parametric stats path.
 
@@ -12204,7 +12247,7 @@ Returns a dict with keys: ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
 ``sample_masks``, ``metadata_rows``, ``TRs``. Each list is the same length
 (one entry per BOLD file). Anything missing for an item is ``None``.
 
-Errors per SPEC §"Edge cases / errors":
+Errors (see ``docs/development/execution-model.md``):
   - Missing TR with ``TR='infer'``: raise.
   - ``task=None`` + ``pair_events=True``: caller silently downgrades.
   - fmriprep absent + ``confounds_strategy`` set: raise.
@@ -12224,7 +12267,7 @@ events/confounds DataFrames. Per-item ``DesignMatrix`` is built from the
 events DataFrame; convolution / drift / confound merging is **not** done
 here — that's the user's ``transform_designs`` step.
 
-See SPEC §"``from_bids`` — concrete design" for edge cases.
+See ``docs/development/execution-model.md`` for edge cases.
 
 ######## `from_glob`
 
@@ -15215,8 +15258,8 @@ Name | Type | Description
 ---- | ---- | -----------
 `Adjacency` | <code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column names.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
 yield NaN correlations.
@@ -15433,8 +15476,8 @@ Type | Description
 >>> write(dm, "design_matrix.h5")  # HDF5 format
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 TSV format is recommended for BIDS compatibility.
 HDF5 format preserves metadata (sampling_freq, convolved, confounds).
@@ -15709,8 +15752,8 @@ Name | Type | Description
 >>> dm_conv = convolve(dm, conv_func=kernels)
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Convolved columns are always renamed to ``<col>_c{i}``; the source
 column is dropped. ``dm.convolved`` records the post-suffix names
@@ -15838,7 +15881,7 @@ Name | Type | Description
 
 ```pycon
 >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
->>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
+>>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 18 samples)
 ```
 
 ######## `zscore`
@@ -16926,7 +16969,7 @@ Threshold the fitted simulation.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `threshold` | <code>[float](#float)</code> | threshold to apply to simulation | *required*
-`threshhold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
+`threshold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
 
 ###### `Simulator`
 
@@ -17094,7 +17137,7 @@ Generate a set of spheres in the brain mask space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `radius` |  | vector of radius.  Will create multiple spheres if len(radius) > 1 | *required*
-`centers` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
+`center` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
 ######## `normal_noise`
 
