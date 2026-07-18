@@ -1,4 +1,4 @@
-"""Regenerate the numeric tables in docs/performance.md from a results artifact.
+"""Regenerate the numeric tables in docs/performance.md from results artifacts.
 
 Reads every ``benchmarks/results/*.parquet`` (+ its ``.env.json`` provenance)
 and splices Markdown tables between the ``<!-- BENCH:START -->`` /
@@ -7,7 +7,9 @@ and splices Markdown tables between the ``<!-- BENCH:START -->`` /
 
     uv run python -m benchmarks.build_docs
 
-Tables produced:
+Each parquet is one host's run; the doc renders **one section per host** (keyed
+by the artifact stem, e.g. ``pikachu`` / ``Eshin-M3-Air-mps``) so an MPS run and
+a CUDA run coexist without their rows colliding. Per host:
 - **Speed + memory per domain** — every condition (sec, peak RSS, GPU MB).
 - **GPU speedup** (ridge, inference) — CPU vs GPU seconds paired by condition.
 - **Memory: lazy vs in-memory** (collection) — peak RSS as N subjects grows.
@@ -27,14 +29,20 @@ START = "<!-- BENCH:START -->"
 END = "<!-- BENCH:END -->"
 
 
-def _load() -> tuple[pl.DataFrame, dict]:
-    frames = [pl.read_parquet(p) for p in sorted(RESULTS_DIR.glob("*.parquet"))]
+def _load() -> tuple[pl.DataFrame, dict[str, dict]]:
+    """Return (all rows tagged with a ``host`` = artifact stem, {stem: env})."""
+    frames = [
+        pl.read_parquet(p).with_columns(pl.lit(p.stem).alias("host"))
+        for p in sorted(RESULTS_DIR.glob("*.parquet"))
+    ]
     if not frames:
         raise SystemExit(f"no parquet artifacts in {RESULTS_DIR}")
     df = pl.concat(frames, how="diagonal_relaxed")
-    env_files = sorted(RESULTS_DIR.glob("*.env.json"))
-    env = json.loads(env_files[0].read_text()) if env_files else {}
-    return df, env
+    envs = {
+        e.name.removesuffix(".env.json"): json.loads(e.read_text())
+        for e in sorted(RESULTS_DIR.glob("*.env.json"))
+    }
+    return df, envs
 
 
 def _fmt_sec(x: float | None) -> str:
@@ -87,7 +95,7 @@ def _speedup_table(df: pl.DataFrame, domain: str) -> str:
     cols = piv.columns
     if "cpu" not in cols or not ({"mps", "cuda"} & set(cols)):
         return ""
-    gpu_col = "mps" if "mps" in cols else "cuda"
+    gpu_col = "cuda" if "cuda" in cols else "mps"
     piv = piv.with_columns((pl.col("cpu") / pl.col(gpu_col)).alias("speedup")).sort(
         "name"
     )
@@ -130,27 +138,36 @@ def _collection_memory_table(df: pl.DataFrame) -> str:
     return "\n".join(lines)
 
 
+def _host_section(df_host: pl.DataFrame, host: str, env: dict) -> list[str]:
+    """One host's provenance + speedup + memory + full-results tables."""
+    title = env.get("host", host)
+    parts = [f"### {title}", "", _provenance(env), ""]
+    speedups = [t for d in ("ridge", "inference") if (t := _speedup_table(df_host, d))]
+    if speedups:
+        parts += ["**GPU speedup**", "", *_join(speedups)]
+    mem = _collection_memory_table(df_host)
+    if mem:
+        parts += ["**Memory scaling**", "", mem, ""]
+    parts += ["**Full results**", ""]
+    for domain in ("ridge", "predict", "inference", "collection"):
+        if not df_host.filter(pl.col("domain") == domain).is_empty():
+            parts += [_domain_table(df_host, domain), ""]
+    return parts
+
+
 def build_block() -> str:
-    df, env = _load()
+    df, envs = _load()
     parts = [
         ":::{note} Auto-generated",
         "This block is generated from `benchmarks/results/*.parquet` by "
-        "`uv run python -m benchmarks.build_docs`. Do not edit by hand.",
+        "`uv run python -m benchmarks.build_docs`. Do not edit by hand. "
+        "One section per host — an MPS run and a CUDA run coexist.",
         ":::",
         "",
-        _provenance(env),
-        "",
     ]
-    speedups = [t for d in ("ridge", "inference") if (t := _speedup_table(df, d))]
-    if speedups:
-        parts += ["### GPU speedup", "", *_join(speedups)]
-    mem = _collection_memory_table(df)
-    if mem:
-        parts += ["### Memory scaling", "", mem, ""]
-    parts += ["### Full results", ""]
-    for domain in ("ridge", "predict", "inference", "collection"):
-        if not df.filter(pl.col("domain") == domain).is_empty():
-            parts += [_domain_table(df, domain), ""]
+    for host in df.get_column("host").unique().sort():
+        df_host = df.filter(pl.col("host") == host)
+        parts += _host_section(df_host, host, envs.get(host, {}))
     return "\n".join(parts).rstrip() + "\n"
 
 
