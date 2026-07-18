@@ -403,7 +403,7 @@ For voxel-wise R² maps, access `glm_.r_square` directly.
 #### `Ridge`
 
 ```python
-Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, backend: str | Backend = 'numpy', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
+Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -414,10 +414,11 @@ Wraps nltools SVD-based ridge regression algorithms with
 scikit-learn compatible API. Supports single and multi-target
 regression with optional GPU acceleration via PyTorch.
 
-    Supports both regular ridge (single feature space) and banded ridge
-    (multiple feature spaces). The model automatically detects the input type:
-    - Array X: Single feature space → uses solve_ridge_cv
-    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+Supports both regular ridge (single feature space) and banded ridge
+(multiple feature spaces). The model automatically detects the input type:
+
+- Array X: Single feature space → uses solve_ridge_cv
+- List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
 
 **Parameters:**
 
@@ -428,7 +429,7 @@ Name | Type | Description | Default
 `alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
 `n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
 `concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>None</code>
-`backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
+`device` | <code>str, default='cpu'</code> | Compute device. One of ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available, else torch-CPU), or ``'auto'`` (use a GPU if one is present, otherwise NumPy). Selects *where* the SVD/CV math runs; distinct from any CPU-core parallelism. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
 `conservative` | <code>bool, default=False</code> | If True, select largest alpha within 1 std of best score (more regularization). | <code>False</code>
@@ -443,7 +444,7 @@ Name | Type | Description
 `alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 `cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
+`backend_` | <code>[Backend](#Backend)</code> | Resolved backend instance used for computation (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
 
 **Methods:**
 
@@ -464,7 +465,7 @@ Name | Description
 >>> y = np.random.randn(100)
 >>> model = Ridge(alpha=1.0)
 >>> model.fit(X, y)
-Ridge(alpha=1.0, backend='numpy')
+Ridge(alpha=1.0, device='cpu')
 >>> y_pred = model.predict(X)
 >>>
 >>> # Banded ridge with multiple feature spaces (automatic detection)
@@ -1085,7 +1086,7 @@ Name | Description
 ###### `Ridge`
 
 ```python
-Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, backend: str | Backend = 'numpy', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
+Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
 ```
 
 Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
@@ -1096,10 +1097,11 @@ Wraps nltools SVD-based ridge regression algorithms with
 scikit-learn compatible API. Supports single and multi-target
 regression with optional GPU acceleration via PyTorch.
 
-    Supports both regular ridge (single feature space) and banded ridge
-    (multiple feature spaces). The model automatically detects the input type:
-    - Array X: Single feature space → uses solve_ridge_cv
-    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+Supports both regular ridge (single feature space) and banded ridge
+(multiple feature spaces). The model automatically detects the input type:
+
+- Array X: Single feature space → uses solve_ridge_cv
+- List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
 
 **Parameters:**
 
@@ -1110,7 +1112,7 @@ Name | Type | Description | Default
 `alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
 `n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
 `concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameters for Dirichlet sampling. Only used when X is a list (multiple feature spaces). - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. | <code>None</code>
-`backend` | <code>str or Backend, default='numpy'</code> | Computational backend ('numpy', 'torch', or 'auto') | <code>'numpy'</code>
+`device` | <code>str, default='cpu'</code> | Compute device. One of ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available, else torch-CPU), or ``'auto'`` (use a GPU if one is present, otherwise NumPy). Selects *where* the SVD/CV math runs; distinct from any CPU-core parallelism. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
 `conservative` | <code>bool, default=False</code> | If True, select largest alpha within 1 std of best score (more regularization). | <code>False</code>
@@ -1125,7 +1127,7 @@ Name | Type | Description
 `alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
 `cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
 `deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Backend instance used for computation
+`backend_` | <code>[Backend](#Backend)</code> | Resolved backend instance used for computation (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
 
 **Methods:**
 
@@ -1148,7 +1150,7 @@ Name | Description
 >>> y = np.random.randn(100)
 >>> model = Ridge(alpha=1.0)
 >>> model.fit(X, y)
-Ridge(alpha=1.0, backend='numpy')
+Ridge(alpha=1.0, device='cpu')
 >>> y_pred = model.predict(X)
 >>>
 >>> # Banded ridge with multiple feature spaces (automatic detection)
@@ -1172,12 +1174,6 @@ alpha = alpha
 alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
 ```
 
-######## `backend`
-
-```python
-backend = backend
-```
-
 ######## `concentration`
 
 ```python
@@ -1194,6 +1190,12 @@ conservative = conservative
 
 ```python
 cv = cv
+```
+
+######## `device`
+
+```python
+device = device
 ```
 
 ######## `fit_intercept`

@@ -207,12 +207,20 @@ class TestBrainDataModeling:
         """Test fit() passes additional kwargs to model constructor."""
         X = np.random.randn(len(minimal_brain_data), 10)
 
-        minimal_brain_data.fit(model="ridge", alpha=1.0, backend="numpy", X=X)
-        assert minimal_brain_data.model_.backend == "numpy"
+        minimal_brain_data.fit(model="ridge", alpha=1.0, device="cpu", X=X)
+        assert minimal_brain_data.model_.device == "cpu"
 
         design_matrix = pd.DataFrame({"Intercept": np.ones(len(minimal_brain_data))})
         minimal_brain_data.fit(model="glm", noise_model="ar1", X=design_matrix)
         assert minimal_brain_data.model_.noise_model == "ar1"
+
+    def test_fit_ridge_rejects_backend_kwarg(self, minimal_brain_data):
+        """The retired `backend=`/`parallel=` device aliases are rejected at the facade."""
+        X = np.random.randn(len(minimal_brain_data), 10)
+        with pytest.raises(TypeError, match="device="):
+            minimal_brain_data.fit(model="ridge", alpha=1.0, backend="numpy", X=X)
+        with pytest.raises(TypeError, match="device="):
+            minimal_brain_data.fit(model="ridge", alpha=1.0, parallel="cpu", X=X)
 
     def test_predict_requires_fitted_model(self, minimal_brain_data):
         """Test predict() raises error if fit() not called first."""

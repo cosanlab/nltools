@@ -13,11 +13,10 @@ class KFoldStratified(_BaseKFold):
 
     Unlike the scikit-learn equivalent, this iterator stratifies continuous data.
 
-    Provides train/test indices to split data in train test sets. Split
-    dataset into k consecutive folds while ensuring that same subject is
-    held out within each fold.  Each fold is then used a validation set
-    once while the k - 1 remaining folds form the training set.
-    Extension of KFold from scikit-learn cross_validation model
+    Provides train/test indices to split data in train test sets. Samples are
+    ordered by their continuous target ``y`` and dealt round-robin into k folds
+    so each fold spans the full range of ``y``. Each fold is then used as a
+    validation set once while the k - 1 remaining folds form the training set.
 
     Args:
         n_splits: Number of folds. Must be at least 2. Defaults to 3.

@@ -586,7 +586,7 @@ def _run_roi(
     from sklearn.metrics import check_scoring
 
     if roi_mask is None:
-        raise ValueError("roi_mask required for method='roi'")
+        raise ValueError("roi_mask required for spatial_scale='roi'")
 
     if isinstance(roi_mask, (str, Path)):
         roi_mask = nib.load(roi_mask)

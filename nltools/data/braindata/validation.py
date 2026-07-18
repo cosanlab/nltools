@@ -163,7 +163,7 @@ def validate_data_type(data):
         data: Input data to validate.
 
     Returns:
-        str: Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'none').
+        str: Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'array', 'none').
 
     Raises:
         TypeError: If data type is not supported.

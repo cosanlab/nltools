@@ -18,7 +18,7 @@ Backend choice trade-offs:
 Cross-references:
     - See `nltools.algorithms.ridge.solvers.solve_ridge_cv()` for GPU-accelerated cross-validation
     - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator-based batching pattern
-    - See `nltools.algorithms.ridge.DESIGN.md` for detailed algorithm explanation
+    - See `docs/development/ridge-internals.md` for detailed algorithm explanation
 
 Inspired by the himalaya library's efficient SVD-based ridge regression approach.
 himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya

@@ -109,8 +109,8 @@ Name | Type | Description
 >>> dm_conv = convolve(dm, conv_func=kernels)
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 Convolved columns are always renamed to ``<col>_c{i}``; the source
 column is dropped. ``dm.convolved`` records the post-suffix names

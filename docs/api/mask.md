@@ -3,10 +3,6 @@
 
 Utilities for creating and manipulating brain masks.
 
-# NeuroLearn Mask Classes
-
-Classes to represent masks
-
 **Methods:**
 
 Name | Description

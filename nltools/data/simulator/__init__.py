@@ -614,7 +614,7 @@ class SimulateGrid:
 
         Args:
             threshold (float): threshold to apply to simulation
-            threshold_type (str): type of threshold to use can be a specific t-value or p-value ['t', 'p']
+            threshold_type (str): type of threshold to use can be a specific t-value, p-value, or FDR-corrected q-value ['t', 'p', 'q']
 
         Returns:
             threshold_data (np.array): thresholded data

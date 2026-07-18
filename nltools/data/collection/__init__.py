@@ -7,7 +7,7 @@ Public class is a thin facade over module-level helpers:
   - inference.py  — group reductions, ISC, align, permutation tests
   - pipeline.py   — ``BrainCollectionPipeline`` (CV pipeline; legacy API)
 
-See ``SPEC.md`` for the full design contract.
+See ``docs/development/execution-model.md`` for the design contract.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ __all__ = [
 
 
 # ---------------------------------------------------------------------------
-# BrainCollection — top-level dataclass (non-frozen; load/unload mutate)
+# BrainCollection — top-level plain class (non-frozen; load/unload mutate)
 # ---------------------------------------------------------------------------
 
 
@@ -54,7 +54,7 @@ class BrainCollection:
     Constructed via ``__init__`` (explicit lists) or one of the classmethod
     factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
 
-    See ``SPEC.md`` §"Public API" for the full contract; key invariants:
+    See ``docs/development/execution-model.md`` for the full contract; key invariants:
       - Per-subject ops route through ``execution._apply`` and return a
         lightweight clone via ``self._clone(...)`` over the same cache root.
       - Path-backed by default after parallel ops; ``cache='auto'`` follows
@@ -167,7 +167,7 @@ class BrainCollection:
     ) -> BrainCollection:
         """Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
 
-        Full design and edge cases: SPEC §"``from_bids`` — concrete design".
+        Full design and edge cases: see ``docs/development/execution-model.md``.
         """
         return io.from_bids(
             cls,
@@ -360,7 +360,7 @@ class BrainCollection:
             yield self._load_item(i)
 
     def __getitem__(self, key) -> Any:  # BrainData | BrainCollection
-        """See SPEC §"Indexing and iteration" for the full dispatch table.
+        """See ``docs/development/execution-model.md`` for the full dispatch table.
 
         bc[i]                 → BrainData
         bc[i:j] / bc[list]    → BrainCollection
@@ -1128,7 +1128,8 @@ class BrainCollection:
             tail: 1 for one-tailed, 2 for two-tailed.
             device: Backend selector (currently informational).
             return_null: If True, include the null distribution in the result.
-            n_jobs: Parallel worker count (``-1`` uses all cores).
+            n_jobs: Accepted for signature consistency but currently unused;
+                the permutation null is computed by a serial loop.
             random_state: Seed for the sign-flip RNG.
 
         Returns:
@@ -1166,7 +1167,8 @@ class BrainCollection:
             tail: 1 for one-tailed, 2 for two-tailed.
             device: Backend selector (currently informational).
             return_null: If True, include the null distribution in the result.
-            n_jobs: Parallel worker count (``-1`` uses all cores).
+            n_jobs: Accepted for signature consistency but currently unused;
+                the permutation null is computed by a serial loop.
             random_state: Seed for the shuffling RNG.
 
         Returns:

@@ -50,10 +50,10 @@ def similarity(
             correlations back into brain space. Default False.
 
     Returns:
-        dict | list | BrainData: A correlation result dict with keys 'r' and 'p'
-            (or a list of such dicts when adj contains multiple matrices); a
-            `BrainData` when `project=True`, holding the per-matrix correlations
-            projected back into brain space via the spatial_scale.
+        dict | list | BrainData: A correlation result dict with keys 'correlation',
+            'p', and 'parallel' (or a list of such dicts when adj contains multiple
+            matrices); a `BrainData` when `project=True`, holding the per-matrix
+            correlations projected back into brain space via the spatial_scale.
 
     """
     from nltools.data.adjacency import Adjacency

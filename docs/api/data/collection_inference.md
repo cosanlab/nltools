@@ -152,7 +152,8 @@ permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int = 2, d
 
 Sign-flipping permutation test across subjects (one-sample).
 
-Per SPEC streaming-algorithms table, sign-flipping needs all subjects
+Per the streaming-algorithms table in
+``docs/development/execution-model.md``, sign-flipping needs all subjects
 in memory by design. ``device`` is currently informational; backend
 selection is deferred to the parametric stats path.
 

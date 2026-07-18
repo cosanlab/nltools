@@ -151,11 +151,11 @@ social_relations_model(adj, summarize_results = True, nan_replace = True)
 
 Estimate the social relations model from a matrix for a round-robin design.
 
-X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}
+$$X_{ij} = m + \alpha_i + \beta_j + g_{ij} + \epsilon_{ijl}$$
 
-where X_{ij} is the score for person i rating person j, m is the group mean,
-\alpha_i  is person i's actor effect, \beta_j is person j's partner effect, g_{ij}
-is the relationship  effect and \epsilon_{ijl} is the error in measure l  for actor i and partner j.
+where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
+$\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
+is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
 This model is primarily concerned with partioning the variance of the various effects.
 

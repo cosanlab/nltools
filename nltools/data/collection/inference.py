@@ -350,7 +350,8 @@ def permutation_test(
 ) -> dict:
     """Sign-flipping permutation test across subjects (one-sample).
 
-    Per SPEC streaming-algorithms table, sign-flipping needs all subjects
+    Per the streaming-algorithms table in
+    ``docs/development/execution-model.md``, sign-flipping needs all subjects
     in memory by design. ``device`` is currently informational; backend
     selection is deferred to the parametric stats path.
     """
@@ -489,24 +490,18 @@ def isc(
         raise ValueError(f"method must be 'loo' or 'pairwise', got {method!r}")
 
     roi, out_mask = _resolve_roi(bc, roi_mask)
+
+    if method == "loo":
+        return _isc_loo_streaming(bc, roi, out_mask, metric)
+
+    # pairwise materializes all subjects: it needs every C(n,2) pair, so there is
+    # no single-pass streaming form (streaming would cost O(n²) subject reloads).
+    # See docs/development/execution-model.md — the streaming rewrite covers loo.
     data = np.stack(list(_iter_arrays(bc, roi)), axis=0).astype(np.float64)
     n_subj = data.shape[0]
     if n_subj < 2:
         raise ValueError("isc requires at least 2 subjects")
 
-    if method == "loo":
-        total = data.sum(axis=0)
-        corrs = np.empty((n_subj, *data.shape[2:]), dtype=np.float64)
-        for i in range(n_subj):
-            template = (total - data[i]) / (n_subj - 1)
-            corrs[i] = _pearson_per_voxel(data[i], template)
-        agg = _aggregate_corrs(corrs, metric)
-        return {
-            "isc": _make_braindata(agg, out_mask),
-            "per_subject": corrs,
-        }
-
-    # pairwise
     from itertools import combinations
 
     pairs = list(combinations(range(n_subj), 2))
@@ -517,6 +512,41 @@ def isc(
     return {
         "isc": _make_braindata(agg, out_mask),
         "pairs": pair_corrs,
+    }
+
+
+def _isc_loo_streaming(bc, roi, out_mask, metric: str) -> dict:
+    """Leave-one-out ISC in two streaming passes — never all subjects at once.
+
+    loo ISC correlates each subject with the mean of the *others*. That template
+    is ``(Σ subjects − subjectᵢ) / (n − 1)``, so the only cross-subject quantity
+    needed is the running sum. Pass 1 accumulates that sum (one ``T×V`` array);
+    pass 2 re-streams, forming each subject's template and per-voxel Pearson r.
+    Peak memory is ~2 subjects regardless of N, matching ``mean()``/``std()`` —
+    versus the old ``np.stack`` that held all N. Two full reads of path-backed
+    input is the memory-for-I/O trade the streaming design intends.
+    """
+    # Pass 1: subject sum + count (a single subject-sized accumulator).
+    total = None
+    n_subj = 0
+    for x in _iter_arrays(bc, roi):
+        x64 = x.astype(np.float64)
+        total = x64 if total is None else total + x64
+        n_subj += 1
+    if n_subj < 2:
+        raise ValueError("isc requires at least 2 subjects")
+
+    # Pass 2: leave-one-out template per subject, per-voxel correlation. `corrs`
+    # is (n_subj, n_vox) — the small per-voxel result, not the T×V timeseries.
+    corrs = np.empty((n_subj, *total.shape[1:]), dtype=np.float64)
+    for i, x in enumerate(_iter_arrays(bc, roi)):
+        x64 = x.astype(np.float64)
+        template = (total - x64) / (n_subj - 1)
+        corrs[i] = _pearson_per_voxel(x64, template)
+    agg = _aggregate_corrs(corrs, metric)
+    return {
+        "isc": _make_braindata(agg, out_mask),
+        "per_subject": corrs,
     }
 
 

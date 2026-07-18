@@ -132,6 +132,36 @@ def test_regress_near_zero_se_masks_tstat():
     assert np.allclose(p, 1.0)
 
 
+def test_regress_no_intercept_uses_uncentered_rss():
+    """Without an intercept column, the residual SE must use uncentered RSS/(n-p).
+
+    `regress` documents "does not add an intercept — include one in X explicitly",
+    so an intercept-free fit is a supported usage. There the residuals carry a
+    nonzero mean, and `np.std(res, ddof=p)` (which centers) underestimates RSS,
+    biasing `se` downward and inflating `t`/shrinking `p`. The sibling
+    `stats/correlation.py` already fixed this per GH #287 with sqrt(RSS/(n-p)).
+    """
+    rng = np.random.default_rng(3)
+    n = 120
+    x = rng.normal(size=n)
+    X = x[:, None]  # single predictor, NO intercept column
+    y = 5.0 + 2.0 * x + rng.normal(scale=1.0, size=n)  # 5.0 offset is unmodeled
+
+    b, se, t, p, df, res = regress(X, y)
+
+    # Correct reference: unbiased residual SE from uncentered RSS.
+    p_reg = X.shape[1]
+    sigma = np.sqrt(float((res**2).sum()) / (n - p_reg))
+    se_expected = np.sqrt(np.diag(np.linalg.pinv(X.T @ X))) * sigma
+
+    assert np.allclose(np.atleast_1d(se), se_expected), (
+        f"se {se} != uncentered-RSS reference {se_expected}; regress is "
+        "centering residuals (np.std) and biasing se downward."
+    )
+    # Guard the direction: the (buggy) centered sigma is strictly smaller here.
+    assert sigma > np.std(res, ddof=p_reg)
+
+
 def test_regress_non_ols_method_raises(ols_data):
     """Only 'ols' is supported; legacy methods raise NotImplementedError."""
     X, _, y = ols_data

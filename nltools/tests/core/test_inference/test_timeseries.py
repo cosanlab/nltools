@@ -165,7 +165,7 @@ class TestPhaseRandomize:
     def test_backend_consistency_numpy(self):
         """Test that phase_randomize works with NumPy backend."""
         data = np.random.randn(50)  # Reduced from 100 for tier1 speed
-        randomized = phase_randomize(data, backend="numpy", random_state=42)
+        randomized = phase_randomize(data, device="cpu", random_state=42)
 
         # Should preserve power spectrum
         power_orig = np.abs(np.fft.rfft(data)) ** 2
@@ -182,7 +182,7 @@ class TestPhaseRandomize:
             pytest.skip("GPU not available")
 
         data = np.random.randn(200)
-        randomized = phase_randomize(data, backend="torch", random_state=42)
+        randomized = phase_randomize(data, device="gpu", random_state=42)
 
         # Should preserve power spectrum (within float32 tolerance)
         power_orig = np.abs(np.fft.rfft(data)) ** 2
@@ -200,7 +200,7 @@ class TestPhaseRandomize:
             pytest.skip("GPU not available")
 
         data = np.random.randn(200, 5)
-        randomized = phase_randomize(data, backend="torch", random_state=42)
+        randomized = phase_randomize(data, device="gpu", random_state=42)
 
         # Should preserve power spectrum for each feature
         for i in range(data.shape[1]):
@@ -219,8 +219,8 @@ class TestPhaseRandomize:
             pytest.skip("GPU not available")
 
         data = np.random.randn(200)
-        randomized_numpy = phase_randomize(data, backend="numpy", random_state=42)
-        randomized_torch = phase_randomize(data, backend="torch", random_state=42)
+        randomized_numpy = phase_randomize(data, device="cpu", random_state=42)
+        randomized_torch = phase_randomize(data, device="gpu", random_state=42)
 
         # Results should match within float32 tolerance (GPU uses float32)
         np.testing.assert_allclose(

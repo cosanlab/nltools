@@ -58,7 +58,7 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
                 {'quantile':[low,high]}
         replace_with_cutoff: (bool) If True, replace outliers with cutoff.
                              If False, replaces outliers with closest
-                             existing values; (default: False)
+                             existing values; (default: True)
     Returns:
         out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
     """
@@ -92,7 +92,7 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
                 {'quantile':[low,high]}
         replace_with_cutoff: (bool) If True, replace outliers with cutoff.
                                     If False, replaces outliers with closest
-                                    existing values. (default: False)
+                                    existing values. (default: True)
         method: 'winsorize' or 'trim'
 
     Returns:

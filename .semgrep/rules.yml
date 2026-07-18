@@ -98,6 +98,40 @@ rules:
         - "nltools/pipelines/"
         - "scripts/"
 
+  # ── Device selection must be `device: str = "cpu"` ─────────────────────────
+  # Banning `backend=` as a *kwarg* (device selector) closes the gap the ridge
+  # audit surfaced: `parallel=` was already banned, but `backend=` slipped
+  # through and leaked to the Ridge / bootstrap facades. Canonical is
+  # `device: str = "cpu"` ('cpu'/'gpu'/'auto'); the facade translates to the
+  # algorithm layer's `parallel=`. This bans the kwarg only — a `'backend'`
+  # result-dict KEY (a reported backend name like 'torch-cuda') and the fitted
+  # `backend_` attribute are distinct concepts and are NOT matched here.
+  # The Backend class + resolve_backend live under algorithms/ (path-excluded),
+  # so their legitimate `backend=` constructor param is unaffected.
+  - id: banned-kwarg-device
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Public API uses `backend=` to select a compute device. The canonical name
+      is `device: str = "cpu"` ('cpu'/'gpu'/'auto'; CLAUDE.md API table). The
+      algorithm layer may keep `backend=`/`parallel=`, but the public facade must
+      expose `device` and translate at the boundary. (A reported backend *name*
+      under a result-dict key or the `backend_` fitted attribute is fine.)
+    patterns:
+      - pattern-either:
+          - pattern: "def $F(..., backend=$X, ...): ..."
+          - pattern: "def $F(..., backend: $T = $X, ...): ..."
+          - pattern: "def $F(..., backend: $T, ...): ..."
+      - metavariable-regex:
+          metavariable: $F
+          regex: '^[^_]'
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "nltools/algorithms/"
+        - "nltools/pipelines/"
+        - "scripts/"
+
   # ── Permutation count must be `n_permute` (bootstrap: `n_samples`) ──────────
   - id: banned-kwarg-permutation-count
     languages: [python]
@@ -169,6 +203,37 @@ rules:
         - "nltools/algorithms/"
         - "nltools/pipelines/"
         - "scripts/"
+
+  # ── Result-dict key: observed correlation must be `'correlation'` ──────────
+  # A return-value convention (not a kwarg one), so this rule is NOT path-scoped
+  # to public defs — result dicts are built in the algorithm layer, and the
+  # convention binds every layer that emits a correlation result. The canonical
+  # keys are `'correlation'` (observed correlation) + `'p'` + `'parallel'`,
+  # matching correlation_permutation_test / matrix_permutation_test and the
+  # `Adjacency.similarity` contract. The banned alias is `'r'` (which drifted
+  # into docstrings; the code was already consistent — this keeps it that way).
+  # Distance correlation is the documented exception: it uses `'dcorr'`.
+  # The parallel/device field is `'parallel'`; `'backend'` is intentionally NOT
+  # banned because the ridge/backends layer legitimately reports a backend *name*
+  # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
+  - id: banned-result-key-correlation
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Result dict uses the key `'r'` for an observed correlation. The canonical
+      key is `'correlation'` (matching correlation_permutation_test /
+      matrix_permutation_test and the Adjacency.similarity contract). Rename it
+      to `'correlation'`. Distance correlation is the exception and uses
+      `'dcorr'`. If this `'r'` is genuinely unrelated to a correlation result,
+      suppress with `# nosemgrep: banned-result-key-correlation` and a reason.
+    patterns:
+      - pattern: '{..., "r": $V, ...}'
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "scripts/"
+        - "nltools/plotting/"
+        - "**/plotting.py"
 
   # ── **kwargs across internal nltools->nltools boundaries ───────────────────
   # Plotting modules are excluded: they overwhelmingly forward **kwargs to

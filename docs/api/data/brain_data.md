@@ -16,6 +16,10 @@ Name | Type | Description | Default
 `data` |  | Neuroimaging data. Can be: - None (empty BrainData) - BrainData object - List of BrainData objects or file paths - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5 - nibabel Nifti1Image object - URL to download data from - numpy array (1D ``(n_voxels,)`` for a single image or 2D   ``(n_images, n_voxels)`` for a stack). The ``mask`` argument   is required and must define the same number of in-mask voxels. | <code>None</code>
 `mask` |  | Brain mask. Can be None (uses MNI template), a nibabel Nifti1Image, a file path (str/Path) to a mask file, or a template name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for default/, 'a' for nilearn/, 'c' for fmriprep/). | <code>None</code>
 `masker` |  | nilearn masker object (e.g. ROI or searchlight extractor). Default will load data as voxels. | <code>None</code>
+`Y` |  | Optional per-image target/label values, stored as a polars DataFrame (``.Y``). Default None. If ``data`` is a BrainData with a ``.Y``, that value is inherited when this is None. | <code>None</code>
+`X` |  | Optional per-image design/feature values, stored as a polars DataFrame (``.X``). Default None. If ``data`` is a BrainData with an ``.X``, that value is inherited when this is None. | <code>None</code>
+`h5_compression` | <code>str, default='gzip'</code> | Compression filter used when writing HDF5 (``.h5``/``.hdf5``) output. | <code>'gzip'</code>
+`verbose` | <code>bool, default=False</code> | Emit informational messages during loading and other operations. | <code>False</code>
 `resample` | <code>bool, default=True</code> | Whether to automatically resample data to mask space. If True, data is resampled to match mask spatial characteristics. If False, data must already be in mask space. Default True preserves backward compatibility with v0.5.1. | <code>True</code>
 `interpolation` | <code>str, default='auto'</code> | Interpolation method for resampling. Options: 'auto' (detect based on data type; uses 'nearest' for discrete data like atlases/masks and 'continuous' for stat maps), 'nearest' (nearest-neighbor, preserves discrete values), 'linear' (linear interpolation), 'continuous' (higher-order spline, use for stat maps). | <code>'auto'</code>
 
@@ -47,13 +51,13 @@ Name | Description
 [`bootstrap`](#data-brain-data-bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_report`](#data-brain-data-cluster-report) | Generate a cluster report with anatomical labels.
 [`compute_contrasts`](#data-brain-data-compute-contrasts) | Compute contrasts from fitted GLM results.
-[`copy`](#data-brain-data-copy) | Create a deep copy of a BrainData instance.
+[`copy`](#data-brain-data-copy) | Create a copy of a BrainData instance (data deep-copied).
 [`create_empty`](#data-brain-data-create-empty) | Create a copy of BrainData with empty data array.
 [`decompose`](#data-brain-data-decompose) | Decompose BrainData object.
 [`detrend`](#data-brain-data-detrend) | Remove linear trend from each voxel.
 [`distance`](#data-brain-data-distance) | Calculate distance between images within a BrainData() instance.
 [`extract_roi`](#data-brain-data-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
-[`filter`](#data-brain-data-filter) | Apply butterworth filter to data. Wraps nilearn.signal.clean.
+[`filter`](#data-brain-data-filter) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes`](#data-brain-data-find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#data-brain-data-fit) | Fit a model to brain imaging data.
 [`iplot`](#data-brain-data-iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
@@ -134,7 +138,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | BrainData instance to append. | *required*
 `ignore_attrs` |  | (bool) If True, skip concatenation of X and Y     attributes. Useful when appending images where .X or .Y     have different column counts. Default False. | <code>False</code>
-`kwargs` |  | Optional arguments passed to pandas concat for X/Y. | <code>{}</code>
+`kwargs` |  | Currently ignored. X/Y are concatenated with polars'     ``pl.concat(..., how="vertical_relaxed")``, which takes no     caller-supplied options. | <code>{}</code>
 
 **Returns:**
 
@@ -192,7 +196,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, backend = None, max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -209,8 +213,8 @@ Name | Type | Description | Default
 `save_boots` |  | (bool) If True, store all bootstrap samples. Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
-`backend` |  | (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch' (GPU if available), or 'auto' (auto-select). Ignored for simple stats. | <code>None</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when backend is 'torch' or 'auto'. Default: 4.0 | <code>4.0</code>
+`device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
+`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 
@@ -296,8 +300,8 @@ Type | Description
 ... })
 ```
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
 - Column names must match design matrix columns exactly (case-sensitive)
@@ -312,16 +316,20 @@ Type | Description
 copy()
 ```
 
-Create a deep copy of a BrainData instance.
+Create a copy of a BrainData instance (data deep-copied).
 
-All attributes including data, fitted models, and results are deep copied.
-Use this when you need a complete independent copy.
+The `data` array and most attributes are deep-copied, so mutating the
+copy's data leaves the original untouched. **Fitted state is shared, not
+copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
+`masker` are held by reference (this avoids pickling unpicklable Backend
+objects — see `__deepcopy__`). Mutating those on the copy mutates the
+original; refit the copy if you need independent fit results.
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`BrainData` |  | Deep copied instance
+`BrainData` |  | A copy with independent data but shared fitted state.
 
 (data-brain-data-create-empty)=
 #### `create_empty`
@@ -447,7 +455,7 @@ Type | Description
 filter(*, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
 ```
 
-Apply butterworth filter to data. Wraps nilearn.signal.clean.
+Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -501,7 +509,7 @@ Type | Description
 #### `fit`
 
 ```python
-fit(model = 'glm', *, X = None, cv = None, local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -517,6 +525,7 @@ Name | Type | Description | Default
 `model` | <code>[str](#str)</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>[array](#array) - [like](#like) or [DataFrame](#DataFrame)</code> | Design matrix or feature matrix | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Ignored when ``model='glm'``. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
@@ -535,8 +544,8 @@ Type | Description
 ---- | -----------
  | BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
 
-<details class="notes" open markdown="1">
-<summary>Notes</summary>
+<details class="note" open markdown="1">
+<summary>Note</summary>
 
 After ``model="glm"``, the following per-regressor BrainData
 attributes are populated — one map per design-matrix column:

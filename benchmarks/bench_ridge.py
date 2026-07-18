@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from benchmarks.harness import BenchResult, benchmark
+from benchmarks.harness import BenchResult, benchmark, gpu_device
 from benchmarks.workloads import make_braindata, make_regression_arrays
 
 # (n_samples, n_voxels, n_features): 500=task fMRI, 1000=naturalistic; 50k=3mm, 230k=2mm.
@@ -20,22 +20,19 @@ SIZES_FULL = [
 ]
 SIZES_QUICK = [(200, 2_000, 20)]
 
+
 # CPU leg uses joblib ('cpu'), not single-threaded 'numpy': multi-core is the
 # realistic baseline and keeps whole-brain conditions tractable. 2mm (~230k
 # voxels) is GPU-territory — single-threaded CPU there runs minutes/condition.
-BACKENDS = [("cpu", "cpu"), ("gpu", "mps")]  # (ridge parallel=, harness device=)
-
-
-def _gpu_ok(device: str) -> bool:
-    try:
-        import torch
-    except ModuleNotFoundError:
-        return False
-    if device == "mps":
-        return torch.backends.mps.is_available()
-    if device == "cuda":
-        return torch.cuda.is_available()
-    return True
+# The GPU leg passes ridge's device-agnostic parallel="gpu" alias; the harness
+# device string ("cuda"/"mps"/None) is resolved per host by gpu_device().
+def _backends() -> list[tuple[str, str]]:
+    """(ridge parallel=, harness device=) pairs — GPU leg included iff present."""
+    backends = [("cpu", "cpu")]
+    gpu = gpu_device()
+    if gpu is not None:
+        backends.append(("gpu", gpu))
+    return backends
 
 
 def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
@@ -46,9 +43,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
 
     for n_samples, n_voxels, n_features in sizes:
         x, y = make_regression_arrays(n_samples, n_voxels, n_features)
-        for parallel, device in BACKENDS:
-            if device != "cpu" and not _gpu_ok(device):
-                continue
+        for parallel, device in _backends():
             params = {
                 "n_samples": n_samples,
                 "n_voxels": n_voxels,

@@ -30,9 +30,11 @@ After any parallel op (`fit`, `compute_contrasts`, `smooth`, `standardize`, `det
 accumulates per-subject `BrainData` in RAM. Peak memory stays at roughly
 `n_workers × 1 subject`.
 
-Reductions (`concat`, `mean`, `std`, `ttest`, `anova`, `isc`, …) stream from
-path-backed inputs and produce a small in-memory `BrainData` (or dict of them). They
-never path-back their own output — by construction the result is small.
+Reductions (`concat`, `mean`, `std`, `ttest`, `anova`, `isc(method='loo')`, …) stream
+from path-backed inputs and produce a small in-memory `BrainData` (or dict of them). They
+never path-back their own output — by construction the result is small. (`concat` and
+`median` are the exceptions that must materialize; so does `isc(method='pairwise')` — see
+the ISC note below.)
 
 > **Note.** `transform_designs` is *not* a parallel/path-backed op. It maps a function
 > over the `DesignMatrix` list synchronously in the parent process and returns an
@@ -263,15 +265,21 @@ thread oversubscription inside each worker.
 
 - **Reductions** (`concat()`, `mean()`, `ttest()`) stream over already-loaded or
   path-backed data in the main process — faster than the pickling overhead.
-- **ISC / alignment** have their own parallel scheme inside `nltools.algorithms.*`. The
-  collection passes `n_jobs`/`device` through but doesn't double-wrap.
+- **Alignment** has its own parallel scheme inside `nltools.algorithms.*`. The
+  collection passes `n_jobs`/`device` through but doesn't double-wrap. (ISC runs in
+  `inference.py` and takes only `method`/`roi_mask`/`metric` — no `n_jobs`/`device`.)
 
-> **Note.** ISC currently materializes all subjects into memory before computing (both
-> leave-one-out and pairwise). The two-pass Welford streaming rewrite described in
-> earlier design notes is deferred.
+> **Note.** `isc(method='loo')` streams: pass 1 accumulates the subject sum (one `T×V`
+> array), pass 2 re-streams forming each subject's template `(sum − subject)/(n−1)` and
+> per-voxel Pearson r, so peak memory is ~2 subjects regardless of N (see
+> `_isc_loo_streaming` in `inference.py`). `isc(method='pairwise')` still materializes all
+> subjects — it needs every `C(n,2)` pair, and streaming would cost `O(n²)` subject
+> reloads. `isc_test` (bootstrap) also materializes: it needs random subject access across
+> draws, so streaming would mean `n_samples × n_subj` reloads.
 
 ## GPU
 
 `device="cpu" | "gpu"` is orthogonal to `n_jobs`. `n_jobs` controls subject-level
-parallelism; `device` controls the within-subject backend. ISC, permutation tests, and
-alignment accept both — pass-through.
+parallelism; `device` controls the within-subject backend. `align` and the permutation
+tests accept both — pass-through (though the permutation `n_jobs` is currently unused).
+ISC (`isc`/`isc_test`) accepts neither.

@@ -369,6 +369,8 @@ def plot_flatmap_brain(
         curvature_contrast (float): Contrast of curvature. Default: 0.5.
         curvature_brightness (float): Mean brightness of curvature.
             Default: 0.5.
+        transparency (str or float or array-like): Transparency/alpha applied
+            to the surface data. ``'auto'`` (default) lets the renderer choose.
         colorbar (bool): Show colorbar. Default: True.
         colorbar_orientation (str): 'horizontal' or 'vertical'.
             Default: 'horizontal'.

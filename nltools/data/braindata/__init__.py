@@ -43,6 +43,16 @@ class BrainData:
             default/, 'a' for nilearn/, 'c' for fmriprep/).
         masker: nilearn masker object (e.g. ROI or searchlight extractor).
             Default will load data as voxels.
+        Y: Optional per-image target/label values, stored as a polars
+            DataFrame (``.Y``). Default None. If ``data`` is a BrainData with
+            a ``.Y``, that value is inherited when this is None.
+        X: Optional per-image design/feature values, stored as a polars
+            DataFrame (``.X``). Default None. If ``data`` is a BrainData with
+            an ``.X``, that value is inherited when this is None.
+        h5_compression (str, default='gzip'): Compression filter used when
+            writing HDF5 (``.h5``/``.hdf5``) output.
+        verbose (bool, default=False): Emit informational messages during
+            loading and other operations.
         resample (bool, default=True): Whether to automatically resample data
             to mask space. If True, data is resampled to match mask spatial
             characteristics. If False, data must already be in mask space.
@@ -173,9 +183,10 @@ class BrainData:
     def __deepcopy__(self, memo):
         """Custom deepcopy that handles model attributes.
 
-        Model-related attributes (model_, X_, glm_*, ridge_*) are shared
-        (not copied) to avoid pickle errors with unpicklable Backend objects.
-        All other attributes are deep copied.
+        Model-related attributes (model_, X_, glm_*, ridge_*) as well as
+        ``mask`` and ``masker`` are shared (not copied) to avoid pickle
+        errors with unpicklable Backend objects. All other attributes are
+        deep copied.
         """
         new = BrainData.__new__(BrainData)
         memo[id(self)] = new
@@ -456,7 +467,7 @@ class BrainData:
 
         return align(self, target, method=method, axis=axis)
 
-    def append(  # nosemgrep: kwargs-internal-forwarding  # forwards to pandas.concat
+    def append(  # nosemgrep: kwargs-internal-forwarding  # forwards to polars.concat
         self, data, ignore_attrs=False, **kwargs
     ):
         """Append data to BrainData instance.
@@ -466,7 +477,9 @@ class BrainData:
             ignore_attrs: (bool) If True, skip concatenation of X and Y
                     attributes. Useful when appending images where .X or .Y
                     have different column counts. Default False.
-            kwargs: Optional arguments passed to pandas concat for X/Y.
+            kwargs: Currently ignored. X/Y are concatenated with polars'
+                    ``pl.concat(..., how="vertical_relaxed")``, which takes no
+                    caller-supplied options.
 
         Returns:
             BrainData: New appended BrainData instance.
@@ -544,7 +557,7 @@ class BrainData:
         save_boots=False,
         percentiles=(2.5, 97.5),
         X_test=None,
-        backend=None,
+        device="cpu",
         max_gpu_memory_gb=4.0,
         n_jobs=-1,
         random_state=None,
@@ -562,9 +575,10 @@ class BrainData:
             save_boots: (bool) If True, store all bootstrap samples. Default: False
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
-            backend: (str, optional) Backend for Ridge bootstrap: None (CPU), 'torch'
-                (GPU if available), or 'auto' (auto-select). Ignored for simple stats.
-            max_gpu_memory_gb: (float) Maximum GPU memory to use when backend is 'torch'
+            device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
+                'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if
+                present, else CPU). Ignored for simple stats. Default: 'cpu'
+            max_gpu_memory_gb: (float) Maximum GPU memory to use when device is 'gpu'
                 or 'auto'. Default: 4.0
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
@@ -590,7 +604,7 @@ class BrainData:
             save_boots=save_boots,
             percentiles=percentiles,
             X_test=X_test,
-            backend=backend,
+            device=device,
             max_gpu_memory_gb=max_gpu_memory_gb,
             n_jobs=n_jobs,
             random_state=random_state,
@@ -681,13 +695,17 @@ class BrainData:
         return self.model_.report(contrasts=contrasts, **kwargs)
 
     def copy(self):
-        """Create a deep copy of a BrainData instance.
+        """Create a copy of a BrainData instance (data deep-copied).
 
-        All attributes including data, fitted models, and results are deep copied.
-        Use this when you need a complete independent copy.
+        The `data` array and most attributes are deep-copied, so mutating the
+        copy's data leaves the original untouched. **Fitted state is shared, not
+        copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
+        `masker` are held by reference (this avoids pickling unpicklable Backend
+        objects — see `__deepcopy__`). Mutating those on the copy mutates the
+        original; refit the copy if you need independent fit results.
 
         Returns:
-            BrainData: Deep copied instance
+            BrainData: A copy with independent data but shared fitted state.
         """
         return deepcopy(self)
 
@@ -878,6 +896,7 @@ class BrainData:
         *,
         X=None,
         cv=None,
+        device="cpu",
         local_alpha=True,
         fit_intercept=False,
         inplace=True,
@@ -904,6 +923,10 @@ class BrainData:
                 splitter object (e.g. ``KFold(5, shuffle=True)``,
                 ``GroupKFold(8)``) for non-contiguous folds. Generators
                 (``splitter.split(X)``) are rejected.
+            device (str, default='cpu'): Ridge only. Compute device for the
+                ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on
+                CUDA/MPS when available), or ``'auto'`` (GPU if present, else
+                CPU). Ignored when ``model='glm'``.
             local_alpha (bool, default=True): Ridge only. If True, select
                 α independently per voxel via ``solve_ridge_cv``. If False,
                 pick a single α shared across all voxels.
@@ -975,6 +998,7 @@ class BrainData:
             model=model,
             X=X,
             cv=cv,
+            device=device,
             local_alpha=local_alpha,
             fit_intercept=fit_intercept,
             inplace=inplace,

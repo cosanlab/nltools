@@ -7,8 +7,6 @@ Supports both regular ridge (single feature space) and banded ridge
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 from .base import BaseModel
 from ..algorithms.ridge import ridge_svd
@@ -17,9 +15,6 @@ from ..algorithms.ridge.solvers import (
     solve_banded_ridge_cv,
 )
 from ..algorithms.backends import resolve_backend
-
-if TYPE_CHECKING:
-    from ..algorithms.backends import Backend
 
 
 class Ridge(BaseModel):
@@ -50,8 +45,10 @@ class Ridge(BaseModel):
             - A value of 1 corresponds to uniform sampling over the simplex.
             - A value of infinity corresponds to equal weights.
             - If a list, samples cycle through the list.
-        backend (str or Backend, default='numpy'): Computational backend ('numpy',
-            'torch', or 'auto')
+        device (str, default='cpu'): Compute device. One of ``'cpu'`` (NumPy),
+            ``'gpu'`` (PyTorch on CUDA/MPS when available, else torch-CPU), or
+            ``'auto'`` (use a GPU if one is present, otherwise NumPy). Selects
+            *where* the SVD/CV math runs; distinct from any CPU-core parallelism.
         local_alpha (bool, default=True): If True, select best alpha independently
             for each target. If False, select single best alpha for all targets.
         fit_intercept (bool, default=False): Whether to fit an intercept.
@@ -70,7 +67,8 @@ class Ridge(BaseModel):
         cv_scores_ (ndarray): Cross-validation scores (only if alpha='auto')
         deltas_ (ndarray or None): Feature space weights (only if X was a list)
             Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-        backend_ (Backend): Backend instance used for computation
+        backend_ (Backend): Resolved backend instance used for computation
+            (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
 
     Examples:
         >>> from nltools.models import Ridge
@@ -79,7 +77,7 @@ class Ridge(BaseModel):
         >>> y = np.random.randn(100)
         >>> model = Ridge(alpha=1.0)
         >>> model.fit(X, y)
-        Ridge(alpha=1.0, backend='numpy')
+        Ridge(alpha=1.0, device='cpu')
         >>> y_pred = model.predict(X)
         >>>
         >>> # Banded ridge with multiple feature spaces (automatic detection)
@@ -98,7 +96,7 @@ class Ridge(BaseModel):
         alphas: list[float] | np.ndarray | None = None,
         n_iter: int = 100,
         concentration: float | list[float] | None = None,
-        backend: str | Backend = "numpy",
+        device: str = "cpu",
         local_alpha: bool = True,
         fit_intercept: bool = False,
         conservative: bool = False,
@@ -111,7 +109,7 @@ class Ridge(BaseModel):
         self.alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
         self.n_iter = n_iter
         self.concentration = [0.1, 1.0] if concentration is None else concentration
-        self.backend = backend
+        self.device = device
         self.local_alpha = local_alpha
         self.fit_intercept = fit_intercept
         self.conservative = conservative
@@ -166,8 +164,8 @@ class Ridge(BaseModel):
             y_was_1d = True
             y = y[:, np.newaxis]  # Convert to 2D for uniform processing
 
-        # Set up backend (accepts string spec or existing Backend instance)
-        self.backend_ = resolve_backend(self.backend)
+        # Resolve the device selector ('cpu'/'gpu'/'auto') to a concrete backend.
+        self.backend_ = resolve_backend(self.device)
 
         # Handle fixed alpha case
         if self.alpha != "auto":
@@ -356,4 +354,4 @@ class Ridge(BaseModel):
 
     def __repr__(self) -> str:
         """String representation of the model."""
-        return f"Ridge(alpha={self.alpha}, backend='{self.backend}')"
+        return f"Ridge(alpha={self.alpha}, device='{self.device}')"

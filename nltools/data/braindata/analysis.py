@@ -431,8 +431,9 @@ def multivariate_similarity(bd, images, method="ols"):
         method (str): Regression method. Default: 'ols'.
 
     Returns:
-        out: dictionary of regression statistics in BrainData
-            instances {'beta','t','p','df','residual'}
+        out: dictionary of raw regression statistics (numpy arrays/scalars,
+            not BrainData) with keys
+            {'beta','t','p','df','sigma','residual'}
 
     """
     # Notes:  Should add ridge, and lasso, elastic net options options

@@ -108,7 +108,7 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
             )
 
         # Use HyperAlignment class for procrustes-based hyperalignment
-        # Note: data is already transposed to [features, samples] format by line 1330/1327
+        # Note: data is already transposed to [features, samples] format above (see the .T applied when loading each input)
         # n_iter=1 maintains backward compatibility with original implementation
         hyper = HyperAlignment(n_iter=1, auto_pad=True)
         hyper.fit(data)
@@ -394,7 +394,11 @@ def align_states(
         replace_zero_variance: (bool) transform a vector with zero variance to random numbers from a uniform distribution.
                                 Useful for when using correlation as a distance metric to avoid NaNs.
     Returns:
-        ordered_weights: (list) a list of reordered state X pattern matrices
+        If ``return_index=False`` (default): ``target[:, remapping]``, a single
+        ndarray of the target's columns reordered to match the reference,
+        oriented pattern x state (same shape as ``target``).
+        If ``return_index=True``: the remapping index array (ndarray) that
+        reorders the target's state columns.
 
     """
     if reference.shape != target.shape:

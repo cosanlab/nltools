@@ -31,7 +31,7 @@ class TestGetItem:
         assert sub.n_subjects == 2
 
     def test_subject_label_lookup(self, tiny_mask, tiny_brain_factory):
-        """SPEC §"Indexing": ``bc['sub-01']`` looks up via metadata['subject']."""
+        """Indexing: ``bc['sub-01']`` looks up via metadata['subject']."""
         brains = [tiny_brain_factory(seed=i) for i in range(2)]
         bc = BrainCollection(
             brains,

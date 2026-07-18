@@ -190,7 +190,9 @@ def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
             - (n_observations, n_subjects): Single feature
             - (n_observations, n_subjects, n_voxels): Voxel-wise
         backend: Computation backend. Use 'torch' for GPU acceleration on
-            voxel-wise data. Defaults to 'numpy'.
+            voxel-wise data. The 'torch' backend supports **only**
+            `sim_metric='correlation'` and raises `ValueError` for any other
+            metric. Defaults to 'numpy'.
         sim_metric: Similarity metric. Options:
             - 'correlation': Pearson correlation (uses optimized np.corrcoef)
             - 'spearman': Spearman rank correlation (rank-transform then np.corrcoef)
@@ -412,7 +414,10 @@ def _compute_pairwise_isc_gpu(data):
     """GPU-accelerated pairwise ISC computation.
 
     Batches correlation matrix computation across voxels for significant
-    speedup on large voxel-wise problems.
+    speedup on large voxel-wise problems. Upper-triangle extraction is done
+    on-device via ``torch.triu_indices`` + gather (row-major, matching
+    ``scipy.spatial.distance.squareform``), so the whole observed pairwise
+    compute stays on the GPU — no per-voxel CPU ``squareform`` loop.
     """
     import torch
 
@@ -420,7 +425,6 @@ def _compute_pairwise_isc_gpu(data):
         raise ValueError("GPU backend requires 3D voxel-wise data")
 
     n_obs, n_subjects, n_voxels = data.shape
-    n_pairs = n_subjects * (n_subjects - 1) // 2
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -431,15 +435,14 @@ def _compute_pairwise_isc_gpu(data):
     # Compute correlation matrices for all voxels in parallel
     corr_matrices = _batch_corrcoef_gpu(data_gpu)  # (n_voxels, n_subjects, n_subjects)
 
-    # Extract upper triangles (condensed form)
-    # Move to CPU for squareform (more efficient than GPU indexing)
-    corr_matrices_cpu = corr_matrices.cpu().numpy()
+    # Extract upper triangles on-device. torch.triu_indices(offset=1) enumerates
+    # (row, col) pairs row-major — the same order scipy's squareform uses — so the
+    # condensed layout is identical to the numpy path.
+    iu = torch.triu_indices(n_subjects, n_subjects, offset=1, device=device)
+    pairwise = corr_matrices[:, iu[0], iu[1]]  # (n_voxels, n_pairs)
 
-    pairwise_all = np.zeros((n_pairs, n_voxels))
-    for v in range(n_voxels):
-        pairwise_all[:, v] = squareform(corr_matrices_cpu[v], checks=False)
-
-    return pairwise_all
+    # Return condensed (n_pairs, n_voxels) to match _compute_pairwise_isc_numpy.
+    return pairwise.T.contiguous().cpu().numpy()
 
 
 # ============================================================================
@@ -1507,6 +1510,176 @@ def _bootstrap_pairwise_cpu_parallel(
     return np.array(bootstraps)
 
 
+def _pairwise_bootstrap_indices(n_permute, n_subjects, random_state=None):
+    """Pre-generate subject-resample indices for the pairwise bootstrap.
+
+    Reproduces the exact RNG scheme of ``_bootstrap_pairwise_cpu_parallel`` (a
+    per-iteration ``RandomState(seed).choice(n_subjects, size=n_subjects,
+    replace=True)``) so the GPU bootstrap draws the *same* resamples as the CPU
+    path for a given ``random_state``. This deterministic cross-backend RNG is
+    what lets the GPU pairwise result match the CPU result within float tolerance
+    (see docs/development/inference-internals.md).
+
+    Returns:
+        np.ndarray of shape (n_permute, n_subjects), dtype int64.
+    """
+    rng = check_random_state(random_state)
+    seeds = rng.randint(0, 2**31 - 1, size=n_permute)
+    indices = np.empty((n_permute, n_subjects), dtype=np.int64)
+    for i in range(n_permute):
+        indices[i] = np.random.RandomState(seeds[i]).choice(
+            n_subjects, size=n_subjects, replace=True
+        )
+    return indices
+
+
+def _nanmedian_lastdim_torch(x):
+    """NumPy-compatible nan-median over the last dim of a torch tensor.
+
+    ``torch.nanmedian`` returns an actual element (lower of the two middles for
+    even counts), whereas ``np.nanmedian`` averages the two middle values. Match
+    numpy here so the GPU bootstrap distribution agrees with the CPU one: sort
+    (NaNs sort to the end in torch), count the non-NaN entries per row, and
+    average the lower/upper median positions.
+
+    Args:
+        x: tensor of shape (..., K).
+
+    Returns:
+        tensor of shape (...); all-NaN rows yield NaN.
+    """
+    import torch
+
+    x_sorted, _ = torch.sort(x, dim=-1)  # NaN is treated as +inf → lands at the end
+    count = (~torch.isnan(x)).sum(dim=-1)  # (...)
+    safe = count.clamp(min=1)
+    lower = (safe - 1) // 2
+    upper = safe // 2
+    lo = torch.gather(x_sorted, -1, lower.unsqueeze(-1)).squeeze(-1)
+    hi = torch.gather(x_sorted, -1, upper.unsqueeze(-1)).squeeze(-1)
+    med = (lo + hi) / 2.0
+    return torch.where(count == 0, torch.tensor(float("nan"), device=x.device), med)
+
+
+def _pairwise_gpu_batch_sizes(n_voxels, n_subjects, n_permute, max_gpu_memory_gb):
+    """Pick (voxel_chunk, perm_batch) so the (P, Vc, N, N) working set fits budget.
+
+    The bootstrap materializes a couple of (perm_batch, voxel_chunk, N, N) float32
+    tensors per step (the gathered submatrix and its scratch); budget for ~3 copies
+    plus headroom. Prefer processing all voxels at once and batching permutations;
+    fall back to chunking voxels when even a single permutation over all voxels
+    would blow the budget.
+    """
+    per_elem = n_subjects * n_subjects * 4 * 3  # 3 working copies of (·, N, N)
+    budget = max(per_elem, int(max_gpu_memory_gb * 1e9))
+    max_elems = max(1, budget // per_elem)  # bound on perm_batch * voxel_chunk
+    voxel_chunk = min(n_voxels, max_elems)
+    perm_batch = max(1, max_elems // voxel_chunk)
+    perm_batch = min(perm_batch, n_permute)
+    return voxel_chunk, perm_batch
+
+
+def _bootstrap_pairwise_gpu(
+    data,
+    boot_indices,
+    metric="median",
+    exclude_self_corr=True,
+    max_gpu_memory_gb=4.0,
+    progress_bar=False,
+):
+    """GPU pairwise bootstrap: resample subjects and recompute on-device.
+
+    The per-voxel N×N correlation matrices are computed once and kept on the GPU;
+    each bootstrap iteration gathers the resampled submatrix, masks self-pairs,
+    extracts the upper triangle, and reduces to the summary statistic — all
+    vectorized across voxels and batched across permutations under
+    ``max_gpu_memory_gb``. This moves the bulk of the work (the ``n_permute``
+    iterations) onto the GPU, unlike the CPU-parallel path which only ran the
+    single observed compute on-device.
+
+    Args:
+        data: (n_obs, n_subjects, n_voxels) voxel-wise time series.
+        boot_indices: (n_permute, n_subjects) resample indices (see
+            ``_pairwise_bootstrap_indices``; pass numpy-generated indices to match
+            the CPU path).
+        metric: 'median' or 'mean' (Fisher-z).
+        exclude_self_corr: mask correlations ≥ 0.99999 (duplicate-subject pairs).
+        max_gpu_memory_gb: working-set budget for voxel/permutation batching.
+        progress_bar: show a tqdm bar over permutation batches.
+
+    Returns:
+        np.ndarray of shape (n_permute, n_voxels): bootstrap summary per voxel.
+    """
+    import torch
+
+    if data.ndim != 3:
+        raise ValueError("GPU pairwise bootstrap requires 3D voxel-wise data")
+
+    n_obs, n_subjects, n_voxels = data.shape
+    n_permute = boot_indices.shape[0]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    data_gpu = torch.tensor(
+        np.transpose(data, (2, 1, 0)), dtype=torch.float32, device=device
+    )  # (n_voxels, n_subjects, n_obs)
+    corr = _batch_corrcoef_gpu(data_gpu)  # (n_voxels, n_subjects, n_subjects)
+    # Match np.fill_diagonal(corr, 1.0) from the numpy path.
+    diag = torch.arange(n_subjects, device=device)
+    corr[:, diag, diag] = 1.0
+
+    iu = torch.triu_indices(n_subjects, n_subjects, offset=1, device=device)
+    boot_idx = torch.as_tensor(boot_indices, dtype=torch.long, device=device)
+
+    voxel_chunk, perm_batch = _pairwise_gpu_batch_sizes(
+        n_voxels, n_subjects, n_permute, max_gpu_memory_gb
+    )
+
+    out = np.empty((n_permute, n_voxels), dtype=np.float64)
+
+    perm_starts = list(range(0, n_permute, perm_batch))
+    if progress_bar:
+        from tqdm.auto import tqdm
+
+        perm_starts = tqdm(perm_starts, desc="Bootstrap Pairwise (GPU)")
+
+    for p0 in perm_starts:
+        p1 = min(p0 + perm_batch, n_permute)
+        bi = boot_idx[p0:p1]  # (P, N)
+        P = bi.shape[0]
+        for v0 in range(0, n_voxels, voxel_chunk):
+            v1 = min(v0 + voxel_chunk, n_voxels)
+            cm = corr[v0:v1]  # (Vc, N, N)
+            Vc = cm.shape[0]
+
+            # Gather the resampled submatrix for every (perm, voxel):
+            # rows then cols indexed by the same bootstrap subject order.
+            cmb = cm.unsqueeze(0).expand(P, Vc, n_subjects, n_subjects)
+            rows = bi[:, None, :, None].expand(P, Vc, n_subjects, n_subjects)
+            gathered = torch.gather(cmb, 2, rows)
+            cols = bi[:, None, None, :].expand(P, Vc, n_subjects, n_subjects)
+            sub = torch.gather(gathered, 3, cols)  # (P, Vc, N, N)
+
+            tri = sub[:, :, iu[0], iu[1]]  # (P, Vc, n_pairs)
+            if exclude_self_corr:
+                tri = torch.where(
+                    tri >= 0.99999,
+                    torch.tensor(float("nan"), device=device),
+                    tri,
+                )
+
+            if metric == "median":
+                res = _nanmedian_lastdim_torch(tri)  # (P, Vc)
+            elif metric == "mean":
+                z = torch.arctanh(torch.clamp(tri, -0.9999, 0.9999))
+                res = torch.tanh(torch.nanmean(z, dim=-1))
+            else:
+                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+
+            out[p0:p1, v0:v1] = res.double().cpu().numpy()
+
+    return out
+
+
 # ============================================================================
 # Phase 5: Main ISC Permutation Test Function
 # ============================================================================
@@ -1577,7 +1750,13 @@ def isc_permutation_test(
             Defaults to 'cpu'.
         n_jobs: Number of CPU cores for parallelization (-1 = all cores).
             Only used when parallel='cpu'. Defaults to -1.
-        max_gpu_memory_gb: GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.
+        max_gpu_memory_gb: GPU working-set budget in GB. For the pairwise GPU
+            bootstrap (``parallel='gpu'``, ``summary_statistic='pairwise'``,
+            ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk,
+            n_subjects, n_subjects)`` resample tensor, chunking voxels and
+            permutations to fit — so whole-brain runs stay within budget. Not used
+            by the LOO or surrogate (circle_shift/phase_randomize) paths.
+            Defaults to 4.
         random_state: Random seed for reproducibility.
 
     Returns:
@@ -1656,9 +1835,23 @@ def isc_permutation_test(
     else:
         # GPU mode
         compute_backend = "torch"
-        bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
+        # Pairwise bootstrap runs on-device (resample + recompute the condensed
+        # matrix per iteration); LOO bootstrap only resamples precomputed values,
+        # so CPU-parallel is already fine there (the GPU win is in _compute_loo_isc).
+        bootstrap_backend = "gpu" if summary_statistic == "pairwise" else "cpu-parallel"
 
-    # Input validation
+    # Input validation: GPU pairwise ISC only implements correlation. Fail fast
+    # on the contradictory combo rather than deep inside the compute call, and
+    # match the sibling isc_group_permutation_test (which also rejects it).
+    if (
+        parallel == "gpu"
+        and summary_statistic == "pairwise"
+        and sim_metric != "correlation"
+    ):
+        raise ValueError(
+            f"GPU pairwise ISC only supports sim_metric='correlation', got "
+            f"{sim_metric!r}. Use parallel='cpu' for other similarity metrics."
+        )
 
     # Phase 1: Compute ISC (run once)
     if summary_statistic == "leave-one-out":
@@ -1675,9 +1868,11 @@ def isc_permutation_test(
             raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
 
     else:  # pairwise
-        # Compute pairwise correlation matrix (condensed form)
+        # Compute pairwise correlation matrix (condensed form). Honor the
+        # resolved backend so parallel='gpu' actually engages the GPU for the
+        # observed pairwise computation (was hardcoded to numpy — a silent no-op).
         pairwise_condensed = _compute_pairwise_isc(
-            data, backend="numpy", sim_metric=sim_metric
+            data, backend=compute_backend, sim_metric=sim_metric
         )
         n_subjects = data.shape[1]
 
@@ -1719,7 +1914,22 @@ def isc_permutation_test(
 
         else:  # pairwise
             # Pairwise bootstrap: subject-wise matrix indexing
-            if bootstrap_backend == "numpy":
+            if bootstrap_backend == "gpu":
+                # Draw the same resamples the CPU path would (deterministic
+                # cross-backend RNG) so the GPU result matches within float
+                # tolerance, then recompute the condensed matrix on-device.
+                boot_indices = _pairwise_bootstrap_indices(
+                    n_permute, n_subjects, random_state
+                )
+                bootstraps = _bootstrap_pairwise_gpu(
+                    data,
+                    boot_indices,
+                    metric=metric,
+                    exclude_self_corr=exclude_self_corr,
+                    max_gpu_memory_gb=max_gpu_memory_gb,
+                    progress_bar=progress_bar,
+                )
+            elif bootstrap_backend == "numpy":
                 rng = check_random_state(random_state)
                 bootstraps = np.array(
                     [
@@ -1775,7 +1985,7 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
                 if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
@@ -1783,7 +1993,7 @@ def isc_permutation_test(
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend="numpy", sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, sim_metric=sim_metric
                 )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
@@ -1822,7 +2032,7 @@ def isc_permutation_test(
 
             # Recompute ISC
             if summary_statistic == "leave-one-out":
-                loo_perm = _compute_loo_isc(data_permuted, backend="numpy")
+                loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
                 if metric == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
@@ -1830,7 +2040,7 @@ def isc_permutation_test(
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend="numpy", sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, sim_metric=sim_metric
                 )
                 if metric == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)

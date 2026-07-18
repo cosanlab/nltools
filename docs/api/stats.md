@@ -41,7 +41,7 @@ Name | Description
 [`isc`](#stats-isc) | Compute pairwise intersubject correlation from observations by subjects array.
 [`isc_group`](#stats-isc-group) | Compute difference in intersubject correlation between groups.
 [`isfc`](#stats-isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
-[`isps`](#stats-isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+[`isps`](#stats-isps) | Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 [`make_cosine_basis`](#stats-make-cosine-basis) | Create basis functions for a discrete cosine transform.
 [`matrix_permutation_test`](#stats-matrix-permutation-test) | Matrix permutation test (Mantel test).
 [`multi_threshold`](#stats-multi-threshold) | Threshold test image by multiple p-values from p image.
@@ -110,7 +110,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | (dict) a dictionary containing a list of transformed subject matrices, a list of transformation matrices, the shared response matrix, and the intersubject correlation of the shared resposnes
+`out` |  | (dict) a dictionary containing a list of transformed subject matrices, a list of transformation matrices, the shared response matrix, and the intersubject correlation of the shared responses
 
 **Examples:**
 
@@ -144,7 +144,11 @@ Name | Type | Description | Default
 `replace_zero_variance` |  | (bool) transform a vector with zero variance to random numbers from a uniform distribution.                     Useful for when using correlation as a distance metric to avoid NaNs. | <code>False</code>
 
 Returns:
-    ordered_weights: (list) a list of reordered state X pattern matrices
+    If ``return_index=False`` (default): ``target[:, remapping]``, a single
+    ndarray of the target's columns reordered to match the reference,
+    oriented pattern x state (same shape as ``target``).
+    If ``return_index=True``: the remapping index array (ndarray) that
+    reorders the target's state columns.
 
 (stats-calc-bpm)=
 #### `calc_bpm`
@@ -304,7 +308,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 (stats-distance-correlation)=
@@ -332,7 +336,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with key ``'r'`` (distance correlation), and optionally
+<code>[dict](#dict)</code> | dict with key ``'dcorr'`` (distance correlation), plus
+<code>[dict](#dict)</code> | ``'dcorr_squared'`` when ``bias_corrected=True``, and optionally
 <code>[dict](#dict)</code> | ``'t'``, ``'p'``, ``'df'`` when ``ttest=True``.
 
 <details class="references" open markdown="1">
@@ -562,10 +567,13 @@ Name | Type | Description | Default
 `n_samples` |  | (int) number of random samples/bootstraps | <code>5000</code>
 `summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
 `method` |  | (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap) | <code>'bootstrap'</code>
+`ci_percentile` |  | (int) confidence-interval width in percent for the bootstrap CI (default: 95) | <code>95</code>
+`exclude_self_corr` |  | (bool) set self-correlations (same subject bootstrapped twice) to nan (default: True) | <code>True</code>
 `tail` |  | (int) either 1 for one-tail or 2 for two-tailed test (default: 2) | <code>2</code>
 `metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
 `return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
 `n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, np.random.RandomState, or None) seed or generator for the resampling; default None | <code>None</code>
 
 **Returns:**
 
@@ -676,7 +684,7 @@ Type | Description
 isps(data, *, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
 ```
 
-Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 
 This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
 timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
@@ -742,7 +750,7 @@ Name | Type | Description | Default
 `nsamples` | <code>[int](#int)</code> | number of observations (e.g. TRs) | *required*
 `sampling_freq` | <code>[float](#float)</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
 `filter_length` | <code>[int](#int)</code> | length of filter in seconds | *required*
-`unit_scale` | <code>[true](#true)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
+`unit_scale` | <code>[bool](#bool)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
 `drop` | <code>[int](#int)</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
 
 **Returns:**
@@ -783,7 +791,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed matrix correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed matrix correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 <details class="references" open markdown="1">
@@ -868,7 +876,7 @@ Type | Description
 #### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
+phase_randomize(data: np.ndarray, *, device: str | None = 'cpu', random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -882,7 +890,7 @@ but destroyed temporal correlations.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`backend` | <code>[str](#str) \| None</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
+`device` | <code>[str](#str) \| None</code> | Compute device — ``'cpu'`` (NumPy FFT, float64; default), ``'gpu'`` (PyTorch FFT on CUDA/MPS, float32), or ``'auto'`` (use a GPU if present, else CPU). | <code>'cpu'</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
@@ -959,13 +967,13 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | number of permutation iterations to perform | <code>5000</code>
 `tail` | <code>[int](#int)</code> | either 1 for one-tailed or 2 for two-tailed test; default 2 | <code>2</code>
 `n_jobs` | <code>[int](#int)</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
+`random_state` | <code>int, np.random.RandomState, or None</code> | seed or generator for the permutation shuffling; default None | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`similarity` | <code>[float](#float)</code> | similarity between matrices bounded between 0 and 1
-`pval` | <code>[float](#float)</code> | permuted p-value
+`dict` |  | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
 
 (stats-regress)=
 #### `regress`
@@ -1068,7 +1076,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 <details class="references" open markdown="1">
@@ -1113,7 +1121,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`X_trans` |  | (np.array), shape (k, n_feaures) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
+`X_trans` |  | (np.array), shape (k, n_features) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
 `y_trans` |  | (np.array), shape (k,) Output class labels, where classes have values {-1, +1} If y was shape (n_samples, 2), then returns (k, 2) with groups on the second dimension.
 
 (stats-trim)=
@@ -1229,7 +1237,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | (pl.DataFrame, pl.Series) data to winsorize | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
-`replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: False) | <code>True</code>
+`replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: True) | <code>True</code>
 
 Returns:
     out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
@@ -1316,7 +1324,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`out` |  | (dict) a dictionary containing a list of transformed subject matrices, a list of transformation matrices, the shared response matrix, and the intersubject correlation of the shared resposnes
+`out` |  | (dict) a dictionary containing a list of transformed subject matrices, a list of transformation matrices, the shared response matrix, and the intersubject correlation of the shared responses
 
 **Examples:**
 
@@ -1349,7 +1357,11 @@ Name | Type | Description | Default
 `replace_zero_variance` |  | (bool) transform a vector with zero variance to random numbers from a uniform distribution.                     Useful for when using correlation as a distance metric to avoid NaNs. | <code>False</code>
 
 Returns:
-    ordered_weights: (list) a list of reordered state X pattern matrices
+    If ``return_index=False`` (default): ``target[:, remapping]``, a single
+    ndarray of the target's columns reordered to match the reference,
+    oriented pattern x state (same shape as ``target``).
+    If ``return_index=True``: the remapping index array (ndarray) that
+    reorders the target's state columns.
 
 ###### `procrustes`
 
@@ -1417,13 +1429,13 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | number of permutation iterations to perform | <code>5000</code>
 `tail` | <code>[int](#int)</code> | either 1 for one-tailed or 2 for two-tailed test; default 2 | <code>2</code>
 `n_jobs` | <code>[int](#int)</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
+`random_state` | <code>int, np.random.RandomState, or None</code> | seed or generator for the permutation shuffling; default None | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`similarity` | <code>[float](#float)</code> | similarity between matrices bounded between 0 and 1
-`pval` | <code>[float](#float)</code> | permuted p-value
+`dict` |  | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
 
 (stats-corrections)=
 #### `corrections`
@@ -1724,7 +1736,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`X_trans` |  | (np.array), shape (k, n_feaures) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
+`X_trans` |  | (np.array), shape (k, n_features) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
 `y_trans` |  | (np.array), shape (k,) Output class labels, where classes have values {-1, +1} If y was shape (n_samples, 2), then returns (k, 2) with groups on the second dimension.
 
 (stats-intersubject)=
@@ -1739,7 +1751,7 @@ Name | Description
 [`isc`](#stats-isc) | Compute pairwise intersubject correlation from observations by subjects array.
 [`isc_group`](#stats-isc-group) | Compute difference in intersubject correlation between groups.
 [`isfc`](#stats-isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
-[`isps`](#stats-isps) | Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+[`isps`](#stats-isps) | Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 
 
 
@@ -1791,10 +1803,13 @@ Name | Type | Description | Default
 `n_samples` |  | (int) number of random samples/bootstraps | <code>5000</code>
 `summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
 `method` |  | (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap) | <code>'bootstrap'</code>
+`ci_percentile` |  | (int) confidence-interval width in percent for the bootstrap CI (default: 95) | <code>95</code>
+`exclude_self_corr` |  | (bool) set self-correlations (same subject bootstrapped twice) to nan (default: True) | <code>True</code>
 `tail` |  | (int) either 1 for one-tail or 2 for two-tailed test (default: 2) | <code>2</code>
 `metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
 `return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
 `n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, np.random.RandomState, or None) seed or generator for the resampling; default None | <code>None</code>
 
 **Returns:**
 
@@ -1902,7 +1917,7 @@ Type | Description
 isps(data, *, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
 ```
 
-Compute Dynamic Intersubject Phase Synchrony (ISPS from a observation by subject array).
+Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 
 This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
 timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
@@ -2026,7 +2041,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` |  | (pl.DataFrame, pl.Series) data to winsorize | *required*
 `cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
-`replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: False) | <code>True</code>
+`replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: True) | <code>True</code>
 
 Returns:
     out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
@@ -2125,7 +2140,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 ###### `distance_correlation`
@@ -2152,7 +2167,8 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with key ``'r'`` (distance correlation), and optionally
+<code>[dict](#dict)</code> | dict with key ``'dcorr'`` (distance correlation), plus
+<code>[dict](#dict)</code> | ``'dcorr_squared'`` when ``bias_corrected=True``, and optionally
 <code>[dict](#dict)</code> | ``'t'``, ``'p'``, ``'df'`` when ``ttest=True``.
 
 <details class="references" open markdown="1">
@@ -2218,7 +2234,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed matrix correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed matrix correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 <details class="references" open markdown="1">
@@ -2267,7 +2283,7 @@ Type | Description
 ###### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
+phase_randomize(data: np.ndarray, *, device: str | None = 'cpu', random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -2281,7 +2297,7 @@ but destroyed temporal correlations.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Input time-series, shape ``(n_timepoints,)`` or ``(n_timepoints, n_features)``. | *required*
-`backend` | <code>[str](#str) \| None</code> | Computation backend (``None`` for NumPy, ``'torch'`` for GPU). | <code>None</code>
+`device` | <code>[str](#str) \| None</code> | Compute device — ``'cpu'`` (NumPy FFT, float64; default), ``'gpu'`` (PyTorch FFT on CUDA/MPS, float32), or ``'auto'`` (use a GPU if present, else CPU). | <code>'cpu'</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed for reproducibility. | <code>None</code>
 
 **Returns:**
@@ -2321,7 +2337,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | dict with keys ``'r'`` (observed correlation), ``'p'``,
+<code>[dict](#dict)</code> | dict with keys ``'correlation'`` (observed correlation), ``'p'``,
 <code>[dict](#dict)</code> | ``'parallel'``, and optionally ``'null_dist'``.
 
 <details class="references" open markdown="1">
@@ -2525,7 +2541,7 @@ Name | Type | Description | Default
 `nsamples` | <code>[int](#int)</code> | number of observations (e.g. TRs) | *required*
 `sampling_freq` | <code>[float](#float)</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
 `filter_length` | <code>[int](#int)</code> | length of filter in seconds | *required*
-`unit_scale` | <code>[true](#true)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
+`unit_scale` | <code>[bool](#bool)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
 `drop` | <code>[int](#int)</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
 
 **Returns:**

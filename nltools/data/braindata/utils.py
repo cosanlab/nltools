@@ -15,7 +15,8 @@ def check_brain_data(data, mask=None):
     If *data* is already a BrainData, the optional *mask* is applied via
     `BrainData.apply_mask`.  Otherwise *data* is passed through
     `BrainData`, which dispatches on type (file path, list of paths,
-    URL, h5, ``nib.Nifti1Image``).  Unsupported types raise ``TypeError`` from
+    URL, h5, ``nib.Nifti1Image``, numpy array).  Unsupported types raise
+    ``TypeError`` from
     `validate_data_type`.
     """
     from . import BrainData

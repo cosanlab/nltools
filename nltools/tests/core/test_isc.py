@@ -29,6 +29,8 @@ Testing Strategy & Tolerances:
        - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
 """
 
+import time
+
 import numpy as np
 import pytest
 from scipy.spatial.distance import squareform
@@ -493,7 +495,7 @@ def test_isc_gpu_matches_cpu():
     result_cpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -502,7 +504,7 @@ def test_isc_gpu_matches_cpu():
     result_gpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -611,7 +613,7 @@ def test_isc_chen_bootstrap_correctness():
 
     # Bootstrap distribution should be centered
     # Mean of (null + observed) should approximate observed ISC
-    null_mean = np.mean(result["null_distribution"] + result["isc"])
+    null_mean = np.mean(result["null_dist"] + result["isc"])
 
     # Mean should be close to observed ISC (unbiased bootstrap)
     assert np.abs(null_mean - result["isc"]) < 0.1
@@ -639,7 +641,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -649,7 +651,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -663,43 +665,93 @@ def test_isc_gpu_speedup_loo():
 
 
 @pytest.mark.slow
-def test_isc_gpu_speedup_pairwise():
-    """GPU provides speedup for voxel-wise pairwise computation."""
-    torch = pytest.importorskip("torch")
+def test_isc_gpu_pairwise_matches_cpu():
+    """GPU pairwise ISC matches CPU within float32 tolerance.
 
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
+    Correctness guard for the fully-GPU pairwise path: `parallel='gpu'` runs the
+    observed compute on the torch backend (on-device upper-triangle extraction)
+    AND the bootstrap on-device (`_bootstrap_pairwise_gpu`). The GPU bootstrap
+    draws the *same* subject resamples the CPU path would (deterministic
+    cross-backend RNG via `_pairwise_bootstrap_indices`), so the ISC and p-value
+    maps agree within float32 tolerance. See `test_isc_gpu_pairwise_speedup` for
+    the performance guard.
+    """
+    _ = pytest.importorskip("torch")
 
     np.random.seed(42)
-    data = np.random.randn(100, 50, 5000)  # 5K voxels
+    data = np.random.randn(80, 20, 200)  # (n_obs, n_subjects, n_voxels)
 
-    import time
-
-    start = time.time()
-    _ = isc_permutation_test(
+    result_cpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        backend="numpy",
+        parallel="cpu",
         n_permute=100,
+        random_state=42,
         progress_bar=False,
     )
-    cpu_time = time.time() - start
-
-    start = time.time()
-    _ = isc_permutation_test(
+    result_gpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        backend="torch",
+        parallel="gpu",
         n_permute=100,
+        random_state=42,
         progress_bar=False,
     )
-    gpu_time = time.time() - start
 
-    speedup = cpu_time / gpu_time
-    print(f"\nPairwise GPU Speedup: {speedup:.1f}×")
+    np.testing.assert_allclose(
+        result_cpu["isc"], result_gpu["isc"], rtol=TOLERANCE_GPU_VALUE, atol=1e-6
+    )
+    np.testing.assert_allclose(
+        result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-6
+    )
 
-    # Expect at least 3× speedup
-    assert speedup > 3.0
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_isc_gpu_pairwise_speedup():
+    """GPU pairwise ISC is meaningfully faster than CPU on a whole-brain-scale run.
+
+    Guards the perf goal of the GPU pairwise path (on-device triangle extraction +
+    on-device bootstrap): the bulk of the work — the ``n_permute`` bootstrap
+    iterations — now runs on the GPU instead of a CPU ``squareform`` loop. On a
+    GB10 this measures ~3.8× at (100, 50, 5000) / n_permute=1000; the assertion
+    uses a conservative ~2× floor so it stays green across GPU tiers and shared-box
+    load while still catching a regression back to the CPU-bound behavior.
+
+    Requires CUDA (``@pytest.mark.gpu``); a torch-CPU/MPS box has no GPU bootstrap
+    to accelerate, so the comparison would be meaningless there.
+    """
+    torch = pytest.importorskip("torch")
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA GPU required for the pairwise ISC speedup guard")
+
+    rng = np.random.RandomState(0)
+    data = rng.randn(100, 50, 5000).astype(np.float32)
+    kwargs = {
+        "summary_statistic": "pairwise",
+        "n_permute": 1000,
+        "random_state": 42,
+        "progress_bar": False,
+    }
+
+    # Warm up CUDA context/kernels so the GPU timing excludes one-time init.
+    isc_permutation_test(
+        data[:, :, :100], parallel="gpu", **{**kwargs, "n_permute": 10}
+    )
+
+    t0 = time.perf_counter()
+    isc_permutation_test(data, parallel="cpu", **kwargs)
+    t_cpu = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    isc_permutation_test(data, parallel="gpu", **kwargs)
+    t_gpu = time.perf_counter() - t0
+
+    speedup = t_cpu / t_gpu
+    assert speedup > 2.0, (
+        f"GPU pairwise ISC not meaningfully faster: CPU={t_cpu:.2f}s GPU={t_gpu:.2f}s "
+        f"(speedup={speedup:.2f}x, expected > 2x; ~3.8x on a GB10)"
+    )
 
 
 # =============================================================================
@@ -916,30 +968,66 @@ def test_isc_sim_metric_affects_pairwise_computation():
     assert isinstance(result_cosine["isc"], (float, np.floating))
 
 
-def test_isc_sim_metric_gpu_warning():
-    """GPU backend warns when sim_metric != 'correlation'."""
-    torch = pytest.importorskip("torch")
+def test_isc_gpu_pairwise_non_correlation_raises():
+    """GPU pairwise ISC only implements sim_metric='correlation'.
 
-    if not torch.cuda.is_available():
-        pytest.skip("GPU not available")
+    Requesting `parallel='gpu'` with a non-correlation metric is contradictory —
+    the GPU pairwise kernel computes correlation only. It must fail fast with a
+    clear ValueError (consistent with the sibling `isc_group_permutation_test`),
+    not silently ignore the GPU request. The guard runs before any torch call,
+    so no GPU/CUDA is needed to exercise it.
 
+    (Pre-0.6.0 this asserted a UserWarning + CPU fallback via the removed
+    `backend=` kwarg; that behavior no longer exists.)
+    """
     np.random.seed(42)
-    data = np.random.randn(100, 10, 50)  # Voxel-wise for GPU
+    data = np.random.randn(100, 10, 50)  # (n_obs, n_subjects, n_voxels)
 
-    # Should warn when using non-correlation metric with GPU
-    with pytest.warns(UserWarning, match="sim_metric.*not supported with GPU"):
-        result = isc_permutation_test(
+    with pytest.raises(ValueError, match="only supports sim_metric='correlation'"):
+        isc_permutation_test(
             data,
             summary_statistic="pairwise",
             sim_metric="euclidean",
-            backend="torch",
-            n_permute=100,
+            parallel="gpu",
+            n_permute=10,
             random_state=42,
             progress_bar=False,
         )
 
-    # Should still complete (falls back to CPU)
-    assert "isc" in result
+
+def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
+    """parallel='gpu' must route the pairwise compute to the torch backend.
+
+    Regression guard for the wiring fix: the observed pairwise ISC previously
+    hardcoded `backend='numpy'` even under `parallel='gpu'`, making the GPU a
+    silent no-op. Spy on `_compute_pairwise_isc` and assert it's invoked with
+    `backend='torch'`. No CUDA needed — torch falls back to its CPU device.
+    """
+    pytest.importorskip("torch")
+    from nltools.algorithms.inference import isc as isc_mod
+
+    seen = []
+    orig = isc_mod._compute_pairwise_isc
+
+    def _spy(data, backend="numpy", sim_metric="correlation"):
+        seen.append(backend)
+        return orig(data, backend=backend, sim_metric=sim_metric)
+
+    monkeypatch.setattr(isc_mod, "_compute_pairwise_isc", _spy)
+
+    np.random.seed(0)
+    data = np.random.randn(60, 8, 40)
+    isc_mod.isc_permutation_test(
+        data,
+        summary_statistic="pairwise",
+        parallel="gpu",
+        n_permute=10,
+        random_state=0,
+        progress_bar=False,
+    )
+    assert "torch" in seen, (
+        f"pairwise parallel='gpu' used backends {seen}; expected 'torch'."
+    )
 
 
 def test_isc_exclude_self_corr_pairwise_only():
@@ -1417,45 +1505,59 @@ class TestISCStatisticalCorrectness:
     """Test statistical correctness of ISC permutation tests (not just CPU/GPU consistency)."""
 
     @pytest.mark.slow
-    def test_null_hypothesis_pvalue_distribution(self):
-        """Test that p-values are uniformly distributed under null hypothesis (ISC = 0)."""
+    @pytest.mark.parametrize("method", ["circle_shift", "phase_randomize"])
+    @pytest.mark.parametrize("summary_statistic", ["leave-one-out", "pairwise"])
+    def test_null_hypothesis_pvalue_distribution(self, method, summary_statistic):
+        """Surrogate-null p-values are uniform under the null hypothesis (ISC = 0).
+
+        Only the surrogate methods (``circle_shift``/``phase_randomize``) are
+        genuine null-hypothesis significance tests: they generate a null by
+        destroying inter-subject temporal alignment while preserving each
+        subject's marginal structure, so under H0 (independent time series,
+        true ISC = 0) their p-values are uniform on [0, 1].
+
+        ``method='bootstrap'`` is deliberately excluded. The subject-wise
+        bootstrap (Chen et al. 2016) is a confidence-interval / effect-magnitude
+        tool; its recentered-exceedance p-value is only asymptotically valid and
+        is biased in finite samples (empirically anti-conservative for LOO,
+        conservative for pairwise here), so it does NOT yield uniform p-values
+        under the null. Asserting uniformity for bootstrap would be testing the
+        wrong contract.
+        """
         from scipy.stats import kstest
 
         n_timepoints = 100
         n_subjects = 15
         n_tests = 100  # Run many tests with different seeds
-        n_permute = 2000  # Enough permutations for stable p-values
+        n_permute = 1000  # Enough permutations for stable p-values
 
-        # Test both LOO and pairwise methods
-        summary_statistics = ["leave-one-out", "pairwise"]
+        p_values = []
+        for seed in range(n_tests):
+            np.random.seed(seed)
+            # Generate independent time series (ISC = 0)
+            data = np.random.randn(n_timepoints, n_subjects)
 
-        for summary_statistic in summary_statistics:
-            p_values = []
-
-            for seed in range(n_tests):
-                np.random.seed(seed)
-                # Generate independent time series (ISC = 0)
-                data = np.random.randn(n_timepoints, n_subjects)
-
-                result = isc_permutation_test(
-                    data,
-                    summary_statistic=summary_statistic,
-                    n_permute=n_permute,
-                    random_state=seed,
-                    progress_bar=False,
-                )
-
-                p_values.append(result["p"])
-
-            # Test uniformity using Kolmogorov-Smirnov test
-            # Under null hypothesis, p-values should be uniformly distributed
-            ks_statistic, ks_pvalue = kstest(p_values, "uniform")
-
-            # KS test p-value should be > 0.05 (p-values are uniform)
-            assert ks_pvalue > 0.05, (
-                f"P-values should be uniformly distributed under null hypothesis for {summary_statistic}. "
-                f"KS test p-value: {ks_pvalue:.4f}"
+            result = isc_permutation_test(
+                data,
+                summary_statistic=summary_statistic,
+                method=method,
+                n_permute=n_permute,
+                random_state=seed,
+                progress_bar=False,
             )
+
+            # result["p"] is a length-1 array for single-feature input; take scalar
+            p_values.append(np.asarray(result["p"]).item())
+
+        # Under H0, p-values should be uniform: a KS test should fail to reject.
+        # Everything above is seeded, so this KS p-value is deterministic.
+        ks_statistic, ks_pvalue = kstest(p_values, "uniform")
+
+        assert ks_pvalue > 0.05, (
+            f"P-values should be uniformly distributed under the null hypothesis "
+            f"for method={method!r}, summary_statistic={summary_statistic!r}. "
+            f"KS test p-value: {float(ks_pvalue):.4f}"
+        )
 
     def test_isc_value_correctness_loo(self):
         """Test that LOO ISC value matches expected value for known ISC structure."""

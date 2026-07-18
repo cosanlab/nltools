@@ -41,6 +41,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     *,
     X=None,
     cv=None,
+    device="cpu",
     local_alpha=True,
     fit_intercept=False,
     inplace=True,
@@ -70,6 +71,17 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             - 'auto': Triggers alpha selection via CV (implies alpha='auto')
             - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
             - None: No CV (default, backward compatible)
+        device (str, default='cpu'): Ridge only. Compute device for the ridge
+            solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when
+            available), or ``'auto'`` (GPU if present, else CPU). Forwarded to
+            ``Ridge`` and the CV evaluation. Ignored for ``model='glm'``.
+        local_alpha (bool, default=True): Ridge only. If True, select a
+            separate best alpha per voxel; if False, select a single shared
+            alpha across all voxels. Forwarded to ``Ridge``.
+        fit_intercept (bool, default=False): Ridge only. If True, fit an
+            intercept term. Redundant (and warned against) when the data is
+            already centered via ``scale`` or ``standardize``. Forwarded to
+            ``Ridge``.
         inplace (bool, default=True): If True, mutate bd and return bd (backward compatible).
             If False, return a Fit dataclass with the results. In this case
             bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` /
@@ -110,7 +122,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             Fill value for NaNs before correlation check in
             ``DesignMatrix.clean()``. Ignored when ``model='ridge'``.
         **kwargs (dict): Additional arguments passed to model constructor
-            - Ridge: alpha, alphas, backend, random_state
+            - Ridge: alpha, alphas, random_state (device is a named param above)
             - Glm: noise_model, minimize_memory, etc.
 
     Returns:
@@ -281,16 +293,26 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
 
     # Create model based on string
     if model == "ridge":
+        # Device selection is a first-class facade kwarg (`device=`), not a
+        # passthrough. Reject the retired algorithm-layer aliases loudly rather
+        # than letting them silently reach Ridge (which no longer accepts them).
+        for banned in ("backend", "parallel"):
+            if banned in kwargs:
+                raise TypeError(
+                    f"`{banned}=` is not a valid ridge kwarg; use "
+                    f"`device='cpu'|'gpu'|'auto'` to select the compute device."
+                )
         # Forward progress_bar to Ridge model's progress_bar kwarg
         ridge_kwargs = kwargs.copy()
         if "progress_bar" not in ridge_kwargs:
             ridge_kwargs["progress_bar"] = progress_bar
         # Explicit-signature kwargs win over **kwargs forwarding so calls
         # like bd.fit(model='ridge', local_alpha=False, ...) reach Ridge.
+        ridge_kwargs.setdefault("device", device)
         ridge_kwargs.setdefault("local_alpha", local_alpha)
         ridge_kwargs.setdefault("fit_intercept", fit_intercept)
         target.model_ = Ridge(**ridge_kwargs)
-        fit_ridge(target, X_model, cv=cv, **kwargs)
+        fit_ridge(target, X_model, cv=cv, device=device, **kwargs)
     elif model == "glm":
         if cv is not None:
             raise NotImplementedError(
@@ -319,8 +341,8 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     return bd
 
 
-def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params (alpha/backend) to compute_ridge_cv
-    bd, X, cv=None, **kwargs
+def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params (alpha) to compute_ridge_cv
+    bd, X, cv=None, device="cpu", **kwargs
 ):
     """Fit Ridge model and extract results.
 
@@ -328,7 +350,9 @@ def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params
         bd: BrainData instance.
         X (ndarray): Training features
         cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification
-        **kwargs (dict): Additional arguments for CV (alpha, alphas, backend, etc.)
+        device (str, default='cpu'): Compute device ('cpu'/'gpu'/'auto') for the
+            held-out CV evaluation, forwarded to ``compute_ridge_cv``.
+        **kwargs (dict): Additional arguments for CV (alpha, etc.)
 
     Note:
         Sets ridge_weights, ridge_fitted_values, ridge_scores, and
@@ -347,7 +371,7 @@ def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params
     elif cv is not None:
         # Fixed-α + CV evaluation: alpha is set, we just want held-out
         # scores under it. compute_ridge_cv handles this branch.
-        bd.cv_results_ = compute_ridge_cv(bd, X, cv, **kwargs)
+        bd.cv_results_ = compute_ridge_cv(bd, X, cv, device=device, **kwargs)
         bd.model_.fit(X, bd.data)
     else:
         bd.model_.fit(X, bd.data)
@@ -486,7 +510,7 @@ def _assemble_ridge_cv_results(bd, X, cv):
     }
 
 
-def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
+def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
     """Held-out CV scores under a fixed Ridge α.
 
     Used only for the *fixed-α* + CV branch — alpha selection is now
@@ -499,12 +523,13 @@ def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
         cv (int or sklearn CV splitter): Cross-validation specification.
         alpha (float, optional): Fixed regularization strength. If None,
             extracted from ``bd.model_.alpha``.
-        backend (str): Computational backend ('numpy', 'torch', 'auto'). Default: 'auto'
+        device (str): Compute device ('cpu'/'gpu'/'auto'). Default: 'cpu'.
 
     Returns:
         dict: ``{"scores", "mean_score", "predictions", "folds"}``.
     """
     from nltools.algorithms.ridge import cross_val_predict_ridge
+    from nltools.algorithms.backends import resolve_backend
 
     cv_splitter = _normalize_cv(cv)
 
@@ -519,17 +544,11 @@ def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
 
     fit_intercept = bool(getattr(bd.model_, "fit_intercept", False))
 
-    # Translate the BrainData-layer 'backend' string vocabulary to the
-    # ridge layer's 'parallel' vocabulary. Kept here for compatibility
-    # with callers that still pass backend='auto'/'torch'/etc.
-    if backend in ("auto", "numpy", None):
-        parallel = "cpu"
-    elif backend == "torch":
-        parallel = "gpu"
-    elif backend in ("cpu", "gpu"):
-        parallel = backend
-    else:
-        parallel = "cpu"
+    # Translate the facade 'device' selector to the ridge layer's 'parallel'
+    # vocabulary by resolving to a concrete backend: 'gpu'/'auto' land on a
+    # real GPU only when one is present, otherwise fall back to CPU.
+    backend_obj = resolve_backend(device)
+    parallel = "gpu" if backend_obj.device in ("cuda", "mps") else "cpu"
 
     n_voxels = bd.data.shape[1]
     pred_result = cross_val_predict_ridge(
@@ -553,7 +572,7 @@ def compute_ridge_cv(bd, X, cv, alpha=None, backend="auto"):
 
 
 def fit_glm(bd, X):
-    """Fit GLM model and extract results (same logic as current regress()).
+    """Fit GLM model and extract results.
 
     Args:
         bd: BrainData instance.
@@ -664,7 +683,9 @@ def to_fit_dataclass(bd, model):
                 cv_predictions = cv_results["predictions"].data  # (n_samples, n_voxels)
 
             cv_folds = cv_results.get("folds")  # (n_samples,)
-            cv_best_alpha = cv_results.get("best_alpha")  # float or None
+            cv_best_alpha = cv_results.get(
+                "best_alpha"
+            )  # (n_voxels,) per-voxel α, or scalar when local_alpha=False (or None)
             cv_alpha_scores = cv_results.get(
                 "alpha_scores"
             )  # (n_folds, n_alphas, n_voxels) or None
@@ -751,14 +772,18 @@ def ttest(
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
         tail: Tail of the test (1 or 2). Default 2.
-        return_null: If True, also return the null distribution. Default False.
+        return_null: Currently has no effect. The returned dict always
+            contains exactly ``{"mean", "t", "z", "p"}`` and the null
+            distribution is discarded even when this is True. Default False.
         n_jobs: Number of parallel jobs. Default -1 (all cores).
         random_state: Random seed for reproducibility.
 
     Returns:
         dict with four BrainData keys:
 
-            - ``"mean"``: voxelwise mean across images (effect-size estimate).
+            - ``"mean"``: voxelwise mean across images minus ``popmean``
+              (i.e. ``mean(images) - popmean``, an effect-size estimate;
+              equals the raw voxelwise mean only when ``popmean=0``).
             - ``"t"``: parametric one-sample t-statistic.
             - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching
               nilearn's ``output_type='z_score'``. Useful for thresholding

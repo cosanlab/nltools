@@ -184,7 +184,7 @@ def upsample(dm: DesignMatrix, target: float, method: str = "linear") -> DesignM
 
     Examples:
         >>> dm = DesignMatrix({"a": list(range(10))}, sampling_freq=1.0)
-        >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 19 samples)
+        >>> dm_up = upsample(dm, target=2.0)  # 1 Hz -> 2 Hz (10 -> 18 samples)
     """
     from scipy.interpolate import interp1d
 

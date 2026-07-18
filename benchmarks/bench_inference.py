@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager, redirect_stderr
 
-from benchmarks.harness import BenchResult, benchmark
+from benchmarks.harness import BenchResult, benchmark, gpu_device
 from benchmarks.workloads import make_group_maps
 
 N_SUBJECTS = 30
@@ -20,7 +20,14 @@ N_VOXELS_QUICK = 300
 N_PERMUTE_FULL = [1_000, 3_000]
 N_PERMUTE_QUICK = [200]
 
-BACKENDS = [("cpu", "cpu"), ("gpu", "mps")]
+
+def _backends() -> list[tuple[str, str]]:
+    """(inference parallel=, harness device=) pairs — GPU leg included iff present."""
+    backends = [("cpu", "cpu")]
+    gpu = gpu_device()
+    if gpu is not None:
+        backends.append(("gpu", gpu))
+    return backends
 
 
 @contextmanager
@@ -28,18 +35,6 @@ def _quiet():
     """Suppress the inference functions' tqdm progress bars during timing."""
     with open(os.devnull, "w") as devnull, redirect_stderr(devnull):
         yield
-
-
-def _gpu_ok(device: str) -> bool:
-    try:
-        import torch
-    except ModuleNotFoundError:
-        return False
-    if device == "mps":
-        return torch.backends.mps.is_available()
-    if device == "cuda":
-        return torch.cuda.is_available()
-    return True
 
 
 def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
@@ -81,9 +76,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     results: list[BenchResult] = []
     for name, fn in cases:
         for n_permute in n_permutes:
-            for parallel, device in BACKENDS:
-                if device != "cpu" and not _gpu_ok(device):
-                    continue
+            for parallel, device in _backends():
 
                 def _call(fn=fn, p=parallel, n=n_permute):
                     with _quiet():

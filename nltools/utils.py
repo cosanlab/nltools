@@ -118,7 +118,7 @@ def all_same(items):
         >>> all_same([1, 2, 1])
         False
     """
-    return np.all(x == items[0] for x in items)
+    return all(np.array_equal(x, items[0]) for x in items)
 
 
 def concatenate(data):
