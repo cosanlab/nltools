@@ -29,6 +29,8 @@ Testing Strategy & Tolerances:
        - Why: GPU uses float32, CPU uses float64; P-values accumulate more error
 """
 
+import time
+
 import numpy as np
 import pytest
 from scipy.spatial.distance import squareform
@@ -666,14 +668,13 @@ def test_isc_gpu_speedup_loo():
 def test_isc_gpu_pairwise_matches_cpu():
     """GPU pairwise ISC matches CPU within float32 tolerance.
 
-    Correctness guard for the GPU pairwise wiring (parallel='gpu' now routes the
-    observed pairwise compute to the torch backend). Unlike LOO, pairwise GPU
-    does NOT provide a meaningful speedup for the full permutation test: the
-    default-method bootstrap resamples the precomputed condensed matrix on CPU
-    (only the single observed compute is on GPU), and `_compute_pairwise_isc_gpu`
-    extracts the per-voxel upper triangles in a CPU squareform loop. So this
-    asserts numerical agreement, not speed. (Previously asserted >3× speedup —
-    an assumption that never ran on the Apple-Silicon dev box and does not hold.)
+    Correctness guard for the fully-GPU pairwise path: `parallel='gpu'` runs the
+    observed compute on the torch backend (on-device upper-triangle extraction)
+    AND the bootstrap on-device (`_bootstrap_pairwise_gpu`). The GPU bootstrap
+    draws the *same* subject resamples the CPU path would (deterministic
+    cross-backend RNG via `_pairwise_bootstrap_indices`), so the ISC and p-value
+    maps agree within float32 tolerance. See `test_isc_gpu_pairwise_speedup` for
+    the performance guard.
     """
     _ = pytest.importorskip("torch")
 
@@ -702,6 +703,54 @@ def test_isc_gpu_pairwise_matches_cpu():
     )
     np.testing.assert_allclose(
         result_cpu["p"], result_gpu["p"], rtol=TOLERANCE_GPU_PVALUE, atol=1e-6
+    )
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_isc_gpu_pairwise_speedup():
+    """GPU pairwise ISC is meaningfully faster than CPU on a whole-brain-scale run.
+
+    Guards the perf goal of the GPU pairwise path (on-device triangle extraction +
+    on-device bootstrap): the bulk of the work — the ``n_permute`` bootstrap
+    iterations — now runs on the GPU instead of a CPU ``squareform`` loop. On a
+    GB10 this measures ~3.8× at (100, 50, 5000) / n_permute=1000; the assertion
+    uses a conservative ~2× floor so it stays green across GPU tiers and shared-box
+    load while still catching a regression back to the CPU-bound behavior.
+
+    Requires CUDA (``@pytest.mark.gpu``); a torch-CPU/MPS box has no GPU bootstrap
+    to accelerate, so the comparison would be meaningless there.
+    """
+    torch = pytest.importorskip("torch")
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA GPU required for the pairwise ISC speedup guard")
+
+    rng = np.random.RandomState(0)
+    data = rng.randn(100, 50, 5000).astype(np.float32)
+    kwargs = {
+        "summary_statistic": "pairwise",
+        "n_permute": 1000,
+        "random_state": 42,
+        "progress_bar": False,
+    }
+
+    # Warm up CUDA context/kernels so the GPU timing excludes one-time init.
+    isc_permutation_test(
+        data[:, :, :100], parallel="gpu", **{**kwargs, "n_permute": 10}
+    )
+
+    t0 = time.perf_counter()
+    isc_permutation_test(data, parallel="cpu", **kwargs)
+    t_cpu = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    isc_permutation_test(data, parallel="gpu", **kwargs)
+    t_gpu = time.perf_counter() - t0
+
+    speedup = t_cpu / t_gpu
+    assert speedup > 2.0, (
+        f"GPU pairwise ISC not meaningfully faster: CPU={t_cpu:.2f}s GPU={t_gpu:.2f}s "
+        f"(speedup={speedup:.2f}x, expected > 2x; ~3.8x on a GB10)"
     )
 
 
