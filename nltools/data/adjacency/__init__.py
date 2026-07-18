@@ -603,7 +603,7 @@ class Adjacency:
             labels (np.array):  numpy array of labels to plot
 
         Returns:
-            f: violin plot handles
+            None
 
         """
         from .stats import plot_label_distance
@@ -730,7 +730,7 @@ class Adjacency:
 
         Args:
             data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
-            plot: (bool) plot the observed statistic against the null distribution. Default False
+            plot: (bool) plot the two stacked adjacency matrices being compared. Default False
             method: (str) permutation scheme '1d', '2d', or None
             n_permute: (int) number of permutations for the p-value. Default 5000
             metric: (str) 'spearman','pearson','kendall'
@@ -750,10 +750,11 @@ class Adjacency:
                 the per-matrix correlations back into brain space. Default False.
 
         Returns:
-            dict or list or BrainData: A correlation result dict with keys 'r' and
-                'p' for a single matrix, a list of such dicts when this Adjacency
-                holds multiple matrices, or a `BrainData` when `project=True`
-                (per-matrix correlations projected via spatial_scale).
+            dict or list or BrainData: A correlation result dict with keys
+                'correlation', 'p', and 'parallel' for a single matrix, a list of
+                such dicts when this Adjacency holds multiple matrices, or a
+                `BrainData` when `project=True` (per-matrix correlations projected
+                via spatial_scale).
 
         """
         from .stats import similarity

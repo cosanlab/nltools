@@ -170,6 +170,37 @@ rules:
         - "nltools/pipelines/"
         - "scripts/"
 
+  # ── Result-dict key: observed correlation must be `'correlation'` ──────────
+  # A return-value convention (not a kwarg one), so this rule is NOT path-scoped
+  # to public defs — result dicts are built in the algorithm layer, and the
+  # convention binds every layer that emits a correlation result. The canonical
+  # keys are `'correlation'` (observed correlation) + `'p'` + `'parallel'`,
+  # matching correlation_permutation_test / matrix_permutation_test and the
+  # `Adjacency.similarity` contract. The banned alias is `'r'` (which drifted
+  # into docstrings; the code was already consistent — this keeps it that way).
+  # Distance correlation is the documented exception: it uses `'dcorr'`.
+  # The parallel/device field is `'parallel'`; `'backend'` is intentionally NOT
+  # banned because the ridge/backends layer legitimately reports a backend *name*
+  # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
+  - id: banned-result-key-correlation
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Result dict uses the key `'r'` for an observed correlation. The canonical
+      key is `'correlation'` (matching correlation_permutation_test /
+      matrix_permutation_test and the Adjacency.similarity contract). Rename it
+      to `'correlation'`. Distance correlation is the exception and uses
+      `'dcorr'`. If this `'r'` is genuinely unrelated to a correlation result,
+      suppress with `# nosemgrep: banned-result-key-correlation` and a reason.
+    patterns:
+      - pattern: '{..., "r": $V, ...}'
+    paths:
+      exclude:
+        - "**/tests/**"
+        - "scripts/"
+        - "nltools/plotting/"
+        - "**/plotting.py"
+
   # ── **kwargs across internal nltools->nltools boundaries ───────────────────
   # Plotting modules are excluded: they overwhelmingly forward **kwargs to
   # matplotlib / seaborn / nilearn (legitimate third-party passthrough), so a

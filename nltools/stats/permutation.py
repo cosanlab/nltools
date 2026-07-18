@@ -169,7 +169,7 @@ def correlation_permutation_test(
         random_state: Seed for reproducibility.
 
     Returns:
-        dict with keys ``'r'`` (observed correlation), ``'p'``,
+        dict with keys ``'correlation'`` (observed correlation), ``'p'``,
         ``'parallel'``, and optionally ``'null_dist'``.
     """
     from nltools.algorithms.inference.correlation import (
@@ -224,7 +224,7 @@ def timeseries_correlation_permutation_test(
         random_state: Seed for reproducibility.
 
     Returns:
-        dict with keys ``'r'`` (observed correlation), ``'p'``,
+        dict with keys ``'correlation'`` (observed correlation), ``'p'``,
         ``'parallel'``, and optionally ``'null_dist'``.
 
     References:
@@ -340,7 +340,7 @@ def matrix_permutation_test(
         random_state: Seed for reproducibility.
 
     Returns:
-        dict with keys ``'r'`` (observed matrix correlation), ``'p'``,
+        dict with keys ``'correlation'`` (observed matrix correlation), ``'p'``,
         ``'parallel'``, and optionally ``'null_dist'``.
 
     References:
@@ -421,7 +421,8 @@ def distance_correlation(
         ttest: If True, include a t-test for the hypothesis dcor = 0.
 
     Returns:
-        dict with key ``'r'`` (distance correlation), and optionally
+        dict with key ``'dcorr'`` (distance correlation), plus
+        ``'dcorr_squared'`` when ``bias_corrected=True``, and optionally
         ``'t'``, ``'p'``, ``'df'`` when ``ttest=True``.
 
     References:
