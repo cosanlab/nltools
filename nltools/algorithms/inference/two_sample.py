@@ -43,7 +43,7 @@ def _two_sample_permutation_cpu_parallel(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'backend' indicating CPU parallel
+        dict: Same format as main function, with 'parallel' indicating CPU parallel
     """
     from joblib import Parallel, delayed
     from tqdm import tqdm
@@ -134,7 +134,7 @@ def _two_sample_permutation_gpu_batched(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'backend' indicating GPU device
+        dict: Same format as main function, with 'parallel' indicating GPU device
     """
     import torch
     from tqdm import tqdm

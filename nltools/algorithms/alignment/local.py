@@ -312,11 +312,18 @@ class LocalAlignment:
         aggregation (str): Aggregation method: 'center' (center-only, preserves
             orthogonality) or 'all'. Defaults to 'center'.
         parallel (str | None): Parallelization mode. None runs single-threaded numpy,
-            'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch (falling back
-            to numpy CPU if PyTorch is unavailable). Defaults to 'cpu'.
+            'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU
+            acceleration applies only to `method='procrustes'`; the 'srm' and
+            'hyperalignment' methods always run on CPU regardless of this setting.
+            Defaults to 'cpu'.
         n_jobs (int): Number of jobs for CPU parallelization. Defaults to -1.
         progress_bar (bool): Whether to display tqdm progress bars during fit and
             transform. Defaults to False.
+        n_neighborhoods_batch (int | None): Number of neighborhoods to process per
+            batch on the GPU. None auto-calculates a batch size from `max_memory_gb`.
+            Defaults to None.
+        max_memory_gb (float): Memory budget (in GB) used to auto-size GPU batches
+            when `n_neighborhoods_batch` is None. Defaults to 4.0.
 
     Attributes:
         transforms_ (dict[int, list[np.ndarray]]): Per-neighborhood transforms. Keys are
