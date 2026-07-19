@@ -1,48 +1,73 @@
-"""ipyniivue (niivue) interactive viewer for BrainData.
+"""niivue interactive viewer for BrainData, as a self-owned `anywidget`.
 
-`build_viewer` returns a configured `NiiVue` — a
-WebGL brain viewer with live windowing (right-drag), slice scrolling,
-native 4D frame scrubbing, true 3D rendering, and optional nltools-atlas
-overlays (colored regions / outlines / hover labels). Live-kernel only
-(Jupyter, marimo); static docs keep using `BrainData.plot`.
+`build_viewer` returns a `NiivueViewer` — a WebGL brain viewer with live
+windowing, slice scrolling, native 4D frame scrubbing, true 3D rendering, and
+optional nltools-atlas overlays (colored regions / outlines / hover labels).
+
+Unlike the previous `ipyniivue` backend, this widget drives the
+`@niivue/niivue` JavaScript library directly through anywidget's **standard**
+model API (see ``viewer.js``). That is the whole point: ipyniivue's custom
+chunked-binary protocol calls a non-standard ``model.onChange`` that only
+exists on a live marimo server, so it dies on a server-less
+``marimo export html-wasm`` page (cosanlab/nltools#455). Staying on the standard
+API makes the viewer render identically in Jupyter, ``marimo edit``, and a
+WASM/Pyodide export — the last is where the tutorials run in-browser.
 
 The module is split functional-core / imperative-shell:
 
-- Pure helpers (`resolve_cmap`, `divergent_partner`,
-  `slice_type_for`, `qualitative_colors`,
-  `atlas_to_label_lut`, `resolve_background`,
-  `bd_to_volume`) translate BrainData / `Atlas` state into the
-  vocabulary niivue understands.
-- `build_viewer` is the thin assembler that constructs the widget,
-  loads the volume stack, and applies the display settings.
+- Pure helpers (`resolve_cmap`, `divergent_partner`, `slice_type_for`,
+  `qualitative_colors`, `atlas_to_label_lut`, `resolve_background`,
+  `bd_to_nifti_bytes`, `threshold_slider_bounds`) translate BrainData /
+  `Atlas` state into the vocabulary niivue understands.
+- `NiivueViewer` is the thin traitlets widget; `build_viewer` is the assembler
+  that fills its traits from a BrainData.
 
-niivue formatting deliberately lives here, not in
-``nltools/data/atlases/`` — the atlas package stays niivue-agnostic and
-only exposes the generic `Atlas` dataclass.
+niivue formatting deliberately lives here, not in ``nltools/data/atlases/`` —
+the atlas package stays niivue-agnostic and only exposes the generic `Atlas`
+dataclass.
 """
 
 from __future__ import annotations
 
 import colorsys
 import functools
+import gzip
 import pathlib
 import warnings
+
+import anywidget
+import traitlets
 
 from nltools.data.atlases import Atlas, load_atlas
 from nltools.templates.matching import get_bg_image, is_standard_space
 
-try:
-    from ipyniivue import NiiVue, SliceType, Volume
-except ModuleNotFoundError as exc:  # pragma: no cover - hard dep, friendly hint
-    raise ModuleNotFoundError(
-        "BrainData.iplot() requires the optional viewer backend `ipyniivue`. "
-        "Install it with `uv add ipyniivue` (or `pip install ipyniivue`)."
-    ) from exc
+_VIEWER_JS = pathlib.Path(__file__).parent / "viewer.js"
 
 
 # --------------------------------------------------------------------------- #
 # Colormaps
 # --------------------------------------------------------------------------- #
+
+# niivue's builtin colormap names (@niivue/niivue 0.69). Hardcoded rather than
+# read from a Python package's statics because the JS engine now comes straight
+# from a CDN — there is no local niivue install to introspect. Stable across
+# niivue releases; extend if niivue adds builtins we want to expose by name.
+_NIIVUE_COLORMAPS: frozenset[str] = frozenset(
+    {
+        "actc", "afni_blues_inv", "afni_reds_inv", "batlow", "bcgwhw",
+        "bcgwhw_dark", "blue", "blue2cyan", "blue2magenta", "blue2red",
+        "bluegrn", "bone", "bronze", "cet_l17", "cividis", "cool", "copper",
+        "copper2", "ct_airways", "ct_artery", "ct_bones", "ct_brain",
+        "ct_brain_gray", "ct_cardiac", "ct_head", "ct_kidneys", "ct_liver",
+        "ct_muscles", "ct_scalp", "ct_skull", "ct_soft", "ct_soft_tissue",
+        "ct_surface", "ct_vessels", "ct_w_contrast", "cubehelix",
+        "electric_blue", "freesurfer", "ge_color", "gold", "gray", "green",
+        "green2cyan", "green2orange", "hot", "hotiron", "hsv", "inferno",
+        "jet", "kry", "linspecer", "lipari", "magma", "mako", "navia", "nih",
+        "plasma", "random", "red", "redyell", "rocket", "roi_i256", "surface",
+        "thermal", "turbo", "violet", "viridis", "warm", "winter", "x_rain",
+    }
+)  # fmt: skip
 
 # Common matplotlib colormap names with no exact niivue equivalent. niivue
 # silently renders gray for unknown names, so we map the popular ones and
@@ -89,17 +114,8 @@ _DIVERGENT_PARTNERS: dict[str, str] = {
 
 @functools.cache
 def _niivue_colormaps() -> frozenset[str]:
-    """Names of niivue's builtin colormaps (read from the package's statics).
-
-    Cached; avoids constructing a throwaway ``NiiVue`` widget just to call
-    ``nv.colormaps()``.
-    """
-    import ipyniivue
-
-    cmap_dir = pathlib.Path(ipyniivue.__file__).parent / "static" / "colormaps"
-    return frozenset(
-        p.stem.lower() for p in cmap_dir.glob("*.json") if not p.stem.startswith("$")
-    )
+    """Names of niivue's builtin colormaps (see `_NIIVUE_COLORMAPS`)."""
+    return _NIIVUE_COLORMAPS
 
 
 def resolve_cmap(name: str) -> str:
@@ -151,24 +167,27 @@ def divergent_partner(cmap: str) -> str:
 # View / slice type
 # --------------------------------------------------------------------------- #
 
-_VIEW_TO_SLICE: dict[str, SliceType] = {
-    "ortho": SliceType.MULTIPLANAR,
-    "axial": SliceType.AXIAL,
-    "coronal": SliceType.CORONAL,
-    "sagittal": SliceType.SAGITTAL,
-    "render": SliceType.RENDER,
+# Map a ``view`` string to the name of niivue's ``SLICE_TYPE`` enum member,
+# which ``viewer.js`` indexes into (``SLICE_TYPE[name]``).
+_VIEW_TO_SLICE: dict[str, str] = {
+    "ortho": "MULTIPLANAR",
+    "axial": "AXIAL",
+    "coronal": "CORONAL",
+    "sagittal": "SAGITTAL",
+    "render": "RENDER",
 }
 
 
-def slice_type_for(view: str) -> SliceType:
-    """Map a ``view`` string to a niivue `SliceType`.
+def slice_type_for(view: str) -> str:
+    """Map a ``view`` string to a niivue ``SLICE_TYPE`` enum name.
 
     Args:
         view: One of ``"ortho"``, ``"axial"``, ``"coronal"``,
             ``"sagittal"``, ``"render"``.
 
     Returns:
-        The matching `SliceType`.
+        The matching ``SLICE_TYPE`` member name (e.g. ``"MULTIPLANAR"``),
+        which ``viewer.js`` resolves against niivue's enum.
 
     Raises:
         ValueError: For ``view="surface"`` (dropped — niivue's 3D render is
@@ -237,8 +256,8 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
         atlas: A loaded deterministic `Atlas`.
 
     Returns:
-        ``{"R", "G", "B", "A", "labels"}`` dict suitable for
-        `set_colormap_label`.
+        ``{"R", "G", "B", "A", "labels"}`` dict suitable for niivue's
+        ``setColormapLabel``.
 
     Raises:
         ValueError: If ``atlas`` is probabilistic (4D) — threshold it to a
@@ -312,151 +331,47 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
 
 
 # --------------------------------------------------------------------------- #
-# Volumes
+# Volume bytes
 # --------------------------------------------------------------------------- #
 
 
-def bd_to_volume(
-    bd,
-    *,
-    name: str,
-    cmap: str,
-    cmap_negative: str,
-    cal_min: float | None,
-    cal_max: float | None,
-    opacity: float,
-) -> Volume:
-    """Build a niivue `Volume` from a BrainData stat map.
+def gzip_nifti(raw: bytes) -> bytes:
+    """Gzip NIfTI bytes unless they are already gzip-compressed.
 
-    The 3D (``bd[0]``) or 4D (a stack) image is loaded **once** as a single
-    volume — niivue scrubs 4D frames natively, so there is no per-frame
-    re-render. Thresholding is the divergent magnitude window
-    ``[cal_min, cal_max]``: the positive side uses ``cmap``, the negative
-    side mirrors it via ``cmap_negative``. ``cal_min`` is the display floor;
-    because niivue's overlay colormaps ramp alpha to 0 at the floor,
-    sub-floor voxels render transparent (true thresholding).
+    The frontend hands every volume to niivue under a ``.nii.gz`` name, so the
+    payload must actually be gzip. Compressing also shrinks the single ``Bytes``
+    trait that crosses the anywidget comm (a full 1mm-FOV volume is tens of MB
+    raw). Bytes already carrying the gzip magic (``1f 8b`` — e.g. a template
+    read straight off disk) pass through untouched.
+
+    Args:
+        raw: NIfTI-1 bytes, compressed or not.
+
+    Returns:
+        Gzip-compressed NIfTI bytes.
+    """
+    return raw if raw[:2] == b"\x1f\x8b" else gzip.compress(raw)
+
+
+def bd_to_nifti_bytes(bd) -> bytes:
+    """Serialize a BrainData (3D or 4D) to gzip-compressed NIfTI bytes.
+
+    The image is sent to niivue **once** as a single volume — niivue scrubs
+    4D frames natively, so there is no per-frame re-render. niivue infers the
+    format from the ``.nii.gz`` name the frontend assigns, so the bytes are
+    gzip-compressed to match (see `gzip_nifti`).
 
     Args:
         bd: A BrainData (3D for a single map, 4D for a stack).
-        name: Volume name (shown in the colorbar / legend).
-        cmap: Resolved niivue positive colormap.
-        cmap_negative: niivue colormap for negative values.
-        cal_min: Window floor, or ``None`` for niivue auto.
-        cal_max: Window ceiling, or ``None`` for niivue auto.
-        opacity: Volume opacity in ``0..1``.
 
     Returns:
-        A configured `Volume`.
+        The image encoded as gzip-compressed NIfTI-1 bytes.
     """
-    vol = Volume(
-        name=name,
-        data=bd.to_nifti().to_bytes(),
-        colormap=cmap,
-        colormap_negative=cmap_negative,
-        opacity=float(opacity),
-    )
-    if cal_min is not None:
-        vol.cal_min = float(cal_min)
-    if cal_max is not None:
-        vol.cal_max = float(cal_max)
-    return vol
+    return gzip_nifti(bd.to_nifti().to_bytes())
 
 
 # --------------------------------------------------------------------------- #
-# Assembler (imperative shell)
-# --------------------------------------------------------------------------- #
-
-
-def build_viewer(
-    bd,
-    *,
-    view: str = "ortho",
-    cal_min: float | None = None,
-    cal_max: float | None = None,
-    cmap: str = "warm",
-    atlas: str | Atlas | None = None,
-    bg_img: str | bool | None = None,
-    opacity: float = 1.0,
-    outline: float = 0.0,
-    colorbar: bool = True,
-    niivue_opts: dict | None = None,
-) -> NiiVue:
-    """Assemble a configured `NiiVue` for a BrainData.
-
-    Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
-    so its outlines/opacity keep the stat map readable), loads it, applies
-    the atlas label LUT / outline, and sets the slice type.
-
-    Args:
-        bd: BrainData to view.
-        view: See `slice_type_for`.
-        cal_min: Window floor (threshold), or ``None`` for auto.
-        cal_max: Window ceiling, or ``None`` for auto.
-        cmap: Positive colormap (niivue or matplotlib name).
-        atlas: Atlas name, `Atlas`, or ``None``.
-        bg_img: See `resolve_background`.
-        opacity: Stat-map (and filled-atlas) opacity.
-        outline: ``> 0`` draws atlas region boundaries of that width;
-            ``0`` draws filled regions.
-        colorbar: Show the stat-map colorbar (the ``cmap`` scale). Only the
-            stat map carries a colorbar; the background and atlas overlays are
-            suppressed. An explicit ``is_colorbar`` in ``niivue_opts`` wins.
-        niivue_opts: Extra kwargs forwarded verbatim to ``NiiVue(**opts)``.
-
-    Returns:
-        A configured `NiiVue` ready to display.
-    """
-    cmap_resolved = resolve_cmap(cmap)
-    cmap_negative = divergent_partner(cmap_resolved)
-    slice_type = slice_type_for(view)
-    atlas_obj = _coerce_atlas(atlas)
-    bg_path = resolve_background(bd.mask.affine, bg_img)
-
-    # Validate / compute the atlas LUT up front so a probabilistic atlas
-    # raises before we serialize any image bytes.
-    atlas_lut = atlas_to_label_lut(atlas_obj) if atlas_obj is not None else None
-
-    statmap = bd_to_volume(
-        bd,
-        name="statmap",
-        cmap=cmap_resolved,
-        cmap_negative=cmap_negative,
-        cal_min=cal_min,
-        cal_max=cal_max,
-        opacity=opacity,
-    )
-
-    volumes: list[Volume] = []
-    if bg_path is not None:
-        bg_vol = Volume(path=bg_path, name="background", colormap="gray")
-        # Only the stat map should carry a colorbar; the anatomical scale is noise.
-        bg_vol.colorbar_visible = False
-        volumes.append(bg_vol)
-    volumes.append(statmap)
-    if atlas_obj is not None:
-        atlas_vol = Volume(
-            name=atlas_obj.name,
-            data=atlas_obj.image.to_bytes(),
-            opacity=float(opacity),
-        )
-        atlas_vol.set_colormap_label(atlas_lut)
-        # Region labels aren't a continuous scale, so suppress their colorbar.
-        atlas_vol.colorbar_visible = False
-        volumes.append(atlas_vol)
-
-    # Enable the global colorbar unless the caller overrode is_colorbar directly.
-    opts = dict(niivue_opts or {})
-    opts.setdefault("is_colorbar", bool(colorbar))
-    nv = NiiVue(**opts)
-    nv.load_volumes(volumes)
-    if atlas_obj is not None and outline > 0:
-        nv.set_atlas_outline(float(outline))
-    nv.set_slice_type(slice_type)
-    return nv
-
-
-# --------------------------------------------------------------------------- #
-# Interactive threshold controls (imperative shell)
+# Threshold slider bounds
 # --------------------------------------------------------------------------- #
 
 
@@ -502,60 +417,145 @@ def threshold_slider_bounds(
     return lo_bound, hi_bound, value_low, value_high, step
 
 
-def build_controls(nv: NiiVue, bd, *, cal_min: float | None, cal_max: float | None):
-    """Wrap a `NiiVue` in a `VBox` with a live threshold slider.
+# --------------------------------------------------------------------------- #
+# Widget (imperative shell)
+# --------------------------------------------------------------------------- #
 
-    The returned container stacks a `FloatRangeSlider` above the viewer; the
-    slider drives the stat-map volume's ``cal_min``/``cal_max`` window (the
-    discoverable in-notebook equivalent of niivue's right-drag windowing).
-    The niivue widget is exposed as ``.viewer`` and the slider as
-    ``.threshold_slider`` for programmatic access.
 
-    When the caller passed no ``cal_min``/``cal_max``, the volume window is
-    left on niivue auto until the slider is first moved, so the default
-    display matches ``controls=False``.
+class NiivueViewer(anywidget.AnyWidget):
+    """anywidget wrapper around ``@niivue/niivue``, driven via the standard API.
+
+    Holds the volume stack as byte traits (``bg_bytes`` / ``statmap_bytes`` /
+    ``atlas_bytes``, any empty and skipped) plus display-parameter traits that
+    ``viewer.js`` reads to configure niivue. Scalar traits (``cal_min`` /
+    ``cal_max`` / ``slice_type`` / ``colorbar`` / ``atlas_outline``) are
+    reactive: set them from Python and the frontend updates in place; the
+    in-widget threshold slider writes ``cal_min`` / ``cal_max`` back.
+
+    Not constructed directly — `build_viewer` fills it from a BrainData.
+    """
+
+    _esm = _VIEWER_JS
+
+    # Volume bytes (empty == absent). NIfTI-1, sent as one buffer each.
+    bg_bytes = traitlets.Bytes(b"").tag(sync=True)
+    statmap_bytes = traitlets.Bytes(b"").tag(sync=True)
+    atlas_bytes = traitlets.Bytes(b"").tag(sync=True)
+
+    # Display params for the stat map (name/colormap/colormap_negative/opacity)
+    # and the atlas overlay (name + integer-indexed label LUT).
+    statmap = traitlets.Dict().tag(sync=True)
+    atlas_name = traitlets.Unicode("").tag(sync=True)
+    atlas_lut = traitlets.Dict().tag(sync=True)
+
+    # Reactive stat-map window; None == niivue auto (percentile-derived).
+    cal_min = traitlets.Float(None, allow_none=True).tag(sync=True)
+    cal_max = traitlets.Float(None, allow_none=True).tag(sync=True)
+
+    slice_type = traitlets.Unicode("MULTIPLANAR").tag(sync=True)
+    colorbar = traitlets.Bool(True).tag(sync=True)
+    atlas_outline = traitlets.Float(0.0).tag(sync=True)
+
+    # Controls + layout.
+    controls = traitlets.Bool(True).tag(sync=True)
+    slider_bounds = traitlets.Dict().tag(sync=True)
+    height = traitlets.Int(400).tag(sync=True)
+
+    # Extra niivue ConfigOptions forwarded verbatim to ``new Niivue(opts)``.
+    niivue_opts = traitlets.Dict().tag(sync=True)
+
+
+def build_viewer(
+    bd,
+    *,
+    view: str = "ortho",
+    cal_min: float | None = None,
+    cal_max: float | None = None,
+    cmap: str = "warm",
+    atlas: str | Atlas | None = None,
+    bg_img: str | bool | None = None,
+    opacity: float = 1.0,
+    outline: float = 0.0,
+    colorbar: bool = True,
+    controls: bool = True,
+    niivue_opts: dict | None = None,
+) -> NiivueViewer:
+    """Assemble a configured `NiivueViewer` for a BrainData.
+
+    Builds the volume stack ``[background?, statmap, atlas?]`` (atlas on top
+    so its outlines/opacity keep the stat map readable) as byte + parameter
+    traits, computes the threshold-slider bounds, and sets the slice type.
 
     Args:
-        nv: The assembled viewer (from `build_viewer`).
-        bd: The BrainData being viewed (source of the slider range).
-        cal_min: Window floor the caller requested, or ``None`` for auto.
-        cal_max: Window ceiling the caller requested, or ``None`` for auto.
+        bd: BrainData to view.
+        view: See `slice_type_for`.
+        cal_min: Window floor (threshold), or ``None`` for auto.
+        cal_max: Window ceiling, or ``None`` for auto.
+        cmap: Positive colormap (niivue or matplotlib name).
+        atlas: Atlas name, `Atlas`, or ``None``.
+        bg_img: See `resolve_background`.
+        opacity: Stat-map (and filled-atlas) opacity.
+        outline: ``> 0`` draws atlas region boundaries of that width;
+            ``0`` draws filled regions.
+        colorbar: Show the stat-map colorbar (the ``cmap`` scale). Only the
+            stat map carries a colorbar; the background and atlas overlays are
+            suppressed by the frontend.
+        controls: Render the in-widget threshold slider (default ``True``).
+        niivue_opts: Extra kwargs forwarded verbatim to ``new Niivue(opts)``.
+            A ``height`` key sets the canvas height; an ``is_colorbar`` key
+            overrides ``colorbar``.
 
     Returns:
-        An `ipywidgets.VBox` with ``.viewer`` and ``.threshold_slider`` set.
-
-    Note:
-        Requires ``ipywidgets``; `BrainData.iplot` guards that at the boundary
-        (raising a friendly install hint) before delegating here.
+        A configured `NiivueViewer` ready to display.
     """
-    from ipywidgets import FloatRangeSlider, Layout, VBox
+    cmap_resolved = resolve_cmap(cmap)
+    cmap_negative = divergent_partner(cmap_resolved)
+    slice_name = slice_type_for(view)
+    atlas_obj = _coerce_atlas(atlas)
+    bg_path = resolve_background(bd.mask.affine, bg_img)
 
-    statmap = next((v for v in nv.volumes if v.name == "statmap"), None)
-    if statmap is None:  # pragma: no cover - build_viewer always adds statmap
-        return nv
+    # Validate / compute the atlas LUT up front so a probabilistic atlas
+    # raises before we serialize any image bytes.
+    atlas_lut = atlas_to_label_lut(atlas_obj) if atlas_obj is not None else {}
 
     lo, hi, vlo, vhi, step = threshold_slider_bounds(
         bd, cal_min=cal_min, cal_max=cal_max
     )
-    slider = FloatRangeSlider(
-        value=(vlo, vhi),
-        min=lo,
-        max=hi,
-        step=step,
-        description="Threshold",
-        continuous_update=True,
-        readout_format=".2f",
-        layout=Layout(width="90%"),
+
+    # Pull height / is_colorbar out of the forwarded niivue opts: height is a
+    # canvas-layout trait, and an explicit is_colorbar wins over colorbar=.
+    opts = dict(niivue_opts or {})
+    height = int(opts.pop("height", 400))
+    if "is_colorbar" in opts:
+        colorbar = bool(opts.pop("is_colorbar"))
+
+    return NiivueViewer(
+        bg_bytes=gzip_nifti(pathlib.Path(bg_path).read_bytes()) if bg_path else b"",
+        statmap_bytes=bd_to_nifti_bytes(bd),
+        atlas_bytes=(
+            gzip_nifti(atlas_obj.image.to_bytes()) if atlas_obj is not None else b""
+        ),
+        statmap={
+            "name": "statmap",
+            "colormap": cmap_resolved,
+            "colormap_negative": cmap_negative,
+            "opacity": float(opacity),
+        },
+        atlas_name=atlas_obj.name if atlas_obj is not None else "",
+        atlas_lut=atlas_lut,
+        cal_min=cal_min,
+        cal_max=cal_max,
+        slice_type=slice_name,
+        colorbar=bool(colorbar),
+        atlas_outline=float(outline) if atlas_obj is not None else 0.0,
+        controls=bool(controls),
+        slider_bounds={
+            "min": lo,
+            "max": hi,
+            "value_low": vlo,
+            "value_high": vhi,
+            "step": step,
+        },
+        height=height,
+        niivue_opts=opts,
     )
-
-    def _sync(_change):
-        low, high = slider.value
-        statmap.cal_min = float(low)
-        statmap.cal_max = float(high)
-
-    slider.observe(_sync, names="value")
-
-    box = VBox([slider, nv])
-    box.viewer = nv
-    box.threshold_slider = slider
-    return box
