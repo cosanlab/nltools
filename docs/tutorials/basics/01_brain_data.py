@@ -69,8 +69,30 @@ async def _(IN_WASM):
     # script URL — resolve the wheel against the shared origin, not location.href.
     wasm_ready = True
     if IN_WASM:
+        import asyncio
+
         import micropip
         import js
+
+        async def _pip(reqs, **kw):
+            # Install packages ONE AT A TIME instead of a single concurrent
+            # micropip.install([...]) call. The big concurrent batch download
+            # occasionally returns a truncated wheel (BadZipFile); micropip then
+            # caches the corrupt bytes so an in-session retry keeps failing — and
+            # marimo never re-runs an errored cell, permanently bricking the
+            # page. Sequential installs keep peak download concurrency low and
+            # sidestep the corruption; a per-package retry still rides out
+            # ordinary network blips. (see nltools#455 investigation)
+            items = [reqs] if isinstance(reqs, str) else list(reqs)
+            for _item in items:
+                for _attempt in range(3):
+                    try:
+                        await micropip.install(_item, **kw)
+                        break
+                    except Exception:  # noqa: BLE001
+                        if _attempt == 2:
+                            raise
+                        await asyncio.sleep(0.75 * (_attempt + 1))
 
         # Install nltools' runtime stack UNPINNED so micropip takes Pyodide's bundled
         # builds (e.g. joblib 1.4.0) — pinning to nltools' host versions (joblib>=1.5.3)
@@ -78,22 +100,20 @@ async def _(IN_WASM):
         # a bundled one. nilearn is the exception: 0.14+ needs packaging>=26 (absent in
         # Pyodide 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib
         # come in transitively at their bundled versions.
-        await micropip.install(
+        await _pip(
             [
                 "nibabel",
                 "nilearn==0.13.1",
                 "seaborn",
                 "polars",
                 "pynv",
-                "ipyniivue",
-                "ipywidgets",
                 "huggingface-hub",
                 "anywidget",
             ]
         )
         # deps=False installs the wheel without re-checking nltools' own version pins
         # (which would re-trigger the joblib>=1.5.3 conflict above).
-        await micropip.install(
+        await _pip(
             js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
         )
     return (wasm_ready,)
@@ -528,16 +548,16 @@ def _(mo):
         r"""
         ### Interactive viewer
 
-        `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer
-        built on a WebGL `ipyniivue.NiiVue` widget: a threshold slider stacked above the
-        viewer, with the stat-map colorbar shown. Drag the slider (or right-drag on the
-        image) to window the map live; scroll through slices, scrub 4D frames, render in
-        3D, and overlay nltools atlases with hover-to-label. It needs a live kernel — so
-        it renders right here in this notebook.
+        `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer —
+        a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
+        stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
+        right-drag on the image) to window the map live; scroll through slices, scrub 4D
+        frames, render in 3D, and overlay nltools atlases with hover-to-label. Because it
+        speaks anywidget's standard model API, it renders both in a live kernel and in
+        this notebook's in-browser WASM export — right here.
 
-        The default (`controls=True`) needs the optional `ipywidgets` dependency
-        (`pip install 'nltools[interactive_plots]'`). Pass `controls=False` for the bare
-        `NiiVue`, and `colorbar=False` to hide the colorbar.
+        Pass `controls=False` to hide the slider (right-drag windowing still works), and
+        `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
         """
     )
     return
@@ -545,11 +565,11 @@ def _(mo):
 
 @app.cell
 def _(masked_data):
-    # Bare NiiVue viewer (no ipywidgets needed) — 3D ortho view of the stat map.
-    # NOTE: the niivue/ipyniivue widget does not yet render under marimo-WASM (Pyodide) —
-    # "TypeError: A.onChange is not a function". Works locally / in `marimo edit`.
-    # Tracked upstream: https://github.com/cosanlab/nltools/issues/455
-    masked_data.iplot(controls=False)
+    # Interactive niivue viewer with a threshold slider. The widget drives
+    # @niivue/niivue directly through anywidget's standard model API, so it
+    # renders live here *and* in the in-browser WASM export of this notebook
+    # (the old ipyniivue backend broke under WASM — see nltools#455).
+    masked_data.iplot()
     return
 
 

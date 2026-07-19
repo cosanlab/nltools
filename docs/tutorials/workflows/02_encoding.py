@@ -43,29 +43,49 @@ async def _(IN_WASM):
     # into the IDBFS cache in the browser and reads from local nilearn otherwise.
     wasm_ready = True
     if IN_WASM:
+        import asyncio
+
         import micropip
         import js
+
+        async def _pip(reqs, **kw):
+            # Install packages ONE AT A TIME instead of a single concurrent
+            # micropip.install([...]) call. The big concurrent batch download
+            # occasionally returns a truncated wheel (BadZipFile); micropip then
+            # caches the corrupt bytes so an in-session retry keeps failing — and
+            # marimo never re-runs an errored cell, permanently bricking the
+            # page. Sequential installs keep peak download concurrency low and
+            # sidestep the corruption; a per-package retry still rides out
+            # ordinary network blips. (see nltools#455 investigation)
+            items = [reqs] if isinstance(reqs, str) else list(reqs)
+            for _item in items:
+                for _attempt in range(3):
+                    try:
+                        await micropip.install(_item, **kw)
+                        break
+                    except Exception:  # noqa: BLE001
+                        if _attempt == 2:
+                            raise
+                        await asyncio.sleep(0.75 * (_attempt + 1))
 
         # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
         # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
         # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
         # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
         # transitively at their bundled versions.
-        await micropip.install(
+        await _pip(
             [
                 "nibabel",
                 "nilearn==0.13.1",
                 "seaborn",
                 "polars",
                 "pynv",
-                "ipyniivue",
-                "ipywidgets",
                 "huggingface-hub",
                 "anywidget",
             ]
         )
         # deps=False installs the wheel without re-checking nltools' own version pins.
-        await micropip.install(
+        await _pip(
             js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
         )
     return (wasm_ready,)
