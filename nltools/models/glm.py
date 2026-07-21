@@ -454,7 +454,7 @@ class Glm(BaseModel):
         return self._glm.design_matrices_
 
     @property
-    def glm_(self) -> FirstLevelModel:
+    def glm_(self) -> FirstLevelModel:  # ty: ignore[invalid-type-form]  # ty>=0.0.61 mis-infers nilearn FirstLevelModel (a real class) as callable
         """Access internal FirstLevelModel for advanced use.
 
         Provides direct access to the wrapped nilearn FirstLevelModel
