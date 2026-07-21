@@ -9,7 +9,6 @@ import nibabel as nib
 import numpy as np
 import polars as pl
 import pytest
-from ipyniivue import SliceType
 
 from nltools.data.atlases import Atlas
 from nltools.data.braindata.viewer import (
@@ -130,11 +129,11 @@ class TestSliceTypeFor:
     @pytest.mark.parametrize(
         "view,expected",
         [
-            ("ortho", SliceType.MULTIPLANAR),
-            ("axial", SliceType.AXIAL),
-            ("coronal", SliceType.CORONAL),
-            ("sagittal", SliceType.SAGITTAL),
-            ("render", SliceType.RENDER),
+            ("ortho", "MULTIPLANAR"),
+            ("axial", "AXIAL"),
+            ("coronal", "CORONAL"),
+            ("sagittal", "SAGITTAL"),
+            ("render", "RENDER"),
         ],
     )
     def test_valid_views(self, view, expected):

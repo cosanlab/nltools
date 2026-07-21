@@ -1294,7 +1294,7 @@ class BrainData:
             save=save,
         )
 
-    def iplot(  # nosemgrep: kwargs-internal-forwarding  # forwards to the ipyniivue viewer
+    def iplot(  # nosemgrep: kwargs-internal-forwarding  # forwards to new Niivue(opts)
         self,
         *,
         view: str = "ortho",
@@ -1310,19 +1310,20 @@ class BrainData:
         controls: bool = True,
         **kwargs,
     ):
-        """Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
+        """Interactive WebGL brain viewer powered by niivue.
 
-        Renders inline in a live kernel (Jupyter, marimo) with live windowing
-        (right-drag to set the threshold/contrast), slice scrolling, native 4D
-        frame scrubbing, true 3D rendering, a stat-map colorbar, and optional
-        nltools-atlas overlays. Static-built docs are not supported; use
-        `plot` there.
+        Renders inline in a live kernel (Jupyter, marimo) — and, unlike the
+        old ipyniivue backend, in a ``marimo export html-wasm`` page too — with
+        live windowing (right-drag to set the threshold/contrast), slice
+        scrolling, native 4D frame scrubbing, true 3D rendering, a stat-map
+        colorbar, and optional nltools-atlas overlays. Static-built docs (plain
+        Markdown) are not interactive; use `plot` there.
 
-        By default (``controls=True``) the return value is an
-        `ipywidgets.VBox` stacking a threshold slider above the viewer; access
-        the underlying `NiiVue` via its ``.viewer`` attribute and the slider
-        via ``.threshold_slider``. Pass ``controls=False`` to get the bare
-        `NiiVue` widget instead.
+        Returns a `NiivueViewer` widget. By default (``controls=True``) it
+        renders an in-widget threshold slider above the viewer; the window is
+        reactive through the ``cal_min`` / ``cal_max`` traits. Pass
+        ``controls=False`` to hide the slider (right-drag windowing still
+        works).
 
         Thresholding is a divergent magnitude window: ``cal_min`` is the
         display floor (sub-floor voxels render transparent), ``cal_max`` the
@@ -1352,19 +1353,18 @@ class BrainData:
                 (stat map stays visible); ``0`` draws filled regions.
             colorbar: Show the stat-map colorbar (default ``True``). An
                 explicit ``is_colorbar`` kwarg overrides this.
-            controls: Wrap the viewer in a `VBox` with an interactive
-                threshold slider (default ``True``). ``False`` returns the
-                bare `NiiVue`. Requires the ``ipywidgets`` optional
-                dependency when ``True``.
-            **kwargs: Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)``
-                (e.g. ``height``, ConfigOptions like ``is_colorbar``).
+            controls: Render an in-widget threshold slider above the viewer
+                (default ``True``). ``False`` hides it; the viewer still
+                supports niivue's right-drag windowing. No extra dependency
+                either way — the slider is native to the widget frontend.
+            **kwargs: Forwarded verbatim to ``new Niivue(opts)`` (e.g.
+                ``height``, ConfigOptions like ``is_colorbar``).
 
         Returns:
-            ipywidgets.VBox with ``.viewer`` (the `NiiVue`) and
-            ``.threshold_slider`` when ``controls=True``; otherwise the bare
-            ``ipyniivue.NiiVue`` widget.
+            A `NiivueViewer` widget (an `anywidget.AnyWidget`). Its threshold
+            window is reactive via the ``cal_min`` / ``cal_max`` traits.
         """
-        from .viewer import build_controls, build_viewer
+        from .viewer import build_viewer
 
         if lower is not None or upper is not None:
             cal_min, cal_max = lower, upper
@@ -1373,7 +1373,7 @@ class BrainData:
         else:
             cal_min, cal_max = None, None
 
-        nv = build_viewer(
+        return build_viewer(
             self,
             view=view,
             cal_min=cal_min,
@@ -1384,20 +1384,9 @@ class BrainData:
             opacity=opacity,
             outline=outline,
             colorbar=colorbar,
+            controls=controls,
             niivue_opts=kwargs,
         )
-        if controls:
-            try:
-                import ipywidgets  # noqa: F401
-            except ModuleNotFoundError as exc:
-                raise ModuleNotFoundError(
-                    "iplot(controls=True) requires the optional dependency "
-                    "`ipywidgets`. Install it with `uv add ipywidgets` (or "
-                    "`pip install 'nltools[interactive_plots]'`), or call "
-                    "iplot(controls=False) for the bare viewer."
-                ) from exc
-            return build_controls(nv, self, cal_min=cal_min, cal_max=cal_max)
-        return nv
 
     @coalesced_gc()
     def predict(
