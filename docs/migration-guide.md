@@ -21,7 +21,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Properties** | Method-style shape/empty checks | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
 | **HyperAlignment** | Via `align()` only | `HyperAlignment` class | New |
-| **Multi-subject** | `Brain_Collection` | `BrainCollection` redesign | **Not yet available (scaffold)** |
+| **Multi-subject** | `Brain_Collection` | `BrainCollection` — lazy, parallel, disk-cached collection of `(BrainData, DesignMatrix)` pairs with `from_bids` / `from_glob` / `from_paths` constructors and a single `.fit()` | **Rewritten** |
 | **SRM** | N/A | `SRM` / `DetSRM` classes | **New** |
 | **GPU inference** | N/A | `inference` module | **New** |
 | **Algorithm kwarg** | `algorithm=`, `scheme=`, `kind=`, `noise_model=`, `extract_type=`, `mode=`, `perm_type=` | `method=` (or `spatial_scale=` for spatial scale; `Adjacency.similarity` keeps the correlation type in the separate `metric=` slot) | **Renamed** |
@@ -670,7 +670,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 
 | Class | Status | Alternative |
 |-------|--------|-------------|
-| `Brain_Collection` | Removed | `BrainCollection` is being redesigned and is currently an unavailable scaffold |
+| `Brain_Collection` | Replaced | `BrainCollection` — see [BrainCollection](#braincollection) |
 | `Model` | Removed | Will return in v0.7.0+ |
 
 ### 3. Attributes
@@ -1609,7 +1609,47 @@ alpha_scores = brain_data.cv_results_['alpha_scores']
 
 ### BrainCollection
 
-`BrainCollection` is being redesigned for v0.6.0 as a parallel/lazy iterator of `BrainData` with a single `.fit()`, first-class `(BrainData, DesignMatrix)` pairing, and disk-cached parallel operations. It is **not yet available** in this release—the class is currently a scaffold. Migration guidance will be added once the facade lands. See `nltools/data/collection/SPEC.md`.
+`BrainCollection` replaces v0.5.1's `Brain_Collection`: a lazy, parallel,
+disk-cached collection of `(BrainData, DesignMatrix)` pairs with a single
+`.fit()`. It is **available in v0.6.0**.
+
+```python
+from nltools.data import BrainCollection, DesignMatrix
+
+bc = BrainCollection.from_paths(bold_paths, mask=mask, design_paths=events_paths,
+                                metadata=subject_table)
+
+# Per-subject first-level GLM, run in parallel and cached to disk.
+fitted = bc.smooth(6).fit(
+    model="glm",
+    X=lambda ctx: DesignMatrix(ctx.dm, run_length=len(ctx.bd), TR=ctx.TR)
+                  .add_poly(order=1, include_lower=True),
+)
+
+# Contrast per subject, then group inference over the stack.
+con = fitted.compute_contrasts("face_c0 - house_c0", statistic="beta")
+con.ttest()                              # {'mean', 't', 'z', 'p'}
+con.permutation_test(n_permute=5000)     # {'mean', 'p'}
+con.predict(y=labels, cv="loso", spatial_scale="roi", roi_mask=atlas)
+```
+
+Constructors: `from_bids`, `from_glob`, `from_paths`. Also available:
+`align`, `anova`, `isc`, `cv`, `map`, `apply`, `detrend`, `filter`,
+`standardize`, `resample`, `threshold`, `write`.
+
+Two contracts worth knowing:
+
+- **The `X=` callable receives a `_DesignContext`, not a `DesignMatrix`.** It
+  exposes `bd`, `dm`, `confounds`, `sample_mask`, `metadata`, `subject`,
+  `session`, `run`, `task`, `TR`, `bold_path`, `events_path`,
+  `confounds_path`, and `__getitem__` falls through to the metadata row.
+- **`from_paths(design_paths=...)` passes paths through unparsed.**
+  `DesignMatrix` has no `read()` classmethod yet, so `ctx.dm` is the path and
+  the builder is responsible for constructing the `DesignMatrix` (as above).
+  `from_bids` materializes designs for you.
+
+See `docs/development/execution-model.md` for the caching model, the `cache=`
+knob, and parallel write safety.
 
 ### Niimg-like inputs in analysis functions
 

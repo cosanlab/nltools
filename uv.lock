@@ -2064,6 +2064,7 @@ version = "0.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "anywidget" },
+    { name = "h5py" },
     { name = "huggingface-hub" },
     { name = "joblib" },
     { name = "nilearn" },
@@ -2119,6 +2120,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anywidget", specifier = ">=0.9" },
+    { name = "h5py", specifier = ">=3.15" },
     { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.15" },
     { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
     { name = "huggingface-hub", specifier = ">=0.30" },
