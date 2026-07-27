@@ -22,6 +22,7 @@ dev/
 *.sqlite
 *.json
 !docs/jupyterlite/jupyter_lite_config.json
+!benchmarks/results/*.env.json
 
 # iPython Notebook Caches #
 ###########################
