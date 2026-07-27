@@ -20,6 +20,13 @@ classifiers = [
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "anywidget>=0.9",
+    # BrainCollection.fit() always writes HDF5 fit bundles
+    # (data/collection/execution.py imports h5py unguarded), so h5py is
+    # required for core functionality, not an optional add-on. hdf5plugin
+    # stays in the `h5` extra: it only registers blosc/zstd/lz4 filters for
+    # reading compressed legacy files, and nltools/io/h5.py already guards
+    # that import with an actionable error.
+    "h5py>=3.15",
     "huggingface-hub>=0.30",
     "joblib>=1.5.3",
     "nilearn>=0.12",
@@ -30,6 +37,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# h5py is a core dependency (see above); kept listed here so `nltools[h5]`
+# keeps resolving for anyone who already pins it.
 h5 = ["h5py>=3.15", "hdf5plugin>=6.0.0"]
 graph = ["networkx>=3.5"]
 interactive_plots = ["ipywidgets>=8.1.7"]
