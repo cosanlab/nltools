@@ -211,6 +211,23 @@ decision — the dropped columns are bitwise identical to ones that remain, so
 nothing is lost and there is no arbitrary choice to make. That is why it is safe
 to default on.
 
+**Finding no spikes also works properly now.** Polars derives a frame's height
+from its columns, so a design matrix with no regressors used to report 0 rows —
+which meant a clean subject with no detected spikes broke the whole first-level
+build:
+
+```python
+spikes = bold.find_spikes(...)      # subject has no spikes
+task.append(spikes, axis=1)
+# ValueError: All Design Matrices must have the same number of rows!
+```
+
+`find_spikes` now hands the row count to `DesignMatrix` explicitly, so the empty
+result reports `(n_tr, 0)` and appends as a no-op. `DesignMatrix.append()` also
+skips regressor-less matrices outright, so this composes even for matrices built
+without an explicit height.
+
+
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
 

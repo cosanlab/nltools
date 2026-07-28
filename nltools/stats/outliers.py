@@ -305,14 +305,16 @@ def find_spikes(
     if TR is not None:
         sampling_freq = 1.0 / TR
 
-    # Synthesize an empty regressor frame when no spikes were found so the
-    # DesignMatrix has the right row count for downstream .append().
-    if not outlier_data:
-        df = pl.DataFrame({"_no_spikes": [0] * len(global_mn)}).drop("_no_spikes")
-    else:
-        df = pl.DataFrame(outlier_data)
-
     from nltools.data import DesignMatrix
 
-    spike_cols = list(df.columns)
-    return DesignMatrix(df, sampling_freq=sampling_freq, confounds=spike_cols)
+    if not outlier_data:
+        # No spikes is a normal outcome, not an error. Polars cannot express
+        # "n rows, 0 columns", so hand the row count to DesignMatrix explicitly
+        # — otherwise the result reports 0 rows and downstream `.append()`
+        # rejects it for not matching the rest of the design.
+        return DesignMatrix(
+            pl.DataFrame(), sampling_freq=sampling_freq, n_rows=len(global_mn)
+        )
+
+    df = pl.DataFrame(outlier_data)
+    return DesignMatrix(df, sampling_freq=sampling_freq, confounds=list(df.columns))

@@ -186,6 +186,14 @@ def append_horizontal(
     Raises:
         ValueError: If matrices have different row counts.
     """
+    # A matrix with no regressors contributes nothing, so drop it before the
+    # row check. This keeps e.g. find_spikes() on a subject with no spikes from
+    # taking down the whole design build. (Such a matrix knows its own length,
+    # but one constructed without it would report 0 rows and fail the check.)
+    to_append = [elem for elem in to_append if elem.shape[1] > 0]
+    if not to_append:
+        return dm.copy()
+
     # Check all have same number of rows
     if not all(elem.shape[0] == dm.shape[0] for elem in to_append):
         raise ValueError("All Design Matrices must have the same number of rows!")

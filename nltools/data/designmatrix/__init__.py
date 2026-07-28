@@ -113,6 +113,7 @@ class DesignMatrix:
         convolved: list[str] | None = None,
         confounds: list[str] | None = None,
         hrf_model: str | None = "glover",
+        n_rows: int | None = None,
     ):
         """Initialize DesignMatrix from various input types.
 
@@ -220,6 +221,13 @@ class DesignMatrix:
         self._convolved = list(convolved) if convolved is not None else []
         self._confounds = list(confounds) if confounds is not None else []
 
+        # Polars derives height from its columns, so a frame with no columns
+        # always reports 0 rows. A design matrix with no regressors still
+        # describes a specific number of timepoints (e.g. find_spikes() on a
+        # subject with no spikes), and that length is needed for .append() to
+        # line it up against other runs. Remember it explicitly.
+        self._n_rows = n_rows if self.data.width == 0 else None
+
         # Auto-convolve when the constructor loaded events from a file. Matches
         # nilearn's `make_first_level_design_matrix(hrf_model='glover')`
         # default. Use ``hrf_model=None`` to opt out (PPI/FIR/teaching flows
@@ -303,7 +311,7 @@ class DesignMatrix:
 
     def __len__(self) -> int:
         """Return number of rows."""
-        return len(self.data)
+        return self.shape[0]
 
     def __repr__(self) -> str:
         """Human-readable metadata summary."""
@@ -401,7 +409,13 @@ class DesignMatrix:
 
     @property
     def shape(self) -> tuple:
-        """Return (n_rows, n_cols) tuple."""
+        """Return (n_rows, n_cols) tuple.
+
+        For a matrix with no regressors, ``n_rows`` comes from the height
+        recorded at construction (Polars cannot represent "n rows, 0 columns").
+        """
+        if self.data.width == 0 and self._n_rows is not None:
+            return (self._n_rows, 0)
         return self.data.shape
 
     # ── Public methods (alphabetical) ───────────────────────────────────

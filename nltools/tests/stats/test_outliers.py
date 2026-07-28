@@ -364,3 +364,59 @@ class TestFindSpikesDeduplication:
             colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
         )
         assert set(dm.confounds) == set(dm.columns)
+
+
+class TestFindSpikesNoSpikes:
+    """A subject with no detected spikes must not break the design build.
+
+    `find_spikes` returning a column-less DesignMatrix is the correct answer,
+    but it still describes a specific number of timepoints. Polars derives
+    height from columns, so a naive empty frame reports 0 rows — which made
+    `.append()` raise "All Design Matrices must have the same number of rows!"
+    and took down the whole first-level design for any clean subject.
+    """
+
+    @pytest.fixture
+    def clean_nifti(self):
+        import nibabel as nib
+
+        rng = np.random.default_rng(0)
+        return nib.Nifti1Image(rng.standard_normal((4, 4, 4, 60)), affine=np.eye(4))
+
+    def test_no_spikes_reports_input_length(self, clean_nifti):
+        dm = find_spikes(clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100)
+        assert dm.shape == (60, 0)
+        assert len(dm) == 60
+
+    def test_no_spikes_appends_as_noop(self, clean_nifti):
+        """The empty result must compose with a real design matrix."""
+        from nltools.data import DesignMatrix
+
+        rng = np.random.default_rng(0)
+        task = DesignMatrix({"task": rng.standard_normal(60)}, sampling_freq=0.5)
+        spikes = find_spikes(
+            clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100, TR=2.0
+        )
+        out = task.append(spikes, axis=1, as_confounds=True)
+        assert out.shape == (60, 1)
+        assert out.columns == ["task"]
+
+    def test_no_spikes_then_add_poly(self, clean_nifti):
+        """End-to-end: the shape of a first-level build for a clean subject."""
+        from nltools.data import DesignMatrix
+
+        rng = np.random.default_rng(0)
+        task = DesignMatrix({"task": rng.standard_normal(60)}, sampling_freq=0.5)
+        spikes = find_spikes(
+            clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100, TR=2.0
+        )
+        out = task.add_poly(order=1, include_lower=True).append(
+            [spikes], axis=1, as_confounds=True
+        )
+        assert out.shape[0] == 60
+        assert {"poly_0", "poly_1"} <= set(out.columns)
+
+    def test_no_spikes_is_empty_property(self, clean_nifti):
+        """No columns means no regressors, even though rows are known."""
+        dm = find_spikes(clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100)
+        assert dm.is_empty
