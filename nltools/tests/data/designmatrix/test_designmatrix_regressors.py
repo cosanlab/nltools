@@ -414,3 +414,76 @@ class TestDesignMatrixPolynomials:
         assert (
             "cosine_3" in dm_dct.columns or "cosine_1" in dm_dct.columns
         )  # Depends on numbering convention
+
+
+class TestAddPolyRunSeparationGuard:
+    """`add_poly()` refuses when per-run polynomials already exist.
+
+    The guard has to distinguish genuine run-separated polynomials, which
+    `append(axis=0, keep_separate=True)` names ``<run>_poly_<order>``, from
+    ordinary confounds that merely happen to contain two underscores.
+    """
+
+    @staticmethod
+    def _single_run_with_confounds(confound_names):
+        n = 50
+        rng = np.random.default_rng(0)
+        data = {"task": rng.standard_normal(n)}
+        data.update({c: rng.standard_normal(n) for c in confound_names})
+        dm = DesignMatrix(data, sampling_freq=0.5)
+        return DesignMatrix(dm.data, sampling_freq=0.5, confounds=list(confound_names))
+
+    def test_raises_on_genuine_run_separated_polynomials(self):
+        """The behavior the guard exists for must be preserved."""
+        n = 50
+        rng = np.random.default_rng(0)
+        run = DesignMatrix({"a": rng.standard_normal(n)}, sampling_freq=0.5).add_poly(
+            order=1, include_lower=True
+        )
+        multi = run.append(run, axis=0, keep_separate=True)
+        assert any(c.startswith("0_poly_") for c in multi.columns)
+
+        with pytest.raises(ValueError, match="kept separate"):
+            multi.add_poly(order=2, include_lower=True)
+
+    @pytest.mark.parametrize(
+        "confounds",
+        [
+            ["trans_x_sq"],  # motion expansion: 2 underscores, not a polynomial
+            ["rot_x_diff", "rot_x_diff_sq"],
+            ["a_b_c"],
+            ["0_cosine_1"],  # run-separated DCT basis, not a polynomial
+            ["my_poly_thing"],  # contains "poly" but is not <run>_poly_<order>
+        ],
+    )
+    def test_does_not_false_positive_on_other_confounds(self, confounds):
+        """Two underscores alone must not block adding polynomials.
+
+        Regression test: the guard used to test ``name.count("_") == 2``, so a
+        design carrying standard 24-parameter motion regressors (``trans_x_sq``,
+        ``rot_x_diff``) could not have drift terms added at all.
+        """
+        dm = self._single_run_with_confounds(confounds)
+        out = dm.add_poly(order=2, include_lower=True)
+        assert "poly_0" in out.columns
+        assert "poly_2" in out.columns
+
+    def test_motion_confounds_then_add_poly(self):
+        """End-to-end shape of the failure found in the wild.
+
+        A task design with 24-parameter motion confounds appended could not
+        have drift added, because ``trans_x_sq`` tripped the heuristic.
+        """
+        n = 50
+        rng = np.random.default_rng(0)
+        task = DesignMatrix({"task": rng.standard_normal(n)}, sampling_freq=0.5)
+        motion = DesignMatrix(
+            {
+                name: rng.standard_normal(n)
+                for name in ["trans_x", "trans_x_sq", "trans_x_diff", "trans_x_diff_sq"]
+            },
+            sampling_freq=0.5,
+        )
+        combined = task.append(motion, axis=1, as_confounds=True)
+        out = combined.add_poly(order=2, include_lower=True)
+        assert {"poly_0", "poly_1", "poly_2"} <= set(out.columns)

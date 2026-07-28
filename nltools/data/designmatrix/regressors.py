@@ -6,6 +6,7 @@ a new DesignMatrix with the requested transformation applied.
 
 from __future__ import annotations
 
+import re
 import warnings
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,11 @@ from .utils import copy_with, get_data_columns
 
 if TYPE_CHECKING:
     from . import DesignMatrix
+
+
+# Columns produced by `append(axis=0, keep_separate=True)` for per-run
+# polynomials, e.g. "0_poly_0", "12_poly_3".
+_RUN_SEPARATED_POLY = re.compile(r"\d+_poly_\d+")
 
 
 def convolve(
@@ -178,8 +184,14 @@ def add_poly(
             "Common orders: 0 (intercept only), 1 (linear trend), 2 (quadratic), 3 (cubic)."
         )
 
-    # Check for ambiguous polynomials from previous append operations
-    if dm.confounds and any(elem.count("_") == 2 for elem in dm.confounds):
+    # Check for ambiguous polynomials from previous append operations.
+    # `append(axis=0, keep_separate=True)` prefixes per-run columns with the run
+    # index, so run-separated polynomials are named "<run>_poly_<order>" (e.g.
+    # "0_poly_1"). Match that shape exactly: testing `name.count("_") == 2`
+    # instead would also fire on ordinary confounds such as the standard
+    # 24-parameter motion expansion ("trans_x_sq", "rot_x_diff"), blocking
+    # add_poly on single-run designs that have no run-separated polys at all.
+    if dm.confounds and any(_RUN_SEPARATED_POLY.fullmatch(c) for c in dm.confounds):
         raise ValueError(
             "This Design Matrix contains polynomial terms that were kept "
             "separate from a previous append operation. This makes it ambiguous "
