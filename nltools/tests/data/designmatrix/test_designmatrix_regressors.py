@@ -417,11 +417,12 @@ class TestDesignMatrixPolynomials:
 
 
 class TestAddPolyRunSeparationGuard:
-    """`add_poly()` refuses when per-run polynomials already exist.
+    """`add_poly()` / `add_dct_basis()` refuse when per-run drift already exists.
 
-    The guard has to distinguish genuine run-separated polynomials, which
-    `append(axis=0, keep_separate=True)` names ``<run>_poly_<order>``, from
-    ordinary confounds that merely happen to contain two underscores.
+    The guard has to distinguish genuine run-separated drift terms, which
+    `append(axis=0, keep_separate=True)` names ``<run>_poly_<order>`` or
+    ``<run>_cosine_<n>``, from ordinary confounds that merely happen to contain
+    two underscores.
     """
 
     @staticmethod
@@ -452,8 +453,10 @@ class TestAddPolyRunSeparationGuard:
             ["trans_x_sq"],  # motion expansion: 2 underscores, not a polynomial
             ["rot_x_diff", "rot_x_diff_sq"],
             ["a_b_c"],
-            ["0_cosine_1"],  # run-separated DCT basis, not a polynomial
             ["my_poly_thing"],  # contains "poly" but is not <run>_poly_<order>
+            ["my_cosine_thing"],
+            ["poly_0"],  # single-run polynomial: no run prefix
+            ["cosine_0"],  # single-run DCT basis: no run prefix
         ],
     )
     def test_does_not_false_positive_on_other_confounds(self, confounds):
@@ -487,3 +490,23 @@ class TestAddPolyRunSeparationGuard:
         combined = task.append(motion, axis=1, as_confounds=True)
         out = combined.add_poly(order=2, include_lower=True)
         assert {"poly_0", "poly_1", "poly_2"} <= set(out.columns)
+
+    @pytest.mark.parametrize("drift", ["0_poly_0", "0_cosine_0", "1_cosine_3"])
+    def test_run_separated_drift_blocks_both_adders(self, drift):
+        """Per-run polynomials *and* per-run cosines are ambiguous for both.
+
+        If a design already carries run-specific drift, adding a global
+        polynomial or DCT basis is ambiguous — it is unclear whether the new
+        term should also be per-run.
+        """
+        dm = self._single_run_with_confounds([drift])
+        with pytest.raises(ValueError, match="kept separate"):
+            dm.add_poly(order=1, include_lower=True)
+        with pytest.raises(ValueError, match="kept separate"):
+            dm.add_dct_basis(duration=60)
+
+    def test_add_dct_basis_allows_ordinary_confounds(self):
+        """The DCT guard had the same underscore-counting flaw as add_poly."""
+        dm = self._single_run_with_confounds(["trans_x_sq", "rot_x_diff"])
+        out = dm.add_dct_basis(duration=60)
+        assert any(c.startswith("cosine_") for c in out.columns)

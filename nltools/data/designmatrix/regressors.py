@@ -19,9 +19,11 @@ if TYPE_CHECKING:
     from . import DesignMatrix
 
 
-# Columns produced by `append(axis=0, keep_separate=True)` for per-run
-# polynomials, e.g. "0_poly_0", "12_poly_3".
-_RUN_SEPARATED_POLY = re.compile(r"\d+_poly_\d+")
+# Columns produced by `append(axis=0, keep_separate=True)` for per-run drift
+# terms, e.g. "0_poly_0", "12_poly_3", "0_cosine_0". Both `add_poly` and
+# `add_dct_basis` refuse to add a global drift term when either kind is
+# present, since it is ambiguous whether the new term should be per-run.
+_RUN_SEPARATED_DRIFT = re.compile(r"\d+_(?:poly|cosine)_\d+")
 
 
 def convolve(
@@ -187,11 +189,12 @@ def add_poly(
     # Check for ambiguous polynomials from previous append operations.
     # `append(axis=0, keep_separate=True)` prefixes per-run columns with the run
     # index, so run-separated polynomials are named "<run>_poly_<order>" (e.g.
-    # "0_poly_1"). Match that shape exactly: testing `name.count("_") == 2`
-    # instead would also fire on ordinary confounds such as the standard
-    # 24-parameter motion expansion ("trans_x_sq", "rot_x_diff"), blocking
-    # add_poly on single-run designs that have no run-separated polys at all.
-    if dm.confounds and any(_RUN_SEPARATED_POLY.fullmatch(c) for c in dm.confounds):
+    # "0_poly_1", "0_cosine_0"). Match that shape exactly: testing
+    # `name.count("_") == 2` instead would also fire on ordinary confounds such
+    # as the standard 24-parameter motion expansion ("trans_x_sq",
+    # "rot_x_diff"), blocking add_poly on single-run designs that have no
+    # run-separated drift terms at all.
+    if dm.confounds and any(_RUN_SEPARATED_DRIFT.fullmatch(c) for c in dm.confounds):
         raise ValueError(
             "This Design Matrix contains polynomial terms that were kept "
             "separate from a previous append operation. This makes it ambiguous "
@@ -284,15 +287,15 @@ def add_dct_basis(
             "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
         )
 
-    # Check for ambiguous cosine bases from previous append operations
-    if dm.confounds and any(
-        elem.count("_") == 2 and "cosine" in elem for elem in dm.confounds
-    ):
+    # Check for ambiguous per-run drift terms from previous append operations.
+    # Same shape check as `add_poly` — see `_RUN_SEPARATED_DRIFT`.
+    if dm.confounds and any(_RUN_SEPARATED_DRIFT.fullmatch(c) for c in dm.confounds):
         raise ValueError(
-            "This Design Matrix contains cosine bases that were kept "
-            "separate from a previous append operation. This makes it ambiguous "
-            "for adding polynomial terms. Try calling .add_dct_basis() on each "
-            "separate Design Matrix before appending them instead."
+            "This Design Matrix contains drift terms (polynomial or cosine) "
+            "that were kept separate from a previous append operation. This "
+            "makes it ambiguous for adding a DCT basis. Try calling "
+            ".add_dct_basis() on each separate Design Matrix before appending "
+            "them instead."
         )
 
     # Create DCT basis matrix using stats function
