@@ -188,6 +188,7 @@ def find_spikes(
     global_spike_cutoff=3,
     diff_spike_cutoff=3,
     *,
+    clean: bool = True,
     TR: float | None = None,
     sampling_freq: float | None = None,
 ):
@@ -199,6 +200,14 @@ def find_spikes(
             the per-TR global signal. None to skip.
         diff_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
             the per-TR mean absolute frame-to-frame difference. None to skip.
+        clean: Drop duplicate indicators when a TR is flagged by more than one
+            detector. The two detectors run independently, so a single bad
+            volume is routinely caught by both, and each detection would
+            otherwise become its own one-hot column — producing exactly
+            identical regressors and a rank-deficient design. When a TR is
+            flagged twice the ``global_spike`` column is kept, so the result
+            does not depend on dict ordering. Default: True. Pass False to get
+            one column per detection.
         TR: Repetition time in seconds. Sets the returned DesignMatrix's
             sampling_freq for downstream `.append(...)` / `.convolve()`.
             Pass exactly one of `TR` or `sampling_freq`.
@@ -273,6 +282,21 @@ def find_spikes(
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
+
+    if clean:
+        # Two detectors, one timeline: the same TR can be flagged by both, and
+        # a one-hot column per detection would then be literally duplicated.
+        # Deduplicate on the flagged position, keeping the global detection so
+        # the tie-break is deterministic rather than insertion-ordered.
+        seen: dict[int, str] = {}
+        for name in [c for c in outlier_data if c.startswith("global_spike")] + [
+            c for c in outlier_data if not c.startswith("global_spike")
+        ]:
+            loc = outlier_data[name].index(1)
+            if loc in seen:
+                del outlier_data[name]
+            else:
+                seen[loc] = name
 
     if TR is not None and sampling_freq is not None:
         raise ValueError(

@@ -257,3 +257,110 @@ class TestFindSpikes:
         dm = find_spikes(d1)
         assert isinstance(dm, DesignMatrix)
         assert dm.shape[0] == len(d1)
+
+
+class TestFindSpikesDeduplication:
+    """`find_spikes` must not emit two indicators for the same TR.
+
+    The global-signal and frame-difference detectors run independently, so a
+    single bad volume is routinely caught by both. Each detection became its
+    own one-hot column, producing exactly duplicated regressors and a rank
+    deficient design — nltools manufacturing the very degeneracy that
+    `BrainData.fit()` now warns about.
+    """
+
+    @pytest.fixture
+    def colliding_nifti(self):
+        """4D nifti whose spikes trip the global *and* difference detectors.
+
+        A single-volume intensity jump raises the global mean for that TR and
+        also the frame-to-frame difference around it, so both detectors fire.
+        """
+        import nibabel as nib
+
+        rng = np.random.default_rng(0)
+        n_tr = 40
+        data = rng.standard_normal((4, 4, 4, n_tr))
+        for t in (7, 21, 33):
+            data[..., t] += 60
+        return nib.Nifti1Image(data, affine=np.eye(4))
+
+    @pytest.fixture
+    def spike_nifti(self):
+        """Two well-separated global spikes; the detectors should not collide."""
+        import nibabel as nib
+
+        rng = np.random.default_rng(0)
+        n_tr = 30
+        data = rng.standard_normal((4, 4, 4, n_tr))
+        data[..., 5] += 50
+        data[..., 20] += 50
+        return nib.Nifti1Image(data, affine=np.eye(4))
+
+    @staticmethod
+    def _flagged_trs(dm):
+        arr = dm.to_numpy()
+        return [tuple(np.flatnonzero(arr[:, i])) for i in range(arr.shape[1])]
+
+    def test_no_duplicate_regressors_by_default(self, colliding_nifti):
+        dm = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
+        )
+        flagged = self._flagged_trs(dm)
+        assert len(flagged) == len(set(flagged)), (
+            f"duplicate spike regressors: {flagged}"
+        )
+
+    def test_result_is_full_rank_by_default(self, colliding_nifti):
+        dm = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
+        )
+        X = dm.to_numpy()
+        assert np.linalg.matrix_rank(X) == X.shape[1]
+
+    def test_clean_false_preserves_every_detection(self, colliding_nifti):
+        """Opting out keeps one column per detection, duplicates included."""
+        deduped = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
+        )
+        raw = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0, clean=False
+        )
+        assert raw.shape[1] > deduped.shape[1]
+        raw_flagged = self._flagged_trs(raw)
+        assert len(raw_flagged) != len(set(raw_flagged))
+
+    def test_dedup_keeps_the_global_detection(self, colliding_nifti):
+        """When both detectors flag a TR, the global_spike column is kept.
+
+        Deterministic tie-break so the output does not depend on dict order.
+        """
+        dm = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
+        )
+        raw = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0, clean=False
+        )
+        raw_arr, raw_cols = raw.to_numpy(), list(raw.columns)
+        collisions = {}
+        for i, c in enumerate(raw_cols):
+            collisions.setdefault(tuple(np.flatnonzero(raw_arr[:, i])), []).append(c)
+        collided = {t: cs for t, cs in collisions.items() if len(cs) > 1}
+        assert collided, "fixture invariant: expected at least one collision"
+        for names in collided.values():
+            kept = [c for c in names if c in dm.columns]
+            assert len(kept) == 1
+            assert kept[0].startswith("global_spike")
+
+    def test_dedup_does_not_merge_distinct_trs(self, spike_nifti):
+        """Non-colliding detections are all preserved."""
+        dm = find_spikes(spike_nifti, global_spike_cutoff=3, diff_spike_cutoff=3)
+        flagged = self._flagged_trs(dm)
+        assert len(flagged) == len(set(flagged))
+        assert dm.shape[1] >= 2
+
+    def test_columns_stay_marked_as_confounds(self, colliding_nifti):
+        dm = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
+        )
+        assert set(dm.confounds) == set(dm.columns)

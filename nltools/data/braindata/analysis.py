@@ -1236,6 +1236,7 @@ def find_spikes_data(
     global_spike_cutoff=3,
     diff_spike_cutoff=3,
     *,
+    clean=True,
     TR=None,
     sampling_freq=None,
 ):
@@ -1246,6 +1247,7 @@ def find_spikes_data(
         bd,
         global_spike_cutoff=global_spike_cutoff,
         diff_spike_cutoff=diff_spike_cutoff,
+        clean=clean,
         TR=TR,
         sampling_freq=sampling_freq,
     )

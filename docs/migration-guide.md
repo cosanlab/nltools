@@ -185,6 +185,32 @@ if result.ndim == 1:
 
 ## Breaking Changes
 
+(find-spikes-dedup)=
+### `find_spikes()` no longer emits duplicate regressors
+
+**Status**: ✅ NEW (v0.6.0) — `clean=True` by default
+
+`find_spikes()` runs two independent detectors (per-TR global signal, and mean
+absolute frame-to-frame difference). A single bad volume is routinely caught by
+both, and each detection became its own one-hot indicator column — so the same
+TR could be flagged twice, producing *exactly identical* regressors and a
+rank-deficient design.
+
+```python
+spikes = bold.find_spikes(global_spike_cutoff=0.8, diff_spike_cutoff=0.8, TR=2.4)
+# before: 23 columns, rank 16  -> rank deficient
+# now:    16 columns, rank 16  -> full rank
+```
+
+When a TR is flagged by both detectors the `global_spike` column is kept, so the
+result is deterministic rather than dependent on insertion order. Pass
+`clean=False` for the old behavior of one column per detection.
+
+This is deduplication of the function's own output rather than a modeling
+decision — the dropped columns are bitwise identical to ones that remain, so
+nothing is lost and there is no arbitrary choice to make. That is why it is safe
+to default on.
+
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
 
