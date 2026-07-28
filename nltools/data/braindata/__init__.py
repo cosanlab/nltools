@@ -903,10 +903,6 @@ class BrainData:
         scale="auto",
         standardize="auto",
         progress_bar=None,
-        design_clean=True,
-        design_clean_thresh=0.95,
-        design_clean_exclude_confounds=False,
-        design_clean_fill_na=0,
         **kwargs,
     ):
         """Fit a model to brain imaging data.
@@ -949,19 +945,6 @@ class BrainData:
                 ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge,
                 ``None`` for glm.
             progress_bar (bool, optional): Display progress bar during fitting.
-            design_clean (bool, default=True): GLM only. Run
-                ``DesignMatrix.clean()`` on ``X`` before fitting to drop
-                highly correlated regressors. Coerces ``X`` to
-                ``DesignMatrix`` if needed. Ignored when ``model='ridge'``.
-            design_clean_thresh (float, default=0.95): GLM only. Correlation
-                threshold passed to ``DesignMatrix.clean()`` (drops if
-                ``abs(r) >= thresh``). Ignored when ``model='ridge'``.
-            design_clean_exclude_confounds (bool, default=False): GLM only.
-                If True, ``DesignMatrix.clean()`` skips confound columns when
-                checking correlations. Ignored when ``model='ridge'``.
-            design_clean_fill_na (int, float, or None, default=0): GLM only.
-                Fill value for NaNs before correlation check in
-                ``DesignMatrix.clean()``. Ignored when ``model='ridge'``.
             **kwargs (dict): Additional arguments passed to model constructor
 
         Returns:
@@ -1005,10 +988,6 @@ class BrainData:
             scale=scale,
             standardize=standardize,
             progress_bar=progress_bar,
-            design_clean=design_clean,
-            design_clean_thresh=design_clean_thresh,
-            design_clean_exclude_confounds=design_clean_exclude_confounds,
-            design_clean_fill_na=design_clean_fill_na,
             **kwargs,
         )
 

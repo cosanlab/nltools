@@ -35,6 +35,51 @@ def resolve_preprocessing_defaults(model, scale, standardize):
     return scale, standardize
 
 
+def _warn_if_rank_deficient(X_array, X_model):
+    """Warn when a design matrix is rank deficient.
+
+    A rank-deficient design has no unique least-squares solution. The GLM still
+    returns betas — nilearn falls back to a pseudo-inverse — but the effect is
+    split arbitrarily across the linearly dependent columns, so any contrast
+    touching that subspace is not interpretable. Silence here is dangerous
+    because the failure is invisible in the output: the betas come back finite
+    and plausible.
+
+    We warn rather than raise because over-parameterized designs can still have
+    estimable contrasts, and because raising would break pipelines currently
+    relying (silently) on the pseudo-inverse.
+
+    Args:
+        X_array (np.ndarray): Design matrix as a 2-D array.
+        X_model: The design object supplied by the caller, used for column
+            names when it has them.
+    """
+    if X_array.ndim != 2 or X_array.shape[1] < 2:
+        return
+
+    finite = X_array[np.isfinite(X_array).all(axis=1)]
+    if finite.shape[0] < finite.shape[1]:
+        return
+
+    rank = int(np.linalg.matrix_rank(finite))
+    n_cols = X_array.shape[1]
+    if rank >= n_cols:
+        return
+
+    columns = getattr(X_model, "columns", None)
+    where = f" ({', '.join(map(str, columns))})" if columns is not None else ""
+    warnings.warn(
+        f"Design matrix is rank deficient: rank {rank} of {n_cols} columns"
+        f"{where}. At least {n_cols - rank} column(s) are linear combinations "
+        "of the others, so the betas are not uniquely determined and contrasts "
+        "involving them are not interpretable. Inspect collinearity with "
+        "`DesignMatrix.vif()` and drop redundant regressors explicitly with "
+        "`DesignMatrix.clean()` before fitting.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+
 def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to the nilearn FirstLevelModel / ridge estimator
     bd,
     model="glm",
@@ -48,10 +93,6 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     progress_bar=None,
     scale="auto",
     standardize="auto",
-    design_clean=True,
-    design_clean_thresh=0.95,
-    design_clean_exclude_confounds=False,
-    design_clean_fill_na=0,
     **kwargs,
 ):
     """Fit a model to brain imaging data.
@@ -108,19 +149,6 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             or ``None`` (off). ``'auto'`` resolves to ``'zscore'`` for
             ``model='ridge'`` (so a shared alpha regularizes voxels fairly) and
             ``None`` for ``model='glm'``.
-        design_clean (bool, default=True): GLM only. If True, run
-            ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly
-            correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed.
-            Ignored when ``model='ridge'``.
-        design_clean_thresh (float, default=0.95): GLM only. Correlation
-            threshold passed to ``DesignMatrix.clean()`` (drops if
-            ``abs(r) >= thresh``). Ignored when ``model='ridge'``.
-        design_clean_exclude_confounds (bool, default=False): GLM only. If
-            True, ``DesignMatrix.clean()`` skips confound columns when
-            checking correlations. Ignored when ``model='ridge'``.
-        design_clean_fill_na (int, float, or None, default=0): GLM only.
-            Fill value for NaNs before correlation check in
-            ``DesignMatrix.clean()``. Ignored when ``model='ridge'``.
         **kwargs (dict): Additional arguments passed to model constructor
             - Ridge: alpha, alphas, random_state (device is a named param above)
             - Glm: noise_model, minimize_memory, etc.
@@ -182,17 +210,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
                 f"X has {X_array.shape[0]} samples, but brain data has {bd.shape[0]} samples. "
                 f"number of samples must match."
             )
-        if design_clean:
-            from nltools.data.designmatrix import DesignMatrix
-
-            if not isinstance(X_model, DesignMatrix):
-                X_model = DesignMatrix(X_model)
-            X_model = X_model.clean(
-                fill_na=design_clean_fill_na,
-                exclude_confounds=design_clean_exclude_confounds,
-                thresh=design_clean_thresh,
-                progress_bar=bd.verbose,
-            )
+        _warn_if_rank_deficient(X_array, X_model)
     else:
         # Ridge: handle list (banded ridge) or array (regular ridge)
         if isinstance(X, list):

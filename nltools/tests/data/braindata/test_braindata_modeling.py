@@ -1,4 +1,5 @@
 import tempfile
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -753,100 +754,77 @@ class TestBrainDataModeling:
             train_predictions.data, brain_data.cv_results_["predictions"].data
         )
 
-    # ==================== design_clean kwargs (GLM only) ====================
+    # ============ design estimated as given + rank diagnostics (GLM) ============
 
     @pytest.mark.slow
-    def test_design_clean_drops_perfectly_correlated(self, minimal_brain_data):
-        """design_clean=True (default) drops perfectly correlated regressors."""
+    def test_fit_estimates_every_column_given(self, minimal_brain_data):
+        """fit() does not silently drop correlated regressors.
+
+        Two regressors correlated at r=0.99 are collinear in the colloquial
+        sense but the design is still full rank and estimable, so every column
+        must appear in the betas. Dropping is the caller's decision, made
+        explicitly via `DesignMatrix.clean()`.
+        """
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(n),
-                "condA": a,
-                "condA_dup": a,  # r = 1.0 with condA
-            }
-        )
+        b = a + 0.1 * rng.standard_normal(n)
+        design_matrix = pd.DataFrame({"Intercept": np.ones(n), "condA": a, "condB": b})
+        r = abs(np.corrcoef(a, b)[0, 1])
+        assert r > 0.95, f"setup invariant violated: |r|={r}"
+        assert np.linalg.matrix_rank(design_matrix.to_numpy()) == 3
+
         minimal_brain_data.fit(model="glm", X=design_matrix)
-        # condA_dup dropped, leaving Intercept and condA
-        assert minimal_brain_data.glm_betas.shape[0] == 2
+        assert minimal_brain_data.glm_betas.shape[0] == 3
+
+    def test_design_clean_kwargs_are_rejected(self, minimal_brain_data):
+        """The implicit-cleaning kwargs were removed; passing them is an error."""
+        n = len(minimal_brain_data)
+        design_matrix = pd.DataFrame({"Intercept": np.ones(n)})
+        for kwarg in (
+            "design_clean",
+            "design_clean_thresh",
+            "design_clean_exclude_confounds",
+            "design_clean_fill_na",
+        ):
+            with pytest.raises(TypeError):
+                minimal_brain_data.fit(model="glm", X=design_matrix, **{kwarg: False})
 
     @pytest.mark.slow
-    def test_design_clean_false_keeps_correlated(self, minimal_brain_data):
-        """design_clean=False keeps all regressors regardless of correlation."""
+    def test_rank_deficient_design_warns(self, minimal_brain_data):
+        """A singular design produces non-unique betas, so warn loudly."""
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
         design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(n),
-                "condA": a,
-                "condA_dup": a,
-            }
+            {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
         )
-        minimal_brain_data.fit(model="glm", X=design_matrix, design_clean=False)
+        assert np.linalg.matrix_rank(design_matrix.to_numpy()) == 2
+
+        with pytest.warns(UserWarning, match="rank deficient"):
+            minimal_brain_data.fit(model="glm", X=design_matrix)
+
+        # Still fits (pseudo-inverse), and keeps every column.
         assert minimal_brain_data.glm_betas.shape[0] == 3
 
     @pytest.mark.slow
-    def test_design_clean_thresh_plumbing(self, minimal_brain_data):
-        """design_clean_thresh changes the drop threshold."""
+    def test_rank_deficient_warning_names_the_columns(self, minimal_brain_data):
+        """The warning must be actionable: report rank, size, and next step."""
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
-        # Construct b correlated with a at r ~= 0.7
-        noise = rng.standard_normal(n)
-        b = 0.7 * a + np.sqrt(1 - 0.7**2) * noise
-        r = abs(np.corrcoef(a, b)[0, 1])
-        assert 0.5 < r < 0.95, f"setup invariant violated: |r|={r}"
-
         design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(n),
-                "condA": a,
-                "condB": b,
-            }
+            {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
         )
-
-        # Default thresh=0.95: keeps both
-        bd_default = minimal_brain_data.copy()
-        bd_default.fit(model="glm", X=design_matrix)
-        assert bd_default.glm_betas.shape[0] == 3
-
-        # thresh=0.5: drops one
-        bd_strict = minimal_brain_data.copy()
-        bd_strict.fit(model="glm", X=design_matrix, design_clean_thresh=0.5)
-        assert bd_strict.glm_betas.shape[0] == 2
+        with pytest.warns(UserWarning) as record:
+            minimal_brain_data.fit(model="glm", X=design_matrix)
+        msg = "\n".join(str(w.message) for w in record)
+        assert "2" in msg and "3" in msg  # rank 2 of 3
+        assert "clean" in msg
 
     @pytest.mark.slow
-    def test_design_clean_exclude_confounds_plumbing(self, minimal_brain_data):
-        """design_clean_exclude_confounds=True skips confounds from correlation check."""
-        from nltools.data.designmatrix import DesignMatrix
-
-        n = len(minimal_brain_data)
-        rng = np.random.default_rng(42)
-        a = rng.standard_normal(n)
-        b = rng.standard_normal(n)
-
-        # task1, task2, motion_x (= copy of task1, marked confound)
-        dm = DesignMatrix(
-            pd.DataFrame({"task1": a, "task2": b, "motion_x": a}),
-            confounds=["motion_x"],
-        )
-
-        # Default exclude_confounds=False: motion_x correlated with task1 → dropped
-        bd_default = minimal_brain_data.copy()
-        bd_default.fit(model="glm", X=dm)
-        assert bd_default.glm_betas.shape[0] == 2
-
-        # exclude_confounds=True: motion_x excluded from check → all kept
-        bd_excl = minimal_brain_data.copy()
-        bd_excl.fit(model="glm", X=dm, design_clean_exclude_confounds=True)
-        assert bd_excl.glm_betas.shape[0] == 3
-
-    @pytest.mark.slow
-    def test_design_clean_noop_on_clean_design(self, minimal_brain_data):
-        """design_clean=True is a no-op on an already clean design."""
+    def test_full_rank_design_does_not_warn(self, minimal_brain_data):
+        """No spurious rank warning on a well-formed design."""
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         design_matrix = pd.DataFrame(
@@ -856,7 +834,10 @@ class TestBrainDataModeling:
                 "condB": rng.standard_normal(n),
             }
         )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            minimal_brain_data.fit(model="glm", X=design_matrix)
+        assert not [w for w in caught if "rank deficient" in str(w.message)]
         assert minimal_brain_data.glm_betas.shape[0] == 3
 
 
