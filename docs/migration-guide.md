@@ -231,15 +231,48 @@ uniquely determined.
 ```text
 UserWarning: Design matrix is rank deficient: rank 2 of 3 columns
 (Intercept, condA, condA_dup). At least 1 column(s) are linear combinations of
-the others, so the betas are not uniquely determined and contrasts involving
-them are not interpretable. Inspect collinearity with `DesignMatrix.vif()` and
-drop redundant regressors explicitly with `DesignMatrix.clean()` before fitting.
+the others, so the OLS betas are not uniquely determined and contrasts involving
+them are not interpretable. Prefer regularization: `fit(model='ridge')` keeps
+every regressor and shrinks them, giving a unique solution that does not depend
+on column order. Inspect the collinearity first with `DesignMatrix.vif()`.
+Dropping columns with `DesignMatrix.clean()` also removes the deficiency, but it
+discards information and which column survives depends on the order the design
+was built in.
 ```
 
-**Migration**: if you relied on the implicit cleaning, add an explicit
-`.clean()` to your design-building chain. If you see the new rank warning, your
-design was already producing non-unique estimates — inspect it with `.vif()`
-rather than suppressing the warning.
+#### Prefer regularization to dropping columns
+
+If the warning fires, **regularization is usually the better fix**. Ridge has a
+unique solution even when `X'X` is singular, because `(X'X + alpha*I)` is always
+invertible, and that solution does not depend on the order of the columns:
+
+```python
+# Deletion: which regressor survives depends on how you built the design
+DesignMatrix({"a": a, "b": b, "c": c}).clean(thresh=0.95).columns   # ['a', 'c']
+DesignMatrix({"b": b, "a": a, "c": c}).clean(thresh=0.95).columns   # ['b', 'c']
+
+# Shrinkage: swap the collinear columns and you get the same model back
+bd.fit(model="ridge", X=np.column_stack([a, b, c]), alpha=1.0)      # w = [w_a, w_b, w_c]
+bd.fit(model="ridge", X=np.column_stack([b, a, c]), alpha=1.0)      # w = [w_b, w_a, w_c]
+```
+
+Dropping a regressor does not make its variance disappear — it reassigns it to
+whichever correlated column happened to survive, which silently changes what the
+remaining coefficients mean. Shrinkage instead distributes the shared variance
+across the collinear set in a determined way. Use `cv='auto'` with `alphas=[...]`
+to choose the penalty by cross-validation rather than by hand.
+
+The caveat worth stating plainly: regularization fixes the *estimation* problem,
+not the *identifiability* one. If two regressors are exactly collinear, no method
+can separate their individual contributions — that information is not in the
+data. Ridge gives you a stable, reproducible answer instead of an arbitrary one;
+it does not recover something that was never measured.
+
+**Migration**: if you relied on the implicit cleaning, decide deliberately —
+switch to `fit(model='ridge')`, or add an explicit `.clean()` to your
+design-building chain. If you see the new rank warning, your design was already
+producing non-unique estimates; inspect it with `.vif()` rather than suppressing
+the warning.
 
 
 (designmatrix-pandas-polars)=

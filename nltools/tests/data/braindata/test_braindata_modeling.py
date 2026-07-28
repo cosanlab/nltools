@@ -820,7 +820,48 @@ class TestBrainDataModeling:
             minimal_brain_data.fit(model="glm", X=design_matrix)
         msg = "\n".join(str(w.message) for w in record)
         assert "2" in msg and "3" in msg  # rank 2 of 3
+        # Regularization is the recommended fix: ridge has a unique solution
+        # even when X'X is singular, and is invariant to column order.
+        assert "ridge" in msg
+        assert "vif" in msg.lower()
         assert "clean" in msg
+
+    @pytest.mark.slow
+    def test_ridge_is_order_invariant_where_clean_is_not(self, minimal_brain_data):
+        """Why the warning recommends ridge over dropping columns.
+
+        Ridge shrinks collinear regressors toward each other and returns the
+        same model regardless of column order. `clean()` keeps whichever of a
+        correlated pair comes first, so it yields a different model when the
+        design is built in a different order.
+        """
+        from nltools.data.designmatrix import DesignMatrix
+
+        n = len(minimal_brain_data)
+        rng = np.random.default_rng(0)
+        a = rng.standard_normal(n)
+        b = a + 0.14 * rng.standard_normal(n)
+        c = rng.standard_normal(n)
+        assert abs(np.corrcoef(a, b)[0, 1]) > 0.95
+
+        def ridge_weights(X):
+            bd = minimal_brain_data.copy()
+            bd.fit(model="ridge", X=X, alpha=1.0)
+            w = bd.ridge_weights
+            return w.data if hasattr(w, "data") else np.asarray(w)
+
+        w1 = ridge_weights(np.column_stack([a, b, c]))
+        w2 = ridge_weights(np.column_stack([b, a, c]))
+        # Swapping the two collinear columns swaps their weights. Tolerance is
+        # float32 solver precision, not slack for order effects -- dropping a
+        # column instead changes the model categorically (asserted below).
+        np.testing.assert_allclose(w1[0], w2[1], atol=1e-5)
+        np.testing.assert_allclose(w1[1], w2[0], atol=1e-5)
+
+        # clean() instead keeps a different regressor depending on order.
+        kept1 = DesignMatrix({"a": a, "b": b, "c": c}).clean(thresh=0.95).columns
+        kept2 = DesignMatrix({"b": b, "a": a, "c": c}).clean(thresh=0.95).columns
+        assert set(kept1) != set(kept2)
 
     @pytest.mark.slow
     def test_full_rank_design_does_not_warn(self, minimal_brain_data):

@@ -45,6 +45,13 @@ def _warn_if_rank_deficient(X_array, X_model):
     because the failure is invisible in the output: the betas come back finite
     and plausible.
 
+    The warning points at regularization first. Ridge has a unique solution even
+    when ``X'X`` is singular, because ``(X'X + alpha*I)`` is always invertible,
+    and the solution is invariant to column order. Dropping columns instead
+    (``DesignMatrix.clean()``) discards information and assigns the shared
+    variance to whichever column happened to come first, so the fitted model
+    depends on the order the design was built in.
+
     We warn rather than raise because over-parameterized designs can still have
     estimable contrasts, and because raising would break pipelines currently
     relying (silently) on the pseudo-inverse.
@@ -71,10 +78,14 @@ def _warn_if_rank_deficient(X_array, X_model):
     warnings.warn(
         f"Design matrix is rank deficient: rank {rank} of {n_cols} columns"
         f"{where}. At least {n_cols - rank} column(s) are linear combinations "
-        "of the others, so the betas are not uniquely determined and contrasts "
-        "involving them are not interpretable. Inspect collinearity with "
-        "`DesignMatrix.vif()` and drop redundant regressors explicitly with "
-        "`DesignMatrix.clean()` before fitting.",
+        "of the others, so the OLS betas are not uniquely determined and "
+        "contrasts involving them are not interpretable. Prefer regularization: "
+        "`fit(model='ridge')` keeps every regressor and shrinks them, giving a "
+        "unique solution that does not depend on column order. Inspect the "
+        "collinearity first with `DesignMatrix.vif()`. Dropping columns with "
+        "`DesignMatrix.clean()` also removes the deficiency, but it discards "
+        "information and which column survives depends on the order the design "
+        "was built in.",
         UserWarning,
         stacklevel=3,
     )
