@@ -10,7 +10,7 @@ from scipy.stats import pearsonr, spearmanr, kendalltau
 from scipy.spatial.distance import squareform, pdist
 from scipy.stats import t as t_dist
 
-from .utils import _compute_pvalue
+from .utils import _compute_pvalue, maybe_tqdm
 from ..shape_utils import extract_triangle_elements, permute_matrix_symmetric
 from .validation import (
     validate_how_parameter,
@@ -144,6 +144,7 @@ def _matrix_permutation_cpu_parallel(
     return_null: bool,
     n_jobs: int,
     random_state: int | None,
+    progress_bar: bool = False,
 ) -> dict:
     """Matrix permutation test using CPU parallelization with joblib.
 
@@ -172,7 +173,6 @@ def _matrix_permutation_cpu_parallel(
         - Typical speedup: 4-8× on 8-core machines
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
 
     # Validate inputs
     validate_same_shape(data1, data2, name1="data1", name2="data2")
@@ -201,7 +201,12 @@ def _matrix_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in tqdm(range(n_permute), desc="Matrix permutation", unit="perm")
+        for i in maybe_tqdm(
+            range(n_permute),
+            progress_bar=progress_bar,
+            desc="Matrix permutation",
+            unit="perm",
+        )
     )
     null_dist = np.array(null_dist)
 
@@ -235,6 +240,7 @@ def matrix_permutation_test(
     parallel: str | None = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
+    progress_bar: bool = False,
     random_state: int | None = None,
 ) -> dict:
     """Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -334,6 +340,7 @@ def matrix_permutation_test(
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
     # Single-threaded NumPy mode
     rng = np.random.RandomState(random_state)

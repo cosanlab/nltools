@@ -22,6 +22,7 @@ def similarity(
     random_state=None,
     *,
     project: bool = False,
+    progress_bar: bool = False,
 ):
     """Calculate similarity between two Adjacency matrices.
 
@@ -173,6 +174,7 @@ def similarity(
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
     if plot:
         import matplotlib.pyplot as plt
@@ -195,6 +197,7 @@ def similarity(
                 return_null=return_null,
                 n_jobs=n_jobs,
                 random_state=random_state,
+                progress_bar=progress_bar,
             )
         )
     if project:
@@ -285,6 +288,7 @@ def ttest(
     return_null=False,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Calculate ttest across samples.
 
@@ -297,6 +301,7 @@ def ttest(
         return_null: If True, also return the null distribution. Default False.
         n_jobs: Number of parallel jobs. Default -1 (all cores).
         random_state: Random seed for reproducibility.
+        progress_bar: If True, show a progress bar. Default False.
 
     Returns:
         out: (dict) contains Adjacency instances of t values (or mean if
@@ -322,6 +327,7 @@ def ttest(
                 return_null=return_null,
                 n_jobs=n_jobs,
                 random_state=random_state,
+                progress_bar=progress_bar,
             )
             t.append(stats["mean"])
             p.append(stats["p"])
@@ -411,7 +417,9 @@ def plot_label_distance(adj, labels=None, ax=None):
     return
 
 
-def stats_label_distance(adj, *, labels=None, n_permute=5000, n_jobs=-1):
+def stats_label_distance(
+    adj, *, labels=None, n_permute=5000, n_jobs=-1, progress_bar=False
+):
     """Calculate permutation tests on within and between label distance.
 
     Args:
@@ -444,7 +452,11 @@ def stats_label_distance(adj, *, labels=None, n_permute=5000, n_jobs=-1):
         within = distances[(groups == i) & (types == "Within")]
         between = distances[(groups == i) & (types == "Between")]
         stats[str(i)] = two_sample_permutation_test(
-            within, between, n_permute=n_permute, n_jobs=n_jobs
+            within,
+            between,
+            n_permute=n_permute,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
         )
     return stats
 

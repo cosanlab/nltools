@@ -8,7 +8,13 @@ import numpy as np
 from sklearn.utils import check_random_state
 
 from nltools.algorithms.backends import Backend
-from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
+from .utils import (
+    _generate_sign_flips,
+    _compute_pvalue,
+    _auto_batch_size,
+    maybe_tqdm,
+    make_progress_bar,
+)
 from .validation import (
     validate_tail_parameter,
     validate_parallel_parameter,
@@ -24,6 +30,7 @@ def _one_sample_permutation_cpu_parallel(
     n_jobs: int,
     random_state: int | None,
     single_feature: bool = False,
+    progress_bar: bool = False,
 ) -> dict:
     """One-sample permutation test using CPU parallelization with joblib.
 
@@ -39,6 +46,7 @@ def _one_sample_permutation_cpu_parallel(
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
         single_feature (bool): Whether data is single feature
+        progress_bar (bool): Whether to display a tqdm progress bar
 
     Returns:
         dict: Same format as main function, with 'backend' indicating CPU parallel
@@ -51,7 +59,6 @@ def _one_sample_permutation_cpu_parallel(
         - Typical speedup: 4-8× on 8-core machines
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
 
     # Get dimensions (data is already reshaped by caller)
     n_samples, n_features = data.shape
@@ -71,7 +78,12 @@ def _one_sample_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(sign_flips[i])
-        for i in tqdm(range(n_permute), desc="CPU parallel perms", unit="perm")
+        for i in maybe_tqdm(
+            range(n_permute),
+            progress_bar=progress_bar,
+            desc="CPU parallel perms",
+            unit="perm",
+        )
     )
     null_dist = np.array(null_dist)  # Shape: (n_permute, n_features)
 
@@ -107,6 +119,7 @@ def _one_sample_permutation_gpu_batched(
     max_gpu_memory_gb: float,
     random_state,
     single_feature: bool = False,
+    progress_bar: bool = False,
 ) -> dict:
     """One-sample permutation test using GPU with automatic batching.
 
@@ -122,12 +135,12 @@ def _one_sample_permutation_gpu_batched(
         max_gpu_memory_gb (float): Maximum GPU memory budget
         random_state: Random state instance
         single_feature (bool): Whether data is single feature
+        progress_bar (bool): Whether to display a tqdm progress bar
 
     Returns:
         dict: Same format as main function, with 'backend' indicating GPU device
     """
     import torch
-    from tqdm import tqdm
 
     n_samples, n_features = data.shape
 
@@ -149,11 +162,11 @@ def _one_sample_permutation_gpu_batched(
     null_dist_list = []
 
     # Process permutations in batches with progress bar
-    pbar = tqdm(
+    pbar = make_progress_bar(
+        progress_bar=progress_bar and n_batches > 1,  # pointless bar if 1 batch
         total=n_permute,
         desc="GPU permutation batches",
         unit="perm",
-        disable=n_batches == 1,  # Disable progress bar if only 1 batch
     )
 
     for batch_idx in range(n_batches):
@@ -223,6 +236,7 @@ def one_sample_permutation_test(
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """One-sample permutation test using sign-flipping.
 
@@ -255,6 +269,7 @@ def one_sample_permutation_test(
             parallel='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
+        progress_bar (bool): Whether to display a progress bar (default: False)
 
     Returns:
         dict: Dictionary with keys:
@@ -331,7 +346,14 @@ def one_sample_permutation_test(
             return result
         # CPU parallelization mode
         return _one_sample_permutation_cpu_parallel(
-            data, n_permute, tail, return_null, n_jobs, random_state, single_feature
+            data,
+            n_permute,
+            tail,
+            return_null,
+            n_jobs,
+            random_state,
+            single_feature,
+            progress_bar,
         )
     # GPU mode
     backend_obj = Backend("torch")
@@ -345,4 +367,5 @@ def one_sample_permutation_test(
         max_gpu_memory_gb,
         rng,
         single_feature,
+        progress_bar,
     )

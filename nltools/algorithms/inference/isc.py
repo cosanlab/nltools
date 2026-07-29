@@ -667,7 +667,7 @@ def _permute_isc_group_cpu_parallel(
     summary_statistic="pairwise",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     sim_metric="correlation",
     max_memory_gb=None,
 ):
@@ -685,7 +685,7 @@ def _permute_isc_group_cpu_parallel(
         summary_statistic: ISC computation method. Defaults to 'pairwise'.
         n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
+        progress_bar: Show progress bar. Defaults to False.
         sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
@@ -851,7 +851,7 @@ def _bootstrap_isc_group_cpu_parallel(
     exclude_self_corr=True,
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     sim_metric="correlation",
     max_memory_gb=None,
 ):
@@ -871,7 +871,7 @@ def _bootstrap_isc_group_cpu_parallel(
         exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
         n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
+        progress_bar: Show progress bar. Defaults to False.
         sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
@@ -941,7 +941,7 @@ def isc_group_permutation_test(
     n_jobs: int = -1,
     random_state: int | None = None,
     return_null: bool = False,
-    progress_bar: bool = True,
+    progress_bar: bool = False,
     exclude_self_corr: bool = True,
     sim_metric: str = "correlation",
 ) -> dict[str, Any]:
@@ -982,7 +982,7 @@ def isc_group_permutation_test(
             Only used when parallel='cpu'. Defaults to -1.
         random_state: Random seed for reproducibility.
         return_null: If True, return null distribution in result dict. Defaults to False.
-        progress_bar: Show progress bar during bootstrap/permutation. Defaults to True.
+        progress_bar: Show progress bar during bootstrap/permutation. Defaults to False.
         exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
         sim_metric: Similarity metric for pairwise ISC computation. See
             sklearn.metrics.pairwise_distances for valid options. Only applies
@@ -1273,7 +1273,7 @@ def _bootstrap_loo_cpu_parallel(
     metric="median",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     max_memory_gb=None,
 ):
     """CPU-parallel LOO bootstrap using joblib.
@@ -1288,7 +1288,7 @@ def _bootstrap_loo_cpu_parallel(
         metric: Summary statistic. Defaults to 'median'.
         n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
+        progress_bar: Show progress bar. Defaults to False.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
     Returns:
@@ -1445,7 +1445,7 @@ def _bootstrap_pairwise_cpu_parallel(
     metric="median",
     n_jobs=-1,
     random_state=None,
-    progress_bar=True,
+    progress_bar=False,
     exclude_self_corr=True,
     max_memory_gb=None,
 ):
@@ -1462,7 +1462,7 @@ def _bootstrap_pairwise_cpu_parallel(
         metric: Summary statistic. Defaults to 'median'.
         n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
-        progress_bar: Show progress bar. Defaults to True.
+        progress_bar: Show progress bar. Defaults to False.
         exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
             subjects) as NaN. If False, include them in the summary statistic. Defaults to True.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
@@ -1696,7 +1696,7 @@ def isc_permutation_test(
     ci_percentile: float = 95,
     tail: Literal[1, 2] = 2,
     return_null: bool = False,
-    progress_bar: bool = True,
+    progress_bar: bool = False,
     exclude_self_corr: bool = True,
     sim_metric: str = "correlation",
     # Backend parameters (grouped)
@@ -1734,7 +1734,7 @@ def isc_permutation_test(
         ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
         tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
         return_null: If True, return bootstrap/permutation distribution in result dict. Defaults to False.
-        progress_bar: Show progress bar during bootstrap/permutation. Defaults to True.
+        progress_bar: Show progress bar during bootstrap/permutation. Defaults to False.
         exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
             subjects in bootstrap samples) as NaN. If False, include them in the
             summary statistic. Only applies when method='bootstrap' and

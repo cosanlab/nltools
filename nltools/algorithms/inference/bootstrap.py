@@ -13,6 +13,7 @@ from .validation import (
     validate_shape_compatibility,
 )
 from ..random import generate_bootstrap_indices
+from .utils import maybe_tqdm, make_progress_bar
 
 
 # Constants for supported methods
@@ -279,6 +280,7 @@ def _bootstrap_simple_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
     """Bootstrap simple aggregation methods using CPU parallelization.
 
@@ -314,7 +316,6 @@ def _bootstrap_simple_cpu_parallel(
         dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', 'backend'])
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
 
     # Validate inputs
     _validate_bootstrap_method(method)
@@ -352,7 +353,12 @@ def _bootstrap_simple_cpu_parallel(
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap iterations", unit="iter")
+        for i in maybe_tqdm(
+            range(n_samples),
+            progress_bar=progress_bar,
+            desc="Bootstrap iterations",
+            unit="iter",
+        )
     )
 
     # Aggregate results
@@ -420,6 +426,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model weights using CPU parallelization.
@@ -458,7 +465,6 @@ def _bootstrap_ridge_weights_cpu_parallel(
         (10, 50)
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
     from .validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
@@ -499,7 +505,12 @@ def _bootstrap_ridge_weights_cpu_parallel(
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap Ridge weights", unit="iter")
+        for i in maybe_tqdm(
+            range(n_samples),
+            progress_bar=progress_bar,
+            desc="Bootstrap Ridge weights",
+            unit="iter",
+        )
     )
 
     # Aggregate results
@@ -571,6 +582,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model predictions using CPU parallelization.
@@ -610,7 +622,6 @@ def _bootstrap_ridge_predict_cpu_parallel(
         (20, 50)  # Predictions for 20 test samples, 50 voxels
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
     from .validation import validate_shape_compatibility, validate_array_shape
 
     # Input validation
@@ -658,7 +669,12 @@ def _bootstrap_ridge_predict_cpu_parallel(
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_bootstrap)(i)
-        for i in tqdm(range(n_samples), desc="Bootstrap Ridge predictions", unit="iter")
+        for i in maybe_tqdm(
+            range(n_samples),
+            progress_bar=progress_bar,
+            desc="Bootstrap Ridge predictions",
+            unit="iter",
+        )
     )
 
     # Aggregate results
@@ -738,6 +754,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model weights using GPU with automatic batching.
@@ -761,7 +778,6 @@ def _bootstrap_ridge_weights_gpu_batched(
         Dictionary containing bootstrap statistics (same format as CPU version).
     """
     import torch
-    from tqdm import tqdm
     from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape_range
 
@@ -816,7 +832,8 @@ def _bootstrap_ridge_weights_gpu_batched(
     )
 
     # Process bootstrap samples in batches with progress bar
-    pbar = tqdm(
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
         total=n_samples,
         desc="GPU bootstrap Ridge weights",
         unit="iter",
@@ -911,6 +928,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap Ridge model predictions using GPU with automatic batching.
@@ -935,7 +953,6 @@ def _bootstrap_ridge_predict_gpu_batched(
         Dictionary containing bootstrap statistics (same format as CPU version).
     """
     import torch
-    from tqdm import tqdm
     from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape, validate_array_shape_range
 
@@ -998,7 +1015,8 @@ def _bootstrap_ridge_predict_gpu_batched(
     )
 
     # Process bootstrap samples in batches with progress bar
-    pbar = tqdm(
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
         total=n_samples,
         desc="GPU bootstrap Ridge predictions",
         unit="iter",

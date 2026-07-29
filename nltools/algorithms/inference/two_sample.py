@@ -8,7 +8,12 @@ import numpy as np
 from sklearn.utils import check_random_state
 
 from nltools.algorithms.backends import Backend
-from .utils import _compute_pvalue, _auto_batch_size
+from .utils import (
+    _compute_pvalue,
+    _auto_batch_size,
+    maybe_tqdm,
+    make_progress_bar,
+)
 from .validation import (
     validate_tail_parameter,
     validate_parallel_parameter,
@@ -26,6 +31,7 @@ def _two_sample_permutation_cpu_parallel(
     n_jobs: int,
     random_state: int | None,
     single_feature: bool = False,
+    progress_bar: bool = False,
 ) -> dict:
     """Two-sample permutation test using CPU parallelization with joblib.
 
@@ -46,7 +52,6 @@ def _two_sample_permutation_cpu_parallel(
         dict: Same format as main function, with 'parallel' indicating CPU parallel
     """
     from joblib import Parallel, delayed
-    from tqdm import tqdm
 
     # Setup random state and generate seeds for workers
     seeds = generate_seeds(n_permute, random_state=random_state)
@@ -79,7 +84,12 @@ def _two_sample_permutation_cpu_parallel(
     # Execute in parallel with progress bar
     null_dist = Parallel(n_jobs=n_jobs)(
         delayed(_compute_one_perm)(seeds[i])
-        for i in tqdm(range(n_permute), desc="CPU parallel perms", unit="perm")
+        for i in maybe_tqdm(
+            range(n_permute),
+            progress_bar=progress_bar,
+            desc="CPU parallel perms",
+            unit="perm",
+        )
     )
     null_dist = np.array(null_dist)  # Shape: (n_permute, n_features)
 
@@ -116,6 +126,7 @@ def _two_sample_permutation_gpu_batched(
     max_gpu_memory_gb: float,
     random_state,
     single_feature: bool = False,
+    progress_bar: bool = False,
 ) -> dict:
     """Two-sample permutation test using GPU with automatic batching.
 
@@ -137,7 +148,6 @@ def _two_sample_permutation_gpu_batched(
         dict: Same format as main function, with 'parallel' indicating GPU device
     """
     import torch
-    from tqdm import tqdm
 
     n1, n_features = data1.shape
     n2 = data2.shape[0]
@@ -165,7 +175,8 @@ def _two_sample_permutation_gpu_batched(
     null_dist_list = []
 
     # Process permutations in batches with progress bar
-    pbar = tqdm(
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
         total=n_permute,
         desc="GPU permutation batches",
         unit="perm",
@@ -260,6 +271,7 @@ def two_sample_permutation_test(
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Two-sample permutation test using group label shuffling.
 
@@ -413,6 +425,7 @@ def two_sample_permutation_test(
             n_jobs,
             random_state,
             single_feature,
+            progress_bar,
         )
     # GPU mode
     backend_obj = Backend("torch")
