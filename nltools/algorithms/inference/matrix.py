@@ -232,6 +232,7 @@ def _matrix_permutation_cpu_parallel(
 def matrix_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int = 5000,
     metric: str = "pearson",
     how: str = "upper",

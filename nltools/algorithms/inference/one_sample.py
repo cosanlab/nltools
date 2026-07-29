@@ -24,6 +24,7 @@ from .validation import (
 
 def _one_sample_permutation_cpu_parallel(
     data: np.ndarray,
+    *,
     n_permute: int,
     tail: int,
     return_null: bool,
@@ -112,6 +113,7 @@ def _one_sample_permutation_cpu_parallel(
 
 def _one_sample_permutation_gpu_batched(
     data: np.ndarray,
+    *,
     n_permute: int,
     tail: int,
     return_null: bool,
@@ -229,6 +231,7 @@ def _one_sample_permutation_gpu_batched(
 
 def one_sample_permutation_test(
     data: np.ndarray,
+    *,
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
@@ -347,25 +350,25 @@ def one_sample_permutation_test(
         # CPU parallelization mode
         return _one_sample_permutation_cpu_parallel(
             data,
-            n_permute,
-            tail,
-            return_null,
-            n_jobs,
-            random_state,
-            single_feature,
-            progress_bar,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            single_feature=single_feature,
+            progress_bar=progress_bar,
         )
     # GPU mode
     backend_obj = Backend("torch")
     rng = check_random_state(random_state)
     return _one_sample_permutation_gpu_batched(
         data,
-        n_permute,
-        tail,
-        return_null,
-        backend_obj,
-        max_gpu_memory_gb,
-        rng,
-        single_feature,
-        progress_bar,
+        n_permute=n_permute,
+        tail=tail,
+        return_null=return_null,
+        backend=backend_obj,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+        random_state=rng,
+        single_feature=single_feature,
+        progress_bar=progress_bar,
     )
