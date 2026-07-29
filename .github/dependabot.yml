@@ -1,0 +1,45 @@
+# Dependabot configuration.
+#
+# Both the Python dependency graph and the GitHub Actions used by CI are kept
+# current here. Version updates are grouped so routine bumps arrive as one PR
+# per ecosystem per week rather than a stream of individual ones; security
+# updates are unaffected by grouping and still open immediately.
+version: 2
+
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-dev-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # pymdown-extensions: GHSA path traversal in the `b64` extension, where a
+      # crafted <img src> can read files outside base_path. Fixed in 11.0.0,
+      # which we cannot reach: marimo pins `pymdown-extensions>=10.21.2,<11`,
+      # so Dependabot's security update fails resolution on every attempt and
+      # leaves a failed job on master (see the "uv in /. for pymdown-extensions"
+      # runs).
+      #
+      # Not reachable in this project, on three independent grounds:
+      #   1. marimo is a dev-group dependency -- it is absent from the runtime
+      #      tree and is not present in published nltools wheels.
+      #   2. marimo enables `pymdownx.b64` only under `is_pyodide()`
+      #      (marimo/_output/md.py), i.e. only in the in-browser WASM build,
+      #      where there is no host filesystem to traverse.
+      #   3. we render only our own notebooks, never untrusted markdown.
+      #
+      # Remove this entry once marimo relaxes its upper bound to allow 11.x.
+      - dependency-name: "pymdown-extensions"
+        versions: ["< 11.0.0"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -325,3 +325,16 @@ show_docstring_raises = false
 show_root_full_path = false
 show_root_members_full_path = false
 show_object_full_path = false
+
+[tool.uv]
+# semgrep hard-pins `mcp==1.23.3` (every release through 1.172.0 does), and that
+# version carries three HIGH advisories: unverified principal on HTTP transports
+# and cross-client task access (both fixed in 1.27.2), plus missing Host/Origin
+# validation on the WebSocket transport (fixed in 1.28.1). There is no semgrep
+# release that lifts the pin, so the only way to clear them is to override it.
+#
+# Safe here because we only ever invoke semgrep as a CLI scanner (`poe lint-api`
+# runs `semgrep scan`); we never start its MCP server, which is what all three
+# advisories concern. Held below 2.0 to stay on the same major as semgrep's pin.
+# Revisit -- and drop this -- once semgrep ships a release requiring mcp>=1.28.1.
+override-dependencies = ["mcp>=1.28.1,<2"]
