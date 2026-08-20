@@ -272,7 +272,7 @@ class TestLoadHaxbyExample:
             dm_full = dm.add_dct_basis(duration=128).add_poly(
                 order=2, include_lower=True
             )
-            data.fit(model="glm", X=dm_full, design_clean=False)
+            data.fit(model="glm", X=dm_full)
         assert data.glm_betas.shape[0] == dm_full.shape[1]
         assert data.glm_betas.shape[1] == data.shape[1]
 

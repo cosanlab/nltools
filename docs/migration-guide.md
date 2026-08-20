@@ -236,6 +236,95 @@ result reports `(n_tr, 0)` and appends as a no-op. `DesignMatrix.append()` also
 skips regressor-less matrices outright, so this composes even for matrices built
 without an explicit height.
 
+(fit-no-implicit-design-clean)=
+### `fit()` no longer cleans the design matrix
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — the `design_clean*` kwargs were removed
+
+`BrainData.fit(model='glm')` used to run `DesignMatrix.clean()` on `X` before
+estimating, silently dropping any column correlating above `0.95` with an
+earlier one. That is gone. `fit()` now estimates exactly the design you pass.
+
+```python
+# OLD — silently dropped columns, and the kwargs tuned the dropping
+bd.fit(model='glm', X=dm)                       # cleaned behind your back
+bd.fit(model='glm', X=dm, design_clean=False)   # opt out
+bd.fit(model='glm', X=dm, design_clean_thresh=0.8)
+
+# NEW — fit() estimates what you give it; clean explicitly if you want to
+bd.fit(model='glm', X=dm)
+bd.fit(model='glm', X=dm.clean(thresh=0.8))
+```
+
+Removed kwargs: `design_clean`, `design_clean_thresh`,
+`design_clean_exclude_confounds`, `design_clean_fill_na`. Passing any of them
+now raises `TypeError`.
+
+**Why**: the old behavior applied a *correlation* heuristic, not a rank test,
+so it dropped columns from designs that were perfectly estimable. Worse, it
+kept the first column of each correlated pair and dropped the second — making
+the fitted model depend on the order you happened to build the design in:
+
+```python
+base.add_dct_basis(duration=128).add_poly(order=2)   # dropped poly_1, poly_2
+base.add_poly(order=2).add_dct_basis(duration=128)   # dropped cosine_1, cosine_2
+```
+
+Same regressors, same data, two different models, no warning either way.
+Dropping regressors is a modeling decision, so it belongs to the caller.
+
+**In exchange, `fit()` now warns when the design is genuinely rank deficient.**
+That case previously passed silently in *both* modes: with cleaning off, nilearn
+falls back to a pseudo-inverse and splits the effect evenly across the linearly
+dependent columns, returning finite, plausible-looking betas that are not
+uniquely determined.
+
+```text
+UserWarning: Design matrix is rank deficient: rank 2 of 3 columns
+(Intercept, condA, condA_dup). At least 1 column(s) are linear combinations of
+the others, so the OLS betas are not uniquely determined and contrasts involving
+them are not interpretable. Prefer regularization: `fit(model='ridge')` keeps
+every regressor and shrinks them, giving a unique solution that does not depend
+on column order. Inspect the collinearity first with `DesignMatrix.vif()`.
+Dropping columns with `DesignMatrix.clean()` also removes the deficiency, but it
+discards information and which column survives depends on the order the design
+was built in.
+```
+
+#### Prefer regularization to dropping columns
+
+If the warning fires, **regularization is usually the better fix**. Ridge has a
+unique solution even when `X'X` is singular, because `(X'X + alpha*I)` is always
+invertible, and that solution does not depend on the order of the columns:
+
+```python
+# Deletion: which regressor survives depends on how you built the design
+DesignMatrix({"a": a, "b": b, "c": c}).clean(thresh=0.95).columns   # ['a', 'c']
+DesignMatrix({"b": b, "a": a, "c": c}).clean(thresh=0.95).columns   # ['b', 'c']
+
+# Shrinkage: swap the collinear columns and you get the same model back
+bd.fit(model="ridge", X=np.column_stack([a, b, c]), alpha=1.0)      # w = [w_a, w_b, w_c]
+bd.fit(model="ridge", X=np.column_stack([b, a, c]), alpha=1.0)      # w = [w_b, w_a, w_c]
+```
+
+Dropping a regressor does not make its variance disappear — it reassigns it to
+whichever correlated column happened to survive, which silently changes what the
+remaining coefficients mean. Shrinkage instead distributes the shared variance
+across the collinear set in a determined way. Use `cv='auto'` with `alphas=[...]`
+to choose the penalty by cross-validation rather than by hand.
+
+The caveat worth stating plainly: regularization fixes the *estimation* problem,
+not the *identifiability* one. If two regressors are exactly collinear, no method
+can separate their individual contributions — that information is not in the
+data. Ridge gives you a stable, reproducible answer instead of an arbitrary one;
+it does not recover something that was never measured.
+
+**Migration**: if you relied on the implicit cleaning, decide deliberately —
+switch to `fit(model='ridge')`, or add an explicit `.clean()` to your
+design-building chain. If you see the new rank warning, your design was already
+producing non-unique estimates; inspect it with `.vif()` rather than suppressing
+the warning.
+
 
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars

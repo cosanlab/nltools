@@ -144,7 +144,7 @@ def tiny_design_factory():
 
     def _make(n_obs: int = 8, seed: int = 0):
         rng = np.random.default_rng(seed)
-        # Two non-collinear regressors so design_clean keeps both columns.
+        # Two non-collinear regressors so the design stays full rank.
         t = np.linspace(0, 2 * np.pi, n_obs)
         return DesignMatrix(
             pd.DataFrame(
