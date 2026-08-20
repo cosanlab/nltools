@@ -20,7 +20,12 @@ import numpy as np
 from typing import Literal, TYPE_CHECKING
 from sklearn.utils import check_random_state
 
-from .utils import _compute_pvalue, _auto_batch_size
+from .utils import (
+    _compute_pvalue,
+    _auto_batch_size,
+    maybe_tqdm,
+    make_progress_bar,
+)
 from .validation import validate_tail_parameter
 from .correlation import (
     _pearson_correlation,
@@ -446,6 +451,7 @@ def _timeseries_correlation_permutation_gpu_batched(
     backend: Backend,
     max_gpu_memory_gb: float,
     random_state,
+    progress_bar: bool = False,
 ) -> dict:
     """Time-series correlation permutation test using GPU with automatic batching.
 
@@ -468,7 +474,6 @@ def _timeseries_correlation_permutation_gpu_batched(
         dict: Same format as main function, with 'backend' indicating GPU device
     """
     import torch
-    from tqdm import tqdm
 
     n_samples = len(data1)
 
@@ -505,7 +510,8 @@ def _timeseries_correlation_permutation_gpu_batched(
     null_dist_list = []
 
     # Process permutations in batches with progress bar
-    pbar = tqdm(
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
         total=n_permute,
         desc="GPU timeseries perms",
         unit="perm",
@@ -599,6 +605,7 @@ def timeseries_correlation_permutation_test(
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
     random_state: int | np.random.RandomState | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Time-series correlation permutation test.
 
@@ -752,7 +759,6 @@ def timeseries_correlation_permutation_test(
 
         # Define worker function
         from joblib import Parallel, delayed
-        from tqdm import tqdm
 
         if method == "circle_shift":
 
@@ -779,7 +785,12 @@ def timeseries_correlation_permutation_test(
         # Execute in parallel with progress bar
         null_dist = Parallel(n_jobs=n_jobs)(
             delayed(_compute_one_perm)(seeds[i])
-            for i in tqdm(range(n_permute), desc=f"{method} perms", unit="perm")
+            for i in maybe_tqdm(
+                range(n_permute),
+                progress_bar=progress_bar,
+                desc=f"{method} perms",
+                unit="perm",
+            )
         )
         null_dist = np.array(null_dist)
 
@@ -811,4 +822,5 @@ def timeseries_correlation_permutation_test(
         backend_obj,
         max_gpu_memory_gb,
         rng,
+        progress_bar,
     )

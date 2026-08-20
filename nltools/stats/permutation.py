@@ -44,6 +44,7 @@ def one_sample_permutation_test(
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """One-sample permutation test using sign-flipping.
 
@@ -68,6 +69,7 @@ def one_sample_permutation_test(
         n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         dict with keys ``'mean'``, ``'p'``, ``'parallel'``,
@@ -86,6 +88,7 @@ def one_sample_permutation_test(
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
 
 
@@ -100,6 +103,7 @@ def two_sample_permutation_test(
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Two-sample permutation test using group label shuffling.
 
@@ -116,6 +120,7 @@ def two_sample_permutation_test(
         n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         dict with keys ``'mean'`` (observed group difference), ``'p'``,
@@ -135,6 +140,7 @@ def two_sample_permutation_test(
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
 
 
@@ -150,6 +156,7 @@ def correlation_permutation_test(
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Correlation permutation test.
 
@@ -167,6 +174,7 @@ def correlation_permutation_test(
         n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         dict with keys ``'correlation'`` (observed correlation), ``'p'``,
@@ -187,6 +195,7 @@ def correlation_permutation_test(
         n_jobs=n_jobs,
         max_gpu_memory_gb=max_gpu_memory_gb,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
 
 
@@ -203,6 +212,7 @@ def timeseries_correlation_permutation_test(
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
     random_state: int | np.random.RandomState | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Time-series correlation permutation test.
 
@@ -222,6 +232,7 @@ def timeseries_correlation_permutation_test(
         max_gpu_memory_gb: GPU memory budget in GB (default 4.0).
         return_null: If True, include the full null distribution.
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         dict with keys ``'correlation'`` (observed correlation), ``'p'``,
@@ -250,6 +261,7 @@ def timeseries_correlation_permutation_test(
         max_gpu_memory_gb=max_gpu_memory_gb,
         return_null=return_null,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
 
 
@@ -299,6 +311,7 @@ def phase_randomize(
             ``'gpu'`` (PyTorch FFT on CUDA/MPS, float32), or ``'auto'`` (use a
             GPU if present, else CPU).
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         Phase-randomized array, same shape as *data*.
@@ -333,6 +346,7 @@ def matrix_permutation_test(
     n_jobs: int = -1,
     return_null: bool = False,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Matrix permutation test (Mantel test).
 
@@ -351,6 +365,7 @@ def matrix_permutation_test(
         n_jobs: CPU cores for ``device='cpu'`` (default −1 = all).
         return_null: If True, include the full null distribution.
         random_state: Seed for reproducibility.
+        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         dict with keys ``'correlation'`` (observed matrix correlation), ``'p'``,
@@ -379,6 +394,7 @@ def matrix_permutation_test(
         n_jobs=n_jobs,
         return_null=return_null,
         random_state=random_state,
+        progress_bar=progress_bar,
     )
 
 
