@@ -198,7 +198,7 @@ class SRM(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, n_iter: int = 10, features: int = 50, rand_seed: int = 0
+        self, *, n_iter: int = 10, features: int = 50, rand_seed: int = 0
     ) -> None:
         self.n_iter = n_iter
         self.features = features
@@ -779,7 +779,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, n_iter: int = 10, features: int = 50, rand_seed: int = 0
+        self, *, n_iter: int = 10, features: int = 50, rand_seed: int = 0
     ) -> None:
         self.n_iter = n_iter
         self.features = features

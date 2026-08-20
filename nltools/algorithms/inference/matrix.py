@@ -136,6 +136,7 @@ def _compute_cross_correlation(matrix1: np.ndarray, matrix2: np.ndarray) -> np.n
 def _matrix_permutation_cpu_parallel(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int,
     metric: str,
     how: str,

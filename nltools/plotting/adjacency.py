@@ -115,6 +115,7 @@ def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
 def plot_mean_label_distance(
     distance,
     labels,
+    *,
     ax=None,
     permutation_test=False,
     n_permute=5000,
@@ -193,6 +194,7 @@ def plot_mean_label_distance(
 def plot_between_label_distance(
     distance,
     labels,
+    *,
     ax=None,
     permutation_test=True,
     n_permute=5000,

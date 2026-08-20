@@ -31,6 +31,7 @@ ipywidgets = attempt_to_import(
 
 def plot_interactive_brain(
     brain,
+    *,
     threshold=1e-6,
     surface=False,
     percentile_threshold=False,

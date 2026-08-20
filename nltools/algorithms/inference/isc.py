@@ -662,6 +662,7 @@ def _permute_isc_group_numpy(
 def _permute_isc_group_cpu_parallel(
     group1,
     group2,
+    *,
     n_permute=5000,
     metric="median",
     summary_statistic="pairwise",
@@ -844,6 +845,7 @@ def _bootstrap_isc_group_cpu_parallel(
     group1,
     group2,
     observed_diff,
+    *,
     n_permute=5000,
     metric="median",
     summary_statistic="pairwise",
@@ -1268,6 +1270,7 @@ def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
 
 def _bootstrap_loo_cpu_parallel(
     loo_values,
+    *,
     n_permute=5000,
     metric="median",
     n_jobs=-1,
@@ -1438,6 +1441,7 @@ def _bootstrap_pairwise_numpy(
 
 def _bootstrap_pairwise_cpu_parallel(
     pairwise_condensed,
+    *,
     n_permute=5000,
     n_subjects=None,
     metric="median",
@@ -1579,6 +1583,7 @@ def _pairwise_gpu_batch_sizes(n_voxels, n_subjects, n_permute, max_gpu_memory_gb
 def _bootstrap_pairwise_gpu(
     data,
     boot_indices,
+    *,
     metric="median",
     exclude_self_corr=True,
     max_gpu_memory_gb=4.0,

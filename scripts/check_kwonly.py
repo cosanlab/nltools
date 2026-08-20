@@ -15,12 +15,11 @@ keyword-only marker separating them, flag it. ``self``/``cls`` and no-default
 positional data args (e.g. ``fit(X, y)``) are not counted, so sklearn-style
 ``fit(X, y)`` signatures are not flagged.
 
-Scope: the public API surface where the convention binds — the four data-class
-facades plus public stats/models/mask/datasets functions. The algorithm-layer
-internals (``nltools/algorithms``, ``nltools/data/collection/pipesteps``) are
-excluded; a handful
-of public estimators there (SRM/Ridge/Glm) are covered because ``models/`` is in
-scope.
+Scope: the entire ``nltools`` package (tests excluded). The convention binds
+uniformly — facades and algorithm-layer engines alike — because a missing ``*``
+is how a parameter insertion silently shifts an argument at a dispatch site
+regardless of which layer it lives in. The only exceptions are the explicit,
+per-function entries in ``EXEMPT`` below, each with its rationale inline.
 
 Usage:  python scripts/check_kwonly.py [PATH ...]
 Exit status 1 if any violations are found (so it can gate CI).
@@ -35,30 +34,26 @@ from pathlib import Path
 # Minimum number of loose (defaulted, non-keyword-only) params to require a `*`.
 THRESHOLD = 3
 
-# Public API roots where the convention binds. Algorithm/pipeline internals are
-# intentionally excluded (facade-translation rule); models/ is included because
-# Ridge/Glm are public estimators the audit flagged (F103, F106). The pipeline
-# primitives under data/collection/pipesteps are internals the BrainCollection
-# facade translates, so they are excluded via EXCLUDE_PARTS below even though
-# they now live under nltools/data.
-#
-# algorithms/inference is included despite the general algorithms/ exclusion:
-# unlike the rest of that package it is public in practice -- documented in
-# docs/api/algorithms/inference.md and imported directly downstream -- so the
-# facade-translation rationale for excluding it does not hold. Its engines
-# carried up to 15 positional-or-keyword params with no `*`, which is how a
-# parameter insertion silently shifted an argument at a dispatch site. The
-# broader question of whether that layer should be public at all is issue #474.
-DEFAULT_ROOTS = [
-    "nltools/data",
-    "nltools/stats",
-    "nltools/models",
-    "nltools/algorithms/inference",
-    "nltools/mask.py",
-    "nltools/datasets.py",
-]
+# The whole package: the convention is uniform (no per-layer carve-outs).
+DEFAULT_ROOTS = ["nltools"]
 
-EXCLUDE_PARTS = {"tests", "pipesteps"}
+EXCLUDE_PARTS = {"tests"}
+
+# Documented exemptions: (path, function name) -> rationale. These functions in
+# nltools/algorithms/backends.py deliberately mirror numpy signatures so they
+# are drop-in substitutes inside backend-generic code (numpy accepts
+# ``np.zeros_like(a, dtype, order)`` positionally); forcing a ``*`` here would
+# break that substitutability for no safety gain. Do NOT add entries to escape
+# the convention for ordinary nltools functions — this list exists only for
+# signatures whose shape is dictated by an external API.
+EXEMPT: dict[tuple[str, str], str] = {
+    ("nltools/algorithms/backends.py", "zeros_like"): "mirrors np.zeros_like",
+    ("nltools/algorithms/backends.py", "ones_like"): "mirrors np.ones_like",
+    ("nltools/algorithms/backends.py", "full_like"): "mirrors np.full_like",
+    ("nltools/algorithms/backends.py", "assert_array_almost_equal"): (
+        "mirrors np.testing.assert_array_almost_equal"
+    ),
+}
 
 
 def iter_py_files(roots: list[str]) -> list[Path]:
@@ -109,6 +104,8 @@ def check_file(path: Path) -> list[tuple[int, str, int]]:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         if node.name.startswith("_") and node.name != "__init__":
+            continue
+        if (path.as_posix(), node.name) in EXEMPT:
             continue
         if has_star_marker(node):
             continue

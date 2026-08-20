@@ -156,10 +156,14 @@ class _NullProgressBar:
     def close(self) -> None:
         pass
 
-    def set_postfix(self, *args, **kwargs) -> None:
+    def set_postfix(
+        self, *args, **kwargs
+    ) -> None:  # nosemgrep: kwargs-internal-forwarding  # mirrors tqdm.set_postfix
         pass
 
-    def set_description(self, *args, **kwargs) -> None:
+    def set_description(
+        self, *args, **kwargs
+    ) -> None:  # nosemgrep: kwargs-internal-forwarding  # mirrors tqdm.set_description
         pass
 
     def __enter__(self) -> "_NullProgressBar":

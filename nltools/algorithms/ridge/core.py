@@ -43,6 +43,7 @@ def ridge_svd(
     # Required
     X: np.ndarray,
     y: np.ndarray,
+    *,
     # Optional algorithm parameters
     alpha: float = 1.0,
     # Backend parameters (grouped)
@@ -204,6 +205,7 @@ def ridge_cv(
     # Required
     X: np.ndarray,
     y: np.ndarray,
+    *,
     # Optional algorithm parameters
     alphas: np.ndarray | None = None,
     cv: "int | BaseCrossValidator" = 5,  # noqa: F821  (forward ref)
