@@ -280,16 +280,23 @@ dependent columns, returning finite, plausible-looking betas that are not
 uniquely determined.
 
 ```text
-UserWarning: Design matrix is rank deficient: rank 2 of 3 columns
-(Intercept, condA, condA_dup). At least 1 column(s) are linear combinations of
-the others, so the OLS betas are not uniquely determined and contrasts involving
-them are not interpretable. Prefer regularization: `fit(model='ridge')` keeps
-every regressor and shrinks them, giving a unique solution that does not depend
-on column order. Inspect the collinearity first with `DesignMatrix.vif()`.
-Dropping columns with `DesignMatrix.clean()` also removes the deficiency, but it
-discards information and which column survives depends on the order the design
-was built in.
+RankDeficientDesignWarning: Design matrix is rank deficient: rank 2 of 3
+columns — 1 column(s) are linear combinations of the others (likely involved:
+condA_dup). The OLS betas are not uniquely determined, and contrasts touching
+the dependent columns are not interpretable: the fit silently returns one of
+infinitely many solutions. Possible fixes: (1) inspect the collinearity with
+`DesignMatrix.vif()`; (2) try `DesignMatrix.clean()` to drop redundant columns
+before fitting (note: which of a correlated pair survives depends on the order
+the design was built in); (3) try regularization — `fit(model='ridge')` keeps
+every regressor and has a unique, order-invariant solution.
 ```
+
+The diagnosis names the likely-involved columns (truncated for wide designs)
+rather than dumping the full roster, and a design with more columns than
+timepoints — rank deficient by construction — is called out as such instead of
+being skipped. The warning has its own category so it can be silenced
+surgically: `warnings.filterwarnings("ignore",
+category=nltools.data.braindata.modeling.RankDeficientDesignWarning)`.
 
 #### Prefer regularization to dropping columns
 

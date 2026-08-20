@@ -35,6 +35,36 @@ def resolve_preprocessing_defaults(model, scale, standardize):
     return scale, standardize
 
 
+class RankDeficientDesignWarning(UserWarning):
+    """The design matrix supplied to ``fit()`` is rank deficient.
+
+    Subclasses ``UserWarning`` so it participates in default filtering, while
+    remaining individually silenceable:
+    ``warnings.filterwarnings("ignore", category=RankDeficientDesignWarning)``.
+    """
+
+
+def _redundant_column_names(finite, rank, columns):
+    """Name the columns most likely responsible for a rank deficiency.
+
+    Uses pivoted QR: the pivots beyond the numerical rank are the columns QR
+    would discard as linear combinations of the ones before them. Which member
+    of a dependent set gets blamed is arbitrary (that arbitrariness is exactly
+    why the deficiency matters), so the result is a "likely involved" hint,
+    not a verdict. Truncated so a wide design cannot flood the warning.
+    """
+    from scipy.linalg import qr
+
+    _, _, pivots = qr(finite, mode="economic", pivoting=True)
+    redundant = sorted(int(i) for i in pivots[rank:])
+    names = [
+        str(columns[i]) if columns is not None else f"column {i}" for i in redundant
+    ]
+    if len(names) > 5:
+        names = names[:5] + [f"... and {len(names) - 5} more"]
+    return names
+
+
 def _warn_if_rank_deficient(X_array, X_model):
     """Warn when a design matrix is rank deficient.
 
@@ -45,12 +75,12 @@ def _warn_if_rank_deficient(X_array, X_model):
     because the failure is invisible in the output: the betas come back finite
     and plausible.
 
-    The warning points at regularization first. Ridge has a unique solution even
-    when ``X'X`` is singular, because ``(X'X + alpha*I)`` is always invertible,
-    and the solution is invariant to column order. Dropping columns instead
-    (``DesignMatrix.clean()``) discards information and assigns the shared
-    variance to whichever column happened to come first, so the fitted model
-    depends on the order the design was built in.
+    The warning diagnoses the deficiency (naming the likely-involved columns,
+    or the p > n shape when that is the cause) and offers the fixes: inspect
+    with ``DesignMatrix.vif()``, drop redundant columns with
+    ``DesignMatrix.clean()`` (order-dependent for correlated pairs), or use
+    regularization (``fit(model='ridge')``), whose solution is unique and
+    order-invariant even when ``X'X`` is singular.
 
     We warn rather than raise because over-parameterized designs can still have
     estimable contrasts, and because raising would break pipelines currently
@@ -65,28 +95,41 @@ def _warn_if_rank_deficient(X_array, X_model):
         return
 
     finite = X_array[np.isfinite(X_array).all(axis=1)]
-    if finite.shape[0] < finite.shape[1]:
+    if finite.shape[0] == 0:
+        # Nothing to assess; the fit itself will fail loudly on the NaNs.
         return
 
-    rank = int(np.linalg.matrix_rank(finite))
     n_cols = X_array.shape[1]
+    rank = int(np.linalg.matrix_rank(finite))
     if rank >= n_cols:
         return
 
     columns = getattr(X_model, "columns", None)
-    where = f" ({', '.join(map(str, columns))})" if columns is not None else ""
+    if finite.shape[0] < n_cols:
+        # More regressors than (finite) timepoints: deficient by construction,
+        # no matter what the columns contain.
+        diagnosis = (
+            f"the design has more columns ({n_cols}) than usable rows "
+            f"({finite.shape[0]}), so it cannot be full rank"
+        )
+    else:
+        names = _redundant_column_names(finite, rank, columns)
+        diagnosis = (
+            f"{n_cols - rank} column(s) are linear combinations of the others "
+            f"(likely involved: {', '.join(names)})"
+        )
     warnings.warn(
-        f"Design matrix is rank deficient: rank {rank} of {n_cols} columns"
-        f"{where}. At least {n_cols - rank} column(s) are linear combinations "
-        "of the others, so the OLS betas are not uniquely determined and "
-        "contrasts involving them are not interpretable. Prefer regularization: "
-        "`fit(model='ridge')` keeps every regressor and shrinks them, giving a "
-        "unique solution that does not depend on column order. Inspect the "
-        "collinearity first with `DesignMatrix.vif()`. Dropping columns with "
-        "`DesignMatrix.clean()` also removes the deficiency, but it discards "
-        "information and which column survives depends on the order the design "
-        "was built in.",
-        UserWarning,
+        f"Design matrix is rank deficient: rank {rank} of {n_cols} columns — "
+        f"{diagnosis}. The OLS betas are not uniquely determined, and "
+        "contrasts touching the dependent columns are not interpretable: the "
+        "fit silently returns one of infinitely many solutions. Possible "
+        "fixes: (1) inspect the collinearity with `DesignMatrix.vif()`; "
+        "(2) try `DesignMatrix.clean()` to drop redundant columns before "
+        "fitting (note: which of a correlated pair survives depends on the "
+        "order the design was built in); (3) try regularization — "
+        "`fit(model='ridge')` keeps every regressor and has a unique, "
+        "order-invariant solution.",
+        RankDeficientDesignWarning,
         stacklevel=3,
     )
 

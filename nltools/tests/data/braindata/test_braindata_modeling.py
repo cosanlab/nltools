@@ -882,6 +882,92 @@ class TestBrainDataModeling:
         assert minimal_brain_data.glm_betas.shape[0] == 3
 
 
+class TestWarnRankDeficient:
+    """Unit tests for the rank-deficiency check `fit(model='glm')` runs.
+
+    The helper is pure (array in, warning out), so these run without brain
+    data. Integration coverage through `fit()` lives in TestBrainDataModeling
+    (slow-marked).
+    """
+
+    @staticmethod
+    def _check(X, columns=None):
+        import polars as pl
+
+        from nltools.data.braindata.modeling import _warn_if_rank_deficient
+
+        X = np.asarray(X, dtype=float)
+        model = (
+            pl.DataFrame({c: X[:, i] for i, c in enumerate(columns)})
+            if columns is not None
+            else X
+        )
+        _warn_if_rank_deficient(X, model)
+
+    def test_warns_with_named_category(self):
+        from nltools.data.braindata.modeling import RankDeficientDesignWarning
+
+        rng = np.random.default_rng(0)
+        a = rng.standard_normal(30)
+        with pytest.warns(RankDeficientDesignWarning, match="rank deficient"):
+            self._check(
+                np.column_stack([np.ones(30), a, a]),
+                columns=["Intercept", "condA", "condA_dup"],
+            )
+
+    def test_message_offers_both_fixes_and_names_culprits(self):
+        """Per the maintainer ask: helpful tips — try .clean(), try ridge."""
+        rng = np.random.default_rng(0)
+        a = rng.standard_normal(30)
+        with pytest.warns(UserWarning) as record:
+            self._check(
+                np.column_stack([np.ones(30), a, a]),
+                columns=["Intercept", "condA", "condA_dup"],
+            )
+        msg = "\n".join(str(w.message) for w in record)
+        assert "clean" in msg
+        assert "ridge" in msg
+        assert "vif" in msg.lower()
+        # The dependent columns are named, not just counted.
+        assert "condA" in msg
+        # The columns that ARE fine are not dragged into the message.
+        assert "Intercept" not in msg
+
+    def test_more_columns_than_rows_warns(self):
+        """p > n is rank deficient by construction — the loudest case, not a skip."""
+        rng = np.random.default_rng(0)
+        X = rng.standard_normal((10, 14))
+        with pytest.warns(UserWarning, match="rank deficient") as record:
+            self._check(X)
+        msg = str(record[0].message)
+        assert "14" in msg and "10" in msg
+
+    def test_long_column_lists_are_truncated(self):
+        """A 40-column design must not dump 40 names into the warning."""
+        rng = np.random.default_rng(0)
+        base = rng.standard_normal((50, 39))
+        X = np.column_stack([base, base[:, 0]])  # last col duplicates col_0
+        names = [f"col_{i}" for i in range(39)] + ["col_dup"]
+        with pytest.warns(UserWarning) as record:
+            self._check(X, columns=names)
+        msg = str(record[0].message)
+        # Only the implicated columns appear, not the full roster.
+        assert sum(f"col_{i}," in msg or f"col_{i}." in msg for i in range(1, 39)) == 0
+
+    def test_full_rank_is_silent(self):
+        rng = np.random.default_rng(0)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._check(rng.standard_normal((30, 4)))
+        assert not caught
+
+    def test_all_nonfinite_rows_do_not_crash(self):
+        X = np.full((5, 3), np.nan)
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            self._check(X)
+
+
 class TestBrainDataTTest:
     def test_ttest_one_sample(self, minimal_brain_data):
         """One-sample t-test returns mean + t + z + p (all as BrainData)."""
