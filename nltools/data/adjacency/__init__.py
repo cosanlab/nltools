@@ -416,6 +416,7 @@ class Adjacency:
         percentiles=(2.5, 97.5),
         n_jobs=-1,
         random_state=None,
+        progress_bar: bool = False,
     ):
         """Bootstrap statistics using efficient online algorithms.
 
@@ -431,6 +432,7 @@ class Adjacency:
             percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
+            progress_bar: (bool) If True, show a progress bar. Default False.
 
         Returns:
             dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
@@ -452,6 +454,7 @@ class Adjacency:
             percentiles=percentiles,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     def cluster_summary(self, *, clusters=None, method="mean", summary="within"):
@@ -722,6 +725,7 @@ class Adjacency:
         return_null=False,
         n_jobs=-1,
         random_state=None,
+        progress_bar: bool = False,
         project: bool = False,
     ):
         """Calculate similarity between two Adjacency matrices.
@@ -746,6 +750,7 @@ class Adjacency:
             return_null: (bool) If True, also return the null distribution. Default False.
             n_jobs: (int) Number of parallel jobs. Default -1 (all cores).
             random_state: (int, optional) Random seed for reproducibility.
+            progress_bar: (bool) If True, show a progress bar. Default False.
             project: (bool) If True and this Adjacency has a spatial_scale, project
                 the per-matrix correlations back into brain space. Default False.
 
@@ -772,6 +777,7 @@ class Adjacency:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
             project=project,
         )
 
@@ -975,6 +981,7 @@ class Adjacency:
         return_null=False,
         n_jobs=-1,
         random_state=None,
+        progress_bar: bool = False,
     ):
         """Calculate ttest across samples.
 
@@ -986,6 +993,7 @@ class Adjacency:
             return_null: If True, also return the null distribution. Default False.
             n_jobs: Number of parallel jobs. Default -1 (all cores).
             random_state: Random seed for reproducibility.
+            progress_bar: If True, show a progress bar. Default False.
 
         Returns:
             out: (dict) contains Adjacency instances of t values (or mean if
@@ -1002,6 +1010,7 @@ class Adjacency:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     def write(self, file_name, method="long"):

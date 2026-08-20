@@ -15,6 +15,7 @@ def bootstrap(
     percentiles=(2.5, 97.5),
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Bootstrap statistics using efficient online algorithms.
 
@@ -31,6 +32,7 @@ def bootstrap(
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
         n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
         random_state: (int, optional) Random seed for reproducibility
+        progress_bar: (bool) If True, show a progress bar. Default False.
 
     Returns:
         dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
@@ -66,6 +68,7 @@ def bootstrap(
         n_jobs=n_jobs,
         random_state=random_state,
         percentiles=percentiles,
+        progress_bar=progress_bar,
     )
 
     # Convert result to Adjacency format

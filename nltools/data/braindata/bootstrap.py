@@ -17,6 +17,7 @@ def bootstrap(
     max_gpu_memory_gb=4.0,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Bootstrap statistics with CPU parallelization or GPU acceleration.
 
@@ -43,6 +44,7 @@ def bootstrap(
             or 'auto'. Default: 4.0
         n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
         random_state: (int, optional) Random seed for reproducibility
+        progress_bar: (bool) If True, show a progress bar. Default: False
 
     Returns:
         BrainData or dict:
@@ -148,6 +150,7 @@ def bootstrap(
             n_jobs=n_jobs,
             random_state=random_state,
             percentiles=percentiles,
+            progress_bar=progress_bar,
         )
 
         # Convert result to BrainData format
@@ -205,6 +208,7 @@ def bootstrap(
                 max_gpu_memory_gb=max_gpu_memory_gb,
                 random_state=random_state,
                 percentiles=percentiles,
+                progress_bar=progress_bar,
             )
         else:
             result = _bootstrap_ridge_weights_cpu_parallel(
@@ -216,6 +220,7 @@ def bootstrap(
                 n_jobs=n_jobs,
                 random_state=random_state,
                 percentiles=percentiles,
+                progress_bar=progress_bar,
             )
 
         return convert_bootstrap_results_to_brain_data(
@@ -243,6 +248,7 @@ def bootstrap(
             max_gpu_memory_gb=max_gpu_memory_gb,
             random_state=random_state,
             percentiles=percentiles,
+            progress_bar=progress_bar,
         )
     else:
         result = _bootstrap_ridge_predict_cpu_parallel(
@@ -255,6 +261,7 @@ def bootstrap(
             n_jobs=n_jobs,
             random_state=random_state,
             percentiles=percentiles,
+            progress_bar=progress_bar,
         )
 
     return convert_bootstrap_results_to_brain_data(

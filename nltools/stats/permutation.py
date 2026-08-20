@@ -311,7 +311,6 @@ def phase_randomize(
             ``'gpu'`` (PyTorch FFT on CUDA/MPS, float32), or ``'auto'`` (use a
             GPU if present, else CPU).
         random_state: Seed for reproducibility.
-        progress_bar: If True, display a progress bar. Default False.
 
     Returns:
         Phase-randomized array, same shape as *data*.

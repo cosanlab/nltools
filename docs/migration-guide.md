@@ -333,6 +333,26 @@ producing non-unique estimates; inspect it with `.vif()` rather than suppressing
 the warning.
 
 
+(inference-progress-bar-off)=
+### Permutation and bootstrap progress bars are off by default
+
+**Status**: ✅ NEW (v0.6.0) — `progress_bar=False` everywhere
+
+Every permutation-test and bootstrap entry point — the `nltools.stats` wrappers, the `algorithms.inference` engines, and the class facades (`BrainData.bootstrap`, `Adjacency.similarity` / `.ttest` / `.bootstrap`) — now takes `progress_bar: bool = False` and stays silent unless asked. Previously most of these functions wrote a tqdm bar to stderr unconditionally, which emitted one bar per call in any loop (a 100-iteration calibration study produced 100 bars).
+
+The one *silent* behavior change: `isc_permutation_test` and `isc_group_permutation_test` previously defaulted to `progress_bar=True` — existing calls will no longer show a bar. Pass `progress_bar=True` to any of these functions to get it back:
+
+```python
+# before: bar appeared unasked
+stats = isc_permutation_test(data)
+
+# now: opt in explicitly
+stats = isc_permutation_test(data, progress_bar=True)
+```
+
+The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`maybe_tqdm` / `make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
+
+
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
 

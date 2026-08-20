@@ -49,6 +49,7 @@ def similarity(
         random_state (int, optional): Random seed for reproducibility.
         project (bool): If True and adj has a spatial_scale, project the per-matrix
             correlations back into brain space. Default False.
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
         dict | list | BrainData: A correlation result dict with keys 'correlation',

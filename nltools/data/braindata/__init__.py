@@ -561,6 +561,7 @@ class BrainData:
         max_gpu_memory_gb=4.0,
         n_jobs=-1,
         random_state=None,
+        progress_bar: bool = False,
     ):
         """Bootstrap statistics using efficient online algorithms.
 
@@ -582,6 +583,7 @@ class BrainData:
                 or 'auto'. Default: 4.0
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
+            progress_bar: (bool) If True, show a progress bar. Default: False
 
         Returns:
             BrainData or dict:
@@ -608,6 +610,7 @@ class BrainData:
             max_gpu_memory_gb=max_gpu_memory_gb,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     def compute_contrasts(self, contrasts, statistic="t"):
