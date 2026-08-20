@@ -157,6 +157,8 @@ class DesignMatrix:
                 convolved = list(data.convolved)
             if confounds is None:
                 confounds = list(data.confounds)
+            if n_rows is None:
+                n_rows = data._n_rows
             self.multi = data.multi
 
         elif data is None:
@@ -225,7 +227,18 @@ class DesignMatrix:
         # always reports 0 rows. A design matrix with no regressors still
         # describes a specific number of timepoints (e.g. find_spikes() on a
         # subject with no spikes), and that length is needed for .append() to
-        # line it up against other runs. Remember it explicitly.
+        # line it up against other runs. Remember it explicitly — and refuse
+        # a value the data contradicts rather than silently ignoring it.
+        if n_rows is not None:
+            if n_rows < 0:
+                raise ValueError(f"n_rows must be non-negative, got {n_rows}.")
+            if self.data.width > 0 and n_rows != self.data.height:
+                raise ValueError(
+                    f"n_rows={n_rows} conflicts with the data's "
+                    f"{self.data.height} rows. Omit n_rows when the frame has "
+                    f"columns — it is only needed to give a column-less "
+                    f"DesignMatrix a length."
+                )
         self._n_rows = n_rows if self.data.width == 0 else None
 
         # Auto-convolve when the constructor loaded events from a file. Matches
@@ -252,6 +265,8 @@ class DesignMatrix:
         Returns:
             np.ndarray: 2D numpy array representation
         """
+        if self.data.width == 0 and self._n_rows is not None:
+            return np.empty((self._n_rows, 0), dtype=dtype or np.float64)
         arr = self.data.to_numpy()
         if dtype is not None:
             return arr.astype(dtype)

@@ -76,6 +76,12 @@ def copy_with(
         sampling_freq=metadata["sampling_freq"],
         convolved=metadata["convolved"],
         confounds=metadata["confounds"],
+        # A column-less result still describes the source's timepoints: carry
+        # the recorded length, or fall back to the source's height when the
+        # transform is what emptied it.
+        n_rows=(metadata["n_rows"] or dm.shape[0] or None)
+        if new_df.width == 0
+        else None,
     )
     new_dm.multi = metadata["multi"]
 
@@ -89,13 +95,15 @@ def get_metadata(dm: DesignMatrix) -> dict:
         dm: DesignMatrix instance.
 
     Returns:
-        dict: Dictionary with keys 'sampling_freq', 'convolved', 'confounds', 'multi'.
+        dict: Dictionary with keys 'sampling_freq', 'convolved', 'confounds',
+        'multi', 'n_rows'.
     """
     return {
         "sampling_freq": dm.sampling_freq,
         "convolved": dm.convolved.copy(),
         "confounds": dm.confounds.copy(),
         "multi": dm.multi,
+        "n_rows": dm._n_rows,
     }
 
 

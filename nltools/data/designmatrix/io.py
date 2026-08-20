@@ -168,7 +168,10 @@ def to_numpy(dm: DesignMatrix) -> np.ndarray:
         >>> arr.shape
         (3, 2)
     """
-    return dm.data.to_numpy()
+    # np.asarray(dm) routes through DesignMatrix.__array__, which knows how to
+    # honor the recorded length of a column-less matrix (polars itself would
+    # report (0, 0)).
+    return np.asarray(dm)
 
 
 def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
