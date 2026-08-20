@@ -860,7 +860,6 @@ class BrainData:
         global_spike_cutoff=3,
         diff_spike_cutoff=3,
         *,
-        clean: bool = True,
         TR: float | None = None,
         sampling_freq: float | None = None,
     ):
@@ -871,17 +870,17 @@ class BrainData:
                 in standard deviations, or None to skip.
             diff_spike_cutoff (int or None): cutoff to identify spikes in average frame
                 difference in standard deviations, or None to skip.
-            clean (bool): Drop duplicate indicators when both detectors flag the
-                same TR, which would otherwise produce identical regressors and
-                a rank-deficient design. Default: True.
             TR: Repetition time in seconds. Sets the returned DesignMatrix's
                 sampling_freq for downstream `.append(...)` / `.convolve()`.
                 Pass exactly one of `TR` or `sampling_freq`.
             sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
 
         Returns:
-            DesignMatrix with one indicator column per detected spike, with
-            all spike columns pre-marked as confounds.
+            DesignMatrix with one indicator column per detected spike TR, with
+            all spike columns pre-marked as confounds. A TR flagged by both
+            detectors yields a single column (named `global_spike*`); the
+            colliding detections are bitwise identical, so only the retained
+            name differs.
         """
         from .analysis import find_spikes_data
 
@@ -889,7 +888,6 @@ class BrainData:
             self,
             global_spike_cutoff=global_spike_cutoff,
             diff_spike_cutoff=diff_spike_cutoff,
-            clean=clean,
             TR=TR,
             sampling_freq=sampling_freq,
         )

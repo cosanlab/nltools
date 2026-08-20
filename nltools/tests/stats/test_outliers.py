@@ -318,39 +318,44 @@ class TestFindSpikesDeduplication:
         X = dm.to_numpy()
         assert np.linalg.matrix_rank(X) == X.shape[1]
 
-    def test_clean_false_preserves_every_detection(self, colliding_nifti):
-        """Opting out keeps one column per detection, duplicates included."""
-        deduped = find_spikes(
-            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
-        )
-        raw = find_spikes(
-            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0, clean=False
-        )
-        assert raw.shape[1] > deduped.shape[1]
-        raw_flagged = self._flagged_trs(raw)
-        assert len(raw_flagged) != len(set(raw_flagged))
+    def test_clean_kwarg_removed(self, colliding_nifti):
+        """Dedup is unconditional; there is no opt-out into duplicate columns.
+
+        Identical one-hot columns carry no information, and straight
+        duplicates in a design are an error downstream — so an escape hatch
+        that manufactures them would only be a footgun.
+        """
+        with pytest.raises(TypeError, match="clean"):
+            find_spikes(
+                colliding_nifti,
+                global_spike_cutoff=1.0,
+                diff_spike_cutoff=1.0,
+                clean=False,
+            )
 
     def test_dedup_keeps_the_global_detection(self, colliding_nifti):
-        """When both detectors flag a TR, the global_spike column is kept.
+        """When both detectors flag a TR, the global_spike name is retained.
 
-        Deterministic tie-break so the output does not depend on dict order.
+        The columns are bitwise identical, so this is purely about which name
+        survives — but it must be deterministic, not insertion-ordered.
+        Collisions are discovered by running each detector on its own.
         """
         dm = find_spikes(
             colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0
         )
-        raw = find_spikes(
-            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0, clean=False
+        global_only = find_spikes(
+            colliding_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=None
         )
-        raw_arr, raw_cols = raw.to_numpy(), list(raw.columns)
-        collisions = {}
-        for i, c in enumerate(raw_cols):
-            collisions.setdefault(tuple(np.flatnonzero(raw_arr[:, i])), []).append(c)
-        collided = {t: cs for t, cs in collisions.items() if len(cs) > 1}
+        diff_only = find_spikes(
+            colliding_nifti, global_spike_cutoff=None, diff_spike_cutoff=1.0
+        )
+        global_trs = {t for (t,) in self._flagged_trs(global_only)}
+        diff_trs = {t for (t,) in self._flagged_trs(diff_only)}
+        collided = global_trs & diff_trs
         assert collided, "fixture invariant: expected at least one collision"
-        for names in collided.values():
-            kept = [c for c in names if c in dm.columns]
-            assert len(kept) == 1
-            assert kept[0].startswith("global_spike")
+        kept_by_tr = dict(zip((t for (t,) in self._flagged_trs(dm)), dm.columns))
+        for tr in collided:
+            assert kept_by_tr[tr].startswith("global_spike")
 
     def test_dedup_does_not_merge_distinct_trs(self, spike_nifti):
         """Non-colliding detections are all preserved."""

@@ -188,7 +188,6 @@ def find_spikes(
     global_spike_cutoff=3,
     diff_spike_cutoff=3,
     *,
-    clean: bool = True,
     TR: float | None = None,
     sampling_freq: float | None = None,
 ):
@@ -200,22 +199,18 @@ def find_spikes(
             the per-TR global signal. None to skip.
         diff_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
             the per-TR mean absolute frame-to-frame difference. None to skip.
-        clean: Drop duplicate indicators when a TR is flagged by more than one
-            detector. The two detectors run independently, so a single bad
-            volume is routinely caught by both, and each detection would
-            otherwise become its own one-hot column — producing exactly
-            identical regressors and a rank-deficient design. When a TR is
-            flagged twice the ``global_spike`` column is kept, so the result
-            does not depend on dict ordering. Default: True. Pass False to get
-            one column per detection.
         TR: Repetition time in seconds. Sets the returned DesignMatrix's
             sampling_freq for downstream `.append(...)` / `.convolve()`.
             Pass exactly one of `TR` or `sampling_freq`.
         sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
 
     Returns:
-        DesignMatrix: one indicator column per detected spike, with all
-        spike columns pre-marked as confounds. Row position is the time
+        DesignMatrix: one indicator column per detected spike TR, with all
+        spike columns pre-marked as confounds. The two detectors run
+        independently, so a single bad volume is routinely caught by both;
+        those detections are bitwise-identical one-hot columns, and only one
+        is kept (named ``global_spike*``, a deterministic tie-break — the
+        column values are the same either way). Row position is the time
         axis (no separate `TR` index column — that was a pandas-era
         artifact). When `TR` / `sampling_freq` aren't provided the DM has
         `sampling_freq=None`; you can still `.append()` it onto a DM that
@@ -283,20 +278,21 @@ def find_spikes(
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
 
-    if clean:
-        # Two detectors, one timeline: the same TR can be flagged by both, and
-        # a one-hot column per detection would then be literally duplicated.
-        # Deduplicate on the flagged position, keeping the global detection so
-        # the tie-break is deterministic rather than insertion-ordered.
-        seen: dict[int, str] = {}
-        for name in [c for c in outlier_data if c.startswith("global_spike")] + [
-            c for c in outlier_data if not c.startswith("global_spike")
-        ]:
-            loc = outlier_data[name].index(1)
-            if loc in seen:
-                del outlier_data[name]
-            else:
-                seen[loc] = name
+    # Two detectors, one timeline: the same TR can be flagged by both, and a
+    # one-hot column per detection would then be literally duplicated —
+    # straight duplicate columns, which .append(axis=1) refuses. Deduplicate
+    # on the flagged position, keeping the global detection so the tie-break
+    # is deterministic rather than insertion-ordered. (Only the name is at
+    # stake: the colliding columns are bitwise identical.)
+    seen: dict[int, str] = {}
+    for name in [c for c in outlier_data if c.startswith("global_spike")] + [
+        c for c in outlier_data if not c.startswith("global_spike")
+    ]:
+        loc = outlier_data[name].index(1)
+        if loc in seen:
+            del outlier_data[name]
+        else:
+            seen[loc] = name
 
     if TR is not None and sampling_freq is not None:
         raise ValueError(
