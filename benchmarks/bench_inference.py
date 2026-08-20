@@ -8,9 +8,6 @@ primary swept dimension.
 
 from __future__ import annotations
 
-import os
-from contextlib import contextmanager, redirect_stderr
-
 from benchmarks.harness import BenchResult, benchmark, gpu_device
 from benchmarks.workloads import make_group_maps
 
@@ -28,13 +25,6 @@ def _backends() -> list[tuple[str, str]]:
     if gpu is not None:
         backends.append(("gpu", gpu))
     return backends
-
-
-@contextmanager
-def _quiet():
-    """Suppress the inference functions' tqdm progress bars during timing."""
-    with open(os.devnull, "w") as devnull, redirect_stderr(devnull):
-        yield
 
 
 def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
@@ -79,8 +69,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
             for parallel, device in _backends():
 
                 def _call(fn=fn, p=parallel, n=n_permute):
-                    with _quiet():
-                        fn(p, n)
+                    fn(p, n)
 
                 results.append(
                     benchmark(

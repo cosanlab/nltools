@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from nltools.utils import coalesced_gc
+from nltools.utils import coalesced_gc, make_progress_bar
 
 from . import core
 
@@ -390,10 +390,11 @@ class tqdm_joblib:
     def __enter__(self) -> tqdm_joblib:
         if self.disable:
             return self
-        from tqdm.auto import tqdm
         from joblib.parallel import BatchCompletionCallBack
 
-        self._tqdm = tqdm(total=self.total, desc=self.desc)
+        self._tqdm = make_progress_bar(
+            progress_bar=True, total=self.total, desc=self.desc
+        )
         outer = self
         old = BatchCompletionCallBack.__call__
 

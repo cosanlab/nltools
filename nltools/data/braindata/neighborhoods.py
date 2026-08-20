@@ -31,6 +31,8 @@ import numpy as np
 from scipy import sparse
 from sklearn import neighbors
 
+from nltools.utils import maybe_tqdm
+
 if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
@@ -100,12 +102,12 @@ class SphereNeighborhoods:
         Args:
             progress_bar: If True, wrap iterator with tqdm progress bar
         """
-        iterator = range(self.n_voxels)
-
-        if progress_bar:
-            from tqdm import tqdm
-
-            iterator = tqdm(iterator, desc="Searchlight", unit="voxels")
+        iterator = maybe_tqdm(
+            range(self.n_voxels),
+            progress_bar=progress_bar,
+            desc="Searchlight",
+            unit="voxels",
+        )
 
         for i in iterator:
             yield i, self.get_neighbors(i)

@@ -105,6 +105,57 @@ class TestCoalescedGC:
             assert np.array_equal(a, b), f"{attr} differs between coalesced/passthrough"
 
 
+class TestProgressHelpers:
+    """``maybe_tqdm``/``make_progress_bar`` are the single library-wide progress mechanism."""
+
+    def test_importable_from_nltools_utils(self):
+        from nltools.utils import _NullProgressBar, make_progress_bar, maybe_tqdm
+
+        assert callable(maybe_tqdm) and callable(make_progress_bar)
+        assert callable(_NullProgressBar)
+
+    def test_inference_layer_reexports_the_same_objects(self):
+        from nltools import utils as top_utils
+        from nltools.algorithms.inference import utils as inference_utils
+
+        assert inference_utils.maybe_tqdm is top_utils.maybe_tqdm
+        assert inference_utils.make_progress_bar is top_utils.make_progress_bar
+
+    def test_maybe_tqdm_is_identity_when_disabled(self):
+        from nltools.utils import maybe_tqdm
+
+        it = range(3)
+        assert maybe_tqdm(it, progress_bar=False) is it
+
+    def test_make_progress_bar_disabled_is_inert_and_silent(self, capsys):
+        from nltools.utils import make_progress_bar
+
+        with make_progress_bar(progress_bar=False, total=5, desc="x") as bar:
+            bar.update(2)
+            bar.set_postfix(a=1)
+            bar.set_description("y")
+        assert capsys.readouterr().err == ""
+
+    def test_only_utils_imports_tqdm(self):
+        """Every progress bar must go through the shared helpers — no module
+        outside ``nltools/utils.py`` may import tqdm directly."""
+        import re
+        from pathlib import Path
+
+        import nltools
+
+        pkg = Path(nltools.__file__).parent
+        pattern = re.compile(r"^\s*(from tqdm[.\s]|import tqdm)", re.MULTILINE)
+        offenders = [
+            str(py.relative_to(pkg))
+            for py in sorted(pkg.rglob("*.py"))
+            if "tests" not in py.parts
+            and py.relative_to(pkg) != Path("utils.py")
+            and pattern.search(py.read_text())
+        ]
+        assert offenders == [], f"hand-rolled tqdm imports in: {offenders}"
+
+
 class _CountingCollect:
     """Stand-in for ``gc.collect`` that counts real invocations."""
 

@@ -6,6 +6,8 @@ __all__ = [
     "coalesced_gc",
     "concatenate",
     "get_resource_path",
+    "make_progress_bar",
+    "maybe_tqdm",
 ]
 
 import collections
@@ -134,3 +136,89 @@ def concatenate(data):
     else:
         raise ValueError("Make sure all objects in the list are the same type.")
     return out
+
+
+# ---------------------------------------------------------------------------
+# Progress bars — the single library-wide mechanism
+# ---------------------------------------------------------------------------
+
+
+class _NullProgressBar:
+    """No-op stand-in for `tqdm` used when `progress_bar=False`.
+
+    Supports the subset of the tqdm interface nltools relies on, so call sites
+    that drive a bar manually need no branching.
+    """
+
+    def update(self, n: int = 1) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+    def set_postfix(self, *args, **kwargs) -> None:
+        pass
+
+    def set_description(self, *args, **kwargs) -> None:
+        pass
+
+    def __enter__(self) -> "_NullProgressBar":
+        return self
+
+    def __exit__(self, *exc_info) -> bool:
+        return False
+
+
+def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
+    """Wrap `iterable` in a tqdm progress bar only when `progress_bar` is True.
+
+    tqdm writes to stderr, so an unconditional bar makes functions noisy when
+    called in a loop (a 100-iteration calibration study would emit 100 bars).
+    Importing tqdm lazily also keeps it off the import path when unused. Uses
+    `tqdm.auto`, so notebooks get widget bars and terminals get text bars.
+
+    Args:
+        iterable: The iterable to wrap.
+        progress_bar: Whether to display a progress bar.
+        **tqdm_kwargs: Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`).
+
+    Returns:
+        The original iterable, or a `tqdm`-wrapped version of it.
+
+    Examples:
+        ```python
+        for i in maybe_tqdm(range(n_permute), progress_bar=progress_bar,
+                            desc="CPU parallel perms", unit="perm"):
+            ...
+        ```
+    """
+    if not progress_bar:
+        return iterable
+
+    from tqdm.auto import tqdm
+
+    return tqdm(iterable, **tqdm_kwargs)
+
+
+def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
+    """Build a progress bar, or a no-op stand-in when `progress_bar` is False.
+
+    Use this for call sites that drive the bar manually via `.update()` rather
+    than by iteration. Uses `tqdm.auto`, so notebooks get widget bars and
+    terminals get text bars.
+
+    Args:
+        progress_bar: Whether to display a progress bar.
+        **tqdm_kwargs: Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`).
+
+    Returns:
+        A `tqdm` instance, or a `_NullProgressBar` exposing the same subset of
+        its interface (`update`, `close`, `set_postfix`, `set_description`, and
+        the context-manager protocol).
+    """
+    if not progress_bar:
+        return _NullProgressBar()
+
+    from tqdm.auto import tqdm
+
+    return tqdm(**tqdm_kwargs)

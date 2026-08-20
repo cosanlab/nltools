@@ -14,6 +14,7 @@ from typing import Any
 import numpy as np
 
 from nltools.data.fitresults import Predict
+from nltools.utils import maybe_tqdm
 
 
 # ---------------------------------------------------------------------------
@@ -517,18 +518,12 @@ def _run_searchlight(
         except Exception:
             return np.nan
 
-    neighborhood_list = list(neighborhoods.iter_neighborhoods())
-    if progress_bar:
-        try:
-            from tqdm import tqdm
-
-            neighborhood_list = list(
-                tqdm(
-                    neighborhood_list, desc="Searchlight", total=neighborhoods.n_voxels
-                )
-            )
-        except ImportError:
-            pass
+    neighborhood_list = maybe_tqdm(
+        list(neighborhoods.iter_neighborhoods()),
+        progress_bar=progress_bar,
+        desc="Searchlight",
+        total=neighborhoods.n_voxels,
+    )
 
     if n_jobs == 1:
         accuracies = [decode_sphere(c, n) for c, n in neighborhood_list]
@@ -654,14 +649,7 @@ def _run_roi(
             "all_data_coef": all_data_coef,
         }
 
-    iterator = unique_labels
-    if progress_bar:
-        try:
-            from tqdm import tqdm
-
-            iterator = tqdm(unique_labels, desc="ROI decoding")
-        except ImportError:
-            pass
+    iterator = maybe_tqdm(unique_labels, progress_bar=progress_bar, desc="ROI decoding")
 
     if n_jobs == 1:
         per_roi = [decode_roi(label) for label in iterator]

@@ -23,6 +23,7 @@ from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
 
 from .utils import _auto_n_targets_batch
+from ...utils import maybe_tqdm
 
 from ..backends import resolve_backend
 
@@ -317,17 +318,11 @@ def solve_banded_ridge_cv(
     if return_weights:
         coefs = backend.zeros_like(X, shape=(n_features, n_targets), device="cpu")
 
-    # Progress bar helper
-    try:
-        from tqdm import tqdm
-
-        progress_iter = tqdm(
-            gammas,
-            desc=f"{len(gammas)} random sampling with cv",
-            disable=not progress_bar,
-        )
-    except ImportError:
-        progress_iter = gammas
+    progress_iter = maybe_tqdm(
+        gammas,
+        progress_bar=progress_bar,
+        desc=f"{len(gammas)} random sampling with cv",
+    )
 
     # Random search loop over gamma samples
     for ii, gamma in enumerate(progress_iter):

@@ -16,6 +16,7 @@ import numpy as np
 from scipy.linalg import orthogonal_procrustes
 
 from nltools.algorithms.backends import Backend
+from nltools.utils import make_progress_bar, maybe_tqdm
 
 if TYPE_CHECKING:
     import nibabel as nib
@@ -98,12 +99,9 @@ class RoiNeighborhoods:
         """
         iterator = self.parcel_to_voxels.items()
 
-        if progress_bar:
-            from tqdm import tqdm
-
-            iterator = tqdm(list(iterator), desc="ROI", unit="parcels")
-
-        yield from iterator
+        yield from maybe_tqdm(
+            list(iterator), progress_bar=progress_bar, desc="ROI", unit="parcels"
+        )
 
     def __repr__(self) -> str:
         return f"RoiNeighborhoods(n_voxels={self.n_voxels}, n_parcels={self.n_parcels})"
@@ -568,12 +566,12 @@ class LocalAlignment:
         )
 
         # Progress bar for total neighborhoods (opt-in via progress_bar)
-        if self.progress_bar:
-            from tqdm import tqdm
-
-            pbar = tqdm(total=n_regions, desc=region_type.capitalize(), unit="regions")
-        else:
-            pbar = None
+        pbar = make_progress_bar(
+            progress_bar=self.progress_bar,
+            total=n_regions,
+            desc=region_type.capitalize(),
+            unit="regions",
+        )
 
         # Determine parallelization strategy
         # CPU parallel: use joblib with numpy backend (each worker gets own numpy)
@@ -604,8 +602,7 @@ class LocalAlignment:
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
 
-                if pbar is not None:
-                    pbar.update(len(batch))
+                pbar.update(len(batch))
             else:
                 # Sequential processing (GPU mode or single-threaded)
                 # Pass backend for GPU acceleration
@@ -622,14 +619,12 @@ class LocalAlignment:
                     )
                     self.transforms_[region_id] = transforms
                     self.template_[region_id] = template
-                    if pbar is not None:
-                        pbar.update(1)
+                    pbar.update(1)
 
             # Explicit cleanup after each batch for memory efficiency
             del batch
 
-        if pbar is not None:
-            pbar.close()
+        pbar.close()
         logger.info("LocalAlignment fitting complete")
         return self
 

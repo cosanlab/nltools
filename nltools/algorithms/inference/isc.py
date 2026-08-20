@@ -32,7 +32,7 @@ from scipy.stats import rankdata
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
-from .utils import _compute_pvalue, EPSILON
+from .utils import _compute_pvalue, EPSILON, maybe_tqdm
 
 
 # ============================================================================
@@ -695,7 +695,6 @@ def _permute_isc_group_cpu_parallel(
         - Shape (n_permute, n_voxels) for voxel-wise
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
     from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
@@ -716,9 +715,9 @@ def _permute_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Permute ISC Group")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Permute ISC Group"
+    )
 
     permutations = Parallel(n_jobs=n_jobs)(
         delayed(_permute_isc_group_numpy)(
@@ -881,7 +880,6 @@ def _bootstrap_isc_group_cpu_parallel(
         - Shape (n_permute, n_voxels) for voxel-wise
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
     from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
@@ -902,9 +900,9 @@ def _bootstrap_isc_group_cpu_parallel(
     seeds = rng.randint(MAX_INT, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap ISC Group")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap ISC Group"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_isc_group_numpy)(
@@ -1295,7 +1293,6 @@ def _bootstrap_loo_cpu_parallel(
         Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
     from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
@@ -1313,9 +1310,9 @@ def _bootstrap_loo_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize with independent RandomState per permutation
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap LOO")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap LOO"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_loo_numpy)(
@@ -1471,7 +1468,6 @@ def _bootstrap_pairwise_cpu_parallel(
         Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
     """
     from joblib import Parallel, delayed
-    from tqdm.auto import tqdm
     from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     if n_subjects is None:
@@ -1492,9 +1488,9 @@ def _bootstrap_pairwise_cpu_parallel(
     seeds = rng.randint(0, 2**31 - 1, size=n_permute)
 
     # Parallelize
-    iterator = range(n_permute)
-    if progress_bar:
-        iterator = tqdm(iterator, desc="Bootstrap Pairwise")
+    iterator = maybe_tqdm(
+        range(n_permute), progress_bar=progress_bar, desc="Bootstrap Pairwise"
+    )
 
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_pairwise_numpy)(
@@ -1636,11 +1632,11 @@ def _bootstrap_pairwise_gpu(
 
     out = np.empty((n_permute, n_voxels), dtype=np.float64)
 
-    perm_starts = list(range(0, n_permute, perm_batch))
-    if progress_bar:
-        from tqdm.auto import tqdm
-
-        perm_starts = tqdm(perm_starts, desc="Bootstrap Pairwise (GPU)")
+    perm_starts = maybe_tqdm(
+        list(range(0, n_permute, perm_batch)),
+        progress_bar=progress_bar,
+        desc="Bootstrap Pairwise (GPU)",
+    )
 
     for p0 in perm_starts:
         p1 = min(p0 + perm_batch, n_permute)
