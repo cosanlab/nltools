@@ -207,8 +207,12 @@ class TestAppendAsConfounds:
 
     def test_default_does_not_promote(self, onsets_path):
         events_dm = DesignMatrix(onsets_path, run_length=1364, TR=2.0)
+        # Distinct values per column — append(axis=1) refuses bitwise
+        # duplicate columns, and two all-zeros columns would be exactly that.
         confounds_dm = DesignMatrix(
-            np.zeros((1364, 2)), sampling_freq=0.5, columns=["mx", "my"]
+            np.random.default_rng(0).standard_normal((1364, 2)),
+            sampling_freq=0.5,
+            columns=["mx", "my"],
         )
         merged = events_dm.append(confounds_dm, axis=1)
         assert merged.confounds == []

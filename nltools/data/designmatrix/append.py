@@ -184,7 +184,12 @@ def append_horizontal(
         DesignMatrix: New DesignMatrix with columns from all matrices.
 
     Raises:
-        ValueError: If matrices have different row counts.
+        ValueError: If matrices have different row counts, share column
+            names, or an appended column duplicates an existing column's
+            values under a different name (a design with straight duplicate
+            columns is rank deficient by construction, so the model over it
+            is not computable — refuse at assembly time rather than decide
+            on the user's behalf which copy to keep).
     """
     # A matrix with no regressors contributes nothing, so drop it before the
     # row check. This keeps e.g. find_spikes() on a subject with no spikes from
@@ -210,6 +215,12 @@ def append_horizontal(
             )
         all_columns.update(elem.columns)
 
+    # Straight duplicate VALUES under different names are just as degenerate
+    # as duplicate names: the design becomes rank deficient by construction.
+    # Only duplication introduced by this append is checked — the base's
+    # pre-existing state is the user's business, not this operation's.
+    _check_duplicate_values(dm, to_append)
+
     # Use Polars hstack to concatenate DataFrames horizontally
     dfs_to_stack = [dm.data] + [elem.data for elem in to_append]
     new_df = pl.concat(dfs_to_stack, how="horizontal")
@@ -227,6 +238,44 @@ def append_horizontal(
     all_convolved = _merge_ordered([dm.convolved, *(e.convolved for e in to_append)])
 
     return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
+
+
+def _check_duplicate_values(dm: DesignMatrix, to_append: list[DesignMatrix]) -> None:
+    """Raise if any appended column is bitwise identical to another column.
+
+    Compares every column contributed by ``to_append`` against the base's
+    columns and against each other. Numeric columns are compared on values
+    (an int one-hot and its float twin are the same regressor), so the key is
+    the Float64 byte representation. Non-numeric columns are skipped — they
+    can't enter a model matrix and polars already guarantees unique names.
+    """
+
+    def _key(series: pl.Series) -> bytes | None:
+        if not series.dtype.is_numeric():
+            return None
+        return series.cast(pl.Float64).to_numpy().tobytes()
+
+    seen: dict[bytes, str] = {}
+    for col in dm.columns:
+        key = _key(dm.data.get_column(col))
+        if key is not None and key not in seen:
+            # A base-internal duplicate keeps the first name; this append did
+            # not introduce it, so it is reported only if a NEW column collides.
+            seen[key] = col
+    for elem in to_append:
+        for col in elem.columns:
+            key = _key(elem.data.get_column(col))
+            if key is None:
+                continue
+            if key in seen:
+                raise ValueError(
+                    f"Column {col!r} duplicates column {seen[key]!r}: identical "
+                    f"values under different names. A design matrix with "
+                    f"straight duplicate columns is rank deficient by "
+                    f"construction, so refusing to append. Drop one of the two "
+                    f"columns (or change its values) before appending."
+                )
+            seen[key] = col
 
 
 def _merge_ordered(lists: list[list[str]]) -> list[str]:

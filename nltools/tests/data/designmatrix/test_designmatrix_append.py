@@ -456,3 +456,57 @@ class TestDesignMatrixAppendFillNa:
         dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
         out = dm1.append(dm2, axis=1, fill_na=None)
         assert out.shape == (2, 2)
+
+
+class TestAppendDuplicateValues:
+    """append(axis=1) refuses to build a design with straight duplicate columns.
+
+    Duplicate *names* already raise (polars would refuse anyway). Bitwise
+    identical *values* under different names are just as degenerate — the
+    resulting design is rank deficient by construction and the model is not
+    computable — but used to slip through silently. Refusing at assembly time
+    keeps the decision with the user instead of silently proceeding.
+    """
+
+    def test_identical_values_different_names_raise(self):
+        onehot = [0, 0, 1, 0]
+        dm1 = DesignMatrix({"task": [1, 2, 3, 4], "scrub_1": onehot}, sampling_freq=1)
+        dm2 = DesignMatrix({"global_spike1": onehot}, sampling_freq=1)
+
+        with pytest.raises(
+            ValueError, match="scrub_1.*global_spike1|global_spike1.*scrub_1"
+        ):
+            dm1.append(dm2, axis=1)
+
+    def test_identical_values_between_appended_frames_raise(self):
+        onehot = [0, 1, 0]
+        dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
+        dm2 = DesignMatrix({"spike_a": onehot}, sampling_freq=1)
+        dm3 = DesignMatrix({"spike_b": onehot}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="spike_a.*spike_b|spike_b.*spike_a"):
+            dm.append([dm2, dm3], axis=1)
+
+    def test_int_float_identical_values_raise(self):
+        """1 vs 1.0 is the same regressor; dtype must not mask the duplication."""
+        dm1 = DesignMatrix({"a": [0, 0, 1]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [0.0, 0.0, 1.0]}, sampling_freq=1)
+
+        with pytest.raises(ValueError, match="duplicate|identical"):
+            dm1.append(dm2, axis=1)
+
+    def test_distinct_values_still_append(self):
+        dm1 = DesignMatrix({"a": [0, 0, 1, 0]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [0, 1, 0, 0]}, sampling_freq=1)
+
+        out = dm1.append(dm2, axis=1)
+        assert set(out.columns) == {"a", "b"}
+
+    def test_preexisting_base_duplicates_do_not_block_unrelated_append(self):
+        """The check guards what THIS append introduces, not the base's history."""
+        dup = [0, 1, 0]
+        dm1 = DesignMatrix({"x1": dup, "x2": dup}, sampling_freq=1)
+        dm2 = DesignMatrix({"y": [1, 2, 3]}, sampling_freq=1)
+
+        out = dm1.append(dm2, axis=1)
+        assert set(out.columns) == {"x1", "x2", "y"}

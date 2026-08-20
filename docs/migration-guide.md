@@ -188,7 +188,7 @@ if result.ndim == 1:
 (find-spikes-dedup)=
 ### `find_spikes()` no longer emits duplicate regressors
 
-**Status**: ✅ NEW (v0.6.0) — `clean=True` by default
+**Status**: ✅ NEW (v0.6.0) — always deduplicated
 
 `find_spikes()` runs two independent detectors (per-TR global signal, and mean
 absolute frame-to-frame difference). A single bad volume is routinely caught by
@@ -203,13 +203,22 @@ spikes = bold.find_spikes(global_spike_cutoff=0.8, diff_spike_cutoff=0.8, TR=2.4
 ```
 
 When a TR is flagged by both detectors the `global_spike` column is kept, so the
-result is deterministic rather than dependent on insertion order. Pass
-`clean=False` for the old behavior of one column per detection.
+result is deterministic rather than dependent on insertion order.
 
 This is deduplication of the function's own output rather than a modeling
-decision — the dropped columns are bitwise identical to ones that remain, so
-nothing is lost and there is no arbitrary choice to make. That is why it is safe
-to default on.
+decision — the colliding columns are bitwise identical, so only the retained
+*name* is at stake and nothing is lost. That is why there is no opt-out: an
+escape hatch would only manufacture straight duplicate columns, which
+`append(axis=1)` now refuses (see below).
+
+**`append(axis=1)` refuses straight duplicate columns.** Appending a column
+whose values are bitwise identical to an existing column (under any name) now
+raises a `ValueError`, just as duplicate column *names* already did. A design
+with straight duplicate columns is rank deficient by construction — the model
+over it is not computable — and silently keeping one copy would be a modeling
+decision made on your behalf. Drop or modify one of the columns before
+appending. (Only duplication introduced by the append is checked; a base matrix
+that already contains duplicates is left to its owner.)
 
 **Finding no spikes also works properly now.** Polars derives a frame's height
 from its columns, so a design matrix with no regressors used to report 0 rows —
