@@ -443,6 +443,7 @@ def _phase_randomize_gpu_batched(
 def _timeseries_correlation_permutation_gpu_batched(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     method: Literal["circle_shift", "phase_randomize"],
     n_permute: int,
     metric: Literal["pearson", "spearman", "kendall"],
@@ -596,6 +597,7 @@ def _timeseries_correlation_permutation_gpu_batched(
 def timeseries_correlation_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     method: Literal["circle_shift", "phase_randomize"] = "circle_shift",
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
@@ -814,13 +816,13 @@ def timeseries_correlation_permutation_test(
     return _timeseries_correlation_permutation_gpu_batched(
         data1,
         data2,
-        method,
-        n_permute,
-        metric,
-        tail,
-        return_null,
-        backend_obj,
-        max_gpu_memory_gb,
-        rng,
-        progress_bar,
+        method=method,
+        n_permute=n_permute,
+        metric=metric,
+        tail=tail,
+        return_null=return_null,
+        backend=backend_obj,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+        random_state=rng,
+        progress_bar=progress_bar,
     )

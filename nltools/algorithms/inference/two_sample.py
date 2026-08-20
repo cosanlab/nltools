@@ -25,6 +25,7 @@ from ..random import generate_seeds
 def _two_sample_permutation_cpu_parallel(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int,
     tail: int,
     return_null: bool,
@@ -119,6 +120,7 @@ def _two_sample_permutation_cpu_parallel(
 def _two_sample_permutation_gpu_batched(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int,
     tail: int,
     return_null: bool,
@@ -264,6 +266,7 @@ def _two_sample_permutation_gpu_batched(
 def two_sample_permutation_test(
     data1: np.ndarray,
     data2: np.ndarray,
+    *,
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
@@ -419,13 +422,13 @@ def two_sample_permutation_test(
         return _two_sample_permutation_cpu_parallel(
             data1,
             data2,
-            n_permute,
-            tail,
-            return_null,
-            n_jobs,
-            random_state,
-            single_feature,
-            progress_bar,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            single_feature=single_feature,
+            progress_bar=progress_bar,
         )
     # GPU mode
     backend_obj = Backend("torch")
@@ -433,11 +436,12 @@ def two_sample_permutation_test(
     return _two_sample_permutation_gpu_batched(
         data1,
         data2,
-        n_permute,
-        tail,
-        return_null,
-        backend_obj,
-        max_gpu_memory_gb,
-        rng,
-        single_feature,
+        n_permute=n_permute,
+        tail=tail,
+        return_null=return_null,
+        backend=backend_obj,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+        random_state=rng,
+        single_feature=single_feature,
+        progress_bar=progress_bar,
     )

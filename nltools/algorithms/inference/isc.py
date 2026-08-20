@@ -929,6 +929,7 @@ def _bootstrap_isc_group_cpu_parallel(
 def isc_group_permutation_test(
     group1: np.ndarray,
     group2: np.ndarray,
+    *,
     n_permute: int = 5000,
     metric: Literal["median", "mean"] = "median",
     method: Literal["permute", "bootstrap"] = "permute",
@@ -1684,6 +1685,7 @@ def _bootstrap_pairwise_gpu(
 def isc_permutation_test(
     # Required
     data: np.ndarray,
+    *,
     # Optional algorithm parameters
     n_permute: int = 5000,
     metric: Literal["median", "mean"] = "median",

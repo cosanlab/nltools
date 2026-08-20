@@ -41,10 +41,19 @@ THRESHOLD = 3
 # primitives under data/collection/pipesteps are internals the BrainCollection
 # facade translates, so they are excluded via EXCLUDE_PARTS below even though
 # they now live under nltools/data.
+#
+# algorithms/inference is included despite the general algorithms/ exclusion:
+# unlike the rest of that package it is public in practice -- documented in
+# docs/api/algorithms/inference.md and imported directly downstream -- so the
+# facade-translation rationale for excluding it does not hold. Its engines
+# carried up to 15 positional-or-keyword params with no `*`, which is how a
+# parameter insertion silently shifted an argument at a dispatch site. The
+# broader question of whether that layer should be public at all is issue #474.
 DEFAULT_ROOTS = [
     "nltools/data",
     "nltools/stats",
     "nltools/models",
+    "nltools/algorithms/inference",
     "nltools/mask.py",
     "nltools/datasets.py",
 ]
