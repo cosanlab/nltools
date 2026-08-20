@@ -184,13 +184,60 @@ from nilearn.glm.second_level import non_parametric_inference
 
 out = non_parametric_inference(
     z_maps,
-    design_matrix=dm,
+    design_matrix=dm,             # REQUIRED when input is a list of niimgs
     n_perm=10000,
     two_sided_test=False,
-    threshold=3.0,              # cluster-forming threshold
-    tfce=False,                 # threshold-free cluster enhancement
+    threshold=0.001,              # cluster-forming threshold, in P-SCALE (not t/z!)
+    tfce=False,                   # threshold-free cluster enhancement
 )
 ```
+
+### ⚠️ Cluster-forming threshold scale is NOT consistent across nilearn
+
+Same argument name, two different scales, no error at the boundary:
+
+| function | argument | scale |
+|---|---|---|
+| `non_parametric_inference` | `threshold=` | **p-value** (e.g. `0.001`) |
+| `permuted_ols` | `threshold=` | **p-value** |
+| `threshold_stats_img` | `threshold=` | **z-score** (default 3.0; only when `height_control=None`) |
+| `threshold_stats_img` | `alpha=` | p- or q-value (meaning set by `height_control`) |
+| `cluster_level_inference` | `threshold=` | **z-score** (default 3.0) |
+
+So `threshold=3.0` is *correct* for `cluster_level_inference` /
+`threshold_stats_img` and *silently catastrophic* for
+`non_parametric_inference`. Check which function you are calling.
+
+**Why the failure is silent.** `non_parametric_inference` converts its p-value
+to a t-statistic internally (`_compute_t_stat_threshold`). Given `3.0` it
+computes `t.isf(1.5, df)` → `NaN`; every `arr > NaN` is `False`, so `size` and
+`mass` come back **identically zero** while `logp_max_t` still looks perfectly
+reasonable. (The private `permuted_ols` chunk helper documents the same-named
+arg as "t-scale" — that applies to the internal call, not the public one.)
+
+**Coming from SPM/FSL:** FSL FEAT/`cluster` takes a z threshold (2.3, 3.1),
+`randomise -c` takes the statistic scale, and SPM accepts either p<0.001
+uncorrected or a T/Z value. Every one of those priors says "statistic", which
+is wrong for `non_parametric_inference`.
+
+**`threshold_stats_img` assumes z-scaled input**, and says so:
+*"If the input image is not z-scaled … the computed threshold is not rigorous
+and likely meaningless."* `BrainData.ttest()` returns both `'t'` and `'z'` —
+pass `stats['z']`, not the t-map, or the threshold is quietly wrong.
+
+Outputs depend on which correction you asked for:
+
+| call | keys returned |
+|---|---|
+| `threshold=<p>` | `t`, `logp_max_t`, `size`, `logp_max_size`, `mass`, `logp_max_mass` |
+| `tfce=True` | `t`, `logp_max_t`, `tfce`, `logp_max_tfce` |
+
+`logp_*` maps are `-log10(p)`, so "survives p<.05" is `> -np.log10(0.05)` ≈ 1.30.
+
+**Cost warning:** whole-brain TFCE is ~15 s *per permutation* on a 239k-voxel
+mask (n_perm=500 ≈ 2 h), and `two_sided_test=True` doubles it. Cost scales with
+voxel count — restricting to an ROI mask (~32k voxels) brings n_perm=500 down to
+~70 s. Cluster/max-t without TFCE is cheap: ~35 s at n_perm=500 whole-brain.
 
 ## Thresholding & inference
 
