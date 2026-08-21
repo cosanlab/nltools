@@ -88,7 +88,7 @@ def isc(
         method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
         ci_percentile: (int) confidence-interval width in percent for the bootstrap CI (default: 95)
         exclude_self_corr: (bool) set self-correlations (same subject bootstrapped twice) to nan (default: True)
-        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        tail: (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
         metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
         return_null: (bool) Return the permutation distribution along with the p-value; default False
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
@@ -177,7 +177,7 @@ def isc_group(
         ci_percentile: (float) confidence interval percentile (default: 95)
         exclude_self_corr: (bool) exclude self-correlations in bootstrap (default: True)
         return_null: (bool) Return the permutation distribution along with the p-value; default False
-        tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        tail: (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
         metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
         random_state: (int or RandomState) Random seed for reproducibility

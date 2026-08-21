@@ -397,6 +397,21 @@ The same `summary` vocabulary reached the two remaining mean/median knobs on the
 
 Two smaller `progress_bar` cleanups also landed: `BrainData.fit` now defaults `progress_bar=False` like every other entry point — it no longer inherits `bd.verbose` when unset (`verbose` is reserved for log-level only), so pass `progress_bar=True` explicitly if you relied on that coupling. `SphereNeighborhoods.iter_neighborhoods` takes `progress_bar` keyword-only.
 
+(tail-vocabulary)=
+### One canonical `tail=` vocabulary (v0.6.0)
+
+**Status**: ✅ COMPLETE (v0.6.0)
+
+Every sign-ambiguous p-value in the library now defaults **two-tailed** and speaks one vocabulary: `tail: int | str = 2`, accepting `2 | 'two'` (two-tailed) and `1 | 'one'` (one-tailed in the test's canonical *positive* direction — correlation/ISC/similarity > 0, mean > `popmean`, group1 > group2). The direction is fixed by the test, never chosen from the data (a data-driven direction would silently halve every p-value); to test the negative direction, negate your data, swap the groups, or flip the contrast. Default (`tail=2`) output is numerically unchanged everywhere.
+
+What changed:
+
+- **Removed forms**: the v0.5 `-1` / `'upper'` / `'lower'` arguments now raise a `ValueError` with the negate/swap/flip guidance.
+- **Bug fix**: `BrainData.ttest(tail=1)` and `Adjacency.ttest(tail=1)` previously ignored `tail` on the (default) parametric path and always returned two-sided p-values; `tail` now maps onto scipy's `alternative=` so one-tailed parametric tests actually happen. The `"z"` map is derived from the reported p, so it matches the requested tail.
+- **New `tail=` options** (default 2 ≡ old behavior): `BrainData.ttest2`, `BrainData.bootstrap` / `Adjacency.bootstrap`, `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, `BrainCollection.ttest` / `.ttest2` / `.isc_test`, and `Roc.calculate`. The collection's `permutation_test` / `permutation_test2` now accept the string forms and route through the shared engine p-value.
+- **No knob where only one tail is valid**: `distance_correlation` (dcorr ≥ 0), ANOVA's F, `isps`' Rayleigh test, and SRM variance components keep their statistically forced one-tailed p-values, unchanged.
+- **The GLM exception**: `compute_contrasts(statistic='p')` / `Glm.compute_contrast(output_type='p_value')` stay **one-sided**, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
+
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
 

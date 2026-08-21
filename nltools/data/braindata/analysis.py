@@ -420,7 +420,7 @@ def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
     return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
 
 
-def multivariate_similarity(bd, images, method="ols"):
+def multivariate_similarity(bd, images, method="ols", tail=2):
     """Predict a BrainData spatial distribution from a linear combination.
 
     The predictors may be other BrainData instances or nibabel images.
@@ -452,7 +452,7 @@ def multivariate_similarity(bd, images, method="ols"):
     X = image2.T  # Predictors: (n_voxels, n_images)
 
     # Delegate to functional core (stats.py)
-    return compute_multivariate_similarity(y, X, method=method)
+    return compute_multivariate_similarity(y, X, method=method, tail=tail)
 
 
 def apply_mask(bd, mask, resample_mask_to_brain=False):

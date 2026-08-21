@@ -1066,34 +1066,41 @@ class BrainCollection:
         """Voxelwise maximum across subjects as a single `BrainData`."""
         return inference.max_(self)
 
-    def ttest(self, *, popmean: float = 0.0) -> dict:  # dict[str, BrainData]
+    def ttest(
+        self, *, popmean: float = 0.0, tail: int | str = 2
+    ) -> dict:  # dict[str, BrainData]
         """One-sample t-test across subjects (delegates to `inference.ttest`).
 
         Args:
             popmean: Null-hypothesis population mean to test against.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                mean > popmean; negate the data for the other direction).
 
         Returns:
             Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps.
         """
-        return inference.ttest(self, popmean=popmean)
+        return inference.ttest(self, popmean=popmean, tail=tail)
 
     def ttest2(
         self,
         other: BrainCollection,
         *,
         equal_var: bool = True,
+        tail: int | str = 2,
     ) -> dict:  # dict[str, BrainData]
         """Two-sample t-test between this collection and ``other`` (subject-level).
 
         Args:
             other: The second collection to compare against.
             equal_var: If True, pooled-variance t-test; if False, Welch's test.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                self > other; swap the operands for the other direction).
 
         Returns:
             Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps (``mean`` is the
             group difference).
         """
-        return inference.ttest2(self, other, equal_var=equal_var)
+        return inference.ttest2(self, other, equal_var=equal_var, tail=tail)
 
     def anova(
         self,
@@ -1115,7 +1122,7 @@ class BrainCollection:
         self,
         *,
         n_permute: int = 5000,
-        tail: int = 2,
+        tail: int | str = 2,
         device: str = "cpu",
         return_null: bool = False,
         n_jobs: int = -1,
@@ -1151,7 +1158,7 @@ class BrainCollection:
         other: BrainCollection,
         *,
         n_permute: int = 5000,
-        tail: int = 2,
+        tail: int | str = 2,
         device: str = "cpu",
         return_null: bool = False,
         n_jobs: int = -1,
@@ -1226,12 +1233,13 @@ class BrainCollection:
         roi_mask: nib.Nifti1Image | Path | str | None = None,
         n_samples: int = 5000,
         summary: str = "median",
+        tail: int | str = 2,
         random_state: int | None = None,
     ) -> dict:
         """Bootstrap inference on ISC (per-voxel p-values).
 
         Resamples subjects with replacement, recomputes ISC each draw, and
-        derives a per-voxel two-tailed p-value from the null centered at 0.
+        derives a per-voxel p-value from the null centered at 0.
 
         Args:
             method: ``'loo'`` or ``'pairwise'`` (matches `isc`).
@@ -1240,6 +1248,7 @@ class BrainCollection:
                 ISC is computed across the collection's whole-brain mask.
             n_samples: Number of bootstrap resamples.
             summary: Aggregation across subjects/pairs (e.g. ``'median'``).
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
             random_state: Seed for the bootstrap RNG.
 
         Returns:
@@ -1252,6 +1261,7 @@ class BrainCollection:
             roi_mask=roi_mask,
             n_samples=n_samples,
             summary=summary,
+            tail=tail,
             random_state=random_state,
         )
 

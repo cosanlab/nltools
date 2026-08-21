@@ -181,7 +181,7 @@ def compute_similarity(data1, data2, metric="correlation"):
     return out
 
 
-def compute_multivariate_similarity(y, X, method="ols"):
+def compute_multivariate_similarity(y, X, method="ols", tail=2):
     """Compute multivariate similarity via OLS regression.
 
     This is the functional core implementation for multivariate similarity computation.
@@ -265,8 +265,12 @@ def compute_multivariate_similarity(y, X, method="ols"):
     # Degrees of freedom
     df = X_with_intercept.shape[0] - X_with_intercept.shape[1]
 
-    # p-values (two-tailed)
-    p = 2 * (1 - t_dist.cdf(np.abs(t_out), df))
+    from .inference.validation import validate_tail_parameter
+
+    if validate_tail_parameter(tail) == "upper":
+        p = 1 - t_dist.cdf(t_out, df)
+    else:
+        p = 2 * (1 - t_dist.cdf(np.abs(t_out), df))
 
     return {
         "beta": b,

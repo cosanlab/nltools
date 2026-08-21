@@ -559,6 +559,7 @@ class BrainData:
         X_test=None,
         device="cpu",
         max_gpu_memory_gb=4.0,
+        tail=2,
         n_jobs=-1,
         random_state=None,
         progress_bar: bool = False,
@@ -608,6 +609,7 @@ class BrainData:
             X_test=X_test,
             device=device,
             max_gpu_memory_gb=max_gpu_memory_gb,
+            tail=tail,
             n_jobs=n_jobs,
             random_state=random_state,
             progress_bar=progress_bar,
@@ -1043,7 +1045,7 @@ class BrainData:
 
         return apply_func(self, np.median, axis)
 
-    def multivariate_similarity(self, images, method="ols"):
+    def multivariate_similarity(self, images, method="ols", tail=2):
         """Predict a BrainData spatial distribution from a linear combination.
 
         The predictors may be other BrainData instances or nibabel images.
@@ -1051,6 +1053,8 @@ class BrainData:
         Args:
             images: BrainData instance of weight map
             method (str): Regression method. Default: 'ols'.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed,
+                positive direction) for the regression p-values.
 
         Returns:
             out: dictionary of regression statistics in BrainData
@@ -1058,7 +1062,7 @@ class BrainData:
         """
         from .analysis import multivariate_similarity
 
-        return multivariate_similarity(self, images, method=method)
+        return multivariate_similarity(self, images, method=method, tail=tail)
 
     def plot(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn plotting functions
         self,
@@ -1846,7 +1850,7 @@ class BrainData:
                 `one_sample_permutation_test`.
             n_permute: Number of permutations (used only when
                 ``permutation=True``). Default 5000.
-            tail: Tail of the test (1 or 2). Default 2.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
             return_null: If True, also return the null distribution.
                 Default False.
             n_jobs: Number of parallel jobs. Default -1 (all cores).
@@ -1891,7 +1895,7 @@ class BrainData:
             random_state=random_state,
         )
 
-    def ttest2(self, other, equal_var=True):
+    def ttest2(self, other, equal_var=True, tail=2):
         """Two-sample voxelwise t-test between two BrainData stacks.
 
         Args:
@@ -1899,6 +1903,8 @@ class BrainData:
                 number of voxels.
             equal_var: If True (default), standard two-sample t-test.
                 If False, Welch's t-test.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                self > other; swap the operands for the other direction).
 
         Returns:
             dict: ``{"t": BrainData, "p": BrainData}``.
@@ -1909,7 +1915,7 @@ class BrainData:
         """
         from .modeling import ttest2
 
-        return ttest2(self, other, equal_var=equal_var)
+        return ttest2(self, other, equal_var=equal_var, tail=tail)
 
     def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API via io.upload_neurovault
         self,

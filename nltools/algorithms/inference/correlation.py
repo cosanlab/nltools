@@ -189,7 +189,7 @@ def _correlation_permutation_cpu_parallel(
         data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
         n_permute (int): Number of permutations
         metric (str): Correlation metric ('pearson', 'spearman', 'kendall')
-        tail (int): Test type (1 or 2)
+        tail (int | str): Test type (2|'two' or 1|'one')
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -390,7 +390,7 @@ def _correlation_permutation_gpu_batched(
         data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
         n_permute (int): Number of permutations
         metric (str): Correlation metric ('pearson', 'spearman', or 'kendall')
-        tail (int): Test type (1 or 2)
+        tail (int | str): Test type (2|'two' or 1|'one')
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
         max_gpu_memory_gb (float): Maximum GPU memory budget
@@ -670,7 +670,7 @@ def correlation_permutation_test(
             - 'pearson': Pearson correlation (linear relationships)
             - 'spearman': Spearman rank correlation (monotonic relationships)
             - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
-        tail (int | str): Test type (default: 2)
+        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
             - 'two' or 2: Two-tailed test (r != 0)
             - 'upper' or 1: One-tailed upper (r > 0, positive correlation)
             - 'lower' or -1: One-tailed lower (r < 0, negative correlation)

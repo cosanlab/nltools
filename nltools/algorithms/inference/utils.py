@@ -7,7 +7,6 @@ permutation test implementations.
 import numpy as np
 from ...utils import _NullProgressBar, make_progress_bar, maybe_tqdm  # noqa: F401
 from ..random import generate_sign_flips as _generate_sign_flips_from_random
-from .validation import validate_tail_parameter
 
 
 # ============================================================================
@@ -25,6 +24,26 @@ EPSILON = 1e-10
 
 # Re-export from shared random utilities for backward compatibility
 _generate_sign_flips = _generate_sign_flips_from_random
+
+
+def _normalize_tail_internal(tail: int | str) -> str:
+    """Normalize a tail value to the internal 'two'/'upper'/'lower' form.
+
+    Accepts BOTH the public v0.6.0 vocabulary (2|'two', 1|'one') and the
+    internal directional forms ('upper', 'lower', -1) that forced-tail call
+    sites use directly. Public entry points must validate with the strict
+    `validate_tail_parameter` first — this permissive form exists only so
+    `_compute_pvalue` can serve both layers.
+    """
+    if tail == 2 or tail == "two":
+        return "two"
+    if tail == 1 or tail == "one" or tail == "upper":
+        return "upper"
+    if tail == -1 or tail == "lower":
+        return "lower"
+    raise ValueError(
+        f"tail must be 2|'two', 1|'one' (or internal 'upper'/'lower'/-1), got {tail!r}"
+    )
 
 
 def _compute_pvalue(
@@ -47,8 +66,10 @@ def _compute_pvalue(
             - shape (n_permute, n_features) for multi-feature
         tail (int | str): Test type
             - 'two' or 2: Two-tailed test (|obs| > |null|)
-            - 'upper' or 1: One-tailed upper (null >= obs, for positive effects)
-            - 'lower' or -1: One-tailed lower (null <= obs, for negative effects)
+            - 'one' or 1 (or internal 'upper'): One-tailed upper (null >= obs,
+              for positive effects)
+            - internal 'lower' or -1: One-tailed lower (null <= obs) — reserved
+              for forced-tail call sites; not part of the public vocabulary
 
     Returns:
         np.ndarray: P-value(s) with same shape as obs_stat
@@ -69,10 +90,10 @@ def _compute_pvalue(
         - This prevents p-value = 0 and accounts for observed value
         - Minimum p-value is 1/(n_permute + 1)
         - For two-tailed tests, uses absolute values
-        - For MCP correction (FDR, Bonferroni), use 'upper' or 'lower' to ensure
-          consistent direction across all tests. See GH #315.
+        - The fixed per-tail direction keeps MCP correction (FDR, Bonferroni)
+          valid across tests. See GH #315.
     """
-    tail_normalized = validate_tail_parameter(tail)
+    tail_normalized = _normalize_tail_internal(tail)
 
     # Ensure inputs are numpy arrays (handles Python float/int scalars)
     obs_stat = np.asarray(obs_stat)

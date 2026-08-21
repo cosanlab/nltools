@@ -75,6 +75,10 @@ vocabulary:
     kwarg: "n_samples"
     tour_note: "…the bootstrap count"
     index_md: "`n_samples`"
+  - concept: "Tail of test"
+    kwarg: "tail"
+    tour_note: "`2`/`'two'` default · `1`/`'one'` = the test's positive direction"
+    index_md: "`tail` (`2 | 'two' | 1 | 'one'`; direction fixed by the test, never the data)"
   - concept: "Threshold pair"
     kwarg: "lower, upper, binarize"
     tour_note: "convenience `threshold` where bidirectional"
@@ -105,6 +109,10 @@ exceptions:
     kwarg: "statistic"
     finding: F077
     text: "`compute_contrasts(statistic=)` selects an output map (t/z/p/β), not an algorithm."
+  - function: "Glm.compute_contrast"
+    kwarg: "tail"
+    finding: tails-sweep
+    text: "GLM contrast p-maps are *one-sided* (the nilearn/SPM directional-contrast convention) and take no `tail=` knob — the one deliberate exception to the two-tailed default."
 
 # ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
 #
@@ -174,6 +182,9 @@ enforcement:
       # 'whole_brain'|'roi'|'searchlight' selector on analysis methods.
       allowed_defaults: ["whole_brain", "roi", "searchlight", null]
       hint: "spatial_scale selector values are 'whole_brain' | 'roi' | 'searchlight'"
+    tail:
+      allowed_defaults: [2]
+      hint: "canonical form is `tail: int | str = 2` — 2|'two' (two-tailed, the library default) or 1|'one' (one-tailed in the test's positive direction); sites where only one tail is statistically valid (dcorr, F, Rayleigh) take no tail kwarg at all"
   exemptions:
     # Migrated from `# nosemgrep: banned-kwarg-permutation-count` suppressions:
     # n_iter here is the LocalAlignment/SRM solver iteration count, matching the

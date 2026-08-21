@@ -988,6 +988,30 @@ class TestBrainDataTTest:
         )
         assert result["t"].data.shape == (minimal_brain_data.data.shape[1],)
 
+    def test_ttest_parametric_honors_tail(self, minimal_brain_data):
+        """tail=1 must reach the parametric path (was silently ignored pre-0.6.0)."""
+        from scipy.stats import ttest_1samp
+
+        result = minimal_brain_data.ttest(tail=1)
+        _, expected_p = ttest_1samp(
+            minimal_brain_data.data, 0.0, axis=0, alternative="greater"
+        )
+        np.testing.assert_allclose(result["p"].data, expected_p)
+        with pytest.raises(ValueError, match="tail"):
+            minimal_brain_data.ttest(tail="upper")
+
+    def test_ttest2_tail(self, minimal_brain_data):
+        """ttest2 exposes tail; 'one' means self > other."""
+        from scipy.stats import ttest_ind
+
+        other = minimal_brain_data.copy()
+        other.data = other.data - 0.5
+        res = minimal_brain_data.ttest2(other, tail=1)
+        _, expected_p = ttest_ind(
+            minimal_brain_data.data, other.data, axis=0, alternative="greater"
+        )
+        np.testing.assert_allclose(res["p"].data, expected_p)
+
     def test_ttest_z_signed_and_monotonic(self, minimal_brain_data):
         """z = sign(t) * norm.isf(p/2); sign(z) == sign(t); monotonic with t."""
         result = minimal_brain_data.ttest()

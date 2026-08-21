@@ -43,7 +43,7 @@ def similarity(
             - 'omit': Remove NaN values pairwise before computing correlation (default)
             - 'propagate': Allow NaN to propagate through calculations
             - 'raise': Raise an error if NaN values are present
-        tail (int): Tail of the test (1 or 2). Default 2.
+        tail (int | str): 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
         random_state (int, optional): Random seed for reproducibility.
@@ -298,7 +298,7 @@ def ttest(
         permutation: (bool) Run ttest as permutation. Note this can be very slow.
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
-        tail: Tail of the test (1 or 2). Default 2.
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
         return_null: If True, also return the null distribution. Default False.
         n_jobs: Number of parallel jobs. Default -1 (all cores).
         random_state: Random seed for reproducibility.
@@ -337,9 +337,15 @@ def ttest(
     else:
         from scipy.stats import ttest_1samp
 
+        from nltools.algorithms.inference.validation import validate_tail_parameter
+
+        # 'one' = mean > 0 (negate the data for the other direction).
+        alternative = (
+            "two-sided" if validate_tail_parameter(tail) == "two" else "greater"
+        )
         t = adj.mean().copy()
         p = deepcopy(t)
-        t.data, p.data = ttest_1samp(adj.data, 0, 0)
+        t.data, p.data = ttest_1samp(adj.data, 0, 0, alternative=alternative)
 
     return {"t": t, "p": p}
 

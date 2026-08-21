@@ -15,7 +15,7 @@ from scipy.stats import t as t_dist
 __all__ = ["regress"]
 
 
-def regress(X, Y, method: str = "ols", stats: str = "full"):
+def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str = 2):
     """Fit an OLS regression of ``Y`` on ``X``.
 
     Does not add an intercept — include one in ``X`` explicitly. If ``Y``
@@ -29,6 +29,8 @@ def regress(X, Y, method: str = "ols", stats: str = "full"):
             statsmodels or a dedicated package if you need them.
         stats: ``'full'`` returns the 6-tuple below; ``'betas'`` returns
             just ``b``; ``'tstats'`` returns ``(b, t)``.
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
+            negate a regressor for the other direction).
 
     Returns:
         tuple: ``(b, se, t, p, df, res)`` when ``stats='full'``:
@@ -36,10 +38,12 @@ def regress(X, Y, method: str = "ols", stats: str = "full"):
         - ``b``: coefficients
         - ``se``: standard errors
         - ``t``: t-statistics
-        - ``p``: two-tailed p-values
+        - ``p``: p-values (per ``tail``)
         - ``df``: residual degrees of freedom
         - ``res``: residuals
     """
+    from .inference.validation import validate_tail_parameter
+
     if method != "ols":
         raise NotImplementedError(
             f"regress(method={method!r}) is not supported in v0.6.0. "
@@ -47,6 +51,7 @@ def regress(X, Y, method: str = "ols", stats: str = "full"):
         )
     if stats not in ("full", "betas", "tstats"):
         raise ValueError("stats must be one of 'full', 'betas', 'tstats'")
+    tail_internal = validate_tail_parameter(tail)
 
     X = np.asarray(X)
     Y = np.asarray(Y)
@@ -76,7 +81,10 @@ def regress(X, Y, method: str = "ols", stats: str = "full"):
         return b.squeeze(), t.squeeze()
 
     df = np.full(t.shape[1], df_scalar)
-    p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+    if tail_internal == "upper":
+        p = 1 - t_dist.cdf(t, df)
+    else:
+        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
 
     return (
         b.squeeze(),

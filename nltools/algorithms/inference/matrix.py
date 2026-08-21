@@ -159,7 +159,7 @@ def _matrix_permutation_cpu_parallel(
         metric (str): Correlation metric
         how (str): Element extraction mode
         include_diag (bool): Include diagonal
-        tail (int): Test type (1 or 2)
+        tail (int | str): Test type (2|'two' or 1|'one')
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -271,7 +271,7 @@ def matrix_permutation_test(
             - 'lower': Lower triangle only
             - 'full': All elements (see include_diag)
         include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
-        tail (int | str): Test type (default: 2)
+        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
             - 'two' or 2: Two-tailed test (r != 0)
             - 'upper' or 1: One-tailed upper (r > 0)
             - 'lower' or -1: One-tailed lower (r < 0)

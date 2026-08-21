@@ -12,6 +12,7 @@ from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 
 from ..inference.utils import _compute_pvalue
+from ..inference.validation import validate_tail_parameter
 from .srm import SRM, DetSRM
 
 
@@ -320,7 +321,7 @@ def procrustes_distance(
         mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
         mat2 (ndarray): 1d or 2d numpy array; must have same number of rows as mat1
         n_permute (int): number of permutation iterations to perform
-        tail (int): either 1 for one-tailed or 2 for two-tailed test; default 2
+        tail (int | str): 2|'two' (two-tailed, default) or 1|'one' (one-tailed: similarity > chance)
         n_jobs (int): The number of CPUs to use to do permutation; default -1 (all)
         random_state (int, np.random.RandomState, or None): seed or generator for
             the permutation shuffling; default None
@@ -337,6 +338,7 @@ def procrustes_distance(
     random_state = check_random_state(random_state)
 
     # Make sure both matrices are 2d and the same dimension via padding
+    validate_tail_parameter(tail)
     if len(mat1.shape) < 2:
         mat1 = mat1[:, np.newaxis]
     if len(mat2.shape) < 2:

@@ -46,34 +46,42 @@ def validate_device_parameter_matrix(device: str | None) -> None:
 
 
 def validate_tail_parameter(tail: int | str) -> str:
-    """Validate and normalize tail parameter.
+    """Validate the public tail vocabulary and normalize to the internal form.
+
+    The public vocabulary (v0.6.0) is deliberately two-valued — the *direction*
+    of a one-tailed test is fixed by the test's convention, never chosen from
+    the data (a data-driven direction would silently halve every p-value):
 
     Args:
         tail: Tail parameter value. Can be:
-            - 'two' or 2: Two-tailed test (|obs| > |null|)
-            - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects)
-            - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects)
+            - 2 or 'two' (default everywhere): two-tailed test (|obs| vs |null|)
+            - 1 or 'one': one-tailed test in the test's canonical positive
+              direction (correlation/ISC/similarity > 0, mean > popmean,
+              group1 > group2). To test the negative direction, negate your
+              data, swap the groups, or flip the contrast.
 
     Returns:
-        Normalized tail string: 'two', 'upper', or 'lower'
+        Normalized internal tail string: 'two' or 'upper'
 
     Raises:
-        ValueError: If tail is not a valid option
+        ValueError: If tail is not a valid option (including the removed
+            v0.5 forms 'upper'/'lower'/-1)
 
     Notes:
-        For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
-        to ensure consistent direction across all tests. The old tail=1 behavior
-        (auto-detecting direction per test based on sign) can lead to incorrect
-        MCP-adjusted p-values. See GH #315.
+        For multiple comparisons correction (FDR, Bonferroni) a fixed direction
+        across all tests is essential — which is exactly why the direction is
+        part of the vocabulary, not the data. See GH #315.
     """
-    # Normalize to string
     if tail == 2 or tail == "two":
         return "two"
-    if tail == 1 or tail == "upper":
+    if tail == 1 or tail == "one":
         return "upper"
-    if tail == -1 or tail == "lower":
-        return "lower"
-    raise ValueError(f"tail must be 'two', 'upper', 'lower' (or 2, 1, -1), got {tail}")
+    raise ValueError(
+        f"tail must be 2|'two' (two-tailed) or 1|'one' (one-tailed, the test's "
+        f"positive direction), got {tail!r}. The 'upper'/'lower'/-1 forms were "
+        "removed in v0.6.0: to test the negative direction, negate your data, "
+        "swap the groups, or flip the contrast."
+    )
 
 
 def validate_array_shape(

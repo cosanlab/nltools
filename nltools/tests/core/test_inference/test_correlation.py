@@ -17,9 +17,9 @@ from nltools.algorithms.backends import check_gpu_available
 class TestCorrelationPermutationTail:
     """F011: correlation_permutation_test must accept its documented tail values."""
 
-    @pytest.mark.parametrize("tail", ["two", "upper", "lower", 2, 1, -1])
-    def test_documented_tail_values_accepted(self, tail):
-        """String/-1 tails documented in the signature must not crash."""
+    @pytest.mark.parametrize("tail", ["two", "one", 2, 1])
+    def test_canonical_tail_values_accepted(self, tail):
+        """The v0.6.0 vocabulary (2|'two', 1|'one') must not crash."""
         rng = np.random.RandomState(0)
         x = rng.randn(50)
         y = -x + rng.randn(50) * 0.1
@@ -28,6 +28,15 @@ class TestCorrelationPermutationTail:
         )
         assert "p" in result
         assert 0 < result["p"] <= 1
+
+    @pytest.mark.parametrize("tail", ["upper", "lower", -1])
+    def test_removed_tail_forms_raise(self, tail):
+        """The v0.5 directional forms are gone (negate/swap/flip instead)."""
+        rng = np.random.RandomState(0)
+        x = rng.randn(50)
+        y = -x + rng.randn(50) * 0.1
+        with pytest.raises(ValueError, match="tail"):
+            correlation_permutation_test(x, y, n_permute=100, tail=tail, device=None)
 
 
 class TestPearsonCorrelation:

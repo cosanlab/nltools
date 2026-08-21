@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Literal
 import nibabel as nib
 import numpy as np
 
+from nltools.algorithms.inference.utils import _compute_pvalue
+
 if TYPE_CHECKING:
     from ..braindata import BrainData
     from . import BrainCollection
@@ -199,14 +201,21 @@ def ttest(
     bc: BrainCollection,
     *,
     popmean: float = 0.0,
+    tail: int | str = 2,
 ) -> dict[str, BrainData]:
     """One-sample t-test across subjects.
 
     Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
     ``BrainData.ttest``. Streams from path-backed input via Welford.
+    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+    mean > popmean; negate the data for the other direction). The z map is
+    derived from the reported p, so it matches the requested tail.
     """
     from scipy.stats import norm, t as t_dist
 
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
     _check_nonempty(bc)
     n, m, M2 = _welford(bc)
     if n < 2:
@@ -221,8 +230,12 @@ def ttest(
         where=se > 0,
     )
     df = n - 1
-    p = 2.0 * t_dist.sf(np.abs(t_stat), df)
-    z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    if tail_internal == "upper":
+        p = t_dist.sf(t_stat, df)
+        z = norm.isf(np.clip(p, 1e-300, 1.0))
+    else:
+        p = 2.0 * t_dist.sf(np.abs(t_stat), df)
+        z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
 
     return {
         "mean": _make_braindata(m, bc._mask),
@@ -237,10 +250,18 @@ def ttest2(
     other: BrainCollection,
     *,
     equal_var: bool = True,
+    tail: int | str = 2,
 ) -> dict[str, BrainData]:
-    """Two-sample t-test between two collections (subject-level)."""
+    """Two-sample t-test between two collections (subject-level).
+
+    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+    bc > other; swap the operands for the other direction).
+    """
     from scipy.stats import norm, t as t_dist
 
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
     _check_nonempty(bc)
     _check_nonempty(other)
     n1, m1, M2_1 = _welford(bc)
@@ -263,8 +284,12 @@ def ttest2(
             df = np.where(den > 0, num / den, 1.0)
 
     t_stat = np.divide(diff, se, out=np.zeros_like(diff), where=se > 0)
-    p = 2.0 * t_dist.sf(np.abs(t_stat), df)
-    z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    if tail_internal == "upper":
+        p = t_dist.sf(t_stat, df)
+        z = norm.isf(np.clip(p, 1e-300, 1.0))
+    else:
+        p = 2.0 * t_dist.sf(np.abs(t_stat), df)
+        z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
 
     return {
         "mean": _make_braindata(diff, bc._mask),
@@ -342,7 +367,7 @@ def permutation_test(
     bc: BrainCollection,
     *,
     n_permute: int = 5000,
-    tail: int = 2,
+    tail: int | str = 2,
     device: str = "cpu",
     return_null: bool = False,
     n_jobs: int = -1,
@@ -355,9 +380,10 @@ def permutation_test(
     in memory by design. ``device`` is currently informational; backend
     selection is deferred to the parametric stats path.
     """
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
     _check_nonempty(bc)
-    if tail not in (1, 2):
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    validate_tail_parameter(tail)
 
     rng = np.random.default_rng(random_state)
     data = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
@@ -372,13 +398,11 @@ def permutation_test(
         signs = rng.choice([-1.0, 1.0], size=n).reshape((n,) + (1,) * (data.ndim - 1))
         null[k] = (signs * data).mean(axis=0)
 
-    if tail == 2:
-        # Empirical p with +1 numerator/denominator (for unbiased estimation)
-        p = (np.sum(np.abs(null) >= np.abs(observed_mean), axis=0) + 1) / (
-            n_permute + 1
-        )
-    else:
-        p = (np.sum(null >= observed_mean, axis=0) + 1) / (n_permute + 1)
+    # Shared engine p-value (same +1/+1 Phipson-Smyth form the hand-rolled
+    # version used, so default output is unchanged).
+    p = _compute_pvalue(
+        observed_mean.reshape(-1), null.reshape(n_permute, -1), tail=tail
+    ).reshape(observed_mean.shape)
 
     out: dict = {
         "mean": _make_braindata(observed_mean, bc._mask),
@@ -394,17 +418,18 @@ def permutation_test2(
     other: BrainCollection,
     *,
     n_permute: int = 5000,
-    tail: int = 2,
+    tail: int | str = 2,
     device: str = "cpu",
     return_null: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
 ) -> dict:
     """Two-sample permutation test by random label shuffling."""
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
     _check_nonempty(bc)
     _check_nonempty(other)
-    if tail not in (1, 2):
-        raise ValueError(f"tail must be 1 or 2, got {tail}")
+    validate_tail_parameter(tail)
 
     rng = np.random.default_rng(random_state)
     data1 = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
@@ -422,12 +447,9 @@ def permutation_test2(
         s2 = pooled[idx[n1:]].mean(axis=0)
         null[k] = s1 - s2
 
-    if tail == 2:
-        p = (np.sum(np.abs(null) >= np.abs(observed_diff), axis=0) + 1) / (
-            n_permute + 1
-        )
-    else:
-        p = (np.sum(null >= observed_diff, axis=0) + 1) / (n_permute + 1)
+    p = _compute_pvalue(
+        observed_diff.reshape(-1), null.reshape(n_permute, -1), tail=tail
+    ).reshape(observed_diff.shape)
 
     out: dict = {
         "mean": _make_braindata(observed_diff, bc._mask),
@@ -557,16 +579,21 @@ def isc_test(
     roi_mask: nib.Nifti1Image | Path | str | None = None,
     n_samples: int = 5000,
     summary: str = "median",
+    tail: int | str = 2,
     random_state: int | None = None,
 ) -> dict:
     """Bootstrap inference on ISC.
 
     Resamples subjects with replacement, recomputes ISC each draw, and
     derives a per-voxel p-value from the null distribution centered at 0.
+    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
 
     Passing ``roi_mask`` restricts the computation to that ROI; the returned
     maps carry the ROI mask rather than the collection's whole-brain mask.
     """
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
     rng = np.random.default_rng(random_state)
     observed = isc(bc, method=method, roi_mask=roi_mask, summary=summary)
     obs_map = np.asarray(observed["isc"].data).reshape(-1)
@@ -595,14 +622,19 @@ def isc_test(
                 pc[kk] = _pearson_per_voxel(sample_data[i], sample_data[j])
             null[k] = _aggregate_corrs(pc, summary).reshape(-1)
 
-    # Two-tailed p centered at 0 (ISC null hypothesis: no synchrony → ISC = 0).
+    # P-value centered at 0 (ISC null hypothesis: no synchrony → ISC = 0).
     # The subject bootstrap is centered on the OBSERVED ISC, so it must be
     # re-centered at 0 (subtract obs_map) before the comparison — otherwise the
     # null sits on top of the observed value and every voxel gets p ≈ 0.5. This
     # restores the pre-0.6.0 behavior (`_calc_pvalue(all_bootstraps - isc, isc)`)
     # that the collection refactor dropped.
     centered_null = null - obs_map
-    p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (n_samples + 1)
+    if tail_internal == "upper":
+        p = (np.sum(centered_null >= obs_map, axis=0) + 1) / (n_samples + 1)
+    else:
+        p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (
+            n_samples + 1
+        )
     return {
         "isc": observed["isc"],
         "p": _make_braindata(p.reshape(obs_map.shape), out_mask),

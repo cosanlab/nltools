@@ -175,6 +175,18 @@ class TestAdjacencyStats:
         assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
         assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
 
+    def test_ttest_parametric_honors_tail(self, sim_adjacency_multiple):
+        """tail=1 must reach the parametric path (was silently ignored pre-0.6.0)."""
+        from scipy.stats import ttest_1samp
+
+        out = sim_adjacency_multiple.ttest(tail=1)
+        _, expected_p = ttest_1samp(
+            sim_adjacency_multiple.data, 0, 0, alternative="greater"
+        )
+        np.testing.assert_allclose(out["p"].data, expected_p)
+        with pytest.raises(ValueError, match="tail"):
+            sim_adjacency_multiple.ttest(tail=-1)
+
     @pytest.mark.slow
     def test_stats_label_distance(self):
         """Test permutation tests on within and between label distances."""

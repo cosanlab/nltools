@@ -72,6 +72,7 @@ class Roc:
         method="optimal_overall",
         forced_choice=None,
         balanced_acc=False,
+        tail=2,
     ):
         """Calculate ROC metrics for single-interval classification.
 
@@ -88,8 +89,15 @@ class Roc:
                             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE
                             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR
                             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                            accuracy > chance) for the binomial ``accuracy_p``
 
         """
+        from nltools.algorithms.inference.validation import validate_tail_parameter
+
+        binom_alternative = (
+            "two-sided" if validate_tail_parameter(tail) == "two" else "greater"
+        )
 
         if input_values is not None:
             self.input_values = np.array(input_values)
@@ -226,7 +234,9 @@ class Roc:
 
         # Calculate p-Value using binomial test (can add hierarchical version of binomial test)
         self.n = len(self.misclass)
-        self.accuracy_p = binomtest(int(np.sum(~self.misclass)), self.n, p=0.5)
+        self.accuracy_p = binomtest(
+            int(np.sum(~self.misclass)), self.n, p=0.5, alternative=binom_alternative
+        )
         p = np.mean(~self.misclass)
         self.accuracy_se = np.sqrt(p * (1 - p) / self.n)
 

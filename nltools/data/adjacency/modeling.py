@@ -13,6 +13,7 @@ def bootstrap(
     n_samples=5000,
     save_boots=False,
     percentiles=(2.5, 97.5),
+    tail=2,
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
@@ -46,7 +47,11 @@ def bootstrap(
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
+        _p_from_z,
     )
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
 
     # Validate stat parameter
     SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
@@ -70,6 +75,10 @@ def bootstrap(
         percentiles=percentiles,
         progress_bar=progress_bar,
     )
+
+    if tail_internal == "upper":
+        # Engines report the default two-tailed p; convert post-hoc for tail=1.
+        result["p"] = _p_from_z(np.asarray(result["Z"]), "upper")
 
     # Convert result to Adjacency format
     return convert_bootstrap_results_to_adjacency(adj, result, save_boots=save_boots)
@@ -118,7 +127,7 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
     return out
 
 
-def regress(adj, X, method="ols"):
+def regress(adj, X, method="ols", tail=2):
     """Run a regression on an adjacency instance.
     You can decompose an adjacency instance with another adjacency instance.
     You can also decompose each pixel by passing a design_matrix instance.
@@ -127,12 +136,17 @@ def regress(adj, X, method="ols"):
         adj: (Adjacency) Adjacency instance
         X: Design matrix can be an Adjacency or DesignMatrix instance
         method: type of regression (default: ols) - only 'ols' is currently supported
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
+            negate a regressor for the other direction)
 
     Returns:
         stats: (dict) dictionary of stats outputs.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
     from scipy.stats import t as t_dist
 
     if method != "ols":
@@ -178,7 +192,10 @@ def regress(adj, X, method="ols"):
 
         # p-values
         df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+        if tail_internal == "upper":
+            p = 1 - t_dist.cdf(t, df)
+        else:
+            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
 
         # Create Adjacency objects for each stat
         # For Adjacency X, b has shape (n_regressors, 1), so we need to reshape
@@ -239,7 +256,10 @@ def regress(adj, X, method="ols"):
 
         # p-values
         df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        p = 2 * (1 - t_dist.cdf(np.abs(t), df))
+        if tail_internal == "upper":
+            p = 1 - t_dist.cdf(t, df)
+        else:
+            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
 
         stats["beta"], stats["sigma"], stats["t"] = [adj.copy() for _ in range(3)]
         stats["p"], stats["df"], stats["residual"] = [adj.copy() for _ in range(3)]

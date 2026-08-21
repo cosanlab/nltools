@@ -38,6 +38,27 @@ class TestReductionShape:
         for k in ("mean", "t", "z", "p"):
             assert k in out
 
+    def test_ttest_tail_one_halves_positive_p(self, bc_inmem):
+        two = bc_inmem.ttest(tail=2)
+        one = bc_inmem.ttest(tail="one")
+        t_arr = np.asarray(two["t"].data)
+        pos = t_arr > 0
+        np.testing.assert_allclose(
+            np.asarray(one["p"].data)[pos], np.asarray(two["p"].data)[pos] / 2
+        )
+
+    def test_permutation_test_accepts_string_tail(self, bc_inmem):
+        out = bc_inmem.permutation_test(n_permute=25, tail="one", random_state=0)
+        assert 0 < float(np.asarray(out["p"].data).min()) <= 1
+        with pytest.raises(ValueError, match="tail"):
+            bc_inmem.permutation_test(n_permute=25, tail="upper")
+
+    def test_isc_test_exposes_tail(self, bc_inmem):
+        import inspect
+
+        params = inspect.signature(type(bc_inmem).isc_test).parameters
+        assert params["tail"].default == 2
+
     def test_anova_returns_dict(self, bc_inmem):
         out = bc_inmem.anova(np.array([0, 1, 0]))
         assert "f" in out or "F" in out

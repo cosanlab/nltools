@@ -414,6 +414,7 @@ class Adjacency:
         n_samples=5000,
         save_boots=False,
         percentiles=(2.5, 97.5),
+        tail=2,
         n_jobs=-1,
         random_state=None,
         progress_bar: bool = False,
@@ -452,6 +453,7 @@ class Adjacency:
             n_samples=n_samples,
             save_boots=save_boots,
             percentiles=percentiles,
+            tail=tail,
             n_jobs=n_jobs,
             random_state=random_state,
             progress_bar=progress_bar,
@@ -695,7 +697,7 @@ class Adjacency:
 
         return r_to_z(self)
 
-    def regress(self, X, method="ols"):
+    def regress(self, X, method="ols", tail=2):
         """Run a regression on an adjacency instance.
         You can decompose an adjacency instance with another adjacency instance.
         You can also decompose each pixel by passing a design_matrix instance.
@@ -703,13 +705,15 @@ class Adjacency:
         Args:
             X: Design matrix can be an Adjacency or DesignMatrix instance
             method: type of regression (default: ols) - only 'ols' is currently supported
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
+                negate a regressor for the other direction)
 
         Returns:
             stats: (dict) dictionary of stats outputs.
         """
         from .modeling import regress
 
-        return regress(self, X, method)
+        return regress(self, X, method, tail=tail)
 
     def similarity(
         self,
@@ -989,7 +993,9 @@ class Adjacency:
             permutation: (bool) Run ttest as permutation. Note this can be very slow.
             n_permute: Number of permutations (used only when
                 ``permutation=True``). Default 5000.
-            tail: Tail of the test (1 or 2). Default 2.
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                mean > 0; negate the data for the other direction). Applies to
+                both the parametric and permutation paths.
             return_null: If True, also return the null distribution. Default False.
             n_jobs: Number of parallel jobs. Default -1 (all cores).
             random_state: Random seed for reproducibility.

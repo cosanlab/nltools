@@ -469,7 +469,7 @@ def _timeseries_correlation_permutation_gpu_batched(
         method: Permutation method ('circle_shift' or 'phase_randomize')
         n_permute: Number of permutations
         metric: Correlation type ('pearson', 'spearman', 'kendall')
-        tail: Test type (1 or 2)
+        tail: Test type (2|'two' or 1|'one')
         return_null: Whether to return null distribution
         backend: Backend instance (must be PyTorch)
         max_gpu_memory_gb: Maximum GPU memory budget
@@ -630,10 +630,10 @@ def timeseries_correlation_permutation_test(
             - 'phase_randomize': FFT-based (preserves power spectrum)
         n_permute: Number of permutations
         metric: Correlation type ('pearson', 'spearman', 'kendall')
-        tail: Test type. Accepts int or string forms:
-            - 2 or 'two': Two-tailed (|obs| > |null|)
-            - 1 or 'upper': One-tailed upper (obs > null, positive effects)
-            - -1 or 'lower': One-tailed lower (obs < null, negative effects)
+        tail: Test type (default: 2)
+            - 2 or 'two': Two-tailed test (default)
+            - 1 or 'one': One-tailed test in the test's positive direction
+              (to test the negative direction, negate the data / swap groups)
         device: Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)

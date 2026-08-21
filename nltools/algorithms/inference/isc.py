@@ -33,6 +33,7 @@ from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
 from .utils import _compute_pvalue, EPSILON, maybe_tqdm
+from .validation import validate_tail_parameter
 
 
 # ============================================================================
@@ -935,7 +936,7 @@ def isc_group_permutation_test(
     method: Literal["permute", "bootstrap"] = "permute",
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     ci_percentile: float = 95,
-    tail: Literal[1, 2] = 2,
+    tail: int | str = 2,
     device: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
     random_state: int | None = None,
@@ -971,7 +972,7 @@ def isc_group_permutation_test(
             - 'leave-one-out': Correlate each subject with mean of others
             Defaults to 'pairwise'.
         ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
-        tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
+        tail: Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value.
         device: Parallelization method:
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
@@ -1027,6 +1028,7 @@ def isc_group_permutation_test(
         - GPU acceleration available for voxel-wise LOO computation
     """
     # Input validation
+    validate_tail_parameter(tail)
     group1 = np.asarray(group1)
     group2 = np.asarray(group2)
 
@@ -1695,7 +1697,7 @@ def isc_permutation_test(
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     method: Literal["bootstrap", "circle_shift", "phase_randomize"] = "bootstrap",
     ci_percentile: float = 95,
-    tail: Literal[1, 2] = 2,
+    tail: int | str = 2,
     return_null: bool = False,
     progress_bar: bool = False,
     exclude_self_corr: bool = True,
@@ -1733,7 +1735,7 @@ def isc_permutation_test(
             - 'phase_randomize': FFT phase randomization (preserves power spectrum)
             Defaults to 'bootstrap'.
         ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
-        tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
+        tail: Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value.
         return_null: If True, return bootstrap/permutation distribution in result dict. Defaults to False.
         progress_bar: Show progress bar during bootstrap/permutation. Defaults to False.
         exclude_self_corr: If True, mask self-correlations (perfect correlations from duplicate
@@ -1802,6 +1804,7 @@ def isc_permutation_test(
         - Bootstrap distribution is centered by subtracting observed ISC
     """
     # Input validation
+    validate_tail_parameter(tail)
     data = np.asarray(data)
     if data.ndim not in [2, 3]:
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")

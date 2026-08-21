@@ -21,6 +21,18 @@ SIMPLE_METHODS = ["mean", "median", "std", "sum", "min", "max"]
 FITTED_METHODS = ["weights", "predict"]  # For future use
 
 
+def _p_from_z(z: np.ndarray, tail_internal: str) -> np.ndarray:
+    """P-values from bootstrap Z-scores: 'two' → 2·(1−Φ(|z|)), 'upper' → 1−Φ(z).
+
+    The single home of the bootstrap p formula — `OnlineBootstrapStats.get_results`
+    and the BrainData/Adjacency facades (which convert post-hoc for tail=1) both
+    use it, so the two paths can never drift.
+    """
+    if tail_internal == "upper":
+        return 1 - norm.cdf(z)
+    return 2 * (1 - norm.cdf(np.abs(z)))
+
+
 def _validate_bootstrap_method(method: str) -> None:
     """Validate bootstrap method name.
 
@@ -164,15 +176,19 @@ class OnlineBootstrapStats:
         if self.save_samples:
             self.samples.append(sample.copy())
 
-    def get_results(self) -> dict[str, np.ndarray]:
+    def get_results(self, tail: int | str = 2) -> dict[str, np.ndarray]:
         """Compute final bootstrap statistics.
+
+        Args:
+            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+                statistic > 0; negate the data for the other direction).
 
         Returns:
             Dictionary containing:
             - 'mean': Bootstrap mean
             - 'std': Bootstrap standard deviation
             - 'Z': Z-scores (mean/std)
-            - 'p': Two-tailed p-values
+            - 'p': P-values (per ``tail``)
             - 'ci_lower': Lower confidence bound
             - 'ci_upper': Upper confidence bound
             - 'samples': All samples (only if save_samples=True)
@@ -202,8 +218,9 @@ class OnlineBootstrapStats:
         with np.errstate(invalid="ignore", divide="ignore"):
             z = self.mean / std
 
-        # Compute two-tailed p-values from Z-scores
-        p = 2 * (1 - norm.cdf(np.abs(z)))
+        from .validation import validate_tail_parameter
+
+        p = _p_from_z(z, validate_tail_parameter(tail))
 
         # Build result dictionary
         result = {

@@ -398,7 +398,9 @@ class Glm(BaseModel):
             output_type (str, default='stat'): Type of output to return:
                 - 'stat': T-statistic map (default)
                 - 'z_score': Z-score map
-                - 'p_value': P-value map
+                - 'p_value': P-value map (one-sided, per the nilearn/SPM
+                  directional-contrast convention; flip the contrast for the
+                  other direction)
                 - 'effect_size': Effect size (beta) map
                 - 'effect_variance': Variance of effect size
                 - 'all': Dictionary with all output types

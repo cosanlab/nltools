@@ -15,6 +15,7 @@ def bootstrap(
     X_test=None,
     device="cpu",
     max_gpu_memory_gb=4.0,
+    tail=2,
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
@@ -106,7 +107,19 @@ def bootstrap(
         _bootstrap_ridge_predict_cpu_parallel,
         _bootstrap_ridge_weights_gpu_batched,
         _bootstrap_ridge_predict_gpu_batched,
+        _p_from_z,
     )
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
+
+    def _apply_tail(result):
+        # Engines report the default two-tailed p; convert post-hoc for tail=1
+        # using the engine's own formula so the two paths cannot drift.
+        if tail_internal == "upper" and "Z" in result:
+            result["p"] = _p_from_z(np.asarray(result["Z"]), "upper")
+        return result
+
     from nltools.data import DesignMatrix
     from nltools.algorithms.backends import (
         Backend,
@@ -155,7 +168,7 @@ def bootstrap(
 
         # Convert result to BrainData format
         return convert_bootstrap_results_to_brain_data(
-            bd, result, save_boots=save_boots, return_dict=False
+            bd, _apply_tail(result), save_boots=save_boots, return_dict=False
         )
 
     if stat not in FITTED_STATS:
@@ -224,7 +237,7 @@ def bootstrap(
             )
 
         return convert_bootstrap_results_to_brain_data(
-            bd, result, save_boots=save_boots, return_dict=True
+            bd, _apply_tail(result), save_boots=save_boots, return_dict=True
         )
 
     # stat == "predict"
@@ -265,7 +278,7 @@ def bootstrap(
         )
 
     return convert_bootstrap_results_to_brain_data(
-        bd, result, save_boots=save_boots, return_dict=True
+        bd, _apply_tail(result), save_boots=save_boots, return_dict=True
     )
 
 

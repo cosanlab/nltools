@@ -796,17 +796,19 @@ def to_fit_dataclass(bd, model):
     raise AssertionError(f"unvalidated model passed to to_fit_dataclass: {model!r}")
 
 
-def _signed_z_from_p(t_like_arr, p_arr):
-    """Compute a signed two-tailed z-score map from a p-value map.
+def _signed_z_from_p(t_like_arr, p_arr, tail_internal="two"):
+    """Compute a signed z-score map from a p-value map.
 
-    ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching nilearn's
-    ``output_type='z_score'`` convention. The sign is copied from the
-    accompanying statistic (t-stat or mean) so the returned map has both
-    direction and magnitude.
+    Two-tailed p: ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching
+    nilearn's ``output_type='z_score'`` convention, with the sign copied from
+    the accompanying statistic. One-tailed (upper) p: ``z = norm.isf(p)`` —
+    a one-sided p already encodes direction, so no sign copy is needed.
     """
     from scipy.stats import norm
 
     p_clipped = np.clip(np.asarray(p_arr), np.finfo(float).tiny, 1.0)
+    if tail_internal == "upper":
+        return norm.isf(p_clipped)
     z_abs = norm.isf(p_clipped / 2.0)
     return np.sign(np.asarray(t_like_arr)) * z_abs
 
@@ -837,7 +839,7 @@ def ttest(
             reported alongside for reference.
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
-        tail: Tail of the test (1 or 2). Default 2.
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
         return_null: Currently has no effect. The returned dict always
             contains exactly ``{"mean", "t", "z", "p"}`` and the null
             distribution is discarded even when this is True. Default False.
@@ -873,9 +875,14 @@ def ttest(
             "Stack subject-level maps into a single BrainData first."
         )
 
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
     # Parametric t / p are always computed — they're the cheap reference
-    # even on the permutation path.
-    t_arr, p_param = ttest_1samp(bd.data, popmean, axis=0)
+    # even on the permutation path. The requested tail maps onto scipy's
+    # alternative= ('one' = mean > popmean; negate the data for the other side).
+    alternative = "two-sided" if tail_internal == "two" else "greater"
+    t_arr, p_param = ttest_1samp(bd.data, popmean, axis=0, alternative=alternative)
     mean_arr = np.asarray(bd.data).mean(axis=0) - popmean
 
     if permutation:
@@ -896,7 +903,7 @@ def ttest(
     else:
         p_arr = np.asarray(p_param)
 
-    z_arr = _signed_z_from_p(t_arr, p_arr)
+    z_arr = _signed_z_from_p(t_arr, p_arr, tail_internal)
 
     return {
         "mean": BrainData(np.asarray(mean_arr), mask=bd.mask),
@@ -906,7 +913,7 @@ def ttest(
     }
 
 
-def ttest2(bd, other, equal_var=True):
+def ttest2(bd, other, equal_var=True, tail=2):
     """Two-sample voxelwise t-test between two BrainData stacks.
 
     Args:
@@ -914,6 +921,8 @@ def ttest2(bd, other, equal_var=True):
         other: Second BrainData (shape ``(n2, n_voxels)``).
         equal_var: If True (default), standard two-sample t-test. If False,
             Welch's t-test.
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: bd > other;
+            swap the arguments for the other direction).
 
     Returns:
         dict: ``{"t": BrainData, "p": BrainData}``.
@@ -924,6 +933,9 @@ def ttest2(bd, other, equal_var=True):
     from scipy.stats import ttest_ind
 
     from . import BrainData
+    from nltools.algorithms.inference.validation import validate_tail_parameter
+
+    tail_internal = validate_tail_parameter(tail)
 
     if bd.data.shape[1] != other.data.shape[1]:
         raise ValueError(
@@ -931,7 +943,10 @@ def ttest2(bd, other, equal_var=True):
             f"Got {bd.data.shape[1]} and {other.data.shape[1]}."
         )
 
-    t_arr, p_arr = ttest_ind(bd.data, other.data, axis=0, equal_var=equal_var)
+    alternative = "two-sided" if tail_internal == "two" else "greater"
+    t_arr, p_arr = ttest_ind(
+        bd.data, other.data, axis=0, equal_var=equal_var, alternative=alternative
+    )
     t_bd = BrainData(mask=bd.mask)
     t_bd.data = np.asarray(t_arr)
     p_bd = BrainData(mask=bd.mask)
@@ -1005,7 +1020,10 @@ def compute_contrasts(bd, contrasts, statistic="t"):
             - ``"t"`` (default): t-statistic map (for thresholding /
               single-subject inference)
             - ``"z"``: z-score map
-            - ``"p"``: p-value map
+            - ``"p"``: p-value map. Note: contrast p-values are **one-sided**
+              (the nilearn/SPM directional-contrast convention — a contrast
+              tests "A > B"; flip the contrast for the other direction). This
+              is the documented exception to the library's two-tailed default.
             - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this
               when feeding into a second-level (group) analysis
             - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``

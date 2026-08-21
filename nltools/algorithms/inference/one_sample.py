@@ -42,7 +42,7 @@ def _one_sample_permutation_cpu_parallel(
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
         n_permute (int): Number of permutations
-        tail (int): Test type (1 or 2)
+        tail (int | str): Test type (2|'two' or 1|'one')
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -131,7 +131,7 @@ def _one_sample_permutation_gpu_batched(
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
         n_permute (int): Number of permutations
-        tail (int): Test type (1 or 2)
+        tail (int | str): Test type (2|'two' or 1|'one')
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
         max_gpu_memory_gb (float): Maximum GPU memory budget
@@ -255,7 +255,7 @@ def one_sample_permutation_test(
             - shape (n_samples,) for single feature
             - shape (n_samples, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
-        tail (int | str): Test type (default: 2)
+        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
             - 'two' or 2: Two-tailed test (mean != 0)
             - 'upper' or 1: One-tailed upper (mean > 0)
             - 'lower' or -1: One-tailed lower (mean < 0)

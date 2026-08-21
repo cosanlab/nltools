@@ -62,6 +62,7 @@ public signature against in CI. The table below is rendered from it:
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
+| Tail of test | `tail` (`2 \| 'two' \| 1 \| 'one'`; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius_mm: float` |
