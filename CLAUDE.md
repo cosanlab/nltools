@@ -27,6 +27,7 @@ Classes are **facades and glue** — all real logic lives in pure functions.
 - Use frozen dataclasses for immutable state containers. Prefer modern Python (type hints, `@dataclass(frozen=True)`, `|` unions, etc.).
 - Don't repeat logic — extract shared helpers as functions where most useful and import them. Prefer a single source of truth over duplicated code.
 - **No underscore-prefixed module names** (e.g. `validation.py` not `_validation.py`). Leading underscores are fine for internal functions/methods, just not filenames.
+- **Generated column names use the reserved `.nl_` prefix** (`nltools.utils.RESERVED_PREFIX`): build them with `reserved_name()` / `run_separated_name()`, and recognize them with `is_reserved_name()` / `parse_run_separated()` — never by pattern-matching user-controlled names.
 
 **Internals reference** (design docs for the subsystems below — read the relevant one before changing that subsystem; keep it in sync when behavior changes):
 - `docs/development/execution-model.md` — `BrainCollection` parallel execution: path-backed caching, the `cache=` knob, HDF5 fit bundles, `_ItemTask`/`_DesignContext` pickling, parallel write safety. (Replaces the old `data/collection/SPEC.md`.)

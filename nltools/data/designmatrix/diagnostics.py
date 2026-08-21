@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .utils import copy_with, get_data_columns
+from .utils import copy_with, get_data_columns, is_generated_intercept
 
 if TYPE_CHECKING:
     from nltools.data import Adjacency
@@ -43,7 +43,7 @@ def corr(
         ValueError: If ``metric`` is unknown or fewer than 2 columns remain.
 
     Note:
-        Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
+        Constant columns (e.g. the ``.nl_poly_0`` intercept) have zero variance and
         yield NaN correlations.
     """
     from nltools.data import Adjacency
@@ -112,8 +112,10 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
         # No confounds to exclude, use all columns
         subset_df = dm.data
     else:
-        # Always exclude intercept (poly_0) columns even when exclude_confounds=False
-        cols_to_use = [c for c in dm.columns if "poly_0" not in c]
+        # Always exclude generated intercepts even when exclude_confounds=False:
+        # an all-ones column has zero variance, so it makes the correlation
+        # matrix singular and VIF undefined.
+        cols_to_use = [c for c in dm.columns if not is_generated_intercept(c)]
         subset_df = dm.data.select(cols_to_use)
 
     # Edge case: single column has VIF = 1 (no multicollinearity)

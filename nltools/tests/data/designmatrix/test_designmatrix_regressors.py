@@ -151,7 +151,7 @@ class TestDesignMatrixConvolution:
     def test_convolved_metadata_survives_multirun_append(self):
         """
         Regression: ``.convolved`` entries must be real column names so that
-        vertical ``.append()`` rename map (``"col" -> "{run}_col"``) keeps
+        vertical ``.append()`` rename map (``"col" -> ".nl_r{run}_col"``) keeps
         metadata in sync with the dataframe.
 
         Before the always-suffix fix, ``.convolved`` carried pre-suffix names
@@ -165,9 +165,9 @@ class TestDesignMatrixConvolution:
 
         # Both runs' convolved columns exist in the dataframe under
         # run-prefixed names, AND .convolved tracks them.
-        assert "0_stim_c0" in out.columns
-        assert "1_stim_c0" in out.columns
-        assert set(out.convolved) == {"0_stim_c0", "1_stim_c0"}
+        assert ".nl_r0_stim_c0" in out.columns
+        assert ".nl_r1_stim_c0" in out.columns
+        assert set(out.convolved) == {".nl_r0_stim_c0", ".nl_r1_stim_c0"}
 
     def test_convolve_is_idempotent_on_already_convolved(self):
         """Calling .convolve() again on a DM whose experimental regressors are
@@ -277,7 +277,7 @@ class TestDesignMatrixPolynomials:
         .add_poly(order=2) should add polynomials of order 0, 1, 2.
 
         Expected behavior:
-        - Creates poly_0 (intercept), poly_1 (linear), poly_2 (quadratic)
+        - Creates .nl_poly_0 (intercept), .nl_poly_1 (linear), .nl_poly_2 (quadratic)
         - All columns present in output
         - .confounds metadata updated
 
@@ -288,16 +288,16 @@ class TestDesignMatrixPolynomials:
 
         # Should add 3 polynomial columns
         assert dm_poly.shape[1] == 4, "Should have stim + 3 polynomials"
-        assert "poly_0" in dm_poly.columns
-        assert "poly_1" in dm_poly.columns
-        assert "poly_2" in dm_poly.columns
+        assert ".nl_poly_0" in dm_poly.columns
+        assert ".nl_poly_1" in dm_poly.columns
+        assert ".nl_poly_2" in dm_poly.columns
 
         # Metadata should track polynomials
-        assert set(dm_poly.confounds) == {"poly_0", "poly_1", "poly_2"}
+        assert set(dm_poly.confounds) == {".nl_poly_0", ".nl_poly_1", ".nl_poly_2"}
 
     def test_add_poly_intercept_is_constant(self):
         """
-        poly_0 (order=0) should be constant intercept term.
+        .nl_poly_0 (order=0) should be constant intercept term.
 
         Expected behavior:
         - Mean ≈ 1.0 (or some constant)
@@ -309,12 +309,12 @@ class TestDesignMatrixPolynomials:
         dm_poly = dm.add_poly(order=0)
 
         # Intercept should be constant (very low variance)
-        poly_0 = dm_poly["poly_0"]
-        assert poly_0.std() < 1e-10, "Intercept should have near-zero variance"
+        intercept = dm_poly[".nl_poly_0"]
+        assert intercept.std() < 1e-10, "Intercept should have near-zero variance"
 
     def test_add_poly_linear_trend(self):
         """
-        poly_1 (order=1) should be linear trend.
+        .nl_poly_1 (order=1) should be linear trend.
 
         Expected behavior:
         - Monotonic increase or decrease
@@ -325,10 +325,10 @@ class TestDesignMatrixPolynomials:
         dm = DesignMatrix(np.zeros((20, 1)), sampling_freq=1, columns=["stim"])
         dm_poly = dm.add_poly(order=1, include_lower=False)
 
-        poly_1 = dm_poly["poly_1"]
+        linear = dm_poly[".nl_poly_1"]
 
         # Should be monotonic (always increasing or decreasing)
-        diffs = np.diff(poly_1.to_numpy())
+        diffs = np.diff(linear.to_numpy())
         assert np.all(diffs > 0) or np.all(diffs < 0), "Should be monotonic"
 
     def test_add_poly_without_lower_terms(self):
@@ -336,17 +336,17 @@ class TestDesignMatrixPolynomials:
         include_lower=False should add only specified order.
 
         Expected behavior:
-        - Only poly_2 added, not poly_0 or poly_1
+        - Only .nl_poly_2 added, not .nl_poly_0 or .nl_poly_1
 
         Use case: Add specific polynomial without lower orders
         """
         dm = DesignMatrix({"stim": [1, 2, 3, 4]}, sampling_freq=1)
         dm_poly = dm.add_poly(order=2, include_lower=False)
 
-        assert dm_poly.shape[1] == 2, "Should have stim + poly_2 only"
-        assert "poly_2" in dm_poly.columns
-        assert "poly_0" not in dm_poly.columns
-        assert "poly_1" not in dm_poly.columns
+        assert dm_poly.shape[1] == 2, "Should have stim + .nl_poly_2 only"
+        assert ".nl_poly_2" in dm_poly.columns
+        assert ".nl_poly_0" not in dm_poly.columns
+        assert ".nl_poly_1" not in dm_poly.columns
 
     def test_add_poly_idempotent(self):
         """
@@ -390,7 +390,7 @@ class TestDesignMatrixPolynomials:
         assert len(cosine_cols) > 1, "Should add multiple DCT bases"
 
         # Metadata should track
-        assert "cosine_1" in dm_dct.confounds
+        assert ".nl_cosine_1" in dm_dct.confounds
 
     def test_add_dct_basis_drop_parameter(self):
         """
@@ -407,10 +407,164 @@ class TestDesignMatrixPolynomials:
         # Drop first 2 bases (including constant, like SPM)
         dm_dct = dm.add_dct_basis(duration=60, drop=2)
 
-        # Should not have cosine_1 or cosine_2
-        assert "cosine_1" not in dm_dct.columns
-        assert "cosine_2" not in dm_dct.columns
+        # Should not have .nl_cosine_1 or .nl_cosine_2
+        assert ".nl_cosine_1" not in dm_dct.columns
+        assert ".nl_cosine_2" not in dm_dct.columns
         # Should have higher-order bases
         assert (
-            "cosine_3" in dm_dct.columns or "cosine_1" in dm_dct.columns
+            ".nl_cosine_3" in dm_dct.columns or ".nl_cosine_1" in dm_dct.columns
         )  # Depends on numbering convention
+
+
+class TestReservedPrefixNaming:
+    """Machinery-generated columns live in the reserved ``.nl_`` namespace.
+
+    Behavioral contract (v0.6.0):
+    - Every column name DesignMatrix machinery invents — polynomial drift,
+      DCT cosines, and run-separated variants — starts with ``.nl_``, a
+      prefix users won't plausibly use for their own regressors.
+    - Run separation renames a column ``col`` to ``.nl_r{run}_{base}`` where
+      ``base`` is ``col`` with any leading ``.nl_`` stripped, so generated
+      names never stack prefixes (``.nl_poly_0`` -> ``.nl_r0_poly_0``).
+    - Detection of machinery-generated columns keys on this prefix, never on
+      heuristics over user-controlled names (underscore counts, regexes on
+      arbitrary text).
+    """
+
+    def test_add_poly_names_use_reserved_prefix(self):
+        dm = DesignMatrix({"stim": [0, 1, 0, 1, 0, 1]}, sampling_freq=1)
+        out = dm.add_poly(order=2, include_lower=True)
+        assert {".nl_poly_0", ".nl_poly_1", ".nl_poly_2"} <= set(out.columns)
+        assert {".nl_poly_0", ".nl_poly_1", ".nl_poly_2"} <= set(out.confounds)
+
+    def test_add_dct_basis_names_use_reserved_prefix(self):
+        dm = DesignMatrix(np.zeros((100, 1)), sampling_freq=0.5, columns=["stim"])
+        out = dm.add_dct_basis(duration=60)
+        cosine_cols = [c for c in out.columns if "cosine" in c]
+        assert cosine_cols, "expected DCT basis columns"
+        assert all(c.startswith(".nl_cosine_") for c in cosine_cols)
+        assert ".nl_cosine_0" in out.columns  # include_constant=True default
+
+    def test_run_separated_names_use_reserved_prefix(self):
+        run1 = DesignMatrix(
+            {"stim": [0, 1, 0, 1], "motion_x": [0.1, 0.2, 0.1, 0.3]},
+            sampling_freq=1,
+            confounds=["motion_x"],
+        ).add_poly(0)
+        run2 = DesignMatrix(
+            {"stim": [1, 0, 1, 0], "motion_x": [0.4, 0.1, 0.2, 0.5]},
+            sampling_freq=1,
+            confounds=["motion_x"],
+        ).add_poly(0)
+        multi = run1.append(run2, axis=0)
+
+        assert ".nl_r0_poly_0" in multi.columns
+        assert ".nl_r1_poly_0" in multi.columns
+        # User confounds get run-separated into the reserved namespace too:
+        # the run-prefixed variant is a machinery-generated name.
+        assert ".nl_r0_motion_x" in multi.columns
+        assert ".nl_r1_motion_x" in multi.columns
+        # No double-prefixed names anywhere.
+        assert not any(c.count(".nl_") > 1 for c in multi.columns)
+
+    def test_third_run_append_continues_numbering(self):
+        def make_run(vals):
+            return DesignMatrix({"stim": vals}, sampling_freq=1).add_poly(0)
+
+        multi = make_run([0, 1]).append(make_run([1, 0]), axis=0)
+        three = multi.append(make_run([1, 1]), axis=0)
+        assert ".nl_r2_poly_0" in three.columns
+
+
+class TestDriftGuardRunSeparation:
+    """add_poly / add_dct_basis refuse designs with run-separated drift terms.
+
+    Behavioral contract:
+    - A design carrying run-separated polynomial OR cosine drift columns
+      (``.nl_r{i}_poly_{j}`` / ``.nl_r{i}_cosine_{j}``) refuses BOTH adders:
+      adding a global drift term on top of per-run ones is ambiguous.
+    - Detection keys on the reserved prefix, so ordinary user confounds that
+      merely contain underscores (24-parameter motion expansions like
+      ``trans_x_sq``) never false-positive. Regression for the dartbrains
+      seed-connectivity design that could not add drift terms at all.
+    """
+
+    @staticmethod
+    def _multi_with_poly():
+        run1 = DesignMatrix({"stim": [0, 1, 0, 1]}, sampling_freq=1).add_poly(0)
+        run2 = DesignMatrix({"stim": [1, 0, 1, 0]}, sampling_freq=1).add_poly(0)
+        return run1.append(run2, axis=0)
+
+    @staticmethod
+    def _multi_with_cosine():
+        run1 = DesignMatrix(
+            np.random.default_rng(0).standard_normal((50, 1)),
+            sampling_freq=0.5,
+            columns=["stim"],
+        ).add_dct_basis(duration=60)
+        run2 = DesignMatrix(
+            np.random.default_rng(1).standard_normal((50, 1)),
+            sampling_freq=0.5,
+            columns=["stim"],
+        ).add_dct_basis(duration=60)
+        return run1.append(run2, axis=0)
+
+    def test_raises_on_run_separated_polynomials(self):
+        multi = self._multi_with_poly()
+        with pytest.raises(ValueError, match="[Rr]un-separated"):
+            multi.add_poly(order=1)
+        with pytest.raises(ValueError, match="[Rr]un-separated"):
+            multi.add_dct_basis(duration=4)
+
+    def test_raises_on_run_separated_cosines(self):
+        multi = self._multi_with_cosine()
+        with pytest.raises(ValueError, match="[Rr]un-separated"):
+            multi.add_poly(order=1)
+        with pytest.raises(ValueError, match="[Rr]un-separated"):
+            multi.add_dct_basis(duration=60)
+
+    @pytest.mark.parametrize(
+        "confound",
+        [
+            "trans_x_sq",
+            "rot_x_diff",
+            "rot_x_diff_sq",
+            "a_b_c",
+            "my_poly_thing",
+            "my_cosine_thing",
+        ],
+    )
+    def test_no_false_positive_on_underscored_confounds(self, confound):
+        rng = np.random.default_rng(0)
+        dm = DesignMatrix(
+            {"stim": [0.0, 1, 0, 1, 0, 1], confound: rng.standard_normal(6)},
+            sampling_freq=1,
+            confounds=[confound],
+        )
+        out = dm.add_poly(order=1, include_lower=True)
+        assert ".nl_poly_1" in out.columns
+        out2 = dm.add_dct_basis(duration=4)
+        assert any("cosine" in c for c in out2.columns)
+
+    def test_motion_confounds_then_add_poly(self):
+        """End-to-end repro of the dartbrains failure: 24-param motion + drift."""
+        rng = np.random.default_rng(0)
+        n = 20
+        task = DesignMatrix(
+            {"stim": rng.integers(0, 2, n).astype(float)}, sampling_freq=0.5
+        )
+        base_names = [f"{k}_{ax}" for k in ("trans", "rot") for ax in ("x", "y", "z")]
+        motion_names = (
+            base_names
+            + [f"{b}_sq" for b in base_names]
+            + [f"{b}_diff" for b in base_names]
+            + [f"{b}_diff_sq" for b in base_names]
+        )
+        motion = DesignMatrix(
+            {name: rng.standard_normal(n) for name in motion_names},
+            sampling_freq=0.5,
+        )
+        dm = task.append(motion, axis=1, as_confounds=True).add_poly(
+            order=2, include_lower=True
+        )
+        assert {".nl_poly_0", ".nl_poly_1", ".nl_poly_2"} <= set(dm.columns)

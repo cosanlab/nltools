@@ -12,7 +12,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
-from .utils import copy_with, get_data_columns
+from nltools.utils import reserved_name
+
+from .utils import copy_with, get_data_columns, has_run_separated_drift
 
 if TYPE_CHECKING:
     from . import DesignMatrix
@@ -164,11 +166,12 @@ def add_poly(
             Default: True.
 
     Returns:
-        DesignMatrix: New DesignMatrix with polynomial columns appended.
+        DesignMatrix: New DesignMatrix with polynomial columns appended, named
+        ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
-        ValueError: If order < 0 or if ambiguous polynomials exist from a
-            previous append operation.
+        ValueError: If order < 0, or if the design already carries run-separated
+            drift terms from a previous multi-run append.
     """
     from scipy.special import legendre
 
@@ -178,13 +181,13 @@ def add_poly(
             "Common orders: 0 (intercept only), 1 (linear trend), 2 (quadratic), 3 (cubic)."
         )
 
-    # Check for ambiguous polynomials from previous append operations
-    if dm.confounds and any(elem.count("_") == 2 for elem in dm.confounds):
+    # Adding a global drift term on top of per-run ones is ambiguous.
+    if has_run_separated_drift(dm):
         raise ValueError(
-            "This Design Matrix contains polynomial terms that were kept "
-            "separate from a previous append operation. This makes it ambiguous "
-            "for adding polynomial terms. Try calling .add_poly() on each "
-            "separate Design Matrix before appending them instead."
+            "This Design Matrix contains run-separated drift terms (polynomial "
+            "or cosine) from a previous append operation, which makes adding "
+            "global polynomial terms ambiguous. Call .add_poly() on each "
+            "single-run Design Matrix before appending them instead."
         )
 
     # Determine which polynomials to add
@@ -193,7 +196,7 @@ def add_poly(
     else:
         orders_to_add = [order]
 
-    # Detect existing intercept columns (constant, poly_0, or any all-ones poly)
+    # Detect existing intercept columns (any all-ones confound)
     _has_intercept = False
     if dm.confounds:
         for p in dm.confounds:
@@ -205,7 +208,7 @@ def add_poly(
     # Check if we already have these polynomials (idempotent)
     new_poly_cols = {}
     for i in orders_to_add:
-        poly_name = f"poly_{i}"
+        poly_name = reserved_name(f"poly_{i}")
         if poly_name in dm.confounds:
             warnings.warn(
                 f"Design Matrix already has {i}th order polynomial...skipping",
@@ -213,7 +216,7 @@ def add_poly(
             )
         elif i == 0 and _has_intercept:
             warnings.warn(
-                "Design Matrix already has an intercept column...skipping poly_0",
+                f"Design Matrix already has an intercept column...skipping {poly_name}",
                 stacklevel=3,
             )
         else:
@@ -253,16 +256,17 @@ def add_dct_basis(
         duration (float): Filter duration in seconds. Default: 180.
         drop (int): Number of low-frequency bases to drop. Default: 0.
         include_constant (bool): If True, also add a constant/intercept column
-            named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`).
+            named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`).
             The underlying DCT basis drops the constant per SPM convention;
             set False to match SPM behavior. Default: True.
 
     Returns:
-        DesignMatrix: New DesignMatrix with DCT basis columns appended.
+        DesignMatrix: New DesignMatrix with DCT basis columns appended, named
+        ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
-        ValueError: If sampling_freq is not set or if ambiguous cosine bases
-            exist from a previous append operation.
+        ValueError: If sampling_freq is not set, or if the design already
+            carries run-separated drift terms from a previous multi-run append.
     """
     from nltools.algorithms.signal import make_cosine_basis
 
@@ -272,15 +276,13 @@ def add_dct_basis(
             "Specify sampling_freq when creating: DesignMatrix(..., sampling_freq=0.5)"
         )
 
-    # Check for ambiguous cosine bases from previous append operations
-    if dm.confounds and any(
-        elem.count("_") == 2 and "cosine" in elem for elem in dm.confounds
-    ):
+    # Adding a global drift term on top of per-run ones is ambiguous.
+    if has_run_separated_drift(dm):
         raise ValueError(
-            "This Design Matrix contains cosine bases that were kept "
-            "separate from a previous append operation. This makes it ambiguous "
-            "for adding polynomial terms. Try calling .add_dct_basis() on each "
-            "separate Design Matrix before appending them instead."
+            "This Design Matrix contains run-separated drift terms (polynomial "
+            "or cosine) from a previous append operation, which makes adding "
+            "global cosine bases ambiguous. Call .add_dct_basis() on each "
+            "single-run Design Matrix before appending them instead."
         )
 
     # Create DCT basis matrix using stats function
@@ -288,15 +290,18 @@ def add_dct_basis(
         dm.shape[0], 1.0 / dm.sampling_freq, duration, drop=drop
     )
 
-    # Generate column names (cosine_1, cosine_2, ...)
+    # Generate column names (.nl_cosine_1, .nl_cosine_2, ...)
     # Note: If drop > 0, numbering starts from drop+1 to reflect original indices
-    # e.g., drop=2 -> cosine_3, cosine_4, ... (skipped cosine_1, cosine_2)
-    basis_col_names = [f"cosine_{drop + i + 1}" for i in range(basis_mat.shape[1])]
+    # e.g., drop=2 -> .nl_cosine_3, .nl_cosine_4, ... (skipped 1 and 2)
+    basis_col_names = [
+        reserved_name(f"cosine_{drop + i + 1}") for i in range(basis_mat.shape[1])
+    ]
 
-    # Optionally prepend cosine_0 (constant/intercept) — mirrors poly_0 in add_poly.
+    # Optionally prepend the constant/intercept — mirrors .nl_poly_0 in add_poly.
     # make_cosine_basis drops the constant per SPM; we re-add it here when asked,
     # and skip if an intercept-like confounds column already exists.
     if include_constant:
+        constant_name = reserved_name("cosine_0")
         _has_intercept = False
         if dm.confounds:
             for p in dm.confounds:
@@ -304,13 +309,13 @@ def add_dct_basis(
                 if np.allclose(col_vals, 1.0):
                     _has_intercept = True
                     break
-        if "cosine_0" in (dm.confounds or []) or _has_intercept:
+        if constant_name in (dm.confounds or []) or _has_intercept:
             warnings.warn(
-                "Design Matrix already has an intercept column...skipping cosine_0",
+                f"Design Matrix already has an intercept column...skipping {constant_name}",
                 stacklevel=3,
             )
         else:
-            basis_col_names.insert(0, "cosine_0")
+            basis_col_names.insert(0, constant_name)
             basis_mat = np.column_stack([np.ones(dm.shape[0]), basis_mat])
 
     # Check which bases we don't already have (idempotent)

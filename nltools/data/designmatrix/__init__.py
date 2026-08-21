@@ -90,7 +90,7 @@ class DesignMatrix:
         >>> # Multi-run concatenation (auto-separates polynomials)
         >>> dm_run1 = DesignMatrix(...).add_poly(0)
         >>> dm_run2 = DesignMatrix(...).add_poly(0)
-        >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+        >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates .nl_r0_poly_0, .nl_r1_poly_0
     """
 
     _metadata = ["sampling_freq", "convolved", "confounds", "multi"]
@@ -448,7 +448,7 @@ class DesignMatrix:
             duration (float): Filter duration in seconds. Default: 180.
             drop (int): Number of low-frequency bases to drop. Default: 0.
             include_constant (bool): If True, also add a constant/intercept
-                column named ``cosine_0`` (analogous to ``poly_0`` in
+                column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in
                 `add_poly`). The underlying DCT basis drops the constant
                 per SPM convention; set False to match SPM behavior.
                 Default: True.

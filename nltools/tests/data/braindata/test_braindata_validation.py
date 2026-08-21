@@ -40,7 +40,7 @@ class TestValidateFrame:
         out = validate_frame(dm)
         assert isinstance(out, pl.DataFrame)
         assert out.shape == (3, 3)
-        assert set(out.columns) == {"stim", "drift", "poly_0"}
+        assert set(out.columns) == {"stim", "drift", ".nl_poly_0"}
 
     def test_accepts_numpy_2d(self):
         arr = np.arange(6, dtype=float).reshape(3, 2)

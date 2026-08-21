@@ -1,3 +1,4 @@
+import polars as pl
 import pytest
 
 from nltools.data.designmatrix import DesignMatrix
@@ -13,7 +14,7 @@ class TestDesignMatrixConcatenation:
     - keep_separate=True: Automatically separate polynomial columns across runs
     - unique_cols: User-specified columns to keep separated
     - Wildcard support: 'house*' matches house_A, house_B
-    - Auto-numbering: 0_poly_0, 1_poly_0, 2_poly_0 for multi-run
+    - Auto-numbering: .nl_r0_poly_0, .nl_r1_poly_0, .nl_r2_poly_0 for multi-run
     """
 
     def test_horizontal_append_adds_columns(self):
@@ -135,7 +136,7 @@ class TestDesignMatrixConcatenation:
 
         Expected behavior:
         - Stimulus columns shared across runs (NOT duplicated)
-        - Polynomial columns separated with run prefix: 0_poly_0, 1_poly_0
+        - Polynomial columns separated with run prefix: .nl_r0_poly_0, .nl_r1_poly_0
         - .multi flag set to True
         - Run 1 polynomials active only in run 1 rows (others filled with 0)
         - Run 2 polynomials active only in run 2 rows
@@ -144,7 +145,7 @@ class TestDesignMatrixConcatenation:
         """
         # Run 1: 4 TRs with stimulus and intercept
         dm1 = DesignMatrix({"stim": [1, 0, 0, 0]}, sampling_freq=1)
-        dm1 = dm1.add_poly(order=0)  # Adds 'poly_0' (intercept)
+        dm1 = dm1.add_poly(order=0)  # Adds '.nl_poly_0' (intercept)
 
         # Run 2: 4 TRs with different stimulus timing, same intercept
         dm2 = DesignMatrix({"stim": [0, 1, 0, 0]}, sampling_freq=1)
@@ -155,16 +156,16 @@ class TestDesignMatrixConcatenation:
 
         # Verify structure
         assert dm_runs.shape == (8, 3), (
-            "Should have 8 rows (4+4), 3 columns (stim, 0_poly_0, 1_poly_0)"
+            "Should have 8 rows (4+4), 3 columns (stim, .nl_r0_poly_0, .nl_r1_poly_0)"
         )
         assert "stim" in dm_runs.columns, "Stimulus should be shared"
-        assert "0_poly_0" in dm_runs.columns, "Run 1 intercept should be separated"
-        assert "1_poly_0" in dm_runs.columns, "Run 2 intercept should be separated"
+        assert ".nl_r0_poly_0" in dm_runs.columns, "Run 1 intercept should be separated"
+        assert ".nl_r1_poly_0" in dm_runs.columns, "Run 2 intercept should be separated"
         assert dm_runs.multi is True, "Multi-run flag should be set"
 
         # Verify separation: run 1 intercept active only in first 4 rows
-        run1_intercept = dm_runs["0_poly_0"].to_list()
-        run2_intercept = dm_runs["1_poly_0"].to_list()
+        run1_intercept = dm_runs[".nl_r0_poly_0"].to_list()
+        run2_intercept = dm_runs[".nl_r1_poly_0"].to_list()
 
         assert sum(run1_intercept[:4]) > 0, (
             "Run 1 intercept should be active in first 4 rows"
@@ -200,14 +201,14 @@ class TestDesignMatrixConcatenation:
         dm_runs = dm1.append(dm2, axis=0, unique_cols=["motion_x", "motion_y"])
 
         # Motion columns should be separated
-        assert "0_motion_x" in dm_runs.columns
-        assert "0_motion_y" in dm_runs.columns
-        assert "1_motion_x" in dm_runs.columns
-        assert "1_motion_y" in dm_runs.columns
+        assert ".nl_r0_motion_x" in dm_runs.columns
+        assert ".nl_r0_motion_y" in dm_runs.columns
+        assert ".nl_r1_motion_x" in dm_runs.columns
+        assert ".nl_r1_motion_y" in dm_runs.columns
 
         # Stimulus should be shared (not separated)
         assert "stim" in dm_runs.columns
-        assert "0_stim" not in dm_runs.columns
+        assert ".nl_r0_stim" not in dm_runs.columns
 
     def test_vertical_append_unique_cols_wildcard_prefix(self):
         """
@@ -231,14 +232,14 @@ class TestDesignMatrixConcatenation:
         dm_runs = dm1.append(dm2, axis=0, unique_cols=["house*"])
 
         # House columns separated
-        assert "0_house_A" in dm_runs.columns
-        assert "0_house_B" in dm_runs.columns
-        assert "1_house_A" in dm_runs.columns
-        assert "1_house_B" in dm_runs.columns
+        assert ".nl_r0_house_A" in dm_runs.columns
+        assert ".nl_r0_house_B" in dm_runs.columns
+        assert ".nl_r1_house_A" in dm_runs.columns
+        assert ".nl_r1_house_B" in dm_runs.columns
 
         # Face column shared
         assert "face_A" in dm_runs.columns
-        assert "0_face_A" not in dm_runs.columns
+        assert ".nl_r0_face_A" not in dm_runs.columns
 
     def test_vertical_append_unique_cols_wildcard_suffix(self):
         """
@@ -260,8 +261,8 @@ class TestDesignMatrixConcatenation:
 
         dm_runs = dm1.append(dm2, axis=0, unique_cols=["*_motion"])
 
-        assert "0_x_motion" in dm_runs.columns
-        assert "1_y_motion" in dm_runs.columns
+        assert ".nl_r0_x_motion" in dm_runs.columns
+        assert ".nl_r1_y_motion" in dm_runs.columns
         assert "stim" in dm_runs.columns
 
     def test_vertical_append_multiple_runs_increments_numbering(self):
@@ -282,9 +283,9 @@ class TestDesignMatrixConcatenation:
         # Chain appends
         dm_runs = dm1.append(dm2, axis=0).append(dm3, axis=0)
 
-        assert "0_poly_0" in dm_runs.columns, "Run 1 intercept"
-        assert "1_poly_0" in dm_runs.columns, "Run 2 intercept"
-        assert "2_poly_0" in dm_runs.columns, "Run 3 intercept"
+        assert ".nl_r0_poly_0" in dm_runs.columns, "Run 1 intercept"
+        assert ".nl_r1_poly_0" in dm_runs.columns, "Run 2 intercept"
+        assert ".nl_r2_poly_0" in dm_runs.columns, "Run 3 intercept"
 
     def test_vertical_append_fill_na_fills_missing_columns(self):
         """
@@ -333,8 +334,8 @@ class TestDesignMatrixConcatenation:
         After separation, .confounds metadata should contain all separated poly names.
 
         Expected behavior:
-        - .confounds list contains '0_poly_0', '1_poly_0', etc.
-        - Original 'poly_0' not in metadata (replaced by separated versions)
+        - .confounds list contains '.nl_r0_poly_0', '.nl_r1_poly_0', etc.
+        - Original '.nl_poly_0' not in metadata (replaced by separated versions)
 
         Use case: Track which columns are confounds for later operations
         """
@@ -343,9 +344,9 @@ class TestDesignMatrixConcatenation:
 
         dm_runs = dm1.append(dm2, axis=0, keep_separate=True)
 
-        assert "0_poly_0" in dm_runs.confounds
-        assert "1_poly_0" in dm_runs.confounds
-        assert "poly_0" not in dm_runs.confounds  # Original name replaced
+        assert ".nl_r0_poly_0" in dm_runs.confounds
+        assert ".nl_r1_poly_0" in dm_runs.confounds
+        assert ".nl_poly_0" not in dm_runs.confounds  # Original name replaced
 
 
 class TestDesignMatrixAppendMetadata:
@@ -393,7 +394,7 @@ class TestDesignMatrixAppendMetadata:
         )
 
         out = dm1.append(dm2, axis=0, unique_cols=["motion_x"])
-        assert set(out.convolved) == {"0_motion_x", "1_motion_x"}
+        assert set(out.convolved) == {".nl_r0_motion_x", ".nl_r1_motion_x"}
 
 
 class TestDesignMatrixAppendErrors:
@@ -446,8 +447,8 @@ class TestDesignMatrixAppendFillNa:
         dm2 = DesignMatrix({"s": [3, 4]}, sampling_freq=1).add_poly(0)
         out = dm1.append(dm2, axis=0, keep_separate=True, fill_na=None)
         # Separated poly columns: null in the other run, not 0
-        assert out["0_poly_0"].to_list()[2:] == [None, None]
-        assert out["1_poly_0"].to_list()[:2] == [None, None]
+        assert out[".nl_r0_poly_0"].to_list()[2:] == [None, None]
+        assert out[".nl_r1_poly_0"].to_list()[:2] == [None, None]
 
     def test_fill_na_none_preserves_nulls_in_horizontal(self):
         """Horizontal append with fill_na=None keeps nulls (when shapes differ would fail, but equal shapes no nulls)."""
@@ -510,3 +511,36 @@ class TestAppendDuplicateValues:
 
         out = dm1.append(dm2, axis=1)
         assert set(out.columns) == {"x1", "x2", "y"}
+
+
+class TestReservedNamespaceOnAppend:
+    """Raw frames may not smuggle user columns into the reserved namespace.
+
+    Columns arriving as a plain pandas/polars frame are user-authored by
+    definition, so a ``.nl_``-prefixed name among them would make a user
+    column indistinguishable from one nltools generated — which is exactly
+    what the prefix exists to prevent. DesignMatrix inputs are unaffected:
+    their generated columns legitimately carry the prefix.
+    """
+
+    def test_raw_polars_frame_with_reserved_name_raises(self):
+        dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
+        raw = pl.DataFrame({".nl_poly_0": [1.0, 1.0, 1.0]})
+
+        with pytest.raises(ValueError, match=r"reserved.*\.nl_poly_0|\.nl_poly_0"):
+            dm.append(raw, axis=1)
+
+    def test_raw_frame_with_ordinary_names_is_unaffected(self):
+        dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
+        raw = pl.DataFrame({"trans_x_sq": [0.1, 0.2, 0.3]})
+
+        out = dm.append(raw, axis=1)
+        assert "trans_x_sq" in out.columns
+
+    def test_designmatrix_with_generated_columns_still_appends(self):
+        """The guard targets raw frames only — generated columns pass through."""
+        dm = DesignMatrix({"task": [1.0, 2.0, 3.0]}, sampling_freq=1)
+        other = DesignMatrix({"csf": [0.5, 0.4, 0.3]}, sampling_freq=1).add_poly(0)
+
+        out = dm.append(other, axis=1)
+        assert ".nl_poly_0" in out.columns

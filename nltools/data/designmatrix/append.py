@@ -10,6 +10,13 @@ from typing import TYPE_CHECKING
 
 import polars as pl
 
+from nltools.utils import (
+    RESERVED_PREFIX,
+    is_reserved_name,
+    parse_run_separated,
+    run_separated_name,
+)
+
 from .utils import copy_with
 
 if TYPE_CHECKING:
@@ -62,12 +69,23 @@ def _coerce_horizontal_input(x, sampling_freq):
 
     Raises:
         TypeError: If ``x`` is not a DesignMatrix or supported DataFrame.
+        ValueError: If a raw frame's columns intrude on the reserved namespace.
     """
     from nltools.data.designmatrix import DesignMatrix, _is_pandas_dataframe
 
     if isinstance(x, DesignMatrix):
         return x
     if isinstance(x, pl.DataFrame) or _is_pandas_dataframe(x):
+        # Columns arriving as a raw frame are user-authored by definition, so
+        # the reserved namespace is off limits: letting them in would make a
+        # user column indistinguishable from one nltools generated.
+        reserved = sorted(c for c in x.columns if is_reserved_name(c))
+        if reserved:
+            raise ValueError(
+                f"Column names starting with {RESERVED_PREFIX!r} are reserved for "
+                f"regressors nltools generates (polynomials, cosine bases, spikes, "
+                f"run-separated columns): {reserved}. Rename them before appending."
+            )
         # Build once, then re-wrap so we can pass `confounds=` via the
         # constructor (the public attribute is read-only).
         tmp = DesignMatrix(x, sampling_freq=sampling_freq)
@@ -377,14 +395,12 @@ def get_starting_run_idx(dm: DesignMatrix) -> int:
     if not dm.multi:
         return 0
 
-    # Find max run index from column names like "0_poly_0", "1_motion_x"
+    # Find max run index from run-separated names like ".nl_r0_poly_0"
     max_idx = -1
     for col in dm.columns:
-        if "_" in col:
-            first_part = col.split("_")[0]
-            if first_part.isdigit():
-                idx = int(first_part)
-                max_idx = max(max_idx, idx)
+        parsed = parse_run_separated(col)
+        if parsed is not None:
+            max_idx = max(max_idx, parsed[0])
 
     return max_idx + 1 if max_idx >= 0 else 0
 
@@ -437,7 +453,7 @@ def append_vertical_with_separation(
 ) -> DesignMatrix:
     """Concatenate vertically with automatic confound separation.
 
-    Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
+    Creates run-specific columns (e.g., .nl_r0_poly_0, .nl_r1_poly_0) that are
     active only in their respective runs (sparse representation).
 
     Args:
@@ -470,7 +486,11 @@ def append_vertical_with_separation(
         all_new_convolved: list[str] = []
 
         for i, d in enumerate(all_dms):
-            rename_map = {col: f"{i}_{col}" for col in d.columns if col in cols_to_sep}
+            rename_map = {
+                col: run_separated_name(i, col)
+                for col in d.columns
+                if col in cols_to_sep
+            }
             processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)
 
@@ -496,7 +516,9 @@ def append_vertical_with_separation(
         for i, d in enumerate(to_append):
             run_idx = start_idx + i
             rename_map = {
-                col: f"{run_idx}_{col}" for col in d.columns if col in cols_to_sep
+                col: run_separated_name(run_idx, col)
+                for col in d.columns
+                if col in cols_to_sep
             }
             processed_df = d.data.rename(rename_map) if rename_map else d.data
             processed_dfs.append(processed_df)

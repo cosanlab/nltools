@@ -41,6 +41,16 @@ The four facades and their submodules:
   Leading underscores are fine for internal functions/methods, just not filenames.
 - **Facade translation at the boundary.** Internal algorithm-layer APIs may keep legacy
   parameter names; the class facade translates to the [canonical vocabulary](#canonical-api-vocabulary).
+- **Generated column names live in the reserved `.nl_` namespace.** Any column nltools
+  invents rather than the user — polynomial drift (`.nl_poly_0`), DCT cosines
+  (`.nl_cosine_1`), spike indicators (`.nl_global_spike1`), and the run-separated
+  variants a multi-run append produces (`.nl_r0_poly_0`) — is built with
+  `nltools.utils.reserved_name()` / `run_separated_name()`. Code that needs to
+  recognize nltools' own columns tests the prefix (`is_reserved_name`,
+  `parse_run_separated`, or a domain predicate built on them like
+  `designmatrix.utils.is_generated_intercept`) and **never** pattern-matches
+  user-controlled names — no underscore counts, no substring tests. Users may then name
+  their regressors anything without colliding with the machinery.
 
 ### Canonical API vocabulary
 

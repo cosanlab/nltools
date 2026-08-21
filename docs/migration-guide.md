@@ -31,6 +31,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
 | **`DesignMatrix.convolve()` columns** | 1-D kernel: name preserved (`stim` → `stim`); 2-D kernel: `stim_c0`, `stim_c1` | Always suffixed `<col>_c{i}`; source column dropped (`stim` → `stim_c0`) | **Renamed (consistent)** |
+| **Generated column names** | `poly_0`, `cosine_1`, `global_spike1`, `0_poly_0` | `.nl_poly_0`, `.nl_cosine_1`, `.nl_global_spike1`, `.nl_r0_poly_0` — the reserved `.nl_` namespace | **Renamed** |
 | **Plotting functions** | `surface_plot`, `scatterplot`, `roc_plot`, `heatmap`, … | `plot_surf`, `plot_scatter`, `plot_roc`, `plot_designmatrix`, … | **Renamed** |
 | **`nifti_masker` attr** | `brain_data.nifti_masker` | Use `nilearn.masking.apply_mask(img, bd.mask)` | **Removed** |
 | **`nltools.prefs`** | Stateful template singleton | `set_brainspace()` / `get_brainspace()` / `with_brainspace()` | **Removed** |
@@ -204,8 +205,8 @@ spikes = bold.find_spikes(global_spike_cutoff=0.8, diff_spike_cutoff=0.8, TR=2.4
 # now:    16 columns, rank 16  -> full rank
 ```
 
-When a TR is flagged by both detectors the `global_spike` column is kept, so the
-result is deterministic rather than dependent on insertion order.
+When a TR is flagged by both detectors the `.nl_global_spike` column is kept, so
+the result is deterministic rather than dependent on insertion order.
 
 This is deduplication of the function's own output rather than a modeling
 decision — the colliding columns are bitwise identical, so only the retained
@@ -238,6 +239,78 @@ result reports `(n_tr, 0)` and appends as a no-op. `DesignMatrix.append()` also
 skips regressor-less matrices outright, so this composes even for matrices built
 without an explicit height.
 
+(reserved-column-prefix)=
+### Generated columns are namespaced with `.nl_`
+
+**Status**: ⚠️ **BREAKING** (v0.6.0) — every column nltools generates was renamed
+
+Column names nltools invents now live in a reserved namespace marked by the
+prefix `.nl_`. Nothing about the columns themselves changed — only their names:
+
+| v0.5.1 | v0.6.0 | Produced by |
+|---|---|---|
+| `poly_0`, `poly_1`, … | `.nl_poly_0`, `.nl_poly_1`, … | `DesignMatrix.add_poly()` |
+| `cosine_0`, `cosine_1`, … | `.nl_cosine_0`, `.nl_cosine_1`, … | `DesignMatrix.add_dct_basis()` |
+| `global_spike1`, `diff_spike1`, … | `.nl_global_spike1`, `.nl_diff_spike1`, … | `find_spikes()` |
+| `0_poly_0`, `1_motion_x`, … | `.nl_r0_poly_0`, `.nl_r1_motion_x`, … | `append(axis=0, keep_separate=True)` |
+
+Note the run-separation form: the run index moved inside the prefix and gained
+an `r` (`0_poly_0` → `.nl_r0_poly_0`), and prefixes never stack — a
+`.nl_poly_0` separated into run 1 becomes `.nl_r1_poly_0`, not
+`.nl_r1_.nl_poly_0`. Run separation applies to your own confound columns too,
+so a user column `motion_x` becomes `.nl_r0_motion_x`: the run-prefixed variant
+is a name nltools generated, so it belongs to the reserved namespace.
+
+**Why.** nltools has to recognize its own columns — to refuse a global drift
+term on a design that already models drift per run, to drop intercepts before
+computing VIF, and so on. Those checks used to be heuristics over
+user-controlled names, and they were wrong in both directions. `add_poly()`
+counted underscores, so a design carrying the standard 24-parameter motion
+expansion (`trans_x_sq`, `rot_x_diff_sq`, …) could not have drift terms added
+at all:
+
+```python
+task.append(motion_24, axis=1, as_confounds=True).add_poly(order=2)
+# v0.5.1: ValueError: ...polynomial terms that were kept separate...
+# v0.6.0: works — the design has no run-separated drift terms
+```
+
+and `vif(exclude_confounds=False)` dropped any column whose name merely
+contained `poly_0` while missing the all-ones `cosine_0` it actually needed to
+drop. With a namespace nltools controls, both checks key on the prefix and
+neither can be fooled: **you can now name your own regressors anything.**
+
+**What to change.** Any code that refers to a generated column by name:
+
+```python
+# OLD (v0.5.1)
+dm["poly_0"]
+dm.columns.get_loc("0_poly_0")
+betas = fit.betas[dm.columns.index("cosine_1")]
+
+# NEW (v0.6.0)
+dm[".nl_poly_0"]
+dm.columns.index(".nl_r0_poly_0")
+betas = fit.betas[dm.columns.index(".nl_cosine_1")]
+```
+
+Selecting all generated columns is now a prefix test rather than a pattern
+guess, and `nltools.utils.RESERVED_PREFIX` holds the token so you never need to
+hard-code it:
+
+```python
+from nltools.utils import RESERVED_PREFIX, is_reserved_name
+
+generated = [c for c in dm.columns if is_reserved_name(c)]
+task_only = [c for c in dm.columns if not c.startswith(RESERVED_PREFIX)]
+```
+
+**One new restriction.** `append(axis=1)` refuses a raw pandas/polars frame
+whose columns use the reserved prefix — those columns are yours by definition,
+and letting them in would make a user column indistinguishable from a generated
+one. Rename them before appending. `DesignMatrix` inputs are unaffected: their
+generated columns legitimately carry the prefix.
+
 (fit-no-implicit-design-clean)=
 ### `fit()` no longer cleans the design matrix
 
@@ -268,8 +341,8 @@ kept the first column of each correlated pair and dropped the second — making
 the fitted model depend on the order you happened to build the design in:
 
 ```python
-base.add_dct_basis(duration=128).add_poly(order=2)   # dropped poly_1, poly_2
-base.add_poly(order=2).add_dct_basis(duration=128)   # dropped cosine_1, cosine_2
+base.add_dct_basis(duration=128).add_poly(order=2)   # dropped .nl_poly_1, .nl_poly_2
+base.add_poly(order=2).add_dct_basis(duration=128)   # dropped .nl_cosine_1, .nl_cosine_2
 ```
 
 Same regressors, same data, two different models, no warning either way.
@@ -660,7 +733,7 @@ The DesignMatrix metadata list that tracks nuisance columns (intercept, polynomi
 ```text
 DesignMatrix(sampling_freq=0.5, shape=(200, 6))
   convolved (2): ['stim_c0', 'cue_c0']
-  confounds (3): ['poly_0', 'poly_1', 'poly_2']
+  confounds (3): ['.nl_poly_0', '.nl_poly_1', '.nl_poly_2']
 ```
 
 `DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`). There is no DM HDF5 reader yet, so this only affects newly written files.
@@ -686,7 +759,7 @@ combined.confounds = list(motion.columns) + ["csf"] + list(spikes.columns)
 # NEW (v0.6.0) — append manages both lists for you
 combined = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
 # combined.convolved → ['stim_c0', ...]
-# combined.confounds → ['motion_tx', ..., 'csf', 'spike_0', ..., 'poly_0', ...]
+# combined.confounds → ['motion_tx', ..., 'csf', '.nl_global_spike1', ..., '.nl_poly_0', ...]
 ```
 
 If you really need to set initial state explicitly, pass `convolved=` / `confounds=` to the constructor — those kwargs still work (and `copy_with` uses them internally for metadata propagation):
@@ -2021,7 +2094,7 @@ is_empty = brain_data.is_empty
 - [ ] Update `.smooth()` to assign return value (returns copy now)
 - [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
 - [ ] Remove any `DesignMatrix.reset_index()` calls (pandas-compat no-op; removed)
-- [ ] `DesignMatrix.add_dct_basis()` now adds a `cosine_0` constant column by default (parity with `add_poly(0)` → `poly_0`). If you were chaining `.add_poly(0)` after `.add_dct_basis()` and relied on no intercept from the DCT call, drop the now-redundant `add_poly(0)` or pass `include_constant=False` to restore the old SPM-style (no-constant) behaviour.
+- [ ] `DesignMatrix.add_dct_basis()` now adds a `.nl_cosine_0` constant column by default (parity with `add_poly(0)` → `.nl_poly_0`). If you were chaining `.add_poly(0)` after `.add_dct_basis()` and relied on no intercept from the DCT call, drop the now-redundant `add_poly(0)` or pass `include_constant=False` to restore the old SPM-style (no-constant) behaviour.
 
 ### Optional (new features to consider)
 

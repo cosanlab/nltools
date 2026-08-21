@@ -334,7 +334,7 @@ class TestFindSpikesDeduplication:
             )
 
     def test_dedup_keeps_the_global_detection(self, colliding_nifti):
-        """When both detectors flag a TR, the global_spike name is retained.
+        """When both detectors flag a TR, the .nl_global_spike name is retained.
 
         The columns are bitwise identical, so this is purely about which name
         survives — but it must be deterministic, not insertion-ordered.
@@ -355,7 +355,7 @@ class TestFindSpikesDeduplication:
         assert collided, "fixture invariant: expected at least one collision"
         kept_by_tr = dict(zip((t for (t,) in self._flagged_trs(dm)), dm.columns))
         for tr in collided:
-            assert kept_by_tr[tr].startswith("global_spike")
+            assert kept_by_tr[tr].startswith(".nl_global_spike")
 
     def test_dedup_does_not_merge_distinct_trs(self, spike_nifti):
         """Non-colliding detections are all preserved."""
@@ -419,9 +419,40 @@ class TestFindSpikesNoSpikes:
             [spikes], axis=1, as_confounds=True
         )
         assert out.shape[0] == 60
-        assert {"poly_0", "poly_1"} <= set(out.columns)
+        assert {".nl_poly_0", ".nl_poly_1"} <= set(out.columns)
 
     def test_no_spikes_is_empty_property(self, clean_nifti):
         """No columns means no regressors, even though rows are known."""
         dm = find_spikes(clean_nifti, global_spike_cutoff=100, diff_spike_cutoff=100)
         assert dm.is_empty
+
+
+class TestFindSpikesReservedPrefix:
+    """Spike indicator columns live in the reserved ``.nl_`` namespace.
+
+    `find_spikes` generates column names the user never chose, so they follow
+    the same reserved-prefix convention as DesignMatrix's own machinery
+    (``.nl_poly_*``, ``.nl_cosine_*``): ``.nl_global_spike{n}`` and
+    ``.nl_diff_spike{n}``.
+    """
+
+    @pytest.fixture
+    def spike_nifti(self):
+        import nibabel as nib
+
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal((4, 4, 4, 30))
+        data[..., 5] += 50
+        data[..., 20] += 50
+        return nib.Nifti1Image(data, affine=np.eye(4))
+
+    def test_spike_columns_use_reserved_prefix(self, spike_nifti):
+        dm = find_spikes(spike_nifti)
+        assert dm.shape[1] > 0
+        assert all(
+            c.startswith((".nl_global_spike", ".nl_diff_spike")) for c in dm.columns
+        )
+
+    def test_global_detection_name_survives_dedup(self, spike_nifti):
+        dm = find_spikes(spike_nifti, global_spike_cutoff=1.0, diff_spike_cutoff=1.0)
+        assert any(c.startswith(".nl_global_spike") for c in dm.columns)

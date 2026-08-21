@@ -4,6 +4,8 @@ import numpy as np
 import polars as pl
 import nibabel as nib
 
+from nltools.utils import reserved_name
+
 __all__ = ["find_spikes", "trim", "winsorize", "zscore"]
 
 
@@ -205,12 +207,14 @@ def find_spikes(
         sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
 
     Returns:
-        DesignMatrix: one indicator column per detected spike TR, with all
+        DesignMatrix: one indicator column per detected spike TR, named
+        ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved
+        namespace for generated columns (see `RESERVED_PREFIX`), with all
         spike columns pre-marked as confounds. The two detectors run
         independently, so a single bad volume is routinely caught by both;
         those detections are bitwise-identical one-hot columns, and only one
-        is kept (named ``global_spike*``, a deterministic tie-break — the
-        column values are the same either way). Row position is the time
+        is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —
+        the column values are the same either way). Row position is the time
         axis (no separate `TR` index column — that was a pandas-era
         artifact). When `TR` / `sampling_freq` aren't provided the DM has
         `sampling_freq=None`; you can still `.append()` it onto a DM that
@@ -266,14 +270,14 @@ def find_spikes(
 
     if global_spike_cutoff is not None:
         for i, loc in enumerate(global_outliers):
-            col_name = f"global_spike{i + 1}"
+            col_name = reserved_name(f"global_spike{i + 1}")
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
 
     if diff_spike_cutoff is not None:
         for i, loc in enumerate(frame_outliers):
-            col_name = f"diff_spike{i + 1}"
+            col_name = reserved_name(f"diff_spike{i + 1}")
             col_values = [0] * len(global_mn)
             col_values[int(loc)] = 1
             outlier_data[col_name] = col_values
@@ -284,9 +288,10 @@ def find_spikes(
     # on the flagged position, keeping the global detection so the tie-break
     # is deterministic rather than insertion-ordered. (Only the name is at
     # stake: the colliding columns are bitwise identical.)
+    global_prefix = reserved_name("global_spike")
     seen: dict[int, str] = {}
-    for name in [c for c in outlier_data if c.startswith("global_spike")] + [
-        c for c in outlier_data if not c.startswith("global_spike")
+    for name in [c for c in outlier_data if c.startswith(global_prefix)] + [
+        c for c in outlier_data if not c.startswith(global_prefix)
     ]:
         loc = outlier_data[name].index(1)
         if loc in seen:
