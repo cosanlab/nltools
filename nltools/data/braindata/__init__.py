@@ -806,7 +806,7 @@ class BrainData:
         )
 
     @coalesced_gc()
-    def extract_roi(self, mask, metric="mean", n_components=None):
+    def extract_roi(self, mask, method="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
         Args:
@@ -814,8 +814,8 @@ class BrainData:
 
                   - Binary mask (extracts from single ROI)
                   - Labeled atlas (extracts from multiple ROIs)
-            metric: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
-            n_components: If metric='pca', number of components to return
+            method: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
+            n_components: If method='pca', number of components to return
 
         Returns:
             For binary mask: scalar or 1D array.
@@ -824,11 +824,11 @@ class BrainData:
         Examples:
             >>> roi_values = brain.extract_roi(binary_mask)
             >>> atlas_values = brain.extract_roi(atlas_mask)
-            >>> components = brain.extract_roi(mask, metric='pca', n_components=5)
+            >>> components = brain.extract_roi(mask, method='pca', n_components=5)
         """
         from .analysis import extract_roi
 
-        return extract_roi(self, mask, metric=metric, n_components=n_components)
+        return extract_roi(self, mask, method=method, n_components=n_components)
 
     def filter(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn.signal.clean
         self, *, sampling_freq=None, high_pass=None, low_pass=None, **kwargs

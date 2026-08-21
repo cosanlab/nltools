@@ -390,6 +390,11 @@ Two kwarg renames rode along, applying the canonical `device=` vocabulary to the
 
 The ISC family was canonicalized the same way: `isc_permutation_test` / `isc_group_permutation_test` rename `metric=` (the `'median'|'mean'` central-tendency choice) to **`summary=`** and `sim_metric=` (the similarity metric) to **`metric=`**; `isc_group()` and `BrainCollection.isc` / `.isc_test` likewise take `summary=` instead of `metric=`. All ISC results (wrappers and `BrainCollection` included) now expose the null under the engine-standard **`null_dist`** key — the legacy `null_distribution` key is gone — and the `isc` / `isc_group` wrappers expose `progress_bar: bool = False`.
 
+The same `summary` vocabulary reached the two remaining mean/median knobs on the data classes:
+
+- **`Adjacency.cluster_summary(method=, summary=)` → `cluster_summary(summary=, scope=)`** — the `'mean'|'median'|None` central tendency is now `summary=` (was `method=`), and the within/between-cluster choice is now `scope='within'|'between'` (it previously squatted on the `summary=` name).
+- **`BrainData.extract_roi(metric=)` → `extract_roi(method=)`** — `'mean'|'median'|'pca'` selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics.
+
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
 

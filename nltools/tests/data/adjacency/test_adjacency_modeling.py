@@ -123,7 +123,7 @@ class TestAdjacencyModeling:
         X = DesignMatrix(np.ones(n))
         stats = d.regress(X)
         out = stats["beta"].cluster_summary(
-            clusters=["Group1"] * 4 + ["Group2"] * 8, summary="within"
+            clusters=["Group1"] * 4 + ["Group2"] * 8, scope="within"
         )
         assert np.allclose(
             np.array([out["Group1"], out["Group2"]]), np.array([1, 0]), rtol=1e-01
@@ -179,11 +179,12 @@ class TestAdjacencyModeling:
         ):
             np.testing.assert_almost_equal(i, j, decimal=1)
 
-        for i in dat.cluster_summary(clusters=clusters, summary="between").values():
+        for i in dat.cluster_summary(clusters=clusters, scope="between").values():
             np.testing.assert_almost_equal(0, i, decimal=1)
 
-        # v0.6.0: aggregation choice is `method=` (was the reserved `metric=`)
-        cluster_median = dat.cluster_summary(clusters=clusters, method="median")
+        # v0.6.0: central tendency is `summary=` (canonical vocabulary); the
+        # within/between choice is `scope=`. Neither `method=` nor `metric=` exist.
+        cluster_median = dat.cluster_summary(clusters=clusters, summary="median")
         for i, j in zip(
             np.array([1, 2, 3]),
             np.array([cluster_median[x] for x in cluster_median]),
@@ -191,3 +192,15 @@ class TestAdjacencyModeling:
             np.testing.assert_almost_equal(i, j, decimal=1)
         with pytest.raises(TypeError):
             dat.cluster_summary(clusters=clusters, metric="median")
+        with pytest.raises(TypeError):
+            dat.cluster_summary(clusters=clusters, method="median")
+
+    def test_cluster_summary_signature_is_canonical(self):
+        """cluster_summary speaks summary= (central tendency) + scope= (within/between)."""
+        import inspect
+
+        params = inspect.signature(Adjacency.cluster_summary).parameters
+        assert params["summary"].default == "mean"
+        assert params["scope"].default == "within"
+        assert "method" not in params
+        assert "metric" not in params

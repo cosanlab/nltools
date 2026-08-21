@@ -457,7 +457,7 @@ class Adjacency:
             progress_bar=progress_bar,
         )
 
-    def cluster_summary(self, *, clusters=None, method="mean", summary="within"):
+    def cluster_summary(self, *, clusters=None, summary="mean", scope="within"):
         """Provide summaries of clusters within Adjacency matrices.
 
         Computes mean/median of within and between cluster values. Requires a
@@ -465,16 +465,16 @@ class Adjacency:
 
         Args:
             clusters: (list) list of cluster labels
-            method: (str) how to summarize, 'mean' or 'median'. If `None` then return all r values
-            summary: (str) summarize within cluster or between clusters
+            summary: (str) central tendency, 'mean' or 'median'. If `None` then return all r values
+            scope: (str) summarize 'within' cluster or 'between' clusters
 
         Returns:
-            dict: within cluster means
+            dict: per-cluster summaries
 
         """
         from .stats import cluster_summary
 
-        return cluster_summary(self, clusters=clusters, method=method, summary=summary)
+        return cluster_summary(self, clusters=clusters, summary=summary, scope=scope)
 
     def copy(self):
         """Create a copy of Adjacency object."""

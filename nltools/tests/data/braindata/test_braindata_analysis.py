@@ -81,45 +81,53 @@ class TestBrainDataAnalysis:
 
     @pytest.mark.slow
     def test_extract_roi(self, sim_brain_data):
-        """Test ROI extraction with different metrics and labeled atlases."""
+        """Test ROI extraction with different methods and labeled atlases."""
         n_images = sim_brain_data.shape[0]
         mask = create_sphere([12, 10, -8], radius=10)
-        assert len(sim_brain_data.extract_roi(mask, metric="mean")) == n_images
-        assert len(sim_brain_data.extract_roi(mask, metric="median")) == n_images
+        assert len(sim_brain_data.extract_roi(mask, method="mean")) == n_images
+        assert len(sim_brain_data.extract_roi(mask, method="median")) == n_images
         n_components = 2
         assert sim_brain_data.extract_roi(
-            mask, metric="pca", n_components=n_components
+            mask, method="pca", n_components=n_components
         ).shape == (n_components, n_images)
         with pytest.raises(NotImplementedError):
-            sim_brain_data.extract_roi(mask, metric="p")
+            sim_brain_data.extract_roi(mask, method="p")
 
         assert isinstance(
-            sim_brain_data[0].extract_roi(mask, metric="mean"), (float, np.floating)
+            sim_brain_data[0].extract_roi(mask, method="mean"), (float, np.floating)
         )
         with pytest.raises(ValueError):
-            sim_brain_data[0].extract_roi(mask, metric="pca")
+            sim_brain_data[0].extract_roi(mask, method="pca")
 
         s1 = create_sphere([15, 10, -8], radius=10)
         s2 = create_sphere([-15, 10, -8], radius=10)
         s3 = create_sphere([0, -15, -8], radius=10)
         masks = BrainData([s1, s2, s3])
         mask = roi_to_brain([1, 2, 3], masks)
-        assert len(sim_brain_data[0].extract_roi(mask, metric="mean")) == len(masks)
-        assert sim_brain_data.extract_roi(mask, metric="mean").shape == (
+        assert len(sim_brain_data[0].extract_roi(mask, method="mean")) == len(masks)
+        assert sim_brain_data.extract_roi(mask, method="mean").shape == (
             len(masks),
             n_images,
         )
 
         # PCA on labeled atlas: n_components > 1 → list of per-ROI arrays
-        pca_multi = sim_brain_data.extract_roi(mask, metric="pca", n_components=2)
+        pca_multi = sim_brain_data.extract_roi(mask, method="pca", n_components=2)
         assert isinstance(pca_multi, list)
         assert len(pca_multi) == len(masks)
         assert all(comp.shape == (2, n_images) for comp in pca_multi)
 
         # n_components == 1 → stacked ndarray
-        pca_single = sim_brain_data.extract_roi(mask, metric="pca", n_components=1)
+        pca_single = sim_brain_data.extract_roi(mask, method="pca", n_components=1)
         assert isinstance(pca_single, np.ndarray)
         assert pca_single.shape == (len(masks), 1, n_images)
+
+    def test_extract_roi_signature_is_canonical(self):
+        """extract_roi selects an extraction variant via method= (metric is reserved)."""
+        import inspect
+
+        params = inspect.signature(BrainData.extract_roi).parameters
+        assert params["method"].default == "mean"
+        assert "metric" not in params
 
     # ==================== Transform Methods ====================
 

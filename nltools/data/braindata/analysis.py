@@ -518,7 +518,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     return masked
 
 
-def extract_roi(bd, mask, metric="mean", n_components=None):
+def extract_roi(bd, mask, method="mean", n_components=None):
     """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
     This method now uses nilearn's NiftiLabelsMasker for efficient ROI extraction
@@ -530,9 +530,9 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
 
               - Binary mask (extracts from single ROI)
               - Labeled atlas (extracts from multiple ROIs)
-        metric: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
+        method: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
                 Note: 'median' and 'pca' require additional computation after extraction
-        n_components: If metric='pca', number of components to return
+        n_components: If method='pca', number of components to return
 
     Returns:
         For binary mask:
@@ -544,7 +544,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
 
             - Single image: 1D array (one value per ROI)
             - Multiple images: 2D array (images x ROIs)
-            - If metric='pca': returns components array
+            - If method='pca': returns components array
 
     Examples:
         >>> # Extract mean from binary mask
@@ -552,15 +552,15 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
         >>> # Extract from atlas
         >>> atlas_values = brain.extract_roi(atlas_mask)
         >>> # PCA extraction
-        >>> components = brain.extract_roi(mask, metric='pca', n_components=5)
+        >>> components = brain.extract_roi(mask, method='pca', n_components=5)
     """
     from nilearn.maskers import NiftiLabelsMasker
 
     from .utils import check_brain_data, check_brain_data_is_single
 
-    metrics = ["mean", "median", "pca"]
-    if metric not in metrics:
-        raise NotImplementedError(f"metric must be one of {metrics}, got {metric}")
+    methods = ["mean", "median", "pca"]
+    if method not in methods:
+        raise NotImplementedError(f"method must be one of {methods}, got {method}")
 
     # Convert mask to BrainData if needed
     mask_brain = check_brain_data(mask)
@@ -575,11 +575,11 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
         masked = apply_mask(bd, mask_brain)
         is_single = check_brain_data_is_single(masked)
 
-        if metric == "mean":
+        if method == "mean":
             out = masked.mean() if is_single else masked.mean(axis=1)
-        elif metric == "median":
+        elif method == "median":
             out = masked.median() if is_single else masked.median(axis=1)
-        elif metric == "pca":
+        elif method == "pca":
             if is_single:
                 raise ValueError("Cannot run PCA on a single image")
             # Check if masked has any data
@@ -598,10 +598,10 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
         mask_brain.data = np.round(mask_brain.data).astype(np.int32)
         mask_img = mask_brain.to_nifti()
 
-        # Create masker based on metric
-        if metric in ["mean", "median"]:
+        # Create masker based on method
+        if method in ["mean", "median"]:
             # For mean/median, use NiftiLabelsMasker
-            strategy = "mean" if metric == "mean" else "median"
+            strategy = "mean" if method == "mean" else "median"
             labels_masker = NiftiLabelsMasker(
                 labels_img=mask_img,
                 strategy=strategy,
@@ -621,7 +621,7 @@ def extract_roi(bd, mask, metric="mean", n_components=None):
                 # For multiple images, transpose to (n_labels, n_images)
                 out = out.T
 
-        elif metric == "pca":
+        elif method == "pca":
             # Extract voxels from the whole atlas once, then slice by label in
             # numpy. This avoids rebuilding the nifti and re-resampling per ROI.
             if check_brain_data_is_single(bd):

@@ -509,7 +509,7 @@ def plot_silhouette(
     )
 
 
-def cluster_summary(adj, *, clusters=None, method="mean", summary="within"):
+def cluster_summary(adj, *, clusters=None, summary="mean", scope="within"):
     """This function provides summaries of clusters within Adjacency matrices.
 
     It can compute mean/median of within and between cluster values. Requires a
@@ -518,15 +518,15 @@ def cluster_summary(adj, *, clusters=None, method="mean", summary="within"):
     Args:
         adj (Adjacency): Adjacency instance
         clusters: (list) list of cluster labels
-        method: (str) how to summarize, 'mean' or 'median'. If `None` then return all r values
-        summary: (str) summarize within cluster or between clusters
+        summary: (str) central tendency, 'mean' or 'median'. If `None` then return all r values
+        scope: (str) summarize 'within' cluster or 'between' clusters
 
     Returns:
-        dict: (dict) within cluster means
+        dict: (dict) per-cluster summaries
 
     """
-    if method not in ["mean", "median", None]:
-        raise ValueError("method must be ['mean','median', None]")
+    if summary not in ["mean", "median", None]:
+        raise ValueError("summary must be ['mean','median', None]")
 
     distance = np.asarray(adj.squareform())
     clusters = np.asarray(clusters)
@@ -537,21 +537,21 @@ def cluster_summary(adj, *, clusters=None, method="mean", summary="within"):
     out = {}
     for i in list(set(clusters.tolist())):
         mask_i = clusters == i
-        if summary == "within":
+        if scope == "within":
             within_vals = distance[np.ix_(mask_i, mask_i)][
                 np.triu_indices(mask_i.sum(), k=1)
             ]
-            if method == "mean":
+            if summary == "mean":
                 out[i] = float(np.mean(within_vals))
-            elif method == "median":
+            elif summary == "median":
                 out[i] = float(np.median(within_vals))
             else:
                 out[i] = within_vals
-        elif summary == "between":
+        elif scope == "between":
             between_block = distance[np.ix_(mask_i, ~mask_i)]
-            if method == "mean":
+            if summary == "mean":
                 out[i] = float(np.mean(between_block))
-            elif method == "median":
+            elif summary == "median":
                 out[i] = float(np.median(between_block))
             else:
                 out[i] = between_block
