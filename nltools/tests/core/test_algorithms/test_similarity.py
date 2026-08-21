@@ -1,9 +1,9 @@
-"""Tests for nltools.stats.correlation — similarity and correlation metrics."""
+"""Tests for nltools.algorithms.similarity — similarity and correlation metrics."""
 
 import numpy as np
 import pytest
 
-from nltools.stats.correlation import (
+from nltools.algorithms.similarity import (
     fisher_r_to_z,
     fisher_z_to_r,
     compute_similarity,

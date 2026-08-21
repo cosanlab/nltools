@@ -105,7 +105,7 @@ def test_import_nltools():
 test("import nltools", test_import_nltools)
 
 def test_import_submodules():
-    import nltools.data, nltools.stats, nltools.utils, nltools.mask
+    import nltools.data, nltools.utils, nltools.mask
     import nltools.plotting, nltools.algorithms, nltools.io
 test("import submodules", test_import_submodules)
 

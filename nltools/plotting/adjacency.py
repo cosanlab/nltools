@@ -12,7 +12,7 @@ import numpy as np
 import polars as pl
 import seaborn as sns
 
-from nltools.stats import (
+from nltools.algorithms.inference import (
     one_sample_permutation_test,
     two_sample_permutation_test,
 )

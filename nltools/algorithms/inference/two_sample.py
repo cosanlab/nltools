@@ -16,7 +16,7 @@ from .utils import (
 )
 from .validation import (
     validate_tail_parameter,
-    validate_parallel_parameter,
+    validate_device_parameter,
     validate_array_shape_range,
 )
 from ..random import generate_seeds
@@ -50,7 +50,7 @@ def _two_sample_permutation_cpu_parallel(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'parallel' indicating CPU parallel
+        dict: Same format as main function, with 'device' indicating CPU parallel
     """
     from joblib import Parallel, delayed
 
@@ -106,7 +106,7 @@ def _two_sample_permutation_cpu_parallel(
     result = {
         "mean_diff": obs_diff,
         "p": p_values,
-        "parallel": "cpu",
+        "device": "cpu",
     }
 
     if return_null:
@@ -147,7 +147,7 @@ def _two_sample_permutation_gpu_batched(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'parallel' indicating GPU device
+        dict: Same format as main function, with 'device' indicating GPU device
     """
     import torch
 
@@ -252,7 +252,7 @@ def _two_sample_permutation_gpu_batched(
     result = {
         "mean_diff": obs_diff,
         "p": p_values,
-        "parallel": "gpu",
+        "device": "gpu",
     }
 
     if return_null:
@@ -270,7 +270,7 @@ def two_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -299,15 +299,15 @@ def two_sample_permutation_test(
             - 'lower' or -1: One-tailed lower (mean1 < mean2)
             For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
         return_null (bool): If True, return full null distribution (default: False)
-        parallel (str, optional): Parallelization method (default: 'cpu')
+        device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when parallel='cpu'
+            Only used when device='cpu'
         max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            parallel='gpu'. Larger values allow more permutations per batch but
+            device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
 
@@ -316,7 +316,7 @@ def two_sample_permutation_test(
             - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2)
             - 'p' (float or np.ndarray): P-value(s)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'parallel' (str): Parallelization method used
+            - 'device' (str): Parallelization method used
 
     Examples:
         >>> # Single feature (default CPU parallelization)
@@ -329,24 +329,24 @@ def two_sample_permutation_test(
         >>> # Voxel-wise test with GPU
         >>> data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
         >>> data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device='gpu')
         >>> result['mean_diff'].shape
         (10000,)
         >>> result['p'].shape
         (10000,)
 
         >>> # Single-threaded (for debugging)
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel=None)
+        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device=None)
 
     Notes:
-        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
         - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-        - Single-threaded (parallel=None): Use for small problems or debugging
+        - Single-threaded (device=None): Use for small problems or debugging
         - For voxel-wise tests, each voxel tested independently
         - Group sizes can be unequal
     """
-    # Validate parallel parameter
-    validate_parallel_parameter(parallel)
+    # Validate device parameter
+    validate_device_parameter(device)
 
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
@@ -374,10 +374,10 @@ def two_sample_permutation_test(
     n2 = data2.shape[0]
     n_total = n1 + n2
 
-    # Decide execution mode based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Decide execution mode based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             rng = check_random_state(random_state)
             obs_diff = np.mean(data1, axis=0) - np.mean(data2, axis=0)
@@ -409,7 +409,7 @@ def two_sample_permutation_test(
             result = {
                 "mean_diff": obs_diff,
                 "p": p_values,
-                "parallel": None,
+                "device": None,
             }
 
             if return_null:

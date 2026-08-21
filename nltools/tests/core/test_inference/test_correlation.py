@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from scipy.stats import kstest, multivariate_normal
 
-from nltools.stats import correlation_permutation_test
+from nltools.algorithms import correlation_permutation_test
 from nltools.algorithms.inference.correlation import _pearson_correlation
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
@@ -213,7 +213,7 @@ class TestCorrelationPermutation:
 
         assert "correlation" in result
         assert "p" in result
-        assert "parallel" in result
+        assert "device" in result
 
         if n_features == 1:
             assert isinstance(result["correlation"], (float, np.floating))
@@ -363,7 +363,7 @@ class TestCorrelationPermutation:
 
         # P-values should be valid
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert result["parallel"] == "cpu"
+        assert result["device"] == "cpu"
 
     def test_invalid_tail(self):
         """Test that invalid tail raises error."""
@@ -401,16 +401,16 @@ class TestCorrelationPermutation:
 
         results = {}
         for backend in backends:
-            # Map backend to parallel parameter
+            # Map backend to device parameter
             if backend == "numpy":
-                parallel = None
+                device = None
             elif backend == "torch":
-                parallel = "gpu"
+                device = "gpu"
             else:
-                parallel = "cpu"
+                device = "cpu"
 
             results[backend] = correlation_permutation_test(
-                x, y, n_permute=N_PERMUTE_BACKEND, device=parallel, random_state=42
+                x, y, n_permute=N_PERMUTE_BACKEND, device=device, random_state=42
             )
 
         # Compare results
@@ -437,19 +437,19 @@ class TestCorrelationPermutation:
 
         results = {}
         for backend in backends:
-            # Map backend to parallel parameter
+            # Map backend to device parameter
             if backend == "numpy":
-                parallel = None
+                device = None
             elif backend == "torch":
-                parallel = "gpu"
+                device = "gpu"
             else:
-                parallel = "cpu"
+                device = "cpu"
 
             results[backend] = correlation_permutation_test(
                 data1,
                 data2,
                 n_permute=N_PERMUTE_BACKEND,
-                device=parallel,
+                device=device,
                 random_state=42,
             )
 

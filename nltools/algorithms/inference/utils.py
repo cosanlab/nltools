@@ -36,7 +36,7 @@ def _compute_pvalue(
 
     Computes the proportion of null distribution values as extreme or more
     extreme than the observed statistic, using the correction factor approach
-    from nltools.stats._calc_pvalue.
+    the original nltools.algorithms._calc_pvalue.
 
     Args:
         obs_stat (np.ndarray): Observed statistic(s)

@@ -2,12 +2,14 @@
 # from CLAUDE.md programmatically. Mirrors the bossanova .semgrep/ setup.
 #
 # Scope model: the conventions bind the PUBLIC API surface — the four data-class
-# facades (BrainData, Adjacency, DesignMatrix, BrainCollection) plus public
-# stats/mask/datasets functions. The functional-core / algorithm-layer internals
-# (algorithms/, pipelines/, and underscore-prefixed helpers) may keep legacy
-# names because the facades translate at the boundary (CLAUDE.md "Facade
+# facades (BrainData, Adjacency, DesignMatrix, BrainCollection) plus the
+# consolidated `nltools.algorithms` functions (v0.6.0 removed `nltools.stats`;
+# the algorithms package IS the public functional API, `inference` included).
+# Only the ridge and alignment subsystems may keep legacy names
+# (`parallel=`/`backend=`/`n_iter=` — see docs/development/ridge-internals.md)
+# because the facades translate at their boundary (CLAUDE.md "Facade
 # translation" rule). Rules therefore (a) match only public defs via the
-# `^[^_]` name filter and (b) exclude the algorithm/pipeline internals by path.
+# `^[^_]` name filter and (b) exclude ridge/alignment/pipeline internals by path.
 #
 # IMPORTANT (semgrep structure): the `metavariable-regex` name filter must be
 # ANDed with `pattern-either` under a single `patterns:` block. A top-level
@@ -71,7 +73,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -80,9 +83,10 @@ rules:
     languages: [python]
     severity: ERROR
     message: >-
-      Public API uses `parallel=` for parallel execution. The canonical name is
-      `n_jobs: int = -1` (CLAUDE.md). The stats/algorithm-layer internals may
-      keep `parallel=`, but the public facade must expose `n_jobs` and translate.
+      Public API uses `parallel=` for parallel execution. The canonical names are
+      `n_jobs: int = -1` (CPU workers) and `device=` (cpu/gpu selection); only the
+      ridge/alignment layers may keep `parallel=` (facades translate). The
+      inference engine uses `device=` as of v0.6.0.
     patterns:
       - pattern-either:
           - pattern: "def $F(..., parallel=$X, ...): ..."
@@ -94,7 +98,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -102,8 +107,8 @@ rules:
   # Banning `backend=` as a *kwarg* (device selector) closes the gap the ridge
   # audit surfaced: `parallel=` was already banned, but `backend=` slipped
   # through and leaked to the Ridge / bootstrap facades. Canonical is
-  # `device: str = "cpu"` ('cpu'/'gpu'/'auto'); the facade translates to the
-  # algorithm layer's `parallel=`. This bans the kwarg only — a `'backend'`
+  # `device: str = "cpu"` ('cpu'/'gpu'/'auto'); facades translate to the
+  # ridge/alignment layers' `parallel=`. This bans the kwarg only — a `'backend'`
   # result-dict KEY (a reported backend name like 'torch-cuda') and the fitted
   # `backend_` attribute are distinct concepts and are NOT matched here.
   # The Backend class + resolve_backend live under algorithms/ (path-excluded),
@@ -128,7 +133,10 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
+        # Home of the Backend abstraction itself — its `backend=` params ARE the concept
+        - "nltools/algorithms/backends.py"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -155,7 +163,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -178,7 +187,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -200,7 +210,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
 
@@ -208,12 +219,13 @@ rules:
   # A return-value convention (not a kwarg one), so this rule is NOT path-scoped
   # to public defs — result dicts are built in the algorithm layer, and the
   # convention binds every layer that emits a correlation result. The canonical
-  # keys are `'correlation'` (observed correlation) + `'p'` + `'parallel'`,
+  # keys are `'correlation'` (observed correlation) + `'p'` + `'device'`,
   # matching correlation_permutation_test / matrix_permutation_test and the
   # `Adjacency.similarity` contract. The banned alias is `'r'` (which drifted
   # into docstrings; the code was already consistent — this keeps it that way).
   # Distance correlation is the documented exception: it uses `'dcorr'`.
-  # The parallel/device field is `'parallel'`; `'backend'` is intentionally NOT
+  # The device field is `'device'` (renamed from `'parallel'` in v0.6.0);
+  # `'backend'` is intentionally NOT
   # banned because the ridge/backends layer legitimately reports a backend *name*
   # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
   - id: banned-result-key-correlation
@@ -260,7 +272,8 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/"
+        - "nltools/algorithms/ridge/"
+        - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"
         # Plotting = legitimate matplotlib/seaborn/nilearn passthrough (see note above)

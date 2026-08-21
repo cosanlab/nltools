@@ -20,7 +20,7 @@ Use the vendored project skills (in `.claude/skills/`) for the domains they cove
 Classes are **facades and glue** — all real logic lives in pure functions.
 
 - **Shell** (imperative): `nltools/data/` — `BrainData`, `Adjacency`, `DesignMatrix`, `BrainCollection`. Each is a facade over submodules (io, modeling, plotting, etc.)
-- **Core** (functional): `stats`, `utils`, `cross_validation`, `mask`, `algorithms/` (`alignment` [SRM/hyperalignment/LocalAlignment], `inference`, `ridge`)
+- **Core** (functional): `utils`, `cross_validation`, `mask`, `algorithms/` — the single functional entry point (`from nltools.algorithms import fdr, zscore, isc, ...`): `corrections`, `outliers`, `signal`, `similarity`, `regression`, `alignment` [SRM/hyperalignment/LocalAlignment/procrustes], `inference` [permutation/bootstrap + intersubject], `ridge`, `hrf`. (`nltools.stats` was removed in v0.6.0 — everything it held now lives here.)
 
 **Design rules:**
 - Pure functions first. Classes compose and delegate to them, never the reverse.
@@ -43,8 +43,8 @@ Canonical kwarg names across the four data-class facades:
 | Algorithm/variant choice | `method` | not `algorithm`, `scheme`, `kind`, `estimator`, `icc_type`, `extract_type`, `perm_type`, `mode` |
 | Spatial scale | `spatial_scale` | values: `'whole_brain' \| 'roi' \| 'searchlight'` (a given method may support a subset and raise `NotImplementedError` for the rest — e.g. `BrainData.align` has no `searchlight`; `BrainCollection.align` / `LocalAlignment` are local-only, no `whole_brain`). Used by `BrainData.predict` / `.distance` / `.align` / `.mean`/`.std`/`.median`, `BrainCollection.predict` / `.align`, and `LocalAlignment` (with companion `roi_mask=`). Distinct from `method=` (algorithm choice). Vocabulary follows Jolly & Chang, 2021, *SCAN*. |
 | Distance/similarity metric | `metric` | kept separate from `method` |
-| Parallel execution | `n_jobs: int = -1` | not `parallel=` (stats-layer internals still use `parallel=` but facades translate) |
-| GPU/CPU selection | `device: str = "cpu"` | BrainCollection only; separate from `n_jobs` |
+| Parallel execution | `n_jobs: int = -1` | not `parallel=` (the ridge and alignment layers still use `parallel=` internally but facades translate; the inference engine was renamed to `device=` in v0.6.0) |
+| GPU/CPU selection | `device: str = "cpu"` | BrainCollection facades and the whole `algorithms.inference` engine (values `'cpu' \| 'gpu' \| None`, plus `'auto'` where supported); separate from `n_jobs` |
 | Progress indicator | `progress_bar: bool = False` | not `show_progress`, `verbose` (`verbose` reserved for log-level only) |
 | Threshold pair | `lower`, `upper`, `binarize` | plus convenience `threshold: float` where bidirectional |
 | Permutation count | `n_permute` | not `n_perm`, `n_iter` |
@@ -150,12 +150,13 @@ uv run pytest -k "ridge and cv" -x
 
 # Per-class / per-module suites (poe wrappers):
 uv run poe test-braindata      # (also: test-adjacency, test-designmatrix, test-collection)
-uv run poe test-stats          # (also: test-core, test-models, test-io, test-plotting, test-support)
+uv run poe test-algorithms     # (also: test-core, test-models, test-io, test-plotting, test-support)
 
 # Default (non-slow, parallel):
 uv run poe test                # == pytest -n auto
 uv run poe test-all            # everything incl. slow + integration (ask first)
 
-# Tests live in nltools/tests/: data/ (the four data classes), stats/, core/ (algorithms),
+# Tests live in nltools/tests/: data/ (the four data classes), core/ (algorithms, incl.
+# core/test_algorithms/ for the consolidated modules and core/test_inference/),
 # models/ (GLM/ridge/base), io_tests/, plotting/, support/, integration/, fixtures/
 ```

@@ -1,11 +1,11 @@
-"""Tests for nltools.stats.outliers — outlier detection and robust statistics."""
+"""Tests for nltools.algorithms.outliers — outlier detection and robust statistics."""
 
 import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
 
-from nltools.stats.outliers import trim, winsorize, find_spikes, zscore
+from nltools.algorithms.outliers import trim, winsorize, find_spikes, zscore
 
 
 class TestWinsorize:

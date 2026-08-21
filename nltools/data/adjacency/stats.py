@@ -53,13 +53,13 @@ def similarity(
 
     Returns:
         dict | list | BrainData: A correlation result dict with keys 'correlation',
-            'p', and 'parallel' (or a list of such dicts when adj contains multiple
+            'p', and 'device' (or a list of such dicts when adj contains multiple
             matrices); a `BrainData` when `project=True`, holding the per-matrix
             correlations projected back into brain space via the spatial_scale.
 
     """
     from nltools.data.adjacency import Adjacency
-    from nltools.stats import (
+    from nltools.algorithms.inference import (
         correlation_permutation_test,
         matrix_permutation_test,
     )
@@ -216,7 +216,7 @@ def r_to_z(adj):
     Returns:
         Adjacency: New Adjacency with z-transformed values.
     """
-    from nltools.stats import fisher_r_to_z
+    from nltools.algorithms.similarity import fisher_r_to_z
 
     out = adj.copy()
     out.data = fisher_r_to_z(out.data)
@@ -232,7 +232,7 @@ def z_to_r(adj):
     Returns:
         Adjacency: New Adjacency with r values.
     """
-    from nltools.stats import fisher_z_to_r
+    from nltools.algorithms.similarity import fisher_z_to_r
 
     out = adj.copy()
     out.data = fisher_z_to_r(out.data)
@@ -312,7 +312,7 @@ def ttest(
     from copy import deepcopy
 
     from nltools.data.adjacency import Adjacency
-    from nltools.stats import one_sample_permutation_test
+    from nltools.algorithms.inference import one_sample_permutation_test
 
     if adj.is_single_matrix:
         raise ValueError("t-test cannot be run on single matrices.")
@@ -435,7 +435,7 @@ def stats_label_distance(
     """
     from copy import deepcopy
 
-    from nltools.stats import two_sample_permutation_test
+    from nltools.algorithms.inference import two_sample_permutation_test
 
     if not adj.is_single_matrix:
         raise ValueError("This function only works on single adjacency matrices.")

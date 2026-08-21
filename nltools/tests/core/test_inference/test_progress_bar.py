@@ -14,7 +14,6 @@ import io
 import numpy as np
 import pytest
 
-import nltools.stats as stats_facade
 from nltools.algorithms.inference import (
     correlation_permutation_test,
     isc_group_permutation_test,
@@ -36,49 +35,11 @@ PROGRESS_BAR_FUNCTIONS = [
     two_sample_permutation_test,
 ]
 
-# `nltools.stats` re-exports thin wrappers (they translate parallel= -> device=),
-# so they are *different function objects* from the algorithm-layer ones above
-# and need the knob independently. These are what users actually import.
-FACADE_FUNCTION_NAMES = [
-    "correlation_permutation_test",
-    "matrix_permutation_test",
-    "one_sample_permutation_test",
-    "timeseries_correlation_permutation_test",
-    "two_sample_permutation_test",
-]
 
-
-def call_with(func, *, progress_bar, facade_name=None):
-    """Invoke `func` with a minimal valid payload and the given progress_bar.
-
-    `facade_name` selects the payload when `func` is a `nltools.stats` wrapper
-    rather than one of the algorithm-layer function objects.
-    """
+def call_with(func, *, progress_bar):
+    """Invoke `func` with a minimal valid payload and the given progress_bar."""
     rng = np.random.default_rng(0)
     kwargs = {"progress_bar": progress_bar, "random_state": 0}
-    key = facade_name
-
-    if key == "one_sample_permutation_test":
-        return func(rng.standard_normal((20, 5)), n_permute=20, **kwargs)
-    if key == "two_sample_permutation_test":
-        return func(
-            rng.standard_normal(20), rng.standard_normal(20), n_permute=20, **kwargs
-        )
-    if key == "correlation_permutation_test":
-        return func(
-            rng.standard_normal(30), rng.standard_normal(30), n_permute=20, **kwargs
-        )
-    if key == "timeseries_correlation_permutation_test":
-        return func(
-            rng.standard_normal(60), rng.standard_normal(60), n_permute=20, **kwargs
-        )
-    if key == "matrix_permutation_test":
-        a = rng.standard_normal((10, 10))
-        b = rng.standard_normal((10, 10))
-        a, b = a + a.T, b + b.T
-        np.fill_diagonal(a, 0)
-        np.fill_diagonal(b, 0)
-        return func(a, b, n_permute=20, **kwargs)
 
     if func is one_sample_permutation_test:
         return func(rng.standard_normal((20, 5)), n_permute=20, **kwargs)
@@ -146,25 +107,4 @@ def test_progress_bar_true_emits_output(func):
         call_with(func, progress_bar=True)
     assert stderr.getvalue() != "", (
         f"{func.__name__} showed no bar with progress_bar=True"
-    )
-
-
-@pytest.mark.parametrize("name", FACADE_FUNCTION_NAMES)
-def test_stats_facade_exposes_progress_bar(name):
-    """`nltools.stats` wrappers expose the knob too, defaulting to False."""
-    func = getattr(stats_facade, name)
-    param = inspect.signature(func).parameters.get("progress_bar")
-    assert param is not None, f"nltools.stats.{name} is missing progress_bar"
-    assert param.default is False
-
-
-@pytest.mark.parametrize("name", FACADE_FUNCTION_NAMES)
-def test_stats_facade_silent_by_default(name):
-    """The wrappers must actually forward the default, not just accept it."""
-    func = getattr(stats_facade, name)
-    stderr = io.StringIO()
-    with contextlib.redirect_stderr(stderr):
-        call_with(func, progress_bar=False, facade_name=name)
-    assert stderr.getvalue() == "", (
-        f"nltools.stats.{name} wrote to stderr by default:\n{stderr.getvalue()[:200]}"
     )

@@ -2,7 +2,7 @@
 API-convention guards for the inference layer.
 
 `nltools/algorithms/inference` is public in practice: it is documented in
-`docs/api/algorithms/inference.md`, re-exported through `nltools.stats`, and
+`docs/api/algorithms/inference.md`, re-exported through `nltools.algorithms`, and
 imported directly by downstream code. These tests hold it to the conventions in
 CLAUDE.md rather than treating it as private internals.
 
@@ -15,7 +15,6 @@ import inspect
 
 import pytest
 
-import nltools.stats as stats_facade
 from nltools.algorithms.inference import (
     correlation_permutation_test,
     isc_group_permutation_test,
@@ -37,19 +36,6 @@ PUBLIC_ENTRY_POINTS = {
     isc_permutation_test: ["data"],
     isc_group_permutation_test: ["group1", "group2"],
 }
-
-# Names exported from BOTH nltools.stats and nltools.algorithms.inference as
-# distinct function objects. The facade deliberately renames the backend-
-# selection kwarg; nothing else may differ.
-TRANSLATED_KWARGS = {"device", "parallel", "backend"}
-
-PAIRED_FUNCTION_NAMES = [
-    "correlation_permutation_test",
-    "matrix_permutation_test",
-    "one_sample_permutation_test",
-    "timeseries_correlation_permutation_test",
-    "two_sample_permutation_test",
-]
 
 
 @pytest.mark.parametrize(
@@ -73,47 +59,6 @@ def test_options_are_keyword_only(func, data_args):
     )
 
 
-@pytest.mark.parametrize("name", PAIRED_FUNCTION_NAMES)
-def test_facade_and_engine_signatures_agree(name):
-    """The nltools.stats wrapper and the engine must not drift apart.
-
-    They are separate function objects with the same name, so a change applied
-    to one silently leaves the other behind. Only the documented backend-kwarg
-    rename (parallel/backend -> device) may differ.
-    """
-    import nltools.algorithms.inference as engine_mod
-
-    facade = getattr(stats_facade, name)
-    engine = getattr(engine_mod, name)
-    assert facade is not engine, f"{name}: expected two distinct objects"
-
-    facade_params = inspect.signature(facade).parameters
-    engine_params = inspect.signature(engine).parameters
-
-    facade_names = set(facade_params) - TRANSLATED_KWARGS
-    engine_names = set(engine_params) - TRANSLATED_KWARGS
-
-    missing = engine_names - facade_names
-    extra = facade_names - engine_names
-    assert not missing, (
-        f"nltools.stats.{name} is missing engine params: {sorted(missing)}"
-    )
-    assert not extra, (
-        f"nltools.stats.{name} has params the engine lacks: {sorted(extra)}"
-    )
-
-    drifted = {
-        k: (facade_params[k].default, engine_params[k].default)
-        for k in facade_names & engine_names
-        if facade_params[k].default is not inspect.Parameter.empty
-        and engine_params[k].default is not inspect.Parameter.empty
-        and facade_params[k].default != engine_params[k].default
-    }
-    assert not drifted, f"nltools.stats.{name} default drift vs engine: {drifted}"
-
-
-# NOTE: `isc` is a function in nltools.stats but a module in
-# nltools.algorithms.inference, and the two layers export 13 same-named,
-# distinct objects overall. That duplication is a design question tracked in
-# issue #474, not something this PR resolves -- the parity test above is the
-# interim guard that keeps the pairs from drifting while it is decided.
+# NOTE: there is no wrapper layer to hold in parity anymore — the v0.6.0
+# consolidation (issue #474) made `nltools.algorithms` re-export the engine
+# functions themselves. `tests/core/test_algorithms_api.py` pins that identity.

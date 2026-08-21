@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from scipy.stats import kstest
 
-from nltools.stats import (
+from nltools.algorithms import (
     circle_shift,
     phase_randomize,
     timeseries_correlation_permutation_test,
@@ -233,7 +233,7 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_circle_shift(self):
         """Test basic functionality with circle_shift method."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -252,7 +252,7 @@ class TestTimeseriesCorrelation:
 
     def test_basic_functionality_phase_randomize(self):
         """Test basic functionality with phase_randomize method."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -271,7 +271,7 @@ class TestTimeseriesCorrelation:
 
     def test_deterministic_with_seed(self):
         """Test that results are deterministic with random_state."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -291,7 +291,7 @@ class TestTimeseriesCorrelation:
 
     def test_return_null_distribution(self):
         """Test that null distribution is returned when requested."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -313,7 +313,7 @@ class TestTimeseriesCorrelation:
 
     def test_spearman_metric(self):
         """Test with Spearman correlation metric."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -335,7 +335,7 @@ class TestTimeseriesCorrelation:
 
     def test_kendall_metric(self):
         """Test with Kendall correlation metric."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -359,10 +359,10 @@ class TestTimeseriesCorrelation:
         This is expected and acceptable - both implementations are correct, just
         use different random number sequences in parallel execution.
         """
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
-        from nltools.stats import correlation_permutation_test as stats_correlation
+        from nltools.algorithms import correlation_permutation_test as stats_correlation
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -405,10 +405,10 @@ class TestTimeseriesCorrelation:
         Note: P-values may differ slightly due to different RNG seed handling
         in parallel execution, following the standard 15% tolerance pattern.
         """
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
-        from nltools.stats import correlation_permutation_test as stats_correlation
+        from nltools.algorithms import correlation_permutation_test as stats_correlation
 
         np.random.seed(42)
         x = np.random.randn(100)
@@ -447,7 +447,7 @@ class TestTimeseriesCorrelation:
 
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -462,7 +462,7 @@ class TestTimeseriesCorrelation:
 
     def test_mismatched_lengths(self):
         """Test that mismatched lengths raise ValueError."""
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -483,7 +483,7 @@ class TestTimeseriesCorrelation:
         not both variables. Randomizing both would reduce statistical power
         and is conceptually incorrect for testing H0: correlation = 0.
         """
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -522,7 +522,7 @@ class TestTimeseriesCorrelation:
 
         Verifies statistical power - should detect strong correlations.
         """
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -561,7 +561,7 @@ class TestTimeseriesCorrelation:
         2. Produce null distributions centered near zero
         3. Give similar p-values for uncorrelated data
         """
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -608,7 +608,7 @@ class TestTimeseriesGPU:
     def test_gpu_basic_functionality_circle_shift(self):
         """Test basic GPU functionality with circle_shift method."""
         pytest.importorskip("torch")
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -622,8 +622,8 @@ class TestTimeseriesGPU:
 
         assert "correlation" in result
         assert "p" in result
-        assert "parallel" in result
-        assert result["parallel"] == "gpu"
+        assert "device" in result
+        assert result["device"] == "gpu"
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
@@ -631,7 +631,7 @@ class TestTimeseriesGPU:
     def test_gpu_basic_functionality_phase_randomize(self):
         """Test basic GPU functionality with phase_randomize method."""
         pytest.importorskip("torch")
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -650,8 +650,8 @@ class TestTimeseriesGPU:
 
         assert "correlation" in result
         assert "p" in result
-        assert "parallel" in result
-        assert result["parallel"] == "gpu"
+        assert "device" in result
+        assert result["device"] == "gpu"
         assert isinstance(result["correlation"], (float, np.floating))
         assert 0 <= result["p"] <= 1
 
@@ -659,7 +659,7 @@ class TestTimeseriesGPU:
     def test_gpu_deterministic_with_seed(self):
         """Test that GPU results are deterministic with random_state."""
         pytest.importorskip("torch")
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -681,7 +681,7 @@ class TestTimeseriesGPU:
         """Test that GPU returns null distribution when requested."""
         pytest.importorskip("torch")
         import warnings
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -711,7 +711,7 @@ class TestTimeseriesGPU:
     def test_gpu_matches_cpu_circle_shift(self):
         """Test that GPU circle_shift matches CPU results (within float32 tolerance)."""
         pytest.importorskip("torch")
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -742,7 +742,7 @@ class TestTimeseriesGPU:
     def test_gpu_matches_cpu_phase_randomize(self):
         """Test that GPU phase_randomize matches CPU results (within float32 tolerance)."""
         pytest.importorskip("torch")
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 
@@ -804,7 +804,7 @@ class TestTimeseriesGPU:
         """Test that GPU circle_shift produces correct results."""
         pytest.importorskip("torch")
         from nltools.algorithms.inference.timeseries import _circle_shift_gpu
-        from nltools.stats import circle_shift
+        from nltools.algorithms import circle_shift
 
         np.random.seed(42)
         x = np.array([1, 2, 3, 4, 5])
@@ -829,7 +829,7 @@ class TestTimeseriesGPU:
         if not torch.cuda.is_available():
             pytest.skip("GPU not available for OOM test")
 
-        from nltools.stats import (
+        from nltools.algorithms import (
             timeseries_correlation_permutation_test,
         )
 

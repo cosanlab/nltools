@@ -1,6 +1,6 @@
-"""Tests for the standalone OLS helper `nltools.stats.regress`.
+"""Tests for the standalone OLS helper `nltools.algorithms.regression.regress`.
 
-`regress` is public (re-exported in `nltools.stats.__all__`) and tutorial-facing,
+`regress` is public (re-exported in `nltools.algorithms.__all__`) and tutorial-facing,
 but its numeric output was previously unverified. These tests pin b/se/t/p/df
 against an independent reference (`scipy.stats.linregress`) and cover the 1D-vs-2D
 Y squeeze, the `stats='betas'/'tstats'` early returns, the near-zero-se t-mask,
@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from scipy.stats import linregress
 
-from nltools.stats import regress
+from nltools.algorithms import regress
 
 
 @pytest.fixture

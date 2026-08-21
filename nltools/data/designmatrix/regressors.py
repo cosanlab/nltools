@@ -264,7 +264,7 @@ def add_dct_basis(
         ValueError: If sampling_freq is not set or if ambiguous cosine bases
             exist from a previous append operation.
     """
-    from nltools.stats import make_cosine_basis
+    from nltools.algorithms.signal import make_cosine_basis
 
     if dm.sampling_freq is None:
         raise ValueError(

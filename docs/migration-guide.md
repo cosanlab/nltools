@@ -83,7 +83,7 @@ Several modules have been reorganized. The old import paths will raise `ModuleNo
 | `from nltools.file_reader import onsets_to_dm` | **Removed** | Folded into `DesignMatrix.__init__` — `DesignMatrix(events_path, run_length=N, TR=t)` HRF-convolves by default (`hrf_model='glover'`, matches nilearn); pass `hrf_model=None` for raw boxcar |
 | `from nltools.external import glover_hrf` | `from nltools.algorithms.hrf import glover_hrf` | Moved to `nltools.algorithms` |
 | `from nltools.utils import get_anatomical` | **Removed** | Use `nilearn.datasets.load_mni152_brain_mask()` |
-| `from nltools.stats import regress` | **Still available** | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed |
+| `from nltools.stats import regress` | `from nltools.algorithms import regress` | Standalone OLS helper: `regress(X, Y)`; only `BrainData.regress()` was removed |
 
 **Example migrations:**
 ```python
@@ -126,10 +126,12 @@ from nltools import Simulator, SimulateGrid
 # or: from nltools.data import Simulator, SimulateGrid
 ```
 
+**`nltools.stats` → `nltools.algorithms`** (see [the stats-module removal](#stats-module-removed) for the full mapping):
+- `from nltools.algorithms import fdr, fisher_r_to_z, zscore, find_spikes, threshold`
+- `from nltools.algorithms import regress` (standalone OLS helper; distinct from the removed `BrainData.regress()`)
+- `from nltools.algorithms import one_sample_permutation_test` (the same function as `nltools.algorithms.inference`'s)
+
 **Unchanged imports** (these still work as before):
-- `from nltools.stats import fdr, fisher_r_to_z, zscore, find_spikes, threshold`
-- `from nltools.stats import regress` (standalone OLS helper; distinct from the removed `BrainData.regress()`)
-- `from nltools.stats import one_sample_permutation_test` (also available from `nltools.algorithms.inference`)
 - `from nltools.plotting import component_viewer`
 - `from nltools.mask import roi_to_brain, expand_mask, create_sphere`
 - `from nltools.data import Adjacency` (name unchanged)
@@ -338,7 +340,7 @@ the warning.
 
 **Status**: ✅ NEW (v0.6.0) — `progress_bar=False` everywhere
 
-Every permutation-test and bootstrap entry point — the `nltools.stats` wrappers, the `algorithms.inference` engines, and the class facades (`BrainData.bootstrap`, `Adjacency.similarity` / `.ttest` / `.bootstrap`) — now takes `progress_bar: bool = False` and stays silent unless asked. Previously most of these functions wrote a tqdm bar to stderr unconditionally, which emitted one bar per call in any loop (a 100-iteration calibration study produced 100 bars).
+Every permutation-test and bootstrap entry point — the `algorithms.inference` engines and the class facades (`BrainData.bootstrap`, `Adjacency.similarity` / `.ttest` / `.bootstrap`) — now takes `progress_bar: bool = False` and stays silent unless asked. Previously most of these functions wrote a tqdm bar to stderr unconditionally, which emitted one bar per call in any loop (a 100-iteration calibration study produced 100 bars).
 
 The one *silent* behavior change: `isc_permutation_test` and `isc_group_permutation_test` previously defaulted to `progress_bar=True` — existing calls will no longer show a bar. Pass `progress_bar=True` to any of these functions to get it back:
 
@@ -351,6 +353,42 @@ stats = isc_permutation_test(data, progress_bar=True)
 ```
 
 The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`maybe_tqdm` / `make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
+
+
+(stats-module-removed)=
+### `nltools.stats` removed — everything lives in `nltools.algorithms`
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
+
+The `nltools.stats` module is gone. It had become a thin compatibility layer over the functional core, and v0.6.0 consolidates that core into a single entry point: every user-facing statistical function is importable **flat from `nltools.algorithms`**.
+
+```python
+# OLD (v0.5.x)
+from nltools.stats import fdr, zscore, isc, one_sample_permutation_test
+
+# NEW (v0.6.0)
+from nltools.algorithms import fdr, zscore, isc, one_sample_permutation_test
+```
+
+The implementations moved into focused submodules (the flat import above is all most code needs):
+
+| Old module | New module | Functions |
+|---|---|---|
+| `nltools.stats.corrections` | `nltools.algorithms.corrections` | `fdr`, `holm_bonf`, `threshold`, `multi_threshold` |
+| `nltools.stats.outliers` | `nltools.algorithms.outliers` | `zscore`, `winsorize`, `trim`, `find_spikes` |
+| `nltools.stats.timeseries` | `nltools.algorithms.signal` | `downsample`, `upsample`, `calc_bpm`, `make_cosine_basis` |
+| `nltools.stats.correlation` | `nltools.algorithms.similarity` | `fisher_r_to_z`, `fisher_z_to_r`, `compute_similarity`, `compute_multivariate_similarity`, `transform_pairwise` |
+| `nltools.stats.regression` | `nltools.algorithms.regression` | `regress` |
+| `nltools.stats.alignment` | `nltools.algorithms.alignment` | `align`, `procrustes`, `procrustes_distance`, `align_states` |
+| `nltools.stats.intersubject` | `nltools.algorithms.inference.intersubject` | `isc`, `isc_group`, `isfc`, `isps` |
+| `nltools.stats.permutation` | *(deleted — the wrappers are gone)* | the `nltools.algorithms` exports **are** the `algorithms.inference` engine functions |
+
+Two kwarg renames rode along, applying the canonical `device=` vocabulary to the inference engine itself (the old `nltools.stats` wrappers used to translate these names at the boundary):
+
+- **`parallel=` → `device=`** on every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`). Values are unchanged: `'cpu'` (joblib), `'gpu'` (PyTorch), `None` (single-threaded). Result dicts likewise report a `'device'` key instead of `'parallel'`.
+- **`phase_randomize(backend=)` → `phase_randomize(device=)`** with `'cpu' | 'gpu' | 'auto'` replacing `'numpy' | 'torch'`.
+
+Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
 
 (designmatrix-pandas-polars)=
@@ -1246,59 +1284,54 @@ if 'samples' in result:
 (pattern-9-stats-py-inference-module-migration)=
 ### Pattern 9: Stats.py → Inference Module Migration
 
-**Status**: ✅ Migrated to inference module (wrappers maintained for backward compatibility)
+**Status**: ✅ Complete — `nltools.stats` is gone; the inference engine is the public API (see [the stats-module removal](#stats-module-removed))
 
-#### ISC Functions (`isc()`, `isc_group()`, `isfc()`)
+#### ISC Functions (`isc()`, `isc_group()`, `isfc()`, `isps()`)
 
-**Old API** (still works, but uses inference module internally):
+The familiar intersubject entry points survived the consolidation and import from `nltools.algorithms`:
+
 ```python
-from nltools.stats import isc, isc_group, isfc
+from nltools.algorithms import isc, isc_group, isfc, isps
 
 result = isc(data, n_samples=1000)
 result = isc_group(group1, group2, n_samples=1000)
 result = isfc(data)
 ```
 
-**New API** (recommended):
+For direct engine access (GPU support, `n_permute` vocabulary, `null_dist` key):
+
 ```python
 from nltools.algorithms.inference import (
     isc_permutation_test,
     isc_group_permutation_test,
 )
-from nltools.stats import isfc  # Functional connectivity only; no permutation test
 
 # ISC - single group
 result = isc_permutation_test(data, n_permute=1000)
 
 # ISC Group - two groups
 result = isc_group_permutation_test(group1, group2, n_permute=1000)
-
-# ISFC - functional connectivity
-result = isfc(data)
 ```
 
 **Key Changes**:
-- `isc()` → `isc_permutation_test()` (parameter name: `n_samples` → `n_permute`)
-- `isc_group()` → `isc_group_permutation_test()` (parameter name: `n_samples` → `n_permute`)
+- `isc()` / `isc_group()` keep `n_samples=` and the `null_distribution` result key; the engine functions use `n_permute=` and `null_dist`
 - `isfc()` remains a functional-connectivity calculation and does not perform permutation inference
-- Legacy `nltools.stats` ISC wrappers expose `null_distribution`; direct `nltools.algorithms.inference` functions expose `null_dist`
-- GPU acceleration is available to direct inference functions with `parallel="gpu"`
-- CPU parallelization available with `parallel="cpu"` and `n_jobs=-1`
+- GPU acceleration is available on the engine functions with `device="gpu"`; CPU parallelization with `device="cpu"` and `n_jobs=-1`
 
 **Performance**: 4-8× CPU speedup, 10-100× GPU speedup
 
 #### Removed Functions
 
 **Functions Removed** (use alternatives):
-- `BrainData.regress()` → Use `BrainData.fit(model='glm', X=...)`. The standalone `nltools.stats.regress(X, Y)` OLS helper remains available.
+- `BrainData.regress()` → Use `BrainData.fit(model='glm', X=...)`. The standalone `regress(X, Y)` OLS helper remains available from `nltools.algorithms`.
 - `regress_permutation()` → Use inference module permutation tests
 - `correlation()` → Use `correlation_permutation_test()` from inference module
 - `pearson()` → Use `scipy.stats.pearsonr` or `correlation_permutation_test()`
 
-**Matrix Utilities** (moved to inference module, re-exported from stats.py):
-- `double_center()` → `nltools.algorithms.inference.double_center()` (still available via `nltools.stats`)
-- `u_center()` → `nltools.algorithms.inference.u_center()` (still available via `nltools.stats`)
-- `distance_correlation()` → `nltools.algorithms.inference.distance_correlation()` (still available via `nltools.stats`)
+**Matrix Utilities** (now in the inference module, also exported flat from `nltools.algorithms`):
+- `double_center()` → `nltools.algorithms.inference.double_center()`
+- `u_center()` → `nltools.algorithms.inference.u_center()`
+- `distance_correlation()` → `nltools.algorithms.inference.distance_correlation()`
 
 ---
 
@@ -1396,7 +1429,7 @@ result = one_sample_permutation_test(data, n_permute=1000)
 result = one_sample_permutation_test(
     data,
     n_permute=1000,
-    parallel='gpu',
+    device='gpu',
     max_gpu_memory_gb=4.0  # Memory budget
 )
 
@@ -1404,7 +1437,7 @@ result = one_sample_permutation_test(
 result = one_sample_permutation_test(
     data,
     n_permute=1000,
-    parallel='cpu',
+    device='cpu',
     n_jobs=-1  # Use all cores
 )
 ```
@@ -1703,11 +1736,11 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 
 | Component | Change | Old API | New API | Migration Path |
 |-----------|--------|---------|---------|----------------|
-| `BrainData` | Method removed | `BrainData.regress()` | `BrainData.fit(model='glm', X=...)` | Update BrainData call sites; standalone `nltools.stats.regress(X, Y)` remains available |
+| `BrainData` | Method removed | `BrainData.regress()` | `BrainData.fit(model='glm', X=...)` | Update BrainData call sites; standalone `nltools.algorithms.regress(X, Y)` remains available |
 | `stats.py` | Function removed | `correlation()` | `correlation_permutation_test()` | Import from `inference` module |
 | `stats.py` | Function removed | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
-| `stats.py` | Function removed | Unsuffixed one-sample permutation wrapper | `one_sample_permutation_test()` | Import from `nltools.stats` or `nltools.algorithms.inference` |
-| `stats.py` | Function removed | Unsuffixed two-sample permutation wrapper | `two_sample_permutation_test()` | Import from `nltools.stats` or `nltools.algorithms.inference` |
+| `stats.py` | Function removed | Unsuffixed one-sample permutation wrapper | `one_sample_permutation_test()` | Import from `nltools.algorithms` |
+| `stats.py` | Function removed | Unsuffixed two-sample permutation wrapper | `two_sample_permutation_test()` | Import from `nltools.algorithms` |
 | `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
 | `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `model=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `model=Pipeline(...)` for custom transforms |
@@ -1948,7 +1981,7 @@ is_empty = brain_data.is_empty
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
 - [ ] Replace stateful `nltools.prefs` template configuration with `set_brainspace()` / `get_brainspace()` / `with_brainspace()`
 - [ ] Remove `from nltools.utils import get_anatomical` — use `nilearn.datasets.load_mni152_template()`
-- [ ] Replace `BrainData.regress()` with `BrainData.fit(model='glm', X=...)`; keep standalone `nltools.stats.regress(X, Y)` call sites if you use that OLS helper
+- [ ] Replace `BrainData.regress()` with `BrainData.fit(model='glm', X=...)`; keep standalone OLS call sites on `nltools.algorithms.regress(X, Y)` if you use that helper
 - [ ] Drop the `threshold_dict=` kwarg on `BrainData.ttest()` (signature changed — now `popmean=`, `permutation=`, `tail=`, `n_permute=`)
 - [ ] Replace `brain.nifti_masker.transform(img)` → `nilearn.masking.apply_mask(img, brain.mask)` (same for `inverse_transform` → `unmask`)
 - [ ] Replace `download_collection` / `get_collection_image_metadata` → `fetch_neurovault_collection`
@@ -1992,7 +2025,7 @@ nltools v0.6.0 introduces a comprehensive GPU-accelerated inference module for p
 - **8 comprehensive modules**: one_sample, two_sample, correlation, timeseries, matrix, isc, utils, __init__
 - **170 tests**: 100% passing with perfect cross-backend determinism
 - **GPU-optional**: Works on CPU-only systems with parallel speedup (4-8×)
-- **Drop-in replacement**: Compatible with existing nltools.stats functions
+- **The public API**: these engine functions are exactly what `nltools.algorithms` exports
 
 ### Available Functions
 
@@ -2009,7 +2042,7 @@ nltools v0.6.0 introduces a comprehensive GPU-accelerated inference module for p
 
 ### Migration from nltools.stats
 
-The old unsuffixed permutation wrappers are removed. Add the `_test` suffix and import the resulting names from either `nltools.stats` or `nltools.algorithms.inference`.
+The old unsuffixed permutation wrappers are removed, and so is `nltools.stats` itself. Add the `_test` suffix and import the resulting names from `nltools.algorithms` (or `nltools.algorithms.inference` — same functions).
 
 **New API** (nltools.algorithms.inference):
 ```python
@@ -2025,7 +2058,7 @@ from nltools.algorithms.inference import (
 result = one_sample_permutation_test(
     data,
     n_permute=5000,
-    parallel='gpu',
+    device='gpu',
     random_state=42
 )
 
@@ -2034,7 +2067,7 @@ result = two_sample_permutation_test(
     data1, data2,
     n_permute=5000,
     tail='two',  # 'two', 'upper', or 'lower'
-    parallel='gpu'
+    device='gpu'
 )
 
 # Correlation test with multiple metrics
@@ -2042,7 +2075,7 @@ result = correlation_permutation_test(
     x, y,
     n_permute=5000,
     metric='spearman',  # 'pearson', 'spearman', or 'kendall'
-    parallel='gpu'
+    device='gpu'
 )
 
 # Matrix permutation with extraction modes
@@ -2059,7 +2092,7 @@ result = isc_permutation_test(
     n_permute=5000,
     summary_statistic='pairwise',  # 'pairwise' or 'leave-one-out'
     method='bootstrap',  # 'bootstrap', 'circle_shift', or 'phase_randomize'
-    parallel='gpu'
+    device='gpu'
 )
 ```
 
@@ -2110,7 +2143,7 @@ result = isc_permutation_test(
     n_permute=5000,
     summary_statistic='leave-one-out',  # or 'pairwise'
     method='bootstrap',
-    parallel='gpu'
+    device='gpu'
 )
 
 # Direct inference returns:
@@ -2122,13 +2155,13 @@ result = isc_permutation_test(
 **3. Parallel Options**
 ```python
 # CPU-parallel (default, memory-efficient)
-result = one_sample_permutation_test(data, parallel='cpu')
+result = one_sample_permutation_test(data, device='cpu')
 
 # GPU-batched (10-100× faster for large problems)
-result = one_sample_permutation_test(data, parallel='gpu')
+result = one_sample_permutation_test(data, device='gpu')
 
 # Serial execution
-result = one_sample_permutation_test(data, parallel=None)
+result = one_sample_permutation_test(data, device=None)
 ```
 
 ### Key Improvements
@@ -2153,8 +2186,8 @@ result = one_sample_permutation_test(data, parallel=None)
 
 ### Migration Checklist
 
-- [ ] Update unsuffixed permutation function names by adding the `_test` suffix; import them from `nltools.stats` or `nltools.algorithms.inference`
-- [ ] Add `parallel='gpu'` for GPU acceleration (optional)
+- [ ] Update unsuffixed permutation function names by adding the `_test` suffix; import them from `nltools.algorithms`
+- [ ] Add `device='gpu'` for GPU acceleration (optional)
 - [ ] Update `metric` parameter for correlation tests
 - [ ] Use `method='circle_shift'` or `method='phase_randomize'` for time series
 - [ ] Consider using ISC for multi-subject analyses
@@ -2164,7 +2197,7 @@ result = one_sample_permutation_test(data, parallel=None)
 
 **v0.6.0** (current):
 - ✅ New inference module available
-- ✅ Suffixed `*_permutation_test` functions are exported from both `nltools.stats` and `nltools.algorithms.inference` (exception: `isc_permutation_test` / `isc_group_permutation_test` live only in `nltools.algorithms.inference` — `nltools.stats` keeps the legacy `isc` / `isc_group` wrappers instead)
+- ✅ Suffixed `*_permutation_test` functions (including `isc_permutation_test` / `isc_group_permutation_test`) are exported flat from `nltools.algorithms`, alongside the legacy-vocabulary `isc` / `isc_group` wrappers
 - ❌ Unsuffixed permutation wrapper names are removed
 
 Future migration guidance will follow the APIs available in those releases.

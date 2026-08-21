@@ -108,7 +108,8 @@ def circle_shift(
 
 def phase_randomize(
     data: np.ndarray,
-    backend: str | None = None,
+    *,
+    device: str | None = "cpu",
     random_state: int | np.random.RandomState | None = None,
 ) -> np.ndarray:
     """FFT-based phase randomization for time-series data.
@@ -127,10 +128,10 @@ def phase_randomize(
 
     Args:
         data: Time series data, shape (n_samples,) or (n_samples, n_features)
-        backend: Computation backend ('numpy' or 'torch').
-            - 'numpy': CPU implementation using NumPy FFT (default, float64 precision)
-            - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster)
-            - None: Defaults to 'numpy'
+        device: Compute device.
+            - 'cpu' / None: NumPy FFT (default, float64 precision)
+            - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data)
+            - 'auto': use a GPU if present, else CPU
         random_state: Random seed for reproducibility
 
     Returns:
@@ -138,8 +139,7 @@ def phase_randomize(
 
     Notes:
         - **CRITICAL**: Preserves power spectrum exactly (within numerical precision)
-        - GPU acceleration: Use `backend='torch'` for GPU-accelerated FFT (5-20× faster for large data)
-        - Precision: NumPy backend uses float64, PyTorch backend uses float32
+        - Precision: the CPU path uses float64, the GPU path float32
         - Conjugate symmetry is maintained for real-valued output
 
     Examples:
@@ -151,24 +151,28 @@ def phase_randomize(
 
         >>> # GPU acceleration for large datasets:
         >>> x_large = np.random.randn(10000)
-        >>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
+        >>> x_rand_gpu = phase_randomize(x_large, device='gpu', random_state=42)
     """
     data = np.asarray(data)
     rng = check_random_state(random_state)
 
-    # Handle GPU backend
-    if backend == "torch":
+    if device == "auto":
+        from nltools.algorithms.backends import check_gpu_available
+
+        device = "gpu" if check_gpu_available()[0] else "cpu"
+
+    if device == "gpu":
         from nltools.algorithms.backends import Backend
 
         backend_obj = Backend("torch")
         return _phase_randomize_gpu(data, backend_obj, rng)
 
     # Default: Use NumPy FFT (CPU)
-    if backend is not None and backend != "numpy":
+    if device is not None and device != "cpu":
         import warnings
 
         warnings.warn(
-            f"Unknown backend '{backend}'. Using 'numpy' as default.",
+            f"Unknown device '{device}'. Using 'cpu' as default.",
             UserWarning,
             stacklevel=2,
         )
@@ -585,7 +589,7 @@ def _timeseries_correlation_permutation_gpu_batched(
     result = {
         "correlation": float(obs_corr),
         "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-        "parallel": "gpu",
+        "device": "gpu",
     }
 
     if return_null:
@@ -602,7 +606,7 @@ def timeseries_correlation_permutation_test(
     n_permute: int = 5000,
     metric: Literal["pearson", "spearman", "kendall"] = "pearson",
     tail: int | str = 2,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     return_null: bool = False,
@@ -630,15 +634,15 @@ def timeseries_correlation_permutation_test(
             - 2 or 'two': Two-tailed (|obs| > |null|)
             - 1 or 'upper': One-tailed upper (obs > null, positive effects)
             - -1 or 'lower': One-tailed lower (obs < null, negative effects)
-        parallel: Parallelization method (default: 'cpu')
+        device: Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs: Number of parallel jobs (-1 = all cores)
-            Only used when parallel='cpu'
+            Only used when device='cpu'
         max_gpu_memory_gb: Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            parallel='gpu'. Larger values allow more permutations per batch but
+            device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         return_null: Whether to return null distribution
         random_state: Random seed for reproducibility
@@ -648,7 +652,7 @@ def timeseries_correlation_permutation_test(
             - 'correlation': Observed correlation coefficient
             - 'p': P-value
             - 'null_dist': (if return_null=True) Null distribution
-            - 'parallel': Parallelization method used
+            - 'device': Parallelization method used
 
     Examples:
         >>> x = np.sin(np.linspace(0, 10*np.pi, 100))
@@ -663,22 +667,22 @@ def timeseries_correlation_permutation_test(
 
         >>> # GPU acceleration
         >>> result = timeseries_correlation_permutation_test(
-        ...     x, y, method='phase_randomize', parallel='gpu', n_permute=5000
+        ...     x, y, method='phase_randomize', device='gpu', n_permute=5000
         ... )
 
     Notes:
-        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
         - GPU parallelization ('gpu'): 5-20× faster for large problems (n_samples > 1000)
-        - Single-threaded (parallel=None): Use for small problems or debugging
+        - Single-threaded (device=None): Use for small problems or debugging
         - For independent data, use regular correlation_permutation_test
         - circle_shift is faster and suitable for most fMRI time series
         - phase_randomize preserves power spectrum exactly (tests nonlinearity)
         - Only data1 is randomized; data2 remains fixed to test correlation
         - phase_randomize benefits most from GPU (FFT acceleration)
     """
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    # Validate device parameter
+    if device not in [None, "cpu", "gpu"]:
+        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
 
     # Validate tail up front (like one_sample/two_sample/matrix) so an invalid
     # value fails immediately rather than after every permutation has run.
@@ -718,10 +722,10 @@ def timeseries_correlation_permutation_test(
         obs_corr = obs_corr[0]
     obs_corr = np.asarray(obs_corr)
 
-    # Decide execution mode based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Decide execution mode based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             rng = check_random_state(random_state)
             MAX_INT = 2**31 - 1
@@ -746,7 +750,7 @@ def timeseries_correlation_permutation_test(
             results = {
                 "correlation": float(obs_corr),
                 "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-                "parallel": None,
+                "device": None,
             }
 
             if return_null:
@@ -803,7 +807,7 @@ def timeseries_correlation_permutation_test(
         results = {
             "correlation": float(obs_corr),
             "p": p_value.item() if hasattr(p_value, "item") else float(p_value),
-            "parallel": "cpu",
+            "device": "cpu",
         }
 
         if return_null:

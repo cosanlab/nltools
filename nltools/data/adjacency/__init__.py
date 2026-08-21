@@ -756,7 +756,7 @@ class Adjacency:
 
         Returns:
             dict or list or BrainData: A correlation result dict with keys
-                'correlation', 'p', and 'parallel' for a single matrix, a list of
+                'correlation', 'p', and 'device' for a single matrix, a list of
                 such dicts when this Adjacency holds multiple matrices, or a
                 `BrainData` when `project=True` (per-matrix correlations projected
                 via spatial_scale).

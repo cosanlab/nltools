@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from nltools.stats import one_sample_permutation_test
+from nltools.algorithms import one_sample_permutation_test
 from nltools.algorithms.inference import _auto_batch_size
 from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,

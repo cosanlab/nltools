@@ -7,7 +7,7 @@ Tests both basic functionality and statistical correctness.
 import pytest
 import numpy as np
 
-from nltools.stats import one_sample_permutation_test
+from nltools.algorithms import one_sample_permutation_test
 
 
 class TestOneSamplePermutation:
@@ -26,7 +26,7 @@ class TestOneSamplePermutation:
 
         assert "mean" in result
         assert "p" in result
-        assert "parallel" in result
+        assert "device" in result
 
         if n_features == 1:
             assert isinstance(result["mean"], (float, np.floating))

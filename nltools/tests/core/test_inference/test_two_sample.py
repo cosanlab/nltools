@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from scipy.stats import kstest
 
-from nltools.stats import two_sample_permutation_test
+from nltools.algorithms import two_sample_permutation_test
 from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
@@ -32,7 +32,7 @@ class TestTwoSamplePermutation:
 
         assert "mean_diff" in result
         assert "p" in result
-        assert "parallel" in result
+        assert "device" in result
 
         if n_features == 1:
             assert isinstance(result["mean_diff"], (float, np.floating))
@@ -176,7 +176,7 @@ class TestTwoSamplePermutation:
 
         # P-values should be valid
         assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert result["parallel"] == "cpu"
+        assert result["device"] == "cpu"
 
     @pytest.mark.slow
     @pytest.mark.gpu

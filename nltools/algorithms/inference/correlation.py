@@ -196,7 +196,7 @@ def _correlation_permutation_cpu_parallel(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'parallel' indicating CPU parallel
+        dict: Same format as main function, with 'device' indicating CPU parallel
     """
     from joblib import Parallel, delayed
 
@@ -259,7 +259,7 @@ def _correlation_permutation_cpu_parallel(
     result = {
         "correlation": obs_corr,
         "p": p_values,
-        "parallel": "cpu",
+        "device": "cpu",
     }
 
     if return_null:
@@ -398,7 +398,7 @@ def _correlation_permutation_gpu_batched(
         single_feature (bool): Whether data is single feature
 
     Returns:
-        dict: Same format as main function, with 'parallel' indicating GPU device
+        dict: Same format as main function, with 'device' indicating GPU device
     """
     import torch
 
@@ -624,7 +624,7 @@ def _correlation_permutation_gpu_batched(
     result = {
         "correlation": obs_corr,
         "p": p_values,
-        "parallel": "gpu",
+        "device": "gpu",
     }
 
     if return_null:
@@ -643,7 +643,7 @@ def correlation_permutation_test(
     metric: str = "pearson",
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -676,15 +676,15 @@ def correlation_permutation_test(
             - 'lower' or -1: One-tailed lower (r < 0, negative correlation)
             For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
         return_null (bool): If True, return full null distribution (default: False)
-        parallel (str, optional): Parallelization method (default: 'cpu')
+        device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when parallel='cpu'
+            Only used when device='cpu'
         max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            parallel='gpu'. Larger values allow more permutations per batch but
+            device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
 
@@ -693,7 +693,7 @@ def correlation_permutation_test(
             - 'correlation' (float or np.ndarray): Observed correlation(s)
             - 'p' (float or np.ndarray): P-value(s)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'parallel' (str): Parallelization method used
+            - 'device' (str): Parallelization method used
 
     Examples:
         >>> # Single feature (default CPU parallelization)
@@ -715,20 +715,20 @@ def correlation_permutation_test(
         (10,)
 
         >>> # GPU acceleration
-        >>> result = correlation_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+        >>> result = correlation_permutation_test(data1, data2, n_permute=5000, device='gpu')
 
     Notes:
-        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
         - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
             - Pearson correlation: Fully vectorized across all features (5-20× speedup for multi-feature)
-            - Spearman/Kendall: Only supported with parallel='cpu' or parallel=None (GPU not yet implemented)
-        - Single-threaded (parallel=None): Use for small problems or debugging
+            - Spearman/Kendall: Only supported with device='cpu' or device=None (GPU not yet implemented)
+        - Single-threaded (device=None): Use for small problems or debugging
         - For multi-feature data, each feature pair tested independently
         - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
     """
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    # Validate device parameter
+    if device not in [None, "cpu", "gpu"]:
+        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
 
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)
@@ -760,21 +760,21 @@ def correlation_permutation_test(
     n_samples, n_features = data1.shape
 
     # GPU path supports Pearson and Spearman only. For Kendall, fall through
-    # to the CPU-parallel path so user code with parallel='gpu' still works.
+    # to the CPU-parallel path so user code with device='gpu' still works.
     # True GPU Kendall tau-b kernel tracked in EJO-453.
-    if parallel == "gpu" and metric == "kendall":
+    if device == "gpu" and metric == "kendall":
         warnings.warn(
             "Kendall correlation is not implemented on GPU; falling back to "
-            "parallel='cpu'. Use parallel='cpu' explicitly to silence this warning.",
+            "device='cpu'. Use device='cpu' explicitly to silence this warning.",
             UserWarning,
             stacklevel=2,
         )
-        parallel = "cpu"
+        device = "cpu"
 
-    # Decide execution mode based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Decide execution mode based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             rng = check_random_state(random_state)
 
@@ -827,7 +827,7 @@ def correlation_permutation_test(
             result = {
                 "correlation": obs_corr,
                 "p": p_values,
-                "parallel": None,
+                "device": None,
             }
 
             if return_null:

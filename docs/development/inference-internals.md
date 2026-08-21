@@ -11,10 +11,10 @@ the public functions see the [Inference API](../api/algorithms/inference.md).
 
 ## Backend selection
 
-Every permutation/bootstrap entry point takes `parallel: None | 'cpu' | 'gpu'` (not a
-`backend=` argument):
+Every permutation/bootstrap entry point takes `device: None | 'cpu' | 'gpu'` (the
+canonical vocabulary — renamed from `parallel=` in v0.6.0; not a `backend=` argument):
 
-| `parallel=` | Meaning | Trade-off |
+| `device=` | Meaning | Trade-off |
 |---|---|---|
 | `None` | Sequential NumPy | simple, deterministic, slow |
 | `'cpu'` | Joblib CPU-parallel | fast, no GPU needed |
@@ -90,7 +90,7 @@ Two computation modes:
 2. **Pairwise** — all `n(n-1)/2` correlations; traditional, complete structure.
 
 Null via subject-wise bootstrap (resample with replacement), circle shift, or phase
-randomize; the LOO/pairwise compute has a GPU path selectable with `parallel='gpu'`. A
+randomize; the LOO/pairwise compute has a GPU path selectable with `device='gpu'`. A
 companion `isc_group_permutation_test` tests a two-group ISC difference. `isc_test`
 re-centers the bootstrap null at zero before computing p (fixing a pre-0.6.0 regression).
 

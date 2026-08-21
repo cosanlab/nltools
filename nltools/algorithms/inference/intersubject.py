@@ -6,10 +6,10 @@ import numpy as np
 import polars as pl
 from scipy.signal import hilbert
 
-from nltools.algorithms.inference import isc_permutation_test
-from nltools.algorithms.inference.matrix import _compute_cross_correlation
+from .isc import isc_permutation_test
+from .matrix import _compute_cross_correlation
 
-from .timeseries import (
+from ..signal import (
     _butter_bandpass_filter,
     _phase_mean_angle,
     _phase_rayleigh_p,

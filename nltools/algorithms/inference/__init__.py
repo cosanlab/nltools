@@ -10,7 +10,8 @@ Key Features:
     - 10-100× speedup for permutation tests with GPU
     - Efficient CPU parallelization when GPU unavailable
     - Transparent CPU/GPU support via Backend abstraction
-    - Drop-in replacement for nltools.stats functions
+    - Intersubject statistics (`isc`, `isc_group`, `isfc`, `isps`) built on the
+      same permutation/bootstrap engine
 
 Examples:
     >>> import numpy as np
@@ -23,14 +24,14 @@ Examples:
 
     >>> # Voxel-wise test with GPU acceleration
     >>> data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
-    >>> result = one_sample_permutation_test(data, n_permute=10000, parallel='gpu')
+    >>> result = one_sample_permutation_test(data, n_permute=10000, device='gpu')
     >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
 
 Performance:
     - CPU (NumPy): Good for small problems (< 5K permutations)
     - GPU (PyTorch): Excellent for large problems (> 5K permutations)
     - CPU Parallel (joblib): Efficient fallback when GPU unavailable
-    - Select with parallel='cpu' | 'gpu' | None (no 'auto' selector)
+    - Select with device='cpu' | 'gpu' | None (no 'auto' selector)
 
 References:
     Eklund, A., Dufort, P., Villani, M., & LaConte, S. M. (2014).
@@ -57,6 +58,11 @@ from .matrix import (
     u_center,
     distance_correlation,
 )
+
+# NOTE: the user-facing intersubject statistics (`isc`, `isc_group`, `isfc`,
+# `isps`) live in `.intersubject` and are exported flat from
+# `nltools.algorithms` — re-exporting the `isc` *function* here would shadow
+# the `.isc` engine *module* on this package.
 from .isc import isc_permutation_test, isc_group_permutation_test
 
 # Import utility functions (for testing and internal use)

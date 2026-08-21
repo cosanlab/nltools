@@ -49,7 +49,6 @@ GRIFFE2MD = _griffe2md_argv()
 # Matches the existing myst.yml TOC structure.
 MODULES: list[tuple[str, str]] = [
     # --- top-level API ---
-    ("nltools.stats", "stats.md"),
     ("nltools.plotting", "plotting.md"),
     ("nltools.mask", "mask.md"),
     ("nltools.io", "io.md"),
@@ -106,6 +105,12 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.atlases.reporting", "data/atlases_reporting.md"),
     # --- algorithms ---
     ("nltools.algorithms", "algorithms.md"),
+    ("nltools.algorithms.corrections", "algorithms/corrections.md"),
+    ("nltools.algorithms.outliers", "algorithms/outliers.md"),
+    ("nltools.algorithms.signal", "algorithms/signal.md"),
+    ("nltools.algorithms.similarity", "algorithms/similarity.md"),
+    ("nltools.algorithms.regression", "algorithms/regression.md"),
+    ("nltools.algorithms.alignment.procrustes", "algorithms/alignment_procrustes.md"),
     ("nltools.algorithms.inference", "algorithms/inference.md"),
     ("nltools.algorithms.inference.one_sample", "algorithms/inference_one_sample.md"),
     ("nltools.algorithms.inference.two_sample", "algorithms/inference_two_sample.md"),
@@ -113,6 +118,10 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.algorithms.inference.timeseries", "algorithms/inference_timeseries.md"),
     ("nltools.algorithms.inference.matrix", "algorithms/inference_matrix.md"),
     ("nltools.algorithms.inference.isc", "algorithms/inference_isc.md"),
+    (
+        "nltools.algorithms.inference.intersubject",
+        "algorithms/inference_intersubject.md",
+    ),
     ("nltools.algorithms.inference.bootstrap", "algorithms/inference_bootstrap.md"),
     ("nltools.algorithms.inference.utils", "algorithms/inference_utils.md"),
 ]

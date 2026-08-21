@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from nltools.stats import one_sample_permutation_test
+from nltools.algorithms import one_sample_permutation_test
 from nltools.tests.core.test_inference import (
     N_PERMUTE_BACKEND,
 )
@@ -58,7 +58,7 @@ class TestBackends:
         data = np.random.randn(30)
         result = one_sample_permutation_test(data, device=None, random_state=42)
 
-        assert result["parallel"] is None
+        assert result["device"] is None
 
     @pytest.mark.slow
     @pytest.mark.gpu
@@ -69,4 +69,4 @@ class TestBackends:
         data = np.random.randn(30)
         result = one_sample_permutation_test(data, device="gpu", random_state=42)
 
-        assert result["parallel"] == "gpu"
+        assert result["device"] == "gpu"

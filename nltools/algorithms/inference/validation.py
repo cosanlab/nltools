@@ -8,39 +8,39 @@ Usage:
     input parameters. They provide consistent error messages and behavior.
 
     Example:
-        >>> from nltools.algorithms.validation import validate_parallel_parameter
-        >>> validate_parallel_parameter("cpu")  # OK
-        >>> validate_parallel_parameter("invalid")  # Raises ValueError
+        >>> from nltools.algorithms.validation import validate_device_parameter
+        >>> validate_device_parameter("cpu")  # OK
+        >>> validate_device_parameter("invalid")  # Raises ValueError
 """
 
 import numpy as np
 
 
-def validate_parallel_parameter(parallel: str | None) -> None:
-    """Validate parallel parameter.
+def validate_device_parameter(device: str | None) -> None:
+    """Validate device parameter.
 
     Args:
-        parallel: Parallel parameter value
+        device: Parallel parameter value
 
     Raises:
-        ValueError: If parallel is not None, 'cpu', or 'gpu'
+        ValueError: If device is not None, 'cpu', or 'gpu'
     """
-    if parallel is not None and parallel not in ["cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got: {parallel!r}")
+    if device is not None and device not in ["cpu", "gpu"]:
+        raise ValueError(f"device must be None, 'cpu', or 'gpu', got: {device!r}")
 
 
-def validate_parallel_parameter_matrix(parallel: str | None) -> None:
-    """Validate parallel parameter for matrix operations.
+def validate_device_parameter_matrix(device: str | None) -> None:
+    """Validate device parameter for matrix operations.
 
     Args:
-        parallel: Parallel parameter value
+        device: Parallel parameter value
 
     Raises:
-        ValueError: If parallel is not None or 'cpu' (GPU not yet supported)
+        ValueError: If device is not None or 'cpu' (GPU not yet supported)
     """
-    if parallel not in [None, "cpu"]:
+    if device not in [None, "cpu"]:
         raise ValueError(
-            f"parallel must be None or 'cpu', got {parallel!r}. "
+            f"device must be None or 'cpu', got {device!r}. "
             "GPU support not yet implemented for matrix permutation tests."
         )
 

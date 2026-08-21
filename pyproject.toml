@@ -193,9 +193,9 @@ cmd = "pytest nltools/tests/data/designmatrix -n auto --maxprocesses=4 -x"
 help = "Test BrainCollection class"
 cmd = "pytest nltools/tests/data/collection -n auto --maxprocesses=4 -x"
 
-[tool.poe.tasks.test-stats]
-help = "Test stats module"
-cmd = "pytest nltools/tests/stats -n auto --maxprocesses=4 -x"
+[tool.poe.tasks.test-algorithms]
+help = "Test consolidated algorithms modules (corrections/outliers/signal/similarity/regression/intersubject/procrustes)"
+cmd = "pytest nltools/tests/core/test_algorithms -n auto --maxprocesses=4 -x"
 
 [tool.poe.tasks.test-core]
 help = "Test core algorithms"

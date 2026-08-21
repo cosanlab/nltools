@@ -84,7 +84,6 @@ project:
         - file: api/models.md
     - title: API Functions
       children:
-        - file: api/stats.md
         - file: api/plotting.md
         - file: api/mask.md
         - file: api/io.md
@@ -101,6 +100,12 @@ project:
     - title: API Algorithms
       children:
         - file: api/algorithms.md
+        - file: api/algorithms/corrections.md
+        - file: api/algorithms/outliers.md
+        - file: api/algorithms/signal.md
+        - file: api/algorithms/similarity.md
+        - file: api/algorithms/regression.md
+        - file: api/algorithms/alignment_procrustes.md
         - file: api/backends.md
     - title: API Inference
       children:
@@ -111,6 +116,7 @@ project:
         - file: api/algorithms/inference_timeseries.md
         - file: api/algorithms/inference_matrix.md
         - file: api/algorithms/inference_isc.md
+        - file: api/algorithms/inference_intersubject.md
         - file: api/algorithms/inference_bootstrap.md
         - file: api/algorithms/inference_utils.md
     - title: Development

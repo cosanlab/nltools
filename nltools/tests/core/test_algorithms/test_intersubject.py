@@ -1,11 +1,11 @@
-"""Tests for nltools.stats.intersubject — ISC, ISFC, ISPS."""
+"""Tests for nltools.algorithms.inference.intersubject — ISC, ISFC, ISPS."""
 
 import numpy as np
 import polars as pl
 from numpy import sin, pi, arange
 import pytest
 
-from nltools.stats.intersubject import isc, isc_group, isfc, isps
+from nltools.algorithms.inference.intersubject import isc, isc_group, isfc, isps
 
 
 class TestISC:
@@ -109,7 +109,7 @@ class TestISFC:
         )
 
     def test_isfc_parallelization(self, sub_roi_data):
-        """Serial and parallel ISFC should give identical results."""
+        """Serial and device ISFC should give identical results."""
         result_serial = isfc(sub_roi_data, n_jobs=1)
         result_parallel = isfc(sub_roi_data, n_jobs=-1)
         assert len(result_serial) == len(result_parallel) == 10
@@ -136,7 +136,7 @@ class TestISFC:
             np.testing.assert_allclose(r1[i], r_all[i], rtol=1e-10, atol=1e-10)
 
     def test_isfc_default_parallel(self, sub_roi_data):
-        """Default call should use parallel execution."""
+        """Default call should use device execution."""
         result_default = isfc(sub_roi_data)
         result_explicit = isfc(sub_roi_data, n_jobs=-1)
         for i in range(10):

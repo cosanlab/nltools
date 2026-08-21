@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from nltools.stats import one_sample_permutation_test
+from nltools.algorithms import one_sample_permutation_test
 
 # CPU parallelization tests are slow (permutation-heavy)
 pytestmark = pytest.mark.slow
@@ -33,7 +33,7 @@ class TestCPUParallelization:
             assert result["mean"].shape == (n_features,)
             assert result["p"].shape == (n_features,)
             assert np.all((result["p"] >= 0) & (result["p"] <= 1))
-        assert result["parallel"] == "cpu"
+        assert result["device"] == "cpu"
 
     def test_cpu_parallel_correctness(self):
         """Test that CPU parallel produces statistically valid results."""
@@ -72,7 +72,7 @@ class TestCPUParallelization:
                 data, n_permute=200, device="cpu", n_jobs=n_jobs, random_state=42
             )
 
-            assert result["parallel"] == "cpu"
+            assert result["device"] == "cpu"
             assert result["mean"].shape == (20,)
             assert result["p"].shape == (20,)
 

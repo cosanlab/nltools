@@ -838,7 +838,7 @@ def ttest(
         bd: BrainData instance (must contain multiple images).
         popmean: Population mean to test against. Default 0.0.
         permutation: If True, use sign-flip permutation test via
-            ``nltools.stats.one_sample_permutation_test``; the p-values come
+            ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come
             from the empirical null and the parametric t-statistic is still
             reported alongside for reference.
         n_permute: Number of permutations (used only when
@@ -885,7 +885,7 @@ def ttest(
     mean_arr = np.asarray(bd.data).mean(axis=0) - popmean
 
     if permutation:
-        from nltools.stats import one_sample_permutation_test
+        from nltools.algorithms.inference import one_sample_permutation_test
 
         perm = one_sample_permutation_test(
             bd.data,

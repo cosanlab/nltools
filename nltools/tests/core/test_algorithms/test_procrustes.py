@@ -1,9 +1,14 @@
-"""Tests for nltools.stats.alignment — data alignment and Procrustes."""
+"""Tests for nltools.algorithms.alignment.procrustes — data alignment and Procrustes."""
 
 import numpy as np
 import pytest
 
-from nltools.stats.alignment import align, procrustes, procrustes_distance, align_states
+from nltools.algorithms.alignment.procrustes import (
+    align,
+    procrustes,
+    procrustes_distance,
+    align_states,
+)
 from nltools.data.simulator import Simulator
 from nltools.mask import create_sphere
 

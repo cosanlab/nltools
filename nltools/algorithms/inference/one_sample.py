@@ -17,7 +17,7 @@ from .utils import (
 )
 from .validation import (
     validate_tail_parameter,
-    validate_parallel_parameter,
+    validate_device_parameter,
     validate_array_shape_range,
 )
 
@@ -37,7 +37,7 @@ def _one_sample_permutation_cpu_parallel(
 
     Pre-generates all sign-flips deterministically (matching stats.py pattern),
     then parallelizes only the computation. This ensures perfect reproducibility
-    and backward compatibility with nltools.stats.one_sample_permutation.
+    and backward compatibility with nltools.algorithms.one_sample_permutation.
 
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
@@ -100,7 +100,7 @@ def _one_sample_permutation_cpu_parallel(
     result = {
         "mean": obs_stat,
         "p": p_values,
-        "parallel": "cpu",
+        "device": "cpu",
     }
 
     if return_null:
@@ -218,7 +218,7 @@ def _one_sample_permutation_gpu_batched(
     result = {
         "mean": obs_stat,
         "p": p_values,
-        "parallel": "gpu",
+        "device": "gpu",
     }
 
     if return_null:
@@ -235,7 +235,7 @@ def one_sample_permutation_test(
     n_permute: int = 5000,
     tail: int | str = 2,
     return_null: bool = False,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     random_state: int | None = None,
@@ -261,15 +261,15 @@ def one_sample_permutation_test(
             - 'lower' or -1: One-tailed lower (mean < 0)
             For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
         return_null (bool): If True, return full null distribution (default: False)
-        parallel (str, optional): Parallelization method (default: 'cpu')
+        device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when parallel='cpu'
+            Only used when device='cpu'
         max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
             Controls automatic batching to prevent OOM errors. Only used with
-            parallel='gpu'. Larger values allow more permutations per batch but
+            device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
         progress_bar (bool): Whether to display a progress bar (default: False)
@@ -279,7 +279,7 @@ def one_sample_permutation_test(
             - 'mean' (float or np.ndarray): Observed mean(s)
             - 'p' (float or np.ndarray): P-value(s)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'parallel' (str): Parallelization method used
+            - 'device' (str): Parallelization method used
 
     Examples:
         >>> # Single feature (default CPU parallelization)
@@ -290,19 +290,19 @@ def one_sample_permutation_test(
 
         >>> # Voxel-wise test with GPU
         >>> data = np.random.randn(30, 10000)  # 30 subjects, 10K voxels
-        >>> result = one_sample_permutation_test(data, n_permute=5000, parallel='gpu')
+        >>> result = one_sample_permutation_test(data, n_permute=5000, device='gpu')
         >>> result['mean'].shape
         (10000,)
         >>> result['p'].shape
         (10000,)
 
         >>> # Single-threaded (for debugging)
-        >>> result = one_sample_permutation_test(data, n_permute=5000, parallel=None)
+        >>> result = one_sample_permutation_test(data, n_permute=5000, device=None)
 
     Notes:
-        - Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
         - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-        - Single-threaded (parallel=None): Use for small problems or debugging
+        - Single-threaded (device=None): Use for small problems or debugging
         - For voxel-wise tests, each voxel tested independently
         - Progress bars show completion for both CPU parallel and GPU batched modes
     """
@@ -310,7 +310,7 @@ def one_sample_permutation_test(
     data = np.asarray(data, dtype=np.float64)
     validate_array_shape_range(data, 1, 2, name="data")
     validate_tail_parameter(tail)
-    validate_parallel_parameter(parallel)
+    validate_device_parameter(device)
 
     # Handle shape
     single_feature = data.ndim == 1
@@ -319,10 +319,10 @@ def one_sample_permutation_test(
 
     n_samples, n_features = data.shape
 
-    # Decide execution mode based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Decide execution mode based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             rng = check_random_state(random_state)
             obs_stat = np.mean(data, axis=0)
@@ -338,7 +338,7 @@ def one_sample_permutation_test(
             result = {
                 "mean": obs_stat,
                 "p": p_values,
-                "parallel": None,
+                "device": None,
             }
 
             if return_null:

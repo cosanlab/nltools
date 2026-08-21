@@ -18,6 +18,7 @@ __all__ = [
     "SimulateGrid",
     "Simulator",
     "__version__",
+    "algorithms",
     "collapse_mask",
     "create_sphere",
     "cross_validation",
@@ -30,7 +31,6 @@ __all__ = [
     "plotting",
     "reset_brainspace",
     "set_brainspace",
-    "stats",
     "templates",
     "utils",
     "with_brainspace",
@@ -59,11 +59,11 @@ from .algorithms import SRM, DetSRM
 # nltools.datasets, nltools.cross_validation) works without a prior
 # explicit `import nltools.datasets`.
 from . import (  # noqa: F401
+    algorithms,
     cross_validation,
     data,
     datasets,
     io,
     plotting,
-    stats,
     utils,
 )

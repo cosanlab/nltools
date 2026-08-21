@@ -468,11 +468,11 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
     data = np.random.randn(100, 10, 20)
 
     result_numpy = isc_permutation_test(
-        data, parallel=None, n_permute=100, random_state=42, progress_bar=False
+        data, device=None, n_permute=100, random_state=42, progress_bar=False
     )
 
     result_parallel = isc_permutation_test(
-        data, parallel="cpu", n_permute=100, random_state=42, progress_bar=False
+        data, device="cpu", n_permute=100, random_state=42, progress_bar=False
     )
 
     # Both use float64 CPU - should be exact matches
@@ -495,7 +495,7 @@ def test_isc_gpu_matches_cpu():
     result_cpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        parallel="cpu",
+        device="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -504,7 +504,7 @@ def test_isc_gpu_matches_cpu():
     result_gpu = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        parallel="gpu",
+        device="gpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -641,7 +641,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        parallel="cpu",
+        device="cpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -651,7 +651,7 @@ def test_isc_gpu_speedup_loo():
     _ = isc_permutation_test(
         data,
         summary_statistic="leave-one-out",
-        parallel="gpu",
+        device="gpu",
         n_permute=100,
         progress_bar=False,
     )
@@ -668,7 +668,7 @@ def test_isc_gpu_speedup_loo():
 def test_isc_gpu_pairwise_matches_cpu():
     """GPU pairwise ISC matches CPU within float32 tolerance.
 
-    Correctness guard for the fully-GPU pairwise path: `parallel='gpu'` runs the
+    Correctness guard for the fully-GPU pairwise path: `device='gpu'` runs the
     observed compute on the torch backend (on-device upper-triangle extraction)
     AND the bootstrap on-device (`_bootstrap_pairwise_gpu`). The GPU bootstrap
     draws the *same* subject resamples the CPU path would (deterministic
@@ -684,7 +684,7 @@ def test_isc_gpu_pairwise_matches_cpu():
     result_cpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        parallel="cpu",
+        device="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -692,7 +692,7 @@ def test_isc_gpu_pairwise_matches_cpu():
     result_gpu = isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        parallel="gpu",
+        device="gpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -735,16 +735,14 @@ def test_isc_gpu_pairwise_speedup():
     }
 
     # Warm up CUDA context/kernels so the GPU timing excludes one-time init.
-    isc_permutation_test(
-        data[:, :, :100], parallel="gpu", **{**kwargs, "n_permute": 10}
-    )
+    isc_permutation_test(data[:, :, :100], device="gpu", **{**kwargs, "n_permute": 10})
 
     t0 = time.perf_counter()
-    isc_permutation_test(data, parallel="cpu", **kwargs)
+    isc_permutation_test(data, device="cpu", **kwargs)
     t_cpu = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    isc_permutation_test(data, parallel="gpu", **kwargs)
+    isc_permutation_test(data, device="gpu", **kwargs)
     t_gpu = time.perf_counter() - t0
 
     speedup = t_cpu / t_gpu
@@ -971,7 +969,7 @@ def test_isc_sim_metric_affects_pairwise_computation():
 def test_isc_gpu_pairwise_non_correlation_raises():
     """GPU pairwise ISC only implements sim_metric='correlation'.
 
-    Requesting `parallel='gpu'` with a non-correlation metric is contradictory —
+    Requesting `device='gpu'` with a non-correlation metric is contradictory —
     the GPU pairwise kernel computes correlation only. It must fail fast with a
     clear ValueError (consistent with the sibling `isc_group_permutation_test`),
     not silently ignore the GPU request. The guard runs before any torch call,
@@ -988,7 +986,7 @@ def test_isc_gpu_pairwise_non_correlation_raises():
             data,
             summary_statistic="pairwise",
             sim_metric="euclidean",
-            parallel="gpu",
+            device="gpu",
             n_permute=10,
             random_state=42,
             progress_bar=False,
@@ -996,10 +994,10 @@ def test_isc_gpu_pairwise_non_correlation_raises():
 
 
 def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
-    """parallel='gpu' must route the pairwise compute to the torch backend.
+    """device='gpu' must route the pairwise compute to the torch backend.
 
     Regression guard for the wiring fix: the observed pairwise ISC previously
-    hardcoded `backend='numpy'` even under `parallel='gpu'`, making the GPU a
+    hardcoded `backend='numpy'` even under `device='gpu'`, making the GPU a
     silent no-op. Spy on `_compute_pairwise_isc` and assert it's invoked with
     `backend='torch'`. No CUDA needed — torch falls back to its CPU device.
     """
@@ -1020,13 +1018,13 @@ def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
     isc_mod.isc_permutation_test(
         data,
         summary_statistic="pairwise",
-        parallel="gpu",
+        device="gpu",
         n_permute=10,
         random_state=0,
         progress_bar=False,
     )
     assert "torch" in seen, (
-        f"pairwise parallel='gpu' used backends {seen}; expected 'torch'."
+        f"pairwise device='gpu' used backends {seen}; expected 'torch'."
     )
 
 
@@ -1820,7 +1818,7 @@ class TestISCStatisticalCorrectness:
 
         # Verify autocorrelation is preserved in circle_shifted data
         # (by checking that circle_shift function preserves it)
-        from nltools.stats import circle_shift
+        from nltools.algorithms import circle_shift
 
         shifted_data = circle_shift(data, random_state=42)
         autocorr_shifted = []
@@ -1861,7 +1859,7 @@ class TestISCStatisticalCorrectness:
             power_orig.append(np.abs(fft_orig) ** 2)
 
         # Verify phase_randomize preserves power spectrum
-        from nltools.stats import phase_randomize
+        from nltools.algorithms import phase_randomize
 
         randomized_data = phase_randomize(data, random_state=42)
         power_rand = []

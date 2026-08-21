@@ -22,7 +22,7 @@ When to use hyperalignment:
     - Multi-subject alignment preserving spatial structure
     - Alternative to SRM when spatial structure is important
     - See `nltools.algorithms.srm.SRM` for dimension-reduction approach
-    - See `nltools.stats.procrustes()` for single-subject alignment
+    - See `nltools.algorithms.procrustes()` for single-subject alignment
 
 This module implements the hyperalignment technique described in:
 
@@ -59,7 +59,7 @@ def _procrustes_pairwise(
         - Used in pairwise fashion during hyperalignment iterations
 
     Internal helper function that performs pairwise Procrustes alignment.
-    This is adapted from nltools.stats.procrustes() for internal use.
+    This is adapted from `algorithms.alignment.procrustes.procrustes` for internal use.
 
     Args:
         data1: Reference matrix (target for alignment), shape (n_samples, n_features).

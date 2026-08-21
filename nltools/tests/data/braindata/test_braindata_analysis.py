@@ -5,7 +5,7 @@ import pytest
 from nltools.data import BrainData
 from nltools.mask import create_sphere, roi_to_brain
 from nltools.data.simulator import Simulator
-from nltools.stats import align
+from nltools.algorithms import align
 
 
 class TestBrainDataAnalysis:

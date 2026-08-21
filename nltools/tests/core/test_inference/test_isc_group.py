@@ -785,7 +785,7 @@ def test_isc_group_permutation_test_backend_consistency():
     result_numpy = isc_group_permutation_test(
         group1,
         group2,
-        parallel=None,
+        device=None,
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -794,7 +794,7 @@ def test_isc_group_permutation_test_backend_consistency():
     result_parallel = isc_group_permutation_test(
         group1,
         group2,
-        parallel="cpu",
+        device="cpu",
         n_permute=100,
         random_state=42,
         progress_bar=False,
@@ -1193,7 +1193,7 @@ class TestISCGroupStatisticalCorrectness:
 
         for method in methods:
             # Old implementation (from stats.py)
-            from nltools.stats import isc_group as isc_group_old
+            from nltools.algorithms import isc_group as isc_group_old
 
             result_old = isc_group_old(
                 group1,
@@ -1257,7 +1257,7 @@ def test_stats_isc_group_backward_compatibility():
     group2 = np.random.randn(50, 5)  # Reduced from 100, 10 for tier1 speed
 
     # Test direct call to stats.py wrapper
-    from nltools.stats import isc_group
+    from nltools.algorithms import isc_group
 
     result = isc_group(
         group1,

@@ -1,8 +1,8 @@
-"""Tests for nltools.stats.corrections — multiple comparison corrections."""
+"""Tests for nltools.algorithms.corrections — multiple comparison corrections."""
 
 import numpy as np
 
-from nltools.stats.corrections import fdr, holm_bonf, threshold, multi_threshold
+from nltools.algorithms.corrections import fdr, holm_bonf, threshold, multi_threshold
 
 
 class TestFDR:

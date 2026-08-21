@@ -50,7 +50,7 @@ def similarity(bd, image, metric="correlation"):
         np.ndarray: Similarity values.
 
     """
-    from nltools.stats import compute_similarity
+    from nltools.algorithms.similarity import compute_similarity
     from .utils import check_brain_data
 
     supported_metrics = [
@@ -437,7 +437,7 @@ def multivariate_similarity(bd, images, method="ols"):
 
     """
     # Notes:  Should add ridge, and lasso, elastic net options options
-    from nltools.stats import compute_multivariate_similarity
+    from nltools.algorithms.similarity import compute_multivariate_similarity
     from .utils import check_brain_data
 
     if len(bd.shape) > 1:
@@ -687,7 +687,7 @@ def r_to_z(bd):
     Returns:
         BrainData: Transformed BrainData instance.
     """
-    from nltools.stats import fisher_r_to_z
+    from nltools.algorithms.similarity import fisher_r_to_z
 
     out = shallow_copy(bd)
     # fisher_r_to_z creates a new array
@@ -704,7 +704,7 @@ def z_to_r(bd):
     Returns:
         BrainData: Transformed BrainData instance.
     """
-    from nltools.stats import fisher_z_to_r
+    from nltools.algorithms.similarity import fisher_z_to_r
 
     out = shallow_copy(bd)
     # fisher_z_to_r creates a new array
@@ -1043,7 +1043,7 @@ def transform_pairwise_data(bd):
     Returns:
         BrainData: BrainData instance transformed into pairwise comparisons.
     """
-    from nltools.stats import transform_pairwise
+    from nltools.algorithms.similarity import transform_pairwise
 
     out = shallow_copy(bd)
     out.data, new_Y = transform_pairwise(bd.data, bd.Y.to_numpy())
@@ -1111,7 +1111,7 @@ def align(bd, target, method="procrustes", axis=0):
     estimated common model stored as a numpy array. Transformed data can be back
     projected to original data using Transformation matrix.
 
-    See nltools.stats.align for aligning multiple BrainData instances
+    See nltools.algorithms.align for aligning multiple BrainData instances
 
     Args:
         bd: BrainData instance.
@@ -1132,7 +1132,7 @@ def align(bd, target, method="procrustes", axis=0):
         - Project aligned data into original data:
             >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
     """
-    from nltools.stats import procrustes
+    from nltools.algorithms.alignment import procrustes
     from .utils import check_brain_data
 
     if method not in ["probabilistic_srm", "deterministic_srm", "procrustes"]:
@@ -1240,7 +1240,7 @@ def find_spikes_data(
     sampling_freq=None,
 ):
     """Identify spikes from time-series data; see `find_spikes`."""
-    from nltools.stats import find_spikes
+    from nltools.algorithms.outliers import find_spikes
 
     return find_spikes(
         bd,

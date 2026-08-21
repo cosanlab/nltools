@@ -11,8 +11,8 @@ from scipy.spatial import procrustes as procrust
 from sklearn.metrics import pairwise_distances
 from sklearn.utils import check_random_state
 
-from ..algorithms.inference.utils import _compute_pvalue
-from ..algorithms.alignment import SRM, DetSRM
+from ..inference.utils import _compute_pvalue
+from .srm import SRM, DetSRM
 
 
 def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSRM algorithm constructors
@@ -24,7 +24,7 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
 
     Can be used to hyperalign source data to target data using
     Hyperalignment from Dartmouth (i.e., procrustes transformation; see
-    nltools.stats.procrustes) or Shared Response Model from Princeton (see
+    nltools.algorithms.procrustes) or Shared Response Model from Princeton (see
     nltools.algorithms.srm). (see nltools.data.BrainData.align for aligning
     a single Brain object to another). Common Model is shared response
     model or centered target data. Transformed data can be back projected to

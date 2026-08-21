@@ -19,7 +19,7 @@ N_PERMUTE_QUICK = [200]
 
 
 def _backends() -> list[tuple[str, str]]:
-    """(inference parallel=, harness device=) pairs — GPU leg included iff present."""
+    """(inference device=, harness device=) pairs — GPU leg included iff present."""
     backends = [("cpu", "cpu")]
     gpu = gpu_device()
     if gpu is not None:
@@ -46,19 +46,19 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
         (
             "one_sample",
             lambda p, n: one_sample_permutation_test(
-                data, n_permute=n, parallel=p, random_state=0
+                data, n_permute=n, device=p, random_state=0
             ),
         ),
         (
             "two_sample",
             lambda p, n: two_sample_permutation_test(
-                data, data2, n_permute=n, parallel=p, random_state=0
+                data, data2, n_permute=n, device=p, random_state=0
             ),
         ),
         (
             "correlation",
             lambda p, n: correlation_permutation_test(
-                vec1, vec2, n_permute=n, parallel=p, random_state=0
+                vec1, vec2, n_permute=n, device=p, random_state=0
             ),
         ),
     ]
@@ -66,9 +66,9 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     results: list[BenchResult] = []
     for name, fn in cases:
         for n_permute in n_permutes:
-            for parallel, device in _backends():
+            for device, device in _backends():
 
-                def _call(fn=fn, p=parallel, n=n_permute):
+                def _call(fn=fn, p=device, n=n_permute):
                     fn(p, n)
 
                 results.append(
@@ -83,7 +83,7 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
                             "n_subjects": N_SUBJECTS,
                             "n_voxels": n_voxels,
                             "n_permute": n_permute,
-                            "backend": parallel,
+                            "backend": device,
                         },
                     )
                 )

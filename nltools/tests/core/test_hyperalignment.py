@@ -376,7 +376,7 @@ class TestHyperAlignmentNumericalCorrectness:
         [features, samples] throughout. This test accounts for the transposition.
         """
         from nltools.algorithms import HyperAlignment
-        from nltools.stats import align
+        from nltools.algorithms import align
 
         # align() transposes numpy input from [obs, feat] to [feat, obs] internally
         # So we transpose sample_data to match what align() works with internally

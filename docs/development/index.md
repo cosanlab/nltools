@@ -19,7 +19,7 @@ logic lives in pure functions.**
 | Layer | Role | Where |
 |---|---|---|
 | **Imperative shell** | Four data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix,collection}/` |
-| **Functional core** | Pure functions — the actual computation. Containers in, containers out. | `stats`, `utils`, `cross_validation`, `mask` |
+| **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, …), `utils`, `cross_validation`, `mask` |
 | **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference,ridge}/` |
 
 The four facades and their submodules:
@@ -56,7 +56,7 @@ names:
 | Distance / similarity metric | `metric` |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` |
-| Backend (algorithms layer) | `parallel: None \| 'cpu' \| 'gpu'` |
+| Backend (ridge/alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine uses `device` as of v0.6.0) |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |

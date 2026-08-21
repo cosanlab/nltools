@@ -16,7 +16,7 @@ from .validation import (
     validate_how_parameter,
     validate_metric_parameter,
     validate_tail_parameter,
-    validate_parallel_parameter_matrix,
+    validate_device_parameter_matrix,
     validate_same_shape,
     validate_square_matrix,
 )
@@ -221,7 +221,7 @@ def _matrix_permutation_cpu_parallel(
     result = {
         "correlation": obs_corr,
         "p": p_value,
-        "parallel": "cpu",
+        "device": "cpu",
     }
 
     if return_null:
@@ -239,7 +239,7 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int | str = 2,
-    parallel: str | None = "cpu",
+    device: str | None = "cpu",
     n_jobs: int = -1,
     return_null: bool = False,
     progress_bar: bool = False,
@@ -275,11 +275,11 @@ def matrix_permutation_test(
             - 'two' or 2: Two-tailed test (r != 0)
             - 'upper' or 1: One-tailed upper (r > 0)
             - 'lower' or -1: One-tailed lower (r < 0)
-        parallel (str, optional): Parallelization method (default: 'cpu')
+        device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
         n_jobs (int): Number of parallel workers, -1 = all cores (default: -1)
-            Only used when parallel='cpu'
+            Only used when device='cpu'
         return_null (bool): Return null distribution (default: False)
         random_state (int, optional): Random seed for reproducibility
 
@@ -287,7 +287,7 @@ def matrix_permutation_test(
         dict: Dictionary with keys:
             - 'correlation' (float): Observed correlation coefficient
             - 'p' (float): P-value using Phipson-Smyth correction
-            - 'parallel' (str): Parallelization method used ('cpu' or None)
+            - 'device' (str): Parallelization method used ('cpu' or None)
             - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
     References:
@@ -326,10 +326,10 @@ def matrix_permutation_test(
     validate_metric_parameter(metric, ["pearson", "spearman", "kendall"], name="metric")
     validate_how_parameter(how)
     validate_tail_parameter(tail)
-    validate_parallel_parameter_matrix(parallel)
+    validate_device_parameter_matrix(device)
 
-    # Decide execution mode based on parallel parameter
-    if parallel == "cpu":
+    # Decide execution mode based on device parameter
+    if device == "cpu":
         # CPU parallelization mode
         return _matrix_permutation_cpu_parallel(
             data1=data1,
@@ -378,7 +378,7 @@ def matrix_permutation_test(
     result = {
         "correlation": obs_corr,
         "p": p_value,
-        "parallel": None,
+        "device": None,
     }
 
     if return_null:
@@ -388,7 +388,7 @@ def matrix_permutation_test(
 
 
 # ============================================================================
-# Matrix Utility Functions (moved from nltools.stats)
+# Matrix Utility Functions (moved from nltools.algorithms)
 # ============================================================================
 
 

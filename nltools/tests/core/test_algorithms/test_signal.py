@@ -1,10 +1,10 @@
-"""Tests for nltools.stats.timeseries — temporal signal processing."""
+"""Tests for nltools.algorithms.signal — temporal signal processing."""
 
 import numpy as np
 import polars as pl
 import pytest
 
-from nltools.stats.timeseries import downsample, upsample, calc_bpm, make_cosine_basis
+from nltools.algorithms.signal import downsample, upsample, calc_bpm, make_cosine_basis
 
 
 class TestDownsample:

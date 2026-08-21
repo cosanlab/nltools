@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from nilearn.masking import apply_mask, unmask
 from scipy.stats import multivariate_normal, binom, ttest_1samp
 from nltools.data import BrainData
-from nltools.stats import fdr
+from nltools.algorithms.corrections import fdr
 from nltools.templates import get_brainspace
 import csv
 from copy import deepcopy

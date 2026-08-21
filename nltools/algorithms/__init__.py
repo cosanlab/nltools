@@ -1,31 +1,122 @@
-"""Public algorithms: alignment (SRM, HyperAlignment, LocalAlignment), HRFs, ridge, and permutation inference."""
+"""nltools.algorithms — the functional core of nltools.
+
+Every user-facing statistical function and algorithm is importable flat from
+here (`from nltools.algorithms import fdr, zscore, isc`), organized into
+focused submodules underneath:
+
+- **corrections**: multiple-comparison corrections (FDR, Holm-Bonferroni, thresholding)
+- **outliers**: outlier detection, winsorizing, z-scoring
+- **signal**: temporal signal processing (resampling, filtering, basis functions)
+- **similarity**: similarity metrics and Fisher transforms
+- **regression**: standalone OLS regression on numpy arrays
+- **alignment**: SRM, HyperAlignment, LocalAlignment, and the functional
+  `align`/`procrustes` entry points
+- **inference**: permutation tests, bootstrap resampling, and intersubject
+  statistics (ISC/ISFC/ISPS) with CPU-parallel and GPU backends
+- **ridge**: regularized regression (also exported as a module for advanced usage)
+- **hrf**: hemodynamic response functions
+"""
 
 __all__ = [
     "SRM",
     "DetSRM",
     "HyperAlignment",
     "LocalAlignment",
+    "align",
+    "align_states",
+    "calc_bpm",
+    "circle_shift",
+    "compute_multivariate_similarity",
+    "compute_similarity",
+    "correlation_permutation_test",
+    "distance_correlation",
+    "double_center",
+    "downsample",
+    "fdr",
+    "find_spikes",
+    "fisher_r_to_z",
+    "fisher_z_to_r",
     "glover_dispersion_derivative",
     "glover_hrf",
     "glover_time_derivative",
+    "holm_bonf",
+    "isc",
+    "isc_group",
+    "isc_group_permutation_test",
+    "isc_permutation_test",
+    "isfc",
+    "isps",
+    "make_cosine_basis",
+    "matrix_permutation_test",
+    "multi_threshold",
     "one_sample_permutation_test",
+    "phase_randomize",
+    "procrustes",
+    "procrustes_distance",
+    "regress",
     "ridge",  # Export ridge module for advanced usage
     "ridge_cv",
     "ridge_svd",
     "spm_dispersion_derivative",
     "spm_hrf",
     "spm_time_derivative",
+    "threshold",
+    "timeseries_correlation_permutation_test",
+    "transform_pairwise",
+    "trim",
+    "two_sample_permutation_test",
+    "u_center",
+    "upsample",
+    "winsorize",
+    "zscore",
 ]
 
-from .alignment import LocalAlignment, HyperAlignment, SRM, DetSRM
+from .alignment import (
+    DetSRM,
+    HyperAlignment,
+    LocalAlignment,
+    SRM,
+    align,
+    align_states,
+    procrustes,
+    procrustes_distance,
+)
+from .corrections import fdr, holm_bonf, multi_threshold, threshold
 from .hrf import (
-    spm_hrf,
+    glover_dispersion_derivative,
     glover_hrf,
-    spm_time_derivative,
     glover_time_derivative,
     spm_dispersion_derivative,
-    glover_dispersion_derivative,
+    spm_hrf,
+    spm_time_derivative,
 )
-from .ridge import ridge_svd, ridge_cv
-from .inference import one_sample_permutation_test
+from .inference import (
+    circle_shift,
+    correlation_permutation_test,
+    distance_correlation,
+    double_center,
+    isc_group_permutation_test,
+    isc_permutation_test,
+    matrix_permutation_test,
+    one_sample_permutation_test,
+    phase_randomize,
+    timeseries_correlation_permutation_test,
+    two_sample_permutation_test,
+    u_center,
+)
+
+# Imported from the submodule, not the `inference` package namespace: exporting
+# the `isc` *function* there would shadow the `inference.isc` engine *module*.
+from .inference.intersubject import isc, isc_group, isfc, isps
+from .outliers import find_spikes, trim, winsorize, zscore
+from .regression import regress
+from .ridge import ridge_cv, ridge_svd
+from .signal import calc_bpm, downsample, make_cosine_basis, upsample
+from .similarity import (
+    compute_multivariate_similarity,
+    compute_similarity,
+    fisher_r_to_z,
+    fisher_z_to_r,
+    transform_pairwise,
+)
 from . import ridge  # Make ridge module accessible

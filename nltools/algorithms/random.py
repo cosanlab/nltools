@@ -56,7 +56,7 @@ def generate_sign_flips(
     Each row represents one permutation, where each sample is randomly multiplied
     by +1 or -1 to create the null distribution.
 
-    This implementation matches the RNG pattern from nltools.stats.one_sample_permutation
+    This implementation matches the RNG pattern from the original nltools.algorithms one_sample_permutation
     for exact backward compatibility: each permutation gets an independent RandomState
     derived from a unique seed.
 

@@ -938,7 +938,7 @@ def isc_group_permutation_test(
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     ci_percentile: float = 95,
     tail: Literal[1, 2] = 2,
-    parallel: Literal["cpu", "gpu"] | None = "cpu",
+    device: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
     random_state: int | None = None,
     return_null: bool = False,
@@ -974,13 +974,13 @@ def isc_group_permutation_test(
             Defaults to 'pairwise'.
         ci_percentile: Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95.
         tail: One-tailed (1) or two-tailed (2) p-value. Defaults to 2.
-        parallel: Parallelization method:
+        device: Parallelization method:
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
             - None: Single-threaded NumPy (for debugging/small problems)
             Defaults to 'cpu'.
         n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel='cpu'. Defaults to -1.
+            Only used when device='cpu'. Defaults to -1.
         random_state: Random seed for reproducibility.
         return_null: If True, return null distribution in result dict. Defaults to False.
         progress_bar: Show progress bar during bootstrap/permutation. Defaults to False.
@@ -994,7 +994,7 @@ def isc_group_permutation_test(
         - 'isc_group_difference': Observed ISC difference (float or array per voxel)
         - 'p': P-value (Phipson-Smyth corrected)
         - 'ci': Confidence interval tuple (lower, upper)
-        - 'parallel': Parallelization method used
+        - 'device': Parallelization method used
         - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples:
@@ -1011,7 +1011,7 @@ def isc_group_permutation_test(
         ...     group1_voxels,
         ...     group2_voxels,
         ...     summary_statistic='leave-one-out',
-        ...     parallel='gpu',  # GPU for LOO computation
+        ...     device='gpu',  # GPU for LOO computation
         ...     n_permute=5000
         ... )
         >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1060,14 +1060,14 @@ def isc_group_permutation_test(
             f"summary_statistic must be 'pairwise' or 'leave-one-out', got {summary_statistic}"
         )
 
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    # Validate device parameter
+    if device not in [None, "cpu", "gpu"]:
+        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
 
-    # Determine backend for computation phase based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Determine backend for computation phase based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             compute_backend = "numpy"
             bootstrap_backend = "numpy"
@@ -1211,7 +1211,7 @@ def isc_group_permutation_test(
         "isc_group_difference": observed_diff,
         "p": p_values,
         "ci": (ci_lower, ci_upper),
-        "parallel": parallel,
+        "device": device,
     }
 
     if return_null:
@@ -1703,7 +1703,7 @@ def isc_permutation_test(
     exclude_self_corr: bool = True,
     sim_metric: str = "correlation",
     # Backend parameters (grouped)
-    parallel: Literal["cpu", "gpu"] | None = "cpu",
+    device: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
     max_gpu_memory_gb: float = 4.0,
     # Random state (last)
@@ -1746,15 +1746,15 @@ def isc_permutation_test(
             sklearn.metrics.pairwise_distances for valid options. Only applies
             when summary_statistic='pairwise'. For 'correlation', uses optimized
             np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'.
-        parallel: Parallelization method:
+        device: Parallelization method:
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
             - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO)
             - None: Single-threaded NumPy (for debugging/small problems)
             Defaults to 'cpu'.
         n_jobs: Number of CPU cores for parallelization (-1 = all cores).
-            Only used when parallel='cpu'. Defaults to -1.
+            Only used when device='cpu'. Defaults to -1.
         max_gpu_memory_gb: GPU working-set budget in GB. For the pairwise GPU
-            bootstrap (``parallel='gpu'``, ``summary_statistic='pairwise'``,
+            bootstrap (``device='gpu'``, ``summary_statistic='pairwise'``,
             ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk,
             n_subjects, n_subjects)`` resample tensor, chunking voxels and
             permutations to fit — so whole-brain runs stay within budget. Not used
@@ -1767,7 +1767,7 @@ def isc_permutation_test(
         - 'isc': Observed ISC value (float or array per voxel)
         - 'p': P-value (Phipson-Smyth corrected)
         - 'ci': Confidence interval tuple (lower, upper)
-        - 'parallel': Parallelization method used
+        - 'device': Parallelization method used
         - 'null_dist': (optional) Bootstrap/permutation distribution
 
     Examples:
@@ -1781,7 +1781,7 @@ def isc_permutation_test(
         >>> result = isc_permutation_test(
         ...     data_voxels,
         ...     summary_statistic='leave-one-out',
-        ...     parallel='gpu',  # GPU for LOO computation
+        ...     device='gpu',  # GPU for LOO computation
         ...     n_permute=5000
         ... )
         >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1820,14 +1820,14 @@ def isc_permutation_test(
             f"got {method}"
         )
 
-    # Validate parallel parameter
-    if parallel not in [None, "cpu", "gpu"]:
-        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel!r}")
+    # Validate device parameter
+    if device not in [None, "cpu", "gpu"]:
+        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
 
-    # Determine backend for computation phase based on parallel parameter
-    if parallel == "cpu" or parallel is None:
+    # Determine backend for computation phase based on device parameter
+    if device == "cpu" or device is None:
         # CPU modes
-        if parallel is None:
+        if device is None:
             # Single-threaded NumPy
             compute_backend = "numpy"
             bootstrap_backend = "numpy"
@@ -1847,13 +1847,13 @@ def isc_permutation_test(
     # on the contradictory combo rather than deep inside the compute call, and
     # match the sibling isc_group_permutation_test (which also rejects it).
     if (
-        parallel == "gpu"
+        device == "gpu"
         and summary_statistic == "pairwise"
         and sim_metric != "correlation"
     ):
         raise ValueError(
             f"GPU pairwise ISC only supports sim_metric='correlation', got "
-            f"{sim_metric!r}. Use parallel='cpu' for other similarity metrics."
+            f"{sim_metric!r}. Use device='cpu' for other similarity metrics."
         )
 
     # Phase 1: Compute ISC (run once)
@@ -1872,7 +1872,7 @@ def isc_permutation_test(
 
     else:  # pairwise
         # Compute pairwise correlation matrix (condensed form). Honor the
-        # resolved backend so parallel='gpu' actually engages the GPU for the
+        # resolved backend so device='gpu' actually engages the GPU for the
         # observed pairwise computation (was hardcoded to numpy — a silent no-op).
         pairwise_condensed = _compute_pairwise_isc(
             data, backend=compute_backend, sim_metric=sim_metric
@@ -2079,7 +2079,7 @@ def isc_permutation_test(
         "isc": observed_isc,
         "p": p_value,
         "ci": ci,
-        "parallel": parallel,
+        "device": device,
     }
 
     if return_null:

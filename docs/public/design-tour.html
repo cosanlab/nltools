@@ -482,7 +482,7 @@
     <tr><td>Distance / similarity metric</td><td><code>metric</code></td><td>kept separate from <code>method</code></td></tr>
     <tr><td>Subject-level parallelism</td><td><code>n_jobs</code></td><td>default <code>-1</code></td></tr>
     <tr><td>GPU / CPU selection</td><td><code>device</code></td><td>orthogonal to <code>n_jobs</code></td></tr>
-    <tr><td>Backend (algorithms layer)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code></td></tr>
+    <tr><td>Backend (ridge/alignment internals)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code> — inference uses <code>device</code></td></tr>
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
     <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
