@@ -69,7 +69,7 @@ class TestPermutationTest:
             return_null=True,
             random_state=0,
         )
-        assert "null" in out or "null_distribution" in out
+        assert "null" in out or "null_dist" in out
 
 
 class TestISC:
@@ -127,7 +127,7 @@ class TestISC:
 
         inference._iter_arrays = _tracking
         try:
-            bc.isc(method="loo", metric="median")
+            bc.isc(method="loo", summary="median")
         finally:
             inference._iter_arrays = orig
 
@@ -159,7 +159,7 @@ class TestISC:
         bc = BrainCollection(
             paths, mask=tiny_mask, lazy=True, cache_dir=str(tmp_path / ".c")
         )
-        got = np.asarray(bc.isc(method="loo", metric="median")["isc"].data).reshape(-1)
+        got = np.asarray(bc.isc(method="loo", summary="median")["isc"].data).reshape(-1)
 
         # Reference: leave-one-out template, per-voxel Pearson, median across subj.
         data = np.stack(arrays, axis=0)  # (n_subj, T, V)
@@ -275,7 +275,7 @@ class TestISCRoiMask:
         )
         assert np.asarray(out["isc"].data).reshape(-1).size == 8
         assert np.asarray(out["p"].data).reshape(-1).size == 8
-        assert out["null_distribution"].shape[1] == 8
+        assert out["null_dist"].shape[1] == 8
 
     @pytest.mark.parametrize("kwarg", ["radius_mm", "device", "n_jobs", "progress_bar"])
     def test_removed_never_implemented_kwargs_rejected(self, bc_inmem, kwarg):

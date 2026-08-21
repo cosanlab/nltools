@@ -47,6 +47,7 @@ def isc(
     return_null=False,
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Compute pairwise intersubject correlation from observations by subjects array.
 
@@ -92,9 +93,10 @@ def isc(
         return_null: (bool) Return the permutation distribution along with the p-value; default False
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
         random_state: (int, np.random.RandomState, or None) seed or generator for the resampling; default None
+        progress_bar: (bool) If True, display a progress bar. Default False.
 
     Returns:
-        stats: (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_distribution']
+        stats: (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_dist']
 
     """
     data = _as_ndarray(data)
@@ -102,13 +104,13 @@ def isc(
     if summary not in ["mean", "median"]:
         raise ValueError("summary must be ['mean', 'median']")
 
-    # Call inference module function with parameter mapping. The inference layer
-    # keeps its legacy vocabulary (metric=summary statistic, sim_metric=distance
-    # metric); translate the canonical public names at the boundary.
-    result = isc_permutation_test(
+    # The engine speaks the same canonical vocabulary (summary=, metric=), so
+    # this wrapper only maps n_samples -> n_permute and pins the classic
+    # pairwise behavior.
+    return isc_permutation_test(
         data,
         n_permute=n_samples,  # Map n_samples -> n_permute
-        metric=summary,
+        summary=summary,
         summary_statistic="pairwise",  # Explicitly set to match original behavior
         method=method,
         ci_percentile=ci_percentile,
@@ -117,17 +119,9 @@ def isc(
         random_state=random_state,
         return_null=return_null,
         exclude_self_corr=exclude_self_corr,
-        sim_metric=metric,
-        progress_bar=False,  # Disable progress bar for backward compatibility
+        metric=metric,
+        progress_bar=progress_bar,
     )
-
-    # Map return keys to match original function signature
-    # Inference module returns 'null_dist', but original function returned 'null_distribution'
-    if return_null and "null_dist" in result:
-        result["null_distribution"] = result.pop("null_dist")
-
-    # Return dict with same keys as original function
-    return result
 
 
 def isc_group(
@@ -135,14 +129,16 @@ def isc_group(
     group2,
     *,
     n_samples=5000,
-    metric="median",
+    summary="median",
     method="permute",
     ci_percentile=95,
     exclude_self_corr=True,
     return_null=False,
     tail=2,
+    metric="correlation",
     n_jobs=-1,
     random_state=None,
+    progress_bar=False,
 ):
     """Compute difference in intersubject correlation between groups.
 
@@ -168,38 +164,40 @@ def isc_group(
     Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
     Biometrics, 757-762.
 
-    This function is a wrapper around `nltools.algorithms.inference.isc.isc_group_permutation_test`
-    for backward compatibility. The underlying implementation provides optimized CPU parallelization
-    and optional GPU acceleration. For new code, consider using `isc_group_permutation_test` directly.
+    This function is a thin wrapper around `isc_group_permutation_test` from the inference
+    module (which provides optimized CPU parallelization and optional GPU acceleration),
+    pinning the classic pairwise behavior and the `n_samples` vocabulary.
 
     Args:
         group1: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         group2: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
         n_samples: (int) number of samples for permutation or bootstrapping
-        metric: (str) type of isc summary metric ['mean','median']
+        summary: (str) type of isc summary statistic ['mean','median'] (default: median)
         method: (str) method to compute p-values ['permute', 'bootstrap'] (default: permute)
         ci_percentile: (float) confidence interval percentile (default: 95)
         exclude_self_corr: (bool) exclude self-correlations in bootstrap (default: True)
         return_null: (bool) Return the permutation distribution along with the p-value; default False
         tail: (int) either 1 for one-tail or 2 for two-tailed test (default: 2)
+        metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
         n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
         random_state: (int or RandomState) Random seed for reproducibility
+        progress_bar: (bool) If True, display a progress bar. Default False.
 
     Returns:
         stats: (dict) dictionary of permutation results with keys:
             - 'isc_group_difference': Observed ISC difference (float or array)
             - 'p': P-value (float or array)
             - 'ci': Confidence interval tuple (lower, upper)
-            - 'null_distribution': Null distribution (if return_null=True)
+            - 'null_dist': Null distribution (if return_null=True)
 
     """
-    from nltools.algorithms.inference.isc import isc_group_permutation_test
+    from .isc import isc_group_permutation_test
 
     group1 = _as_ndarray(group1, name="group1")
     group2 = _as_ndarray(group2, name="group2")
 
-    if metric not in ["mean", "median"]:
-        raise ValueError("metric must be ['mean', 'median']")
+    if summary not in ["mean", "median"]:
+        raise ValueError("summary must be ['mean', 'median']")
 
     if group1.shape[0] != group2.shape[0]:
         raise ValueError("group1 has a different number of observations from group2.")
@@ -207,30 +205,24 @@ def isc_group(
     if method not in ["permute", "bootstrap"]:
         raise NotImplementedError("method can only be ['permute', 'bootstrap']")
 
-    # Call inference module function
-    result = isc_group_permutation_test(
+    # The engine speaks the same canonical vocabulary; only n_samples ->
+    # n_permute is mapped here.
+    return isc_group_permutation_test(
         group1,
         group2,
         n_permute=n_samples,  # Map parameter name
-        metric=metric,
+        summary=summary,
         method=method,
         ci_percentile=ci_percentile,
         tail=tail,
+        metric=metric,
         n_jobs=n_jobs,
         random_state=random_state,
         return_null=return_null,
         exclude_self_corr=exclude_self_corr,
-        progress_bar=False,  # Disable progress bar for backward compatibility
+        progress_bar=progress_bar,
         summary_statistic="pairwise",  # Match old behavior (always pairwise)
     )
-
-    # Map return keys to match original function signature
-    # Inference module returns 'null_dist', but original function returned 'null_distribution'
-    if return_null and "null_dist" in result:
-        result["null_distribution"] = result.pop("null_dist")
-
-    # Return dict with expected keys: ['isc_group_difference', 'p', 'ci', 'null_distribution']
-    return result
 
 
 def isfc(data, method="average", n_jobs=-1):

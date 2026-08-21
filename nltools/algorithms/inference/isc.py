@@ -179,7 +179,7 @@ def _compute_loo_isc_gpu(data):
 # ============================================================================
 
 
-def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
+def _compute_pairwise_isc(data, backend="numpy", metric="correlation"):
     """Compute pairwise intersubject correlation (condensed form).
 
     Computes all n×(n-1)/2 pairwise correlations between subjects and
@@ -191,9 +191,9 @@ def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
             - (n_observations, n_subjects, n_voxels): Voxel-wise
         backend: Computation backend. Use 'torch' for GPU acceleration on
             voxel-wise data. The 'torch' backend supports **only**
-            `sim_metric='correlation'` and raises `ValueError` for any other
-            metric. Defaults to 'numpy'.
-        sim_metric: Similarity metric. Options:
+            `metric='correlation'` and raises `ValueError` for any other
+            summary. Defaults to 'numpy'.
+        metric: Similarity metric. Options:
             - 'correlation': Pearson correlation (uses optimized np.corrcoef)
             - 'spearman': Spearman rank correlation (rank-transform then np.corrcoef)
             - 'cosine': Cosine similarity (normalized dot products, optimized)
@@ -221,19 +221,19 @@ def _compute_pairwise_isc(data, backend="numpy", sim_metric="correlation"):
         - Other metrics: sklearn.metrics.pairwise_distances (slower fallback)
     """
     if backend == "numpy":
-        return _compute_pairwise_isc_numpy(data, sim_metric=sim_metric)
+        return _compute_pairwise_isc_numpy(data, metric=metric)
     if backend == "torch":
-        if sim_metric != "correlation":
+        if metric != "correlation":
             raise ValueError(
-                f"GPU backend only supports sim_metric='correlation', got {sim_metric}"
+                f"GPU backend only supports metric='correlation', got {metric}"
             )
         return _compute_pairwise_isc_gpu(data)
     raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
-def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
+def _compute_pairwise_isc_numpy(data, metric="correlation"):
     """NumPy implementation of pairwise ISC (condensed storage)."""
-    if sim_metric == "correlation":
+    if metric == "correlation":
         # Fast path: use np.corrcoef (optimized C implementation)
         if data.ndim == 2:
             # Single feature: (n_observations, n_subjects)
@@ -249,7 +249,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "spearman":
+    if metric == "spearman":
         # Spearman correlation: rank-transform then use fast np.corrcoef path
         # Spearman = Pearson correlation of rank-transformed data
         if data.ndim == 2:
@@ -279,7 +279,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(corr_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "cosine":
+    if metric == "cosine":
         # Cosine similarity: normalized dot products
         # Cosine similarity = dot(a, b) / (||a|| * ||b||)
         # Optimized: normalize vectors, then compute dot product matrix
@@ -309,7 +309,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
                 pairwise_all[:, v] = squareform(sim_matrix, checks=False)
             return pairwise_all
         raise ValueError(f"data must be 2D or 3D, got shape {data.shape}")
-    if sim_metric == "euclidean":
+    if metric == "euclidean":
         # Euclidean distance: optimized using squared-distance formula
         # ||a - b||^2 = ||a||^2 + ||b||^2 - 2*<a, b>
         # Then: distance = sqrt(squared_distance), similarity = 1 - distance
@@ -362,7 +362,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
     # Convert distance to similarity: similarity = 1 - distance
     if data.ndim == 2:
         # Single feature: (n_observations, n_subjects)
-        dist_matrix = pairwise_distances(data.T, metric=sim_metric)
+        dist_matrix = pairwise_distances(data.T, metric=metric)
         sim_matrix = 1 - dist_matrix
         return squareform(sim_matrix, checks=False)
     if data.ndim == 3:
@@ -371,7 +371,7 @@ def _compute_pairwise_isc_numpy(data, sim_metric="correlation"):
         n_pairs = n_subjects * (n_subjects - 1) // 2
         pairwise_all = np.zeros((n_pairs, n_voxels))
         for v in range(n_voxels):
-            dist_matrix = pairwise_distances(data[:, :, v].T, metric=sim_metric)
+            dist_matrix = pairwise_distances(data[:, :, v].T, metric=metric)
             sim_matrix = 1 - dist_matrix
             pairwise_all[:, v] = squareform(sim_matrix, checks=False)
         return pairwise_all
@@ -453,10 +453,10 @@ def _compute_pairwise_isc_gpu(data):
 def _compute_isc_group_difference(
     group1,
     group2,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     backend="numpy",
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Compute ISC difference between two groups.
 
@@ -471,7 +471,7 @@ def _compute_isc_group_difference(
         group2: Second group data with one of the following shapes:
             - (n_observations, n_subjects2): Single feature
             - (n_observations, n_subjects2, n_voxels): Voxel-wise
-        metric: Summary statistic for aggregating ISC values:
+        summary: Summary statistic for aggregating ISC values:
             - 'median': Direct median (robust to outliers)
             - 'mean': Fisher z-transformed mean (unbiased averaging)
             Defaults to 'median'.
@@ -481,7 +481,7 @@ def _compute_isc_group_difference(
             Defaults to 'pairwise'.
         backend: Computation backend. Use 'torch' for GPU acceleration on
             voxel-wise LOO data (10-30× speedup for large n_voxels). Defaults to 'numpy'.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
 
     Returns:
         ISC difference (group1 ISC - group2 ISC):
@@ -529,8 +529,8 @@ def _compute_isc_group_difference(
             f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
         )
 
-    if metric not in ["median", "mean"]:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    if summary not in ["median", "mean"]:
+        raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     if summary_statistic not in ["pairwise", "leave-one-out"]:
         raise ValueError(
@@ -540,12 +540,8 @@ def _compute_isc_group_difference(
     # Compute ISC for each group
     if summary_statistic == "pairwise":
         # Pairwise ISC: compute condensed correlation matrices
-        isc1_values = _compute_pairwise_isc(
-            group1, backend=backend, sim_metric=sim_metric
-        )
-        isc2_values = _compute_pairwise_isc(
-            group2, backend=backend, sim_metric=sim_metric
-        )
+        isc1_values = _compute_pairwise_isc(group1, backend=backend, metric=metric)
+        isc2_values = _compute_pairwise_isc(group2, backend=backend, metric=metric)
 
         # Handle single feature vs voxel-wise
         if isc1_values.ndim == 1:
@@ -556,10 +552,10 @@ def _compute_isc_group_difference(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1 = np.nanmedian(isc1_values, axis=axis)
             isc2 = np.nanmedian(isc2_values, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             # Fisher z-transform
             z1 = np.arctanh(np.clip(isc1_values, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(isc2_values, -0.9999, 0.9999))
@@ -580,10 +576,10 @@ def _compute_isc_group_difference(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1 = np.median(loo1_values, axis=axis)
             isc2 = np.median(loo2_values, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             # Fisher z-transform
             z1 = np.arctanh(np.clip(loo1_values, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(loo2_values, -0.9999, 0.9999))
@@ -604,10 +600,10 @@ def _compute_isc_group_difference(
 def _permute_isc_group_numpy(
     group1,
     group2,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     random_state=None,
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Single permutation: permute group labels and compute ISC difference.
 
@@ -618,10 +614,10 @@ def _permute_isc_group_numpy(
     Args:
         group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
         group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
+        summary: Summary statistic for aggregating ISC values. Defaults to 'median'.
         summary_statistic: ISC computation method. Defaults to 'pairwise'.
         random_state: Random state for reproducibility.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
 
     Returns:
         Permuted ISC difference (scalar or per-voxel array).
@@ -650,10 +646,10 @@ def _permute_isc_group_numpy(
     isc_diff = _compute_isc_group_difference(
         group1_perm,
         group2_perm,
-        metric=metric,
+        summary=summary,
         summary_statistic=summary_statistic,
         backend="numpy",
-        sim_metric=sim_metric,
+        metric=metric,
     )
 
     return isc_diff
@@ -664,12 +660,12 @@ def _permute_isc_group_cpu_parallel(
     group2,
     *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
-    sim_metric="correlation",
+    metric="correlation",
     max_memory_gb=None,
 ):
     """CPU-parallel permutation for ISC group difference.
@@ -682,12 +678,12 @@ def _permute_isc_group_cpu_parallel(
         group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
         group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
         n_permute: Number of permutations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
+        summary: Summary statistic for aggregating ISC values. Defaults to 'median'.
         summary_statistic: ISC computation method. Defaults to 'pairwise'.
         n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
         progress_bar: Show progress bar. Defaults to False.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
     Returns:
@@ -724,10 +720,10 @@ def _permute_isc_group_cpu_parallel(
         delayed(_permute_isc_group_numpy)(
             group1,
             group2,
-            metric=metric,
+            summary=summary,
             summary_statistic=summary_statistic,
             random_state=np.random.RandomState(seeds[i]),
-            sim_metric=sim_metric,
+            metric=metric,
         )
         for i in iterator
     )
@@ -744,11 +740,11 @@ def _bootstrap_isc_group_numpy(
     group1,
     group2,
     observed_diff,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     exclude_self_corr=True,
     random_state=None,
-    sim_metric="correlation",
+    metric="correlation",
 ):
     """Single bootstrap: resample subjects within each group and compute ISC difference.
 
@@ -760,11 +756,11 @@ def _bootstrap_isc_group_numpy(
         group1: First group data: (n_observations, n_subjects1) or (n_observations, n_subjects1, n_voxels).
         group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
         observed_diff: Observed ISC difference (for centering).
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
+        summary: Summary statistic for aggregating ISC values. Defaults to 'median'.
         summary_statistic: ISC computation method. Defaults to 'pairwise'.
         exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
         random_state: Random state for reproducibility.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
 
     Returns:
         Bootstrapped ISC difference (centered): (boot1 - boot2) - observed_diff.
@@ -792,10 +788,10 @@ def _bootstrap_isc_group_numpy(
 
         # Compute pairwise ISC for bootstrapped groups
         pairwise1_boot = _compute_pairwise_isc(
-            group1_boot, backend="numpy", sim_metric=sim_metric
+            group1_boot, backend="numpy", metric=metric
         )
         pairwise2_boot = _compute_pairwise_isc(
-            group2_boot, backend="numpy", sim_metric=sim_metric
+            group2_boot, backend="numpy", metric=metric
         )
 
         # Handle exclude_self_corr: mask perfect correlations from duplicate subjects
@@ -815,10 +811,10 @@ def _bootstrap_isc_group_numpy(
             axis = 0
 
         # Compute summary statistic
-        if metric == "median":
+        if summary == "median":
             isc1_boot = np.nanmedian(pairwise1_boot, axis=axis)
             isc2_boot = np.nanmedian(pairwise2_boot, axis=axis)
-        elif metric == "mean":
+        elif summary == "mean":
             z1 = np.arctanh(np.clip(pairwise1_boot, -0.9999, 0.9999))
             z2 = np.arctanh(np.clip(pairwise2_boot, -0.9999, 0.9999))
             isc1_boot = np.tanh(np.nanmean(z1, axis=axis))
@@ -830,10 +826,12 @@ def _bootstrap_isc_group_numpy(
         loo2_values = _compute_loo_isc(group2, backend="numpy")
 
         # Bootstrap LOO values
-        isc1_boot = _bootstrap_loo_numpy(loo1_values, metric=metric, random_state=rng)
+        isc1_boot = _bootstrap_loo_numpy(loo1_values, summary=summary, random_state=rng)
         # Use different seed for group2 to ensure independence
         rng2 = check_random_state(rng.randint(0, 2**31 - 1))
-        isc2_boot = _bootstrap_loo_numpy(loo2_values, metric=metric, random_state=rng2)
+        isc2_boot = _bootstrap_loo_numpy(
+            loo2_values, summary=summary, random_state=rng2
+        )
 
     # Compute difference and center
     boot_diff = (isc1_boot - isc2_boot) - observed_diff
@@ -847,13 +845,13 @@ def _bootstrap_isc_group_cpu_parallel(
     observed_diff,
     *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     summary_statistic="pairwise",
     exclude_self_corr=True,
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
-    sim_metric="correlation",
+    metric="correlation",
     max_memory_gb=None,
 ):
     """CPU-parallel bootstrap for ISC group difference.
@@ -867,13 +865,13 @@ def _bootstrap_isc_group_cpu_parallel(
         group2: Second group data: (n_observations, n_subjects2) or (n_observations, n_subjects2, n_voxels).
         observed_diff: Observed ISC difference (for centering).
         n_permute: Number of bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values. Defaults to 'median'.
+        summary: Summary statistic for aggregating ISC values. Defaults to 'median'.
         summary_statistic: ISC computation method. Defaults to 'pairwise'.
         exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
         n_jobs: Number of CPU cores for parallelization (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
         progress_bar: Show progress bar. Defaults to False.
-        sim_metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
+        metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
     Returns:
@@ -911,11 +909,11 @@ def _bootstrap_isc_group_cpu_parallel(
             group1,
             group2,
             observed_diff=observed_diff,
-            metric=metric,
+            summary=summary,
             summary_statistic=summary_statistic,
             exclude_self_corr=exclude_self_corr,
             random_state=np.random.RandomState(seeds[i]),
-            sim_metric=sim_metric,
+            metric=metric,
         )
         for i in iterator
     )
@@ -933,7 +931,7 @@ def isc_group_permutation_test(
     group2: np.ndarray,
     *,
     n_permute: int = 5000,
-    metric: Literal["median", "mean"] = "median",
+    summary: Literal["median", "mean"] = "median",
     method: Literal["permute", "bootstrap"] = "permute",
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     ci_percentile: float = 95,
@@ -944,7 +942,7 @@ def isc_group_permutation_test(
     return_null: bool = False,
     progress_bar: bool = False,
     exclude_self_corr: bool = True,
-    sim_metric: str = "correlation",
+    metric: str = "correlation",
 ) -> dict[str, Any]:
     """Compute ISC difference between groups with permutation testing.
 
@@ -960,7 +958,7 @@ def isc_group_permutation_test(
             - (n_observations, n_subjects2): Single feature
             - (n_observations, n_subjects2, n_voxels): Voxel-wise
         n_permute: Number of permutations/bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic for aggregating ISC values:
+        summary: Summary statistic for aggregating ISC values:
             - 'median': Direct median (robust to outliers)
             - 'mean': Fisher z-transformed mean (unbiased averaging)
             Defaults to 'median'.
@@ -985,7 +983,7 @@ def isc_group_permutation_test(
         return_null: If True, return null distribution in result dict. Defaults to False.
         progress_bar: Show progress bar during bootstrap/permutation. Defaults to False.
         exclude_self_corr: Mask self-correlations in bootstrap (pairwise only). Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC computation. See
+        metric: Similarity metric for pairwise ISC computation. See
             sklearn.metrics.pairwise_distances for valid options. Only applies
             when summary_statistic='pairwise'. Defaults to 'correlation'.
 
@@ -1049,8 +1047,8 @@ def isc_group_permutation_test(
             f"group1 and group2 must be 2D or 3D, got shapes {group1.shape}, {group2.shape}"
         )
 
-    if metric not in ["median", "mean"]:
-        raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    if summary not in ["median", "mean"]:
+        raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     if method not in ["permute", "bootstrap"]:
         raise ValueError(f"method must be 'permute' or 'bootstrap', got {method}")
@@ -1084,10 +1082,10 @@ def isc_group_permutation_test(
     observed_diff = _compute_isc_group_difference(
         group1,
         group2,
-        metric=metric,
+        summary=summary,
         summary_statistic=summary_statistic,
         backend=compute_backend,
-        sim_metric=sim_metric,
+        metric=metric,
     )
 
     # Phase 2: Bootstrap/Permutation (run n_permute times)
@@ -1101,10 +1099,10 @@ def isc_group_permutation_test(
                     _permute_isc_group_numpy(
                         group1,
                         group2,
-                        metric=metric,
+                        summary=summary,
                         summary_statistic=summary_statistic,
                         random_state=np.random.RandomState(seeds[i]),
-                        sim_metric=sim_metric,
+                        metric=metric,
                     )
                     for i in range(n_permute)
                 ]
@@ -1114,12 +1112,12 @@ def isc_group_permutation_test(
                 group1,
                 group2,
                 n_permute=n_permute,
-                metric=metric,
+                summary=summary,
                 summary_statistic=summary_statistic,
                 n_jobs=n_jobs,
                 random_state=random_state,
                 progress_bar=progress_bar,
-                sim_metric=sim_metric,
+                metric=metric,
             )
 
     else:  # bootstrap
@@ -1133,11 +1131,11 @@ def isc_group_permutation_test(
                         group1,
                         group2,
                         observed_diff=observed_diff,
-                        metric=metric,
+                        summary=summary,
                         summary_statistic=summary_statistic,
                         exclude_self_corr=exclude_self_corr,
                         random_state=np.random.RandomState(seeds[i]),
-                        sim_metric=sim_metric,
+                        metric=metric,
                     )
                     for i in range(n_permute)
                 ]
@@ -1148,13 +1146,13 @@ def isc_group_permutation_test(
                 group2,
                 observed_diff=observed_diff,
                 n_permute=n_permute,
-                metric=metric,
+                summary=summary,
                 summary_statistic=summary_statistic,
                 exclude_self_corr=exclude_self_corr,
                 n_jobs=n_jobs,
                 random_state=random_state,
                 progress_bar=progress_bar,
-                sim_metric=sim_metric,
+                metric=metric,
                 max_memory_gb=None,  # Auto-detect
             )
 
@@ -1225,7 +1223,7 @@ def isc_group_permutation_test(
 # ============================================================================
 
 
-def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
+def _bootstrap_loo_numpy(loo_values, summary="median", random_state=None):
     """Bootstrap LOO ISC by resampling subjects.
 
     Implements the subject-wise bootstrap method from Chen et al. (2016).
@@ -1235,7 +1233,7 @@ def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
         loo_values: Pre-computed LOO values:
             - Shape (n_subjects,) for single feature
             - Shape (n_subjects, n_voxels) for voxel-wise
-        metric: Summary statistic to compute from bootstrap sample. Defaults to 'median'.
+        summary: Summary statistic to compute from bootstrap sample. Defaults to 'median'.
         random_state: Random state for reproducibility.
 
     Returns:
@@ -1259,20 +1257,20 @@ def _bootstrap_loo_numpy(loo_values, metric="median", random_state=None):
         boot_values = loo_values[indices, :]
 
     # Compute summary statistic
-    if metric == "median":
+    if summary == "median":
         return np.median(boot_values, axis=0)
-    if metric == "mean":
+    if summary == "mean":
         # Fisher z-transform for unbiased mean
         z = np.arctanh(np.clip(boot_values, -0.9999, 0.9999))
         return np.tanh(np.mean(z, axis=0))
-    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
 
 def _bootstrap_loo_cpu_parallel(
     loo_values,
     *,
     n_permute=5000,
-    metric="median",
+    summary="median",
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
@@ -1287,7 +1285,7 @@ def _bootstrap_loo_cpu_parallel(
     Args:
         loo_values: Pre-computed LOO values (n_subjects,) or (n_subjects, n_voxels).
         n_permute: Number of bootstrap iterations. Defaults to 5000.
-        metric: Summary statistic. Defaults to 'median'.
+        summary: Summary statistic. Defaults to 'median'.
         n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
         progress_bar: Show progress bar. Defaults to False.
@@ -1321,7 +1319,7 @@ def _bootstrap_loo_cpu_parallel(
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_loo_numpy)(
             loo_values,
-            metric=metric,
+            summary=summary,
             random_state=np.random.RandomState(seeds[i]),
         )
         for i in iterator
@@ -1337,7 +1335,7 @@ def _bootstrap_loo_cpu_parallel(
 
 def _bootstrap_pairwise_numpy(
     pairwise_condensed,
-    metric="median",
+    summary="median",
     bootstrap_subjects=None,
     n_subjects=None,
     random_state=None,
@@ -1353,7 +1351,7 @@ def _bootstrap_pairwise_numpy(
         pairwise_condensed: Pre-computed pairwise correlations in condensed form:
             - Shape (n_pairs,) for single feature
             - Shape (n_pairs, n_voxels) for voxel-wise
-        metric: Summary statistic. Defaults to 'median'.
+        summary: Summary statistic. Defaults to 'median'.
         bootstrap_subjects: Pre-generated bootstrap subject indices (for testing).
         n_subjects: Number of subjects (required if bootstrap_subjects is None).
         random_state: Random state for sampling.
@@ -1430,13 +1428,13 @@ def _bootstrap_pairwise_numpy(
     # Compute summary (ignoring NaNs from masked pairs)
     axis = 0 if boot_condensed.ndim > 1 else None
 
-    if metric == "median":
+    if summary == "median":
         return np.nanmedian(boot_condensed, axis=axis)
-    if metric == "mean":
+    if summary == "mean":
         # Fisher z-transform
         z = np.arctanh(np.clip(boot_condensed, -0.9999, 0.9999))
         return np.tanh(np.nanmean(z, axis=axis))
-    raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+    raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
 
 def _bootstrap_pairwise_cpu_parallel(
@@ -1444,7 +1442,7 @@ def _bootstrap_pairwise_cpu_parallel(
     *,
     n_permute=5000,
     n_subjects=None,
-    metric="median",
+    summary="median",
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
@@ -1461,7 +1459,7 @@ def _bootstrap_pairwise_cpu_parallel(
         pairwise_condensed: Pre-computed pairwise correlations (n_pairs,) or (n_pairs, n_voxels).
         n_permute: Number of bootstrap iterations. Defaults to 5000.
         n_subjects: Number of subjects in original data.
-        metric: Summary statistic. Defaults to 'median'.
+        summary: Summary statistic. Defaults to 'median'.
         n_jobs: Number of CPU cores (-1 = auto-detect based on memory). Defaults to -1.
         random_state: Random seed for reproducibility.
         progress_bar: Show progress bar. Defaults to False.
@@ -1500,7 +1498,7 @@ def _bootstrap_pairwise_cpu_parallel(
     bootstraps = Parallel(n_jobs=n_jobs)(
         delayed(_bootstrap_pairwise_numpy)(
             pairwise_condensed,
-            metric=metric,
+            summary=summary,
             n_subjects=n_subjects,
             random_state=np.random.RandomState(seeds[i]),
             exclude_self_corr=exclude_self_corr,
@@ -1584,7 +1582,7 @@ def _bootstrap_pairwise_gpu(
     data,
     boot_indices,
     *,
-    metric="median",
+    summary="median",
     exclude_self_corr=True,
     max_gpu_memory_gb=4.0,
     progress_bar=False,
@@ -1604,7 +1602,7 @@ def _bootstrap_pairwise_gpu(
         boot_indices: (n_permute, n_subjects) resample indices (see
             ``_pairwise_bootstrap_indices``; pass numpy-generated indices to match
             the CPU path).
-        metric: 'median' or 'mean' (Fisher-z).
+        summary: 'median' or 'mean' (Fisher-z).
         exclude_self_corr: mask correlations ≥ 0.99999 (duplicate-subject pairs).
         max_gpu_memory_gb: working-set budget for voxel/permutation batching.
         progress_bar: show a tqdm bar over permutation batches.
@@ -1669,13 +1667,13 @@ def _bootstrap_pairwise_gpu(
                     tri,
                 )
 
-            if metric == "median":
+            if summary == "median":
                 res = _nanmedian_lastdim_torch(tri)  # (P, Vc)
-            elif metric == "mean":
+            elif summary == "mean":
                 z = torch.arctanh(torch.clamp(tri, -0.9999, 0.9999))
                 res = torch.tanh(torch.nanmean(z, dim=-1))
             else:
-                raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+                raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
             out[p0:p1, v0:v1] = res.double().cpu().numpy()
 
@@ -1693,7 +1691,7 @@ def isc_permutation_test(
     *,
     # Optional algorithm parameters
     n_permute: int = 5000,
-    metric: Literal["median", "mean"] = "median",
+    summary: Literal["median", "mean"] = "median",
     summary_statistic: Literal["leave-one-out", "pairwise"] = "pairwise",
     method: Literal["bootstrap", "circle_shift", "phase_randomize"] = "bootstrap",
     ci_percentile: float = 95,
@@ -1701,7 +1699,7 @@ def isc_permutation_test(
     return_null: bool = False,
     progress_bar: bool = False,
     exclude_self_corr: bool = True,
-    sim_metric: str = "correlation",
+    metric: str = "correlation",
     # Backend parameters (grouped)
     device: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
@@ -1720,7 +1718,7 @@ def isc_permutation_test(
             - (n_observations, n_subjects): Single feature ISC
             - (n_observations, n_subjects, n_voxels): Voxel-wise ISC
         n_permute: Number of bootstrap iterations or permutations. Defaults to 5000.
-        metric: Summary statistic to aggregate ISC values.
+        summary: Summary statistic to aggregate ISC values.
             - 'median': Direct median (robust to outliers)
             - 'mean': Fisher z-transformed mean (unbiased averaging)
             Defaults to 'median'.
@@ -1742,7 +1740,7 @@ def isc_permutation_test(
             subjects in bootstrap samples) as NaN. If False, include them in the
             summary statistic. Only applies when method='bootstrap' and
             summary_statistic='pairwise'. Defaults to True.
-        sim_metric: Similarity metric for pairwise ISC computation. See
+        metric: Similarity metric for pairwise ISC computation. See
             sklearn.metrics.pairwise_distances for valid options. Only applies
             when summary_statistic='pairwise'. For 'correlation', uses optimized
             np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'.
@@ -1846,14 +1844,10 @@ def isc_permutation_test(
     # Input validation: GPU pairwise ISC only implements correlation. Fail fast
     # on the contradictory combo rather than deep inside the compute call, and
     # match the sibling isc_group_permutation_test (which also rejects it).
-    if (
-        device == "gpu"
-        and summary_statistic == "pairwise"
-        and sim_metric != "correlation"
-    ):
+    if device == "gpu" and summary_statistic == "pairwise" and metric != "correlation":
         raise ValueError(
-            f"GPU pairwise ISC only supports sim_metric='correlation', got "
-            f"{sim_metric!r}. Use device='cpu' for other similarity metrics."
+            f"GPU pairwise ISC only supports metric='correlation', got "
+            f"{metric!r}. Use device='cpu' for other similarity metrics."
         )
 
     # Phase 1: Compute ISC (run once)
@@ -1862,31 +1856,31 @@ def isc_permutation_test(
         loo_values = _compute_loo_isc(data, backend=compute_backend)
 
         # Compute observed summary statistic
-        if metric == "median":
+        if summary == "median":
             observed_isc = np.median(loo_values, axis=0)
-        elif metric == "mean":
+        elif summary == "mean":
             z = np.arctanh(np.clip(loo_values, -0.9999, 0.9999))
             observed_isc = np.tanh(np.mean(z, axis=0))
         else:
-            raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     else:  # pairwise
         # Compute pairwise correlation matrix (condensed form). Honor the
         # resolved backend so device='gpu' actually engages the GPU for the
         # observed pairwise computation (was hardcoded to numpy — a silent no-op).
         pairwise_condensed = _compute_pairwise_isc(
-            data, backend=compute_backend, sim_metric=sim_metric
+            data, backend=compute_backend, metric=metric
         )
         n_subjects = data.shape[1]
 
         # Compute observed summary statistic
-        if metric == "median":
+        if summary == "median":
             observed_isc = np.nanmedian(pairwise_condensed, axis=0)
-        elif metric == "mean":
+        elif summary == "mean":
             z = np.arctanh(np.clip(pairwise_condensed, -0.9999, 0.9999))
             observed_isc = np.tanh(np.nanmean(z, axis=0))
         else:
-            raise ValueError(f"metric must be 'median' or 'mean', got {metric}")
+            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
     # Phase 2: Bootstrap/permutation (run n_permute times)
     if method == "bootstrap":
@@ -1898,7 +1892,7 @@ def isc_permutation_test(
                     [
                         _bootstrap_loo_numpy(
                             loo_values,
-                            metric=metric,
+                            summary=summary,
                             random_state=np.random.RandomState(rng.randint(2**31)),
                         )
                         for _ in range(n_permute)
@@ -1908,7 +1902,7 @@ def isc_permutation_test(
                 bootstraps = _bootstrap_loo_cpu_parallel(
                     loo_values,
                     n_permute=n_permute,
-                    metric=metric,
+                    summary=summary,
                     n_jobs=n_jobs,
                     random_state=random_state,
                     progress_bar=progress_bar,
@@ -1927,7 +1921,7 @@ def isc_permutation_test(
                 bootstraps = _bootstrap_pairwise_gpu(
                     data,
                     boot_indices,
-                    metric=metric,
+                    summary=summary,
                     exclude_self_corr=exclude_self_corr,
                     max_gpu_memory_gb=max_gpu_memory_gb,
                     progress_bar=progress_bar,
@@ -1938,7 +1932,7 @@ def isc_permutation_test(
                     [
                         _bootstrap_pairwise_numpy(
                             pairwise_condensed,
-                            metric=metric,
+                            summary=summary,
                             n_subjects=n_subjects,
                             random_state=np.random.RandomState(rng.randint(2**31)),
                             exclude_self_corr=exclude_self_corr,
@@ -1951,7 +1945,7 @@ def isc_permutation_test(
                     pairwise_condensed,
                     n_permute=n_permute,
                     n_subjects=n_subjects,
-                    metric=metric,
+                    summary=summary,
                     n_jobs=n_jobs,
                     random_state=random_state,
                     progress_bar=progress_bar,
@@ -1989,16 +1983,16 @@ def isc_permutation_test(
             # Recompute ISC
             if summary_statistic == "leave-one-out":
                 loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
-                if metric == "median":
+                if summary == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend=compute_backend, sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, metric=metric
                 )
-                if metric == "median":
+                if summary == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))
@@ -2036,16 +2030,16 @@ def isc_permutation_test(
             # Recompute ISC
             if summary_statistic == "leave-one-out":
                 loo_perm = _compute_loo_isc(data_permuted, backend=compute_backend)
-                if metric == "median":
+                if summary == "median":
                     isc_perm = np.median(loo_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(loo_perm, -0.9999, 0.9999))
                     isc_perm = np.tanh(np.mean(z, axis=0))
             else:  # pairwise
                 pair_perm = _compute_pairwise_isc(
-                    data_permuted, backend=compute_backend, sim_metric=sim_metric
+                    data_permuted, backend=compute_backend, metric=metric
                 )
-                if metric == "median":
+                if summary == "median":
                     isc_perm = np.nanmedian(pair_perm, axis=0)
                 else:
                     z = np.arctanh(np.clip(pair_perm, -0.9999, 0.9999))

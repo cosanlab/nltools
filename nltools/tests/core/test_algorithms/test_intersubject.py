@@ -27,7 +27,7 @@ class TestISC:
         assert stats["isc"] > 0.1
         assert -1 < stats["isc"] < 1
         assert 0 < stats["p"] < 1
-        assert len(stats["null_distribution"]) == 100
+        assert len(stats["null_dist"]) == 100
 
     def test_isc_accepts_polars_dataframe(self, multisubject_correlated_data):
         """ISC should accept a polars DataFrame and produce the same result as numpy."""
@@ -44,8 +44,8 @@ class TestISCGroup:
     """Test group-level ISC comparison."""
 
     @pytest.mark.parametrize("method", ["permute", "bootstrap"])
-    @pytest.mark.parametrize("metric", ["median", "mean"])
-    def test_isc_group_comparison(self, method, metric):
+    @pytest.mark.parametrize("summary", ["median", "mean"])
+    def test_isc_group_comparison(self, method, summary):
         """Group ISC difference should reflect underlying correlation difference."""
         n_samples = 100
         diff = 0.2
@@ -71,15 +71,15 @@ class TestISCGroup:
         stats = isc_group(
             group1,
             group2,
-            metric=metric,
+            summary=summary,
             method=method,
             return_null=True,
             n_samples=n_samples,
         )
         np.testing.assert_almost_equal(stats["isc_group_difference"], diff, decimal=0)
         assert 0 < stats["p"] < 1
-        assert len(stats["null_distribution"]) <= n_samples
-        assert len(stats["null_distribution"]) >= n_samples * 0.95
+        assert len(stats["null_dist"]) <= n_samples
+        assert len(stats["null_dist"]) >= n_samples * 0.95
 
     def test_isc_group_accepts_polars_dataframe(self):
         """isc_group should accept polars DataFrames for group1/group2."""

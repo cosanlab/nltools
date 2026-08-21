@@ -385,7 +385,7 @@ def permutation_test(
         "p": _make_braindata(p, bc._mask),
     }
     if return_null:
-        out["null_distribution"] = null
+        out["null_dist"] = null
     return out
 
 
@@ -434,7 +434,7 @@ def permutation_test2(
         "p": _make_braindata(p, bc._mask),
     }
     if return_null:
-        out["null_distribution"] = null
+        out["null_dist"] = null
     return out
 
 
@@ -455,14 +455,14 @@ def _pearson_per_voxel(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return out
 
 
-def _aggregate_corrs(corrs: np.ndarray, metric: str) -> np.ndarray:
+def _aggregate_corrs(corrs: np.ndarray, summary: str) -> np.ndarray:
     """Aggregate per-subject correlations across the leading axis."""
-    if metric == "median":
+    if summary == "median":
         return np.median(corrs, axis=0)
-    if metric == "mean":
+    if summary == "mean":
         z = np.arctanh(np.clip(corrs, -0.999, 0.999))
         return np.tanh(z.mean(axis=0))
-    raise ValueError(f"unknown metric {metric!r}; expected 'median' or 'mean'")
+    raise ValueError(f"unknown summary {summary!r}; expected 'median' or 'mean'")
 
 
 def isc(
@@ -470,7 +470,7 @@ def isc(
     *,
     method: str = "loo",
     roi_mask: nib.Nifti1Image | Path | str | None = None,
-    metric: str = "median",
+    summary: str = "median",
 ) -> dict:
     """Inter-subject correlation across the time dimension.
 
@@ -492,7 +492,7 @@ def isc(
     roi, out_mask = _resolve_roi(bc, roi_mask)
 
     if method == "loo":
-        return _isc_loo_streaming(bc, roi, out_mask, metric)
+        return _isc_loo_streaming(bc, roi, out_mask, summary)
 
     # pairwise materializes all subjects: it needs every C(n,2) pair, so there is
     # no single-pass streaming form (streaming would cost O(n²) subject reloads).
@@ -508,14 +508,14 @@ def isc(
     pair_corrs = np.empty((len(pairs), *data.shape[2:]), dtype=np.float64)
     for k, (i, j) in enumerate(pairs):
         pair_corrs[k] = _pearson_per_voxel(data[i], data[j])
-    agg = _aggregate_corrs(pair_corrs, metric)
+    agg = _aggregate_corrs(pair_corrs, summary)
     return {
         "isc": _make_braindata(agg, out_mask),
         "pairs": pair_corrs,
     }
 
 
-def _isc_loo_streaming(bc, roi, out_mask, metric: str) -> dict:
+def _isc_loo_streaming(bc, roi, out_mask, summary: str) -> dict:
     """Leave-one-out ISC in two streaming passes — never all subjects at once.
 
     loo ISC correlates each subject with the mean of the *others*. That template
@@ -543,7 +543,7 @@ def _isc_loo_streaming(bc, roi, out_mask, metric: str) -> dict:
         x64 = x.astype(np.float64)
         template = (total - x64) / (n_subj - 1)
         corrs[i] = _pearson_per_voxel(x64, template)
-    agg = _aggregate_corrs(corrs, metric)
+    agg = _aggregate_corrs(corrs, summary)
     return {
         "isc": _make_braindata(agg, out_mask),
         "per_subject": corrs,
@@ -556,7 +556,7 @@ def isc_test(
     method: str = "loo",
     roi_mask: nib.Nifti1Image | Path | str | None = None,
     n_samples: int = 5000,
-    metric: str = "median",
+    summary: str = "median",
     random_state: int | None = None,
 ) -> dict:
     """Bootstrap inference on ISC.
@@ -568,7 +568,7 @@ def isc_test(
     maps carry the ROI mask rather than the collection's whole-brain mask.
     """
     rng = np.random.default_rng(random_state)
-    observed = isc(bc, method=method, roi_mask=roi_mask, metric=metric)
+    observed = isc(bc, method=method, roi_mask=roi_mask, summary=summary)
     obs_map = np.asarray(observed["isc"].data).reshape(-1)
     n_subj = len(bc)
 
@@ -585,7 +585,7 @@ def isc_test(
             for i in range(n_subj):
                 template = (total - sample_data[i]) / denom
                 corrs[i] = _pearson_per_voxel(sample_data[i], template)
-            null[k] = _aggregate_corrs(corrs, metric).reshape(-1)
+            null[k] = _aggregate_corrs(corrs, summary).reshape(-1)
         else:
             from itertools import combinations
 
@@ -593,7 +593,7 @@ def isc_test(
             pc = np.empty((len(pairs), *data.shape[2:]), dtype=np.float64)
             for kk, (i, j) in enumerate(pairs):
                 pc[kk] = _pearson_per_voxel(sample_data[i], sample_data[j])
-            null[k] = _aggregate_corrs(pc, metric).reshape(-1)
+            null[k] = _aggregate_corrs(pc, summary).reshape(-1)
 
     # Two-tailed p centered at 0 (ISC null hypothesis: no synchrony → ISC = 0).
     # The subject bootstrap is centered on the OBSERVED ISC, so it must be
@@ -606,7 +606,7 @@ def isc_test(
     return {
         "isc": observed["isc"],
         "p": _make_braindata(p.reshape(obs_map.shape), out_mask),
-        "null_distribution": null,
+        "null_dist": null,
     }
 
 

@@ -1134,7 +1134,7 @@ class BrainCollection:
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
-            ``'null_distribution'`` when ``return_null=True``.
+            ``'null_dist'`` when ``return_null=True``.
         """
         return inference.permutation_test(
             self,
@@ -1173,7 +1173,7 @@ class BrainCollection:
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
-            difference), plus ``'null_distribution'`` when ``return_null=True``.
+            difference), plus ``'null_dist'`` when ``return_null=True``.
         """
         return inference.permutation_test2(
             self,
@@ -1195,7 +1195,7 @@ class BrainCollection:
         *,
         method: str = "loo",
         roi_mask: nib.Nifti1Image | Path | str | None = None,
-        metric: str = "median",
+        summary: str = "median",
     ) -> dict:
         """Inter-subject correlation (ISC) across the time dimension.
 
@@ -1205,7 +1205,7 @@ class BrainCollection:
             roi_mask: Optional ROI/atlas mask restricting the computation to
                 those voxels. The returned maps carry the ROI mask. If None,
                 ISC is computed across the collection's whole-brain mask.
-            metric: Aggregation across subjects/pairs (e.g. ``'median'``).
+            summary: Aggregation across subjects/pairs (e.g. ``'median'``).
 
         Returns:
             Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or
@@ -1216,7 +1216,7 @@ class BrainCollection:
             self,
             method=method,
             roi_mask=roi_mask,
-            metric=metric,
+            summary=summary,
         )
 
     def isc_test(
@@ -1225,7 +1225,7 @@ class BrainCollection:
         method: str = "loo",
         roi_mask: nib.Nifti1Image | Path | str | None = None,
         n_samples: int = 5000,
-        metric: str = "median",
+        summary: str = "median",
         random_state: int | None = None,
     ) -> dict:
         """Bootstrap inference on ISC (per-voxel p-values).
@@ -1239,11 +1239,11 @@ class BrainCollection:
                 those voxels. The returned maps carry the ROI mask. If None,
                 ISC is computed across the collection's whole-brain mask.
             n_samples: Number of bootstrap resamples.
-            metric: Aggregation across subjects/pairs (e.g. ``'median'``).
+            summary: Aggregation across subjects/pairs (e.g. ``'median'``).
             random_state: Seed for the bootstrap RNG.
 
         Returns:
-            Dict ``{'isc', 'p', 'null_distribution'}`` (``'isc'`` and ``'p'`` are
+            Dict ``{'isc', 'p', 'null_dist'}`` (``'isc'`` and ``'p'`` are
             `BrainData` maps).
         """
         return inference.isc_test(
@@ -1251,7 +1251,7 @@ class BrainCollection:
             method=method,
             roi_mask=roi_mask,
             n_samples=n_samples,
-            metric=metric,
+            summary=summary,
             random_state=random_state,
         )
 

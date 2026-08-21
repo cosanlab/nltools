@@ -267,7 +267,7 @@ thread oversubscription inside each worker.
   path-backed data in the main process — faster than the pickling overhead.
 - **Alignment** has its own parallel scheme inside `nltools.algorithms.*`. The
   collection passes `n_jobs`/`device` through but doesn't double-wrap. (ISC runs in
-  `inference.py` and takes only `method`/`roi_mask`/`metric` — no `n_jobs`/`device`.)
+  `inference.py` and takes only `method`/`roi_mask`/`summary` — no `n_jobs`/`device`.)
 
 > **Note.** `isc(method='loo')` streams: pass 1 accumulates the subject sum (one `T×V`
 > array), pass 2 re-streams forming each subject's template `(sum − subject)/(n−1)` and

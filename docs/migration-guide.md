@@ -388,6 +388,8 @@ Two kwarg renames rode along, applying the canonical `device=` vocabulary to the
 - **`parallel=` → `device=`** on every `algorithms.inference` entry point (`one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `timeseries_correlation_permutation_test`, `matrix_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test`). Values are unchanged: `'cpu'` (joblib), `'gpu'` (PyTorch), `None` (single-threaded). Result dicts likewise report a `'device'` key instead of `'parallel'`.
 - **`phase_randomize(backend=)` → `phase_randomize(device=)`** with `'cpu' | 'gpu' | 'auto'` replacing `'numpy' | 'torch'`.
 
+The ISC family was canonicalized the same way: `isc_permutation_test` / `isc_group_permutation_test` rename `metric=` (the `'median'|'mean'` central-tendency choice) to **`summary=`** and `sim_metric=` (the similarity metric) to **`metric=`**; `isc_group()` and `BrainCollection.isc` / `.isc_test` likewise take `summary=` instead of `metric=`. All ISC results (wrappers and `BrainCollection` included) now expose the null under the engine-standard **`null_dist`** key — the legacy `null_distribution` key is gone — and the `isc` / `isc_group` wrappers expose `progress_bar: bool = False`.
+
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
 
@@ -1314,7 +1316,7 @@ result = isc_group_permutation_test(group1, group2, n_permute=1000)
 ```
 
 **Key Changes**:
-- `isc()` / `isc_group()` keep `n_samples=` and the `null_distribution` result key; the engine functions use `n_permute=` and `null_dist`
+- `isc()` / `isc_group()` keep `n_samples=` (bootstrap vocabulary); everything else is canonical — `summary='median'|'mean'` for the central tendency (previously `metric=` on `isc_group`), `metric=` for the similarity metric, and a `null_dist` result key (the old `null_distribution` key is gone)
 - `isfc()` remains a functional-connectivity calculation and does not perform permutation inference
 - GPU acceleration is available on the engine functions with `device="gpu"`; CPU parallelization with `device="cpu"` and `n_jobs=-1`
 
@@ -1746,7 +1748,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 | `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `model=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `model=Pipeline(...)` for custom transforms |
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
 | Import paths | Module moved | `stats.isc()` | `inference.isc_permutation_test()` | Wrapper maintained |
-| Return keys | API-specific | Direct inference: `null_dist` | Legacy `stats.*` wrapper: `null_distribution` | Use the key exposed by the API layer you call |
+| Return keys | Unified | `null_dist` everywhere (engines, `isc`/`isc_group`, `BrainCollection`) | The legacy `null_distribution` key is removed | Update key lookups to `null_dist` |
 
 ---
 
