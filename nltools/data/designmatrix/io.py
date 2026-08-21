@@ -63,6 +63,43 @@ def events_to_dm(
     return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
 
 
+def separator_for_path(path: str | Path) -> str:
+    """Return the delimiter a text DesignMatrix file uses, from its extension.
+
+    The single source of truth for both `write` and `load_from_file`, so a
+    file nltools writes is always a file nltools can read back. ``.csv`` means
+    comma; every other extension means tab, matching the BIDS convention for
+    ``.tsv`` and keeping the historical default for ``.txt`` and friends.
+    """
+    return "," if Path(path).suffix.lower() == ".csv" else "\t"
+
+
+def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
+    """Read a delimited text file, recovering from a mismatched separator.
+
+    nltools <= 0.6.0 wrote tab-separated data into whatever extension it was
+    handed, so a ``.csv`` on disk may really be a TSV. Parsing it with the
+    wrong delimiter yields a single column whose *name* still contains the
+    real one, which is an unambiguous tell — retry rather than hand back one
+    mashed column.
+    """
+
+    def read(delimiter: str) -> pl.DataFrame:
+        return pl.read_csv(
+            path,
+            separator=delimiter,
+            null_values=["n/a", "N/A", "NA", ""],
+            infer_schema_length=10_000,
+        )
+
+    raw = read(sep)
+    if raw.width == 1:
+        alternate = "," if sep == "\t" else "\t"
+        if alternate in raw.columns[0]:
+            return read(alternate)
+    return raw
+
+
 def load_from_file(
     path: str | Path,
     *,
@@ -92,13 +129,7 @@ def load_from_file(
         nuisance.
     """
     p = Path(path)
-    sep = "\t" if p.suffix.lower() == ".tsv" else ","
-    raw = pl.read_csv(
-        p,
-        separator=sep,
-        null_values=["n/a", "N/A", "NA", ""],
-        infer_schema_length=10_000,
-    )
+    raw = _read_delimited(p, separator_for_path(p))
 
     is_events = "onset" in raw.columns and "duration" in raw.columns
 
@@ -174,30 +205,33 @@ def to_numpy(dm: DesignMatrix) -> np.ndarray:
     return np.asarray(dm)
 
 
-def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
+def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     """Write DesignMatrix to file.
 
-    Supports TSV (default), CSV, and HDF5 formats. The format is
-    automatically determined by file extension.
+    Supports TSV, CSV, and HDF5 formats. The format is automatically
+    determined by file extension.
 
     Args:
         dm: DesignMatrix instance.
         file_name: Output file path. Use .tsv, .csv, or .h5/.hdf5 extension.
-        sep: Column separator for text files (default: tab for TSV).
-             Ignored for HDF5 files.
+        sep: Column separator for text files. Defaults to the delimiter the
+            extension implies (comma for ``.csv``, tab otherwise), so the file
+            reads back correctly; pass a value to override. Ignored for HDF5.
 
     Returns:
         None
 
     Examples:
         >>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
-        >>> write(dm, "design_matrix.tsv")  # TSV format (BIDS compatible)
-        >>> write(dm, "design_matrix.csv", sep=",")  # CSV format
-        >>> write(dm, "design_matrix.h5")  # HDF5 format
+        >>> write(dm, "design_matrix.tsv")  # tab separated (BIDS compatible)
+        >>> write(dm, "design_matrix.csv")  # comma separated
+        >>> write(dm, "design_matrix.h5")  # HDF5, metadata preserved
 
     Note:
-        TSV format is recommended for BIDS compatibility.
-        HDF5 format preserves metadata (sampling_freq, convolved, confounds).
+        TSV format is recommended for BIDS compatibility. Text formats carry
+        the data only — HDF5 additionally preserves ``sampling_freq``,
+        ``.convolved``, ``.confounds``, ``.multi``, and the row count of a
+        column-less matrix, so ``DesignMatrix(path)`` restores the object.
     """
     from pathlib import Path
 
@@ -209,12 +243,20 @@ def write(dm: DesignMatrix, file_name: str, sep: str = "\t") -> None:
     if is_h5_path(file_name):
         write_h5(dm, file_name)
     else:
-        # Write as delimited text file (TSV or CSV)
-        dm.data.write_csv(file_name, separator=sep)
+        # Write as delimited text file. The separator follows the extension by
+        # default so `write` and the file constructor cannot disagree.
+        dm.data.write_csv(
+            file_name, separator=separator_for_path(file_name) if sep is None else sep
+        )
 
 
 def write_h5(dm: DesignMatrix, file_name: str) -> None:
     """Write DesignMatrix to HDF5 file with metadata.
+
+    The frame is stored as Arrow IPC bytes (via the shared
+    `nltools.io.h5` helpers) so every dtype round-trips exactly — an integer
+    spike indicator comes back an integer rather than being floated by a
+    detour through a homogeneous numpy array.
 
     Args:
         dm: DesignMatrix instance.
@@ -225,22 +267,67 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
     """
     import h5py
 
+    from nltools.io.h5 import _write_polars_frame
+
     with h5py.File(file_name, "w") as f:
-        # Store data
-        f.create_dataset("data", data=dm.data.to_numpy(), compression="gzip")
+        _write_polars_frame(f, "data", dm.data, "gzip")
 
-        # Store column names
-        f.create_dataset(
-            "columns",
-            data=np.array(dm.columns, dtype="S"),
-            compression="gzip",
-        )
-
-        # Store metadata
         meta = f.create_group("metadata")
         if dm.sampling_freq is not None:
             meta.attrs["sampling_freq"] = dm.sampling_freq
         meta.attrs["convolved"] = np.array(dm.convolved, dtype="S")
         meta.attrs["confounds"] = np.array(dm.confounds, dtype="S")
         meta.attrs["multi"] = dm.multi
+        # A column-less matrix still describes a specific number of
+        # timepoints, and polars cannot carry that in the frame itself.
+        if dm._n_rows is not None:
+            meta.attrs["n_rows"] = dm._n_rows
         meta.attrs["obj_type"] = "design_matrix"
+
+
+def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
+    """Read a DesignMatrix HDF5 file written by `write_h5`.
+
+    Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
+    and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
+    in ``data`` beside an ``S``-typed ``columns`` dataset).
+
+    Args:
+        file_name: Path to the HDF5 file.
+
+    Returns:
+        Tuple of (frame, metadata), where metadata holds ``sampling_freq``,
+        ``convolved``, ``confounds``, ``multi``, and ``n_rows`` — absent keys
+        meaning the file didn't record them.
+    """
+    import h5py
+
+    from nltools.io.h5 import _read_polars_frame
+
+    def _decode(values) -> list[str]:
+        return [v.decode() if isinstance(v, bytes) else str(v) for v in values]
+
+    with h5py.File(file_name, "r") as f:
+        if "columns" in f:
+            # Legacy layout: homogeneous matrix + separate column names.
+            values = np.asarray(f["data"])
+            columns = _decode(np.asarray(f["columns"]))
+            data = pl.DataFrame(values, schema=columns)
+        else:
+            data = _read_polars_frame(f, "data")
+
+        metadata: dict = {}
+        if "metadata" in f:
+            attrs = f["metadata"].attrs
+            if "sampling_freq" in attrs:
+                metadata["sampling_freq"] = float(attrs["sampling_freq"])
+            if "convolved" in attrs:
+                metadata["convolved"] = _decode(attrs["convolved"])
+            if "confounds" in attrs:
+                metadata["confounds"] = _decode(attrs["confounds"])
+            if "multi" in attrs:
+                metadata["multi"] = bool(attrs["multi"])
+            if "n_rows" in attrs:
+                metadata["n_rows"] = int(attrs["n_rows"])
+
+    return data, metadata

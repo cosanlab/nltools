@@ -52,15 +52,21 @@ class DesignMatrix:
               boxcar regressors — call ``convolve()`` afterwards if you want
               HRF convolution. Any other tabular file is read as-is and is
               typically used for confounds.
+            - str or Path to a `.h5`/`.hdf5` file written by ``.write()``,
+              which restores the data *and* the metadata (``sampling_freq``,
+              ``.convolved``, ``.confounds``, ``.multi``). Neither
+              ``run_length`` nor ``sampling_freq`` is needed; passing either
+              overrides what the file recorded.
             - None (empty initialization)
         sampling_freq (float, optional): Sampling frequency in Hz (1/TR for fMRI data).
             Mutually exclusive with ``TR``.
         TR (float, optional): Repetition time in seconds. Convenience for
             ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``.
         run_length (int or 'infer', optional): Required when ``data`` is a
-            file path. Number of TRs in the run. Pass ``'infer'`` for
-            tabular/confounds files to accept whatever row count the file
-            has (not valid for events files).
+            path to a text file. Number of TRs in the run. Pass ``'infer'``
+            for tabular/confounds files to accept whatever row count the file
+            has (not valid for events files). Not used for ``.h5`` inputs,
+            which carry their own length.
         columns (list of str, optional): Column names (used with ndarray input)
         convolved (list of str, optional): Names of convolved columns (tracked internally)
         confounds (list of str, optional): Names of nuisance/confound columns
@@ -166,23 +172,44 @@ class DesignMatrix:
             self.data = pl.DataFrame()
 
         elif isinstance(data, (str, Path)):
-            if run_length is None:
-                raise ValueError(
-                    "Loading DesignMatrix from a file requires `run_length`."
-                )
-            if sampling_freq is None:
-                raise ValueError(
-                    "Loading DesignMatrix from a file requires `TR` or `sampling_freq`."
-                )
-            from .io import load_from_file
+            from nltools.io import is_h5_path
 
-            self.data, _is_events = load_from_file(
-                data,
-                run_length=run_length,
-                sampling_freq=sampling_freq,
-            )
-            # Mirror to the outer scope so the post-dispatch auto-convolve
-            # block (below) can pick it up.
+            if is_h5_path(data):
+                # A .h5 is a serialized DesignMatrix rather than a table
+                # awaiting interpretation: it carries its own sampling_freq
+                # and row count, so neither has to be supplied (and
+                # `run_length` has nothing to describe). Explicit kwargs
+                # still win over what the file recorded.
+                from .io import read_h5
+
+                self.data, stored = read_h5(data)
+                if sampling_freq is None:
+                    sampling_freq = stored.get("sampling_freq")
+                if convolved is None:
+                    convolved = stored.get("convolved")
+                if confounds is None:
+                    confounds = stored.get("confounds")
+                if n_rows is None:
+                    n_rows = stored.get("n_rows")
+                self.multi = stored.get("multi", False)
+            else:
+                if run_length is None:
+                    raise ValueError(
+                        "Loading DesignMatrix from a file requires `run_length`."
+                    )
+                if sampling_freq is None:
+                    raise ValueError(
+                        "Loading DesignMatrix from a file requires `TR` or `sampling_freq`."
+                    )
+                from .io import load_from_file
+
+                # _is_events mirrors to the outer scope so the post-dispatch
+                # auto-convolve block (below) can pick it up.
+                self.data, _is_events = load_from_file(
+                    data,
+                    run_length=run_length,
+                    sampling_freq=sampling_freq,
+                )
 
         elif isinstance(data, pl.DataFrame):
             # Polars DataFrame - zero copy, just ensure string column names
@@ -875,15 +902,19 @@ class DesignMatrix:
         new_data = self.data.with_columns(*exprs, **coerced)
         return copy_with(self, new_data)
 
-    def write(self, file_name: str, sep: str = "\t") -> None:
+    def write(self, file_name: str, sep: str | None = None) -> None:
         """Write DesignMatrix to file.
 
-        Supports TSV (default), CSV, and HDF5 formats. Format is
-        auto-detected from file extension.
+        Supports TSV, CSV, and HDF5 formats. Format is auto-detected from the
+        file extension. Text formats carry the data only; ``.h5`` also
+        preserves ``sampling_freq``, ``.convolved``, ``.confounds``, and
+        ``.multi``, so ``DesignMatrix(path)`` restores the whole object.
 
         Args:
             file_name: Output file path. Use .tsv, .csv, or .h5/.hdf5 extension.
-            sep: Column separator for text files (default: tab).
+            sep: Column separator for text files. Defaults to the delimiter the
+                extension implies (comma for ``.csv``, tab otherwise); pass a
+                value to override.
         """
         from .io import write
 

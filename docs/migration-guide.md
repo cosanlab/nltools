@@ -239,6 +239,55 @@ result reports `(n_tr, 0)` and appends as a no-op. `DesignMatrix.append()` also
 skips regressor-less matrices outright, so this composes even for matrices built
 without an explicit height.
 
+(designmatrix-file-round-trip)=
+### `DesignMatrix` files read back — `.csv` separator fixed, `.h5` reader added
+
+**Status**: ✅ **FIXED** (v0.6.0) — `.write()` and `DesignMatrix(path)` are now symmetric
+
+Writing a design matrix and reading it back did not work. Two independent
+defects:
+
+**A `.csv` was written tab-separated.** `.write()` defaulted to a tab delimiter
+whatever the extension, while the file constructor picked the delimiter from
+the extension — so a `.csv` round-tripped into a single column named
+`'cond_a\tcond_b'`:
+
+```python
+dm.write("design.csv")
+DesignMatrix("design.csv", sampling_freq=0.5, run_length="infer").columns
+# v0.5.1/0.6.0-dev: ['cond_a\tcond_b']   <- one mashed column
+# v0.6.0:           ['cond_a', 'cond_b']
+```
+
+The delimiter now follows the extension on **both** sides (`.csv` → comma,
+everything else → tab). An explicit `sep=` still overrides it. Files already on
+disk with the mismatched delimiter are detected and re-parsed, so they load
+correctly without intervention.
+
+**There was no `.h5` reader.** `.write("dm.h5")` produced a valid HDF5 file that
+nothing could open — the constructor sent every path to the CSV reader, which
+failed with `ComputeError: invalid utf-8 sequence`. `DesignMatrix` now reads
+its own HDF5 files, and because such a file is a serialized object rather than
+a table awaiting interpretation, it needs no `run_length` or `sampling_freq`:
+
+```python
+dm.write("design.h5")
+back = DesignMatrix("design.h5")     # no other arguments required
+
+back.sampling_freq   # restored
+back.confounds       # restored
+back.convolved       # restored
+back.multi           # restored
+```
+
+Passing `sampling_freq=` / `convolved=` / `confounds=` explicitly still
+overrides whatever the file recorded. HDF5 files written by earlier 0.6.0
+builds (a plain float matrix beside an `S`-typed `columns` dataset) are read
+too; new files store the frame as Arrow IPC bytes, so column dtypes survive
+exactly — an integer spike indicator comes back an integer instead of a float.
+A column-less matrix also records its row count, so `find_spikes()` output for
+a subject with no spikes round-trips as `(n_tr, 0)` rather than `(0, 0)`.
+
 (reserved-column-prefix)=
 ### Generated columns are namespaced with `.nl_`
 
@@ -736,7 +785,7 @@ DesignMatrix(sampling_freq=0.5, shape=(200, 6))
   confounds (3): ['.nl_poly_0', '.nl_poly_1', '.nl_poly_2']
 ```
 
-`DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`). There is no DM HDF5 reader yet, so this only affects newly written files.
+`DesignMatrix.write()` to `.h5` writes the metadata under the key `confounds` (was `polys`), and `DesignMatrix(path)` reads it back — see [](#designmatrix-file-round-trip).
 
 **`BrainData.X = dm` now works.** The `.X` setter previously rejected `DesignMatrix` with `TypeError`; v0.6.0 unwraps it to `dm.data` (the underlying polars DataFrame). DM-specific metadata isn't preserved on `BrainData.X`, but you no longer need the explicit `.data` step.
 
