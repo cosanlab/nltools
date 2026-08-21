@@ -395,6 +395,8 @@ The same `summary` vocabulary reached the two remaining mean/median knobs on the
 - **`Adjacency.cluster_summary(method=, summary=)` → `cluster_summary(summary=, scope=)`** — the `'mean'|'median'|None` central tendency is now `summary=` (was `method=`), and the within/between-cluster choice is now `scope='within'|'between'` (it previously squatted on the `summary=` name).
 - **`BrainData.extract_roi(metric=)` → `extract_roi(method=)`** — `'mean'|'median'|'pca'` selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics.
 
+Two smaller `progress_bar` cleanups also landed: `BrainData.fit` now defaults `progress_bar=False` like every other entry point — it no longer inherits `bd.verbose` when unset (`verbose` is reserved for log-level only), so pass `progress_bar=True` explicitly if you relied on that coupling. `SphereNeighborhoods.iter_neighborhoods` takes `progress_bar` keyword-only.
+
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
 
@@ -1492,7 +1494,7 @@ rotation = model.transform_subject(new_data)
 
 **Status**: ✅ Complete (v0.6.0). No aliases kept for the old spellings — callers using the legacy names will hit a `TypeError: unexpected keyword argument`.
 
-A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `CLAUDE.md` (section "API Conventions"); the table below is the migration mapping for callers.
+A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `DesignMatrix`) landed in a series of `!:` commits on 2026-04-14 and 2026-04-20 to make kwarg names consistent across the public API. The canonical names are documented in `docs/_data/api-vocabulary.yml` (rendered in the [architecture docs](development/index.md)); the table below is the migration mapping for callers.
 
 ### Renamed kwargs
 

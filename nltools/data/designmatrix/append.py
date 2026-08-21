@@ -159,7 +159,12 @@ def append(
                 "in the desired order."
             )
         return append_vertical(
-            dm, to_append, keep_separate, unique_cols, fill_na, progress_bar
+            dm,
+            to_append,
+            keep_separate,
+            unique_cols,
+            fill_na,
+            progress_bar=progress_bar,
         )
     raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
 
@@ -296,6 +301,7 @@ def append_vertical(
     keep_separate: bool,
     unique_cols: list[str] | None,
     fill_na: int | float | None,
+    *,
     progress_bar: bool,
 ) -> DesignMatrix:
     """Concatenate matrices vertically with optional confound separation.
@@ -333,7 +339,7 @@ def append_vertical(
 
     # Complex case: keep_separate=True - separate confound columns across runs
     return append_vertical_with_separation(
-        dm, to_append, unique_cols, fill_na, progress_bar
+        dm, to_append, unique_cols, fill_na, progress_bar=progress_bar
     )
 
 
@@ -426,6 +432,7 @@ def append_vertical_with_separation(
     to_append: list[DesignMatrix],
     unique_cols: list[str] | None,
     fill_na: int | float | None,
+    *,
     progress_bar: bool,
 ) -> DesignMatrix:
     """Concatenate vertically with automatic confound separation.

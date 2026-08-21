@@ -92,7 +92,7 @@ class SphereNeighborhoods:
         return self.adjacency[voxel_idx].nnz
 
     def iter_neighborhoods(
-        self, progress_bar: bool = False
+        self, *, progress_bar: bool = False
     ) -> Iterator[tuple[int, np.ndarray]]:
         """Iterate over all neighborhoods.
 

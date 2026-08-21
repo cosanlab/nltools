@@ -908,7 +908,7 @@ class BrainData:
         inplace=True,
         scale="auto",
         standardize="auto",
-        progress_bar=None,
+        progress_bar=False,
         **kwargs,
     ):
         """Fit a model to brain imaging data.
@@ -950,7 +950,7 @@ class BrainData:
                 each voxel across observations after scaling. ``'center'``,
                 ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge,
                 ``None`` for glm.
-            progress_bar (bool, optional): Display progress bar during fitting.
+            progress_bar (bool): Display a progress bar during fitting. Default: False.
             **kwargs (dict): Additional arguments passed to model constructor
 
         Returns:

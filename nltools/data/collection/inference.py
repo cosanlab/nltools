@@ -610,7 +610,7 @@ def isc_test(
     }
 
 
-def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignment solver iterations, not a permutation count
+def align(  # n_iter exemption: solver iterations, not a permutation count (see api-vocabulary.yml)
     bc: BrainCollection,
     *,
     method: str = "procrustes",

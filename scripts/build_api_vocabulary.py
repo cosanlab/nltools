@@ -21,8 +21,9 @@ Usage:
 to the vocabulary — or to a generated table by hand — fails the build until the docs
 are regenerated. The write mode is wired into `poe docs-generate`.
 
-The HUMAN canon is CLAUDE.md's "API Conventions (v0.6.0)" table; keep the YAML in
-sync with it (CLAUDE.md is read directly by Claude and is not generated).
+The YAML is the canon: CLAUDE.md's "API Conventions" section points at it rather
+than duplicating the table, and `scripts/check_api_vocabulary.py` enforces its
+`enforcement:` rules against every public signature in the package.
 """
 
 from __future__ import annotations
@@ -96,7 +97,7 @@ def render_tour_exceptions(vocab: dict) -> str:
     """Render the inner HTML of the design-tour "deliberate exceptions" callout."""
     exceptions = vocab["exceptions"]
     count = _NUMBER_WORDS.get(len(exceptions), str(len(exceptions)))
-    sentences = " ".join(_md_inline_to_html(e) for e in exceptions)
+    sentences = " ".join(_md_inline_to_html(e["text"]) for e in exceptions)
     return (
         f"  <strong>{count} deliberate exceptions.</strong> {sentences} "
         "Each is documented, not an oversight."

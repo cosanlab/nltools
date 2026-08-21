@@ -144,7 +144,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     local_alpha=True,
     fit_intercept=False,
     inplace=True,
-    progress_bar=None,
+    progress_bar=False,
     scale="auto",
     standardize="auto",
     **kwargs,
@@ -185,10 +185,8 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             that ``predict()`` / ``compute_contrasts()`` still work off bd.
             Successive ``inplace=False`` fits therefore overwrite the model
             used by a later ``bd.predict()``.
-        progress_bar (bool, optional): Display progress bar during fitting.
-            - If None: Uses bd.verbose (default)
-            - If True: Shows progress bar for long-running operations
-            - If False: No progress bar
+        progress_bar (bool): Display a progress bar for long-running
+            operations. Default: False.
         scale (bool or 'auto', default='auto'): Apply percent-signal-change
             scaling to the data before fitting, via nilearn's per-voxel
             ``mean_scaling`` (each voxel's time-series is divided by its own
@@ -288,10 +286,6 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
 
     # Always store model_ and X_ for predict() to work (even if inplace=False)
     bd.X_ = X_model
-
-    # Determine progress_bar setting (default to bd.verbose if not specified)
-    if progress_bar is None:
-        progress_bar = bd.verbose
 
     # Create temporary copy if inplace=False to avoid mutating result attributes
     if inplace:

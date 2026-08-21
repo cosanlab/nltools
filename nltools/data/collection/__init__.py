@@ -1255,7 +1255,7 @@ class BrainCollection:
             random_state=random_state,
         )
 
-    def align(  # nosemgrep: banned-kwarg-permutation-count  # n_iter = LocalAlignment solver iterations, not a permutation count
+    def align(  # n_iter exemption: solver iterations, not a permutation count (see api-vocabulary.yml)
         self,
         *,
         method: str = "procrustes",

@@ -1,8 +1,8 @@
 # CLAUDE.md
 
-## Gate: `uv run poe lint`
+## Gates: `uv run poe lint` · `uv run poe lint-api`
 
-**All commands must use `uv run` prefix** — bare `pytest`/`python` uses the wrong environment.
+**All commands must use `uv run` prefix** — bare `pytest`/`python` uses the wrong environment. Run `lint-api` (vocabulary checker + semgrep + kw-only check + docs-drift check) after touching any public signature.
 
 ## Project Context
 - **v0.6.0**: breaking release — API changes allowed.
@@ -36,35 +36,17 @@ Classes are **facades and glue** — all real logic lives in pure functions.
 
 ## API Conventions (v0.6.0)
 
-Canonical kwarg names across the four data-class facades:
+**Single source of truth: `docs/_data/api-vocabulary.yml`.** Canonical kwarg names, banned aliases, per-kwarg contracts (required defaults, keyword-onlyness), documented exceptions, and enforcement scope all live there — read it before naming or renaming any public kwarg. `scripts/check_api_vocabulary.py` (in `lint-api`) enforces it against every public signature; `scripts/build_api_vocabulary.py` renders it into the docs tables (edit the YAML, never the rendered AUTOGEN blocks). New carve-outs go in that file's `exceptions:` / `enforcement.exemptions:` with a reason — never as inline suppressions.
 
-| Concept | Canonical kwarg | Notes |
-|---|---|---|
-| Algorithm/variant choice | `method` | not `algorithm`, `scheme`, `kind`, `estimator`, `icc_type`, `extract_type`, `perm_type`, `mode` |
-| Spatial scale | `spatial_scale` | values: `'whole_brain' \| 'roi' \| 'searchlight'` (a given method may support a subset and raise `NotImplementedError` for the rest — e.g. `BrainData.align` has no `searchlight`; `BrainCollection.align` / `LocalAlignment` are local-only, no `whole_brain`). Used by `BrainData.predict` / `.distance` / `.align` / `.mean`/`.std`/`.median`, `BrainCollection.predict` / `.align`, and `LocalAlignment` (with companion `roi_mask=`). Distinct from `method=` (algorithm choice). Vocabulary follows Jolly & Chang, 2021, *SCAN*. |
-| Distance/similarity metric | `metric` | kept separate from `method` |
-| Parallel execution | `n_jobs: int = -1` | not `parallel=` (the ridge and alignment layers still use `parallel=` internally but facades translate; the inference engine was renamed to `device=` in v0.6.0) |
-| GPU/CPU selection | `device: str = "cpu"` | BrainCollection facades and the whole `algorithms.inference` engine (values `'cpu' \| 'gpu' \| None`, plus `'auto'` where supported); separate from `n_jobs` |
-| Progress indicator | `progress_bar: bool = False` | not `show_progress`, `verbose` (`verbose` reserved for log-level only) |
-| Threshold pair | `lower`, `upper`, `binarize` | plus convenience `threshold: float` where bidirectional |
-| Permutation count | `n_permute` | not `n_perm`, `n_iter` |
-| Bootstrap sample count | `n_samples` | semantically distinct from `n_permute` |
-| Diagonal flag | `include_diag: bool` | not `ignore_diagonal` |
-| Radius (mm) | `radius_mm: float` | units in the name |
+Mistake-prone distinctions (full detail in the YAML): `method=` (algorithm variant) vs `metric=` (similarity only) vs `summary=` (`'mean'|'median'` central tendency); `n_jobs=` (CPU workers) vs `device=` (cpu/gpu); `n_permute` (permutations) vs `n_samples` (bootstrap).
 
-**Canonical trailing kwarg order** (when any apply):
-`..., domain_kwargs, return_flags, n_jobs=-1, random_state=None, progress_bar=False`
+Conventions the manifest can't express per-kwarg (enforcer in parentheses):
 
-**`**kwargs` rule**: permitted **only** when forwarding to an external third-party API (sklearn estimator, matplotlib, nilearn, nibabel, seaborn, pandas). Internal delegation between nltools modules must use explicit signatures.
-
-**Keyword-only `*` marker**: required in `__init__` after the primary data arg, and in any public method with 3+ kwargs.
-
-**Facade translation**: internal algorithm-layer APIs (e.g. `CVScheme.scheme`, `Glm.noise_model`) may keep legacy names; the class facade translates at the boundary. (`LocalAlignment` was canonicalized in v0.6.0 — it uses `spatial_scale`/`roi_mask` directly, so `.align` facades pass straight through with no translation.)
-
-**Documented naming exceptions** (deliberate deviations from the table, decided for v0.6.0):
-- `BrainData.fit(model='glm'|'ridge')` keeps `model=` (not `method=`): it selects an estimator **class**, not an algorithm variant, and reads naturally. (F175)
-- `Ridge(n_iter=...)` keeps `n_iter=` (a banned alias in general): it is the random-search iteration count, matching sklearn's `RandomizedSearchCV` name; no canonical name exists for that concept. (F105)
-- `compute_contrasts(statistic=...)` uses `statistic=` (not `method=`): it selects an output **statistic** map (t/z/p/beta/…), not an algorithm. (F077)
+- **Trailing kwarg order** (when any apply): `..., domain_kwargs, return_flags, n_jobs=-1, random_state=None, progress_bar=False` (convention only).
+- **`**kwargs`**: permitted **only** when forwarding to an external third-party API (sklearn, matplotlib, nilearn, nibabel, seaborn, pandas); internal nltools delegation must use explicit signatures (semgrep `kwargs-internal-forwarding`).
+- **Keyword-only `*` marker**: required in `__init__` after the primary data arg, and in any public method with 3+ kwargs (`scripts/check_kwonly.py`).
+- **Facade translation**: the ridge/alignment layers may keep legacy names (`parallel=`, `backend=`, `n_iter=`); facades translate at the boundary, and the checker path-excludes those subsystems.
+- **`spatial_scale`**: a given method may support a subset of `'whole_brain'|'roi'|'searchlight'` and raise `NotImplementedError` for the rest; vocabulary follows Jolly & Chang, 2021, *SCAN*.
 
 ## Documentation
 

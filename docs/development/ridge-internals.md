@@ -173,8 +173,9 @@ Resolved `.name` values are hyphenated: `numpy`, `torch-cpu`, `torch-cuda`, `tor
 > `BrainData.bootstrap(device=...)` — exposes the canonical **`device: str = "cpu"`**
 > (`'cpu'` / `'gpu'` / `'auto'`) and translates to `parallel=` at the boundary
 > (`resolve_backend(device).device in ("cuda","mps") → 'gpu'`). No `backend=` or
-> `parallel=` kwarg reaches the public facade; the `.semgrep/rules.yml`
-> `banned-kwarg-device` rule enforces this. The fitted `Ridge.backend_` attribute
+> `parallel=` kwarg reaches the public facade; the vocabulary checker
+> (`scripts/check_api_vocabulary.py`, driven by `docs/_data/api-vocabulary.yml`)
+> enforces this. The fitted `Ridge.backend_` attribute
 > (the resolved `Backend`, whose `.name` reports e.g. `torch-cuda`) is a distinct,
 > retained concept.
 

@@ -44,9 +44,10 @@ The four facades and their submodules:
 
 ### Canonical API vocabulary
 
-The four facades share one kwarg vocabulary (v0.6.0). The full table lives in the repo
-[`CLAUDE.md`](https://github.com/cosanlab/nltools/blob/main/CLAUDE.md); the load-bearing
-names:
+The four facades share one kwarg vocabulary (v0.6.0). The machine-readable source of
+truth is [`docs/_data/api-vocabulary.yml`](https://github.com/cosanlab/nltools/blob/main/docs/_data/api-vocabulary.yml),
+which also carries the enforcement rules `scripts/check_api_vocabulary.py` checks every
+public signature against in CI. The table below is rendered from it:
 
 <!-- AUTOGEN:api-vocabulary:index-table — generated from docs/_data/api-vocabulary.yml by scripts/build_api_vocabulary.py; run `uv run poe docs-generate` to update, do not edit by hand -->
 | Concept | Canonical kwarg |
@@ -54,12 +55,16 @@ names:
 | Algorithm / variant choice | `method` |
 | Spatial scale | `spatial_scale` (`'whole_brain' \| 'roi' \| 'searchlight'`) |
 | Distance / similarity metric | `metric` |
+| Central tendency | `summary` (`'mean' \| 'median'`) |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` |
 | Backend (ridge/alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine uses `device` as of v0.6.0) |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
+| Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
+| Diagonal flag | `include_diag: bool` |
+| Radius (mm) | `radius_mm: float` |
 <!-- /AUTOGEN:api-vocabulary:index-table -->
 
 ## The internals pages

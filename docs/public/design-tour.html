@@ -480,12 +480,16 @@
     <tr><td>Algorithm / variant choice</td><td><code>method</code></td><td>not <code>algorithm</code>/<code>scheme</code>/<code>kind</code>/<code>estimator</code></td></tr>
     <tr><td>Spatial scale</td><td><code>spatial_scale</code></td><td><code>'whole_brain'</code> · <code>'roi'</code> · <code>'searchlight'</code></td></tr>
     <tr><td>Distance / similarity metric</td><td><code>metric</code></td><td>kept separate from <code>method</code></td></tr>
+    <tr><td>Central tendency</td><td><code>summary</code></td><td><code>'mean'</code> · <code>'median'</code> — never <code>metric</code></td></tr>
     <tr><td>Subject-level parallelism</td><td><code>n_jobs</code></td><td>default <code>-1</code></td></tr>
     <tr><td>GPU / CPU selection</td><td><code>device</code></td><td>orthogonal to <code>n_jobs</code></td></tr>
     <tr><td>Backend (ridge/alignment internals)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code> — inference uses <code>device</code></td></tr>
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
     <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
+    <tr><td>Threshold pair</td><td><code>lower, upper, binarize</code></td><td>convenience <code>threshold</code> where bidirectional</td></tr>
+    <tr><td>Diagonal flag</td><td><code>include_diag</code></td><td>not <code>ignore_diagonal</code> — inverted sense</td></tr>
+    <tr><td>Radius (mm)</td><td><code>radius_mm</code></td><td>units in the name</td></tr>
     <!-- /AUTOGEN:api-vocabulary:tour-table -->
   </tbody>
 </table>
