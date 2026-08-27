@@ -182,8 +182,9 @@ every batched code path in the package:
 - `compute_oom_safe(fn, *arrays)`: reactive recovery — on device OOM the cache is
   emptied, the **already-generated** batch inputs are split in half along axis 0, and
   the halves retried. RNG draws happen before device compute in every batched loop,
-  so recovery reuses the exact same permutations and a seeded result is bit-identical
-  with or without OOM (pinned by `test_oom_recovery.py`).
+  so recovery reuses the exact same permutations; outputs match the unsplit
+  computation to within float32 reduction order (~1 ulp — torch blocks reductions
+  differently per batch shape). Pinned by `test_oom_recovery.py`.
 
 Device compute is float32 (negligible p-value impact vs float64). Kendall has a real
 GPU kernel: tie-corrected tau-b via pre-computed pairwise sign tensors (permutations

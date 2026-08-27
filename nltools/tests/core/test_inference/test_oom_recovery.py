@@ -3,9 +3,13 @@
 Every batched device computation routes through
 `nltools.algorithms.backends.compute_oom_safe`: on device OOM the
 already-generated batch inputs are split and retried, so recovery never
-re-draws RNG state and a seeded result is identical with or without OOM.
-These tests simulate OOM by making `Backend.to_device` refuse large
-batches and assert bit-identical results against the unperturbed run.
+re-draws RNG state — a seeded result uses the exact same permutations
+with or without OOM. These tests simulate OOM by making
+`Backend.to_device` refuse large batches and compare against the
+unperturbed run at one-float32-ulp tolerance: the draws are exact, but
+torch's reduction blocking varies with batch shape, so values can differ
+by reduction order (observed max ~6e-08 on torch-cpu). The p tolerance
+allows a single boundary count flip from that noise.
 
 The simulated-OOM tests run on any torch device (torch-cpu included), so
 they exercise the recovery logic in CI without GPU hardware.
@@ -26,6 +30,18 @@ pytestmark = pytest.mark.skipif(
 # n_samples so the one-time data transfers still succeed.
 THRESHOLD = 64
 N_PERMUTE = 300
+
+# Draws are exact under recovery; float32 reduction order across batch shapes
+# is not (~1 ulp). See module docstring.
+NULL_TOL = {"rtol": 1e-4, "atol": 1e-6}
+P_ATOL = 1.01 / (N_PERMUTE + 1)
+
+
+def _assert_recovered_matches(baseline, recovered):
+    np.testing.assert_allclose(
+        baseline["null_dist"], recovered["null_dist"], **NULL_TOL
+    )
+    np.testing.assert_allclose(baseline["p"], recovered["p"], rtol=0, atol=P_ATOL)
 
 
 def _patch_flaky_to_device(monkeypatch, threshold=THRESHOLD):
@@ -62,8 +78,7 @@ class TestOomRecoveryDeterminism:
         recovered = one_sample_permutation_test(data, **kwargs)
 
         assert counts["oom"] > 0, "simulated OOM never triggered"
-        np.testing.assert_array_equal(baseline["null_dist"], recovered["null_dist"])
-        np.testing.assert_array_equal(baseline["p"], recovered["p"])
+        _assert_recovered_matches(baseline, recovered)
 
     def test_two_sample(self, monkeypatch):
         from nltools.algorithms import two_sample_permutation_test
@@ -83,8 +98,7 @@ class TestOomRecoveryDeterminism:
         recovered = two_sample_permutation_test(data1, data2, **kwargs)
 
         assert counts["oom"] > 0, "simulated OOM never triggered"
-        np.testing.assert_array_equal(baseline["null_dist"], recovered["null_dist"])
-        np.testing.assert_array_equal(baseline["p"], recovered["p"])
+        _assert_recovered_matches(baseline, recovered)
 
     @pytest.mark.parametrize("metric", ["pearson", "spearman", "kendall"])
     def test_correlation(self, monkeypatch, metric):
@@ -106,8 +120,7 @@ class TestOomRecoveryDeterminism:
         recovered = correlation_permutation_test(x, y, **kwargs)
 
         assert counts["oom"] > 0, "simulated OOM never triggered"
-        np.testing.assert_array_equal(baseline["null_dist"], recovered["null_dist"])
-        np.testing.assert_array_equal(baseline["p"], recovered["p"])
+        _assert_recovered_matches(baseline, recovered)
 
     def test_oom_at_single_item_raises_memoryerror(self, monkeypatch):
         from nltools.algorithms import one_sample_permutation_test
