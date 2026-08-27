@@ -16,15 +16,17 @@ if TYPE_CHECKING:
 
 
 def _auto_n_targets_batch(
-    max_gpu_memory_gb: float,
+    max_gpu_memory_gb: float | None,
     elements_per_target: int,
     n_targets: int,
+    backend=None,
 ) -> int:
     """Derive a GPU target-batch size from a memory budget.
 
     Used by the GPU ridge paths when ``n_targets_batch`` is left unset so
     ``max_gpu_memory_gb`` actually bounds GPU allocation instead of
-    processing all targets at once.
+    processing all targets at once. Thin adapter over the core layer in
+    `nltools.algorithms.backends`.
 
     ``elements_per_target`` is the caller's estimate of the dominant
     target-scaling working set (in float32 elements) for a single target
@@ -35,17 +37,27 @@ def _auto_n_targets_batch(
     result is floored at ``min(1000, n_targets)`` and capped at ``n_targets``.
 
     Args:
-        max_gpu_memory_gb: GPU memory budget in GB.
+        max_gpu_memory_gb: GPU memory budget in GB. None measures the device
+            via `device_memory_budget`.
         elements_per_target: Dominant float32 working-set size per target.
         n_targets: Total number of targets (columns of Y).
+        backend: Resolved `Backend` the work runs on (used only to measure
+            the budget when ``max_gpu_memory_gb`` is None).
 
     Returns:
         int: Target batch size in ``[min(1000, n_targets), n_targets]``.
     """
-    bytes_per_element = 4  # float32
-    memory_per_target = max(1, elements_per_target * bytes_per_element * 5)
-    n_targets_batch = int(max_gpu_memory_gb * 1e9 / memory_per_target)
-    return max(min(1000, n_targets), min(n_targets_batch, n_targets))
+    from ..backends import auto_batch_size, device_memory_budget
+
+    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+    n_targets_batch, _ = auto_batch_size(
+        n_targets,
+        elements_per_target * 4,  # float32
+        budget_gb=budget_gb,
+        overhead=5.0,
+        min_batch=min(1000, n_targets),
+    )
+    return n_targets_batch
 
 
 def generate_dirichlet_samples(

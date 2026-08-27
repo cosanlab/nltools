@@ -91,7 +91,11 @@ for batch in target_batches:
 
 ~10% slower, but prevents OOM entirely and enables problems many times larger than GPU
 RAM. `max_gpu_memory_gb` feeds an auto target-batch sizer (`_auto_n_targets_batch`,
-with a 5× overhead factor on GPU) that picks `n_targets_batch` when it's unset.
+with a 5× overhead factor on GPU) that picks `n_targets_batch` when it's unset. As of
+v0.6.0 the sizer is a thin adapter over the core execution layer in
+`algorithms.backends` (`device_memory_budget` + `auto_batch_size`): the default
+`max_gpu_memory_gb=None` **measures** the device instead of assuming 4 GB, and only
+the ridge-specific working-set estimate lives here.
 
 ### 5. Per-target alpha without extra cost
 

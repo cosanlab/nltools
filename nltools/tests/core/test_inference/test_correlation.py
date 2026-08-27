@@ -872,3 +872,89 @@ class TestCorrelationPermutationStatisticalCorrectness:
                 f"One-tailed p-value should be ~half of two-tailed. "
                 f"Got ratio={ratio:.4f}, one_tailed={result_one['p']:.4f}, two_tailed={result_two['p']:.4f}"
             )
+
+
+class TestKendallGpu:
+    """Kendall tau-b on the GPU path: real kernel, no silent CPU fallback."""
+
+    pytestmark = pytest.mark.skipif(
+        __import__("importlib.util", fromlist=["util"]).find_spec("torch") is None,
+        reason="PyTorch not installed",
+    )
+
+    def _tied_data(self, seed=0, n=25, f=4):
+        """Integer-valued data guarantees ties, exercising the tau-b correction."""
+        rng = np.random.default_rng(seed)
+        x = rng.integers(0, 6, size=(n, f)).astype(np.float64)
+        y = np.clip(x + rng.integers(-2, 3, size=(n, f)), 0, 7).astype(np.float64)
+        return x, y
+
+    def test_gpu_kendall_no_fallback_warning(self):
+        """device='gpu' + kendall runs on the GPU path without a fallback warning."""
+        import warnings
+
+        x, y = self._tied_data()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = correlation_permutation_test(
+                x, y, metric="kendall", n_permute=100, device="gpu", random_state=0
+            )
+        fallback = [w for w in caught if "falling back" in str(w.message).lower()]
+        assert not fallback, f"unexpected fallback warning: {fallback}"
+        assert result["device"] == "gpu"
+
+    def test_gpu_kendall_observed_matches_scipy(self):
+        """Observed tau-b matches scipy.stats.kendalltau per feature (with ties)."""
+        from scipy.stats import kendalltau
+
+        x, y = self._tied_data(seed=3)
+        result = correlation_permutation_test(
+            x, y, metric="kendall", n_permute=50, device="gpu", random_state=0
+        )
+        assert result["device"] == "gpu"
+        expected = np.array(
+            [kendalltau(x[:, i], y[:, i])[0] for i in range(x.shape[1])]
+        )
+        np.testing.assert_allclose(result["correlation"], expected, atol=1e-5)
+
+    def test_gpu_kendall_single_feature(self):
+        from scipy.stats import kendalltau
+
+        x, y = self._tied_data(seed=4, f=1)
+        result = correlation_permutation_test(
+            x[:, 0],
+            y[:, 0],
+            metric="kendall",
+            n_permute=50,
+            device="gpu",
+            random_state=0,
+        )
+        assert result["device"] == "gpu"
+        np.testing.assert_allclose(
+            result["correlation"], kendalltau(x[:, 0], y[:, 0])[0], atol=1e-5
+        )
+
+    def test_gpu_kendall_null_matches_cpu(self):
+        """Same seed -> same permutations -> null distributions agree (float32 tol)."""
+        x, y = self._tied_data(seed=5)
+        kwargs = {
+            "metric": "kendall",
+            "n_permute": 200,
+            "random_state": 42,
+            "return_null": True,
+        }
+        gpu = correlation_permutation_test(x, y, device="gpu", **kwargs)
+        cpu = correlation_permutation_test(x, y, device=None, **kwargs)
+        assert gpu["device"] == "gpu"
+        np.testing.assert_allclose(gpu["null_dist"], cpu["null_dist"], atol=1e-4)
+        np.testing.assert_allclose(gpu["p"], cpu["p"], atol=0.02)
+
+    def test_gpu_kendall_constant_column_matches_cpu_zero(self):
+        """Degenerate (constant) feature: CPU maps NaN tau to 0.0; GPU must agree."""
+        x, y = self._tied_data(seed=6)
+        x[:, 1] = 3.0  # constant -> tau undefined -> 0.0 by library convention
+        result = correlation_permutation_test(
+            x, y, metric="kendall", n_permute=50, device="gpu", random_state=0
+        )
+        assert result["device"] == "gpu"
+        assert result["correlation"][1] == 0.0

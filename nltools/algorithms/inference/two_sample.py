@@ -165,13 +165,40 @@ def _two_sample_permutation_gpu_batched(
     # Concatenate data for permutation
     combined = np.vstack([data1, data2])  # (n_total, n_features)
 
+    from nltools.algorithms.backends import compute_oom_safe
+
     # Determine batch size based on memory budget
     batch_size, n_batches = _auto_batch_size(
-        n_permute, n_total, n_features, max_memory_gb=max_gpu_memory_gb
+        n_permute,
+        n_total,
+        n_features,
+        max_memory_gb=max_gpu_memory_gb,
+        backend=backend,
     )
 
     # Transfer data to device once
     combined_device = backend.to_device(combined)
+
+    def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
+        """Device compute for one (sub-)batch of pre-drawn permutations."""
+        batch_indices_device = backend.to_device(batch_indices)
+        if backend.name.startswith("torch"):
+            batch_indices_device = batch_indices_device.long()
+
+        # For each permutation, index into combined data
+        batch_null = []
+        for i in range(len(batch_indices)):
+            indices = batch_indices_device[i]
+            group1_indices = indices[:n1]
+            group2_indices = indices[n1:]
+
+            mean1 = torch.mean(combined_device[group1_indices], dim=0)
+            mean2 = torch.mean(combined_device[group2_indices], dim=0)
+            batch_null.append(mean1 - mean2)
+
+        result = backend.to_numpy(torch.stack(batch_null))
+        del batch_indices_device, batch_null
+        return result
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -196,8 +223,9 @@ def _two_sample_permutation_gpu_batched(
         MAX_INT = 2**31 - 1
         batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
 
-        # Generate permutation indices using independent RNG per permutation
-        # Shape: (current_batch_size, n_total)
+        # Generate permutation indices using independent RNG per permutation.
+        # Shape: (current_batch_size, n_total). RNG draws stay outside the
+        # OOM-retried compute, so recovery reuses these exact permutations.
         batch_indices = np.array(
             [
                 np.random.RandomState(batch_seeds[i]).permutation(n_total)
@@ -205,35 +233,10 @@ def _two_sample_permutation_gpu_batched(
             ]
         )
 
-        # Transfer to device and ensure indices are long type
-        batch_indices_device = backend.to_device(batch_indices)
-        if backend.name.startswith("torch"):
-            batch_indices_device = batch_indices_device.long()
-
-        # Compute mean differences for this batch
-        # For each permutation, index into combined data
-        batch_null = []
-        for i in range(current_batch_size):
-            indices = batch_indices_device[i]
-            group1_indices = indices[:n1]
-            group2_indices = indices[n1:]
-
-            mean1 = torch.mean(combined_device[group1_indices], dim=0)
-            mean2 = torch.mean(combined_device[group2_indices], dim=0)
-            batch_null.append(mean1 - mean2)
-
-        batch_null = torch.stack(batch_null)  # (current_batch_size, n_features)
-        batch_null = backend.to_numpy(batch_null)
-
-        null_dist_list.append(batch_null)
+        null_dist_list.append(compute_oom_safe(_compute_batch, batch_indices))
 
         # Update progress bar
         pbar.update(current_batch_size)
-
-        # Free batch memory
-        del batch_indices_device, batch_null
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     pbar.close()
 
@@ -272,7 +275,7 @@ def two_sample_permutation_test(
     return_null: bool = False,
     device: str | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
@@ -305,7 +308,8 @@ def two_sample_permutation_test(
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
             Only used when device='cpu'
-        max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
+        max_gpu_memory_gb (float, optional): Explicit GPU memory budget in GB.
+            None (default) measures the device's available memory.
             Controls automatic batching to prevent OOM errors. Only used with
             device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.

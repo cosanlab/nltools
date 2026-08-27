@@ -1562,17 +1562,24 @@ def _nanmedian_lastdim_torch(x):
     return torch.where(count == 0, torch.tensor(float("nan"), device=x.device), med)
 
 
-def _pairwise_gpu_batch_sizes(n_voxels, n_subjects, n_permute, max_gpu_memory_gb):
+def _pairwise_gpu_batch_sizes(
+    n_voxels, n_subjects, n_permute, max_gpu_memory_gb, backend=None
+):
     """Pick (voxel_chunk, perm_batch) so the (P, Vc, N, N) working set fits budget.
 
     The bootstrap materializes a couple of (perm_batch, voxel_chunk, N, N) float32
     tensors per step (the gathered submatrix and its scratch); budget for ~3 copies
     plus headroom. Prefer processing all voxels at once and batching permutations;
     fall back to chunking voxels when even a single permutation over all voxels
-    would blow the budget.
+    would blow the budget. The 2D (voxel × permutation) split is this site's own;
+    the budget comes from the core layer in `nltools.algorithms.backends`
+    (``max_gpu_memory_gb=None`` measures the device).
     """
+    from nltools.algorithms.backends import device_memory_budget, gb_to_bytes
+
     per_elem = n_subjects * n_subjects * 4 * 3  # 3 working copies of (·, N, N)
-    budget = max(per_elem, int(max_gpu_memory_gb * 1e9))
+    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+    budget = max(per_elem, gb_to_bytes(budget_gb))
     max_elems = max(1, budget // per_elem)  # bound on perm_batch * voxel_chunk
     voxel_chunk = min(n_voxels, max_elems)
     perm_batch = max(1, max_elems // voxel_chunk)
@@ -1586,7 +1593,7 @@ def _bootstrap_pairwise_gpu(
     *,
     summary="median",
     exclude_self_corr=True,
-    max_gpu_memory_gb=4.0,
+    max_gpu_memory_gb=None,
     progress_bar=False,
 ):
     """GPU pairwise bootstrap: resample subjects and recompute on-device.
@@ -1629,14 +1636,60 @@ def _bootstrap_pairwise_gpu(
     diag = torch.arange(n_subjects, device=device)
     corr[:, diag, diag] = 1.0
 
+    from types import SimpleNamespace
+
+    from nltools.algorithms.backends import compute_oom_safe
+
     iu = torch.triu_indices(n_subjects, n_subjects, offset=1, device=device)
     boot_idx = torch.as_tensor(boot_indices, dtype=torch.long, device=device)
 
     voxel_chunk, perm_batch = _pairwise_gpu_batch_sizes(
-        n_voxels, n_subjects, n_permute, max_gpu_memory_gb
+        n_voxels,
+        n_subjects,
+        n_permute,
+        max_gpu_memory_gb,
+        # This path drives torch directly rather than through Backend; hand
+        # the budget helper the device type it needs for measurement.
+        backend=SimpleNamespace(device=device.type),
     )
 
     out = np.empty((n_permute, n_voxels), dtype=np.float64)
+
+    def _compute_chunk(bi, *, v0, v1):
+        """Device compute for one (perm sub-batch × voxel chunk).
+
+        `bi` is a slice of the pre-drawn bootstrap indices, so OOM recovery
+        (which splits `bi` along axis 0) reuses the exact same resamples.
+        """
+        P = bi.shape[0]
+        cm = corr[v0:v1]  # (Vc, N, N)
+        Vc = cm.shape[0]
+
+        # Gather the resampled submatrix for every (perm, voxel):
+        # rows then cols indexed by the same bootstrap subject order.
+        cmb = cm.unsqueeze(0).expand(P, Vc, n_subjects, n_subjects)
+        rows = bi[:, None, :, None].expand(P, Vc, n_subjects, n_subjects)
+        gathered = torch.gather(cmb, 2, rows)
+        cols = bi[:, None, None, :].expand(P, Vc, n_subjects, n_subjects)
+        sub = torch.gather(gathered, 3, cols)  # (P, Vc, N, N)
+
+        tri = sub[:, :, iu[0], iu[1]]  # (P, Vc, n_pairs)
+        if exclude_self_corr:
+            tri = torch.where(
+                tri >= 0.99999,
+                torch.tensor(float("nan"), device=device),
+                tri,
+            )
+
+        if summary == "median":
+            res = _nanmedian_lastdim_torch(tri)  # (P, Vc)
+        elif summary == "mean":
+            z = torch.arctanh(torch.clamp(tri, -0.9999, 0.9999))
+            res = torch.tanh(torch.nanmean(z, dim=-1))
+        else:
+            raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
+
+        return res.double().cpu().numpy()
 
     perm_starts = maybe_tqdm(
         list(range(0, n_permute, perm_batch)),
@@ -1647,37 +1700,13 @@ def _bootstrap_pairwise_gpu(
     for p0 in perm_starts:
         p1 = min(p0 + perm_batch, n_permute)
         bi = boot_idx[p0:p1]  # (P, N)
-        P = bi.shape[0]
         for v0 in range(0, n_voxels, voxel_chunk):
             v1 = min(v0 + voxel_chunk, n_voxels)
-            cm = corr[v0:v1]  # (Vc, N, N)
-            Vc = cm.shape[0]
 
-            # Gather the resampled submatrix for every (perm, voxel):
-            # rows then cols indexed by the same bootstrap subject order.
-            cmb = cm.unsqueeze(0).expand(P, Vc, n_subjects, n_subjects)
-            rows = bi[:, None, :, None].expand(P, Vc, n_subjects, n_subjects)
-            gathered = torch.gather(cmb, 2, rows)
-            cols = bi[:, None, None, :].expand(P, Vc, n_subjects, n_subjects)
-            sub = torch.gather(gathered, 3, cols)  # (P, Vc, N, N)
+            def _compute(bi_chunk, _v0=v0, _v1=v1):
+                return _compute_chunk(bi_chunk, v0=_v0, v1=_v1)
 
-            tri = sub[:, :, iu[0], iu[1]]  # (P, Vc, n_pairs)
-            if exclude_self_corr:
-                tri = torch.where(
-                    tri >= 0.99999,
-                    torch.tensor(float("nan"), device=device),
-                    tri,
-                )
-
-            if summary == "median":
-                res = _nanmedian_lastdim_torch(tri)  # (P, Vc)
-            elif summary == "mean":
-                z = torch.arctanh(torch.clamp(tri, -0.9999, 0.9999))
-                res = torch.tanh(torch.nanmean(z, dim=-1))
-            else:
-                raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
-
-            out[p0:p1, v0:v1] = res.double().cpu().numpy()
+            out[p0:p1, v0:v1] = compute_oom_safe(_compute, bi)
 
     return out
 
@@ -1705,7 +1734,7 @@ def isc_permutation_test(
     # Backend parameters (grouped)
     device: Literal["cpu", "gpu"] | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:

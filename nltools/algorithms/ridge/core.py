@@ -48,7 +48,7 @@ def ridge_svd(
     alpha: float = 1.0,
     # Backend parameters (grouped)
     parallel: str | None = None,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     # Random state (last) - not used but kept for consistency
     random_state: int | None = None,
 ) -> np.ndarray:
@@ -212,7 +212,7 @@ def ridge_cv(
     fit_intercept: bool = False,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     # Random state (last)
     random_state: int | None = None,
 ) -> dict:

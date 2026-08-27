@@ -745,3 +745,414 @@ def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
         return Backend("torch")
     # Default: Try auto-selection (falls back to NumPy if no GPU)
     return Backend("auto")
+
+
+# ----------------------------------------------------------------------
+# Core memory / batching layer
+#
+# Single source of truth for how nltools sizes device work: measured
+# memory budgets, one batch-size calculator, and reactive OOM recovery.
+# Every GPU/batched code path in the package must budget through these
+# helpers rather than hard-coding constants or rolling its own math.
+# ----------------------------------------------------------------------
+
+_FALLBACK_BUDGET_GB = 4.0
+# Fraction of free CUDA memory a computation may claim.
+_CUDA_HEADROOM = 0.8
+# Fraction of available system RAM for CPU work and MPS (unified memory).
+_SYSTEM_HEADROOM = 0.5
+
+
+def device_memory_budget(
+    backend: "Backend | None" = None,
+    max_gpu_memory_gb: float | None = None,
+) -> float:
+    """Usable memory budget in GB for a backend's device.
+
+    An explicit `max_gpu_memory_gb` always wins. Otherwise the budget is
+    measured at call time: free CUDA memory (with headroom) on CUDA
+    devices; available system RAM (with headroom) for CPU and MPS, which
+    share unified/system memory. When nothing can be measured the
+    conservative 4 GB fallback applies.
+
+    Args:
+        backend: Resolved `Backend` whose device the work runs on. None is
+            treated as CPU.
+        max_gpu_memory_gb: Explicit budget override in GB. Must be positive.
+
+    Returns:
+        float: Budget in GB.
+
+    Raises:
+        ValueError: If `max_gpu_memory_gb` is not positive.
+    """
+    if max_gpu_memory_gb is not None:
+        if max_gpu_memory_gb <= 0:
+            raise ValueError(
+                f"max_gpu_memory_gb must be positive, got {max_gpu_memory_gb!r}"
+            )
+        return float(max_gpu_memory_gb)
+    if getattr(backend, "device", "cpu") == "cuda":
+        try:
+            import torch
+
+            free_bytes, _ = torch.cuda.mem_get_info()
+            return free_bytes * _CUDA_HEADROOM / 1e9
+        except Exception:  # pragma: no cover - depends on driver state
+            pass
+    try:
+        import psutil
+
+        return psutil.virtual_memory().available * _SYSTEM_HEADROOM / 1e9
+    except ImportError:  # pragma: no cover - psutil ships with the dev env
+        return _FALLBACK_BUDGET_GB
+
+
+def gb_to_bytes(gb: float) -> int:
+    """Convert a GB budget to bytes — the package's one GB↔bytes conversion."""
+    return int(gb * 1e9)
+
+
+def auto_batch_size(
+    n_items: int,
+    bytes_per_item: float,
+    *,
+    budget_gb: float,
+    overhead: float = 1.0,
+    min_batch: int = 1,
+) -> tuple[int, int]:
+    """Split `n_items` into batches that fit a memory budget.
+
+    The one batch calculator for the package. Callers supply only the
+    per-item working-set estimate (`bytes_per_item`) and an algorithm's
+    allocation `overhead` factor; the clamp/ceil policy lives here.
+
+    Args:
+        n_items: Total number of items (permutations, targets, ...).
+        bytes_per_item: Dominant working-set size of one item in bytes.
+        budget_gb: Memory budget from `device_memory_budget`.
+        overhead: Multiplier for intermediate allocations (e.g. 3.0 when
+            the computation holds ~3x the input working set).
+        min_batch: Smallest batch worth dispatching (amortizes launch and
+            transfer overhead). Never exceeds `n_items`.
+
+    Returns:
+        tuple[int, int]: `(batch_size, n_batches)` with
+        `batch_size * n_batches >= n_items`.
+    """
+    if n_items <= 0:
+        raise ValueError(f"n_items must be positive, got {n_items}")
+    per_item = bytes_per_item * overhead
+    if per_item <= 0:
+        batch_size = n_items
+    else:
+        batch_size = int(gb_to_bytes(budget_gb) / per_item)
+    batch_size = min(max(batch_size, min_batch), n_items)
+    n_batches = int(np.ceil(n_items / batch_size))
+    return batch_size, n_batches
+
+
+def is_oom_error(exc: BaseException) -> bool:
+    """True if `exc` is a device out-of-memory error (CUDA or MPS)."""
+    try:
+        import torch
+
+        if hasattr(torch, "OutOfMemoryError") and isinstance(
+            exc, torch.OutOfMemoryError
+        ):
+            return True
+    except ImportError:
+        pass
+    return isinstance(exc, RuntimeError) and "out of memory" in str(exc).lower()
+
+
+def empty_device_cache() -> None:
+    """Release cached device memory. No-op without torch or a GPU."""
+    try:
+        import torch
+    except ImportError:
+        return
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    elif (
+        hasattr(torch.backends, "mps")
+        and torch.backends.mps.is_available()
+        and hasattr(torch, "mps")
+    ):
+        torch.mps.empty_cache()
+
+
+def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
+    """Run `fn(*arrays)` with reactive out-of-memory recovery.
+
+    All `arrays` must share their axis-0 length, and `fn` must map them to
+    a numpy array whose axis 0 corresponds row-for-row to its inputs. On a
+    device OOM the cache is emptied, the arrays are split in half along
+    axis 0, and the halves are retried recursively; partial results are
+    concatenated along axis 0.
+
+    Because splitting reuses the *already generated* inputs rather than
+    re-drawing them, results are identical to the unsplit computation for
+    any row-independent `fn` — RNG-consuming input generation stays outside
+    this function, so recovery never changes a seeded result.
+
+    Args:
+        fn: Callable mapping the arrays to a numpy result (axis-0 aligned).
+        *arrays: Input arrays sharing axis-0 length.
+        min_chunk: Chunk size below which an OOM is considered fatal.
+
+    Returns:
+        np.ndarray: `fn`'s result, possibly assembled from retried chunks.
+
+    Raises:
+        MemoryError: If the device OOMs even at `min_chunk` items.
+    """
+    n = len(arrays[0])
+    try:
+        return fn(*arrays)
+    except Exception as exc:
+        if not is_oom_error(exc):
+            raise
+        empty_device_cache()
+        if n <= min_chunk:
+            raise MemoryError(
+                f"Device out of memory even for a single item (chunk of {n}). "
+                "Reduce the problem size, lower max_gpu_memory_gb elsewhere on "
+                "the device, or use device='cpu'."
+            ) from exc
+        mid = n // 2
+        left = compute_oom_safe(fn, *(a[:mid] for a in arrays), min_chunk=min_chunk)
+        right = compute_oom_safe(fn, *(a[mid:] for a in arrays), min_chunk=min_chunk)
+        return np.concatenate([left, right], axis=0)
+
+
+# ----------------------------------------------------------------------
+# CPU worker sizing (joblib) — same budget source as the device batching
+# ----------------------------------------------------------------------
+
+
+def _auto_n_jobs_cpu(
+    data_size_mb: float,
+    n_permute: int,
+    max_memory_gb: float | None = None,
+    min_jobs: int = 1,
+    max_jobs: int | None = None,
+) -> int:
+    """Automatically determine optimal number of CPU workers to avoid memory exhaustion.
+
+    Calculates how many parallel workers can safely process permutations given
+    available memory. Each worker process needs to serialize (pickle) data,
+    which typically requires 2-4× the original data size in memory.
+
+    Args:
+        data_size_mb (float): Size of data array in MB (float32: 4 bytes per element)
+        n_permute (int): Number of permutations to compute
+        max_memory_gb (float, optional): Explicit memory budget in GB. None
+            (default) measures available system RAM with headroom via
+            `device_memory_budget`.
+        min_jobs (int): Minimum number of workers (default: 1)
+        max_jobs (int, optional): Maximum number of workers (default: None = all cores)
+
+    Returns:
+        int: Optimal number of workers (n_jobs parameter for joblib.Parallel)
+
+    Examples:
+        >>> # Small data: Use all cores
+        >>> n_jobs = _auto_n_jobs_cpu(1.0, 5000, max_memory_gb=8.0)
+        >>> n_jobs >= 4  # Should use multiple cores
+        True
+
+        >>> # Large data: Limit workers
+        >>> n_jobs = _auto_n_jobs_cpu(100.0, 5000, max_memory_gb=8.0)
+        >>> n_jobs < 8  # Should limit workers
+        True
+
+    Notes:
+        - Accounts for joblib serialization overhead (3× multiplier)
+        - Leaves 50% headroom for OS and other processes
+        - Minimum 1 worker, maximum all available cores (unless max_jobs specified)
+        - Uses available RAM if max_memory_gb is None
+    """
+    import multiprocessing
+
+    # Get system limits
+    if max_jobs is None:
+        max_jobs = multiprocessing.cpu_count()
+
+    available_memory_gb = device_memory_budget(None, max_gpu_memory_gb=max_memory_gb)
+    available_memory_mb = available_memory_gb * 1024
+
+    # Memory per worker: data serialization overhead (3× is conservative for pickle)
+    # Plus small overhead for result arrays (n_permute results per worker)
+    serialization_factor = 3.0
+    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1  # ~10% overhead estimate
+    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
+
+    # How many workers can fit in memory budget?
+    if memory_per_worker_mb <= 0:
+        return min_jobs
+
+    max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
+    max_workers_by_memory = max(min_jobs, min(max_workers_by_memory, max_jobs))
+
+    # Use at least min_jobs, but don't exceed memory budget
+    optimal_n_jobs = max(min_jobs, min(max_workers_by_memory, max_jobs))
+
+    return optimal_n_jobs
+
+
+def _verify_n_jobs_memory_constraint(
+    requested_n_jobs: int,
+    data_size_mb: float,
+    n_permute: int,
+    max_memory_gb: float | None = None,
+    min_jobs: int = 1,
+    warn_threshold: float = 0.2,
+) -> int:
+    """Verify memory constraint for explicitly requested n_jobs.
+
+    Ensures that requested number of workers doesn't exceed memory budget.
+    If memory constraint is violated, reduces n_jobs and optionally warns.
+
+    Args:
+        requested_n_jobs (int): User-requested number of workers
+        data_size_mb (float): Size of data per worker in MB
+        n_permute (int): Number of tasks to process
+        max_memory_gb (float, optional): Explicit memory budget in GB. None
+            (default) measures available system RAM with headroom via
+            `device_memory_budget`.
+        min_jobs (int): Minimum number of workers (default: 1)
+        warn_threshold (float): Warn if reduction exceeds this fraction (default: 0.2)
+
+    Returns:
+        int: Verified number of workers (may be reduced from requested)
+
+    Examples:
+        >>> # Memory allows requested workers
+        >>> n_jobs = _verify_n_jobs_memory_constraint(
+        ...     requested_n_jobs=4,
+        ...     data_size_mb=1.0,
+        ...     n_permute=1000,
+        ...     max_memory_gb=8.0
+        ... )
+        >>> n_jobs
+        4
+
+        >>> # Memory constraint reduces workers
+        >>> n_jobs = _verify_n_jobs_memory_constraint(
+        ...     requested_n_jobs=8,
+        ...     data_size_mb=2.0,  # Large data
+        ...     n_permute=1000,
+        ...     max_memory_gb=8.0
+        ... )
+        >>> n_jobs < 8  # Should be reduced
+        True
+
+    Notes:
+        - Always respects memory constraints to prevent OOM
+        - Warns if reduction is significant (>20% by default)
+        - Never reduces below min_jobs
+        - Uses same memory calculation as _auto_n_jobs_cpu for consistency
+    """
+    import multiprocessing
+    import warnings
+
+    # Get CPU count limit
+    max_jobs_by_cpu = multiprocessing.cpu_count()
+
+    # Same budget source as _auto_n_jobs_cpu
+    available_memory_gb = device_memory_budget(None, max_gpu_memory_gb=max_memory_gb)
+    available_memory_mb = available_memory_gb * 1024
+
+    # Calculate memory per worker (same as _auto_n_jobs_cpu)
+    serialization_factor = 3.0
+    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1
+    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
+
+    # Calculate maximum workers allowed by memory
+    if memory_per_worker_mb <= 0:
+        max_workers_by_memory = max_jobs_by_cpu
+    else:
+        max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
+        max_workers_by_memory = max(
+            min_jobs, min(max_workers_by_memory, max_jobs_by_cpu)
+        )
+
+    # Determine final n_jobs
+    # Priority: memory constraint > CPU limit > user request
+    final_n_jobs = min(requested_n_jobs, max_workers_by_memory)
+    final_n_jobs = max(min_jobs, final_n_jobs)  # Never below min_jobs
+
+    # Warn if significant reduction occurred
+    if final_n_jobs < requested_n_jobs:
+        reduction_fraction = (requested_n_jobs - final_n_jobs) / requested_n_jobs
+        if reduction_fraction >= warn_threshold:
+            warnings.warn(
+                f"Requested n_jobs={requested_n_jobs} exceeds memory limit "
+                f"({available_memory_gb:.1f} GB). Reducing to {final_n_jobs} workers "
+                f"to prevent out-of-memory errors. "
+                f"Estimated memory per worker: {memory_per_worker_mb:.2f} MB.",
+                UserWarning,
+                stacklevel=3,
+            )
+
+    return final_n_jobs
+
+
+def _estimate_data_size_mb(data: np.ndarray) -> float:
+    """Estimate memory size of data array in MB.
+
+    Accounts for numpy array overhead and dtype.
+
+    Args:
+        data (np.ndarray): Data array
+
+    Returns:
+        float: Estimated size in MB
+    """
+    if data.size == 0:
+        return 0.0
+
+    # Base size: elements × bytes per element
+    bytes_per_element = data.dtype.itemsize
+    base_size_bytes = data.size * bytes_per_element
+
+    # Add numpy array overhead (typically ~100 bytes)
+    overhead_bytes = 100
+
+    total_size_mb = (base_size_bytes + overhead_bytes) / 1024**2
+
+    return total_size_mb
+
+
+def auto_n_jobs_for_arrays(
+    arrays,
+    *,
+    max_memory_gb: float | None = None,
+    min_jobs: int = 1,
+) -> int:
+    """Memory-aware joblib worker count for a per-item map over arrays.
+
+    Sizes workers by the largest item (each worker pickles its item), using
+    the same measured budget as the device batching layer. None entries are
+    ignored; an empty list returns ``min_jobs``.
+
+    Args:
+        arrays: Iterable of numpy arrays (None entries allowed).
+        max_memory_gb: Explicit memory budget in GB. None (default) measures
+            available system RAM with headroom via `device_memory_budget`.
+        min_jobs: Minimum number of workers (default: 1).
+
+    Returns:
+        int: Worker count for ``joblib.Parallel(n_jobs=...)``.
+    """
+    arrays = [a for a in arrays if a is not None]
+    if not arrays:
+        return min_jobs
+    max_size_mb = max(_estimate_data_size_mb(a) for a in arrays)
+    return _auto_n_jobs_cpu(
+        data_size_mb=max_size_mb,
+        n_permute=len(arrays),
+        max_memory_gb=max_memory_gb,
+        min_jobs=min_jobs,
+    )

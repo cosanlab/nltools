@@ -558,7 +558,7 @@ class BrainData:
         percentiles=(2.5, 97.5),
         X_test=None,
         device="cpu",
-        max_gpu_memory_gb=4.0,
+        max_gpu_memory_gb=None,
         tail=2,
         n_jobs=-1,
         random_state=None,
@@ -580,8 +580,8 @@ class BrainData:
             device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
                 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if
                 present, else CPU). Ignored for simple stats. Default: 'cpu'
-            max_gpu_memory_gb: (float) Maximum GPU memory to use when device is 'gpu'
-                or 'auto'. Default: 4.0
+            max_gpu_memory_gb: (float, optional) Explicit GPU memory budget in GB
+                when device is 'gpu' or 'auto'. None (default) measures the device.
             n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
             random_state: (int, optional) Random seed for reproducibility
             progress_bar: (bool) If True, show a progress bar. Default: False

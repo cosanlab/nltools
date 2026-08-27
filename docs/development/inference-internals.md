@@ -162,22 +162,33 @@ Parallel(n_jobs=-1)(
 ```
 
 Worker count is adaptively capped by a memory budget (`_auto_n_jobs_cpu` /
-`_verify_n_jobs_memory_constraint`): it estimates per-worker serialization cost, leaves
-headroom, and emits a `UserWarning` if it reduces the requested `n_jobs`.
+`_verify_n_jobs_memory_constraint`, both living in `algorithms.backends` and
+re-exported here): it estimates per-worker serialization cost, leaves headroom, and
+emits a `UserWarning` if it reduces the requested `n_jobs`.
 
 ## GPU batching (PyTorch)
 
-Permutations are processed in memory-bounded batches (default budget 4 GB via
-`max_gpu_memory_gb`):
+Permutations are processed in memory-bounded batches. The budget and batch math live
+in the core execution layer (`algorithms.backends`) — the single source of truth for
+every batched code path in the package:
 
-```python
-memory_per_perm = n_samples * n_features * 4        # float32 bytes
-batch_size = int(max_memory_gb * 1e9 / memory_per_perm)
-batch_size = max(100, min(batch_size, n_permute))
-```
+- `device_memory_budget(backend, max_gpu_memory_gb)`: `None` (the default everywhere)
+  **measures** the device — free CUDA memory with headroom, or available system RAM
+  for MPS/CPU — while an explicit GB value caps it.
+- `auto_batch_size(n_items, bytes_per_item, budget_gb=..., overhead=..., min_batch=...)`:
+  the one batch calculator; each algorithm supplies only its per-item working-set
+  estimate (`n_samples * n_features * 4` float32 bytes for the permutation engines,
+  `n² * n_features * 4` for Kendall's pairwise-sign tensors).
+- `compute_oom_safe(fn, *arrays)`: reactive recovery — on device OOM the cache is
+  emptied, the **already-generated** batch inputs are split in half along axis 0, and
+  the halves retried. RNG draws happen before device compute in every batched loop,
+  so recovery reuses the exact same permutations and a seeded result is bit-identical
+  with or without OOM (pinned by `test_oom_recovery.py`).
 
-Device compute is float32 (negligible p-value impact vs float64). Kendall correlation has
-no GPU kernel — the GPU path falls back to CPU with a `UserWarning` (tracked as EJO-453).
+Device compute is float32 (negligible p-value impact vs float64). Kendall has a real
+GPU kernel: tie-corrected tau-b via pre-computed pairwise sign tensors (permutations
+only re-index them, and the tie denominator is permutation-invariant), parity-tested
+against `scipy.stats.kendalltau`.
 
 ## Numerical stability
 

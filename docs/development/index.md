@@ -41,6 +41,14 @@ The four facades and their submodules:
   Leading underscores are fine for internal functions/methods, just not filenames.
 - **Facade translation at the boundary.** Internal algorithm-layer APIs may keep legacy
   parameter names; the class facade translates to the [canonical vocabulary](#canonical-api-vocabulary).
+- **One GPU execution layer, run-or-raise.** Memory budgets, batch sizing, and OOM
+  recovery live only in `algorithms.backends` (`device_memory_budget`,
+  `auto_batch_size`, `compute_oom_safe`, `auto_n_jobs_for_arrays`); an algorithm
+  supplies its per-item working-set estimate and never its own budget math (pinned by
+  a source-scan test in `test_backends.py`). `max_gpu_memory_gb=None` — the default
+  everywhere — means "measure the device". An explicit `device='gpu'` /
+  `parallel='gpu'` either runs on the GPU or raises; `'auto'` is the one documented
+  graceful-fallback path.
 - **Generated column names live in the reserved `.nl_` namespace.** Any column nltools
   invents rather than the user — polynomial drift (`.nl_poly_0`), DCT cosines
   (`.nl_cosine_1`), spike indicators (`.nl_global_spike1`), and the run-separated
@@ -67,7 +75,7 @@ public signature against in CI. The table below is rendered from it:
 | Distance / similarity metric | `metric` |
 | Central tendency | `summary` (`'mean' \| 'median'`) |
 | Subject-level parallelism | `n_jobs: int = -1` |
-| GPU / CPU selection | `device: str = "cpu"` |
+| GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
 | Backend (ridge/alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine uses `device` as of v0.6.0) |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |

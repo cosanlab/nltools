@@ -53,7 +53,7 @@ def solve_banded_ridge_cv(
     warn: bool = True,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:
@@ -640,7 +640,7 @@ def solve_ridge_cv(
     conservative: bool = False,
     # Backend parameters (grouped)
     parallel: str | None = "cpu",
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:
@@ -919,7 +919,7 @@ def cross_val_predict_ridge(
     score_func: Callable[[np.ndarray, np.ndarray], np.ndarray] | None = None,
     # Backend parameters (grouped) — same vocabulary as solve_ridge_cv
     parallel: str | None = "cpu",
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
 ) -> dict[str, Any]:
     """Held-out ridge predictions per CV fold under a (per-target) alpha.
 

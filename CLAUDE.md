@@ -28,6 +28,7 @@ Classes are **facades and glue** — all real logic lives in pure functions.
 - Don't repeat logic — extract shared helpers as functions where most useful and import them. Prefer a single source of truth over duplicated code.
 - **No underscore-prefixed module names** (e.g. `validation.py` not `_validation.py`). Leading underscores are fine for internal functions/methods, just not filenames.
 - **Generated column names use the reserved `.nl_` prefix** (`nltools.utils.RESERVED_PREFIX`): build them with `reserved_name()` / `run_separated_name()`, and recognize them with `is_reserved_name()` / `parse_run_separated()` — never by pattern-matching user-controlled names.
+- **One GPU execution layer, run-or-raise**: memory budgets, batch sizing, and OOM recovery live only in `algorithms/backends.py` (`device_memory_budget`, `auto_batch_size`, `compute_oom_safe`, `auto_n_jobs_for_arrays`) — algorithms supply per-item working-set estimates, never their own budget math (source-scan test enforces). `max_gpu_memory_gb=None` = measure the device. Explicit `device='gpu'`/`parallel='gpu'` runs on GPU or raises; `'auto'` is the only graceful fallback.
 
 **Internals reference** (design docs for the subsystems below — read the relevant one before changing that subsystem; keep it in sync when behavior changes):
 - `docs/development/execution-model.md` — `BrainCollection` parallel execution: path-backed caching, the `cache=` knob, HDF5 fit bundles, `_ItemTask`/`_DesignContext` pickling, parallel write safety. (Replaces the old `data/collection/SPEC.md`.)

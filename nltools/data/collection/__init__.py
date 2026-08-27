@@ -1127,17 +1127,22 @@ class BrainCollection:
         return_null: bool = False,
         n_jobs: int = -1,
         random_state: int | None = None,
+        progress_bar: bool = False,
     ) -> dict:
         """One-sample sign-flipping permutation test across subjects.
+
+        Delegates to the inference engine's `one_sample_permutation_test`
+        over the stacked subject data.
 
         Args:
             n_permute: Number of sign-flip permutations.
             tail: 1 for one-tailed, 2 for two-tailed.
-            device: Backend selector (currently informational).
+            device: Execution backend — ``None`` (single-threaded numpy),
+                ``'cpu'`` (joblib parallel), or ``'gpu'`` (PyTorch).
             return_null: If True, include the null distribution in the result.
-            n_jobs: Accepted for signature consistency but currently unused;
-                the permutation null is computed by a serial loop.
+            n_jobs: CPU workers when ``device='cpu'`` (-1 = all cores).
             random_state: Seed for the sign-flip RNG.
+            progress_bar: Whether to display a progress bar.
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
@@ -1151,6 +1156,7 @@ class BrainCollection:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     def permutation_test2(
@@ -1163,20 +1169,23 @@ class BrainCollection:
         return_null: bool = False,
         n_jobs: int = -1,
         random_state: int | None = None,
+        progress_bar: bool = False,
     ) -> dict:
         """Two-sample permutation test between this collection and ``other``.
 
-        Uses random label shuffling of the pooled subjects.
+        Uses random label shuffling of the pooled subjects, delegating to the
+        inference engine's `two_sample_permutation_test`.
 
         Args:
             other: The second collection to compare against.
             n_permute: Number of label-shuffle permutations.
             tail: 1 for one-tailed, 2 for two-tailed.
-            device: Backend selector (currently informational).
+            device: Execution backend — ``None`` (single-threaded numpy),
+                ``'cpu'`` (joblib parallel), or ``'gpu'`` (PyTorch).
             return_null: If True, include the null distribution in the result.
-            n_jobs: Accepted for signature consistency but currently unused;
-                the permutation null is computed by a serial loop.
+            n_jobs: CPU workers when ``device='cpu'`` (-1 = all cores).
             random_state: Seed for the shuffling RNG.
+            progress_bar: Whether to display a progress bar.
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
@@ -1191,6 +1200,7 @@ class BrainCollection:
             return_null=return_null,
             n_jobs=n_jobs,
             random_state=random_state,
+            progress_bar=progress_bar,
         )
 
     # ------------------------------------------------------------------

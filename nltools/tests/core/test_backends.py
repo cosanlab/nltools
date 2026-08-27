@@ -906,3 +906,266 @@ class TestSVD3D:
         assert U.shape == (3, 10, 5)
         assert s.shape == (3, 5)
         assert Vt.shape == (3, 5, 5)
+
+
+# ============================================================================
+# Core memory / batching layer (v0.6.0 GPU consolidation)
+# ============================================================================
+
+
+class TestDeviceMemoryBudget:
+    def test_explicit_budget_wins(self):
+        from nltools.algorithms.backends import Backend, device_memory_budget
+
+        assert device_memory_budget(Backend("numpy"), max_gpu_memory_gb=2.5) == 2.5
+
+    def test_measured_budget_is_positive(self):
+        from nltools.algorithms.backends import Backend, device_memory_budget
+
+        budget = device_memory_budget(Backend("numpy"))
+        assert budget > 0
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_backend_budget_is_positive(self):
+        from nltools.algorithms.backends import Backend, device_memory_budget
+
+        budget = device_memory_budget(Backend("torch"))
+        assert budget > 0
+
+    def test_none_backend_uses_system_memory(self):
+        from nltools.algorithms.backends import device_memory_budget
+
+        assert device_memory_budget(None) > 0
+
+    def test_explicit_budget_rejects_nonpositive(self):
+        from nltools.algorithms.backends import Backend, device_memory_budget
+
+        with pytest.raises(ValueError, match="max_gpu_memory_gb"):
+            device_memory_budget(Backend("numpy"), max_gpu_memory_gb=0)
+
+
+class TestAutoBatchSizeCore:
+    def test_all_fit_in_one_batch(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        batch, n_batches = auto_batch_size(100, bytes_per_item=1000, budget_gb=1.0)
+        assert batch == 100
+        assert n_batches == 1
+
+    def test_splits_when_over_budget(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        # 1 GB budget, 100 MB per item -> 10 items per batch
+        batch, n_batches = auto_batch_size(100, bytes_per_item=int(1e8), budget_gb=1.0)
+        assert batch == 10
+        assert n_batches == 10
+
+    def test_min_batch_floor(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        # Budget fits <1 item but floor forces min_batch
+        batch, _ = auto_batch_size(
+            1000, bytes_per_item=int(1e9), budget_gb=0.5, min_batch=100
+        )
+        assert batch == 100
+
+    def test_min_batch_never_exceeds_n_items(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        batch, n_batches = auto_batch_size(
+            5, bytes_per_item=int(1e9), budget_gb=0.5, min_batch=100
+        )
+        assert batch == 5
+        assert n_batches == 1
+
+    def test_overhead_shrinks_batch(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        loose, _ = auto_batch_size(10000, bytes_per_item=int(1e6), budget_gb=1.0)
+        tight, _ = auto_batch_size(
+            10000, bytes_per_item=int(1e6), budget_gb=1.0, overhead=5.0
+        )
+        assert tight < loose
+        assert tight == loose // 5
+
+    def test_zero_bytes_per_item_is_safe(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        batch, n_batches = auto_batch_size(50, bytes_per_item=0, budget_gb=1.0)
+        assert batch == 50
+        assert n_batches == 1
+
+    def test_batch_count_covers_all_items(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        batch, n_batches = auto_batch_size(1050, bytes_per_item=int(1e7), budget_gb=1.0)
+        assert batch * n_batches >= 1050
+        assert batch * (n_batches - 1) < 1050
+
+
+class TestIsOomError:
+    def test_mps_oom_runtimeerror(self):
+        from nltools.algorithms.backends import is_oom_error
+
+        assert is_oom_error(
+            RuntimeError("MPS backend out of memory (MPS allocated ...)")
+        )
+
+    def test_cuda_oom_runtimeerror(self):
+        from nltools.algorithms.backends import is_oom_error
+
+        assert is_oom_error(RuntimeError("CUDA out of memory. Tried to allocate ..."))
+
+    def test_ordinary_error_is_not_oom(self):
+        from nltools.algorithms.backends import is_oom_error
+
+        assert not is_oom_error(RuntimeError("shape mismatch"))
+        assert not is_oom_error(ValueError("out of memory"))  # wrong type
+
+    @pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+    def test_torch_cuda_oom_class(self):
+        import torch
+        from nltools.algorithms.backends import is_oom_error
+
+        if hasattr(torch, "OutOfMemoryError"):
+            assert is_oom_error(torch.OutOfMemoryError("boom"))
+
+
+class TestComputeOomSafe:
+    def test_no_oom_passthrough(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        arr = np.arange(20, dtype=np.float64).reshape(10, 2)
+        result = compute_oom_safe(lambda a: a * 2, arr)
+        np.testing.assert_array_equal(result, arr * 2)
+
+    def test_splits_on_oom_and_matches_unsplit(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        arr = np.arange(64, dtype=np.float64).reshape(16, 4)
+        calls = []
+
+        def flaky(a):
+            calls.append(len(a))
+            if len(a) > 4:
+                raise RuntimeError("MPS backend out of memory")
+            return a.sum(axis=1, keepdims=True)
+
+        result = compute_oom_safe(flaky, arr)
+        np.testing.assert_array_equal(result, arr.sum(axis=1, keepdims=True))
+        # First attempt was the full batch; every successful call was <= threshold
+        assert calls[0] == 16
+        assert all(c <= 4 for c in calls if c <= 4)  # succeeded chunks
+        assert sum(c for c in calls if c <= 4) == 16  # full coverage, no re-draws
+
+    def test_multiple_arrays_split_together(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        a = np.arange(12, dtype=np.float64).reshape(6, 2)
+        b = np.arange(6, dtype=np.float64)
+
+        def flaky(x, y):
+            if len(x) > 2:
+                raise RuntimeError("CUDA out of memory")
+            assert len(x) == len(y)
+            return x * y[:, None]
+
+        result = compute_oom_safe(flaky, a, b)
+        np.testing.assert_array_equal(result, a * b[:, None])
+
+    def test_non_oom_error_propagates(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        arr = np.zeros((4, 2))
+
+        def bad(a):
+            raise ValueError("genuine bug")
+
+        with pytest.raises(ValueError, match="genuine bug"):
+            compute_oom_safe(bad, arr)
+
+    def test_oom_at_single_row_raises_memoryerror(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        arr = np.zeros((4, 2))
+
+        def always_oom(a):
+            raise RuntimeError("CUDA out of memory")
+
+        with pytest.raises(MemoryError, match="single item"):
+            compute_oom_safe(always_oom, arr)
+
+    def test_deterministic_result_independent_of_split(self):
+        from nltools.algorithms.backends import compute_oom_safe
+
+        rng = np.random.default_rng(0)
+        arr = rng.standard_normal((32, 3))
+        expected = np.cumsum(arr, axis=1)  # rowwise op -> split-invariant
+
+        thresholds = [64, 16, 5, 1]
+        for thresh in thresholds:
+
+            def flaky(a, _t=thresh):
+                if len(a) > _t:
+                    raise RuntimeError("MPS backend out of memory")
+                return np.cumsum(a, axis=1)
+
+            np.testing.assert_array_equal(compute_oom_safe(flaky, arr), expected)
+
+
+class TestBudgetMathSingleSource:
+    """`device_memory_budget`/`auto_batch_size` are the only budget math in the package."""
+
+    def test_no_budget_math_outside_backends(self):
+        from pathlib import Path
+        import nltools
+
+        root = Path(nltools.__file__).parent
+        forbidden = ("* 1e9", "1024**3", "1024 ** 3")
+        offenders = []
+        for py in sorted(root.rglob("*.py")):
+            if py.name == "backends.py" or "tests" in py.parts:
+                continue
+            for i, line in enumerate(py.read_text().splitlines(), 1):
+                if any(tok in line for tok in forbidden):
+                    offenders.append(f"{py.relative_to(root)}:{i}: {line.strip()}")
+        assert not offenders, (
+            "GB->bytes budget math must live only in nltools/algorithms/backends.py "
+            "(device_memory_budget / auto_batch_size). Offenders:\n"
+            + "\n".join(offenders)
+        )
+
+
+class TestAutoNJobsForArrays:
+    """One helper for the memory-aware joblib worker count over per-item arrays."""
+
+    def test_basic(self):
+        from nltools.algorithms.backends import auto_n_jobs_for_arrays
+
+        arrays = [np.zeros((10, 10)) for _ in range(4)]
+        n_jobs = auto_n_jobs_for_arrays(arrays)
+        assert n_jobs >= 1
+
+    def test_none_entries_filtered(self):
+        from nltools.algorithms.backends import auto_n_jobs_for_arrays
+
+        arrays = [np.zeros((10, 10)), None, np.zeros((5, 5))]
+        assert auto_n_jobs_for_arrays(arrays) >= 1
+
+    def test_empty_returns_min_jobs(self):
+        from nltools.algorithms.backends import auto_n_jobs_for_arrays
+
+        assert auto_n_jobs_for_arrays([]) == 1
+        assert auto_n_jobs_for_arrays([None]) == 1
+
+    def test_n_jobs_helpers_single_source(self):
+        """inference.utils re-exports the backends implementations."""
+        from nltools.algorithms import backends
+        from nltools.algorithms.inference import utils as inf_utils
+
+        assert inf_utils._auto_n_jobs_cpu is backends._auto_n_jobs_cpu
+        assert inf_utils._estimate_data_size_mb is backends._estimate_data_size_mb
+        assert (
+            inf_utils._verify_n_jobs_memory_constraint
+            is backends._verify_n_jobs_memory_constraint
+        )

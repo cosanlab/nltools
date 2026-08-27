@@ -57,8 +57,8 @@ vocabulary:
     index_md: "`n_jobs: int = -1`"
   - concept: "GPU / CPU selection"
     kwarg: "device"
-    tour_note: "orthogonal to `n_jobs`"
-    index_md: "`device: str = \"cpu\"`"
+    tour_note: "orthogonal to `n_jobs` — explicit `'gpu'` runs or raises"
+    index_md: "`device: str = \"cpu\"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path"
   - concept: "Backend (ridge/alignment internals)"
     kwarg: "parallel"
     tour_note: "`None` · `'cpu'` · `'gpu'` — inference uses `device`"
@@ -173,9 +173,12 @@ enforcement:
       hint: "canonical form is `n_jobs: int = -1` (all cores)"
     device:
       allowed_defaults: ["cpu", "auto"]
-      hint: "canonical form is `device: str = 'cpu'` ('auto' where supported)"
+      hint: "canonical form is `device: str = 'cpu'` ('auto' where supported); run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback ('auto' is the one graceful path)"
       # Backend's own methods use `device=None` to mean "the backend's device".
       exclude_paths: ["nltools/algorithms/backends.py"]
+    max_gpu_memory_gb:
+      allowed_defaults: [null]
+      hint: "canonical form is `max_gpu_memory_gb: float | None = None` — None measures the device via backends.device_memory_budget; an explicit GB caps it"
     spatial_scale:
       # `null` covers the SpatialScale *metadata* carrier on constructors
       # (e.g. `Adjacency(spatial_scale=None)`), a different concept from the

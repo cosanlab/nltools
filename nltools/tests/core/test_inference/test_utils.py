@@ -374,3 +374,35 @@ class TestMemoryManagement:
         data = np.array([])
         size_mb = _estimate_data_size_mb(data)
         assert size_mb == 0.0
+
+
+class TestMeasuredBudgetDefaults:
+    """max_memory_gb=None means: measure the machine, don't assume 4/8 GB."""
+
+    def test_auto_batch_size_measured_default(self):
+        from nltools.algorithms.inference.utils import _auto_batch_size
+
+        batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=None)
+        assert batch_size >= 100
+        assert n_batches >= 1
+        assert batch_size * n_batches >= 1000
+
+    def test_auto_batch_size_explicit_budget_unchanged(self):
+        from nltools.algorithms.inference.utils import _auto_batch_size
+
+        # Pinned docstring example: small problem fits in one batch at 4 GB
+        assert _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0) == (1000, 1)
+
+    def test_auto_n_jobs_cpu_measured_default(self):
+        from nltools.algorithms.inference.utils import _auto_n_jobs_cpu
+
+        n_jobs = _auto_n_jobs_cpu(1.0, 100, max_memory_gb=None)
+        assert n_jobs >= 1
+
+    def test_verify_n_jobs_measured_default(self):
+        from nltools.algorithms.inference.utils import _verify_n_jobs_memory_constraint
+
+        n_jobs = _verify_n_jobs_memory_constraint(
+            requested_n_jobs=2, data_size_mb=1.0, n_permute=100, max_memory_gb=None
+        )
+        assert 1 <= n_jobs <= 2

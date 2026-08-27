@@ -405,3 +405,81 @@ class TestAlign:
         assert sig.parameters["return_model"].default is False
         assert sig.parameters["spatial_scale"].default == "searchlight"
         assert sig.parameters["method"].default == "procrustes"
+
+
+class TestPermutationEngineDelegation:
+    """permutation_test/permutation_test2 route through the inference engine.
+
+    The hand-rolled serial loops are gone: device= and n_jobs= are real, and
+    results are identical to calling the engine on the stacked subject data.
+    """
+
+    def _stacked(self, bc):
+        arrs = np.stack([np.asarray(bd.data) for bd in bc], axis=0)
+        return arrs.reshape(len(bc), -1)
+
+    def test_one_sample_matches_engine(self, bc_inmem):
+        from nltools.algorithms import one_sample_permutation_test
+
+        out = bc_inmem.permutation_test(n_permute=60, random_state=7, return_null=True)
+        eng = one_sample_permutation_test(
+            self._stacked(bc_inmem),
+            n_permute=60,
+            random_state=7,
+            return_null=True,
+            device="cpu",
+        )
+        np.testing.assert_allclose(
+            np.asarray(out["p"].data).ravel(), np.asarray(eng["p"]).ravel()
+        )
+        np.testing.assert_allclose(
+            np.asarray(out["mean"].data).ravel(), np.asarray(eng["mean"]).ravel()
+        )
+        np.testing.assert_allclose(out["null_dist"].reshape(60, -1), eng["null_dist"])
+
+    def test_two_sample_matches_engine(self, bc_inmem, bc_pathbacked):
+        from nltools.algorithms import two_sample_permutation_test
+
+        out = bc_inmem.permutation_test2(
+            bc_pathbacked, n_permute=60, random_state=3, return_null=True
+        )
+        eng = two_sample_permutation_test(
+            self._stacked(bc_inmem),
+            self._stacked(bc_pathbacked),
+            n_permute=60,
+            random_state=3,
+            return_null=True,
+            device="cpu",
+        )
+        np.testing.assert_allclose(
+            np.asarray(out["p"].data).ravel(), np.asarray(eng["p"]).ravel()
+        )
+        np.testing.assert_allclose(
+            np.asarray(out["mean"].data).ravel(), np.asarray(eng["mean_diff"]).ravel()
+        )
+        np.testing.assert_allclose(out["null_dist"].reshape(60, -1), eng["null_dist"])
+
+    def test_device_gpu_is_real(self, bc_inmem):
+        """device='gpu' actually dispatches to the engine's GPU path."""
+        pytest.importorskip("torch")
+        from nltools.algorithms import one_sample_permutation_test
+
+        out = bc_inmem.permutation_test(
+            n_permute=30, random_state=1, device="gpu", return_null=True
+        )
+        eng = one_sample_permutation_test(
+            self._stacked(bc_inmem),
+            n_permute=30,
+            random_state=1,
+            device="gpu",
+            return_null=True,
+        )
+        np.testing.assert_allclose(
+            out["null_dist"].reshape(30, -1), eng["null_dist"], atol=1e-5
+        )
+
+    def test_progress_bar_accepted(self, bc_inmem):
+        out = bc_inmem.permutation_test(
+            n_permute=10, random_state=0, progress_bar=False
+        )
+        assert "p" in out

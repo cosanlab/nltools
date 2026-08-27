@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Literal
 import nibabel as nib
 import numpy as np
 
-from nltools.algorithms.inference.utils import _compute_pvalue
 
 if TYPE_CHECKING:
     from ..braindata import BrainData
@@ -372,44 +371,47 @@ def permutation_test(
     return_null: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Sign-flipping permutation test across subjects (one-sample).
 
     Per the streaming-algorithms table in
     ``docs/development/execution-model.md``, sign-flipping needs all subjects
-    in memory by design. ``device`` is currently informational; backend
-    selection is deferred to the parametric stats path.
+    in memory by design. Delegates to the engine's
+    `one_sample_permutation_test` (as ``isc_test`` already does), so
+    ``device`` and ``n_jobs`` select the real execution backend.
     """
-    from nltools.algorithms.inference.validation import validate_tail_parameter
+    from nltools.algorithms import one_sample_permutation_test
 
     _check_nonempty(bc)
-    validate_tail_parameter(tail)
 
-    rng = np.random.default_rng(random_state)
     data = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
     n = data.shape[0]
     if n < 2:
         raise ValueError("permutation_test requires at least 2 subjects")
 
-    observed_mean = data.mean(axis=0)
-
-    null = np.empty((n_permute, *observed_mean.shape), dtype=np.float64)
-    for k in range(n_permute):
-        signs = rng.choice([-1.0, 1.0], size=n).reshape((n,) + (1,) * (data.ndim - 1))
-        null[k] = (signs * data).mean(axis=0)
-
-    # Shared engine p-value (same +1/+1 Phipson-Smyth form the hand-rolled
-    # version used, so default output is unchanged).
-    p = _compute_pvalue(
-        observed_mean.reshape(-1), null.reshape(n_permute, -1), tail=tail
-    ).reshape(observed_mean.shape)
+    item_shape = data.shape[1:]
+    result = one_sample_permutation_test(
+        data.reshape(n, -1),
+        n_permute=n_permute,
+        tail=tail,
+        device=device,
+        n_jobs=n_jobs,
+        random_state=random_state,
+        return_null=True,
+        progress_bar=progress_bar,
+    )
 
     out: dict = {
-        "mean": _make_braindata(observed_mean, bc._mask),
-        "p": _make_braindata(p, bc._mask),
+        "mean": _make_braindata(
+            np.asarray(result["mean"]).reshape(item_shape), bc._mask
+        ),
+        "p": _make_braindata(np.asarray(result["p"]).reshape(item_shape), bc._mask),
     }
     if return_null:
-        out["null_dist"] = null
+        out["null_dist"] = np.asarray(result["null_dist"]).reshape(
+            n_permute, *item_shape
+        )
     return out
 
 
@@ -423,40 +425,50 @@ def permutation_test2(
     return_null: bool = False,
     n_jobs: int = -1,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
-    """Two-sample permutation test by random label shuffling."""
-    from nltools.algorithms.inference.validation import validate_tail_parameter
+    """Two-sample permutation test by random label shuffling.
+
+    Delegates to the engine's `two_sample_permutation_test`, so ``device``
+    and ``n_jobs`` select the real execution backend. The result's ``mean``
+    map is the engine's ``mean_diff`` (group difference).
+    """
+    from nltools.algorithms import two_sample_permutation_test
 
     _check_nonempty(bc)
     _check_nonempty(other)
-    validate_tail_parameter(tail)
 
-    rng = np.random.default_rng(random_state)
     data1 = np.stack(list(_iter_arrays(bc)), axis=0).astype(np.float64)
     data2 = np.stack(list(_iter_arrays(other)), axis=0).astype(np.float64)
-    n1, n2 = data1.shape[0], data2.shape[0]
-    pooled = np.concatenate([data1, data2], axis=0)
-    n_total = n1 + n2
+    if data1.shape[1:] != data2.shape[1:]:
+        raise ValueError(
+            "permutation_test2 requires matching item shapes, got "
+            f"{data1.shape[1:]} and {data2.shape[1:]}"
+        )
 
-    observed_diff = data1.mean(axis=0) - data2.mean(axis=0)
-
-    null = np.empty((n_permute, *observed_diff.shape), dtype=np.float64)
-    for k in range(n_permute):
-        idx = rng.permutation(n_total)
-        s1 = pooled[idx[:n1]].mean(axis=0)
-        s2 = pooled[idx[n1:]].mean(axis=0)
-        null[k] = s1 - s2
-
-    p = _compute_pvalue(
-        observed_diff.reshape(-1), null.reshape(n_permute, -1), tail=tail
-    ).reshape(observed_diff.shape)
+    item_shape = data1.shape[1:]
+    result = two_sample_permutation_test(
+        data1.reshape(data1.shape[0], -1),
+        data2.reshape(data2.shape[0], -1),
+        n_permute=n_permute,
+        tail=tail,
+        device=device,
+        n_jobs=n_jobs,
+        random_state=random_state,
+        return_null=True,
+        progress_bar=progress_bar,
+    )
 
     out: dict = {
-        "mean": _make_braindata(observed_diff, bc._mask),
-        "p": _make_braindata(p, bc._mask),
+        "mean": _make_braindata(
+            np.asarray(result["mean_diff"]).reshape(item_shape), bc._mask
+        ),
+        "p": _make_braindata(np.asarray(result["p"]).reshape(item_shape), bc._mask),
     }
     if return_null:
-        out["null_dist"] = null
+        out["null_dist"] = np.asarray(result["null_dist"]).reshape(
+            n_permute, *item_shape
+        )
     return out
 
 

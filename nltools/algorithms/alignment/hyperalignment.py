@@ -321,22 +321,9 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = self._n_jobs
                 if n_jobs_to_use == -1:
-                    try:
-                        from nltools.algorithms.inference.utils import (
-                            _auto_n_jobs_cpu,
-                            _estimate_data_size_mb,
-                        )
+                    from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                        # Estimate memory for largest subject
-                        max_size_mb = max(_estimate_data_size_mb(x) for x in m)
-                        n_jobs_to_use = _auto_n_jobs_cpu(
-                            data_size_mb=max_size_mb,
-                            n_permute=len(m),
-                            max_memory_gb=8.0,
-                            min_jobs=1,
-                        )
-                    except ImportError:
-                        n_jobs_to_use = 1
+                    n_jobs_to_use = auto_n_jobs_for_arrays(m)
 
                 # Parallel alignment
                 aligned_subjects = Parallel(n_jobs=n_jobs_to_use)(
@@ -440,22 +427,9 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
             # Auto-detect n_jobs if needed
             if n_jobs_to_use == -1:
-                try:
-                    from nltools.algorithms.inference.utils import (
-                        _auto_n_jobs_cpu,
-                        _estimate_data_size_mb,
-                    )
+                from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                    # Estimate memory for largest subject
-                    max_size_mb = max(_estimate_data_size_mb(x) for x in data)
-                    n_jobs_to_use = _auto_n_jobs_cpu(
-                        data_size_mb=max_size_mb,
-                        n_permute=len(data),
-                        max_memory_gb=8.0,
-                        min_jobs=1,
-                    )
-                except ImportError:
-                    n_jobs_to_use = 1
+                n_jobs_to_use = auto_n_jobs_for_arrays(data)
 
             transformed = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(data))

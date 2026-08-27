@@ -134,19 +134,25 @@ def _auto_batch_size(
     n_permute: int,
     n_samples: int,
     n_features: int,
-    max_memory_gb: float = 4.0,
+    max_memory_gb: float | None = None,
+    backend=None,
 ) -> tuple[int, int]:
-    """Automatically determine batch size to avoid GPU OOM.
+    """Determine the GPU permutation batch size for a memory budget.
 
-    Calculates how many permutations can be processed simultaneously
-    without exceeding the memory budget. The bottleneck is the
-    data_perm tensor: (batch_size, n_samples, n_features).
+    Thin adapter over the core layer in `nltools.algorithms.backends`:
+    supplies the permutation-test working-set estimate (the ``data_perm``
+    tensor, ``(batch_size, n_samples, n_features)`` float32) and the
+    100-permutation dispatch floor; the budget/clamp policy lives in
+    `auto_batch_size`.
 
     Args:
         n_permute (int): Total number of permutations to compute
         n_samples (int): Number of samples in dataset
         n_features (int): Number of features/voxels
-        max_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
+        max_memory_gb (float, optional): Explicit memory budget in GB. None
+            (default) measures the device via `device_memory_budget`.
+        backend: Resolved `Backend` the work runs on (used only to measure
+            the budget when ``max_memory_gb`` is None).
 
     Returns:
         tuple[int, int]: (batch_size, n_batches)
@@ -163,238 +169,20 @@ def _auto_batch_size(
         >>> batch_size, n_batches = _auto_batch_size(10000, 30, 50000, max_memory_gb=4.0)
         >>> n_batches > 1
         True
-
-    Notes:
-        - Uses float32 (4 bytes per element) for memory calculation
-        - Minimum batch size is 100 permutations
-        - Maximum batch size is n_permute (all at once)
-        - Conservative estimates ensure we stay under budget
     """
-    bytes_per_element = 4  # float32
+    from nltools.algorithms.backends import auto_batch_size, device_memory_budget
 
-    # Memory per permutation (bottleneck: data_perm tensor)
-    # Shape: (1, n_samples, n_features)
-    memory_per_perm = n_samples * n_features * bytes_per_element
-
-    # How many permutations fit in memory budget?
-    max_memory_bytes = max_memory_gb * 1e9
-    batch_size = int(max_memory_bytes / memory_per_perm)
-
-    # Clamp to reasonable range
-    batch_size = max(100, min(batch_size, n_permute))  # At least 100, at most all
-
-    # Calculate number of batches needed
-    n_batches = int(np.ceil(n_permute / batch_size))
-
-    return batch_size, n_batches
+    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_memory_gb)
+    bytes_per_perm = n_samples * n_features * 4  # float32 data_perm row
+    return auto_batch_size(
+        n_permute, bytes_per_perm, budget_gb=budget_gb, min_batch=100
+    )
 
 
-def _auto_n_jobs_cpu(
-    data_size_mb: float,
-    n_permute: int,
-    max_memory_gb: float = 8.0,
-    min_jobs: int = 1,
-    max_jobs: int | None = None,
-) -> int:
-    """Automatically determine optimal number of CPU workers to avoid memory exhaustion.
-
-    Calculates how many parallel workers can safely process permutations given
-    available memory. Each worker process needs to serialize (pickle) data,
-    which typically requires 2-4× the original data size in memory.
-
-    Args:
-        data_size_mb (float): Size of data array in MB (float32: 4 bytes per element)
-        n_permute (int): Number of permutations to compute
-        max_memory_gb (float): Maximum memory budget in GB (default: 8.0)
-            Conservative default leaves headroom for OS and other processes
-        min_jobs (int): Minimum number of workers (default: 1)
-        max_jobs (int, optional): Maximum number of workers (default: None = all cores)
-
-    Returns:
-        int: Optimal number of workers (n_jobs parameter for joblib.Parallel)
-
-    Examples:
-        >>> # Small data: Use all cores
-        >>> n_jobs = _auto_n_jobs_cpu(1.0, 5000, max_memory_gb=8.0)
-        >>> n_jobs >= 4  # Should use multiple cores
-        True
-
-        >>> # Large data: Limit workers
-        >>> n_jobs = _auto_n_jobs_cpu(100.0, 5000, max_memory_gb=8.0)
-        >>> n_jobs < 8  # Should limit workers
-        True
-
-    Notes:
-        - Accounts for joblib serialization overhead (3× multiplier)
-        - Leaves 50% headroom for OS and other processes
-        - Minimum 1 worker, maximum all available cores (unless max_jobs specified)
-        - Uses available RAM if max_memory_gb is None
-    """
-    import multiprocessing
-
-    # Get system limits
-    if max_jobs is None:
-        max_jobs = multiprocessing.cpu_count()
-
-    # Calculate memory budget (leave 50% headroom for OS and other processes)
-    available_memory_gb = max_memory_gb
-    if available_memory_gb is None:
-        try:
-            import psutil
-
-            mem = psutil.virtual_memory()
-            available_memory_gb = (mem.available / 1024**3) * 0.5  # 50% headroom
-        except ImportError:
-            # Fallback: assume 8 GB available
-            available_memory_gb = 8.0
-
-    available_memory_mb = available_memory_gb * 1024
-
-    # Memory per worker: data serialization overhead (3× is conservative for pickle)
-    # Plus small overhead for result arrays (n_permute results per worker)
-    serialization_factor = 3.0
-    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1  # ~10% overhead estimate
-    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
-
-    # How many workers can fit in memory budget?
-    if memory_per_worker_mb <= 0:
-        return min_jobs
-
-    max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
-    max_workers_by_memory = max(min_jobs, min(max_workers_by_memory, max_jobs))
-
-    # Use at least min_jobs, but don't exceed memory budget
-    optimal_n_jobs = max(min_jobs, min(max_workers_by_memory, max_jobs))
-
-    return optimal_n_jobs
-
-
-def _verify_n_jobs_memory_constraint(
-    requested_n_jobs: int,
-    data_size_mb: float,
-    n_permute: int,
-    max_memory_gb: float = 8.0,
-    min_jobs: int = 1,
-    warn_threshold: float = 0.2,
-) -> int:
-    """Verify memory constraint for explicitly requested n_jobs.
-
-    Ensures that requested number of workers doesn't exceed memory budget.
-    If memory constraint is violated, reduces n_jobs and optionally warns.
-
-    Args:
-        requested_n_jobs (int): User-requested number of workers
-        data_size_mb (float): Size of data per worker in MB
-        n_permute (int): Number of tasks to process
-        max_memory_gb (float): Maximum memory budget in GB (default: 8.0)
-        min_jobs (int): Minimum number of workers (default: 1)
-        warn_threshold (float): Warn if reduction exceeds this fraction (default: 0.2)
-
-    Returns:
-        int: Verified number of workers (may be reduced from requested)
-
-    Examples:
-        >>> # Memory allows requested workers
-        >>> n_jobs = _verify_n_jobs_memory_constraint(
-        ...     requested_n_jobs=4,
-        ...     data_size_mb=1.0,
-        ...     n_permute=1000,
-        ...     max_memory_gb=8.0
-        ... )
-        >>> n_jobs
-        4
-
-        >>> # Memory constraint reduces workers
-        >>> n_jobs = _verify_n_jobs_memory_constraint(
-        ...     requested_n_jobs=8,
-        ...     data_size_mb=2.0,  # Large data
-        ...     n_permute=1000,
-        ...     max_memory_gb=8.0
-        ... )
-        >>> n_jobs < 8  # Should be reduced
-        True
-
-    Notes:
-        - Always respects memory constraints to prevent OOM
-        - Warns if reduction is significant (>20% by default)
-        - Never reduces below min_jobs
-        - Uses same memory calculation as _auto_n_jobs_cpu for consistency
-    """
-    import multiprocessing
-    import warnings
-
-    # Get CPU count limit
-    max_jobs_by_cpu = multiprocessing.cpu_count()
-
-    # Calculate memory budget (same as _auto_n_jobs_cpu)
-    available_memory_gb = max_memory_gb
-    if available_memory_gb is None:
-        try:
-            import psutil
-
-            mem = psutil.virtual_memory()
-            available_memory_gb = (mem.available / 1024**3) * 0.5  # 50% headroom
-        except ImportError:
-            available_memory_gb = 8.0
-
-    available_memory_mb = available_memory_gb * 1024
-
-    # Calculate memory per worker (same as _auto_n_jobs_cpu)
-    serialization_factor = 3.0
-    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1
-    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
-
-    # Calculate maximum workers allowed by memory
-    if memory_per_worker_mb <= 0:
-        max_workers_by_memory = max_jobs_by_cpu
-    else:
-        max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
-        max_workers_by_memory = max(
-            min_jobs, min(max_workers_by_memory, max_jobs_by_cpu)
-        )
-
-    # Determine final n_jobs
-    # Priority: memory constraint > CPU limit > user request
-    final_n_jobs = min(requested_n_jobs, max_workers_by_memory)
-    final_n_jobs = max(min_jobs, final_n_jobs)  # Never below min_jobs
-
-    # Warn if significant reduction occurred
-    if final_n_jobs < requested_n_jobs:
-        reduction_fraction = (requested_n_jobs - final_n_jobs) / requested_n_jobs
-        if reduction_fraction >= warn_threshold:
-            warnings.warn(
-                f"Requested n_jobs={requested_n_jobs} exceeds memory limit "
-                f"({max_memory_gb:.1f} GB). Reducing to {final_n_jobs} workers "
-                f"to prevent out-of-memory errors. "
-                f"Estimated memory per worker: {memory_per_worker_mb:.2f} MB.",
-                UserWarning,
-                stacklevel=3,
-            )
-
-    return final_n_jobs
-
-
-def _estimate_data_size_mb(data: np.ndarray) -> float:
-    """Estimate memory size of data array in MB.
-
-    Accounts for numpy array overhead and dtype.
-
-    Args:
-        data (np.ndarray): Data array
-
-    Returns:
-        float: Estimated size in MB
-    """
-    if data.size == 0:
-        return 0.0
-
-    # Base size: elements × bytes per element
-    bytes_per_element = data.dtype.itemsize
-    base_size_bytes = data.size * bytes_per_element
-
-    # Add numpy array overhead (typically ~100 bytes)
-    overhead_bytes = 100
-
-    total_size_mb = (base_size_bytes + overhead_bytes) / 1024**2
-
-    return total_size_mb
+# Re-exported from the core execution layer for backward compatibility —
+# the implementations live in nltools.algorithms.backends.
+from nltools.algorithms.backends import (  # noqa: E402,F401
+    _auto_n_jobs_cpu,
+    _estimate_data_size_mb,
+    _verify_n_jobs_memory_constraint,
+)

@@ -81,6 +81,20 @@ __all__ = ["SRM", "DetSRM"]
 logger = logging.getLogger(__name__)
 
 
+def _validate_srm_parallel(parallel: str | None) -> None:
+    """Validate the parallel= backend selector for SRM/DetSRM.
+
+    Run-or-raise policy: an explicit GPU request never silently runs on CPU.
+    """
+    if parallel not in (None, "cpu", "gpu"):
+        raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
+    if parallel == "gpu":
+        raise NotImplementedError(
+            "parallel='gpu' is not implemented for SRM/DetSRM (a torch port is "
+            "tracked on the 0.6.x roadmap). Use parallel='cpu' or parallel=None."
+        )
+
+
 def _init_w_transforms(
     data: list[np.ndarray], features: int, random_states: list[Any]
 ) -> tuple[list[np.ndarray | None], np.ndarray]:
@@ -212,7 +226,6 @@ class SRM(BaseEstimator, TransformerMixin):
         *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
-        max_gpu_memory_gb: float = 4.0,
         pad_samples: bool = True,
     ) -> "SRM":
         """Compute the probabilistic Shared Response Model.
@@ -225,11 +238,9 @@ class SRM(BaseEstimator, TransformerMixin):
             parallel (str, optional): Execution backend.
                 - None: Single-threaded NumPy (debugging/small problems)
                 - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": GPU acceleration (not yet implemented, falls back to CPU)
+                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
                 Only used when parallel="cpu". Defaults to -1.
-            max_gpu_memory_gb (float): Maximum GPU memory budget in GB (default: 4.0).
-                Only used when parallel="gpu". Defaults to 4.0.
             pad_samples (bool): If True (default), automatically zero-pad subjects with
                 fewer samples to match the longest subject. This allows fitting SRM on
                 data with unequal numbers of time points across subjects.
@@ -239,14 +250,11 @@ class SRM(BaseEstimator, TransformerMixin):
         """
         logger.info("Starting Probabilistic SRM")
 
-        # Validate parallel parameter
-        if parallel not in [None, "cpu", "gpu"]:
-            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
+        _validate_srm_parallel(parallel)
 
         # Store parallel settings for use in _srm
         self._parallel = parallel
         self._n_jobs = n_jobs
-        self._max_gpu_memory_gb = max_gpu_memory_gb
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -316,7 +324,7 @@ class SRM(BaseEstimator, TransformerMixin):
             parallel (str, optional): Execution backend.
                 - None: Single-threaded NumPy (debugging/small problems)
                 - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": GPU acceleration (not yet implemented, falls back to CPU)
+                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
                 Only used when parallel="cpu". Defaults to -1.
 
@@ -325,9 +333,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 Shared responses from input data (X)
         """
 
-        # Validate parallel parameter
-        if parallel not in [None, "cpu", "gpu"]:
-            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
+        _validate_srm_parallel(parallel)
 
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -354,25 +360,9 @@ class SRM(BaseEstimator, TransformerMixin):
             n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
-                try:
-                    from nltools.algorithms.inference.utils import (
-                        _auto_n_jobs_cpu,
-                        _estimate_data_size_mb,
-                    )
+                from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                    # Estimate memory for largest subject
-                    max_size_mb = max(
-                        _estimate_data_size_mb(x) for x in X if x is not None
-                    )
-                    n_jobs_to_use = _auto_n_jobs_cpu(
-                        data_size_mb=max_size_mb,
-                        n_permute=len(X),
-                        max_memory_gb=8.0,
-                        min_jobs=1,
-                    )
-                except ImportError:
-                    # Fallback to single-threaded if inference utils not available
-                    n_jobs_to_use = 1
+                n_jobs_to_use = auto_n_jobs_for_arrays(X)
 
             s = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(X))
@@ -658,26 +648,11 @@ class SRM(BaseEstimator, TransformerMixin):
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = n_jobs
                 if n_jobs_to_use == -1:
-                    try:
-                        from nltools.algorithms.inference.utils import (
-                            _auto_n_jobs_cpu,
-                            _estimate_data_size_mb,
-                        )
+                    from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                        # Estimate memory for largest subject
-                        max_size_mb = max(
-                            _estimate_data_size_mb(x[i])
-                            for i in range(subjects)
-                            if x[i] is not None
-                        )
-                        n_jobs_to_use = _auto_n_jobs_cpu(
-                            data_size_mb=max_size_mb,
-                            n_permute=subjects,
-                            max_memory_gb=8.0,
-                            min_jobs=1,
-                        )
-                    except ImportError:
-                        n_jobs_to_use = 1
+                    n_jobs_to_use = auto_n_jobs_for_arrays(
+                        [x[i] for i in range(subjects)]
+                    )
 
                 # Parallel update
                 results = Parallel(n_jobs=n_jobs_to_use)(
@@ -792,7 +767,6 @@ class DetSRM(BaseEstimator, TransformerMixin):
         *,
         parallel: str | None = "cpu",
         n_jobs: int = -1,
-        max_gpu_memory_gb: float = 4.0,
     ) -> "DetSRM":
         """Compute the Deterministic Shared Response Model.
 
@@ -803,25 +777,20 @@ class DetSRM(BaseEstimator, TransformerMixin):
             parallel (str, optional): Execution backend.
                 - None: Single-threaded NumPy (debugging/small problems)
                 - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": GPU acceleration (not yet implemented, falls back to CPU)
+                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
                 Only used when parallel="cpu". Defaults to -1.
-            max_gpu_memory_gb (float): Maximum GPU memory budget in GB (default: 4.0).
-                Only used when parallel="gpu". Defaults to 4.0.
 
         Returns:
             self (DetSRM): Fitted model
         """
         logger.info("Starting Deterministic SRM")
 
-        # Validate parallel parameter
-        if parallel not in [None, "cpu", "gpu"]:
-            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
+        _validate_srm_parallel(parallel)
 
         # Store parallel settings for use in _srm
         self._parallel = parallel
         self._n_jobs = n_jobs
-        self._max_gpu_memory_gb = max_gpu_memory_gb
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -866,7 +835,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             parallel (str, optional): Execution backend.
                 - None: Single-threaded NumPy (debugging/small problems)
                 - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": GPU acceleration (not yet implemented, falls back to CPU)
+                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
                 Only used when parallel="cpu". Defaults to -1.
 
@@ -875,9 +844,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 Shared responses from input data (X)
         """
 
-        # Validate parallel parameter
-        if parallel not in [None, "cpu", "gpu"]:
-            raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
+        _validate_srm_parallel(parallel)
 
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -902,23 +869,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
             n_jobs_to_use = n_jobs if n_jobs != -1 else getattr(self, "_n_jobs", -1)
             if n_jobs_to_use == -1:
                 # Auto-detect based on memory
-                try:
-                    from nltools.algorithms.inference.utils import (
-                        _auto_n_jobs_cpu,
-                        _estimate_data_size_mb,
-                    )
+                from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                    # Estimate memory for largest subject
-                    max_size_mb = max(_estimate_data_size_mb(x) for x in X)
-                    n_jobs_to_use = _auto_n_jobs_cpu(
-                        data_size_mb=max_size_mb,
-                        n_permute=len(X),
-                        max_memory_gb=8.0,
-                        min_jobs=1,
-                    )
-                except ImportError:
-                    # Fallback to single-threaded if inference utils not available
-                    n_jobs_to_use = 1
+                n_jobs_to_use = auto_n_jobs_for_arrays(X)
 
             s = Parallel(n_jobs=n_jobs_to_use)(
                 delayed(_transform_one_subject)(i) for i in range(len(X))
@@ -1079,24 +1032,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 # Auto-detect n_jobs if needed
                 n_jobs_to_use = n_jobs
                 if n_jobs_to_use == -1:
-                    try:
-                        from nltools.algorithms.inference.utils import (
-                            _auto_n_jobs_cpu,
-                            _estimate_data_size_mb,
-                        )
+                    from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
-                        # Estimate memory for largest subject
-                        max_size_mb = max(
-                            _estimate_data_size_mb(data[i]) for i in range(subjects)
-                        )
-                        n_jobs_to_use = _auto_n_jobs_cpu(
-                            data_size_mb=max_size_mb,
-                            n_permute=subjects,
-                            max_memory_gb=8.0,
-                            min_jobs=1,
-                        )
-                    except ImportError:
-                        n_jobs_to_use = 1
+                    n_jobs_to_use = auto_n_jobs_for_arrays(
+                        [data[i] for i in range(subjects)]
+                    )
 
                 # Parallel update
                 w = Parallel(n_jobs=n_jobs_to_use)(

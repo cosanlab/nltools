@@ -536,6 +536,21 @@ What changed:
 
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
+(gpu-execution-layer)=
+### One GPU execution layer — measured budgets, OOM recovery, run-or-raise
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
+
+Every GPU/batched code path now runs through one core layer in `nltools.algorithms.backends` (`device_memory_budget`, `auto_batch_size`, `compute_oom_safe`), replacing five independent batch-size calculators and their hard-coded memory constants. Three things change for users:
+
+- **`max_gpu_memory_gb` defaults to `None` = measured, everywhere.** Previously every GPU entry point assumed a fixed 4 GB budget (and SRM/hyperalignment's internal worker sizing assumed 8 GB) regardless of hardware — a 2 GB card would OOM under the default while a 24 GB card ran at a fraction of capacity. `None` now measures the device at call time (free CUDA memory with headroom; available system RAM for MPS/CPU). Passing an explicit number behaves exactly as before. Batch size never affects seeded results, only memory/speed.
+- **Device OOM is recovered, not fatal.** If a batch still exhausts device memory, the already-generated batch inputs are split and retried at smaller sizes (`compute_oom_safe`). Because RNG draws happen before the device compute, recovery reuses the exact same permutations — a seeded result is bit-identical with or without OOM. Only when a *single* item cannot fit does the run fail, with a `MemoryError` naming the fix.
+- **Run-or-raise policy**: an explicit `device='gpu'` / `parallel='gpu'` either runs on the GPU or raises — never a silent CPU fallback. `'auto'` remains the one documented graceful path. Concretely:
+  - `SRM` / `DetSRM` `fit()` / `transform()` with `parallel='gpu'` now raise `NotImplementedError` (they previously ran on CPU silently). The dead `max_gpu_memory_gb` kwarg on their `fit()` is removed — it controlled nothing.
+  - `LocalAlignment` validates `parallel=` (a typo like `'gup'` previously ran single-threaded numpy with no error), raises `NotImplementedError` for `parallel='gpu'` with `method='srm'|'hyperalignment'` (previously a documented silent CPU run), and raises `ImportError` for `parallel='gpu'` without PyTorch (previously a log message + numpy fallback).
+  - `correlation_permutation_test(metric='kendall', device='gpu')` no longer warns and falls back to CPU — Kendall now has a real GPU kernel (tie-corrected tau-b via pre-computed pairwise sign tensors, parity-tested against `scipy.stats.kendalltau`).
+- **`BrainCollection.permutation_test` / `.permutation_test2` delegate to the inference engine** (as `isc_test` already did), so their `device=` and `n_jobs=` kwargs — previously accepted but ignored — now select the real execution backend, and both gained `progress_bar=`. One consequence: the null distribution for a given `random_state` changes (the engine's deterministic seed stream replaces the old hand-rolled `np.random.default_rng` loop). Same test, same distribution family, different draws — re-run any analysis that recorded seeded collection permutation p-values.
+
 
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
@@ -1571,12 +1586,12 @@ from nltools.algorithms.inference import one_sample_permutation_test
 # CPU (default)
 result = one_sample_permutation_test(data, n_permute=1000)
 
-# GPU (automatic batching)
+# GPU (automatic batching; the memory budget is measured from the device —
+# pass max_gpu_memory_gb=<GB> only to cap it explicitly)
 result = one_sample_permutation_test(
     data,
     n_permute=1000,
     device='gpu',
-    max_gpu_memory_gb=4.0  # Memory budget
 )
 
 # CPU parallel (4-8× speedup)

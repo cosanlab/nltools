@@ -144,6 +144,8 @@ def _one_sample_permutation_gpu_batched(
     """
     import torch
 
+    from nltools.algorithms.backends import compute_oom_safe
+
     n_samples, n_features = data.shape
 
     # Convert to float32 for GPU efficiency
@@ -154,11 +156,24 @@ def _one_sample_permutation_gpu_batched(
 
     # Determine batch size based on memory budget
     batch_size, n_batches = _auto_batch_size(
-        n_permute, n_samples, n_features, max_memory_gb=max_gpu_memory_gb
+        n_permute,
+        n_samples,
+        n_features,
+        max_memory_gb=max_gpu_memory_gb,
+        backend=backend,
     )
 
     # Transfer data to device once (reused across batches)
     data_device = backend.to_device(data)
+
+    def _compute_batch(batch_sign_flips: np.ndarray) -> np.ndarray:
+        """Device compute for one (sub-)batch of pre-drawn sign flips."""
+        sign_flips_device = backend.to_device(batch_sign_flips.astype(np.float32))
+        # Broadcasting: (batch_size, n_samples, 1) * (1, n_samples, n_features)
+        data_perm = sign_flips_device[:, :, None] * data_device[None, :, :]
+        batch_null = backend.to_numpy(torch.mean(data_perm, dim=1))
+        del sign_flips_device, data_perm
+        return batch_null
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -177,29 +192,16 @@ def _one_sample_permutation_gpu_batched(
         end_idx = min(start_idx + batch_size, n_permute)
         current_batch_size = end_idx - start_idx
 
-        # Generate sign flips for this batch only
+        # Generate sign flips for this batch only. RNG draws stay outside the
+        # OOM-retried compute, so recovery reuses these exact flips.
         batch_sign_flips = _generate_sign_flips(
             current_batch_size, n_samples, random_state=random_state
         )
 
-        # Transfer to device
-        sign_flips_device = backend.to_device(batch_sign_flips.astype(np.float32))
-
-        # Compute null distribution for this batch
-        # Broadcasting: (batch_size, n_samples, 1) * (1, n_samples, n_features)
-        data_perm = sign_flips_device[:, :, None] * data_device[None, :, :]
-        batch_null = torch.mean(data_perm, dim=1)
-        batch_null = backend.to_numpy(batch_null)
-
-        null_dist_list.append(batch_null)
+        null_dist_list.append(compute_oom_safe(_compute_batch, batch_sign_flips))
 
         # Update progress bar
         pbar.update(current_batch_size)
-
-        # Free batch memory
-        del sign_flips_device, data_perm
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     pbar.close()
 
@@ -237,7 +239,7 @@ def one_sample_permutation_test(
     return_null: bool = False,
     device: str | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
@@ -267,7 +269,8 @@ def one_sample_permutation_test(
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
             Only used when device='cpu'
-        max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
+        max_gpu_memory_gb (float, optional): Explicit GPU memory budget in GB.
+            None (default) measures the device's available memory.
             Controls automatic batching to prevent OOM errors. Only used with
             device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.

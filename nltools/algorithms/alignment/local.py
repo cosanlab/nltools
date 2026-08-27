@@ -311,17 +311,19 @@ class LocalAlignment:
             orthogonality) or 'all'. Defaults to 'center'.
         parallel (str | None): Parallelization mode. None runs single-threaded numpy,
             'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU
-            acceleration applies only to `method='procrustes'`; the 'srm' and
-            'hyperalignment' methods always run on CPU regardless of this setting.
-            Defaults to 'cpu'.
+            acceleration applies only to `method='procrustes'`; requesting
+            'gpu' with the 'srm' or 'hyperalignment' methods raises
+            `NotImplementedError` (an explicit GPU request never silently runs
+            on CPU). Defaults to 'cpu'.
         n_jobs (int): Number of jobs for CPU parallelization. Defaults to -1.
         progress_bar (bool): Whether to display tqdm progress bars during fit and
             transform. Defaults to False.
         n_neighborhoods_batch (int | None): Number of neighborhoods to process per
             batch on the GPU. None auto-calculates a batch size from `max_memory_gb`.
             Defaults to None.
-        max_memory_gb (float): Memory budget (in GB) used to auto-size GPU batches
-            when `n_neighborhoods_batch` is None. Defaults to 4.0.
+        max_memory_gb (float | None): Explicit memory budget (in GB) used to
+            auto-size GPU batches when `n_neighborhoods_batch` is None. None
+            (default) measures the device's available memory.
 
     Attributes:
         transforms_ (dict[int, list[np.ndarray]]): Per-neighborhood transforms. Keys are
@@ -364,7 +366,7 @@ class LocalAlignment:
 
     # Batching parameters (Phase 2)
     n_neighborhoods_batch: int | None = None  # None = auto-calculate
-    max_memory_gb: float = 4.0  # Memory budget for auto batch sizing
+    max_memory_gb: float | None = None  # None = measured device budget
 
     # Fitted state (set by fit())
     transforms_: dict[int, list[np.ndarray]] | None = field(default=None, repr=False)
@@ -393,36 +395,49 @@ class LocalAlignment:
             self.aggregation = "all"
         if self.spatial_scale == "roi" and self.roi_mask is None:
             raise ValueError("roi_mask is required for spatial_scale='roi'")
+        if self.parallel not in (None, "cpu", "gpu"):
+            raise ValueError(
+                f"parallel must be None, 'cpu', or 'gpu', got {self.parallel!r}"
+            )
+        if self.parallel == "gpu" and self.method in ("srm", "hyperalignment"):
+            raise NotImplementedError(
+                f"parallel='gpu' is not implemented for method={self.method!r} "
+                "(only 'procrustes' has a GPU path). Use parallel='cpu'."
+            )
 
     def _init_backend(self) -> Backend:
         """Initialize backend based on parallel setting.
 
         Returns:
             Backend instance configured for the requested execution mode.
+
+        Raises:
+            ImportError: If ``parallel='gpu'`` and PyTorch is not installed.
+                An explicit GPU request never silently degrades to CPU; use
+                ``parallel='cpu'`` when torch is unavailable.
         """
         if self.parallel is None or self.parallel == "cpu":
             return Backend("numpy")
-        if self.parallel == "gpu":
-            # Try GPU, gracefully fall back to CPU if unavailable
-            try:
-                backend = Backend("torch")
-                logger.info(f"Using backend: {backend.name}")
-                return backend
-            except ImportError:
-                logger.warning("PyTorch not available, falling back to numpy backend")
-                return Backend("numpy")
-        else:
-            # Unknown parallel value, use numpy
-            return Backend("numpy")
+        # parallel == 'gpu' (validated in __post_init__): run-or-raise.
+        backend = Backend("torch")
+        logger.info(f"Using backend: {backend.name}")
+        return backend
 
     def _auto_batch_size(
-        self, n_subjects: int, avg_region_size: int, n_samples: int
+        self,
+        n_neighborhoods: int,
+        n_subjects: int,
+        avg_region_size: int,
+        n_samples: int,
     ) -> int:
         """Calculate batch size based on memory budget.
 
-        Estimates memory per neighborhood and divides into budget.
+        Thin adapter over the core layer in `nltools.algorithms.backends`:
+        supplies the per-neighborhood working-set estimate; the budget and
+        clamp policy live in `auto_batch_size`/`device_memory_budget`.
 
         Args:
+            n_neighborhoods: Total number of neighborhoods to process
             n_subjects: Number of subjects
             avg_region_size: Average voxels per neighborhood/parcel
             n_samples: Number of time samples
@@ -430,6 +445,8 @@ class LocalAlignment:
         Returns:
             Number of neighborhoods per batch
         """
+        from ..backends import auto_batch_size, device_memory_budget
+
         # Memory per neighborhood during fitting:
         # - Local data: n_subjects × avg_region_size × n_samples × 8 bytes (float64)
         # - Transforms: n_subjects × avg_region_size × avg_region_size × 8 bytes
@@ -440,13 +457,17 @@ class LocalAlignment:
             + avg_region_size * n_samples * 8  # template
         )
 
-        max_bytes = self.max_memory_gb * 1e9
-        batch_size = max(1, int(max_bytes / bytes_per_neighborhood))
+        budget_gb = device_memory_budget(
+            self.backend_, max_gpu_memory_gb=self.max_memory_gb
+        )
+        batch_size, _ = auto_batch_size(
+            n_neighborhoods, bytes_per_neighborhood, budget_gb=budget_gb
+        )
 
         logger.debug(
             f"Auto batch size: {batch_size} neighborhoods "
             f"({bytes_per_neighborhood / 1e6:.1f} MB each, "
-            f"{self.max_memory_gb} GB budget)"
+            f"{budget_gb:.1f} GB budget)"
         )
         return batch_size
 
@@ -483,7 +504,9 @@ class LocalAlignment:
                 )
             else:
                 avg_region_size = 1
-            batch_size = self._auto_batch_size(n_subjects, avg_region_size, n_samples)
+            batch_size = self._auto_batch_size(
+                max(1, len(all_neighborhoods)), n_subjects, avg_region_size, n_samples
+            )
 
         n_total = len(all_neighborhoods)
         n_batches = (n_total + batch_size - 1) // batch_size

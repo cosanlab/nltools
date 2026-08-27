@@ -719,46 +719,37 @@ def _auto_batch_size_ridge(
     n_samples: int,
     n_features: int,
     n_voxels: int,
-    max_memory_gb: float = 4.0,
+    max_memory_gb: float | None = None,
+    backend=None,
 ) -> tuple[int, int]:
-    """Automatically determine batch size for Ridge bootstrap to avoid GPU OOM.
+    """Determine the Ridge-bootstrap GPU batch size for a memory budget.
 
-    Memory bottleneck:
-    - X_boot: (batch_size, n_samples, n_features)
-    - y_boot: (batch_size, n_samples, n_voxels)
-    - SVD buffers and intermediate computations
+    Thin adapter over the core layer in `nltools.algorithms.backends`:
+    supplies the bootstrap working-set estimate — ``X_boot``
+    ``(batch, n_samples, n_features)`` plus ``y_boot``
+    ``(batch, n_samples, n_voxels)`` float32, with a conservative 3×
+    overhead for SVD buffers — and the 10-iteration dispatch floor.
 
     Args:
         n_bootstrap: Total number of bootstrap iterations.
         n_samples: Number of samples in dataset.
         n_features: Number of features.
         n_voxels: Number of voxels/targets.
-        max_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        max_memory_gb: Explicit memory budget in GB. None (default) measures
+            the device via `device_memory_budget`.
+        backend: Resolved `Backend` the work runs on (used only to measure
+            the budget when ``max_memory_gb`` is None).
 
     Returns:
         (batch_size, n_batches).
     """
-    bytes_per_element = 4  # float32
+    from nltools.algorithms.backends import auto_batch_size, device_memory_budget
 
-    # Memory per bootstrap iteration
-    # X_boot: (1, n_samples, n_features)
-    # y_boot: (1, n_samples, n_voxels)
-    # Plus overhead for SVD buffers (~2-3× for intermediate computations)
-    memory_per_boot = (
-        (n_samples * n_features + n_samples * n_voxels) * bytes_per_element * 3
-    )  # Conservative 3× overhead
-
-    # How many bootstrap iterations fit in memory budget?
-    max_memory_bytes = max_memory_gb * 1e9
-    batch_size = int(max_memory_bytes / memory_per_boot)
-
-    # Clamp to reasonable range
-    batch_size = max(10, min(batch_size, n_bootstrap))  # At least 10, at most all
-
-    # Calculate number of batches needed
-    n_batches = int(np.ceil(n_bootstrap / batch_size))
-
-    return batch_size, n_batches
+    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_memory_gb)
+    bytes_per_boot = (n_samples * n_features + n_samples * n_voxels) * 4  # float32
+    return auto_batch_size(
+        n_bootstrap, bytes_per_boot, budget_gb=budget_gb, overhead=3.0, min_batch=10
+    )
 
 
 def _bootstrap_ridge_weights_gpu_batched(
@@ -768,7 +759,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     n_samples: int = 5000,
     save_boots: bool = False,
     backend=None,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
     progress_bar: bool = False,
@@ -786,7 +777,8 @@ def _bootstrap_ridge_weights_gpu_batched(
         n_samples: Number of bootstrap iterations. Defaults to 5000.
         save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
         backend: Backend instance (must be PyTorch). If None, auto-selects.
-        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
+            measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
@@ -794,7 +786,6 @@ def _bootstrap_ridge_weights_gpu_batched(
     Returns:
         Dictionary containing bootstrap statistics (same format as CPU version).
     """
-    import torch
     from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape_range
 
@@ -832,46 +823,28 @@ def _bootstrap_ridge_weights_gpu_batched(
         n_obs, n_samples, random_state=random_state
     )
 
+    from nltools.algorithms.backends import compute_oom_safe
+
     # Determine batch size based on memory budget
     batch_size, n_batches = _auto_batch_size_ridge(
-        n_samples, n_obs, n_features, n_voxels, max_memory_gb=max_gpu_memory_gb
+        n_samples,
+        n_obs,
+        n_features,
+        n_voxels,
+        max_memory_gb=max_gpu_memory_gb,
+        backend=backend,
     )
 
     # Transfer X, y to GPU once (reused across batches)
     X_device = backend.to_device(X)
     y_device = backend.to_device(y)
 
-    # Initialize online statistics aggregator (on CPU)
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
-    )
-
-    # Process bootstrap samples in batches with progress bar
-    pbar = make_progress_bar(
-        progress_bar=progress_bar,
-        total=n_samples,
-        desc="GPU bootstrap Ridge weights",
-        unit="iter",
-        disable=n_batches == 1,
-    )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_samples)
-        current_batch_size = end_idx - start_idx
-
-        # Get bootstrap indices for this batch
-        batch_indices = all_indices[
-            start_idx:end_idx
-        ]  # Shape: (current_batch_size, n_obs)
-
+    def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
+        """GPU ridge weights for one (sub-)batch of pre-drawn resample indices."""
         # Process each bootstrap sample in batch sequentially
         # Inline ridge computation on GPU to avoid CPU round-trips
         batch_weights = []
-        for i in range(current_batch_size):
+        for i in range(len(batch_indices)):
             # Resample data using advanced indexing
             indices_np = batch_indices[i].astype(np.int64)
             indices_device = backend.to_device(indices_np)
@@ -900,24 +873,45 @@ def _bootstrap_ridge_weights_gpu_batched(
             coef_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
 
             # Transfer weights back to CPU for aggregation
-            weights = backend.to_numpy(coef_device)
+            batch_weights.append(backend.to_numpy(coef_device))
 
-            batch_weights.append(weights)
+        # Shape: (current_batch_size, n_features, n_voxels)
+        return np.array(batch_weights)
 
-        # Transfer weights back to CPU and aggregate
-        batch_weights = np.array(
-            batch_weights
-        )  # Shape: (current_batch_size, n_features, n_voxels)
+    # Initialize online statistics aggregator (on CPU)
+    stats = OnlineBootstrapStats(
+        shape=output_shape,
+        save_samples=save_boots,
+        percentiles=percentiles,
+    )
 
+    # Process bootstrap samples in batches with progress bar
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
+        total=n_samples,
+        desc="GPU bootstrap Ridge weights",
+        unit="iter",
+        disable=n_batches == 1,
+    )
+
+    for batch_idx in range(n_batches):
+        # Determine current batch size
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, n_samples)
+        current_batch_size = end_idx - start_idx
+
+        # Bootstrap indices for this batch were all pre-drawn (all_indices),
+        # so OOM recovery reuses them exactly.
+        batch_indices = all_indices[
+            start_idx:end_idx
+        ]  # Shape: (current_batch_size, n_obs)
+
+        batch_weights = compute_oom_safe(_compute_batch, batch_indices)
         for weights in batch_weights:
             stats.update(weights)
 
         # Update progress bar
         pbar.update(current_batch_size)
-
-        # Free batch memory
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     pbar.close()
 
@@ -942,7 +936,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     n_samples: int = 5000,
     save_boots: bool = False,
     backend=None,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
     progress_bar: bool = False,
@@ -961,7 +955,8 @@ def _bootstrap_ridge_predict_gpu_batched(
         n_samples: Number of bootstrap iterations. Defaults to 5000.
         save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
         backend: Backend instance (must be PyTorch). If None, auto-selects.
-        max_gpu_memory_gb: Maximum GPU memory to use in GB. Defaults to 4.0.
+        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
+            measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
@@ -969,7 +964,6 @@ def _bootstrap_ridge_predict_gpu_batched(
     Returns:
         Dictionary containing bootstrap statistics (same format as CPU version).
     """
-    import torch
     from nltools.algorithms.backends import auto_select_backend
     from .validation import validate_array_shape, validate_array_shape_range
 
@@ -1016,43 +1010,27 @@ def _bootstrap_ridge_predict_gpu_batched(
 
     # Determine batch size (same as weights, but also account for X_pred)
     batch_size, n_batches = _auto_batch_size_ridge(
-        n_samples, n_obs, X.shape[1], n_voxels, max_memory_gb=max_gpu_memory_gb
+        n_samples,
+        n_obs,
+        X.shape[1],
+        n_voxels,
+        max_memory_gb=max_gpu_memory_gb,
+        backend=backend,
     )
+
+    from nltools.algorithms.backends import compute_oom_safe
 
     # Transfer X, y, X_pred to GPU once (reused across batches)
     X_device = backend.to_device(X)
     y_device = backend.to_device(y)
     X_pred_device = backend.to_device(X_pred)
 
-    # Initialize online statistics aggregator (on CPU)
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
-    )
-
-    # Process bootstrap samples in batches with progress bar
-    pbar = make_progress_bar(
-        progress_bar=progress_bar,
-        total=n_samples,
-        desc="GPU bootstrap Ridge predictions",
-        unit="iter",
-        disable=n_batches == 1,
-    )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_samples)
-        current_batch_size = end_idx - start_idx
-
-        # Get bootstrap indices for this batch
-        batch_indices = all_indices[start_idx:end_idx]
-
+    def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
+        """GPU ridge predictions for one (sub-)batch of pre-drawn indices."""
         # Process each bootstrap sample in batch sequentially
         # Inline ridge computation on GPU to avoid CPU round-trips
         batch_predictions = []
-        for i in range(current_batch_size):
+        for i in range(len(batch_indices)):
             # Resample training data
             indices_np = batch_indices[i].astype(np.int64)
             indices_device = backend.to_device(indices_np)
@@ -1081,24 +1059,43 @@ def _bootstrap_ridge_predict_gpu_batched(
 
             # Make predictions on GPU: X_pred @ weights
             predictions_device = backend.matmul(X_pred_device, weights_device)
-            predictions = backend.to_numpy(predictions_device)
+            batch_predictions.append(backend.to_numpy(predictions_device))
 
-            batch_predictions.append(predictions)
+        # Shape: (current_batch_size, n_test_samples, n_voxels)
+        return np.array(batch_predictions)
 
-        # Transfer predictions back to CPU and aggregate
-        batch_predictions = np.array(
-            batch_predictions
-        )  # Shape: (current_batch_size, n_test_samples, n_voxels)
+    # Initialize online statistics aggregator (on CPU)
+    stats = OnlineBootstrapStats(
+        shape=output_shape,
+        save_samples=save_boots,
+        percentiles=percentiles,
+    )
 
+    # Process bootstrap samples in batches with progress bar
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
+        total=n_samples,
+        desc="GPU bootstrap Ridge predictions",
+        unit="iter",
+        disable=n_batches == 1,
+    )
+
+    for batch_idx in range(n_batches):
+        # Determine current batch size
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, n_samples)
+        current_batch_size = end_idx - start_idx
+
+        # Bootstrap indices for this batch were all pre-drawn (all_indices),
+        # so OOM recovery reuses them exactly.
+        batch_indices = all_indices[start_idx:end_idx]
+
+        batch_predictions = compute_oom_safe(_compute_batch, batch_indices)
         for predictions in batch_predictions:
             stats.update(predictions)
 
         # Update progress bar
         pbar.update(current_batch_size)
-
-        # Free batch memory
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     pbar.close()
 

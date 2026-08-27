@@ -5,7 +5,6 @@ of correlation permutation tests for assessing statistical significance
 of correlations.
 """
 
-import warnings
 import numpy as np
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -404,24 +403,42 @@ def _correlation_permutation_gpu_batched(
 
     n_samples, n_features = data1.shape
 
-    # Kendall is dispatched to the CPU parallel path upstream (see
-    # correlation_permutation_test). Guard here so any direct internal caller
-    # gets a clear error instead of hitting an incomplete GPU path.
-    if metric not in ("pearson", "spearman"):
+    if metric not in ("pearson", "spearman", "kendall"):
         raise NotImplementedError(
-            f"_correlation_permutation_gpu_batched does not implement metric={metric!r}. "
-            "Call correlation_permutation_test, which routes non-GPU metrics to CPU."
+            f"_correlation_permutation_gpu_batched does not implement metric={metric!r}."
         )
 
     # Convert to float32 for GPU efficiency
     data1 = data1.astype(np.float32)
     data2 = data2.astype(np.float32)
 
-    # Determine batch size based on memory budget
-    # Memory bottleneck: permuted indices and correlation computation
-    batch_size, n_batches = _auto_batch_size(
-        n_permute, n_samples, n_features, max_memory_gb=max_gpu_memory_gb
+    from nltools.algorithms.backends import (
+        auto_batch_size,
+        compute_oom_safe,
+        device_memory_budget,
     )
+
+    # Determine batch size based on memory budget
+    if metric == "kendall":
+        # Kendall's working set is the gathered pairwise-sign tensor
+        # (batch, n, n, f) float32 plus its product scratch — n² per feature,
+        # not n like the other metrics.
+        budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+        batch_size, n_batches = auto_batch_size(
+            n_permute,
+            n_samples * n_samples * n_features * 4,
+            budget_gb=budget_gb,
+            overhead=2.0,
+        )
+    else:
+        # Memory bottleneck: permuted indices and correlation computation
+        batch_size, n_batches = _auto_batch_size(
+            n_permute,
+            n_samples,
+            n_features,
+            max_memory_gb=max_gpu_memory_gb,
+            backend=backend,
+        )
 
     # Transfer data to device once (for GPU-accelerated observed correlation)
     data1_device = backend.to_device(data1)
@@ -432,6 +449,20 @@ def _correlation_permutation_gpu_batched(
         data2_ranked_device = _rank_transform_gpu(data2_device, dim=0)
     else:
         data2_ranked_device = None
+
+    # Pre-compute pairwise sign tensors for Kendall (once; permutations only
+    # reindex them). sx[i, j, f] = sign(x[i, f] - x[j, f]).
+    if metric == "kendall":
+        sx = torch.sign(data1_device.unsqueeze(1) - data1_device.unsqueeze(0))
+        sy = torch.sign(data2_device.unsqueeze(1) - data2_device.unsqueeze(0))
+        # Tau-b tie correction: denom = sqrt((n0 - n1) (n0 - n2)) with
+        # n0 = n(n-1)/2 and n1/n2 the tied-pair counts, which equal the
+        # off-diagonal zeros of the sign matrices halved. The tie structure —
+        # and therefore the denominator — is permutation-invariant.
+        n0 = n_samples * (n_samples - 1) / 2.0
+        n1 = ((sx == 0).sum(dim=(0, 1)).float() - n_samples) / 2.0
+        n2 = ((sy == 0).sum(dim=(0, 1)).float() - n_samples) / 2.0
+        kendall_denom = torch.sqrt((n0 - n1) * (n0 - n2))  # (n_features,)
 
     # Compute observed correlation on GPU for efficiency
     if metric == "pearson":
@@ -461,37 +492,20 @@ def _correlation_permutation_gpu_batched(
             data2_ranked, dim=0, unbiased=False
         )
         obs_corr = backend.to_numpy(numerator / (denominator + EPSILON))
-
-    # Accumulate null distribution across batches
-    null_dist_list = []
-
-    # Process permutations in batches with progress bar
-    pbar = make_progress_bar(
-        progress_bar=progress_bar,
-        total=n_permute,
-        desc="GPU permutation batches",
-        unit="perm",
-        disable=n_batches == 1,
-    )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_permute)
-        current_batch_size = end_idx - start_idx
-
-        # Pre-generate seeds for this batch (memory-efficient, deterministic)
-        # Matches CPU-parallel pattern: independent RandomState per permutation
-        MAX_INT = 2**31 - 1
-        batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
-
-        # Generate permutation indices using independent RNG per permutation
-        batch_indices = np.array(
-            [
-                np.random.RandomState(batch_seeds[i]).permutation(n_samples)
-                for i in range(current_batch_size)
-            ]
+    elif metric == "kendall":
+        # Full-matrix sum double-counts each i<j pair, hence / 2. A zero
+        # denominator (constant column) maps to tau = 0.0, matching the CPU
+        # path's NaN -> 0.0 convention.
+        num_obs = torch.einsum("ijf,ijf->f", sx, sy) / 2.0
+        obs_corr = backend.to_numpy(
+            torch.where(
+                kendall_denom > 0, num_obs / kendall_denom, torch.zeros_like(num_obs)
+            )
         )
+
+    def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
+        """Device compute for one (sub-)batch of pre-drawn permutations."""
+        current_batch_size = len(batch_indices)
 
         # Transfer to device
         batch_indices_device = backend.to_device(batch_indices)
@@ -588,24 +602,59 @@ def _correlation_permutation_gpu_batched(
                 denominator + EPSILON
             )  # (current_batch_size, n_features)
             batch_corrs = backend.to_numpy(batch_corrs)
-        else:
-            # Kendall is routed to the CPU parallel path by correlation_permutation_test
-            # before ever reaching this function. Keep this as a defensive guard so
-            # future direct callers get a clear error instead of a silent slow path.
-            raise NotImplementedError(
-                f"_correlation_permutation_gpu_batched does not implement metric={metric!r}. "
-                "Call correlation_permutation_test, which routes non-GPU metrics to CPU."
+        else:  # kendall (validated at function entry)
+            # Permuting x permutes the pairwise sign matrix on both axes:
+            # sign(x[p(i)] - x[p(j)]) = sx[p(i), p(j)] — gather instead of
+            # recompute. bi: (current_batch_size, n_samples) long.
+            bi = batch_indices_device
+            sx_p = sx[bi[:, :, None], bi[:, None, :]]  # (b, n, n, f)
+            num = torch.einsum("bijf,ijf->bf", sx_p, sy) / 2.0
+            batch_corrs = torch.where(
+                kendall_denom > 0, num / kendall_denom, torch.zeros_like(num)
             )
+            batch_corrs = backend.to_numpy(batch_corrs)
+            del sx_p
 
-        null_dist_list.append(batch_corrs)
+        del batch_indices_device
+        return batch_corrs
+
+    # Accumulate null distribution across batches
+    null_dist_list = []
+
+    # Process permutations in batches with progress bar
+    pbar = make_progress_bar(
+        progress_bar=progress_bar,
+        total=n_permute,
+        desc="GPU permutation batches",
+        unit="perm",
+        disable=n_batches == 1,
+    )
+
+    for batch_idx in range(n_batches):
+        # Determine current batch size
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, n_permute)
+        current_batch_size = end_idx - start_idx
+
+        # Pre-generate seeds for this batch (memory-efficient, deterministic).
+        # Matches CPU-parallel pattern: independent RandomState per permutation.
+        # RNG draws stay outside the OOM-retried compute, so recovery reuses
+        # these exact permutations.
+        MAX_INT = 2**31 - 1
+        batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
+
+        # Generate permutation indices using independent RNG per permutation
+        batch_indices = np.array(
+            [
+                np.random.RandomState(batch_seeds[i]).permutation(n_samples)
+                for i in range(current_batch_size)
+            ]
+        )
+
+        null_dist_list.append(compute_oom_safe(_compute_batch, batch_indices))
 
         # Update progress bar
         pbar.update(current_batch_size)
-
-        # Free batch memory
-        del batch_indices_device, batch_corrs
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     pbar.close()
 
@@ -645,7 +694,7 @@ def correlation_permutation_test(
     return_null: bool = False,
     device: str | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
@@ -682,7 +731,8 @@ def correlation_permutation_test(
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
             Only used when device='cpu'
-        max_gpu_memory_gb (float): Maximum GPU memory to use in GB (default: 4.0)
+        max_gpu_memory_gb (float, optional): Explicit GPU memory budget in GB.
+            None (default) measures the device's available memory.
             Controls automatic batching to prevent OOM errors. Only used with
             device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
@@ -720,8 +770,10 @@ def correlation_permutation_test(
     Notes:
         - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
         - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-            - Pearson correlation: Fully vectorized across all features (5-20× speedup for multi-feature)
-            - Spearman/Kendall: Only supported with device='cpu' or device=None (GPU not yet implemented)
+            - Pearson: Fully vectorized across all features (5-20× speedup for multi-feature)
+            - Spearman: GPU rank transform (average ties) + vectorized Pearson on ranks
+            - Kendall: tie-corrected tau-b via pre-computed pairwise sign tensors;
+              O(n²) memory per permutation, so batches are sized accordingly
         - Single-threaded (device=None): Use for small problems or debugging
         - For multi-feature data, each feature pair tested independently
         - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
@@ -758,18 +810,6 @@ def correlation_permutation_test(
         )
 
     n_samples, n_features = data1.shape
-
-    # GPU path supports Pearson and Spearman only. For Kendall, fall through
-    # to the CPU-parallel path so user code with device='gpu' still works.
-    # True GPU Kendall tau-b kernel tracked in EJO-453.
-    if device == "gpu" and metric == "kendall":
-        warnings.warn(
-            "Kendall correlation is not implemented on GPU; falling back to "
-            "device='cpu'. Use device='cpu' explicitly to silence this warning.",
-            UserWarning,
-            stacklevel=2,
-        )
-        device = "cpu"
 
     # Decide execution mode based on device parameter
     if device == "cpu" or device is None:

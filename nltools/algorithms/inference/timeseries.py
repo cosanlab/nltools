@@ -478,7 +478,6 @@ def _timeseries_correlation_permutation_gpu_batched(
     Returns:
         dict: Same format as main function, with 'backend' indicating GPU device
     """
-    import torch
 
     n_samples = len(data1)
 
@@ -505,11 +504,30 @@ def _timeseries_correlation_permutation_gpu_batched(
     # For circle_shift: (batch_size, n_samples) tensors
     # For phase_randomize: FFT buffers + permuted data
     batch_size, n_batches = _auto_batch_size(
-        n_permute, n_samples, 1, max_memory_gb=max_gpu_memory_gb
+        n_permute, n_samples, 1, max_memory_gb=max_gpu_memory_gb, backend=backend
     )
+
+    from nltools.algorithms.backends import compute_oom_safe
 
     # Transfer data to device once (reused across batches)
     data1_device = backend.to_device(data1)
+
+    def _compute_circle_shift(shift_amounts: np.ndarray) -> np.ndarray:
+        """Device compute for one (sub-)batch of pre-drawn shift amounts."""
+        shift_amounts_device = backend.to_device(shift_amounts.astype(np.int64))
+        if backend.name.startswith("torch"):
+            shift_amounts_device = shift_amounts_device.long()
+        perm = _circle_shift_gpu_batched(data1_device, shift_amounts_device, backend)
+        out = backend.to_numpy(perm)
+        del shift_amounts_device, perm
+        return out
+
+    def _compute_phase_randomize(seeds: np.ndarray) -> np.ndarray:
+        """Device compute for one (sub-)batch of pre-drawn phase seeds."""
+        perm = _phase_randomize_gpu_batched(data1_device, seeds, backend, random_state)
+        out = backend.to_numpy(perm)
+        del perm
+        return out
 
     # Accumulate null distribution across batches
     null_dist_list = []
@@ -533,7 +551,9 @@ def _timeseries_correlation_permutation_gpu_batched(
         MAX_INT = 2**31 - 1
         batch_seeds = random_state.randint(MAX_INT, size=current_batch_size)
 
-        # Generate permuted data1 for this batch using batched operations
+        # Generate permuted data1 for this batch using batched operations.
+        # RNG draws (seeds/shifts) stay outside the OOM-retried compute, so
+        # recovery reuses these exact permutations.
         if method == "circle_shift":
             # Generate random shift amounts for all permutations in batch
             shift_amounts = np.array(
@@ -542,23 +562,11 @@ def _timeseries_correlation_permutation_gpu_batched(
                     for i in range(current_batch_size)
                 ]
             )
-            shift_amounts_device = backend.to_device(shift_amounts.astype(np.int64))
-            if backend.name.startswith("torch"):
-                shift_amounts_device = shift_amounts_device.long()
-
             # Batched circle shift: (batch_size, n_samples)
-            perm_data1_batch = _circle_shift_gpu_batched(
-                data1_device, shift_amounts_device, backend
-            )
+            perm_data1_np = compute_oom_safe(_compute_circle_shift, shift_amounts)
         else:  # phase_randomize
             # Batched phase randomization: (batch_size, n_samples)
-            perm_data1_batch = _phase_randomize_gpu_batched(
-                data1_device, batch_seeds, backend, random_state
-            )
-
-        # Compute correlations for all permutations in batch simultaneously
-        # Vectorize correlation computation
-        perm_data1_np = backend.to_numpy(perm_data1_batch)  # (batch_size, n_samples)
+            perm_data1_np = compute_oom_safe(_compute_phase_randomize, batch_seeds)
 
         # Use correlation function that handles 2D input (batch dimension)
         batch_corrs = []
@@ -573,9 +581,7 @@ def _timeseries_correlation_permutation_gpu_batched(
         pbar.update(current_batch_size)
 
         # Free batch memory
-        del perm_data1_batch, perm_data1_np, batch_corrs
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        del perm_data1_np, batch_corrs
 
     pbar.close()
 
@@ -608,7 +614,7 @@ def timeseries_correlation_permutation_test(
     tail: int | str = 2,
     device: str | None = "cpu",
     n_jobs: int = -1,
-    max_gpu_memory_gb: float = 4.0,
+    max_gpu_memory_gb: float | None = None,
     return_null: bool = False,
     random_state: int | np.random.RandomState | None = None,
     progress_bar: bool = False,
@@ -640,7 +646,8 @@ def timeseries_correlation_permutation_test(
             - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
         n_jobs: Number of parallel jobs (-1 = all cores)
             Only used when device='cpu'
-        max_gpu_memory_gb: Maximum GPU memory to use in GB (default: 4.0)
+        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
+            measures the device's available memory.
             Controls automatic batching to prevent OOM errors. Only used with
             device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
