@@ -68,7 +68,7 @@ class TestPublicSurface:
     def test_reductions_exist(self, method):
         assert callable(getattr(BrainCollection, method))
 
-    @pytest.mark.parametrize("method", ["isc", "isc_test", "align", "cv"])
+    @pytest.mark.parametrize("method", ["isc", "isc_test", "align", "predict_group"])
     def test_cross_subject_methods_exist(self, method):
         assert callable(getattr(BrainCollection, method))
 
@@ -219,8 +219,8 @@ class TestSignatures:
         assert "y" in params and "X_new" in params
         assert params["y"].default is None and params["X_new"].default is None
 
-    def test_predict_default_model_and_cv(self):
-        params = self._params(BrainCollection.predict)
+    def test_predict_group_default_model_and_cv(self):
+        params = self._params(BrainCollection.predict_group)
         assert params["model"].default == "svm"
         assert params["cv"].default == "loso"
 

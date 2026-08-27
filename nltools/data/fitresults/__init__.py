@@ -344,6 +344,10 @@ class Predict:
     # All-data fitted estimator (whole_brain only)
     estimator: Any = None
 
+    # Label-permutation null (BrainCollection.predict_group(n_permute=))
+    permutation_scores: np.ndarray | None = None
+    permutation_pvalue: float | None = None
+
     def available(self) -> list:
         """Return names of non-None fields (excludes private)."""
         return [

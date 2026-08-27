@@ -5,7 +5,6 @@ Public class is a thin facade over module-level helpers:
   - io.py         — constructors, write/read, load/unload
   - execution.py  — parallel ``_apply``, worker dataclasses, HDF5 bundles
   - inference.py  — group reductions, ISC, align, permutation tests
-  - pipeline.py   — ``BrainCollectionPipeline`` (CV pipeline; legacy API)
 
 See ``docs/development/execution-model.md`` for the design contract.
 """
@@ -26,7 +25,6 @@ import polars as pl
 
 from . import core, inference, io
 from .execution import BUNDLE_SCHEMA_VERSION, BrainCollectionWorkerError
-from .pipeline import BrainCollectionPipeline
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -38,7 +36,6 @@ if TYPE_CHECKING:
 __all__ = [
     "BUNDLE_SCHEMA_VERSION",
     "BrainCollection",
-    "BrainCollectionPipeline",
     "BrainCollectionWorkerError",
 ]
 
@@ -834,52 +831,32 @@ class BrainCollection:
         y: str | list | np.ndarray | None = None,
         *,
         X_new: np.ndarray | None = None,
-        spatial_scale: str = "whole_brain",
-        model: str = "svm",
-        cv: int | str = "loso",
-        groups: str | np.ndarray | None = None,
-        roi_mask: nib.Nifti1Image | Path | str | None = None,
-        radius_mm: float = 10.0,
-        scoring: str = "auto",
-        standardize: bool = True,
         n_jobs: int = -1,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
-    ):  # Predict | BrainCollection
-        """Predict via one of two paths, dispatched by argument.
+    ) -> BrainCollection:
+        """Per-subject predict-after-fit over fitted ridge bundles.
 
-          ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
-          ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
-          both / neither → raise
+        Pass ``X_new`` (a new design matrix) to map each subject's fitted
+        model over it, returning a ``BrainCollection`` of predicted maps.
 
-        ``predict(y=...)`` requires single-map-per-subject items (run
-        ``compute_contrasts(...)`` first if you have GLM/ridge bundles).
+        ``predict(y=...)`` is reserved: per-subject decoding (one model per
+        subject, consistent with every other per-subject method) lands in a
+        future release (#478). For **group MVPA** — subjects as samples, one
+        model across the collection — use `predict_group`.
         """
-        if y is None and X_new is None:
-            raise ValueError(
-                "predict requires either y= (group MVPA) or X_new= "
-                "(per-subject predict-after-fit). Got neither."
-            )
-        if y is not None and X_new is not None:
-            raise ValueError(
-                "predict accepts y= or X_new=, not both. They're different "
-                "operations: y= runs group MVPA across subjects, X_new= runs "
-                "per-subject predict-after-fit."
-            )
-
         if y is not None:
-            return self._predict_group(
-                y,
-                spatial_scale=spatial_scale,
-                model=model,
-                cv=cv,
-                groups=groups,
-                roi_mask=roi_mask,
-                radius_mm=radius_mm,
-                scoring=scoring,
-                standardize=standardize,
-                n_jobs=n_jobs,
-                progress_bar=progress_bar,
+            raise ValueError(
+                "predict(y=...) no longer runs group MVPA — that operation "
+                "collapses across subjects, unlike every other per-subject "
+                "method on this class. Use predict_group(y, ...) for group "
+                "MVPA (subjects as samples). Per-subject decoding via "
+                "predict(y=...) arrives in a future release (#478)."
+            )
+        if X_new is None:
+            raise ValueError(
+                "predict requires X_new= (per-subject predict-after-fit). "
+                "For group MVPA use predict_group(y, ...)."
             )
 
         return self._predict_per_subject(
@@ -889,22 +866,61 @@ class BrainCollection:
             cache=cache,
         )
 
-    def _predict_group(
+    def predict_group(
         self,
-        y,
+        y: str | list | np.ndarray,
         *,
-        spatial_scale: str,
-        model: str,
-        cv,
-        groups,
-        roi_mask,
-        radius_mm: float,
-        scoring: str,
-        standardize: bool,
-        n_jobs: int,
-        progress_bar: bool,
-    ):
-        """Group MVPA: subjects as samples → ``Predict`` dataclass with CV attrs."""
+        spatial_scale: str = "whole_brain",
+        model: str = "svm",
+        cv: int | str = "loso",
+        groups: str | np.ndarray | None = None,
+        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        radius_mm: float = 10.0,
+        scoring: str = "auto",
+        standardize: bool = True,
+        n_permute: int = 0,
+        n_jobs: int = -1,
+        random_state: int | None = None,
+        progress_bar: bool = False,
+    ):  # -> Predict
+        """Group MVPA: subjects as samples → one model → ``Predict``.
+
+        Stacks the collection into a ``(n_subjects, n_voxels)`` matrix and
+        trains a **single** model with subjects as samples (unlike the
+        per-subject methods, this deliberately collapses across subjects).
+        Requires single-map-per-subject items — run
+        ``compute_contrasts(...)`` first for GLM/ridge bundles.
+
+        Args:
+            y: Labels/targets, one per subject — an array/list, or the name
+                of a metadata column.
+            spatial_scale: ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``.
+            model: Model name (see ``BrainData.predict``).
+            cv: ``'loso'`` (leave-one-subject-out, default), ``'loro'``
+                (leave-one-run-out via ``run`` metadata), an int fold count,
+                or an sklearn splitter. An int spec **honors** ``groups``:
+                it resolves to `StratifiedGroupKFold` (classifiers) /
+                `GroupKFold` (regressors) so a group never straddles a
+                train/test boundary.
+            groups: Group labels, or a metadata column name. Defaults to one
+                group per subject for ``'loso'``, the ``run`` column for
+                ``'loro'``.
+            roi_mask: Restrict to an ROI.
+            radius_mm: Searchlight radius.
+            scoring: ``'auto'`` → accuracy (classifier) / r2 (regressor).
+            standardize: Standardize features within each CV fold.
+            n_permute: If ``> 0``, also build a label-permutation null of
+                the CV score — shuffle ``y``, re-run the identical CV,
+                record the mean score — attached as ``permutation_scores``
+                and ``permutation_pvalue``. Default 0 (no null).
+            n_jobs: CPU workers.
+            random_state: Seed for the permutation-null label shuffling.
+            progress_bar: Whether to display a progress bar.
+
+        Returns:
+            `Predict` with CV attributes; plus the permutation-null fields
+            when ``n_permute > 0``.
+        """
         from ..braindata import BrainData
 
         # Items must be single-map-per-subject (1, n_voxels) shape.
@@ -942,41 +958,60 @@ class BrainCollection:
             else (np.asarray(groups) if groups is not None else None)
         )
 
-        # Build a CV splitter from the spec
-        from sklearn.model_selection import KFold, LeaveOneGroupOut
+        # Default the group labels for the leave-one-group-out schemes
+        if cv == "loso" and groups_arr is None:
+            # Default: each subject is its own group
+            groups_arr = np.arange(len(self))
+        elif cv == "loro" and groups_arr is None:
+            if "run" not in self._metadata.columns:
+                raise ValueError("cv='loro' requires 'run' metadata or explicit groups")
+            groups_arr = np.asarray(self._metadata["run"].to_list())
 
-        cv_arg = cv
-        if cv == "loso":
-            if groups_arr is None:
-                # Default: each subject is its own group
-                groups_arr = np.arange(len(self))
-            cv_arg = LeaveOneGroupOut()
-        elif cv == "loro":
-            if groups_arr is None:
-                if "run" not in self._metadata.columns:
-                    raise ValueError(
-                        "cv='loro' requires 'run' metadata or explicit groups"
-                    )
-                groups_arr = np.asarray(self._metadata["run"].to_list())
-            cv_arg = LeaveOneGroupOut()
-        elif isinstance(cv, int):
-            cv_arg = KFold(cv)
+        # Resolve the spec into an sklearn splitter that honors groups
+        from sklearn.base import is_classifier
 
-        # Forward to BD.predict; result is a BrainData with CV attrs attached.
-        # BD.predict signature: (*, y, X, spatial_scale, model, cv, ...)
-        return bd.predict(
-            y=y_arr,
-            spatial_scale=spatial_scale,
-            model=model,
-            cv=cv_arg,
-            groups=groups_arr,
-            roi_mask=roi_mask,
-            radius_mm=radius_mm,
-            scoring=scoring,
-            standardize=standardize,
-            n_jobs=n_jobs,
-            progress_bar=progress_bar,
+        from ...cross_validation import resolve_group_cv
+        from ..braindata.prediction import resolve_model
+
+        cv_arg = resolve_group_cv(
+            cv, groups=groups_arr, classifier=is_classifier(resolve_model(model))
         )
+
+        def _run_cv(labels: np.ndarray):
+            # Forward to BD.predict; returns a Predict dataclass.
+            return bd.predict(
+                y=labels,
+                spatial_scale=spatial_scale,
+                model=model,
+                cv=cv_arg,
+                groups=groups_arr,
+                roi_mask=roi_mask,
+                radius_mm=radius_mm,
+                scoring=scoring,
+                standardize=standardize,
+                n_jobs=n_jobs,
+                progress_bar=progress_bar,
+            )
+
+        result = _run_cv(y_arr)
+        if n_permute > 0:
+            # Label-permutation null: shuffle y, re-run the identical CV,
+            # collect the mean score. An outer loop over the whole CV — not a
+            # train/test split — so the null reflects only label exchange.
+            rng = np.random.default_rng(random_state)
+            observed = result.mean_score
+            null = np.empty(n_permute, dtype=np.float64)
+            for i in range(n_permute):
+                null[i] = _run_cv(rng.permutation(y_arr)).mean_score
+            from dataclasses import replace as dataclass_replace
+
+            result = dataclass_replace(
+                result,
+                permutation_scores=null,
+                permutation_pvalue=(1.0 + int(np.sum(null >= observed)))
+                / (n_permute + 1),
+            )
+        return result
 
     def _predict_per_subject(
         self,
@@ -1328,36 +1363,6 @@ class BrainCollection:
             progress_bar=progress_bar,
             cache=cache,
         )
-
-    # ------------------------------------------------------------------
-    # CV pipeline (legacy API, preserved for now)
-    # ------------------------------------------------------------------
-
-    def cv(
-        self,
-        *,
-        k: int | None = None,
-        method: str = "kfold",
-        split_by: str | None = None,
-        groups: np.ndarray | None = None,
-        n: int = 1000,
-        random_state: int | None = None,
-    ) -> BrainCollectionPipeline:
-        """Build a CV pipeline for cross-subject prediction.
-
-        See ``pipeline.py`` for the builder API. The pipeline's ``predict``
-        terminal returns a ``BrainData`` with CV attrs attached.
-        """
-        from .pipesteps.cv import CVScheme
-
-        cv_scheme = CVScheme(
-            scheme=method,
-            k=k,
-            split_by=split_by,
-            n=n,
-            random_state=random_state,
-        )
-        return BrainCollectionPipeline(self, cv=cv_scheme, groups=groups)
 
     # ------------------------------------------------------------------
     # Composition primitives

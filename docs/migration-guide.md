@@ -551,6 +551,27 @@ Every GPU/batched code path now runs through one core layer in `nltools.algorith
   - `correlation_permutation_test(metric='kendall', device='gpu')` no longer warns and falls back to CPU — Kendall now has a real GPU kernel (tie-corrected tau-b via pre-computed pairwise sign tensors, parity-tested against `scipy.stats.kendalltau`).
 - **`BrainCollection.permutation_test` / `.permutation_test2` delegate to the inference engine** (as `isc_test` already did), so their `device=` and `n_jobs=` kwargs — previously accepted but ignored — now select the real execution backend, and both gained `progress_bar=`. One consequence: the null distribution for a given `random_state` changes (the engine's deterministic seed stream replaces the old hand-rolled `np.random.default_rng` loop). Same test, same distribution family, different draws — re-run any analysis that recorded seeded collection permutation p-values.
 
+(predict-group)=
+### Group MVPA is `predict_group()`; the legacy `cv()` pipeline is removed
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
+
+`BrainCollection.predict(y=...)` used to *aggregate* — stack every subject into one `(n_subjects, n_voxels)` matrix and train a single model with subjects as samples — while every other per-subject method on the class *maps*. That operation now lives under an explicit name, and `predict()` is reserved for the per-subject path ([#478](https://github.com/cosanlab/nltools/issues/478)):
+
+```python
+# OLD (v0.5.x / pre-0.6.0 dev)
+result = bc.predict(y=labels, cv="loso")
+result = bc.cv(method="loso").predict(y=labels, n_permute=100)
+
+# NEW (v0.6.0)
+result = bc.predict_group(labels, cv="loso")                       # group MVPA → Predict
+result = bc.predict_group(labels, n_permute=100, random_state=0)   # + label-permutation null
+```
+
+- **`predict_group(y, ...)`** is the old `predict(y=...)` under its true name, returning the same `Predict` dataclass. Calling `predict(y=...)` raises with this guidance; in a future release `predict(y=...)` will return per-subject decoding (one model per subject), completing the map-over-subjects contract.
+- **Bug fix — int `cv` no longer discards `groups=`.** `predict(cv=5, groups=subject_ids)` previously resolved to plain `KFold`, which ignores its `groups` argument entirely — folds were byte-identical to passing no groups, with the same subject in train and test. `predict_group(cv=5, groups=...)` resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) via the new `nltools.cross_validation.resolve_group_cv`, so a group never straddles a train/test boundary.
+- **The legacy `cv()` pipeline is gone** (`BrainCollectionPipeline`, the `pipesteps` machinery, and the never-read `CVScheme.split_by` knob with it). Its one capability `predict_group` didn't already cover — the label-permutation null — moved onto `predict_group(n_permute=, random_state=)`, which attaches `permutation_scores` and `permutation_pvalue` to the returned `Predict`.
+
 
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars

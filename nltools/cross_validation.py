@@ -72,3 +72,42 @@ class KFoldStratified(_BaseKFold):
         """
         y = check_array(y, ensure_2d=False, dtype=None)
         return super().split(X, y, groups)
+
+
+def resolve_group_cv(cv, *, groups=None, classifier: bool = False):
+    """Resolve a collection-level cv spec into an sklearn splitter.
+
+    The group-aware piece of `BrainCollection.predict_group`: an int spec
+    must honor ``groups`` when one is supplied — plain ``KFold`` silently
+    ignores its ``groups`` argument, which previously produced folds
+    byte-identical to passing no groups at all.
+
+    Args:
+        cv: ``'loso'`` / ``'loro'`` (leave-one-group-out), an int fold
+            count, or an sklearn splitter (returned unchanged).
+        groups: Group labels, or None. Only consulted for int specs.
+        classifier: Whether the downstream model is a classifier — with
+            groups, an int spec becomes `StratifiedGroupKFold` (classifier)
+            or `GroupKFold` (regressor).
+
+    Returns:
+        An sklearn splitter instance.
+    """
+    from sklearn.model_selection import (
+        GroupKFold,
+        KFold,
+        LeaveOneGroupOut,
+        StratifiedGroupKFold,
+    )
+
+    if cv in ("loso", "loro"):
+        return LeaveOneGroupOut()
+    if isinstance(cv, int):
+        if groups is not None:
+            return (
+                StratifiedGroupKFold(n_splits=cv)
+                if classifier
+                else GroupKFold(n_splits=cv)
+            )
+        return KFold(n_splits=cv)
+    return cv

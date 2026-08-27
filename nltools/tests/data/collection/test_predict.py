@@ -1,6 +1,7 @@
-"""fit / compute_contrasts / predict / cv() — the modeling surface.
+"""fit / compute_contrasts / predict / predict_group — the modeling surface.
 
-predict and cv() are two distinct prediction paths, each with its own contract.
+predict (per-subject predict-after-fit) and predict_group (group MVPA, subjects
+as samples) are two distinct prediction paths, each with its own contract.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ import numpy as np
 import pytest
 
 from nltools.data import BrainCollection, BrainData
-from nltools.data.collection import BrainCollectionPipeline
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ class TestFitSignature:
         import pytest
         from nibabel import Nifti1Image
 
-        from nltools.data import BrainData, BrainCollection
+        from nltools.data import BrainCollection
 
         rng = np.random.default_rng(0)
         img = Nifti1Image(
@@ -74,19 +74,22 @@ class TestComputeContrastsSignature:
 
 class TestPredictSignature:
     def test_dispatch_args_default_none(self):
-        """bc.predict — dispatch by argument: both default None."""
+        """bc.predict — per-subject path; y kept only to route to predict_group."""
         sig = inspect.signature(BrainCollection.predict)
         assert sig.parameters["y"].default is None
         assert sig.parameters["X_new"].default is None
 
-    def test_default_spatial_scale_is_whole_brain(self):
-        sig = inspect.signature(BrainCollection.predict)
+    def test_group_mvpa_kwargs_live_on_predict_group(self):
+        sig = inspect.signature(BrainCollection.predict_group)
         assert sig.parameters["spatial_scale"].default == "whole_brain"
-
-    def test_default_model_is_svm_default_cv_loso(self):
-        sig = inspect.signature(BrainCollection.predict)
         assert sig.parameters["model"].default == "svm"
         assert sig.parameters["cv"].default == "loso"
+        assert sig.parameters["n_permute"].default == 0
+
+    def test_predict_no_longer_carries_group_kwargs(self):
+        sig = inspect.signature(BrainCollection.predict)
+        for gone in ("spatial_scale", "model", "cv", "groups"):
+            assert gone not in sig.parameters
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +170,7 @@ class TestComputeContrastsBehavior:
         import numpy as np
         import pandas as pd
 
-        from nltools.data import BrainData, BrainCollection, DesignMatrix
+        from nltools.data import BrainCollection, DesignMatrix
 
         affine = np.eye(4) * 2
         affine[3, 3] = 1
@@ -251,28 +254,27 @@ class TestComputeContrastsBehavior:
 
 
 class TestPredictDispatch:
-    """Dispatch is by argument, not by item state."""
+    """predict() is the per-subject path; group MVPA lives on predict_group()."""
 
-    def test_both_args_raises(self, bc_inmem):
-        with pytest.raises(ValueError):
+    def test_y_raises_even_with_x_new(self, bc_inmem):
+        with pytest.raises(ValueError, match="predict_group"):
             bc_inmem.predict(y=[0, 1, 0], X_new=np.zeros((5, 3)))
 
     def test_neither_arg_raises(self, bc_inmem):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="X_new"):
             bc_inmem.predict()
 
-    def test_predict_y_requires_single_map_per_subject(self, bc_inmem):
+    def test_predict_group_requires_single_map_per_subject(self, bc_inmem):
         """Multi-row items raise. (bc_inmem items are (8, 27).)"""
         with pytest.raises(ValueError, match="single-map-per-subject"):
-            bc_inmem.predict(y=np.array([0, 1, 0]))
+            bc_inmem.predict_group(np.array([0, 1, 0]))
 
-    def test_y_only_returns_predict_with_cv_attrs(
+    def test_predict_group_returns_predict_with_cv_attrs(
         self,
         tiny_mask,
         tiny_brain_factory,
     ):
         # Use single-map-per-subject items (1, 27).
-        from nltools.data import BrainData
         from nltools.data.fitresults import Predict
 
         np.random.seed(0)
@@ -281,8 +283,8 @@ class TestPredictDispatch:
             for _ in range(6)
         ]
         bc = BrainCollection(single_maps, mask=tiny_mask, lazy=False, cache_dir=None)
-        out = bc.predict(y=np.array([0, 1, 0, 1, 0, 1]))
-        # y-mode whole-brain returns a Predict dataclass, not a BrainData.
+        out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
+        # Whole-brain group MVPA returns a Predict dataclass, not a BrainData.
         assert isinstance(out, Predict)
         assert out.predictions.shape == (6,)
         assert out.scores.shape == (6,)
@@ -319,75 +321,113 @@ class TestPredictDispatch:
             bc_inmem.predict(X_new=np.zeros((5, 2)))
 
 
-class TestCVPipeline:
-    def test_cv_returns_pipeline(self, bc_inmem):
-        pipe = bc_inmem.cv(method="loso")
-        assert isinstance(pipe, BrainCollectionPipeline)
+class TestPredictGroupCarveOut:
+    """#478 phase 1: group MVPA moved to an explicit name; predict(y=) directs there."""
 
-    def test_pipeline_n_subjects_and_repr(self, bc_inmem):
-        """F067: n_subjects referenced a nonexistent BrainCollection.n_images."""
-        pipe = bc_inmem.cv(method="loso")
-        assert pipe.n_subjects == bc_inmem.n_subjects
-        assert repr(pipe)  # __repr__ interpolates n_subjects; must not raise
+    def _single_map_bc(self, tiny_mask, n=6, seed=0):
+        rng = np.random.default_rng(seed)
+        maps = [
+            BrainData(rng.standard_normal((1, 27)).astype(np.float32), mask=tiny_mask)
+            for _ in range(n)
+        ]
+        return BrainCollection(maps, mask=tiny_mask, lazy=False, cache_dir=None)
 
-    def test_pipeline_standardize_step_added(self, bc_inmem):
-        """BrainCollectionPipeline.standardize() (renamed from normalize)."""
-        assert bc_inmem.cv(method="loso").standardize().n_steps == 1
-        # And confirm the old name is gone from the public surface.
-        assert not hasattr(bc_inmem.cv(method="loso"), "normalize")
+    def test_predict_group_returns_predict(self, tiny_mask):
+        from nltools.data.fitresults import Predict
 
-    def test_cv_predict_returns_braindata(self, bc_inmem):
-        """bc.cv(...).predict(...) returns the same BrainData type."""
-        out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
-        assert isinstance(out, BrainData)
-        assert hasattr(out, "cv_scores")
-        assert hasattr(out, "mean_score")
-        n_folds = bc_inmem.n_subjects
-        assert out.cv_scores.shape == (n_folds,)
-        # cv_predictions is (n_total_obs, n_voxels); n_voxels == 27 from tiny_mask.
-        assert out.cv_predictions.ndim == 2
-        assert out.cv_predictions.shape[1] == 27
+        bc = self._single_map_bc(tiny_mask)
+        out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
+        assert isinstance(out, Predict)
+        assert out.predictions.shape == (6,)
         assert isinstance(out.mean_score, float)
 
-    def test_pipeline_predict_braindata_carries_full_lineage(self, bc_inmem):
-        """fold_results must preserve test_idx/train_idx/predictions for inspection."""
-        out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
-        assert isinstance(out.fold_results, list)
-        assert len(out.fold_results) > 0
-        keys = out.fold_results[0]
-        for required in ("test_idx", "train_idx", "predictions"):
-            assert required in keys
+    def test_predict_y_raises_with_guidance(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        with pytest.raises(ValueError, match="predict_group"):
+            bc.predict(y=np.array([0, 1, 0, 1, 0, 1]))
 
-    def test_predict_no_permutation_null_by_default(self, bc_inmem):
-        """Without n_permute, no null is computed (default n_permute=0)."""
-        out = bc_inmem.cv(method="loso").predict(y=np.array([0, 1, 0]))
-        assert not hasattr(out, "permutation_scores")
-        assert not hasattr(out, "permutation_pvalue")
+    def test_int_cv_honors_groups(self, tiny_mask):
+        """cv=2 with groups= must keep each group intact within a fold.
 
-    def test_predict_permutation_null_attached(self, bc_inmem):
-        """Thread #87 (F112): predict(n_permute=) builds a label-permutation null.
-
-        The dedicated outer loop shuffles y, re-runs the *normal* CV, and
-        collects the mean score into a null distribution — the classic MVPA
-        permutation test that the removed 'permutation' CV scheme mishandled.
+        Previously an int cv resolved to plain KFold, which silently ignored
+        groups= — the same subject could sit in train and test of every fold.
         """
-        out = bc_inmem.cv(method="loso").predict(
-            y=np.array([0, 1, 0]), n_permute=20, random_state=0
-        )
-        # Observed CV result is still present and unchanged in shape.
-        assert isinstance(out, BrainData)
-        assert hasattr(out, "mean_score")
-        # Null distribution + p-value attached.
-        assert out.permutation_scores.shape == (20,)
-        assert 0.0 <= out.permutation_pvalue <= 1.0
+        bc = self._single_map_bc(tiny_mask, n=8, seed=1)
+        y = np.array([0, 1, 0, 1, 0, 1, 0, 1])
+        groups = np.array([0, 0, 1, 1, 2, 2, 3, 3])
+        out = bc.predict_group(y, cv=2, groups=groups)
+        # cv_folds records each sample's fold; both members of a group must share one.
+        folds = np.asarray(out.cv_folds)
+        for g in np.unique(groups):
+            assert len(set(folds[groups == g])) == 1, (
+                f"group {g} split across folds {folds[groups == g]}"
+            )
 
-    def test_predict_permutation_null_reproducible(self, bc_inmem):
-        """Same random_state → identical null and p-value."""
-        a = bc_inmem.cv(method="loso").predict(
-            y=np.array([0, 1, 0]), n_permute=15, random_state=7
-        )
-        b = bc_inmem.cv(method="loso").predict(
-            y=np.array([0, 1, 0]), n_permute=15, random_state=7
-        )
+    def test_permutation_null_ported(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(y, n_permute=10, random_state=0)
+        assert out.permutation_scores.shape == (10,)
+        assert 0.0 < out.permutation_pvalue <= 1.0
+
+    def test_permutation_null_reproducible(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        a = bc.predict_group(y, n_permute=8, random_state=7)
+        b = bc.predict_group(y, n_permute=8, random_state=7)
         np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
         assert a.permutation_pvalue == b.permutation_pvalue
+
+    def test_no_null_by_default(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
+        assert out.permutation_scores is None
+        assert out.permutation_pvalue is None
+
+    def test_legacy_cv_pipeline_removed(self, bc_inmem):
+        assert not hasattr(bc_inmem, "cv")
+        with pytest.raises(ImportError):
+            from nltools.data.collection import BrainCollectionPipeline  # noqa: F401
+
+
+class TestResolveGroupCv:
+    """The int/str cv spec -> sklearn splitter resolution is a pure function."""
+
+    def test_int_without_groups_is_kfold(self):
+        from sklearn.model_selection import KFold
+
+        from nltools.cross_validation import resolve_group_cv
+
+        assert isinstance(resolve_group_cv(3), KFold)
+
+    def test_int_with_groups_regression_is_groupkfold(self):
+        from sklearn.model_selection import GroupKFold
+
+        from nltools.cross_validation import resolve_group_cv
+
+        cv = resolve_group_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=False)
+        assert isinstance(cv, GroupKFold)
+
+    def test_int_with_groups_classification_is_stratifiedgroupkfold(self):
+        from sklearn.model_selection import StratifiedGroupKFold
+
+        from nltools.cross_validation import resolve_group_cv
+
+        cv = resolve_group_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=True)
+        assert isinstance(cv, StratifiedGroupKFold)
+
+    def test_loso_loro_are_leave_one_group_out(self):
+        from sklearn.model_selection import LeaveOneGroupOut
+
+        from nltools.cross_validation import resolve_group_cv
+
+        assert isinstance(resolve_group_cv("loso"), LeaveOneGroupOut)
+        assert isinstance(resolve_group_cv("loro"), LeaveOneGroupOut)
+
+    def test_splitter_passes_through(self):
+        from sklearn.model_selection import KFold
+
+        from nltools.cross_validation import resolve_group_cv
+
+        splitter = KFold(4)
+        assert resolve_group_cv(splitter) is splitter

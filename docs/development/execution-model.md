@@ -20,7 +20,6 @@ The machinery lives under `nltools/data/collection/`:
 | `io.py` | constructors (BIDS/glob/paths), `write`, `read`, `load`/`unload`, cache plumbing, `memory_estimate` |
 | `execution.py` | parallel `_apply`, materialization, cache/step bookkeeping, HDF5 bundle IO |
 | `inference.py` | group reductions (`ttest`, `anova`, `permutation_test`), `isc`, `align` |
-| `pipeline.py` | `BrainCollectionPipeline`, used by `cv()` (backed by `pipesteps/`) |
 
 ## Path-backed by default
 
