@@ -165,3 +165,41 @@ class _CountingCollect:
     def __call__(self, *args, **kwargs):
         self.count += 1
         return 0
+
+
+class TestResolveThreshold:
+    """Shared percentile-threshold resolution (#479)."""
+
+    def test_numeric_and_none_pass_through(self):
+        import numpy as np
+
+        from nltools.utils import resolve_threshold
+
+        data = np.arange(10.0)
+        assert resolve_threshold(2.5, data) == 2.5
+        assert resolve_threshold(None, data) is None
+
+    def test_percentile_over_finite_nonzero(self):
+        import numpy as np
+
+        from nltools.utils import resolve_threshold
+
+        # Zeros are absence-of-data (masked map) and must not skew the percentile.
+        data = np.array([0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 4.0, np.nan])
+        expected = float(np.percentile([1.0, 2.0, 3.0, 4.0], 50))
+        assert resolve_threshold("50%", data) == expected
+
+    def test_all_zero_data_falls_back(self):
+        import numpy as np
+
+        from nltools.utils import resolve_threshold
+
+        assert resolve_threshold("98%", np.zeros(10)) == 0.0
+
+    def test_bad_string_raises(self):
+        import numpy as np
+
+        with __import__("pytest").raises(ValueError, match="threshold"):
+            from nltools.utils import resolve_threshold
+
+            resolve_threshold("high", np.arange(4.0))

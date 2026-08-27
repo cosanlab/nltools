@@ -371,6 +371,106 @@ def bd_to_nifti_bytes(bd) -> bytes:
 
 
 # --------------------------------------------------------------------------- #
+# Display window (autoscaling)
+# --------------------------------------------------------------------------- #
+
+# Autoscale ceiling percentile over |finite nonzero| — outliers must not set
+# the scale (what nilearn and FSLeyes both do).
+_AUTOSCALE_CEILING_PCT = 98.0
+# Epsilon floor as a fraction of the ceiling: visually zero (everything above
+# true zero stays visible) while zeros still render transparent.
+_AUTOSCALE_FLOOR_FRAC = 1e-6
+
+
+def compute_display_window(
+    data,
+    *,
+    autoscale: bool | tuple[float, float] = True,
+    threshold=None,
+    lower=None,
+    upper=None,
+) -> tuple[float, float]:
+    """Resolve the viewer's ``(cal_min, cal_max)`` display window in Python.
+
+    The window is always computed here and passed to niivue explicitly, so
+    the slider handles can never show one window while niivue renders
+    another. Precedence: ``lower``/``upper`` win; otherwise ``threshold``
+    sets the floor; any **unset** edge comes from ``autoscale``:
+
+    - ``True`` (default): ceiling = 98th percentile of the finite nonzero
+      magnitudes (robust to outliers), floor = an epsilon just above zero
+      (zeros render transparent, everything else shows — threshold up from
+      there).
+    - ``(lo_pct, hi_pct)``: floor/ceiling at those percentiles of the
+      finite nonzero magnitudes.
+    - ``False``: the raw finite data extremes (the pre-v0.6.0 behavior,
+      made explicit).
+
+    ``threshold`` / ``lower`` / ``upper`` accept percentile strings
+    (``"98%"``), resolved over the finite nonzero **magnitudes** via
+    `nltools.utils.resolve_threshold` — the viewer's window is a divergent
+    magnitude window, so its percentiles are magnitude percentiles.
+
+    Args:
+        data: The BrainData's data array.
+        autoscale: See above.
+        threshold: Symmetric magnitude floor (ignored when lower/upper given).
+        lower: Explicit window floor.
+        upper: Explicit window ceiling.
+
+    Returns:
+        ``(cal_min, cal_max)`` floats.
+    """
+    import numpy as np
+
+    from nltools.utils import resolve_threshold
+
+    arr = np.asarray(data, dtype=float)
+    finite = arr[np.isfinite(arr)]
+    magnitudes = np.abs(finite[finite != 0])
+
+    def _mag_pct(pct: float) -> float:
+        if magnitudes.size == 0:
+            return 0.0
+        return float(np.percentile(magnitudes, pct))
+
+    # Resolve percentile strings against the magnitude distribution.
+    threshold = resolve_threshold(threshold, np.abs(arr))
+    lower = resolve_threshold(lower, np.abs(arr))
+    upper = resolve_threshold(upper, np.abs(arr))
+
+    # Precedence: lower/upper win; else threshold sets the floor.
+    if lower is not None or upper is not None:
+        floor, ceiling = lower, upper
+    elif threshold is not None:
+        floor, ceiling = threshold, None
+    else:
+        floor, ceiling = None, None
+
+    if autoscale is False:
+        if finite.size == 0:
+            lo_ext, hi_ext = 0.0, 1.0
+        else:
+            lo_ext, hi_ext = float(finite.min()), float(finite.max())
+        floor = lo_ext if floor is None else float(floor)
+        ceiling = hi_ext if ceiling is None else float(ceiling)
+        return floor, ceiling
+
+    if autoscale is True:
+        lo_pct, hi_pct = None, _AUTOSCALE_CEILING_PCT
+    else:
+        lo_pct, hi_pct = autoscale
+
+    if ceiling is None:
+        ceiling = _mag_pct(hi_pct)
+        if ceiling == 0.0:
+            ceiling = 1.0  # empty / all-zero map: keep a sane window
+    if floor is None:
+        floor = ceiling * _AUTOSCALE_FLOOR_FRAC if lo_pct is None else _mag_pct(lo_pct)
+    return float(floor), float(ceiling)
+
+
+# --------------------------------------------------------------------------- #
 # Threshold slider bounds
 # --------------------------------------------------------------------------- #
 

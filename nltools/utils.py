@@ -305,3 +305,44 @@ def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
     from tqdm.auto import tqdm
 
     return tqdm(**tqdm_kwargs)
+
+
+def resolve_threshold(value, data):
+    """Resolve a threshold spec — a number or a percentile string — to a float.
+
+    The single source of truth for what `"98%"` means across the library
+    (`BrainData.threshold` and `BrainData.iplot` both route through it).
+    Numbers and None pass through unchanged. A percentile string is resolved
+    against the **finite nonzero** values of `data`: on a masked stat map
+    most voxels are exactly zero (absence of data), and including them drags
+    every percentile toward zero.
+
+    Args:
+        value: A number (returned as-is), None (returned as-is), or a string
+            like `"98%"`.
+        data: Array-like the percentile is computed over. Callers choose the
+            frame of reference — e.g. `iplot` passes magnitudes
+            (`np.abs(data)`) because its window is a magnitude window, while
+            `threshold` passes signed values.
+
+    Returns:
+        float | None: The resolved threshold.
+
+    Raises:
+        ValueError: If `value` is a string without a trailing `%`.
+    """
+    import numpy as np
+
+    if value is None or not isinstance(value, str):
+        return value
+    if not value.endswith("%"):
+        raise ValueError(
+            f"string threshold must be a percentile like '98%', got {value!r}"
+        )
+    pct = float(value[:-1])
+    vals = np.asarray(data, dtype=float).ravel()
+    vals = vals[np.isfinite(vals)]
+    vals = vals[vals != 0]
+    if vals.size == 0:
+        return 0.0
+    return float(np.percentile(vals, pct))

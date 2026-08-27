@@ -893,12 +893,13 @@ def threshold_data(
     if provided, otherwise respecting every non-zero value.
 
     Args:
-        upper: (float or str) Upper cutoff for thresholding. If string
-                will interpret as percentile; can be None for one-sided
-                thresholding.
-        lower: (float or str) Lower cutoff for thresholding. If string
-                will interpret as percentile; can be None for one-sided
-                thresholding.
+        upper: (float or str) Upper cutoff for thresholding. A string like
+                `'98%'` resolves as a percentile over the finite **nonzero**
+                voxels (via `nltools.utils.resolve_threshold` — zeros on a
+                masked map are absence of data and would skew the
+                percentile); can be None for one-sided thresholding.
+        lower: (float or str) Lower cutoff for thresholding. Same percentile
+                semantics as `upper`; can be None for one-sided thresholding.
         bd: BrainData instance.
         binarize (bool): return binarized image respecting thresholds if
                 provided, otherwise binarize on every non-zero value;
@@ -941,8 +942,9 @@ def threshold_data(
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
-        if isinstance(threshold_val, str) and threshold_val[-1] == "%":
-            threshold_val = np.percentile(b.data, float(threshold_val[:-1]))
+        from nltools.utils import resolve_threshold
+
+        threshold_val = resolve_threshold(threshold_val, b.data)
 
         # Use nilearn's cluster thresholding
         out = shallow_copy(bd)
@@ -968,11 +970,10 @@ def threshold_data(
     if coerce_nan:
         b.data = np.nan_to_num(b.data)
 
-    if isinstance(upper, str) and upper[-1] == "%":
-        upper = np.percentile(b.data, float(upper[:-1]))
+    from nltools.utils import resolve_threshold
 
-    if isinstance(lower, str) and lower[-1] == "%":
-        lower = np.percentile(b.data, float(lower[:-1]))
+    upper = resolve_threshold(upper, b.data)
+    lower = resolve_threshold(lower, b.data)
 
     if upper is not None and lower is not None:
         b.data[(b.data < upper) & (b.data > lower)] = 0

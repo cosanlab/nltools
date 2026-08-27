@@ -572,6 +572,19 @@ result = bc.predict_group(labels, n_permute=100, random_state=0)   # + label-per
 - **Bug fix — int `cv` no longer discards `groups=`.** `predict(cv=5, groups=subject_ids)` previously resolved to plain `KFold`, which ignores its `groups` argument entirely — folds were byte-identical to passing no groups, with the same subject in train and test. `predict_group(cv=5, groups=...)` resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) via the new `nltools.cross_validation.resolve_group_cv`, so a group never straddles a train/test boundary.
 - **The legacy `cv()` pipeline is gone** (`BrainCollectionPipeline`, the `pipesteps` machinery, and the never-read `CVScheme.split_by` knob with it). Its one capability `predict_group` didn't already cover — the label-permutation null — moved onto `predict_group(n_permute=, random_state=)`, which attaches `permutation_scores` and `permutation_pvalue` to the returned `Predict`.
 
+(iplot-autoscale)=
+### `iplot()` autoscales robustly; percentile thresholds are shared and zero-aware
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
+
+`iplot()` previously opened with its display window at the raw data min/max, so a couple of outlier voxels set the entire color scale — a single-subject beta map rendered as washed-out noise with a featureless 3D render ([#479](https://github.com/cosanlab/nltools/issues/479)). Three related changes:
+
+- **Robust autoscaling by default** — new kwarg `autoscale: bool | tuple = True`. The default window's ceiling is the 98th percentile of the finite **nonzero** magnitudes (outliers no longer set the scale — the same principle as nilearn and FSLeyes) with an epsilon floor (zeros render transparent, everything else visible; threshold up from there). `autoscale=(lo_pct, hi_pct)` picks both edges as magnitude percentiles; `autoscale=False` restores the raw-extremes window. Explicit `threshold`/`lower`/`upper` always override the corresponding edge.
+- **Percentile strings everywhere the vocabulary appears**: `iplot(upper="98%")` now works, resolved by the shared `nltools.utils.resolve_threshold` — the same helper `threshold()` uses. In `iplot`, percentiles resolve over the finite nonzero *magnitudes* (its window is a divergent magnitude window); in `threshold()`, over the finite nonzero *signed* values.
+- **The slider always shows the rendered window.** `cal_min`/`cal_max` are now always computed in Python and passed explicitly — previously the traits could be `None` ("niivue auto") while the slider handles sat at the raw extremes, so the handles showed one window while niivue rendered another, and the first slider touch destroyed the auto window.
+
+**Behavior change in `threshold()`**: percentile strings (`upper="98%"`) now resolve over finite **nonzero** voxels. On a masked stat map most voxels are exactly zero, which dragged every percentile toward zero — `threshold(upper="98%")` on a sparse map previously produced a near-zero cutoff that thresholded almost nothing. Results change on any map containing zeros; pass a numeric cutoff to reproduce old outputs exactly.
+
 
 (designmatrix-pandas-polars)=
 ### DesignMatrix: Pandas → Polars
@@ -1048,7 +1061,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
 | `BrainData.icc()` | Removed — voxelwise intraclass correlation is out of scope for v0.6.0. Compute ICC externally (e.g. `pingouin.intraclass_corr`) on extracted values. The `nltools.stats.compute_icc` helper is also removed. | **Low** |
-| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel or marimo-WASM. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
+| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, autoscale=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel or marimo-WASM. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
 :::{note}
 `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.

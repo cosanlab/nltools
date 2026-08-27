@@ -402,3 +402,27 @@ class TestBrainDataAnalysis:
             0,
             decimal=2,
         )
+
+
+class TestThresholdPercentileNonzero:
+    """#479: percentile thresholds resolve over finite NONZERO voxels.
+
+    On a masked stat map most voxels are exactly zero; including them
+    dragged every percentile toward zero.
+    """
+
+    def test_percentile_excludes_zeros(self):
+        import nibabel as nib
+
+        from nltools.data import BrainData
+
+        mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), np.eye(4))
+        data = np.zeros((1, 27), dtype=np.float32)
+        data[0, :4] = [1.0, 2.0, 3.0, 4.0]
+        bd = BrainData(data, mask=mask)
+
+        out = bd.threshold(upper="50%")
+        cutoff = float(np.percentile([1.0, 2.0, 3.0, 4.0], 50))  # 2.5, not ~0
+        surviving = out.data[out.data != 0]
+        np.testing.assert_array_equal(np.sort(surviving), [3.0, 4.0])
+        assert (np.abs(out.data) >= cutoff).sum() == 2

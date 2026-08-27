@@ -115,7 +115,8 @@ class TestThreshold:
     def test_threshold_sets_cal_min(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3)
         assert v.cal_min == pytest.approx(2.3)
-        assert v.cal_max is None
+        # The unset ceiling is autoscaled (robust percentile), never None.
+        assert v.cal_max is not None and v.cal_max > 0
 
     def test_lower_upper_set_window(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, lower=-1.0, upper=2.0)
@@ -124,14 +125,16 @@ class TestThreshold:
 
     def test_lower_upper_take_precedence_over_threshold(self, minimal_brain_data):
         v = minimal_brain_data[0].iplot(bg_img=False, threshold=2.3, upper=4.0)
-        # lower/upper win: threshold is ignored, floor stays auto (None)
-        assert v.cal_min is None
+        # lower/upper win: threshold is ignored; the floor is autoscaled
+        # (epsilon above zero), not the requested 2.3.
+        assert v.cal_min is not None and v.cal_min < 2.3
         assert v.cal_max == pytest.approx(4.0)
 
-    def test_default_window_is_auto(self, minimal_brain_data):
+    def test_default_window_is_explicit(self, minimal_brain_data):
+        """Python always owns the window: never None, so slider == render."""
         v = minimal_brain_data[0].iplot(bg_img=False)
-        assert v.cal_min is None
-        assert v.cal_max is None
+        assert v.cal_min is not None
+        assert v.cal_max is not None
 
 
 class TestColormap:
@@ -245,3 +248,64 @@ class TestRealAtlasAndBackground:
         v = minimal_brain_data[0].iplot()  # bg_img default None == auto
         assert _n_volumes(v) == 2  # background + statmap
         assert v.bg_bytes
+
+
+def _sparse_bd():
+    """A (1, 27) map where most voxels are zero and one is an extreme outlier."""
+    from nltools.data import BrainData
+
+    affine = np.eye(4)
+    mask = nib.Nifti1Image(np.ones((3, 3, 3), dtype=np.int8), affine)
+    data = np.zeros((1, 27), dtype=np.float32)
+    data[0, :8] = [1.0, -2.0, 3.0, -4.0, 5.0, 2.5, -1.5, 40.0]  # 40 = outlier
+    return BrainData(data, mask=mask)
+
+
+class TestAutoscale:
+    """#479: the default window comes from robust statistics, not extremes."""
+
+    def test_default_window_is_robust(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        vals = np.abs(bd.data[bd.data != 0])
+        expected_hi = float(np.percentile(vals, 98))
+        assert v.cal_max == pytest.approx(expected_hi)
+        # Epsilon floor: tiny but positive, so zeros render transparent while
+        # sub-threshold voxels stay visible.
+        assert 0 < v.cal_min < 0.01 * v.cal_max
+
+    def test_autoscale_false_uses_extremes_explicitly(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, autoscale=False)
+        assert v.cal_min == pytest.approx(float(bd.data.min()))
+        assert v.cal_max == pytest.approx(float(bd.data.max()))
+
+    def test_autoscale_tuple_sets_percentile_window(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, autoscale=(60, 98))
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_min == pytest.approx(float(np.percentile(vals, 60)))
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 98)))
+
+    def test_explicit_threshold_keeps_autoscaled_ceiling(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, threshold=2.3)
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_min == pytest.approx(2.3)
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 98)))
+
+    def test_percentile_string_thresholds(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, upper="90%")
+        vals = np.abs(bd.data[bd.data != 0])
+        assert v.cal_max == pytest.approx(float(np.percentile(vals, 90)))
+
+    def test_slider_handles_match_rendered_window(self):
+        """The handles always show the window actually being rendered."""
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        assert v.slider_bounds["value_low"] == pytest.approx(v.cal_min)
+        assert v.slider_bounds["value_high"] == pytest.approx(v.cal_max)
+        v2 = bd.iplot(bg_img=False, autoscale=False)
+        assert v2.slider_bounds["value_low"] == pytest.approx(v2.cal_min)
+        assert v2.slider_bounds["value_high"] == pytest.approx(v2.cal_max)

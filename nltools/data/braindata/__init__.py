@@ -1287,9 +1287,10 @@ class BrainData:
         self,
         *,
         view: str = "ortho",
-        threshold: float | None = None,
-        lower: float | None = None,
-        upper: float | None = None,
+        threshold: "float | str | None" = None,
+        lower: "float | str | None" = None,
+        upper: "float | str | None" = None,
+        autoscale: "bool | tuple[float, float]" = True,
         cmap: str = "warm",
         bg_img: "str | bool | None" = None,
         atlas: "str | Atlas | None" = None,
@@ -1318,8 +1319,10 @@ class BrainData:
         display floor (sub-floor voxels render transparent), ``cal_max`` the
         saturation point, with the positive limb using ``cmap`` and the
         negative limb its mirrored partner. Precedence: ``lower``/``upper``
-        win; otherwise ``threshold`` sets the floor (ceiling auto);
-        otherwise the window is fully auto.
+        win; otherwise ``threshold`` sets the floor; any unset edge comes
+        from ``autoscale``. The window is always computed in Python and
+        passed to niivue explicitly, so the slider handles show exactly the
+        window being rendered.
 
         Args:
             view: ``"ortho"`` (default), ``"axial"``, ``"coronal"``,
@@ -1327,8 +1330,20 @@ class BrainData:
                 ``"surface"`` is no longer supported — use ``"render"`` or
                 `plot_flatmap` / `plot_surf`.
             threshold: Convenience symmetric magnitude floor (→ ``cal_min``).
+                Accepts a percentile string (``"95%"``) resolved over the
+                finite nonzero magnitudes, consistent with `threshold`.
             lower: Window floor (→ ``cal_min``). Overrides ``threshold``.
+                Accepts a percentile string.
             upper: Window ceiling (→ ``cal_max``). Overrides ``threshold``.
+                Accepts a percentile string.
+            autoscale: Robust default window for the edges not set above.
+                ``True`` (default): ceiling at the 98th percentile of the
+                finite nonzero magnitudes — a couple of outlier voxels no
+                longer wash out the whole map — with an epsilon floor
+                (everything nonzero visible; threshold up from there).
+                ``(lo_pct, hi_pct)``: floor/ceiling at those magnitude
+                percentiles. ``False``: the raw data extremes (the old
+                behavior, made explicit).
             cmap: niivue colormap for the positive limb (default ``"warm"``).
                 Common matplotlib names are auto-mapped with a warning.
             bg_img: ``None``/``True`` auto-loads the matching MNI template
@@ -1353,14 +1368,15 @@ class BrainData:
             A `NiivueViewer` widget (an `anywidget.AnyWidget`). Its threshold
             window is reactive via the ``cal_min`` / ``cal_max`` traits.
         """
-        from .viewer import build_viewer
+        from .viewer import build_viewer, compute_display_window
 
-        if lower is not None or upper is not None:
-            cal_min, cal_max = lower, upper
-        elif threshold is not None:
-            cal_min, cal_max = threshold, None
-        else:
-            cal_min, cal_max = None, None
+        cal_min, cal_max = compute_display_window(
+            self.data,
+            autoscale=autoscale,
+            threshold=threshold,
+            lower=lower,
+            upper=upper,
+        )
 
         return build_viewer(
             self,
