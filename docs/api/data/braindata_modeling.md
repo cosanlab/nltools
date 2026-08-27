@@ -6,6 +6,12 @@ BrainData modeling functions.
 Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
 
+**Classes:**
+
+Name | Description
+---- | -----------
+[`RankDeficientDesignWarning`](#data-braindata-modeling-rankdeficientdesignwarning) | The design matrix supplied to ``fit()`` is rank deficient.
+
 **Methods:**
 
 Name | Description
@@ -20,6 +26,21 @@ Name | Description
 [`to_fit_dataclass`](#data-braindata-modeling-to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
 [`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
+
+
+
+### Classes
+
+(data-braindata-modeling-rankdeficientdesignwarning)=
+#### `RankDeficientDesignWarning`
+
+Bases: <code>[UserWarning](#UserWarning)</code>
+
+The design matrix supplied to ``fit()`` is rank deficient.
+
+Subclasses ``UserWarning`` so it participates in default filtering, while
+remaining individually silenceable:
+``warnings.filterwarnings("ignore", category=RankDeficientDesignWarning)``.
 
 
 
@@ -49,7 +70,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `contrasts` |  | Can be:<br>- str: a contrast expressed in terms of column names, e.g.   ``"conditionA - conditionB"`` or ``"2*conditionA - conditionB - conditionC"`` - array-like: a numeric contrast vector, one weight per regressor   (e.g. ``[1, -1, 0, 0]``) - dict: ``{name: contrast}`` for multiple contrasts at once | *required*
-`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of:<br>- ``"t"`` (default): t-statistic map (for thresholding /   single-subject inference) - ``"z"``: z-score map - ``"p"``: p-value map - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this   when feeding into a second-level (group) analysis - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``   of BrainData maps for this one contrast. One fit, one call,   every view — effect size *and* inferential maps together so   group-level code never has to recompute beta separately. | <code>'t'</code>
+`statistic` | <code>[str](#str)</code> | Which statistic to return per contrast. One of:<br>- ``"t"`` (default): t-statistic map (for thresholding /   single-subject inference) - ``"z"``: z-score map - ``"p"``: p-value map. Note: contrast p-values are **one-sided**   (the nilearn/SPM directional-contrast convention — a contrast   tests "A > B"; flip the contrast for the other direction). This   is the documented exception to the library's two-tailed default. - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this   when feeding into a second-level (group) analysis - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``   of BrainData maps for this one contrast. One fit, one call,   every view — effect size *and* inferential maps together so   group-level code never has to recompute beta separately. | <code>'t'</code>
 
 **Returns:**
 
@@ -120,7 +141,7 @@ Name | Type | Description
 #### `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = None, scale = 'auto', standardize = 'auto', design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = False, scale = 'auto', standardize = 'auto', **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -141,13 +162,9 @@ Name | Type | Description | Default
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to ``Ridge``. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. If True, fit an intercept term. Redundant (and warned against) when the data is already centered via ``scale`` or ``standardize``. Forwarded to ``Ridge``. | <code>False</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate bd and return bd (backward compatible). If False, return a Fit dataclass with the results. In this case bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``bd.model_`` and ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so that ``predict()`` / ``compute_contrasts()`` still work off bd. Successive ``inplace=False`` fits therefore overwrite the model used by a later ``bd.predict()``. | <code>True</code>
-`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. - If None: Uses bd.verbose (default) - If True: Shows progress bar for long-running operations - If False: No progress bar | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Display a progress bar for long-running operations. Default: False. | <code>False</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel ``mean_scaling`` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). ``'auto'`` resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with ``standardize='zscore'`` (a warning is raised for that combination). Applied before ``standardize``. | <code>'auto'</code>
 `standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. One of ``'center'`` (subtract the mean), ``'zscore'`` (subtract mean, divide by std), or ``None`` (off). ``'auto'`` resolves to ``'zscore'`` for ``model='ridge'`` (so a shared alpha regularizes voxels fairly) and ``None`` for ``model='glm'``. | <code>'auto'</code>
-`design_clean` | <code>bool, default=True</code> | GLM only. If True, run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
-`design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
-`design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
-`design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor - Ridge: alpha, alphas, random_state (device is a named param above) - Glm: noise_model, minimize_memory, etc. | <code>{}</code>
 
 **Attributes:**
@@ -339,9 +356,9 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance (must contain multiple images). | *required*
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via ``nltools.stats.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
+`permutation` |  | If True, use sign-flip permutation test via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -358,7 +375,7 @@ Type | Description
 #### `ttest2`
 
 ```python
-ttest2(bd, other, equal_var = True)
+ttest2(bd, other, equal_var = True, tail = 2)
 ```
 
 Two-sample voxelwise t-test between two BrainData stacks.
@@ -370,6 +387,7 @@ Name | Type | Description | Default
 `bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
 `other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
 `equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: bd > other; swap the arguments for the other direction). | <code>2</code>
 
 **Returns:**
 

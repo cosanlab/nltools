@@ -337,7 +337,7 @@ workflows that `BrainCollection` powers live in the **Workflows** tutorials:
 - **GLM Analysis** — `from_bids` → per-subject `fit(model="glm")` →
   `compute_contrasts(...)` → `ttest()`.
 - **Multivariate Pattern Analysis** — cross-subject decoding via
-  `bc.predict(y=...)` and the `bc.cv(...)` pipeline.
+  `bc.predict_group(y, ...)` (group MVPA, subjects as samples).
 - **Inter-Subject Correlation** — `bc.isc(...)` / `bc.isc_test(...)`.
 
 When you're done with a real (disk-backed) collection, call `bc.cleanup()` to

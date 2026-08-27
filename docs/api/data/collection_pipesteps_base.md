@@ -1,4 +1,5 @@
 (data-collection-pipesteps-base-base)=
+(data-collection-pipesteps-base-base)=
 ## `base`
 
 Low-level pipeline primitives for nltools.
@@ -13,14 +14,15 @@ native `.cv().standardize().reduce().predict()`.
 
 Name | Description
 ---- | -----------
-[`FittedStack`](#data-collection-pipesteps-base-fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#data-collection-pipesteps-base-fittedtransform) | Protocol for fitted transform objects.
-[`TransformStep`](#data-collection-pipesteps-base-transformstep) | Protocol for pipeline transform steps.
+`FittedStack` | Collection of fitted transforms for inverse transform support.
+`FittedTransform` | Protocol for fitted transform objects.
+`TransformStep` | Protocol for pipeline transform steps.
 
 
 
 ### Classes
 
+(data-collection-pipesteps-base-fittedstack)=
 (data-collection-pipesteps-base-fittedstack)=
 #### `FittedStack`
 
@@ -49,11 +51,12 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#data-collection-pipesteps-base-append) | Add a fitted transform to the stack.
-[`inverse_transform`](#data-collection-pipesteps-base-inverse-transform) | Apply inverse transforms in reverse order.
+`append` | Add a fitted transform to the stack.
+`inverse_transform` | Apply inverse transforms in reverse order.
 
 ##### Methods
 
+(data-collection-pipesteps-base-append)=
 (data-collection-pipesteps-base-append)=
 ###### `append`
 
@@ -69,6 +72,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fitted_step` | <code>[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
+(data-collection-pipesteps-base-inverse-transform)=
 (data-collection-pipesteps-base-inverse-transform)=
 ###### `inverse_transform`
 
@@ -99,6 +103,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 </details>
 
 (data-collection-pipesteps-base-fittedtransform)=
+(data-collection-pipesteps-base-fittedtransform)=
 #### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -120,8 +125,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-base-inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#data-collection-pipesteps-base-transform) | Apply the learned transformation to data.
+`inverse_transform` | Apply the inverse transformation to data.
+`transform` | Apply the learned transformation to data.
 
 
 
@@ -148,6 +153,7 @@ Type | Description
 <code>[Any](#typing.Any)</code> | Data in original space.
 
 (data-collection-pipesteps-base-transform)=
+(data-collection-pipesteps-base-transform)=
 ###### `transform`
 
 ```python
@@ -168,6 +174,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
+(data-collection-pipesteps-base-transformstep)=
 (data-collection-pipesteps-base-transformstep)=
 #### `TransformStep`
 
@@ -194,10 +201,11 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-base-fit) | Fit the transform to data.
+`fit` | Fit the transform to data.
 
 ##### Methods
 
+(data-collection-pipesteps-base-fit)=
 (data-collection-pipesteps-base-fit)=
 ###### `fit`
 

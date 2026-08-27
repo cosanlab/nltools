@@ -15,7 +15,8 @@ Inspired by BROCCOLI's GPU permutation testing (Eklund et al. 2014).
 - 10-100× speedup for permutation tests with GPU
 - Efficient CPU parallelization when GPU unavailable
 - Transparent CPU/GPU support via Backend abstraction
-- Drop-in replacement for nltools.stats functions
+- Intersubject statistics (`isc`, `isc_group`, `isfc`, `isps`) built on the
+  same permutation/bootstrap engine
 
 </details>
 
@@ -50,6 +51,7 @@ Name | Description
 ---- | -----------
 [`bootstrap`](#algorithms-inference-bootstrap) | Bootstrap inference utilities with CPU/GPU support.
 [`correlation`](#algorithms-inference-correlation) | Correlation permutation test implementations.
+[`intersubject`](#algorithms-inference-intersubject) | Intersubject correlation, functional connectivity, and phase synchrony.
 [`isc`](#algorithms-inference-isc) | Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
 [`matrix`](#algorithms-inference-matrix) | Matrix permutation test implementations (Mantel test).
 [`one_sample`](#algorithms-inference-one-sample) | One-sample permutation test implementations.
@@ -75,7 +77,7 @@ Name | Description
 ```pycon
 >>> # Voxel-wise test with GPU acceleration
 >>> data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
->>> result = one_sample_permutation_test(data, n_permute=10000, parallel='gpu')
+>>> result = one_sample_permutation_test(data, n_permute=10000, device='gpu')
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
 ```
 
@@ -85,7 +87,7 @@ Name | Description
 - CPU (NumPy): Good for small problems (< 5K permutations)
 - GPU (PyTorch): Excellent for large problems (> 5K permutations)
 - CPU Parallel (joblib): Efficient fallback when GPU unavailable
-- Select with parallel='cpu' | 'gpu' | None (no 'auto' selector)
+- Select with device='cpu' | 'gpu' | None (no 'auto' selector)
 
 </details>
 
@@ -167,10 +169,16 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ###### `get_results`
 
 ```python
-get_results() -> dict[str, np.ndarray]
+get_results(tail: int | str = 2) -> dict[str, np.ndarray]
 ```
 
 Compute final bootstrap statistics.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
@@ -180,7 +188,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': P-values (per ``tail``)
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
@@ -265,7 +273,7 @@ array([[ 4, 30],
 #### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Correlation permutation test.
@@ -285,18 +293,18 @@ Name | Type | Description | Default
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Data to correlate with - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Correlation metric (default: 'pearson') - 'pearson': Pearson correlation (linear relationships) - 'spearman': Spearman rank correlation (monotonic relationships) - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties) | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (r != 0) - 'upper' or 1: One-tailed upper (r > 0, positive correlation) - 'lower' or -1: One-tailed lower (r < 0, negative correlation) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float or np.ndarray): Observed correlation(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float or np.ndarray): Observed correlation(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -324,17 +332,19 @@ Name | Type | Description
 
 ```pycon
 >>> # GPU acceleration
->>> result = correlation_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+>>> result = correlation_permutation_test(data1, data2, n_permute=5000, device='gpu')
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-    - Pearson correlation: Fully vectorized across all features (5-20× speedup for multi-feature)
-    - Spearman/Kendall: Only supported with parallel='cpu' or parallel=None (GPU not yet implemented)
-- Single-threaded (parallel=None): Use for small problems or debugging
+    - Pearson: Fully vectorized across all features (5-20× speedup for multi-feature)
+    - Spearman: GPU rank transform (average ties) + vectorized Pearson on ranks
+    - Kendall: tie-corrected tau-b via pre-computed pairwise sign tensors;
+      O(n²) memory per permutation, so batches are sized accordingly
+- Single-threaded (device=None): Use for small problems or debugging
 - For multi-feature data, each feature pair tested independently
 - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
 
@@ -433,7 +443,7 @@ True
 #### `isc_group_permutation_test`
 
 ```python
-isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> dict[str, Any]
+isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, *, n_permute: int = 5000, summary: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: int | str = 2, device: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = False, exclude_self_corr: bool = True, metric: str = 'correlation') -> dict[str, Any]
 ```
 
 Compute ISC difference between groups with permutation testing.
@@ -449,18 +459,18 @@ Name | Type | Description | Default
 `group1` | <code>[ndarray](#numpy.ndarray)</code> | First group data with one of the following shapes: - (n_observations, n_subjects1): Single feature - (n_observations, n_subjects1, n_voxels): Voxel-wise | *required*
 `group2` | <code>[ndarray](#numpy.ndarray)</code> | Second group data with one of the following shapes: - (n_observations, n_subjects2): Single feature - (n_observations, n_subjects2, n_voxels): Voxel-wise | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Defaults to 5000. | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
 `method` | <code>[Literal](#typing.Literal)['permute', 'bootstrap']</code> | Resampling method for p-value computation: - 'permute': Subject-wise permutation (combines groups, permutes labels) - 'bootstrap': Subject-wise bootstrap (resamples within each group) Defaults to 'permute'. | <code>'permute'</code>
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
-`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
+`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
-`sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
+`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
 
 **Returns:**
 
@@ -470,7 +480,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'device': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 **Examples:**
@@ -491,7 +501,7 @@ Type | Description
 ...     group1_voxels,
 ...     group2_voxels,
 ...     summary_statistic='leave-one-out',
-...     parallel='gpu',  # GPU for LOO computation
+...     device='gpu',  # GPU for LOO computation
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -521,7 +531,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 #### `isc_permutation_test`
 
 ```python
-isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+isc_permutation_test(data: np.ndarray, *, n_permute: int = 5000, summary: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: int | str = 2, return_null: bool = False, progress_bar: bool = False, exclude_self_corr: bool = True, metric: str = 'correlation', device: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Compute intersubject correlation with permutation testing.
@@ -536,18 +546,18 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data array with one of the following shapes: - (n_observations, n_subjects): Single feature ISC - (n_observations, n_subjects, n_voxels): Voxel-wise ISC | *required*
 `n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations or permutations. Defaults to 5000. | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method. Options: - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016. - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure. Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3). Defaults to 'pairwise'. | <code>'pairwise'</code>
 `method` | <code>[Literal](#typing.Literal)['bootstrap', 'circle_shift', 'phase_randomize']</code> | Resampling method for p-value computation: - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016) - 'circle_shift': Circular time-series shift (preserves autocorrelation) - 'phase_randomize': FFT phase randomization (preserves power spectrum) Defaults to 'bootstrap'. | <code>'bootstrap'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return bootstrap/permutation distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
-`sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
-`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Accepted for API symmetry with the other permutation tests, but the ISC GPU path currently loads all voxels in one batch and does not chunk by this budget. Defaults to 4. | <code>4.0</code>
+`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
+`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU working-set budget in GB. For the pairwise GPU bootstrap (``device='gpu'``, ``summary_statistic='pairwise'``, ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk, n_subjects, n_subjects)`` resample tensor, chunking voxels and permutations to fit — so whole-brain runs stay within budget. Not used by the LOO or surrogate (circle_shift/phase_randomize) paths. Defaults to 4. | <code>None</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
@@ -558,7 +568,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'device': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 **Examples:**
@@ -576,7 +586,7 @@ Type | Description
 >>> result = isc_permutation_test(
 ...     data_voxels,
 ...     summary_statistic='leave-one-out',
-...     parallel='gpu',  # GPU for LOO computation
+...     device='gpu',  # GPU for LOO computation
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -613,7 +623,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 #### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, progress_bar: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -642,9 +652,9 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation metric ['pearson'|'spearman'|'kendall'] (default: 'pearson') | <code>'pearson'</code>
 `how` | <code>[str](#str)</code> | Which elements to compare ['upper'|'lower'|'full'] (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (r != 0) - 'upper' or 1: One-tailed upper (r > 0) - 'lower' or -1: One-tailed lower (r < 0) | <code>2</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when parallel='cpu' | <code>-1</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
@@ -652,7 +662,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float): Observed correlation coefficient - 'p' (float): P-value using Phipson-Smyth correction - 'parallel' (str): Parallelization method used ('cpu' or None) - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float): Observed correlation coefficient - 'p' (float): P-value using Phipson-Smyth correction - 'device' (str): Parallelization method used ('cpu' or None) - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -688,7 +698,7 @@ regression approach. Cancer Research, 27(2), 209-220.
 #### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+one_sample_permutation_test(data: np.ndarray, *, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -706,18 +716,19 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to test - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (mean != 0) - 'upper' or 1: One-tailed upper (mean > 0) - 'lower' or -1: One-tailed lower (mean < 0) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean != 0) - 2 | 'two': Two-tailed test (mean != 0) - 1 | 'one': One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar (default: False) | <code>False</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean' (float or np.ndarray): Observed mean(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean' (float or np.ndarray): Observed mean(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -732,7 +743,7 @@ Name | Type | Description
 ```pycon
 >>> # Voxel-wise test with GPU
 >>> data = np.random.randn(30, 10000)  # 30 subjects, 10K voxels
->>> result = one_sample_permutation_test(data, n_permute=5000, parallel='gpu')
+>>> result = one_sample_permutation_test(data, n_permute=5000, device='gpu')
 >>> result['mean'].shape
 (10000,)
 >>> result['p'].shape
@@ -741,15 +752,15 @@ Name | Type | Description
 
 ```pycon
 >>> # Single-threaded (for debugging)
->>> result = one_sample_permutation_test(data, n_permute=5000, parallel=None)
+>>> result = one_sample_permutation_test(data, n_permute=5000, device=None)
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For voxel-wise tests, each voxel tested independently
 - Progress bars show completion for both CPU parallel and GPU batched modes
 
@@ -759,7 +770,7 @@ Name | Type | Description
 #### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
+phase_randomize(data: np.ndarray, *, device: str | None = 'cpu', random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -785,7 +796,7 @@ dynamics.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`backend` | <code>[str](#str) \| None</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
+`device` | <code>[str](#str) \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
@@ -798,8 +809,7 @@ Type | Description
 <summary>Notes</summary>
 
 - **CRITICAL**: Preserves power spectrum exactly (within numerical precision)
-- GPU acceleration: Use `backend='torch'` for GPU-accelerated FFT (5-20× faster for large data)
-- Precision: NumPy backend uses float64, PyTorch backend uses float32
+- Precision: the CPU path uses float64, the GPU path float32
 - Conjugate symmetry is maintained for real-valued output
 
 </details>
@@ -817,14 +827,14 @@ True
 ```pycon
 >>> # GPU acceleration for large datasets:
 >>> x_large = np.random.randn(10000)
->>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
+>>> x_rand_gpu = phase_randomize(x_large, device='gpu', random_state=42)
 ```
 
 (algorithms-inference-timeseries-correlation-permutation-test)=
 #### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, *, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, return_null: bool = False, random_state: int | np.random.RandomState | None = None, progress_bar: bool = False) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -845,10 +855,10 @@ Name | Type | Description | Default
 `method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type. Accepts int or string forms: - 2 or 'two': Two-tailed (|obs| > |null|) - 1 or 'upper': One-tailed upper (obs > null, positive effects) - -1 or 'lower': One-tailed lower (obs < null, negative effects) | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
+`device` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
@@ -856,7 +866,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys: - 'correlation': Observed correlation coefficient - 'p': P-value - 'null_dist': (if return_null=True) Null distribution - 'parallel': Parallelization method used
+<code>[dict](#dict)</code> | Dictionary with keys: - 'correlation': Observed correlation coefficient - 'p': P-value - 'null_dist': (if return_null=True) Null distribution - 'device': Parallelization method used
 
 **Examples:**
 
@@ -875,16 +885,16 @@ True
 ```pycon
 >>> # GPU acceleration
 >>> result = timeseries_correlation_permutation_test(
-...     x, y, method='phase_randomize', parallel='gpu', n_permute=5000
+...     x, y, method='phase_randomize', device='gpu', n_permute=5000
 ... )
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): 5-20× faster for large problems (n_samples > 1000)
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For independent data, use regular correlation_permutation_test
 - circle_shift is faster and suitable for most fMRI time series
 - phase_randomize preserves power spectrum exactly (tests nonlinearity)
@@ -897,7 +907,7 @@ True
 #### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -916,18 +926,18 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data - shape (n_samples1,) for single feature - shape (n_samples1, n_features) for multi-feature (voxel-wise) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data - shape (n_samples2,) for single feature - shape (n_samples2, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (mean1 != mean2) - 'upper' or 1: One-tailed upper (mean1 > mean2) - 'lower' or -1: One-tailed lower (mean1 < mean2) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean1 != mean2) - 2 | 'two': Two-tailed test (mean1 != mean2) - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -944,7 +954,7 @@ Name | Type | Description
 >>> # Voxel-wise test with GPU
 >>> data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
 >>> data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
->>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+>>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device='gpu')
 >>> result['mean_diff'].shape
 (10000,)
 >>> result['p'].shape
@@ -953,15 +963,15 @@ Name | Type | Description
 
 ```pycon
 >>> # Single-threaded (for debugging)
->>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel=None)
+>>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device=None)
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For voxel-wise tests, each voxel tested independently
 - Group sizes can be unequal
 
@@ -1130,10 +1140,16 @@ shape = shape
 ###### `get_results`
 
 ```python
-get_results() -> dict[str, np.ndarray]
+get_results(tail: int | str = 2) -> dict[str, np.ndarray]
 ```
 
 Compute final bootstrap statistics.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 
 **Parameters:**
 
@@ -1151,7 +1167,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': P-values (per ``tail``)
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
@@ -1200,7 +1216,7 @@ Name | Description
 ###### `correlation_permutation_test`
 
 ```python
-correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Correlation permutation test.
@@ -1220,18 +1236,18 @@ Name | Type | Description | Default
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Data to correlate with - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Correlation metric (default: 'pearson') - 'pearson': Pearson correlation (linear relationships) - 'spearman': Spearman rank correlation (monotonic relationships) - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties) | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (r != 0) - 'upper' or 1: One-tailed upper (r > 0, positive correlation) - 'lower' or -1: One-tailed lower (r < 0, negative correlation) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float or np.ndarray): Observed correlation(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float or np.ndarray): Observed correlation(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -1259,23 +1275,254 @@ Name | Type | Description
 
 ```pycon
 >>> # GPU acceleration
->>> result = correlation_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+>>> result = correlation_permutation_test(data1, data2, n_permute=5000, device='gpu')
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-    - Pearson correlation: Fully vectorized across all features (5-20× speedup for multi-feature)
-    - Spearman/Kendall: Only supported with parallel='cpu' or parallel=None (GPU not yet implemented)
-- Single-threaded (parallel=None): Use for small problems or debugging
+    - Pearson: Fully vectorized across all features (5-20× speedup for multi-feature)
+    - Spearman: GPU rank transform (average ties) + vectorized Pearson on ranks
+    - Kendall: tie-corrected tau-b via pre-computed pairwise sign tensors;
+      O(n²) memory per permutation, so batches are sized accordingly
+- Single-threaded (device=None): Use for small problems or debugging
 - For multi-feature data, each feature pair tested independently
 - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
 
 </details>
 
+(algorithms-inference-intersubject)=
+#### `intersubject`
+
+Intersubject correlation, functional connectivity, and phase synchrony.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`isc`](#algorithms-inference-isc) | Compute pairwise intersubject correlation from observations by subjects array.
+[`isc_group`](#algorithms-inference-isc-group) | Compute difference in intersubject correlation between groups.
+[`isfc`](#algorithms-inference-isfc) | Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
+[`isps`](#algorithms-inference-isps) | Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
+
+
+
+##### Methods
+
 (algorithms-inference-isc)=
+###### `isc`
+
+```python
+isc(data, *, n_samples = 5000, summary = 'median', method = 'bootstrap', ci_percentile = 95, exclude_self_corr = True, tail = 2, metric = 'correlation', return_null = False, n_jobs = -1, random_state = None, progress_bar = False)
+```
+
+Compute pairwise intersubject correlation from observations by subjects array.
+
+This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+inflating the correlation values.
+
+There are currently three different methods to compute p-values. These include the classic methods for
+computing permuted time-series by either circle-shifting the data or phase-randomizing the data
+(see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
+autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from
+Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
+this approach uses the computationally more efficient method of bootstrapping the subjects
+and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
+If the same subject is selected multiple times, we set the perfect correlation to a nan with
+(exclude_self_corr=True). We compute the p-values using the percentile method using the same
+method in Brainiak.
+
+Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+& Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+nonparametric approaches to inter-subject correlation analysis at the group level.
+NeuroImage, 142, 248-259.
+
+Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+Biometrics, 757-762.
+
+Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
+Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
+
+This function is a wrapper around `isc_permutation_test` from the inference module,
+which provides optimized implementations with CPU-parallel and GPU acceleration support.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects | *required*
+`n_samples` |  | (int) number of random samples/bootstraps | <code>5000</code>
+`summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
+`method` |  | (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap) | <code>'bootstrap'</code>
+`ci_percentile` |  | (int) confidence-interval width in percent for the bootstrap CI (default: 95) | <code>95</code>
+`exclude_self_corr` |  | (bool) set self-correlations (same subject bootstrapped twice) to nan (default: True) | <code>True</code>
+`tail` |  | (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) | <code>2</code>
+`metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
+`return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
+`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int, np.random.RandomState, or None) seed or generator for the resampling; default None | <code>None</code>
+`progress_bar` |  | (bool) If True, display a progress bar. Default False. | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`stats` |  | (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_dist']
+
+(algorithms-inference-isc-group)=
+###### `isc_group`
+
+```python
+isc_group(group1, group2, *, n_samples = 5000, summary = 'median', method = 'permute', ci_percentile = 95, exclude_self_corr = True, return_null = False, tail = 2, metric = 'correlation', n_jobs = -1, random_state = None, progress_bar = False)
+```
+
+Compute difference in intersubject correlation between groups.
+
+This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
+et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
+the fisher r-to-z transformation and then convert back to correlations to minimize artificially
+inflating the correlation values.
+
+There are currently two different methods to compute p-values. By default, we use the subject-wise permutation
+method recommended Chen et al., 2016. This method combines the two groups and computes pairwise similarity both
+within and between the groups. Then the group labels are permuted and the mean difference between the two groups
+are recomputed to generate a null distribution. The second method uses subject-wise bootstrapping, where a new
+pairwise similarity matrix with randomly selected subjects with replacement is created separately for each group
+and the ISC difference between these groups is used to generate a null distribution. If the same subject is
+selected multiple times, we set the perfect correlation to a nan with (exclude_self_corr=True). We compute the
+p-values using the percentile method (Hall & Wilson, 1991).
+
+Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
+& Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
+nonparametric approaches to inter-subject correlation analysis at the group level.
+NeuroImage, 142, 248-259.
+
+Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
+Biometrics, 757-762.
+
+This function is a thin wrapper around `isc_group_permutation_test` from the inference
+module (which provides optimized CPU parallelization and optional GPU acceleration),
+pinning the classic pairwise behavior and the `n_samples` vocabulary.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`group1` |  | (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects | *required*
+`group2` |  | (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects | *required*
+`n_samples` |  | (int) number of samples for permutation or bootstrapping | <code>5000</code>
+`summary` |  | (str) type of isc summary statistic ['mean','median'] (default: median) | <code>'median'</code>
+`method` |  | (str) method to compute p-values ['permute', 'bootstrap'] (default: permute) | <code>'permute'</code>
+`ci_percentile` |  | (float) confidence interval percentile (default: 95) | <code>95</code>
+`exclude_self_corr` |  | (bool) exclude self-correlations in bootstrap (default: True) | <code>True</code>
+`return_null` |  | (bool) Return the permutation distribution along with the p-value; default False | <code>False</code>
+`tail` |  | (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) | <code>2</code>
+`metric` |  | (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation) | <code>'correlation'</code>
+`n_jobs` |  | (int) The number of CPUs to use to do the computation. -1 means all CPUs. | <code>-1</code>
+`random_state` |  | (int or RandomState) Random seed for reproducibility | <code>None</code>
+`progress_bar` |  | (bool) If True, display a progress bar. Default False. | <code>False</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`stats` |  | (dict) dictionary of permutation results with keys: - 'isc_group_difference': Observed ISC difference (float or array) - 'p': P-value (float or array) - 'ci': Confidence interval tuple (lower, upper) - 'null_dist': Null distribution (if return_null=True)
+
+(algorithms-inference-isfc)=
+###### `isfc`
+
+```python
+isfc(data, method = 'average', n_jobs = -1)
+```
+
+Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
+
+This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
+For each subject, compute the cross-correlation between each voxel/roi
+with the average of the rest of the subjects data. In other words,
+compute the mean voxel/ROI response for all participants except the
+target subject. Then compute the correlation between each ROI within
+the target subject with the mean ROI response in the group average.
+
+Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel, A., & Hasson, U. (2016).
+Dynamic reconfiguration of the default mode network during narrative comprehension.
+Nature communications, 7, 12141.
+
+This function now uses the optimized implementation from the inference module,
+which provides efficient cross-correlation computation between matrix columns.
+CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1.
+Each subject's ISFC computation is independent and can be parallelized efficiently.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | list of subject matrices (observations x voxels/rois) | *required*
+`method` |  | approach to computing ISFC. 'average' uses leave one out | <code>'average'</code>
+`n_jobs` |  | (int) Number of parallel jobs to use. -1 means all available cores.     Default is -1 (parallel execution by default, consistent with other stats functions). | <code>-1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | list of subject ISFC matrices
+
+(algorithms-inference-isps)=
+###### `isps`
+
+```python
+isps(data, *, sampling_freq = 0.5, low_cut = 0.04, high_cut = 0.07, order = 5, pairwise = False)
+```
+
+Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
+
+This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
+timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
+et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
+data to get the instantaneous phase angle. The function returns a dictionary containing the
+average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular
+statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences,
+if pairwise=False, it will compute these on the actual phase angles. This is called inter-site phase coupling
+or inter-trial phase coupling respectively in the EEG literatures.
+
+This function requires narrow band filtering your data. As a default we use the recommendations
+by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
+described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
+demonstrated to contain aliased respiration signals (Birn, 2006).
+
+Birn RM, Smith MA, Bandettini PA, Diamond JB. 2006. Separating respiratory-variation-related
+fluctuations from neuronal-activity- related fluctuations in fMRI. Neuroimage 31:1536–1548.
+
+Buzsáki, G., & Draguhn, A. (2004). Neuronal oscillations in cortical networks. Science,
+304(5679), 1926-1929.
+
+Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+
+Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams, M. (2012).
+Functional magnetic resonance imaging phase synchronization as a measure of dynamic
+functional connectivity. Brain connectivity, 2(2), 91-101.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data` |  | (pd.DataFrame, np.ndarray) observations x subjects data | *required*
+`sampling_freq` |  | (float) sampling freqency of data in Hz | <code>0.5</code>
+`low_cut` |  | (float) lower bound cutoff for high pass filter | <code>0.04</code>
+`high_cut` |  | (float) upper bound cutoff for low pass filter | <code>0.07</code>
+`order` |  | (int) filter order for butterworth bandpass | <code>5</code>
+`pairwise` |  | (bool) compute phase angle coherence on pairwise phase angle differences     or on raw phase angle. | <code>False</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | dictionary with mean phase angle, vector length, and rayleigh statistic
+
 #### `isc`
 
 Intersubject Correlation (ISC) with GPU-Accelerated Permutation Testing.
@@ -1328,7 +1575,7 @@ Name | Description
 ###### `isc_group_permutation_test`
 
 ```python
-isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: Literal[1, 2] = 2, parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation') -> dict[str, Any]
+isc_group_permutation_test(group1: np.ndarray, group2: np.ndarray, *, n_permute: int = 5000, summary: Literal['median', 'mean'] = 'median', method: Literal['permute', 'bootstrap'] = 'permute', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', ci_percentile: float = 95, tail: int | str = 2, device: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, return_null: bool = False, progress_bar: bool = False, exclude_self_corr: bool = True, metric: str = 'correlation') -> dict[str, Any]
 ```
 
 Compute ISC difference between groups with permutation testing.
@@ -1344,18 +1591,18 @@ Name | Type | Description | Default
 `group1` | <code>[ndarray](#numpy.ndarray)</code> | First group data with one of the following shapes: - (n_observations, n_subjects1): Single feature - (n_observations, n_subjects1, n_voxels): Voxel-wise | *required*
 `group2` | <code>[ndarray](#numpy.ndarray)</code> | Second group data with one of the following shapes: - (n_observations, n_subjects2): Single feature - (n_observations, n_subjects2, n_voxels): Voxel-wise | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Defaults to 5000. | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
 `method` | <code>[Literal](#typing.Literal)['permute', 'bootstrap']</code> | Resampling method for p-value computation: - 'permute': Subject-wise permutation (combines groups, permutes labels) - 'bootstrap': Subject-wise bootstrap (resamples within each group) Defaults to 'permute'. | <code>'permute'</code>
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
-`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
+`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
-`sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
+`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
 
 **Returns:**
 
@@ -1365,7 +1612,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc_group_difference': Observed ISC difference (float or array per voxel)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'device': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 **Examples:**
@@ -1386,7 +1633,7 @@ Type | Description
 ...     group1_voxels,
 ...     group2_voxels,
 ...     summary_statistic='leave-one-out',
-...     parallel='gpu',  # GPU for LOO computation
+...     device='gpu',  # GPU for LOO computation
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1415,7 +1662,7 @@ correlation analysis at the group level. NeuroImage, 142, 248-259.
 ###### `isc_permutation_test`
 
 ```python
-isc_permutation_test(data: np.ndarray, n_permute: int = 5000, metric: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: Literal[1, 2] = 2, return_null: bool = False, progress_bar: bool = True, exclude_self_corr: bool = True, sim_metric: str = 'correlation', parallel: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict[str, Any]
+isc_permutation_test(data: np.ndarray, *, n_permute: int = 5000, summary: Literal['median', 'mean'] = 'median', summary_statistic: Literal['leave-one-out', 'pairwise'] = 'pairwise', method: Literal['bootstrap', 'circle_shift', 'phase_randomize'] = 'bootstrap', ci_percentile: float = 95, tail: int | str = 2, return_null: bool = False, progress_bar: bool = False, exclude_self_corr: bool = True, metric: str = 'correlation', device: Literal['cpu', 'gpu'] | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> dict[str, Any]
 ```
 
 Compute intersubject correlation with permutation testing.
@@ -1430,18 +1677,18 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data array with one of the following shapes: - (n_observations, n_subjects): Single feature ISC - (n_observations, n_subjects, n_voxels): Voxel-wise ISC | *required*
 `n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations or permutations. Defaults to 5000. | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
 `summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method. Options: - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016. - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure. Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3). Defaults to 'pairwise'. | <code>'pairwise'</code>
 `method` | <code>[Literal](#typing.Literal)['bootstrap', 'circle_shift', 'phase_randomize']</code> | Resampling method for p-value computation: - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016) - 'circle_shift': Circular time-series shift (preserves autocorrelation) - 'phase_randomize': FFT phase randomization (preserves power spectrum) Defaults to 'bootstrap'. | <code>'bootstrap'</code>
 `ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[Literal](#typing.Literal)[1, 2]</code> | One-tailed (1) or two-tailed (2) p-value. Defaults to 2. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return bootstrap/permutation distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to True. | <code>True</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
 `exclude_self_corr` | <code>[bool](#bool)</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
-`sim_metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
-`parallel` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when parallel='cpu'. Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Accepted for API symmetry with the other permutation tests, but the ISC GPU path currently loads all voxels in one batch and does not chunk by this budget. Defaults to 4. | <code>4.0</code>
+`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
+`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU working-set budget in GB. For the pairwise GPU bootstrap (``device='gpu'``, ``summary_statistic='pairwise'``, ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk, n_subjects, n_subjects)`` resample tensor, chunking voxels and permutations to fit — so whole-brain runs stay within budget. Not used by the LOO or surrogate (circle_shift/phase_randomize) paths. Defaults to 4. | <code>None</code>
 `random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
@@ -1452,7 +1699,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'isc': Observed ISC value (float or array per voxel)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'p': P-value (Phipson-Smyth corrected)
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'ci': Confidence interval tuple (lower, upper)
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'parallel': Parallelization method used
+<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'device': Parallelization method used
 <code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | - 'null_dist': (optional) Bootstrap/permutation distribution
 
 **Examples:**
@@ -1470,7 +1717,7 @@ Type | Description
 >>> result = isc_permutation_test(
 ...     data_voxels,
 ...     summary_statistic='leave-one-out',
-...     parallel='gpu',  # GPU for LOO computation
+...     device='gpu',  # GPU for LOO computation
 ...     n_permute=5000
 ... )
 >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
@@ -1621,7 +1868,7 @@ True
 ###### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, random_state: int | None = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, progress_bar: bool = False, random_state: int | None = None) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -1650,9 +1897,9 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation metric ['pearson'|'spearman'|'kendall'] (default: 'pearson') | <code>'pearson'</code>
 `how` | <code>[str](#str)</code> | Which elements to compare ['upper'|'lower'|'full'] (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (r != 0) - 'upper' or 1: One-tailed upper (r > 0) - 'lower' or -1: One-tailed lower (r < 0) | <code>2</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when parallel='cpu' | <code>-1</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
 `return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
@@ -1660,7 +1907,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float): Observed correlation coefficient - 'p' (float): P-value using Phipson-Smyth correction - 'parallel' (str): Parallelization method used ('cpu' or None) - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float): Observed correlation coefficient - 'p' (float): P-value using Phipson-Smyth correction - 'device' (str): Parallelization method used ('cpu' or None) - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -1747,7 +1994,7 @@ Name | Description
 ###### `one_sample_permutation_test`
 
 ```python
-one_sample_permutation_test(data: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+one_sample_permutation_test(data: np.ndarray, *, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 One-sample permutation test using sign-flipping.
@@ -1765,18 +2012,19 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to test - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (mean != 0) - 'upper' or 1: One-tailed upper (mean > 0) - 'lower' or -1: One-tailed lower (mean < 0) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean != 0) - 2 | 'two': Two-tailed test (mean != 0) - 1 | 'one': One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar (default: False) | <code>False</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean' (float or np.ndarray): Observed mean(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean' (float or np.ndarray): Observed mean(s) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -1791,7 +2039,7 @@ Name | Type | Description
 ```pycon
 >>> # Voxel-wise test with GPU
 >>> data = np.random.randn(30, 10000)  # 30 subjects, 10K voxels
->>> result = one_sample_permutation_test(data, n_permute=5000, parallel='gpu')
+>>> result = one_sample_permutation_test(data, n_permute=5000, device='gpu')
 >>> result['mean'].shape
 (10000,)
 >>> result['p'].shape
@@ -1800,15 +2048,15 @@ Name | Type | Description
 
 ```pycon
 >>> # Single-threaded (for debugging)
->>> result = one_sample_permutation_test(data, n_permute=5000, parallel=None)
+>>> result = one_sample_permutation_test(data, n_permute=5000, device=None)
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For voxel-wise tests, each voxel tested independently
 - Progress bars show completion for both CPU parallel and GPU batched modes
 
@@ -1899,7 +2147,7 @@ array([[ 4, 30],
 ###### `phase_randomize`
 
 ```python
-phase_randomize(data: np.ndarray, backend: str | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
+phase_randomize(data: np.ndarray, *, device: str | None = 'cpu', random_state: int | np.random.RandomState | None = None) -> np.ndarray
 ```
 
 FFT-based phase randomization for time-series data.
@@ -1925,7 +2173,7 @@ dynamics.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`backend` | <code>[str](#str) \| None</code> | Computation backend ('numpy' or 'torch'). - 'numpy': CPU implementation using NumPy FFT (default, float64 precision) - 'torch': GPU implementation using PyTorch FFT (float32 precision, faster) - None: Defaults to 'numpy' | <code>None</code>
+`device` | <code>[str](#str) \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
@@ -1938,8 +2186,7 @@ Type | Description
 <summary>Notes</summary>
 
 - **CRITICAL**: Preserves power spectrum exactly (within numerical precision)
-- GPU acceleration: Use `backend='torch'` for GPU-accelerated FFT (5-20× faster for large data)
-- Precision: NumPy backend uses float64, PyTorch backend uses float32
+- Precision: the CPU path uses float64, the GPU path float32
 - Conjugate symmetry is maintained for real-valued output
 
 </details>
@@ -1957,13 +2204,13 @@ True
 ```pycon
 >>> # GPU acceleration for large datasets:
 >>> x_large = np.random.randn(10000)
->>> x_rand_gpu = phase_randomize(x_large, backend='torch', random_state=42)
+>>> x_rand_gpu = phase_randomize(x_large, device='gpu', random_state=42)
 ```
 
 ###### `timeseries_correlation_permutation_test`
 
 ```python
-timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, return_null: bool = False, random_state: int | np.random.RandomState | None = None) -> dict
+timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, *, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, return_null: bool = False, random_state: int | np.random.RandomState | None = None, progress_bar: bool = False) -> dict
 ```
 
 Time-series correlation permutation test.
@@ -1984,10 +2231,10 @@ Name | Type | Description | Default
 `method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
 `n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
 `metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type. Accepts int or string forms: - 2 or 'two': Two-tailed (|obs| > |null|) - 1 or 'upper': One-tailed upper (obs > null, positive effects) - -1 or 'lower': One-tailed lower (obs < null, negative effects) | <code>2</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
+`device` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
 
@@ -1995,7 +2242,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys: - 'correlation': Observed correlation coefficient - 'p': P-value - 'null_dist': (if return_null=True) Null distribution - 'parallel': Parallelization method used
+<code>[dict](#dict)</code> | Dictionary with keys: - 'correlation': Observed correlation coefficient - 'p': P-value - 'null_dist': (if return_null=True) Null distribution - 'device': Parallelization method used
 
 **Examples:**
 
@@ -2014,16 +2261,16 @@ True
 ```pycon
 >>> # GPU acceleration
 >>> result = timeseries_correlation_permutation_test(
-...     x, y, method='phase_randomize', parallel='gpu', n_permute=5000
+...     x, y, method='phase_randomize', device='gpu', n_permute=5000
 ... )
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): 5-20× faster for large problems (n_samples > 1000)
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For independent data, use regular correlation_permutation_test
 - circle_shift is faster and suitable for most fMRI time series
 - phase_randomize preserves power spectrum exactly (tests nonlinearity)
@@ -2055,7 +2302,7 @@ Name | Description
 ###### `two_sample_permutation_test`
 
 ```python
-two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, parallel: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float = 4.0, random_state: int | None = None) -> dict
+two_sample_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Two-sample permutation test using group label shuffling.
@@ -2074,18 +2321,18 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data - shape (n_samples1,) for single feature - shape (n_samples1, n_features) for multi-feature (voxel-wise) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data - shape (n_samples2,) for single feature - shape (n_samples2, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 'two' or 2: Two-tailed test (mean1 != mean2) - 'upper' or 1: One-tailed upper (mean1 > mean2) - 'lower' or -1: One-tailed lower (mean1 < mean2) For MCP correction (FDR), use 'upper' or 'lower' for consistent direction. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean1 != mean2) - 2 | 'two': Two-tailed test (mean1 != mean2) - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when parallel='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Maximum GPU memory to use in GB (default: 4.0) Controls automatic batching to prevent OOM errors. Only used with parallel='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>4.0</code>
+`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'parallel' (str): Parallelization method used
+`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2) - 'p' (float or np.ndarray): P-value(s) - 'null_dist' (np.ndarray): Null distribution (if return_null=True) - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -2102,7 +2349,7 @@ Name | Type | Description
 >>> # Voxel-wise test with GPU
 >>> data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
 >>> data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
->>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel='gpu')
+>>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device='gpu')
 >>> result['mean_diff'].shape
 (10000,)
 >>> result['p'].shape
@@ -2111,15 +2358,15 @@ Name | Type | Description
 
 ```pycon
 >>> # Single-threaded (for debugging)
->>> result = two_sample_permutation_test(data1, data2, n_permute=5000, parallel=None)
+>>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device=None)
 ```
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-- Default (parallel='cpu'): CPU parallelization with joblib (4-8× speedup)
+- Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
 - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-- Single-threaded (parallel=None): Use for small problems or debugging
+- Single-threaded (device=None): Use for small problems or debugging
 - For voxel-wise tests, each voxel tested independently
 - Group sizes can be unequal
 
@@ -2156,9 +2403,9 @@ These functions are used throughout the algorithms module to validate
 input parameters. They provide consistent error messages and behavior.
 
 Example:
-    >>> from nltools.algorithms.validation import validate_parallel_parameter
-    >>> validate_parallel_parameter("cpu")  # OK
-    >>> validate_parallel_parameter("invalid")  # Raises ValueError
+    >>> from nltools.algorithms.validation import validate_device_parameter
+    >>> validate_device_parameter("cpu")  # OK
+    >>> validate_device_parameter("invalid")  # Raises ValueError
 
 </details>
 
@@ -2170,15 +2417,15 @@ Name | Description
 [`validate_array_shape_range`](#algorithms-inference-validate-array-shape-range) | Validate array dimensionality is within a range.
 [`validate_bootstrap_data`](#algorithms-inference-validate-bootstrap-data) | Validate input data for bootstrapping.
 [`validate_bootstrap_method`](#algorithms-inference-validate-bootstrap-method) | Validate bootstrap method name.
+[`validate_device_parameter`](#algorithms-inference-validate-device-parameter) | Validate device parameter.
+[`validate_device_parameter_matrix`](#algorithms-inference-validate-device-parameter-matrix) | Validate device parameter for matrix operations.
 [`validate_how_parameter`](#algorithms-inference-validate-how-parameter) | Validate 'how' parameter for matrix operations.
 [`validate_metric_parameter`](#algorithms-inference-validate-metric-parameter) | Validate metric parameter.
-[`validate_parallel_parameter`](#algorithms-inference-validate-parallel-parameter) | Validate parallel parameter.
-[`validate_parallel_parameter_matrix`](#algorithms-inference-validate-parallel-parameter-matrix) | Validate parallel parameter for matrix operations.
 [`validate_percentiles`](#algorithms-inference-validate-percentiles) | Validate percentile values for confidence intervals.
 [`validate_same_shape`](#algorithms-inference-validate-same-shape) | Validate two arrays have same shape.
 [`validate_shape_compatibility`](#algorithms-inference-validate-shape-compatibility) | Validate that X and y have compatible shapes for regression.
 [`validate_square_matrix`](#algorithms-inference-validate-square-matrix) | Validate matrix is square.
-[`validate_tail_parameter`](#algorithms-inference-validate-tail-parameter) | Validate and normalize tail parameter.
+[`validate_tail_parameter`](#algorithms-inference-validate-tail-parameter) | Validate the public tail vocabulary and normalize to the internal form.
 
 
 
@@ -2252,6 +2499,36 @@ Name | Type | Description | Default
 `simple_methods` | <code>[list](#list)[[str](#str)]</code> | List of simple method names | *required*
 `fitted_methods` | <code>[list](#list)[[str](#str)]</code> | List of fitted method names | *required*
 
+(algorithms-inference-validate-device-parameter)=
+###### `validate_device_parameter`
+
+```python
+validate_device_parameter(device: str | None) -> None
+```
+
+Validate device parameter.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`device` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
+
+(algorithms-inference-validate-device-parameter-matrix)=
+###### `validate_device_parameter_matrix`
+
+```python
+validate_device_parameter_matrix(device: str | None) -> None
+```
+
+Validate device parameter for matrix operations.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`device` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
+
 (algorithms-inference-validate-how-parameter)=
 ###### `validate_how_parameter`
 
@@ -2283,36 +2560,6 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Metric parameter value | *required*
 `allowed` | <code>[list](#list)[[str](#str)]</code> | List of allowed metric values | *required*
 `name` | <code>[str](#str)</code> | Name of parameter for error message | <code>'metric'</code>
-
-(algorithms-inference-validate-parallel-parameter)=
-###### `validate_parallel_parameter`
-
-```python
-validate_parallel_parameter(parallel: str | None) -> None
-```
-
-Validate parallel parameter.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
-
-(algorithms-inference-validate-parallel-parameter-matrix)=
-###### `validate_parallel_parameter_matrix`
-
-```python
-validate_parallel_parameter_matrix(parallel: str | None) -> None
-```
-
-Validate parallel parameter for matrix operations.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`parallel` | <code>[str](#str) \| None</code> | Parallel parameter value | *required*
 
 (algorithms-inference-validate-percentiles)=
 ###### `validate_percentiles`
@@ -2388,27 +2635,30 @@ Name | Type | Description | Default
 validate_tail_parameter(tail: int | str) -> str
 ```
 
-Validate and normalize tail parameter.
+Validate the public tail vocabulary and normalize to the internal form.
+
+The public vocabulary (v0.6.0) is deliberately two-valued — the *direction*
+of a one-tailed test is fixed by the test's convention, never chosen from
+the data (a data-driven direction would silently halve every p-value):
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`tail` | <code>[int](#int) \| [str](#str)</code> | Tail parameter value. Can be: - 'two' or 2: Two-tailed test (|obs| > |null|) - 'upper' or 1: One-tailed upper (obs > null, for testing positive effects) - 'lower' or -1: One-tailed lower (obs < null, for testing negative effects) | *required*
+`tail` | <code>[int](#int) \| [str](#str)</code> | Tail parameter value. Can be: - 2 or 'two' (default everywhere): two-tailed test (|obs| vs |null|) - 1 or 'one': one-tailed test in the test's canonical positive   direction (correlation/ISC/similarity > 0, mean > popmean,   group1 > group2). To test the negative direction, negate your   data, swap the groups, or flip the contrast. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Normalized tail string: 'two', 'upper', or 'lower'
+<code>[str](#str)</code> | Normalized internal tail string: 'two' or 'upper'
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
 
-For multiple comparisons correction (FDR, Bonferroni), use 'upper' or 'lower'
-to ensure consistent direction across all tests. The old tail=1 behavior
-(auto-detecting direction per test based on sign) can lead to incorrect
-MCP-adjusted p-values. See GH #315.
+For multiple comparisons correction (FDR, Bonferroni) a fixed direction
+across all tests is essential — which is exactly why the direction is
+part of the vocabulary, not the data. See GH #315.
 
 </details>
 

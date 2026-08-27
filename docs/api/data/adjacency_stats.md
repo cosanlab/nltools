@@ -27,7 +27,7 @@ Name | Description
 #### `cluster_summary`
 
 ```python
-cluster_summary(adj, *, clusters = None, method = 'mean', summary = 'within')
+cluster_summary(adj, *, clusters = None, summary = 'mean', scope = 'within')
 ```
 
 This function provides summaries of clusters within Adjacency matrices.
@@ -41,14 +41,14 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance | *required*
 `clusters` |  | (list) list of cluster labels | <code>None</code>
-`method` |  | (str) how to summarize, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
-`summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
+`summary` |  | (str) central tendency, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
+`scope` |  | (str) summarize 'within' cluster or 'between' clusters | <code>'within'</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` |  | (dict) within cluster means
+`dict` |  | (dict) per-cluster summaries
 
 (data-adjacency-stats-plot-label-distance)=
 #### `plot_label_distance`
@@ -124,7 +124,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False)
+similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False, progress_bar: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices.
@@ -143,23 +143,24 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | 'spearman', 'pearson', or 'kendall'. | <code>'spearman'</code>
 `include_diag` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` | <code>[str](#str)</code> | How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
-`tail` | <code>[int](#int)</code> | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
 `project` | <code>[bool](#bool)</code> | If True and adj has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | dict | list | BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' (or a list of such dicts when adj contains multiple matrices); a `BrainData` when `project=True`, holding the per-matrix correlations projected back into brain space via the spatial_scale.
+ | dict | list | BrainData: A correlation result dict with keys 'correlation', 'p', and 'device' (or a list of such dicts when adj contains multiple matrices); a `BrainData` when `project=True`, holding the per-matrix correlations projected back into brain space via the spatial_scale.
 
 (data-adjacency-stats-stats-label-distance)=
 #### `stats_label_distance`
 
 ```python
-stats_label_distance(adj, *, labels = None, n_permute = 5000, n_jobs = -1)
+stats_label_distance(adj, *, labels = None, n_permute = 5000, n_jobs = -1, progress_bar = False)
 ```
 
 Calculate permutation tests on within and between label distance.
@@ -210,7 +211,7 @@ Name | Type | Description
 #### `ttest`
 
 ```python
-ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
 Calculate ttest across samples.
@@ -222,10 +223,11 @@ Name | Type | Description | Default
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
+`progress_bar` |  | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 

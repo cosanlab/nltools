@@ -76,7 +76,7 @@ promoted to ``(1, n_voxels)`` before concatenation.
 #### `isc`
 
 ```python
-isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, metric: str = 'median') -> dict
+isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
 ```
 
 Inter-subject correlation across the time dimension.
@@ -96,13 +96,14 @@ for ``pairwise``.
 #### `isc_test`
 
 ```python
-isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, metric: str = 'median', random_state: int | None = None) -> dict
+isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
 ```
 
 Bootstrap inference on ISC.
 
 Resamples subjects with replacement, recomputes ISC each draw, and
 derives a per-voxel p-value from the null distribution centered at 0.
+``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
 
 Passing ``roi_mask`` restricts the computation to that ROI; the returned
 maps carry the ROI mask rather than the collection's whole-brain mask.
@@ -147,24 +148,29 @@ Per-voxel min across subjects. Streams.
 #### `permutation_test`
 
 ```python
-permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Sign-flipping permutation test across subjects (one-sample).
 
 Per the streaming-algorithms table in
 ``docs/development/execution-model.md``, sign-flipping needs all subjects
-in memory by design. ``device`` is currently informational; backend
-selection is deferred to the parametric stats path.
+in memory by design. Delegates to the engine's
+`one_sample_permutation_test` (as ``isc_test`` already does), so
+``device`` and ``n_jobs`` select the real execution backend.
 
 (data-collection-inference-permutation-test2)=
 #### `permutation_test2`
 
 ```python
-permutation_test2(bc: BrainCollection, other: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test2(bc: BrainCollection, other: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Two-sample permutation test by random label shuffling.
+
+Delegates to the engine's `two_sample_permutation_test`, so ``device``
+and ``n_jobs`` select the real execution backend. The result's ``mean``
+map is the engine's ``mean_diff`` (group difference).
 
 (data-collection-inference-std)=
 #### `std`
@@ -188,22 +194,28 @@ Sum across subjects. Streams.
 #### `ttest`
 
 ```python
-ttest(bc: BrainCollection, *, popmean: float = 0.0) -> dict[str, BrainData]
+ttest(bc: BrainCollection, *, popmean: float = 0.0, tail: int | str = 2) -> dict[str, BrainData]
 ```
 
 One-sample t-test across subjects.
 
 Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
 ``BrainData.ttest``. Streams from path-backed input via Welford.
+``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+mean > popmean; negate the data for the other direction). The z map is
+derived from the reported p, so it matches the requested tail.
 
 (data-collection-inference-ttest2)=
 #### `ttest2`
 
 ```python
-ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True) -> dict[str, BrainData]
+ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True, tail: int | str = 2) -> dict[str, BrainData]
 ```
 
 Two-sample t-test between two collections (subject-level).
+
+``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+bc > other; swap the operands for the other direction).
 
 (data-collection-inference-var)=
 #### `var`

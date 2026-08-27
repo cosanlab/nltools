@@ -63,7 +63,6 @@ Name | Description
 [`cleanup_all`](#data-brain-collection-cleanup-all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
 [`compute_contrasts`](#data-brain-collection-compute-contrasts) | Compute per-subject contrast maps from fit-bundle items.
 [`concat`](#data-brain-collection-concat) | Stack all subject maps into a single `BrainData` (subjects as rows).
-[`cv`](#data-brain-collection-cv) | Build a CV pipeline for cross-subject prediction.
 [`detrend`](#data-brain-collection-detrend) | Detrend every subject's image in parallel (delegates to `BrainData.detrend`).
 [`filter`](#data-brain-collection-filter) | Filter to a subset by predicate, polars expression, or boolean array.
 [`fit`](#data-brain-collection-fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
@@ -82,7 +81,8 @@ Name | Description
 [`min`](#data-brain-collection-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-brain-collection-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-brain-collection-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-brain-collection-predict) | Predict via one of two paths, dispatched by argument.
+[`predict`](#data-brain-collection-predict) | Per-subject predict-after-fit over fitted ridge bundles.
+[`predict_group`](#data-brain-collection-predict-group) | Group MVPA: subjects as samples → one model → ``Predict``.
 [`read`](#data-brain-collection-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-brain-collection-resample) | Resample every subject's image to a target space in parallel.
 [`smooth`](#data-brain-collection-smooth) | Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
@@ -228,18 +228,6 @@ concat() -> BrainData
 
 Stack all subject maps into a single `BrainData` (subjects as rows).
 
-(data-brain-collection-cv)=
-#### `cv`
-
-```python
-cv(*, k: int | None = None, method: str = 'kfold', split_by: str | None = None, groups: np.ndarray | None = None, n: int = 1000, random_state: int | None = None) -> BrainCollectionPipeline
-```
-
-Build a CV pipeline for cross-subject prediction.
-
-See ``pipeline.py`` for the builder API. The pipeline's ``predict``
-terminal returns a ``BrainData`` with CV attrs attached.
-
 (data-brain-collection-detrend)=
 #### `detrend`
 
@@ -339,7 +327,7 @@ Type | Description
 #### `isc`
 
 ```python
-isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, metric: str = 'median') -> dict
+isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
 ```
 
 Inter-subject correlation (ISC) across the time dimension.
@@ -350,7 +338,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `method` | <code>[str](#str)</code> | ``'loo'`` (leave-one-out template) or ``'pairwise'`` (all subject pairs). | <code>'loo'</code>
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
-`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
+`summary` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
 
 **Returns:**
 
@@ -364,13 +352,13 @@ Type | Description
 #### `isc_test`
 
 ```python
-isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, metric: str = 'median', random_state: int | None = None) -> dict
+isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
 ```
 
 Bootstrap inference on ISC (per-voxel p-values).
 
 Resamples subjects with replacement, recomputes ISC each draw, and
-derives a per-voxel two-tailed p-value from the null centered at 0.
+derives a per-voxel p-value from the null centered at 0.
 
 **Parameters:**
 
@@ -379,14 +367,15 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | ``'loo'`` or ``'pairwise'`` (matches `isc`). | <code>'loo'</code>
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `n_samples` | <code>[int](#int)</code> | Number of bootstrap resamples. | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
+`summary` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0). | <code>2</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the bootstrap RNG. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'isc', 'p', 'null_distribution'}`` (``'isc'`` and ``'p'`` are
+<code>[dict](#dict)</code> | Dict ``{'isc', 'p', 'null_dist'}`` (``'isc'`` and ``'p'`` are
 <code>[dict](#dict)</code> | `BrainData` maps).
 
 (data-brain-collection-iter-pairs)=
@@ -473,39 +462,44 @@ Voxelwise minimum across subjects as a single `BrainData`.
 #### `permutation_test`
 
 ```python
-permutation_test(*, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test(*, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 One-sample sign-flipping permutation test across subjects.
+
+Delegates to the inference engine's `one_sample_permutation_test`
+over the stacked subject data.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `n_permute` | <code>[int](#int)</code> | Number of sign-flip permutations. | <code>5000</code>
-`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
+`device` | <code>[str](#str)</code> | Execution backend — ``None`` (single-threaded numpy), ``'cpu'`` (joblib parallel), or ``'gpu'`` (PyTorch). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | CPU workers when ``device='cpu'`` (-1 = all cores). | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the sign-flip RNG. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
 <code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
-<code>[dict](#dict)</code> | ``'null_distribution'`` when ``return_null=True``.
+<code>[dict](#dict)</code> | ``'null_dist'`` when ``return_null=True``.
 
 (data-brain-collection-permutation-test2)=
 #### `permutation_test2`
 
 ```python
-permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None) -> dict
+permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Two-sample permutation test between this collection and ``other``.
 
-Uses random label shuffling of the pooled subjects.
+Uses random label shuffling of the pooled subjects, delegating to the
+inference engine's `two_sample_permutation_test`.
 
 **Parameters:**
 
@@ -513,34 +507,76 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
 `n_permute` | <code>[int](#int)</code> | Number of label-shuffle permutations. | <code>5000</code>
-`tail` | <code>[int](#int)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
-`device` | <code>[str](#str)</code> | Backend selector (currently informational). | <code>'cpu'</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
+`device` | <code>[str](#str)</code> | Execution backend — ``None`` (single-threaded numpy), ``'cpu'`` (joblib parallel), or ``'gpu'`` (PyTorch). | <code>'cpu'</code>
 `return_null` | <code>[bool](#bool)</code> | If True, include the null distribution in the result. | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Accepted for signature consistency but currently unused; the permutation null is computed by a serial loop. | <code>-1</code>
+`n_jobs` | <code>[int](#int)</code> | CPU workers when ``device='cpu'`` (-1 = all cores). | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the shuffling RNG. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
 <code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
-<code>[dict](#dict)</code> | difference), plus ``'null_distribution'`` when ``return_null=True``.
+<code>[dict](#dict)</code> | difference), plus ``'null_dist'`` when ``return_null=True``.
 
 (data-brain-collection-predict)=
 #### `predict`
 
 ```python
-predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
 ```
 
-Predict via one of two paths, dispatched by argument.
+Per-subject predict-after-fit over fitted ridge bundles.
 
-  ``y=`` only    → group MVPA (subjects as samples) → ``Predict``
-  ``X_new=`` only → per-subject predict-after-fit  → ``BrainCollection``
-  both / neither → raise
+Pass ``X_new`` (a new design matrix) to map each subject's fitted
+model over it, returning a ``BrainCollection`` of predicted maps.
 
-``predict(y=...)`` requires single-map-per-subject items (run
-``compute_contrasts(...)`` first if you have GLM/ridge bundles).
+``predict(y=...)`` is reserved: per-subject decoding (one model per
+subject, consistent with every other per-subject method) lands in a
+future release (#478). For **group MVPA** — subjects as samples, one
+model across the collection — use `predict_group`.
+
+(data-brain-collection-predict-group)=
+#### `predict_group`
+
+```python
+predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
+```
+
+Group MVPA: subjects as samples → one model → ``Predict``.
+
+Stacks the collection into a ``(n_subjects, n_voxels)`` matrix and
+trains a **single** model with subjects as samples (unlike the
+per-subject methods, this deliberately collapses across subjects).
+Requires single-map-per-subject items — run
+``compute_contrasts(...)`` first for GLM/ridge bundles.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Labels/targets, one per subject — an array/list, or the name of a metadata column. | *required*
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
+`model` | <code>[str](#str)</code> | Model name (see ``BrainData.predict``). | <code>'svm'</code>
+`cv` | <code>[int](#int) \| [str](#str)</code> | ``'loso'`` (leave-one-subject-out, default), ``'loro'`` (leave-one-run-out via ``run`` metadata), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'loso'</code>
+`groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject for ``'loso'``, the ``run`` column for ``'loro'``. | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Restrict to an ROI. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
+`scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
+`standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y``, re-run the identical CV, record the mean score — attached as ``permutation_scores`` and ``permutation_pvalue``. Default 0 (no null). | <code>0</code>
+`n_jobs` | <code>[int](#int)</code> | CPU workers. | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for the permutation-null label shuffling. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | `Predict` with CV attributes; plus the permutation-null fields
+ | when ``n_permute > 0``.
 
 (data-brain-collection-read)=
 #### `read`
@@ -694,7 +730,7 @@ the parent process — designs are small. ``n_jobs``/``progress_bar``/
 #### `ttest`
 
 ```python
-ttest(*, popmean: float = 0.0) -> dict
+ttest(*, popmean: float = 0.0, tail: int | str = 2) -> dict
 ```
 
 One-sample t-test across subjects (delegates to `inference.ttest`).
@@ -704,6 +740,7 @@ One-sample t-test across subjects (delegates to `inference.ttest`).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `popmean` | <code>[float](#float)</code> | Null-hypothesis population mean to test against. | <code>0.0</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: mean > popmean; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
@@ -715,7 +752,7 @@ Type | Description
 #### `ttest2`
 
 ```python
-ttest2(other: BrainCollection, *, equal_var: bool = True) -> dict
+ttest2(other: BrainCollection, *, equal_var: bool = True, tail: int | str = 2) -> dict
 ```
 
 Two-sample t-test between this collection and ``other`` (subject-level).
@@ -726,6 +763,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
 `equal_var` | <code>[bool](#bool)</code> | If True, pooled-variance t-test; if False, Welch's test. | <code>True</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
 
 **Returns:**
 

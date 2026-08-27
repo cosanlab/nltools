@@ -2,7 +2,7 @@
 ## `DesignMatrix`
 
 ```python
-DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover')
+DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover', n_rows: int | None = None)
 ```
 
 Represent experimental designs for neuroimaging with Polars.
@@ -17,10 +17,10 @@ Uses composition pattern (not subclassing) for clean metadata preservation.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>DataFrame, ndarray, dict, str/Path, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - str or Path to a `.tsv`/`.csv` file. BIDS events files   (containing `onset` and `duration` columns) are converted to   boxcar regressors — call ``convolve()`` afterwards if you want   HRF convolution. Any other tabular file is read as-is and is   typically used for confounds. - None (empty initialization) | <code>None</code>
+`data` | <code>DataFrame, ndarray, dict, str/Path, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - str or Path to a `.tsv`/`.csv` file. BIDS events files   (containing `onset` and `duration` columns) are converted to   boxcar regressors — call ``convolve()`` afterwards if you want   HRF convolution. Any other tabular file is read as-is and is   typically used for confounds. - str or Path to a `.h5`/`.hdf5` file written by ``.write()``,   which restores the data *and* the metadata (``sampling_freq``,   ``.convolved``, ``.confounds``, ``.multi``). Neither   ``run_length`` nor ``sampling_freq`` is needed; passing either   overrides what the file recorded. - None (empty initialization) | <code>None</code>
 `sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (1/TR for fMRI data). Mutually exclusive with ``TR``. | <code>None</code>
 `TR` | <code>[float](#float)</code> | Repetition time in seconds. Convenience for ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``. | <code>None</code>
-`run_length` | <code>[int](#int) or 'infer'</code> | Required when ``data`` is a file path. Number of TRs in the run. Pass ``'infer'`` for tabular/confounds files to accept whatever row count the file has (not valid for events files). | <code>None</code>
+`run_length` | <code>[int](#int) or 'infer'</code> | Required when ``data`` is a path to a text file. Number of TRs in the run. Pass ``'infer'`` for tabular/confounds files to accept whatever row count the file has (not valid for events files). Not used for ``.h5`` inputs, which carry their own length. | <code>None</code>
 `columns` | <code>list of str</code> | Column names (used with ndarray input) | <code>None</code>
 `convolved` | <code>list of str</code> | Names of convolved columns (tracked internally) | <code>None</code>
 `confounds` | <code>list of str</code> | Names of nuisance/confound columns (intercept, polynomial drift, DCT cosines, motion, …) tracked internally | <code>None</code>
@@ -102,7 +102,7 @@ is anything other than an events file.
 >>> # Multi-run concatenation (auto-separates polynomials)
 >>> dm_run1 = DesignMatrix(...).add_poly(0)
 >>> dm_run2 = DesignMatrix(...).add_poly(0)
->>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates 0_poly_0, 1_poly_0
+>>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates .nl_r0_poly_0, .nl_r1_poly_0
 ```
 
 ### Methods
@@ -122,7 +122,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
-`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
@@ -543,20 +543,22 @@ For convenience, named-kwarg values that aren't ``pl.Expr`` /
 #### `write`
 
 ```python
-write(file_name: str, sep: str = '\t') -> None
+write(file_name: str, sep: str | None = None) -> None
 ```
 
 Write DesignMatrix to file.
 
-Supports TSV (default), CSV, and HDF5 formats. Format is
-auto-detected from file extension.
+Supports TSV, CSV, and HDF5 formats. Format is auto-detected from the
+file extension. Text formats carry the data only; ``.h5`` also
+preserves ``sampling_freq``, ``.convolved``, ``.confounds``, and
+``.multi``, so ``DesignMatrix(path)`` restores the whole object.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab). | <code>'\t'</code>
+`sep` | <code>[str](#str) \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise); pass a value to override. | <code>None</code>
 
 (data-design-matrix-zscore)=
 #### `zscore`

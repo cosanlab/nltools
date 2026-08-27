@@ -17,7 +17,7 @@ Name | Description
 #### `KFoldStratified`
 
 ```python
-KFoldStratified(n_splits = 3, shuffle = False, random_state = None)
+KFoldStratified(n_splits = 3, *, shuffle = False, random_state = None)
 ```
 
 Bases: <code>[_BaseKFold](#sklearn.model_selection._split._BaseKFold)</code>
@@ -73,3 +73,6 @@ Name | Type | Description
 `train` |  | The training set indices for that split (ndarray).
 `test` |  | The testing set indices for that split (ndarray).
 
+
+
+### Methods

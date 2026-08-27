@@ -1,4 +1,5 @@
 (data-collection-pipesteps-pipesteps)=
+(data-collection-pipesteps-pipesteps)=
 ## `pipesteps`
 
 Low-level pipeline primitives used by `BrainCollection`.
@@ -16,13 +17,13 @@ custom single-dataset preprocessing uses `model=make_pipeline(...)` on
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#data-collection-pipesteps-cvscheme) | Cross-validation scheme configuration.
-[`FittedStack`](#data-collection-pipesteps-fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#data-collection-pipesteps-fittedtransform) | Protocol for fitted transform objects.
-[`NormalizeStep`](#data-collection-pipesteps-normalizestep) | Normalization transform step.
-[`PipeStep`](#data-collection-pipesteps-pipestep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#data-collection-pipesteps-reducestep) | Dimensionality reduction step.
-[`TransformStep`](#data-collection-pipesteps-transformstep) | Protocol for pipeline transform steps.
+`CVScheme` | Cross-validation scheme configuration.
+`FittedStack` | Collection of fitted transforms for inverse transform support.
+`FittedTransform` | Protocol for fitted transform objects.
+`NormalizeStep` | Normalization transform step.
+`PipeStep` | Wrapper for sklearn-compatible transformers.
+`ReduceStep` | Dimensionality reduction step.
+`TransformStep` | Protocol for pipeline transform steps.
 
 
 
@@ -30,12 +31,13 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`base`](#data-collection-pipesteps-base) | Low-level pipeline primitives for nltools.
-[`cv`](#data-collection-pipesteps-cv) | Cross-validation scheme configuration for nltools pipelines.
-[`steps`](#data-collection-pipesteps-steps) | Transform steps for nltools pipelines.
+`base` | Low-level pipeline primitives for nltools.
+`cv` | Cross-validation scheme configuration for nltools pipelines.
+`steps` | Transform steps for nltools pipelines.
 
 ### Classes
 
+(data-collection-pipesteps-cvscheme)=
 (data-collection-pipesteps-cvscheme)=
 #### `CVScheme`
 
@@ -69,7 +71,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loro` | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 `is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
 `k` | <code>[int](#int) \| None</code> | 
 `n` | <code>[int](#int)</code> | 
@@ -83,8 +85,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
+`n_splits` | Return number of splits.
+`split` | Generate train/test indices for each fold.
 
 **Examples:**
 
@@ -111,6 +113,7 @@ Name | Description
 ##### Methods
 
 (data-collection-pipesteps-n-splits)=
+(data-collection-pipesteps-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -132,6 +135,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of splits/folds that will be generated.
 
+(data-collection-pipesteps-split)=
 (data-collection-pipesteps-split)=
 ###### `split`
 
@@ -155,6 +159,7 @@ Type | Description
 <code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
 
 (data-collection-pipesteps-fittedstack)=
+(data-collection-pipesteps-fittedstack)=
 #### `FittedStack`
 
 ```python
@@ -170,7 +175,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#data-collection-pipesteps-steps) | <code>[list](#list)[[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+`steps` | <code>[list](#list)[[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -182,11 +187,12 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#data-collection-pipesteps-append) | Add a fitted transform to the stack.
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Apply inverse transforms in reverse order.
+`append` | Add a fitted transform to the stack.
+`inverse_transform` | Apply inverse transforms in reverse order.
 
 ##### Methods
 
+(data-collection-pipesteps-append)=
 (data-collection-pipesteps-append)=
 ###### `append`
 
@@ -202,6 +208,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fitted_step` | <code>[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)</code> | Fitted transform to append. | *required*
 
+(data-collection-pipesteps-inverse-transform)=
 (data-collection-pipesteps-inverse-transform)=
 ###### `inverse_transform`
 
@@ -232,6 +239,7 @@ Use ``is_fully_invertible`` to check if all steps support inversion.
 </details>
 
 (data-collection-pipesteps-fittedtransform)=
+(data-collection-pipesteps-fittedtransform)=
 #### `FittedTransform`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -253,8 +261,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#data-collection-pipesteps-transform) | Apply the learned transformation to data.
+`inverse_transform` | Apply the inverse transformation to data.
+`transform` | Apply the learned transformation to data.
 
 
 
@@ -281,6 +289,7 @@ Type | Description
 <code>[Any](#typing.Any)</code> | Data in original space.
 
 (data-collection-pipesteps-transform)=
+(data-collection-pipesteps-transform)=
 ###### `transform`
 
 ```python
@@ -301,6 +310,7 @@ Type | Description
 ---- | -----------
 <code>[Any](#typing.Any)</code> | Transformed data.
 
+(data-collection-pipesteps-normalizestep)=
 (data-collection-pipesteps-normalizestep)=
 #### `NormalizeStep`
 
@@ -334,9 +344,9 @@ True
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#data-collection-pipesteps-axis) | <code>[int](#int)</code> | 
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | 
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
+`axis` | <code>[int](#int)</code> | 
+`invertible` | <code>[bool](#bool)</code> | 
+`method` | <code>[str](#str)</code> | 
 
 
 
@@ -344,10 +354,11 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
+`fit` | Compute normalization parameters from data.
 
 ##### Methods
 
+(data-collection-pipesteps-fit)=
 (data-collection-pipesteps-fit)=
 ###### `fit`
 
@@ -369,6 +380,7 @@ Type | Description
 ---- | -----------
 <code>[FittedNormalize](#nltools.data.collection.pipesteps.steps.FittedNormalize)</code> | Fitted transform that can be applied to new data.
 
+(data-collection-pipesteps-pipestep)=
 (data-collection-pipesteps-pipestep)=
 #### `PipeStep`
 
@@ -402,8 +414,8 @@ True
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#data-collection-pipesteps-transformer) | <code>[Any](#typing.Any)</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+`transformer` | <code>[Any](#typing.Any)</code> | 
 
 
 
@@ -411,7 +423,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
+`fit` | Fit transformer to data.
 
 ##### Methods
 
@@ -438,6 +450,7 @@ Type | Description
 ---- | -----------
 <code>[FittedPipe](#nltools.data.collection.pipesteps.steps.FittedPipe)</code> | Fitted transform wrapper.
 
+(data-collection-pipesteps-reducestep)=
 (data-collection-pipesteps-reducestep)=
 #### `ReduceStep`
 
@@ -471,8 +484,8 @@ Examples:
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+`method` | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
 
@@ -482,7 +495,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
+`fit` | Fit reduction model to data.
 
 ##### Methods
 
@@ -507,6 +520,7 @@ Type | Description
 <code>[FittedReduce](#nltools.data.collection.pipesteps.steps.FittedReduce)</code> | Fitted transform that can be applied to new data.
 
 (data-collection-pipesteps-transformstep)=
+(data-collection-pipesteps-transformstep)=
 #### `TransformStep`
 
 Bases: <code>[Protocol](#typing.Protocol)</code>
@@ -520,7 +534,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+`invertible` | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples:
 >>> class MyStep:
@@ -532,7 +546,7 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit the transform to data.
+`fit` | Fit the transform to data.
 
 ##### Methods
 
@@ -561,6 +575,7 @@ Type | Description
 ### Modules
 
 (data-collection-pipesteps-base)=
+(data-collection-pipesteps-base)=
 #### `base`
 
 Low-level pipeline primitives for nltools.
@@ -575,9 +590,9 @@ native `.cv().standardize().reduce().predict()`.
 
 Name | Description
 ---- | -----------
-[`FittedStack`](#data-collection-pipesteps-fittedstack) | Collection of fitted transforms for inverse transform support.
-[`FittedTransform`](#data-collection-pipesteps-fittedtransform) | Protocol for fitted transform objects.
-[`TransformStep`](#data-collection-pipesteps-transformstep) | Protocol for pipeline transform steps.
+`FittedStack` | Collection of fitted transforms for inverse transform support.
+`FittedTransform` | Protocol for fitted transform objects.
+`TransformStep` | Protocol for pipeline transform steps.
 
 
 
@@ -598,7 +613,7 @@ enabling inverse transformation back to the original data space.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`steps`](#data-collection-pipesteps-steps) | <code>[list](#list)[[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)]</code> | Ordered list of fitted transforms.
+`steps` | <code>[list](#list)[[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)]</code> | Ordered list of fitted transforms.
 
 Examples:
 >>> stack = FittedStack()
@@ -610,13 +625,14 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`append`](#data-collection-pipesteps-append) | Add a fitted transform to the stack.
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Apply inverse transforms in reverse order.
+`append` | Add a fitted transform to the stack.
+`inverse_transform` | Apply inverse transforms in reverse order.
 
 
 
 ####### Attributes##
 
+(data-collection-pipesteps-is-fully-invertible)=
 (data-collection-pipesteps-is-fully-invertible)=
 ###### `is_fully_invertible`
 
@@ -705,8 +721,8 @@ Not all transforms are invertible. Check the parent TransformStep's
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Apply the inverse transformation to data.
-[`transform`](#data-collection-pipesteps-transform) | Apply the learned transformation to data.
+`inverse_transform` | Apply the inverse transformation to data.
+`transform` | Apply the learned transformation to data.
 
 
 
@@ -765,7 +781,7 @@ Steps are added to a Pipeline and executed sequentially during CV.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
+`invertible` | <code>[bool](#bool)</code> | Whether this transform supports inverse_transform.
 
 Examples:
 >>> class MyStep:
@@ -777,12 +793,13 @@ Examples:
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit the transform to data.
+`fit` | Fit the transform to data.
 
 
 
 ####### Attributes##
 
+(data-collection-pipesteps-invertible)=
 (data-collection-pipesteps-invertible)=
 ###### `invertible`
 
@@ -815,6 +832,7 @@ Type | Description
 <code>[FittedTransform](#nltools.data.collection.pipesteps.base.FittedTransform)</code> | Fitted transform object that can transform new data.
 
 (data-collection-pipesteps-cv)=
+(data-collection-pipesteps-cv)=
 #### `cv`
 
 Cross-validation scheme configuration for nltools pipelines.
@@ -834,7 +852,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#data-collection-pipesteps-cvscheme) | Cross-validation scheme configuration.
+`CVScheme` | Cross-validation scheme configuration.
 
 ##### Classes
 
@@ -870,7 +888,7 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-[`is_loro`](#data-collection-pipesteps-is-loro) | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
+`is_loro` | <code>[bool](#bool)</code> | Check if this is leave-one-run-out.
 `is_loso` | <code>[bool](#bool)</code> | Check if this is leave-one-subject-out.
 `k` | <code>[int](#int) \| None</code> | 
 `n` | <code>[int](#int)</code> | 
@@ -886,8 +904,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`n_splits`](#data-collection-pipesteps-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-split) | Generate train/test indices for each fold.
+`n_splits` | Return number of splits.
+`split` | Generate train/test indices for each fold.
 
 **Examples:**
 
@@ -911,6 +929,7 @@ Name | Description
 >>> cv = CVScheme(scheme='bootstrap', n=500, random_state=42)
 ```
 
+(data-collection-pipesteps-is-loro)=
 (data-collection-pipesteps-is-loro)=
 ###### `is_loro`
 
@@ -1017,6 +1036,7 @@ Type | Description
 <code>[tuple](#tuple)[[NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)], [NDArray](#numpy.typing.NDArray)[[intp](#numpy.intp)]]</code> | Tuple of (train_indices, test_indices) for each fold.
 
 (data-collection-pipesteps-steps)=
+(data-collection-pipesteps-steps)=
 #### `steps`
 
 Transform steps for nltools pipelines.
@@ -1033,17 +1053,18 @@ Each step follows the fit/transform pattern:
 
 Name | Description
 ---- | -----------
-[`FittedNormalize`](#data-collection-pipesteps-fittednormalize) | Fitted normalization transform.
-[`FittedPipe`](#data-collection-pipesteps-fittedpipe) | Fitted sklearn transformer wrapper.
-[`FittedReduce`](#data-collection-pipesteps-fittedreduce) | Fitted dimensionality reduction transform.
-[`NormalizeStep`](#data-collection-pipesteps-normalizestep) | Normalization transform step.
-[`PipeStep`](#data-collection-pipesteps-pipestep) | Wrapper for sklearn-compatible transformers.
-[`ReduceStep`](#data-collection-pipesteps-reducestep) | Dimensionality reduction step.
+`FittedNormalize` | Fitted normalization transform.
+`FittedPipe` | Fitted sklearn transformer wrapper.
+`FittedReduce` | Fitted dimensionality reduction transform.
+`NormalizeStep` | Normalization transform step.
+`PipeStep` | Wrapper for sklearn-compatible transformers.
+`ReduceStep` | Dimensionality reduction step.
 
 
 
 ##### Classes
 
+(data-collection-pipesteps-fittednormalize)=
 (data-collection-pipesteps-fittednormalize)=
 ###### `FittedNormalize`
 
@@ -1060,21 +1081,22 @@ the transformation to new data.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`mean`](#data-collection-pipesteps-mean) | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
+`mean` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the mean. For minmax: the min value.
 `std` | <code>[ndarray](#numpy.ndarray)</code> | For zscore: the standard deviation. For minmax: the range (max - min).
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
+`method` | <code>[str](#str)</code> | The normalization method ('zscore' or 'minmax').
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Reverse normalization.
-[`transform`](#data-collection-pipesteps-transform) | Apply normalization to data.
+`inverse_transform` | Reverse normalization.
+`transform` | Apply normalization to data.
 
 
 
 ####### Attributes##
 
+(data-collection-pipesteps-mean)=
 (data-collection-pipesteps-mean)=
 ###### `mean`
 
@@ -1139,6 +1161,7 @@ Type | Description
 <code>[ndarray](#numpy.ndarray)</code> | Normalized data.
 
 (data-collection-pipesteps-fittedpipe)=
+(data-collection-pipesteps-fittedpipe)=
 ###### `FittedPipe`
 
 ```python
@@ -1153,19 +1176,20 @@ Holds a fitted sklearn transformer and delegates transform calls to it.
 
 Name | Type | Description
 ---- | ---- | -----------
-[`transformer`](#data-collection-pipesteps-transformer) | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
+`transformer` | <code>[Any](#typing.Any)</code> | Fitted sklearn-compatible transformer.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Apply inverse transform if supported.
-[`transform`](#data-collection-pipesteps-transform) | Apply the fitted transformer.
+`inverse_transform` | Apply inverse transform if supported.
+`transform` | Apply the fitted transformer.
 
 
 
 ####### Attributes##
 
+(data-collection-pipesteps-transformer)=
 (data-collection-pipesteps-transformer)=
 ###### `transformer`
 
@@ -1218,6 +1242,7 @@ Type | Description
 <code>[ndarray](#numpy.ndarray)</code> | Transformed data.
 
 (data-collection-pipesteps-fittedreduce)=
+(data-collection-pipesteps-fittedreduce)=
 ###### `FittedReduce`
 
 ```python
@@ -1233,19 +1258,20 @@ Holds the fitted sklearn model and applies transformations.
 Name | Type | Description
 ---- | ---- | -----------
 `model` | <code>[Any](#typing.Any)</code> | Fitted sklearn decomposition model (PCA, FastICA, etc.).
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | The reduction method used.
+`method` | <code>[str](#str)</code> | The reduction method used.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`inverse_transform`](#data-collection-pipesteps-inverse-transform) | Reverse dimensionality reduction (reconstruct original space).
-[`transform`](#data-collection-pipesteps-transform) | Apply dimensionality reduction.
+`inverse_transform` | Reverse dimensionality reduction (reconstruct original space).
+`transform` | Apply dimensionality reduction.
 
 
 
 ####### Attributes##
 
+(data-collection-pipesteps-method)=
 (data-collection-pipesteps-method)=
 ###### `method`
 
@@ -1335,9 +1361,9 @@ True
 
 Name | Type | Description
 ---- | ---- | -----------
-[`axis`](#data-collection-pipesteps-axis) | <code>[int](#int)</code> | 
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | 
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
+`axis` | <code>[int](#int)</code> | 
+`invertible` | <code>[bool](#bool)</code> | 
+`method` | <code>[str](#str)</code> | 
 
 
 
@@ -1347,8 +1373,9 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Compute normalization parameters from data.
+`fit` | Compute normalization parameters from data.
 
+(data-collection-pipesteps-axis)=
 (data-collection-pipesteps-axis)=
 ###### `axis`
 
@@ -1424,8 +1451,8 @@ True
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
-[`transformer`](#data-collection-pipesteps-transformer) | <code>[Any](#typing.Any)</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the transformer supports inverse_transform.
+`transformer` | <code>[Any](#typing.Any)</code> | 
 
 
 
@@ -1435,7 +1462,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit transformer to data.
+`fit` | Fit transformer to data.
 
 ###### `invertible`
 
@@ -1516,8 +1543,8 @@ Examples:
 
 Name | Type | Description
 ---- | ---- | -----------
-[`invertible`](#data-collection-pipesteps-invertible) | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
-[`method`](#data-collection-pipesteps-method) | <code>[str](#str)</code> | 
+`invertible` | <code>[bool](#bool)</code> | Check if the reduction method supports inverse transform.
+`method` | <code>[str](#str)</code> | 
 `n_components` | <code>[int](#int) \| None</code> | 
 `random_state` | <code>[int](#int) \| None</code> | 
 
@@ -1529,7 +1556,7 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`fit`](#data-collection-pipesteps-fit) | Fit reduction model to data.
+`fit` | Fit reduction model to data.
 
 ###### `invertible`
 

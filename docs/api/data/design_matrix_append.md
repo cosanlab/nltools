@@ -18,8 +18,6 @@ Name | Description
 [`identify_columns_to_separate`](#data-design-matrix-append-identify-columns-to-separate) | Identify columns that need run-specific separation.
 [`match_column_pattern`](#data-design-matrix-append-match-column-pattern) | Match columns against a pattern with wildcard support.
 
-
-
 ### Classes
 
 ### Methods
@@ -79,7 +77,7 @@ Name | Type | Description
 #### `append_vertical`
 
 ```python
-append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, progress_bar: bool) -> DesignMatrix
+append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, *, progress_bar: bool) -> DesignMatrix
 ```
 
 Concatenate matrices vertically with optional confound separation.
@@ -105,12 +103,12 @@ Name | Type | Description
 #### `append_vertical_with_separation`
 
 ```python
-append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, progress_bar: bool) -> DesignMatrix
+append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, *, progress_bar: bool) -> DesignMatrix
 ```
 
 Concatenate vertically with automatic confound separation.
 
-Creates run-specific columns (e.g., 0_poly_0, 1_poly_0) that are
+Creates run-specific columns (e.g., .nl_r0_poly_0, .nl_r1_poly_0) that are
 active only in their respective runs (sparse representation).
 
 **Parameters:**

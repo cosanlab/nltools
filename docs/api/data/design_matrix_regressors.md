@@ -36,13 +36,14 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add DCT basis to. | *required*
 `duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
-`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``cosine_0`` (analogous to ``poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended, named
+ | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 (data-design-matrix-regressors-add-poly)=
 #### `add_poly`
@@ -65,7 +66,8 @@ Name | Type | Description | Default
 
 Name | Type | Description
 ---- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
+`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended, named
+ | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 (data-design-matrix-regressors-convolve)=
 #### `convolve`

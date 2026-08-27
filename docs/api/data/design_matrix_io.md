@@ -12,6 +12,8 @@ Name | Description
 ---- | -----------
 [`events_to_dm`](#data-design-matrix-io-events-to-dm) | Convert a BIDS events table to boxcar regressors aligned to TRs.
 [`load_from_file`](#data-design-matrix-io-load-from-file) | Read a TSV/CSV into the frame a DesignMatrix wraps.
+[`read_h5`](#data-design-matrix-io-read-h5) | Read a DesignMatrix HDF5 file written by `write_h5`.
+[`separator_for_path`](#data-design-matrix-io-separator-for-path) | Return the delimiter a text DesignMatrix file uses, from its extension.
 [`to_numpy`](#data-design-matrix-io-to-numpy) | Convert a DesignMatrix to a NumPy array.
 [`to_pandas`](#data-design-matrix-io-to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#data-design-matrix-io-write) | Write DesignMatrix to file.
@@ -88,6 +90,47 @@ Type | Description
 <code>[bool](#bool)</code> | caller that the columns are experimental regressors rather than
 <code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | nuisance.
 
+(data-design-matrix-io-read-h5)=
+#### `read_h5`
+
+```python
+read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]
+```
+
+Read a DesignMatrix HDF5 file written by `write_h5`.
+
+Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
+and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
+in ``data`` beside an ``S``-typed ``columns`` dataset).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`file_name` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to the HDF5 file. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame)</code> | Tuple of (frame, metadata), where metadata holds ``sampling_freq``,
+<code>[dict](#dict)</code> | ``convolved``, ``confounds``, ``multi``, and ``n_rows`` — absent keys
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [dict](#dict)]</code> | meaning the file didn't record them.
+
+(data-design-matrix-io-separator-for-path)=
+#### `separator_for_path`
+
+```python
+separator_for_path(path: str | Path) -> str
+```
+
+Return the delimiter a text DesignMatrix file uses, from its extension.
+
+The single source of truth for both `write` and `load_from_file`, so a
+file nltools writes is always a file nltools can read back. ``.csv`` means
+comma; every other extension means tab, matching the BIDS convention for
+``.tsv`` and keeping the historical default for ``.txt`` and friends.
+
 (data-design-matrix-io-to-numpy)=
 #### `to_numpy`
 
@@ -158,13 +201,13 @@ Type | Description
 #### `write`
 
 ```python
-write(dm: DesignMatrix, file_name: str, sep: str = '\t') -> None
+write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None
 ```
 
 Write DesignMatrix to file.
 
-Supports TSV (default), CSV, and HDF5 formats. The format is
-automatically determined by file extension.
+Supports TSV, CSV, and HDF5 formats. The format is automatically
+determined by file extension.
 
 **Parameters:**
 
@@ -172,7 +215,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 `file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>[str](#str)</code> | Column separator for text files (default: tab for TSV).  Ignored for HDF5 files. | <code>'\t'</code>
+`sep` | <code>[str](#str) \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
 
 **Returns:**
 
@@ -184,16 +227,18 @@ Type | Description
 
 ```pycon
 >>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
->>> write(dm, "design_matrix.tsv")  # TSV format (BIDS compatible)
->>> write(dm, "design_matrix.csv", sep=",")  # CSV format
->>> write(dm, "design_matrix.h5")  # HDF5 format
+>>> write(dm, "design_matrix.tsv")  # tab separated (BIDS compatible)
+>>> write(dm, "design_matrix.csv")  # comma separated
+>>> write(dm, "design_matrix.h5")  # HDF5, metadata preserved
 ```
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-TSV format is recommended for BIDS compatibility.
-HDF5 format preserves metadata (sampling_freq, convolved, confounds).
+TSV format is recommended for BIDS compatibility. Text formats carry
+the data only — HDF5 additionally preserves ``sampling_freq``,
+``.convolved``, ``.confounds``, ``.multi``, and the row count of a
+column-less matrix, so ``DesignMatrix(path)`` restores the object.
 
 </details>
 
@@ -205,6 +250,11 @@ write_h5(dm: DesignMatrix, file_name: str) -> None
 ```
 
 Write DesignMatrix to HDF5 file with metadata.
+
+The frame is stored as Arrow IPC bytes (via the shared
+`nltools.io.h5` helpers) so every dtype round-trips exactly — an integer
+spike indicator comes back an integer rather than being floated by a
+detour through a homogeneous numpy array.
 
 **Parameters:**
 

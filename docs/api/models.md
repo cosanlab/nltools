@@ -247,7 +247,7 @@ statistical inference with correct degrees of freedom, etc.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `contrast_def` | <code>str, array-like, or dict</code> | Contrast specification: - str: Regressor name (e.g., 'task') - array-like: Contrast vector (e.g., [1, -1, 0, 0]) - dict: Multiple contrasts with names as keys | *required*
-`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
+`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map (one-sided, per the nilearn/SPM   directional-contrast convention; flip the contrast for the   other direction) - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
 
 **Returns:**
 
@@ -910,7 +910,7 @@ statistical inference with correct degrees of freedom, etc.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `contrast_def` | <code>str, array-like, or dict</code> | Contrast specification: - str: Regressor name (e.g., 'task') - array-like: Contrast vector (e.g., [1, -1, 0, 0]) - dict: Multiple contrasts with names as keys | *required*
-`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
+`output_type` | <code>str, default='stat'</code> | Type of output to return: - 'stat': T-statistic map (default) - 'z_score': Z-score map - 'p_value': P-value map (one-sided, per the nilearn/SPM   directional-contrast convention; flip the contrast for the   other direction) - 'effect_size': Effect size (beta) map - 'effect_variance': Variance of effect size - 'all': Dictionary with all output types | <code>'stat'</code>
 
 **Parameters:**
 

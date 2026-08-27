@@ -1,4 +1,5 @@
 (data-collection-pipesteps-cv-cv)=
+(data-collection-pipesteps-cv-cv)=
 ## `cv`
 
 Cross-validation scheme configuration for nltools pipelines.
@@ -18,10 +19,11 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`CVScheme`](#data-collection-pipesteps-cv-cvscheme) | Cross-validation scheme configuration.
+`CVScheme` | Cross-validation scheme configuration.
 
 ### Classes
 
+(data-collection-pipesteps-cv-cvscheme)=
 (data-collection-pipesteps-cv-cvscheme)=
 #### `CVScheme`
 
@@ -69,8 +71,8 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`n_splits`](#data-collection-pipesteps-cv-n-splits) | Return number of splits.
-[`split`](#data-collection-pipesteps-cv-split) | Generate train/test indices for each fold.
+`n_splits` | Return number of splits.
+`split` | Generate train/test indices for each fold.
 
 **Examples:**
 
@@ -97,6 +99,7 @@ Name | Description
 ##### Methods
 
 (data-collection-pipesteps-cv-n-splits)=
+(data-collection-pipesteps-cv-n-splits)=
 ###### `n_splits`
 
 ```python
@@ -118,6 +121,7 @@ Type | Description
 ---- | -----------
 <code>[int](#int)</code> | Number of splits/folds that will be generated.
 
+(data-collection-pipesteps-cv-split)=
 (data-collection-pipesteps-cv-split)=
 ###### `split`
 

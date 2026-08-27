@@ -99,7 +99,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -117,6 +117,7 @@ Name | Type | Description | Default
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | (bool) If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
@@ -137,7 +138,7 @@ Name | Type | Description
 #### `cluster_summary`
 
 ```python
-cluster_summary(*, clusters = None, method = 'mean', summary = 'within')
+cluster_summary(*, clusters = None, summary = 'mean', scope = 'within')
 ```
 
 Provide summaries of clusters within Adjacency matrices.
@@ -150,14 +151,14 @@ list of cluster ids indicating the row/column of each cluster.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `clusters` |  | (list) list of cluster labels | <code>None</code>
-`method` |  | (str) how to summarize, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
-`summary` |  | (str) summarize within cluster or between clusters | <code>'within'</code>
+`summary` |  | (str) central tendency, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
+`scope` |  | (str) summarize 'within' cluster or 'between' clusters | <code>'within'</code>
 
 **Returns:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`dict` |  | within cluster means
+`dict` |  | per-cluster summaries
 
 (data-adjacency-copy)=
 #### `copy`
@@ -381,7 +382,7 @@ Apply Fisher's r-to-z transformation to each data element.
 #### `regress`
 
 ```python
-regress(X, method = 'ols')
+regress(X, method = 'ols', tail = 2)
 ```
 
 Run a regression on an adjacency instance.
@@ -394,6 +395,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
 `method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
 
 **Returns:**
 
@@ -405,7 +407,7 @@ Name | Type | Description
 #### `similarity`
 
 ```python
-similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, project: bool = False)
+similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False, project: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices.
@@ -427,13 +429,14 @@ Name | Type | Description | Default
 `return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | (bool) If True, show a progress bar. Default False. | <code>False</code>
 `project` | <code>[bool](#bool)</code> | (bool) If True and this Adjacency has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'parallel' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
+ | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'device' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
 
 (data-adjacency-social-relations-model)=
 #### `social_relations_model`
@@ -655,7 +658,7 @@ Type | Description
 #### `ttest`
 
 ```python
-ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
+ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
 Calculate ttest across samples.
@@ -666,10 +669,11 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: mean > 0; negate the data for the other direction). Applies to both the parametric and permutation paths. | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 

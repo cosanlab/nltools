@@ -18,8 +18,15 @@ Name | Description
 Name | Description
 ---- | -----------
 [`assert_array_almost_equal`](#backends-assert-array-almost-equal) | Test array equality with automatic precision adjustment for MPS backend.
+[`auto_batch_size`](#backends-auto-batch-size) | Split `n_items` into batches that fit a memory budget.
+[`auto_n_jobs_for_arrays`](#backends-auto-n-jobs-for-arrays) | Memory-aware joblib worker count for a per-item map over arrays.
 [`auto_select_backend`](#backends-auto-select-backend) | Automatically select backend based on problem size.
 [`check_gpu_available`](#backends-check-gpu-available) | Check if GPU acceleration is available.
+[`compute_oom_safe`](#backends-compute-oom-safe) | Run `fn(*arrays)` with reactive out-of-memory recovery.
+[`device_memory_budget`](#backends-device-memory-budget) | Usable memory budget in GB for a backend's device.
+[`empty_device_cache`](#backends-empty-device-cache) | Release cached device memory. No-op without torch or a GPU.
+[`gb_to_bytes`](#backends-gb-to-bytes) | Convert a GB budget to bytes — the package's one GB↔bytes conversion.
+[`is_oom_error`](#backends-is-oom-error) | True if `exc` is a device out-of-memory error (CUDA or MPS).
 [`resolve_backend`](#backends-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
 
@@ -484,6 +491,63 @@ Type | Description
 ---- | -----------
  | None (raises AssertionError if arrays don't match)
 
+(backends-auto-batch-size)=
+#### `auto_batch_size`
+
+```python
+auto_batch_size(n_items: int, bytes_per_item: float, *, budget_gb: float, overhead: float = 1.0, min_batch: int = 1) -> tuple[int, int]
+```
+
+Split `n_items` into batches that fit a memory budget.
+
+The one batch calculator for the package. Callers supply only the
+per-item working-set estimate (`bytes_per_item`) and an algorithm's
+allocation `overhead` factor; the clamp/ceil policy lives here.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_items` | <code>[int](#int)</code> | Total number of items (permutations, targets, ...). | *required*
+`bytes_per_item` | <code>[float](#float)</code> | Dominant working-set size of one item in bytes. | *required*
+`budget_gb` | <code>[float](#float)</code> | Memory budget from `device_memory_budget`. | *required*
+`overhead` | <code>[float](#float)</code> | Multiplier for intermediate allocations (e.g. 3.0 when the computation holds ~3x the input working set). | <code>1.0</code>
+`min_batch` | <code>[int](#int)</code> | Smallest batch worth dispatching (amortizes launch and transfer overhead). Never exceeds `n_items`. | <code>1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[int](#int)</code> | tuple[int, int]: `(batch_size, n_batches)` with
+<code>[int](#int)</code> | `batch_size * n_batches >= n_items`.
+
+(backends-auto-n-jobs-for-arrays)=
+#### `auto_n_jobs_for_arrays`
+
+```python
+auto_n_jobs_for_arrays(arrays, *, max_memory_gb: float | None = None, min_jobs: int = 1) -> int
+```
+
+Memory-aware joblib worker count for a per-item map over arrays.
+
+Sizes workers by the largest item (each worker pickles its item), using
+the same measured budget as the device batching layer. None entries are
+ignored; an empty list returns ``min_jobs``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`arrays` |  | Iterable of numpy arrays (None entries allowed). | *required*
+`max_memory_gb` | <code>[float](#float) \| None</code> | Explicit memory budget in GB. None (default) measures available system RAM with headroom via `device_memory_budget`. | <code>None</code>
+`min_jobs` | <code>[int](#int)</code> | Minimum number of workers (default: 1). | <code>1</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`int` | <code>[int](#int)</code> | Worker count for ``joblib.Parallel(n_jobs=...)``.
+
 (backends-auto-select-backend)=
 #### `auto_select_backend`
 
@@ -536,6 +600,95 @@ Check if GPU acceleration is available.
 Name | Type | Description
 ---- | ---- | -----------
 `tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
+
+(backends-compute-oom-safe)=
+#### `compute_oom_safe`
+
+```python
+compute_oom_safe(fn, *arrays, min_chunk: int = 1)
+```
+
+Run `fn(*arrays)` with reactive out-of-memory recovery.
+
+All `arrays` must share their axis-0 length, and `fn` must map them to
+a numpy array whose axis 0 corresponds row-for-row to its inputs. On a
+device OOM the cache is emptied, the arrays are split in half along
+axis 0, and the halves are retried recursively; partial results are
+concatenated along axis 0.
+
+Because splitting reuses the *already generated* inputs rather than
+re-drawing them, results are identical to the unsplit computation for
+any row-independent `fn` — RNG-consuming input generation stays outside
+this function, so recovery never changes a seeded result.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fn` |  | Callable mapping the arrays to a numpy result (axis-0 aligned). | *required*
+`*arrays` |  | Input arrays sharing axis-0 length. | <code>()</code>
+`min_chunk` | <code>[int](#int)</code> | Chunk size below which an OOM is considered fatal. | <code>1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | np.ndarray: `fn`'s result, possibly assembled from retried chunks.
+
+(backends-device-memory-budget)=
+#### `device_memory_budget`
+
+```python
+device_memory_budget(backend: Backend | None = None, max_gpu_memory_gb: float | None = None) -> float
+```
+
+Usable memory budget in GB for a backend's device.
+
+An explicit `max_gpu_memory_gb` always wins. Otherwise the budget is
+measured at call time: free CUDA memory (with headroom) on CUDA
+devices; available system RAM (with headroom) for CPU and MPS, which
+share unified/system memory. When nothing can be measured the
+conservative 4 GB fallback applies.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Resolved `Backend` whose device the work runs on. None is treated as CPU. | <code>None</code>
+`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit budget override in GB. Must be positive. | <code>None</code>
+
+**Returns:**
+
+Name | Type | Description
+---- | ---- | -----------
+`float` | <code>[float](#float)</code> | Budget in GB.
+
+(backends-empty-device-cache)=
+#### `empty_device_cache`
+
+```python
+empty_device_cache() -> None
+```
+
+Release cached device memory. No-op without torch or a GPU.
+
+(backends-gb-to-bytes)=
+#### `gb_to_bytes`
+
+```python
+gb_to_bytes(gb: float) -> int
+```
+
+Convert a GB budget to bytes — the package's one GB↔bytes conversion.
+
+(backends-is-oom-error)=
+#### `is_oom_error`
+
+```python
+is_oom_error(exc: BaseException) -> bool
+```
+
+True if `exc` is a device out-of-memory error (CUDA or MPS).
 
 (backends-resolve-backend)=
 #### `resolve_backend`

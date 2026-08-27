@@ -133,7 +133,7 @@ Type | Description
 ###### `iter_neighborhoods`
 
 ```python
-iter_neighborhoods(progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
+iter_neighborhoods(*, progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
 ```
 
 Iterate over all neighborhoods.

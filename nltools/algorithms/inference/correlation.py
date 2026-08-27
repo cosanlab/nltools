@@ -721,9 +721,9 @@ def correlation_permutation_test(
             - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
         tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
             - 'two' or 2: Two-tailed test (r != 0)
-            - 'upper' or 1: One-tailed upper (r > 0, positive correlation)
-            - 'lower' or -1: One-tailed lower (r < 0, negative correlation)
-            For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
+            - 2 | 'two': Two-tailed test (r != 0)
+            - 1 | 'one': One-tailed (r > 0; negate one variable for the other
+              direction). The fixed direction keeps MCP correction valid.
         return_null (bool): If True, return full null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)

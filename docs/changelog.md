@@ -114,6 +114,31 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> implement distance(searchlight) and align(roi)
 - <span class="badge badge-feature">Feature</span> cluster reports with anatomical labeling
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> rebuild BrainData.iplot() on ipyniivue (niivue)
+- <span class="badge badge-feature">Feature</span> add marimo->ipynb converter for JupyterLite tutorials
+- <span class="badge badge-feature">Feature</span> add poe docs-jupyterlite task to build the tutorial JupyterLite bundle
+- <span class="badge badge-feature">Feature</span> make GLM + MVPA tutorials run in JupyterLite on trimmed HF data
+- <span class="badge badge-feature">Feature</span> add "Try it live" JupyterLite nav link + deploy-ready build
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot() colorbar + interactive threshold slider
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> host pain dataset on HF so fetch_pain() works in Pyodide
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> host emotion-rating dataset on HF for fetch_emotion_ratings()
+- <span class="badge badge-feature">Feature</span> serve tutorials as interactive marimo/WASM notebooks
+- <span class="badge badge-feature">Feature</span> land core helpers, __init__, indexing, parallel _apply
+- <span class="badge badge-feature">Feature</span> implement load/unload/write/read/cleanup + memory_estimate
+- <span class="badge badge-feature">Feature</span> GLM fit + HDF5 bundles + compute_contrasts
+- <span class="badge badge-feature">Feature</span> reductions, perm tests, ISC, align, from_bids/from_glob, predict dispatch
+- <span class="badge badge-feature">Feature</span> ridge fit bundles + bc.predict(X_new=) per-subject path
+- <span class="badge badge-feature">Feature</span> stage encoding + ISC datasets for nltools/niftis
+- <span class="badge badge-feature">Feature</span> wire max_gpu_memory_gb into ridge_svd GPU batching (F022)
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> user-controlled scale/standardize preprocessing
+- <span class="badge badge-feature">Feature</span> GLM predict(X)/coef_ parity + nilearn report (F182)
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> append(axis=1) refuses bitwise-duplicate columns
+- <span class="badge badge-feature">Feature</span> make the rank-deficiency warning diagnostic and actionable
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> machine-enforce the canonical kwarg vocabulary from api-vocabulary.yml
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one canonical tail= vocabulary across every p-value (#474)
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> reserve the .nl_ namespace for generated columns
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one core GPU execution layer — measured budgets, OOM recovery, run-or-raise
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> carve out predict_group(); remove the legacy cv() pipeline
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot robust autoscaling + shared zero-aware percentile thresholds
 
 ### Improvements
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
@@ -218,6 +243,40 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> tighten decompose signature
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> drop final_weight_map, weight_map = all-data refit
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> generalize .plot() into method= dispatcher; add .corr()
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rename BrainCollectionPipeline.normalize → standardize
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> BrainCollectionPipeline.predict returns BrainData
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> align bc.predict with new BD.predict + GLM tutorial
+- <span class="badge badge-improvement">Improvement</span> memoize fetch_resource, skip network revalidation
+- <span class="badge badge-improvement">Improvement</span> add coalesced_gc() and wrap masking-heavy operations
+- <span class="badge badge-improvement">Improvement</span> validate GLM-fit result mask once per map-list
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove superseded standalone Pipeline/MultiSubject orchestration
+- <span class="badge badge-improvement">Improvement</span> extract API-doc postprocess into its own module
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove dead standalone pipeline surface
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> strip ICC functionality entirely (F012/F048/F140/F177/F194)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonical-kwarg sweep — banned-kwarg renames + **kwargs hygiene
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> add keyword-only `*` marker to 61 public functions (F-kwonly)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rename compute_contrasts statistic selector method→statistic
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize remaining kwarg names across facades
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> close AUDIT-0.6.0 dead-code bucket (23 findings)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove orphaned pool.py two-stage aggregation (F118/F111)
+- <span class="badge badge-improvement">Improvement</span> functional GLM map extraction, no per-contrast round-trips
+- <span class="badge badge-improvement">Improvement</span> functional compute_contrasts, no Nifti round-trip
+- <span class="badge badge-improvement">Improvement</span> annotate models layer + fix Any/hint gaps (F107/F009/F017/F046/F085)
+- <span class="badge badge-improvement">Improvement</span> single-source helpers + frozen dataclass cleanups (F006/F061/F154/F183/F192)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> co-locate pipeline primitives under data/collection/pipesteps
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize spatial_scale vocab in LocalAlignment
+- <span class="badge badge-improvement">Improvement</span> remove 7 dead validation/utility functions
+- <span class="badge badge-improvement">Improvement</span> rewrite as a speed+memory harness over the current API
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize device selection to device= across facades
+- <span class="badge badge-improvement">Improvement</span> run pairwise ISC bootstrap on the GPU
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> rebuild BrainData.iplot() on a self-owned niivue anywidget
+- <span class="badge badge-improvement">Improvement</span> make find_spikes deduplication unconditional; drop clean=
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> stop cleaning the design in fit(); warn on rank deficiency
+- <span class="badge badge-improvement">Improvement</span> make maybe_tqdm/make_progress_bar the single library-wide progress mechanism
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> enforce the keyword-only marker convention uniformly across the package
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove nltools.stats; consolidate the functional core into nltools.algorithms
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize the ISC vocabulary (summary=/metric=/null_dist)
+- ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize cluster_summary and extract_roi kwargs
 
 ### Bug Fixes
 - <span class="badge badge-fix">Bug Fix</span> fix formatting
@@ -292,6 +351,50 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-fix">Bug Fix</span> re-stub predict_multi; bounds-trim default slice cut_coords
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> always suffix convolved columns with _c{i}
 - <span class="badge badge-fix">Bug Fix</span> make .convolve() idempotent over already-convolved columns
+- <span class="badge badge-fix">Bug Fix</span> relax accidental numpy floor; pin nilearn in pyodide smoke test
+- <span class="badge badge-fix">Bug Fix</span> restore the interactive_plots optional extra (ipywidgets)
+- <span class="badge badge-fix">Bug Fix</span> deterministic cell ids for generated tutorial notebooks
+- <span class="badge badge-fix">Bug Fix</span> deterministic tiebreak for same-second step subdirs
+- <span class="badge badge-fix">Bug Fix</span> strip leaked RST directives from re-exported docstrings
+- <span class="badge badge-fix">Bug Fix</span> correct Attributes-section removal over-match in API generation
+- <span class="badge badge-fix">Bug Fix</span> correct invalid p-values/CIs and permutation nulls (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> crashes/silent-empty on realistic inputs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> silent metadata loss and threshold/stack bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> seaborn 0.13.2 crashes, dropped returns, triangle swap (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> always-raising ctor, copy-paste + wrong SE bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> schema check + non-integer downsample ratios (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> __all__ attribute errors and mutable default (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> filter crash, resource leaks, CV-index + MVPA seed bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> NaN-poisoning, silent-wrong + crash bugs (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> n_subjects referenced nonexistent BrainCollection.n_images (0.6.0 audit)
+- <span class="badge badge-fix">Bug Fix</span> restore ISC bootstrap null centering dropped in refactor (F066)
+- <span class="badge badge-fix">Bug Fix</span> HyperAlignment auto_pad zero-pads instead of truncating (F001)
+- <span class="badge badge-fix">Bug Fix</span> implement PooledData.repool for real fitted_state shapes (F111)
+- <span class="badge badge-fix">Bug Fix</span> share one integer cluster_id space between peaks and clusters (F043)
+- <span class="badge badge-fix">Bug Fix</span> complete parallel→device + contrast_type→method renames missed in 9b1b0eb4
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> drop invalid permutation CVScheme, add predict(n_permute=) null (F112)
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> stop advertising kwargs that do nothing (F068/F021/F182)
+- <span class="badge badge-fix">Bug Fix</span> apply_mask inherits target space for raw Niimg masks
+- <span class="badge badge-fix">Bug Fix</span> clearer errors + robust input handling (F098/F031/F159/F157)
+- <span class="badge badge-fix">Bug Fix</span> to_nifti preserves data precision instead of quantizing to mask dtype
+- <span class="badge badge-fix">Bug Fix</span> align feeds LocalAlignment correct orientation + wire cache= (F073)
+- <span class="badge badge-fix">Bug Fix</span> repair docstring rendering bugs in API reference
+- <span class="badge badge-fix">Bug Fix</span> make marimo-WASM tutorials boot in Pyodide
+- <span class="badge badge-fix">Bug Fix</span> run GPU legs on CUDA hosts, not just MPS
+- <span class="badge badge-fix">Bug Fix</span> stream leave-one-out ISC instead of materializing all subjects
+- <span class="badge badge-fix">Bug Fix</span> correct regress standard errors, all_same, copy() docs
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> wire GPU into pairwise ISC; fail fast on unsupported metric
+- <span class="badge badge-fix">Bug Fix</span> sequential micropip install for marimo-WASM; adopt niivue viewer
+- <span class="badge badge-fix">Bug Fix</span> use Python # comments in Pyodide micropip.install string
+- <span class="badge badge-fix">Bug Fix</span> make h5py a core dependency; BrainCollection.fit() requires it
+- <span class="badge badge-fix">Bug Fix</span> stop find_spikes() emitting duplicate spike regressors
+- <span class="badge badge-fix">Bug Fix</span> a design matrix with no regressors keeps its row count
+- <span class="badge badge-fix">Bug Fix</span> make n_rows survive copies and reject conflicting values
+- <span class="badge badge-fix">Bug Fix</span> point the rank-deficiency warning at regularization, not deletion
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> add progress_bar to the permutation and bootstrap family
+- <span class="badge badge-fix">Bug Fix</span> thread progress_bar through the bootstrap and Adjacency stat facades
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make options keyword-only across the inference layer
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make write() and the file constructor round-trip
 
 ### Documentation
 - <span class="badge badge-docs">Docs</span> Streamline CLAUDE.md and add token-efficient pytest guidance
@@ -369,6 +472,40 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-docs">Docs</span> consolidate workflows into 4 standardized notebooks
 - <span class="badge badge-docs">Docs</span> remove broken BrainCollection basics card
 - <span class="badge badge-docs">Docs</span> align API doc generation with the uv-cleanup module layout
+- <span class="badge badge-docs">Docs</span> standardize docstrings to Google/Markdown, automate changelog, fix migration guide
+- <span class="badge badge-docs">Docs</span> fix broken cross-reference links in generated API docs
+- <span class="badge badge-docs">Docs</span> document iplot() colorbar + threshold slider; ipywidgets in JupyterLite
+- <span class="badge badge-docs">Docs</span> explicit page-scoped MyST targets to silence heading-ref warnings
+- <span class="badge badge-docs">Docs</span> silence remaining mystmd build warnings (frontmatter, grid, docstrings)
+- <span class="badge badge-docs">Docs</span> regenerate API reference (fetch_pain signature + docstring fixes)
+- <span class="badge badge-docs">Docs</span> update SPEC status header to reflect implemented state
+- <span class="badge badge-docs">Docs</span> regenerate API reference after BrainCollection bring-over
+- <span class="badge badge-docs">Docs</span> regenerate collection_core after seq-tiebreak
+- <span class="badge badge-docs">Docs</span> regenerate API reference for statistic rename + permutation removal
+- <span class="badge badge-docs">Docs</span> fix docstring/RST-leakage bucket + regenerate API reference
+- <span class="badge badge-docs">Docs</span> regenerate API reference (F068/F021/F182 + owed drift)
+- <span class="badge badge-docs">Docs</span> wire encoding + isc notebooks for in-browser WASM data (#3673)
+- <span class="badge badge-docs">Docs</span> commit the 0.6.0 pre-release hygiene audit record
+- <span class="badge badge-docs">Docs</span> fix stale Adjacency.similarity/regress/isc claims
+- ⚠ **Breaking** <span class="badge badge-docs">Docs</span> reorder summary tables to Parameters/Attributes/Classes/Methods
+- <span class="badge badge-docs">Docs</span> reconcile Args/Returns docstrings with actual signatures
+- <span class="badge badge-docs">Docs</span> tidy module docstrings (dedupe, drop leftover headings)
+- <span class="badge badge-docs">Docs</span> tidy first-line docstring summaries for griffe tables
+- <span class="badge badge-docs">Docs</span> add BrainCollection basics notebook
+- <span class="badge badge-docs">Docs</span> normalize docstring style (Note: header, typos, models blank line)
+- <span class="badge badge-docs">Docs</span> add interactive design tour + wire standalone-page build
+- <span class="badge badge-docs">Docs</span> add static-markdown tutorial build mode (default) + simplify docs poe tasks
+- <span class="badge badge-docs">Docs</span> trim CLAUDE.md to load-bearing guidance
+- <span class="badge badge-docs">Docs</span> clean up and fix stale references
+- <span class="badge badge-docs">Docs</span> remind to use vendored nilearn/marimo skills
+- <span class="badge badge-docs">Docs</span> delete superseded SPEC.md and ridge design docs; repoint to docs/development
+- <span class="badge badge-docs">Docs</span> reconcile docstrings/comments with implementation across data/stats
+- <span class="badge badge-docs">Docs</span> fix similarity result-key docs to 'correlation'; add semgrep guard
+- <span class="badge badge-docs">Docs</span> reconcile remaining algorithm-layer docstrings with implementation
+- <span class="badge badge-docs">Docs</span> generate canonical-kwarg vocab from a single source
+- <span class="badge badge-docs">Docs</span> regenerate API docs (griffe2md)
+- <span class="badge badge-docs">Docs</span> integrate pikachu CUDA run, make perf doc host-aware
+- <span class="badge badge-docs">Docs</span> correct the nilearn cluster-forming threshold scale
 
 
 ## 0.5.0 (2023-10-31)

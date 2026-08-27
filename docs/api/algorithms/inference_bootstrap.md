@@ -79,10 +79,16 @@ dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ###### `get_results`
 
 ```python
-get_results() -> dict[str, np.ndarray]
+get_results(tail: int | str = 2) -> dict[str, np.ndarray]
 ```
 
 Compute final bootstrap statistics.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
@@ -92,7 +98,7 @@ Type | Description
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': Two-tailed p-values
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': P-values (per ``tail``)
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
 <code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)

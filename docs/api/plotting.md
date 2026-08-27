@@ -73,7 +73,7 @@ Type | Description
 #### `plot_between_label_distance`
 
 ```python
-plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_between_label_distance(distance, labels, *, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Heatmap of average pairwise distance between every label pair.
@@ -212,7 +212,7 @@ High resolution for publication:
 #### `plot_interactive_brain`
 
 ```python
-plot_interactive_brain(brain, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
+plot_interactive_brain(brain, *, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
 ```
 
 Create an interactive brain visualization with nilearn.
@@ -237,7 +237,7 @@ Type | Description
 #### `plot_mean_label_distance`
 
 ```python
-plot_mean_label_distance(distance, labels, ax = None, permutation_test = False, n_permute = 5000, fontsize = 18, **kwargs)
+plot_mean_label_distance(distance, labels, *, ax = None, permutation_test = False, n_permute = 5000, fontsize = 18, **kwargs)
 ```
 
 Violin plot of within- vs between-label distances.
@@ -457,7 +457,7 @@ Name | Description
 ###### `plot_between_label_distance`
 
 ```python
-plot_between_label_distance(distance, labels, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
+plot_between_label_distance(distance, labels, *, ax = None, permutation_test = True, n_permute = 5000, **kwargs)
 ```
 
 Heatmap of average pairwise distance between every label pair.
@@ -487,7 +487,7 @@ Type | Description
 ###### `plot_mean_label_distance`
 
 ```python
-plot_mean_label_distance(distance, labels, ax = None, permutation_test = False, n_permute = 5000, fontsize = 18, **kwargs)
+plot_mean_label_distance(distance, labels, *, ax = None, permutation_test = False, n_permute = 5000, fontsize = 18, **kwargs)
 ```
 
 Violin plot of within- vs between-label distances.
@@ -674,7 +674,7 @@ High resolution for publication:
 ###### `plot_interactive_brain`
 
 ```python
-plot_interactive_brain(brain, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
+plot_interactive_brain(brain, *, threshold = 1e-06, surface = False, percentile_threshold = False, anatomical = None, **kwargs)
 ```
 
 Create an interactive brain visualization with nilearn.

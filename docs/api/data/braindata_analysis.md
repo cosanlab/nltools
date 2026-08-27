@@ -53,7 +53,7 @@ already estimated common model. When using SRM, `target` must be a previously
 estimated common model stored as a numpy array. Transformed data can be back
 projected to original data using Transformation matrix.
 
-See nltools.stats.align for aligning multiple BrainData instances
+See nltools.algorithms.align for aligning multiple BrainData instances
 
 **Parameters:**
 
@@ -231,7 +231,7 @@ Name | Type | Description
 #### `extract_roi`
 
 ```python
-extract_roi(bd, mask, metric = 'mean', n_components = None)
+extract_roi(bd, mask, method = 'mean', n_components = None)
 ```
 
 Extract activity from mask or ROI atlas using NiftiLabelsMasker.
@@ -245,15 +245,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
-`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean'     Note: 'median' and 'pca' require additional computation after extraction | <code>'mean'</code>
-`n_components` |  | If metric='pca', number of components to return | <code>None</code>
+`method` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean'     Note: 'median' and 'pca' require additional computation after extraction | <code>'mean'</code>
+`n_components` |  | If method='pca', number of components to return | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
  | For binary mask:<br>- Single image: scalar value - Multiple images: 1D array of values
- | For labeled atlas:<br>- Single image: 1D array (one value per ROI) - Multiple images: 2D array (images x ROIs) - If metric='pca': returns components array
+ | For labeled atlas:<br>- Single image: 1D array (one value per ROI) - Multiple images: 2D array (images x ROIs) - If method='pca': returns components array
 
 **Examples:**
 
@@ -263,7 +263,7 @@ Type | Description
 >>> # Extract from atlas
 >>> atlas_values = brain.extract_roi(atlas_mask)
 >>> # PCA extraction
->>> components = brain.extract_roi(mask, metric='pca', n_components=5)
+>>> components = brain.extract_roi(mask, method='pca', n_components=5)
 ```
 
 (data-braindata-analysis-filter-data)=
@@ -314,7 +314,7 @@ Identify spikes from time-series data; see `find_spikes`.
 #### `multivariate_similarity`
 
 ```python
-multivariate_similarity(bd, images, method = 'ols')
+multivariate_similarity(bd, images, method = 'ols', tail = 2)
 ```
 
 Predict a BrainData spatial distribution from a linear combination.
@@ -563,8 +563,8 @@ if provided, otherwise respecting every non-zero value.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
+`upper` |  | (float or str) Upper cutoff for thresholding. A string like     `'98%'` resolves as a percentile over the finite **nonzero**     voxels (via `nltools.utils.resolve_threshold` — zeros on a     masked map are absence of data and would skew the     percentile); can be None for one-sided thresholding. | <code>None</code>
+`lower` |  | (float or str) Lower cutoff for thresholding. Same percentile     semantics as `upper`; can be None for one-sided thresholding. | <code>None</code>
 `bd` |  | BrainData instance. | *required*
 `binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
 `coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s; default True | <code>True</code>

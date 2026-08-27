@@ -63,7 +63,7 @@ Name | Description
 ###### `calculate`
 
 ```python
-calculate(*, input_values = None, binary_outcome = None, criterion_values = None, method = 'optimal_overall', forced_choice = None, balanced_acc = False)
+calculate(*, input_values = None, binary_outcome = None, criterion_values = None, method = 'optimal_overall', forced_choice = None, balanced_acc = False, tail = 2)
 ```
 
 Calculate ROC metrics for single-interval classification.
@@ -78,6 +78,7 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`,             `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject             (default=None) | <code>None</code>
 `balanced_acc` |  | balanced accuracy for single-interval classification             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC | <code>False</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed:             accuracy > chance) for the binomial ``accuracy_p`` | <code>2</code>
 
 (analysis-plot)=
 ###### `plot`

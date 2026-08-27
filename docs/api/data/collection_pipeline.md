@@ -1,4 +1,5 @@
 (data-collection-pipeline-pipeline)=
+(data-collection-pipeline-pipeline)=
 ## `pipeline`
 
 Pipeline classes for BrainCollection.
@@ -12,12 +13,13 @@ attributes attached (``cv_scores``, ``cv_predictions``, ``mean_score``,
 
 Name | Description
 ---- | -----------
-[`BrainCollectionPipeline`](#data-collection-pipeline-braincollectionpipeline) | Pipeline for BrainCollection with multi-subject CV support.
+`BrainCollectionPipeline` | Pipeline for BrainCollection with multi-subject CV support.
 
 
 
 ### Classes
 
+(data-collection-pipeline-braincollectionpipeline)=
 (data-collection-pipeline-braincollectionpipeline)=
 #### `BrainCollectionPipeline`
 
@@ -56,10 +58,10 @@ Name | Type | Description
 
 Name | Description
 ---- | -----------
-[`pipe`](#data-collection-pipeline-pipe) | Add custom sklearn transformer.
-[`predict`](#data-collection-pipeline-predict) | Execute pipeline with CV and return prediction results.
-[`reduce`](#data-collection-pipeline-reduce) | Add dimensionality reduction step.
-[`standardize`](#data-collection-pipeline-standardize) | Add standardization step.
+`pipe` | Add custom sklearn transformer.
+`predict` | Execute pipeline with CV and return prediction results.
+`reduce` | Add dimensionality reduction step.
+`standardize` | Add standardization step.
 
 **Examples:**
 
@@ -75,6 +77,7 @@ Name | Description
 
 ##### Methods
 
+(data-collection-pipeline-pipe)=
 (data-collection-pipeline-pipe)=
 ###### `pipe`
 
@@ -96,6 +99,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with custom step added.
 
+(data-collection-pipeline-predict)=
 (data-collection-pipeline-predict)=
 ###### `predict`
 
@@ -125,6 +129,7 @@ Type | Description
  | carries ``permutation_scores`` and ``permutation_pvalue``.
 
 (data-collection-pipeline-reduce)=
+(data-collection-pipeline-reduce)=
 ###### `reduce`
 
 ```python
@@ -147,6 +152,7 @@ Type | Description
 ---- | -----------
 <code>[BrainCollectionPipeline](#nltools.data.collection.pipeline.BrainCollectionPipeline)</code> | New pipeline with reduction step added.
 
+(data-collection-pipeline-standardize)=
 (data-collection-pipeline-standardize)=
 ###### `standardize`
 

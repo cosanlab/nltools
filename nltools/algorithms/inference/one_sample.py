@@ -259,9 +259,9 @@ def one_sample_permutation_test(
         n_permute (int): Number of permutations (default: 5000)
         tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
             - 'two' or 2: Two-tailed test (mean != 0)
-            - 'upper' or 1: One-tailed upper (mean > 0)
-            - 'lower' or -1: One-tailed lower (mean < 0)
-            For MCP correction (FDR), use 'upper' or 'lower' for consistent direction.
+            - 2 | 'two': Two-tailed test (mean != 0)
+            - 1 | 'one': One-tailed (mean > 0; negate the data for the other
+              direction). The fixed direction keeps MCP correction valid.
         return_null (bool): If True, return full null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)

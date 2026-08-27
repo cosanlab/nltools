@@ -60,7 +60,7 @@ Name | Description
 [`filter`](#data-brain-data-filter) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes`](#data-brain-data-find-spikes) | Identify spikes from Time Series Data.
 [`fit`](#data-brain-data-fit) | Fit a model to brain imaging data.
-[`iplot`](#data-brain-data-iplot) | Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
+[`iplot`](#data-brain-data-iplot) | Interactive WebGL brain viewer powered by niivue.
 [`mean`](#data-brain-data-mean) | Get mean of each voxel or image.
 [`median`](#data-brain-data-median) | Get median of each voxel or image.
 [`multivariate_similarity`](#data-brain-data-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
@@ -196,7 +196,7 @@ Name | Type | Description
 #### `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = None, tail = 2, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -214,9 +214,10 @@ Name | Type | Description | Default
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap. | <code>None</code>
 `device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
+`max_gpu_memory_gb` |  | (float, optional) Explicit GPU memory budget in GB when device is 'gpu' or 'auto'. None (default) measures the device. | <code>None</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | (bool) If True, show a progress bar. Default: False | <code>False</code>
 
 **Returns:**
 
@@ -420,7 +421,7 @@ Name | Type | Description
 #### `extract_roi`
 
 ```python
-extract_roi(mask, metric = 'mean', n_components = None)
+extract_roi(mask, method = 'mean', n_components = None)
 ```
 
 Extract activity from mask or ROI atlas using NiftiLabelsMasker.
@@ -430,8 +431,8 @@ Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
-`metric` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean' | <code>'mean'</code>
-`n_components` |  | If metric='pca', number of components to return | <code>None</code>
+`method` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean' | <code>'mean'</code>
+`n_components` |  | If method='pca', number of components to return | <code>None</code>
 
 **Returns:**
 
@@ -445,7 +446,7 @@ Type | Description
 ```pycon
 >>> roi_values = brain.extract_roi(binary_mask)
 >>> atlas_values = brain.extract_roi(atlas_mask)
->>> components = brain.extract_roi(mask, metric='pca', n_components=5)
+>>> components = brain.extract_roi(mask, method='pca', n_components=5)
 ```
 
 (data-brain-data-filter)=
@@ -502,14 +503,17 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | DesignMatrix with one indicator column per detected spike, with
- | all spike columns pre-marked as confounds.
+ | DesignMatrix with one indicator column per detected spike TR, with
+ | all spike columns pre-marked as confounds. A TR flagged by both
+ | detectors yields a single column (named `global_spike*`); the
+ | colliding detections are bitwise identical, so only the retained
+ | name differs.
 
 (data-brain-data-fit)=
 #### `fit`
 
 ```python
-fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = None, design_clean = True, design_clean_thresh = 0.95, design_clean_exclude_confounds = False, design_clean_fill_na = 0, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = False, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -531,11 +535,7 @@ Name | Type | Description | Default
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling before fitting via nilearn's per-voxel ``mean_scaling``. ``'auto'`` → False for both models (PSC is opt-in). Redundant with ``standardize='zscore'`` (warns). Applied before ``standardize``. | <code>'auto'</code>
 `standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. ``'center'``, ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge, ``None`` for glm. | <code>'auto'</code>
-`progress_bar` | <code>[bool](#bool)</code> | Display progress bar during fitting. | <code>None</code>
-`design_clean` | <code>bool, default=True</code> | GLM only. Run ``DesignMatrix.clean()`` on ``X`` before fitting to drop highly correlated regressors. Coerces ``X`` to ``DesignMatrix`` if needed. Ignored when ``model='ridge'``. | <code>True</code>
-`design_clean_thresh` | <code>float, default=0.95</code> | GLM only. Correlation threshold passed to ``DesignMatrix.clean()`` (drops if ``abs(r) >= thresh``). Ignored when ``model='ridge'``. | <code>0.95</code>
-`design_clean_exclude_confounds` | <code>bool, default=False</code> | GLM only. If True, ``DesignMatrix.clean()`` skips confound columns when checking correlations. Ignored when ``model='ridge'``. | <code>False</code>
-`design_clean_fill_na` | <code>int, float, or None, default=0</code> | GLM only. Fill value for NaNs before correlation check in ``DesignMatrix.clean()``. Ignored when ``model='ridge'``. | <code>0</code>
+`progress_bar` | <code>[bool](#bool)</code> | Display a progress bar during fitting. Default: False. | <code>False</code>
 `**kwargs` | <code>[dict](#dict)</code> | Additional arguments passed to model constructor | <code>{}</code>
 
 **Returns:**
@@ -578,54 +578,57 @@ one contrast in a single call.
 #### `iplot`
 
 ```python
-iplot(*, view: str = 'ortho', threshold: float | None = None, lower: float | None = None, upper: float | None = None, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
+iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool | tuple[float, float] = True, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
 ```
 
-Interactive WebGL brain viewer powered by niivue (`ipyniivue`).
+Interactive WebGL brain viewer powered by niivue.
 
-Renders inline in a live kernel (Jupyter, marimo) with live windowing
-(right-drag to set the threshold/contrast), slice scrolling, native 4D
-frame scrubbing, true 3D rendering, a stat-map colorbar, and optional
-nltools-atlas overlays. Static-built docs are not supported; use
-`plot` there.
+Renders inline in a live kernel (Jupyter, marimo) — and, unlike the
+old ipyniivue backend, in a ``marimo export html-wasm`` page too — with
+live windowing (right-drag to set the threshold/contrast), slice
+scrolling, native 4D frame scrubbing, true 3D rendering, a stat-map
+colorbar, and optional nltools-atlas overlays. Static-built docs (plain
+Markdown) are not interactive; use `plot` there.
 
-By default (``controls=True``) the return value is an
-`ipywidgets.VBox` stacking a threshold slider above the viewer; access
-the underlying `NiiVue` via its ``.viewer`` attribute and the slider
-via ``.threshold_slider``. Pass ``controls=False`` to get the bare
-`NiiVue` widget instead.
+Returns a `NiivueViewer` widget. By default (``controls=True``) it
+renders an in-widget threshold slider above the viewer; the window is
+reactive through the ``cal_min`` / ``cal_max`` traits. Pass
+``controls=False`` to hide the slider (right-drag windowing still
+works).
 
 Thresholding is a divergent magnitude window: ``cal_min`` is the
 display floor (sub-floor voxels render transparent), ``cal_max`` the
 saturation point, with the positive limb using ``cmap`` and the
 negative limb its mirrored partner. Precedence: ``lower``/``upper``
-win; otherwise ``threshold`` sets the floor (ceiling auto);
-otherwise the window is fully auto.
+win; otherwise ``threshold`` sets the floor; any unset edge comes
+from ``autoscale``. The window is always computed in Python and
+passed to niivue explicitly, so the slider handles show exactly the
+window being rendered.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `view` | <code>[str](#str)</code> | ``"ortho"`` (default), ``"axial"``, ``"coronal"``, ``"sagittal"``, or ``"render"`` (3D volume render). ``"surface"`` is no longer supported — use ``"render"`` or `plot_flatmap` / `plot_surf`. | <code>'ortho'</code>
-`threshold` | <code>[float](#float) \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). | <code>None</code>
-`lower` | <code>[float](#float) \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. | <code>None</code>
-`upper` | <code>[float](#float) \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. | <code>None</code>
+`threshold` | <code>[float](#float) \| [str](#str) \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). Accepts a percentile string (``"95%"``) resolved over the finite nonzero magnitudes, consistent with `threshold`. | <code>None</code>
+`lower` | <code>[float](#float) \| [str](#str) \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
+`upper` | <code>[float](#float) \| [str](#str) \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
+`autoscale` | <code>[bool](#bool) \| [tuple](#tuple)[[float](#float), [float](#float)]</code> | Robust default window for the edges not set above. ``True`` (default): ceiling at the 98th percentile of the finite nonzero magnitudes — a couple of outlier voxels no longer wash out the whole map — with an epsilon floor (everything nonzero visible; threshold up from there). ``(lo_pct, hi_pct)``: floor/ceiling at those magnitude percentiles. ``False``: the raw data extremes (the old behavior, made explicit). | <code>True</code>
 `cmap` | <code>[str](#str)</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
 `bg_img` | <code>[str](#str) \| [bool](#bool) \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
 `atlas` | <code>[str](#str) \| [Atlas](#nltools.data.atlases.Atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
 `opacity` | <code>[float](#float)</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
 `outline` | <code>[float](#float)</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
 `colorbar` | <code>[bool](#bool)</code> | Show the stat-map colorbar (default ``True``). An explicit ``is_colorbar`` kwarg overrides this. | <code>True</code>
-`controls` | <code>[bool](#bool)</code> | Wrap the viewer in a `VBox` with an interactive threshold slider (default ``True``). ``False`` returns the bare `NiiVue`. Requires the ``ipywidgets`` optional dependency when ``True``. | <code>True</code>
-`**kwargs` |  | Forwarded verbatim to ``ipyniivue.NiiVue(**kwargs)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
+`controls` | <code>[bool](#bool)</code> | Render an in-widget threshold slider above the viewer (default ``True``). ``False`` hides it; the viewer still supports niivue's right-drag windowing. No extra dependency either way — the slider is native to the widget frontend. | <code>True</code>
+`**kwargs` |  | Forwarded verbatim to ``new Niivue(opts)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | ipywidgets.VBox with ``.viewer`` (the `NiiVue`) and
- | ``.threshold_slider`` when ``controls=True``; otherwise the bare
- | ``ipyniivue.NiiVue`` widget.
+ | A `NiivueViewer` widget (an `anywidget.AnyWidget`). Its threshold
+ | window is reactive via the ``cal_min`` / ``cal_max`` traits.
 
 (data-brain-data-mean)=
 #### `mean`
@@ -677,7 +680,7 @@ Type | Description
 #### `multivariate_similarity`
 
 ```python
-multivariate_similarity(images, method = 'ols')
+multivariate_similarity(images, method = 'ols', tail = 2)
 ```
 
 Predict a BrainData spatial distribution from a linear combination.
@@ -690,6 +693,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `images` |  | BrainData instance of weight map | *required*
 `method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) for the regression p-values. | <code>2</code>
 
 **Returns:**
 
@@ -1235,7 +1239,7 @@ Name | Type | Description | Default
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
 `permutation` |  | If True, use sign-flip permutation test via `one_sample_permutation_test`. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | Tail of the test (1 or 2). Default 2. | <code>2</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -1267,7 +1271,7 @@ Type | Description
 #### `ttest2`
 
 ```python
-ttest2(other, equal_var = True)
+ttest2(other, equal_var = True, tail = 2)
 ```
 
 Two-sample voxelwise t-test between two BrainData stacks.
@@ -1278,6 +1282,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
 `equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
 
 **Returns:**
 

@@ -23,7 +23,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), n_jobs = -1, random_state = None)
+bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
 Bootstrap statistics using efficient online algorithms.
@@ -42,6 +42,7 @@ Name | Type | Description | Default
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+`progress_bar` |  | (bool) If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
@@ -121,7 +122,7 @@ Name | Type | Description
 #### `regress`
 
 ```python
-regress(adj, X, method = 'ols')
+regress(adj, X, method = 'ols', tail = 2)
 ```
 
 Run a regression on an adjacency instance.
@@ -135,6 +136,7 @@ Name | Type | Description | Default
 `adj` |  | (Adjacency) Adjacency instance | *required*
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
 `method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
 
 **Returns:**
 

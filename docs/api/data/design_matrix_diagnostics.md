@@ -78,7 +78,7 @@ Name | Type | Description
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Constant columns (e.g. the ``poly_0`` intercept) have zero variance and
+Constant columns (e.g. the ``.nl_poly_0`` intercept) have zero variance and
 yield NaN correlations.
 
 </details>

@@ -17,7 +17,7 @@ Name | Description
 #### `bootstrap`
 
 ```python
-bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = 4.0, n_jobs = -1, random_state = None)
+bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = None, tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
 Bootstrap statistics with CPU parallelization or GPU acceleration.
@@ -38,9 +38,10 @@ Name | Type | Description | Default
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
 `device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
-`max_gpu_memory_gb` |  | (float) Maximum GPU memory to use when device is 'gpu' or 'auto'. Default: 4.0 | <code>4.0</code>
+`max_gpu_memory_gb` |  | (float, optional) Explicit GPU memory budget in GB when device is 'gpu' or 'auto'. None (default) measures the device. | <code>None</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
+`progress_bar` |  | (bool) If True, show a progress bar. Default: False | <code>False</code>
 
 **Returns:**
 
