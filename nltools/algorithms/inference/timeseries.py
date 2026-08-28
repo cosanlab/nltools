@@ -373,6 +373,16 @@ def _phase_randomize_gpu(
     return backend.to_numpy(randomized)
 
 
+def _circle_shift_amounts(seeds: np.ndarray, n_samples: int) -> np.ndarray:
+    """Derive per-permutation shift amounts exactly as `circle_shift` does.
+
+    One `check_random_state(seed).randint(1, n_samples)` per seed — the same
+    draw the CPU path makes inside `circle_shift(data, random_state=seed)`,
+    so GPU and CPU evaluate identical permutations for identical seeds.
+    """
+    return np.array([check_random_state(int(s)).randint(1, n_samples) for s in seeds])
+
+
 def _phase_randomize_gpu_batched(
     data: "torch.Tensor",
     batch_seeds: np.ndarray,
@@ -434,9 +444,12 @@ def _phase_randomize_gpu_batched(
     # Apply phase shifts: fft_data[pos_freq] *= exp(1j * phase_shifts)
     # Broadcasting: (batch_size, n_pos_freq) applied to (batch_size, n_samples)
     fft_data_batch[:, pos_freq] *= torch.exp(1j * phase_shifts_device)
-    # For negative frequencies, need to flip phase_shifts to match neg_freq order
-    # neg_freq is in reverse order, so we flip phase_shifts
-    fft_data_batch[:, neg_freq] *= torch.exp(-1j * phase_shifts_device.flip(dims=[1]))
+    # neg_freq already runs in conjugate order (n-1 downward), pairing
+    # neg_freq[i] with pos_freq[i] — apply the SAME phases negated, exactly
+    # as the CPU path does. (A previous version flipped the phase order here,
+    # mispairing conjugates: the spectrum stayed complex and taking .real
+    # distorted the surrogate.)
+    fft_data_batch[:, neg_freq] *= torch.exp(-1j * phase_shifts_device)
 
     # Inverse FFT and return real part
     randomized = torch.fft.ifft(fft_data_batch, dim=1).real  # (batch_size, n_samples)
@@ -555,13 +568,9 @@ def _timeseries_correlation_permutation_gpu_batched(
         # RNG draws (seeds/shifts) stay outside the OOM-retried compute, so
         # recovery reuses these exact permutations.
         if method == "circle_shift":
-            # Generate random shift amounts for all permutations in batch
-            shift_amounts = np.array(
-                [
-                    np.random.RandomState(batch_seeds[i]).choice(np.arange(n_samples))
-                    for i in range(current_batch_size)
-                ]
-            )
+            # Shift amounts derived exactly as circle_shift() draws them, so
+            # GPU and CPU evaluate identical permutations for a given seed.
+            shift_amounts = _circle_shift_amounts(batch_seeds, n_samples)
             # Batched circle shift: (batch_size, n_samples)
             perm_data1_np = compute_oom_safe(_compute_circle_shift, shift_amounts)
         else:  # phase_randomize

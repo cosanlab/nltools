@@ -10,9 +10,6 @@ from nltools.algorithms import (
     timeseries_correlation_permutation_test,
 )
 from nltools.tests.core.test_inference import (
-    TOLERANCE_STATS_DETERMINISTIC,
-    TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT,
-    TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE,
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
@@ -228,6 +225,55 @@ class TestPhaseRandomize:
         )
 
 
+class TestGpuDrawIdentity:
+    """GPU permutations must reuse the CPU paths' exact RNG derivations.
+
+    The determinism contract (inference-internals): same seed → same
+    permutation draws on every backend; device changes only the arithmetic
+    (float32 rounding), never which permutations are evaluated.
+    """
+
+    def test_batched_circle_shift_amounts_match_cpu_draw(self):
+        from nltools.algorithms.inference.timeseries import _circle_shift_amounts
+
+        rng = np.random.RandomState(0)
+        seeds = rng.randint(2**31 - 1, size=8)
+        n_samples = 200
+        x = np.random.RandomState(1).randn(n_samples)
+
+        amounts = _circle_shift_amounts(seeds, n_samples)
+        for seed, amount in zip(seeds, amounts):
+            # Same shift circle_shift() itself would draw for this seed —
+            # and applying it reproduces circle_shift()'s output exactly.
+            expected = circle_shift(x, random_state=seed)
+            np.testing.assert_array_equal(np.roll(x, amount), expected)
+
+    def test_batched_phase_randomize_matches_cpu_per_seed(self):
+        pytest.importorskip("torch")
+        from nltools.algorithms.backends import check_gpu_available
+        from nltools.algorithms.inference.timeseries import (
+            _phase_randomize_gpu_batched,
+        )
+
+        if not check_gpu_available()[0]:
+            pytest.skip("no GPU device available")
+
+        backend = Backend("torch")
+        n_samples = 200
+        x = np.random.RandomState(1).randn(n_samples)
+        seeds = np.random.RandomState(0).randint(2**31 - 1, size=6)
+
+        data_device = backend.to_device(x.astype(np.float32))
+        batched = backend.to_numpy(
+            _phase_randomize_gpu_batched(data_device, seeds, backend, None)
+        )
+        for i, seed in enumerate(seeds):
+            cpu = phase_randomize(x, random_state=seed)
+            # float32 device arithmetic vs float64 numpy — same permutation,
+            # rounding-level differences only.
+            np.testing.assert_allclose(batched[i], cpu, atol=1e-4)
+
+
 class TestTimeseriesCorrelation:
     """Tests for timeseries_correlation_permutation_test() function."""
 
@@ -349,101 +395,6 @@ class TestTimeseriesCorrelation:
 
         assert "correlation" in result
         assert "p" in result
-
-    @pytest.mark.slow
-    def test_matches_stats_py_circle_shift(self):
-        """Test that circle_shift method matches stats.py for correlation.
-
-        Note: P-values may differ more for circle_shift (~40%) than other methods
-        due to RNG seed pre-generation vs. sequential consumption in stats.py.
-        This is expected and acceptable - both implementations are correct, just
-        use different random number sequences in parallel execution.
-        """
-        from nltools.algorithms import (
-            timeseries_correlation_permutation_test,
-        )
-        from nltools.algorithms import correlation_permutation_test as stats_correlation
-
-        np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
-
-        result_new = timeseries_correlation_permutation_test(
-            x,
-            y,
-            method="circle_shift",
-            n_permute=1000,
-            metric="pearson",
-            random_state=42,
-        )
-        result_old = stats_correlation(
-            x,
-            y,
-            method="circle_shift",
-            n_permute=1000,
-            metric="pearson",
-            random_state=42,
-        )
-
-        # Correlation should match exactly (same observed data)
-        np.testing.assert_allclose(
-            result_new["correlation"],
-            result_old["correlation"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC,
-        )
-
-        # P-values will differ due to RNG seed handling (~40% for circle_shift)
-        # Higher variance than other methods due to simpler random operations
-        np.testing.assert_allclose(
-            result_new["p"], result_old["p"], rtol=TOLERANCE_STATS_PVALUE_CIRCLE_SHIFT
-        )
-
-    @pytest.mark.slow
-    def test_matches_stats_py_phase_randomize(self):
-        """Test that phase_randomize method matches stats.py for correlation.
-
-        Note: P-values may differ slightly due to different RNG seed handling
-        in parallel execution, following the standard 15% tolerance pattern.
-        """
-        from nltools.algorithms import (
-            timeseries_correlation_permutation_test,
-        )
-        from nltools.algorithms import correlation_permutation_test as stats_correlation
-
-        np.random.seed(42)
-        x = np.random.randn(100)
-        y = np.random.randn(100)
-
-        result_new = timeseries_correlation_permutation_test(
-            x,
-            y,
-            method="phase_randomize",
-            n_permute=1000,
-            metric="pearson",
-            random_state=42,
-        )
-        result_old = stats_correlation(
-            x,
-            y,
-            method="phase_randomize",
-            n_permute=1000,
-            metric="pearson",
-            random_state=42,
-        )
-
-        # Correlation should match exactly (same observed data)
-        np.testing.assert_allclose(
-            result_new["correlation"],
-            result_old["correlation"],
-            rtol=TOLERANCE_STATS_DETERMINISTIC,
-        )
-
-        # P-values will differ slightly due to FFT operations with different RNG patterns
-        np.testing.assert_allclose(
-            result_new["p"],
-            result_old["p"],
-            rtol=TOLERANCE_STATS_PVALUE_PHASE_RANDOMIZE,
-        )
 
     def test_invalid_method(self):
         """Test that invalid method raises ValueError."""

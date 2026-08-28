@@ -65,7 +65,15 @@ methods preserve temporal structure, randomizing only one variable:
 
 1. **Circle shift** — `x_perm = circshift(x, random_amount)` preserves autocorrelation.
 2. **Phase randomize** — `x_perm = ifft(fft(x) * exp(i·random_phases))` preserves the
-   power spectrum.
+   power spectrum. Conjugate pairing matters: `pos_freq`/`neg_freq` are built already
+   in conjugate order, so the negative frequencies take the *same* phases negated —
+   never reversed (a reversed pairing leaves the spectrum non-Hermitian, and taking
+   `.real` of the ifft silently distorts the surrogate).
+
+The GPU paths reuse the CPU derivations exactly — per-seed shift amounts via
+`_circle_shift_amounts` (the same `randint(1, n)` draw `circle_shift` makes) and
+per-seed phase draws from the same `RandomState` stream — so device changes only the
+arithmetic (float32 rounding), never which permutations are evaluated.
 
 ### Matrix permutation (Mantel test)
 

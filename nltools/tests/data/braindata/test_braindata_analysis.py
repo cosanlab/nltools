@@ -218,7 +218,12 @@ class TestBrainDataAnalysis:
         m4 = BrainData(s1) * 5 + BrainData(s2) * -0.5
         m4 = mask.threshold(upper=0.5, lower=-0.3)
         assert np.sum(m1.data > 0) > np.sum(m2.data > 0)
-        assert np.sum(m1.data > 0) == np.sum(m3.data > 0)
+        # "98%" resolves over the finite NONZERO values (v0.6.0 zero-aware
+        # percentile change): the 98th percentile of the two-sphere values
+        # {1, 5} is 5, so only the high-valued sphere survives — unlike
+        # upper=0.5, which keeps both.
+        assert np.sum(m3.data > 0) == np.sum(mask.data == 5)
+        assert np.sum(m3.data > 0) < np.sum(m1.data > 0)
         assert np.sum(m4.data[(m4.data > -0.3) & (m4.data < 0.5)]) == 0
         assert np.sum(m4.data[(m4.data < -0.3) | (m4.data > 0.5)]) > 0
 
