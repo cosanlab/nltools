@@ -53,6 +53,7 @@ Examples:
     >>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
 """
 
+from collections.abc import Iterator
 from dataclasses import asdict as dataclass_asdict
 from dataclasses import dataclass
 from typing import Any
@@ -371,3 +372,164 @@ class Predict:
         if not include_none:
             filtered = {k: v for k, v in filtered.items() if v is not None}
         return filtered
+
+
+@dataclass(frozen=True)
+class PredictCollection:
+    """Immutable container for per-subject decoding results.
+
+    Returned by ``BrainCollection.predict(y=...)``: one `Predict` per subject
+    (each an independent within-subject model), plus the collection's
+    per-subject metadata. Sequence-like — ``len``, iteration, and integer
+    indexing all address the underlying `Predict` objects.
+
+    The stacking properties are the bridge to second-level inference: the
+    per-subject maps become one ``BrainData (n_subjects, n_voxels)``, ready
+    for a group test.
+
+    Attributes:
+        results: One `Predict` per subject, in collection order.
+        metadata: Optional per-subject metadata (polars DataFrame, one row
+            per subject), carried over from the source collection.
+        paths: Optional on-disk predict-bundle paths, populated when the
+            producing call cached its results (``cache=True``/``'auto'``).
+
+    Note:
+        Properties: ``mean_scores`` / ``std_scores`` stack each subject's
+        score summary — ``(n_subjects,)`` for whole-brain decoding,
+        ``(n_subjects, n_rois)`` for ROI. ``scores`` renders the whole-brain
+        case as a polars DataFrame alongside the metadata. ``weight_maps`` /
+        ``accuracy_maps`` stack the per-subject brain maps into one
+        ``BrainData``. ``available`` returns the field names populated on
+        *every* subject's result.
+
+    Examples:
+        ```python
+        pc = collection.predict(y="condition", cv=5)
+        pc.scores                    # per-subject accuracy table
+        pc[0].weight_map.plot()      # one subject's decoder map
+
+        # Second-level inference on the decoder maps:
+        from nltools.algorithms import permutation_test
+        group = permutation_test(pc.weight_maps.data, method="one_sample")
+        ```
+    """
+
+    results: tuple
+    metadata: Any = None  # pl.DataFrame | None
+    paths: tuple | None = None
+
+    def __post_init__(self):
+        results = tuple(self.results)
+        if not results:
+            raise ValueError("PredictCollection cannot be empty.")
+        for i, r in enumerate(results):
+            if not isinstance(r, Predict):
+                raise TypeError(
+                    f"results[{i}] is {type(r).__name__}, expected Predict."
+                )
+        object.__setattr__(self, "results", results)
+        if self.metadata is not None and self.metadata.shape[0] != len(results):
+            raise ValueError(
+                f"metadata has {self.metadata.shape[0]} rows for "
+                f"{len(results)} results."
+            )
+        if self.paths is not None:
+            paths = tuple(self.paths)
+            if len(paths) != len(results):
+                raise ValueError(
+                    f"paths has {len(paths)} entries for {len(results)} results."
+                )
+            object.__setattr__(self, "paths", paths)
+
+    def __len__(self) -> int:
+        return len(self.results)
+
+    def __iter__(self) -> Iterator[Predict]:
+        return iter(self.results)
+
+    def __getitem__(self, idx: int) -> Predict:
+        return self.results[idx]
+
+    def __repr__(self) -> str:
+        return (
+            f"{type(self).__name__}(n_subjects={len(self.results)}, "
+            f"available={self.available()})"
+        )
+
+    def _stack_field(self, field: str) -> np.ndarray:
+        values = [getattr(r, field) for r in self.results]
+        missing = [i for i, v in enumerate(values) if v is None]
+        if missing:
+            raise ValueError(
+                f"{field} is not populated for subjects {missing} — it is "
+                f"unavailable for their dispatch mode (see `Predict`)."
+            )
+        return np.stack([np.asarray(v) for v in values], axis=0)
+
+    @property
+    def mean_scores(self) -> np.ndarray:
+        """Per-subject mean CV score — ``(n_subjects,)`` or ``(n_subjects, n_rois)``."""
+        return self._stack_field("mean_score")
+
+    @property
+    def std_scores(self) -> np.ndarray:
+        """Per-subject score std across folds, matching ``mean_scores``' shape."""
+        return self._stack_field("std_score")
+
+    @property
+    def scores(self):
+        """Per-subject score table (polars): metadata + mean/std score columns.
+
+        Only defined when each subject's score summary is a scalar
+        (whole-brain decoding); for ROI decoding use ``mean_scores`` /
+        ``std_scores`` — the array forms.
+        """
+        import polars as pl
+
+        mean = self.mean_scores
+        if mean.ndim != 1:
+            raise ValueError(
+                "scores is a per-subject scalar table; these results carry "
+                "array-valued score summaries (ROI decoding) — use "
+                "mean_scores / std_scores instead."
+            )
+        base = (
+            self.metadata
+            if self.metadata is not None
+            else pl.DataFrame({"subject": np.arange(len(self))})
+        )
+        return base.with_columns(
+            pl.Series("mean_score", mean),
+            pl.Series("std_score", self._stack_field("std_score")),
+        )
+
+    def _stack_maps(self, field: str):
+        maps = [getattr(r, field) for r in self.results]
+        missing = [i for i, m in enumerate(maps) if m is None]
+        if missing:
+            raise ValueError(
+                f"{field} is not populated for subjects {missing} — it is "
+                f"unavailable for their dispatch mode (see `Predict`)."
+            )
+        from nltools.data import BrainData
+
+        stacked = np.vstack([np.asarray(m.data).reshape(1, -1) for m in maps])
+        return BrainData(stacked, mask=maps[0].mask)
+
+    @property
+    def weight_maps(self):
+        """Per-subject decoder maps as one ``BrainData (n_subjects, n_voxels)``."""
+        return self._stack_maps("weight_map")
+
+    @property
+    def accuracy_maps(self):
+        """Per-subject accuracy maps as one ``BrainData (n_subjects, n_voxels)``."""
+        return self._stack_maps("accuracy_map")
+
+    def available(self) -> list:
+        """Return field names populated on every subject's `Predict`."""
+        common = set(self.results[0].available())
+        for r in self.results[1:]:
+            common &= set(r.available())
+        return sorted(common)
