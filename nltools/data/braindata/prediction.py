@@ -53,6 +53,10 @@ def predict(
             "or y for MVPA decoding."
         )
 
+    if X is None:
+        y = _resolve_stored_y(bd, y)
+        groups = _resolve_stored_groups(bd, groups)
+
     if y is not None:
         return predict_mvpa(
             bd,
@@ -73,6 +77,80 @@ def predict(
             progress_bar=progress_bar,
         )
     return predict_timeseries(bd, X=X)
+
+
+# ---------------------------------------------------------------------------
+# Stored-Y resolution (labels travel with the data)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_stored_y(bd, y):
+    """Resolve ``y`` against the stored ``bd.Y`` frame.
+
+    Rules:
+      - array-like ``y`` passes through as an ndarray;
+      - a string picks that column of ``bd.Y``;
+      - ``None`` falls back to a single-column ``bd.Y`` (the idiomatic
+        labels-travel-with-the-data path). A multi-column ``Y`` is ambiguous
+        and asks for ``y='name'``; an empty ``Y`` returns ``None`` so the
+        dispatcher can fall through to timeseries prediction — unless the
+        object also carries a fitted encoding model, in which case both
+        readings are possible and we refuse to guess.
+    """
+    stored = bd.Y
+
+    if isinstance(y, str):
+        if stored is None or stored.is_empty():
+            raise ValueError(
+                f"y={y!r} names a column of .Y, but no Y frame is stored on "
+                f"this BrainData. Set brain.Y or pass y as an array."
+            )
+        if y not in stored.columns:
+            raise ValueError(
+                f"y={y!r} is not a column of .Y (columns: {stored.columns})."
+            )
+        return stored[y].to_numpy()
+
+    if y is not None:
+        return np.asarray(y)
+
+    if stored is None or stored.is_empty():
+        return None
+
+    if hasattr(bd, "model_"):
+        raise ValueError(
+            "predict() is ambiguous: this BrainData has both a fitted "
+            "encoding model and a stored .Y frame. Pass y=... (or y='column') "
+            "to decode, or X=... to predict a timeseries."
+        )
+    if stored.shape[1] != 1:
+        raise ValueError(
+            f".Y has {stored.shape[1]} columns ({stored.columns}); pass "
+            f"y='name' to pick the label column."
+        )
+    return stored[stored.columns[0]].to_numpy()
+
+
+def _resolve_stored_groups(bd, groups):
+    """Resolve a string ``groups`` spec to that column of ``bd.Y``.
+
+    The ``Y`` frame is the row-aligned metadata carrier on ``BrainData``, so
+    within-subject grouping variables (run, session, block) live there
+    alongside the labels. Arrays and ``None`` pass through unchanged.
+    """
+    if not isinstance(groups, str):
+        return groups
+    stored = bd.Y
+    if stored is None or stored.is_empty():
+        raise ValueError(
+            f"groups={groups!r} names a column of .Y, but no Y frame is "
+            f"stored on this BrainData. Set brain.Y or pass groups as an array."
+        )
+    if groups not in stored.columns:
+        raise ValueError(
+            f"groups={groups!r} is not a column of .Y (columns: {stored.columns})."
+        )
+    return stored[groups].to_numpy()
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +246,8 @@ def predict_mvpa(
 ) -> Predict | Any:
     """Cross-validated decoding. Returns Predict (or self if inplace=True)."""
     from sklearn.base import is_classifier
-    from sklearn.model_selection import KFold, StratifiedKFold
+
+    from nltools.cross_validation import resolve_cv
 
     if spatial_scale not in VALID_SPATIAL_SCALES:
         raise ValueError(
@@ -182,15 +261,16 @@ def predict_mvpa(
     classifier = is_classifier(resolved_model)
     scoring = resolve_scoring(scoring, classifier)
 
-    # Resolve CV
-    if isinstance(cv, int):
-        cv_splitter = (
-            StratifiedKFold(n_splits=cv, shuffle=True, random_state=random_state)
-            if classifier
-            else KFold(n_splits=cv, shuffle=True, random_state=random_state)
-        )
-    else:
-        cv_splitter = cv
+    # Resolve CV — int specs shuffle here (single-subject rows are often
+    # ordered by condition, so unshuffled contiguous folds would be
+    # degenerate); the group variants derive folds from ``groups`` instead.
+    cv_splitter = resolve_cv(
+        cv,
+        groups=groups,
+        classifier=classifier,
+        shuffle=True,
+        random_state=random_state,
+    )
 
     y = np.asarray(y)
     if y.shape[0] != bd.shape[0]:

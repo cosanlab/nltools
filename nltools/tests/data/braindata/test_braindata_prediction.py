@@ -43,6 +43,77 @@ class TestPredictDispatch:
             sim_brain_data.predict(y=y, reduce="ica", n_components=2)
 
 
+class TestStoredYFallback:
+    """predict() decodes against the stored ``.Y`` slot when y is omitted.
+
+    ``BrainData.Y`` is row-aligned with ``.data`` (sliced together, carried
+    through h5) — labels travel with the data, so per-subject decoding
+    doesn't need an external label vector.
+    """
+
+    @staticmethod
+    def _labels(bd):
+        n = bd.shape[0]
+        return np.array([0] * (n // 2) + [1] * (n - n // 2))
+
+    def test_y_none_decodes_stored_single_column_Y(self, sim_brain_data):
+        sim_brain_data.Y = {"label": self._labels(sim_brain_data)}
+        result = sim_brain_data.predict(cv=3)
+        assert isinstance(result, Predict)
+        assert result.predictions.shape == (sim_brain_data.shape[0],)
+
+    def test_y_none_matches_explicit_y(self, sim_brain_data):
+        y = self._labels(sim_brain_data)
+        sim_brain_data.Y = {"label": y}
+        implicit = sim_brain_data.predict(cv=3, random_state=0)
+        explicit = sim_brain_data.predict(y=y, cv=3, random_state=0)
+        np.testing.assert_array_equal(implicit.predictions, explicit.predictions)
+        assert implicit.mean_score == explicit.mean_score
+
+    def test_y_column_name_selects_from_stored_Y(self, sim_brain_data):
+        n = sim_brain_data.shape[0]
+        sim_brain_data.Y = {
+            "label": self._labels(sim_brain_data),
+            "run": np.arange(n) % 2,
+        }
+        result = sim_brain_data.predict(y="label", cv=3)
+        assert isinstance(result, Predict)
+
+    def test_y_none_multiple_Y_columns_raises(self, sim_brain_data):
+        n = sim_brain_data.shape[0]
+        sim_brain_data.Y = {
+            "label": self._labels(sim_brain_data),
+            "run": np.arange(n) % 2,
+        }
+        with pytest.raises(ValueError, match="column"):
+            sim_brain_data.predict(cv=3)
+
+    def test_y_column_name_missing_raises(self, sim_brain_data):
+        sim_brain_data.Y = {"label": self._labels(sim_brain_data)}
+        with pytest.raises(ValueError, match="nope"):
+            sim_brain_data.predict(y="nope", cv=3)
+
+    def test_y_string_without_stored_Y_raises(self, sim_brain_data):
+        with pytest.raises(ValueError, match="Y"):
+            sim_brain_data.predict(y="label", cv=3)
+
+    def test_groups_column_name_selects_from_stored_Y(self, sim_brain_data):
+        n = sim_brain_data.shape[0]
+        runs = np.arange(n) % 3
+        sim_brain_data.Y = {"label": self._labels(sim_brain_data), "run": runs}
+        result = sim_brain_data.predict(y="label", cv="logo", groups="run")
+        # LeaveOneGroupOut over 3 runs → 3 folds.
+        assert result.scores.shape == (3,)
+
+    def test_fitted_model_plus_stored_Y_is_ambiguous(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        X = np.random.default_rng(0).standard_normal((n, 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.Y = {"label": np.arange(n) % 2}
+        with pytest.raises(ValueError, match="ambiguous"):
+            minimal_brain_data.predict()
+
+
 # ---------------------------------------------------------------------------
 # Whole-brain MVPA — returns Predict with weight maps
 # ---------------------------------------------------------------------------

@@ -20,7 +20,8 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
 
     Args:
         frame: Input to validate. Can be ``None``, a ``str``/``Path`` pointing
-            to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array.
+            to a CSV, a polars or pandas DataFrame, a dict of columns, or a
+            1D/2D numpy array.
         data_shape: Optional tuple of data shape to validate row count against.
         frame_type: Type of frame for error messages (e.g., "X", "Y").
 
@@ -53,6 +54,8 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
                 f"Could not read {frame_type} from file '{frame}'. "
                 f"Make sure the file exists and is a valid CSV. Error: {e}"
             )
+    elif isinstance(frame, dict):
+        out = pl.DataFrame(frame)
     elif isinstance(frame, np.ndarray):
         arr = frame if frame.ndim == 2 else frame.reshape(-1, 1)
         out = pl.DataFrame(arr)
@@ -65,7 +68,7 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
             out = pl.DataFrame({str(c): frame[c].to_numpy() for c in frame.columns})
         else:
             raise TypeError(
-                f"{frame_type} must be a filepath (str/Path), numpy array, or "
+                f"{frame_type} must be a filepath (str/Path), numpy array, dict, or "
                 f"polars/pandas DataFrame. Received {type(frame).__name__}"
             )
 

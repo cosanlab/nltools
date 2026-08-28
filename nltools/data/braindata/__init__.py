@@ -1397,16 +1397,16 @@ class BrainData:
     def predict(
         self,
         *,
-        y: "np.ndarray | None" = None,
+        y: "np.ndarray | str | None" = None,
         X: "np.ndarray | None" = None,
         spatial_scale: str = "whole_brain",
         model="svm",
-        cv: int = 5,
+        cv: int | str = 5,
         standardize: bool = True,
         reduce: "str | None" = None,
         n_components: "int | None" = None,
         scoring: str = "auto",
-        groups: "np.ndarray | None" = None,
+        groups: "np.ndarray | str | None" = None,
         roi_mask=None,
         radius_mm: float = 10.0,
         inplace: bool = False,
@@ -1423,12 +1423,19 @@ class BrainData:
            Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
            timeseries (composes directly with ``.plot()``, ``.standardize()``
            etc.). ``inplace`` has no effect in this mode.
-        2. **MVPA decoding** (``y`` provided): train a classifier or
-           regressor with cross-validation. Returns a `Predict`
-           dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
-           ``final_weight_map``, ``accuracy_map``) are `BrainData`
-           objects so ``result.weight_map.plot()`` works directly. Drop down
-           to numpy via ``result.weight_map.data``.
+        2. **MVPA decoding** (``y`` provided, or resolvable from ``.Y``):
+           train a classifier or regressor with cross-validation. Returns a
+           `Predict` dataclass. Spatial fields (``weight_map``,
+           ``fold_weight_maps``, ``final_weight_map``, ``accuracy_map``) are
+           `BrainData` objects so ``result.weight_map.plot()`` works
+           directly. Drop down to numpy via ``result.weight_map.data``.
+
+        Labels travel with the data: when ``y`` is omitted and this object
+        carries a single-column ``.Y`` frame, that column is decoded
+        (``y='name'`` picks a column of a multi-column ``.Y``; ``groups``
+        accepts a ``.Y`` column name the same way). An object with both a
+        fitted encoding model and a stored ``.Y`` refuses the no-argument
+        call as ambiguous — pass ``y=`` or ``X=`` explicitly.
 
         Field shapes by ``spatial_scale=``:
 
@@ -1461,8 +1468,10 @@ class BrainData:
         it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
         Args:
-            y (array-like, optional): Labels (classification) or continuous
-                targets (regression), shape ``(n_samples,)``. Triggers MVPA mode.
+            y (array-like, str, optional): Labels (classification) or
+                continuous targets (regression), shape ``(n_samples,)``, or
+                the name of a ``.Y`` column. Triggers MVPA mode; omitted, it
+                falls back to a single-column ``.Y``.
             X (array-like, optional): Features for timeseries prediction,
                 shape ``(n_samples, n_features)``. Triggers encoding mode.
             spatial_scale (str): MVPA dispatch — ``'whole_brain'``,
@@ -1479,9 +1488,12 @@ class BrainData:
                 auto-defaulted to ``False`` (with a warning) so we don't wrap
                 another StandardScaler around your pipeline. Pass
                 ``standardize=True`` explicitly to override.
-            cv (int or sklearn CV splitter): ``int`` → KFold (regression) or
-                StratifiedKFold (classification); pass a splitter for custom
-                schemes (e.g., ``GroupKFold``).
+            cv (int, str, or sklearn CV splitter): ``int`` → shuffled KFold
+                (regression) or StratifiedKFold (classification), honoring
+                ``groups`` via the Group variants; ``'loo'`` (leave-one-out);
+                ``'logo'`` (leave-one-group-out — pass the grouping variable
+                via ``groups``, e.g. runs for leave-one-run-out); or any
+                sklearn splitter.
             standardize (bool): Z-score features per fold before fitting.
                 Default ``True``. Auto-flipped to ``False`` when ``model`` is
                 a sklearn ``Pipeline`` (see ``model`` above).
@@ -1491,8 +1503,9 @@ class BrainData:
             n_components (int, optional): PCA components when ``reduce='pca'``.
             scoring (str): Sklearn scoring string. Default ``'auto'`` →
                 ``'accuracy'`` if classifier, ``'r2'`` if regressor.
-            groups (array-like, optional): Group labels for CV splitters
-                that need them (e.g., leave-one-run-out).
+            groups (array-like, str, optional): Group labels for CV splitters
+                that need them (e.g., leave-one-run-out), or the name of a
+                ``.Y`` column holding them.
             roi_mask (Nifti1Image or path-like, optional): Atlas image for
                 ``spatial_scale='roi'``.
             radius_mm (float): Searchlight radius in mm. Default ``10.0``.
