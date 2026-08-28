@@ -9,6 +9,12 @@ Name | Description
 ---- | -----------
 [`KFoldStratified`](#crossval-kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
 
+**Methods:**
+
+Name | Description
+---- | -----------
+[`resolve_cv`](#crossval-resolve-cv) | Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
+
 
 
 ### Classes
@@ -76,3 +82,36 @@ Name | Type | Description
 
 
 ### Methods
+
+(crossval-resolve-cv)=
+#### `resolve_cv`
+
+```python
+resolve_cv(cv, *, groups = None, classifier: bool = False, shuffle: bool = False, random_state: int | None = None)
+```
+
+Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
+
+The single cv-resolution rule shared by `BrainData.predict`,
+`BrainCollection.predict`, and `BrainCollection.predict_group`. String
+names follow sklearn's splitter classes; an int spec must honor
+``groups`` when one is supplied — plain ``KFold`` silently ignores its
+``groups`` argument, which previously produced folds byte-identical to
+passing no groups at all.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`cv` |  | ``'loo'`` (`LeaveOneOut`), ``'logo'`` (`LeaveOneGroupOut` — pass the grouping variable via ``groups``), an int fold count, or an sklearn splitter (returned unchanged). | *required*
+`groups` |  | Group labels, or None. Only consulted for int specs. | <code>None</code>
+`classifier` | <code>[bool](#bool)</code> | Whether the downstream model is a classifier — an int spec becomes the stratified variant (`StratifiedKFold`, or `StratifiedGroupKFold` with groups) for classifiers. | <code>False</code>
+`shuffle` | <code>[bool](#bool)</code> | Whether an int spec's KFold variant shuffles samples before splitting. Ignored for the group variants (fold membership is set by ``groups``). | <code>False</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for ``shuffle``. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | An sklearn splitter instance.
+

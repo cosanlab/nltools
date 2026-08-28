@@ -617,9 +617,12 @@ axis 0, and the halves are retried recursively; partial results are
 concatenated along axis 0.
 
 Because splitting reuses the *already generated* inputs rather than
-re-drawing them, results are identical to the unsplit computation for
-any row-independent `fn` — RNG-consuming input generation stays outside
-this function, so recovery never changes a seeded result.
+re-drawing them, recovery never changes which permutations a seeded
+result is computed from — RNG-consuming input generation stays outside
+this function. For a row-independent `fn` the recovered output matches
+the unsplit computation to within floating-point reduction order
+(backends may block reductions differently per batch shape; observed
+differences are ~1 float32 ulp).
 
 **Parameters:**
 

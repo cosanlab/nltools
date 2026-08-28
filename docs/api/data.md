@@ -824,7 +824,7 @@ Name | Description
 [`min`](#data-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-predict) | Per-subject predict-after-fit over fitted ridge bundles.
+[`predict`](#data-predict) | Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 [`predict_group`](#data-predict-group) | Group MVPA: subjects as samples → one model → ``Predict``.
 [`read`](#data-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-resample) | Resample every subject's image to a target space in parallel.
@@ -1266,24 +1266,64 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, groups: str | list | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Per-subject predict-after-fit over fitted ridge bundles.
+Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 
-Pass ``X_new`` (a new design matrix) to map each subject's fitted
-model over it, returning a ``BrainCollection`` of predicted maps.
+The per-subject counterpart to every other method on this class —
+one operation per subject, no cross-subject mixing. (For **group
+MVPA** — subjects as samples, one model across the collection — use
+`predict_group`.) Dispatched by which argument is provided:
 
-``predict(y=...)`` is reserved: per-subject decoding (one model per
-subject, consistent with every other per-subject method) lands in a
-future release (#478). For **group MVPA** — subjects as samples, one
-model across the collection — use `predict_group`.
+1. **Per-subject decoding** (``y``, or omitted with stored labels):
+   maps `BrainData.predict` over subjects — one model per subject,
+   cross-validated within that subject's own rows — and returns a
+   `PredictCollection` carrying the collection's metadata. Stack the
+   per-subject decoder maps for second-level inference via
+   ``result.weight_maps``.
+2. **Predict-after-fit** (``X_new``): map each subject's fitted
+   ridge model over a new design matrix, returning a
+   ``BrainCollection`` of predicted maps. Requires ridge fit-bundle
+   items (``.fit(model='ridge', cache=True)``).
+
+Labels travel with the data: with ``y`` omitted, each subject
+decodes its own single-column ``.Y``; ``y='name'`` picks a column of
+each subject's ``.Y``, and ``groups='name'`` does the same for a
+within-subject grouping variable (e.g. run). Alternatively pass one
+shared label array (applied to every subject) or a list of arrays
+(one per subject, in collection order).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Per-subject decoding targets — ``None`` (each subject's single-column ``.Y``), a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
+`X_new` | <code>[ndarray](#numpy.ndarray) \| None</code> | New design matrix for predict-after-fit (mode 2). | <code>None</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
+`model` | <code>[str](#str)</code> | Model name or sklearn estimator (see ``BrainData.predict``). | <code>'svm'</code>
+`cv` | <code>[int](#int) \| [str](#str)</code> | Within-subject CV — an int fold count (default 5, honoring ``groups`` via the Group variants), ``'loo'``, ``'logo'`` (with ``groups``, e.g. leave-one-run-out), or an sklearn splitter. | <code>5</code>
+`groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Within-subject grouping variable — a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
+`scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
+`standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | CPU workers (subject-level; each subject decodes with ``n_jobs=1`` to avoid nested parallelism). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for shuffled int-``cv`` folds. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | ``'auto'`` (cache when the source is path-backed) | ``True`` | ``False``. Caching writes one predict bundle (``.h5``) per subject holding the result's ingredients — never a pickled estimator, so cached results have ``estimator=None``. | <code>'auto'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | `PredictCollection` (mode 1) or ``BrainCollection`` (mode 2).
 
 (data-predict-group)=
 ###### `predict_group`
 
 ```python
-predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
+predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'logo', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Group MVPA: subjects as samples → one model → ``Predict``.
@@ -1301,8 +1341,8 @@ Name | Type | Description | Default
 `y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Labels/targets, one per subject — an array/list, or the name of a metadata column. | *required*
 `spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
 `model` | <code>[str](#str)</code> | Model name (see ``BrainData.predict``). | <code>'svm'</code>
-`cv` | <code>[int](#int) \| [str](#str)</code> | ``'loso'`` (leave-one-subject-out, default), ``'loro'`` (leave-one-run-out via ``run`` metadata), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'loso'</code>
-`groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject for ``'loso'``, the ``run`` column for ``'loro'``. | <code>None</code>
+`cv` | <code>[int](#int) \| [str](#str)</code> | ``'logo'`` (leave-one-group-out, default — with the default ``groups`` this is leave-one-subject-out), ``'loo'`` (leave-one-out), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'logo'</code>
+`groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject; pass ``groups='run'`` (or any metadata column) for e.g. leave-one-run-out under ``cv='logo'``. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Restrict to an ROI. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
@@ -2344,7 +2384,7 @@ Type | Description
 ###### `predict`
 
 ```python
-predict(*, y: np.ndarray | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
+predict(*, y: np.ndarray | str | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | str | None = None, roi_mask: np.ndarray | str | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Predict voxel timeseries (encoding) or decode labels (MVPA).
@@ -2356,12 +2396,19 @@ Dispatched by which of ``X`` or ``y`` is provided:
    Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
    timeseries (composes directly with ``.plot()``, ``.standardize()``
    etc.). ``inplace`` has no effect in this mode.
-2. **MVPA decoding** (``y`` provided): train a classifier or
-   regressor with cross-validation. Returns a `Predict`
-   dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
-   ``final_weight_map``, ``accuracy_map``) are `BrainData`
-   objects so ``result.weight_map.plot()`` works directly. Drop down
-   to numpy via ``result.weight_map.data``.
+2. **MVPA decoding** (``y`` provided, or resolvable from ``.Y``):
+   train a classifier or regressor with cross-validation. Returns a
+   `Predict` dataclass. Spatial fields (``weight_map``,
+   ``fold_weight_maps``, ``final_weight_map``, ``accuracy_map``) are
+   `BrainData` objects so ``result.weight_map.plot()`` works
+   directly. Drop down to numpy via ``result.weight_map.data``.
+
+Labels travel with the data: when ``y`` is omitted and this object
+carries a single-column ``.Y`` frame, that column is decoded
+(``y='name'`` picks a column of a multi-column ``.Y``; ``groups``
+accepts a ``.Y`` column name the same way). An object with both a
+fitted encoding model and a stored ``.Y`` refuses the no-argument
+call as ambiguous — pass ``y=`` or ``X=`` explicitly.
 
 Field shapes by ``spatial_scale=``:
 
@@ -2397,16 +2444,16 @@ it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`y` | <code>[array](#array) - [like](#like)</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``. Triggers MVPA mode. | <code>None</code>
+`y` | <code>([array](#array) - [like](#like), [str](#str))</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``, or the name of a ``.Y`` column. Triggers MVPA mode; omitted, it falls back to a single-column ``.Y``. | <code>None</code>
 `X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape ``(n_samples, n_features)``. Triggers encoding mode. | <code>None</code>
 `spatial_scale` | <code>[str](#str)</code> | MVPA dispatch — ``'whole_brain'``, ``'searchlight'``, or ``'roi'``. | <code>'whole_brain'</code>
 `model` | <code>str or sklearn estimator</code> | Algorithm. String shortcuts:<br>- Classification: ``'svm'`` (LinearSVC), ``'logistic'``,   ``'lda'``, ``'ridge_classifier'``. - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.<br>Or pass any sklearn estimator / Pipeline (e.g., ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``). When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted to ``False`` (with a warning) so we don't wrap another StandardScaler around your pipeline. Pass ``standardize=True`` explicitly to override. | <code>'svm'</code>
-`cv` | <code>int or sklearn CV splitter</code> | ``int`` → KFold (regression) or StratifiedKFold (classification); pass a splitter for custom schemes (e.g., ``GroupKFold``). | <code>5</code>
+`cv` | <code>int, str, or sklearn CV splitter</code> | ``int`` → shuffled KFold (regression) or StratifiedKFold (classification), honoring ``groups`` via the Group variants; ``'loo'`` (leave-one-out); ``'logo'`` (leave-one-group-out — pass the grouping variable via ``groups``, e.g. runs for leave-one-run-out); or any sklearn splitter. | <code>5</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features per fold before fitting. Default ``True``. Auto-flipped to ``False`` when ``model`` is a sklearn ``Pipeline`` (see ``model`` above). | <code>True</code>
 `reduce` | <code>[str](#str)</code> | Per-fold dimensionality reduction. Currently only ``'pca'`` supported. Default ``None``. Weight maps are back-projected through PCA to voxel space. | <code>None</code>
 `n_components` | <code>[int](#int)</code> | PCA components when ``reduce='pca'``. | <code>None</code>
 `scoring` | <code>[str](#str)</code> | Sklearn scoring string. Default ``'auto'`` → ``'accuracy'`` if classifier, ``'r2'`` if regressor. | <code>'auto'</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
+`groups` | <code>([array](#array) - [like](#like), [str](#str))</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out), or the name of a ``.Y`` column holding them. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
 `inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
@@ -6852,16 +6899,16 @@ Name | Type | Description | Default
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`y` | <code>[array](#array) - [like](#like)</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``. Triggers MVPA mode. | <code>None</code>
+`y` | <code>([array](#array) - [like](#like), [str](#str))</code> | Labels (classification) or continuous targets (regression), shape ``(n_samples,)``, or the name of a ``.Y`` column. Triggers MVPA mode; omitted, it falls back to a single-column ``.Y``. | <code>None</code>
 `X` | <code>[array](#array) - [like](#like)</code> | Features for timeseries prediction, shape ``(n_samples, n_features)``. Triggers encoding mode. | <code>None</code>
 `spatial_scale` | <code>[str](#str)</code> | MVPA dispatch — ``'whole_brain'``, ``'searchlight'``, or ``'roi'``. | <code>'whole_brain'</code>
 `model` | <code>str or sklearn estimator</code> | Algorithm. String shortcuts:<br>- Classification: ``'svm'`` (LinearSVC), ``'logistic'``,   ``'lda'``, ``'ridge_classifier'``. - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.<br>Or pass any sklearn estimator / Pipeline (e.g., ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``). When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted to ``False`` (with a warning) so we don't wrap another StandardScaler around your pipeline. Pass ``standardize=True`` explicitly to override. | <code>'svm'</code>
-`cv` | <code>int or sklearn CV splitter</code> | ``int`` → KFold (regression) or StratifiedKFold (classification); pass a splitter for custom schemes (e.g., ``GroupKFold``). | <code>5</code>
+`cv` | <code>int, str, or sklearn CV splitter</code> | ``int`` → shuffled KFold (regression) or StratifiedKFold (classification), honoring ``groups`` via the Group variants; ``'loo'`` (leave-one-out); ``'logo'`` (leave-one-group-out — pass the grouping variable via ``groups``, e.g. runs for leave-one-run-out); or any sklearn splitter. | <code>5</code>
 `standardize` | <code>[bool](#bool)</code> | Z-score features per fold before fitting. Default ``True``. Auto-flipped to ``False`` when ``model`` is a sklearn ``Pipeline`` (see ``model`` above). | <code>True</code>
 `reduce` | <code>[str](#str)</code> | Per-fold dimensionality reduction. Currently only ``'pca'`` supported. Default ``None``. Weight maps are back-projected through PCA to voxel space. | <code>None</code>
 `n_components` | <code>[int](#int)</code> | PCA components when ``reduce='pca'``. | <code>None</code>
 `scoring` | <code>[str](#str)</code> | Sklearn scoring string. Default ``'auto'`` → ``'accuracy'`` if classifier, ``'r2'`` if regressor. | <code>'auto'</code>
-`groups` | <code>[array](#array) - [like](#like)</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out). | <code>None</code>
+`groups` | <code>([array](#array) - [like](#like), [str](#str))</code> | Group labels for CV splitters that need them (e.g., leave-one-run-out), or the name of a ``.Y`` column holding them. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#Nifti1Image) or [path](#path) - [like](#like)</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius in mm. Default ``10.0``. | <code>10.0</code>
 `inplace` | <code>[bool](#bool)</code> | If ``True``, populate result fields as ``predict_*`` attributes on ``self`` and return ``self``. Default ``False`` returns a fresh `Predict`. | <code>False</code>
@@ -7462,7 +7509,7 @@ Type | Description
 ######## `predict`
 
 ```python
-predict(*, y: np.ndarray | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | None = None, roi_mask: np.ndarray | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
+predict(*, y: np.ndarray | str | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | str | None = None, roi_mask: np.ndarray | str | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Predict voxel timeseries (encoding) or decode labels (MVPA).
@@ -7474,12 +7521,19 @@ Dispatched by which of ``X`` or ``y`` is provided:
    Returns a fresh ``BrainData`` whose ``.data`` holds the predicted
    timeseries (composes directly with ``.plot()``, ``.standardize()``
    etc.). ``inplace`` has no effect in this mode.
-2. **MVPA decoding** (``y`` provided): train a classifier or
-   regressor with cross-validation. Returns a `Predict`
-   dataclass. Spatial fields (``weight_map``, ``fold_weight_maps``,
-   ``final_weight_map``, ``accuracy_map``) are `BrainData`
-   objects so ``result.weight_map.plot()`` works directly. Drop down
-   to numpy via ``result.weight_map.data``.
+2. **MVPA decoding** (``y`` provided, or resolvable from ``.Y``):
+   train a classifier or regressor with cross-validation. Returns a
+   `Predict` dataclass. Spatial fields (``weight_map``,
+   ``fold_weight_maps``, ``final_weight_map``, ``accuracy_map``) are
+   `BrainData` objects so ``result.weight_map.plot()`` works
+   directly. Drop down to numpy via ``result.weight_map.data``.
+
+Labels travel with the data: when ``y`` is omitted and this object
+carries a single-column ``.Y`` frame, that column is decoded
+(``y='name'`` picks a column of a multi-column ``.Y``; ``groups``
+accepts a ``.Y`` column name the same way). An object with both a
+fitted encoding model and a stored ``.Y`` refuses the no-argument
+call as ambiguous — pass ``y=`` or ``X=`` explicitly.
 
 Field shapes by ``spatial_scale=``:
 
@@ -10388,7 +10442,7 @@ Name | Type | Description | Default
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`frame` |  | Input to validate. Can be ``None``, a ``str``/``Path`` pointing to a CSV, a polars or pandas DataFrame, or a 1D/2D numpy array. | *required*
+`frame` |  | Input to validate. Can be ``None``, a ``str``/``Path`` pointing to a CSV, a polars or pandas DataFrame, a dict of columns, or a 1D/2D numpy array. | *required*
 `data_shape` |  | Optional tuple of data shape to validate row count against. | <code>None</code>
 `frame_type` |  | Type of frame for error messages (e.g., "X", "Y"). | <code>'DataFrame'</code>
 
@@ -11089,7 +11143,7 @@ Name | Description
 [`min`](#data-min) | Voxelwise minimum across subjects as a single `BrainData`.
 [`permutation_test`](#data-permutation-test) | One-sample sign-flipping permutation test across subjects.
 [`permutation_test2`](#data-permutation-test2) | Two-sample permutation test between this collection and ``other``.
-[`predict`](#data-predict) | Per-subject predict-after-fit over fitted ridge bundles.
+[`predict`](#data-predict) | Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 [`predict_group`](#data-predict-group) | Group MVPA: subjects as samples → one model → ``Predict``.
 [`read`](#data-read) | Read a collection previously saved by ``write()``.
 [`resample`](#data-resample) | Resample every subject's image to a target space in parallel.
@@ -11279,11 +11333,30 @@ Name | Type | Description | Default
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
+`y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Per-subject decoding targets — ``None`` (each subject's single-column ``.Y``), a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
+`X_new` | <code>[ndarray](#numpy.ndarray) \| None</code> | New design matrix for predict-after-fit (mode 2). | <code>None</code>
+`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
+`model` | <code>[str](#str)</code> | Model name or sklearn estimator (see ``BrainData.predict``). | <code>'svm'</code>
+`cv` | <code>[int](#int) \| [str](#str)</code> | Within-subject CV — an int fold count (default 5, honoring ``groups`` via the Group variants), ``'loo'``, ``'logo'`` (with ``groups``, e.g. leave-one-run-out), or an sklearn splitter. | <code>5</code>
+`groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Within-subject grouping variable — a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
+`roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
+`radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
+`scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
+`standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
+`n_jobs` | <code>[int](#int)</code> | CPU workers (subject-level; each subject decodes with ``n_jobs=1`` to avoid nested parallelism). | <code>-1</code>
+`random_state` | <code>[int](#int) \| None</code> | Seed for shuffled int-``cv`` folds. | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | ``'auto'`` (cache when the source is path-backed) | ``True`` | ``False``. Caching writes one predict bundle (``.h5``) per subject holding the result's ingredients — never a pickled estimator, so cached results have ``estimator=None``. | <code>'auto'</code>
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
 `y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Labels/targets, one per subject — an array/list, or the name of a metadata column. | *required*
 `spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
 `model` | <code>[str](#str)</code> | Model name (see ``BrainData.predict``). | <code>'svm'</code>
-`cv` | <code>[int](#int) \| [str](#str)</code> | ``'loso'`` (leave-one-subject-out, default), ``'loro'`` (leave-one-run-out via ``run`` metadata), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'loso'</code>
-`groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject for ``'loso'``, the ``run`` column for ``'loro'``. | <code>None</code>
+`cv` | <code>[int](#int) \| [str](#str)</code> | ``'logo'`` (leave-one-group-out, default — with the default ``groups`` this is leave-one-subject-out), ``'loo'`` (leave-one-out), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'logo'</code>
+`groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject; pass ``groups='run'`` (or any metadata column) for e.g. leave-one-run-out under ``cv='logo'``. | <code>None</code>
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Restrict to an ROI. | <code>None</code>
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
@@ -11650,23 +11723,44 @@ Type | Description
 ######## `predict`
 
 ```python
-predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
+predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, groups: str | list | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
 ```
 
-Per-subject predict-after-fit over fitted ridge bundles.
+Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 
-Pass ``X_new`` (a new design matrix) to map each subject's fitted
-model over it, returning a ``BrainCollection`` of predicted maps.
+The per-subject counterpart to every other method on this class —
+one operation per subject, no cross-subject mixing. (For **group
+MVPA** — subjects as samples, one model across the collection — use
+`predict_group`.) Dispatched by which argument is provided:
 
-``predict(y=...)`` is reserved: per-subject decoding (one model per
-subject, consistent with every other per-subject method) lands in a
-future release (#478). For **group MVPA** — subjects as samples, one
-model across the collection — use `predict_group`.
+1. **Per-subject decoding** (``y``, or omitted with stored labels):
+   maps `BrainData.predict` over subjects — one model per subject,
+   cross-validated within that subject's own rows — and returns a
+   `PredictCollection` carrying the collection's metadata. Stack the
+   per-subject decoder maps for second-level inference via
+   ``result.weight_maps``.
+2. **Predict-after-fit** (``X_new``): map each subject's fitted
+   ridge model over a new design matrix, returning a
+   ``BrainCollection`` of predicted maps. Requires ridge fit-bundle
+   items (``.fit(model='ridge', cache=True)``).
+
+Labels travel with the data: with ``y`` omitted, each subject
+decodes its own single-column ``.Y``; ``y='name'`` picks a column of
+each subject's ``.Y``, and ``groups='name'`` does the same for a
+within-subject grouping variable (e.g. run). Alternatively pass one
+shared label array (applied to every subject) or a list of arrays
+(one per subject, in collection order).
+
+**Returns:**
+
+Type | Description
+---- | -----------
+ | `PredictCollection` (mode 1) or ``BrainCollection`` (mode 2).
 
 ######## `predict_group`
 
 ```python
-predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'loso', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
+predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'logo', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
 ```
 
 Group MVPA: subjects as samples → one model → ``Predict``.
@@ -11988,8 +12082,10 @@ Name | Description
 Name | Description
 ---- | -----------
 [`read_glm_bundle`](#data-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+`read_predict_bundle` | Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
 `read_ridge_bundle` | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 `write_glm_bundle` | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+`write_predict_bundle` | Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
 `write_ridge_bundle` | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 (data-bundle-schema-version)=
@@ -12073,6 +12169,18 @@ Schema-version mismatch raises with a migration message; nltools-version
 mismatch logs a warning but does not refuse — bundles are usually
 forward-compatible within a minor version.
 
+######## `read_predict_bundle`
+
+```python
+read_predict_bundle(path: Path)
+```
+
+Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
+
+Brain-map fields are rebuilt as ``BrainData`` on the embedded mask. Same
+schema/version handling as the fit-bundle readers; refuses non-predict
+bundles with a pointer to the right reader.
+
 ######## `read_ridge_bundle`
 
 ```python
@@ -12097,6 +12205,25 @@ Layout (see ``docs/development/execution-model.md``):
 
 Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
 portable across machines. Uses ``h5py.File(..., locking=False)``.
+
+######## `write_predict_bundle`
+
+```python
+write_predict_bundle(out_path: Path, *, result: Any, mask_bytes: bytes, affine: np.ndarray, model_spec: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+```
+
+Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
+
+Layout (see ``docs/development/execution-model.md``):
+    datasets: every populated array field of the `Predict` (predictions,
+    scores, cv_folds, roi_labels, permutation_scores, mean_score,
+    std_score), each brain-map field's ``.data`` (weight_map,
+    fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
+    attrs: bundle_kind='predict', present_fields, scalar_summaries,
+    permutation_pvalue (when set), model_spec (JSON — the refit
+    ingredients), affine, plus the shared lineage attrs.
+
+The fitted ``estimator`` is deliberately not persisted.
 
 ######## `write_ridge_bundle`
 
@@ -14282,6 +14409,7 @@ Name | Description
 ---- | -----------
 [`Fit`](#data-fit) | Immutable container for model fitting results.
 [`Predict`](#data-predict) | Immutable container for prediction / MVPA decoding results.
+[`PredictCollection`](#data-predictcollection) | Immutable container for per-subject decoding results.
 
 
 
@@ -14861,6 +14989,142 @@ available() -> list
 ```
 
 Return names of non-None fields (excludes private).
+
+(data-predictcollection)=
+###### `PredictCollection`
+
+```python
+PredictCollection(results: tuple, metadata: Any = None, paths: tuple | None = None) -> None
+```
+
+Immutable container for per-subject decoding results.
+
+Returned by ``BrainCollection.predict(y=...)``: one `Predict` per subject
+(each an independent within-subject model), plus the collection's
+per-subject metadata. Sequence-like — ``len``, iteration, and integer
+indexing all address the underlying `Predict` objects.
+
+The stacking properties are the bridge to second-level inference: the
+per-subject maps become one ``BrainData (n_subjects, n_voxels)``, ready
+for a group test.
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`results` | <code>[tuple](#tuple)</code> | One `Predict` per subject, in collection order.
+`metadata` | <code>[Any](#typing.Any)</code> | Optional per-subject metadata (polars DataFrame, one row per subject), carried over from the source collection.
+`paths` | <code>[tuple](#tuple) \| None</code> | Optional on-disk predict-bundle paths, populated when the producing call cached its results (``cache=True``/``'auto'``).
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+Properties: ``mean_scores`` / ``std_scores`` stack each subject's
+score summary — ``(n_subjects,)`` for whole-brain decoding,
+``(n_subjects, n_rois)`` for ROI. ``scores`` renders the whole-brain
+case as a polars DataFrame alongside the metadata. ``weight_maps`` /
+``accuracy_maps`` stack the per-subject brain maps into one
+``BrainData``. ``available`` returns the field names populated on
+*every* subject's result.
+
+</details>
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`available`](#data-available) | Return field names populated on every subject's `Predict`.
+
+
+
+####### Attributes##
+
+**Examples:**
+
+```python
+pc = collection.predict(y="condition", cv=5)
+pc.scores                    # per-subject accuracy table
+pc[0].weight_map.plot()      # one subject's decoder map
+
+# Second-level inference on the decoder maps:
+from nltools.algorithms import one_sample_permutation_test
+group = one_sample_permutation_test(pc.weight_maps.data)
+```
+
+(data-accuracy-maps)=
+###### `accuracy_maps`
+
+```python
+accuracy_maps
+```
+
+Per-subject accuracy maps as one ``BrainData (n_subjects, n_voxels)``.
+
+######## `mean_scores`
+
+```python
+mean_scores: np.ndarray
+```
+
+Per-subject mean CV score — ``(n_subjects,)`` or ``(n_subjects, n_rois)``.
+
+######## `metadata`
+
+```python
+metadata: Any = None
+```
+
+######## `paths`
+
+```python
+paths: tuple | None = None
+```
+
+######## `results`
+
+```python
+results: tuple
+```
+
+######## `scores`
+
+```python
+scores
+```
+
+Per-subject score table (polars): metadata + mean/std score columns.
+
+Only defined when each subject's score summary is a scalar
+(whole-brain decoding); for ROI decoding use ``mean_scores`` /
+``std_scores`` — the array forms.
+
+######## `std_scores`
+
+```python
+std_scores: np.ndarray
+```
+
+Per-subject score std across folds, matching ``mean_scores``' shape.
+
+######## `weight_maps`
+
+```python
+weight_maps
+```
+
+Per-subject decoder maps as one ``BrainData (n_subjects, n_voxels)``.
+
+
+
+####### Functions##
+
+###### `available`
+
+```python
+available() -> list
+```
+
+Return field names populated on every subject's `Predict`.
 
 #### `roc`
 

@@ -552,25 +552,33 @@ Every GPU/batched code path now runs through one core layer in `nltools.algorith
 - **`BrainCollection.permutation_test` / `.permutation_test2` delegate to the inference engine** (as `isc_test` already did), so their `device=` and `n_jobs=` kwargs — previously accepted but ignored — now select the real execution backend, and both gained `progress_bar=`. One consequence: the null distribution for a given `random_state` changes (the engine's deterministic seed stream replaces the old hand-rolled `np.random.default_rng` loop). Same test, same distribution family, different draws — re-run any analysis that recorded seeded collection permutation p-values.
 
 (predict-group)=
-### Group MVPA is `predict_group()`; the legacy `cv()` pipeline is removed
+### `predict(y=)` decodes per subject; group MVPA is `predict_group()`; the legacy `cv()` pipeline is removed
 
 **Status**: ⚠️ **BREAKING CHANGE** (v0.6.0)
 
-`BrainCollection.predict(y=...)` used to *aggregate* — stack every subject into one `(n_subjects, n_voxels)` matrix and train a single model with subjects as samples — while every other per-subject method on the class *maps*. That operation now lives under an explicit name, and `predict()` is reserved for the per-subject path ([#478](https://github.com/cosanlab/nltools/issues/478)):
+`BrainCollection.predict(y=...)` used to *aggregate* — stack every subject into one `(n_subjects, n_voxels)` matrix and train a single model with subjects as samples — while every other per-subject method on the class *maps*. In v0.6.0 the two operations have two names ([#478](https://github.com/cosanlab/nltools/issues/478)): `predict(y=...)` **maps** `BrainData.predict` over subjects (one model per subject, cross-validated within that subject's own rows), and the aggregate lives under the explicit name `predict_group`:
 
 ```python
-# OLD (v0.5.x / pre-0.6.0 dev)
+# OLD (v0.5.x / pre-0.6.0 dev) — ONE model, subjects as samples
 result = bc.predict(y=labels, cv="loso")
 result = bc.cv(method="loso").predict(y=labels, n_permute=100)
 
-# NEW (v0.6.0)
-result = bc.predict_group(labels, cv="loso")                       # group MVPA → Predict
+# NEW (v0.6.0) — the same aggregate, under its true name
+result = bc.predict_group(labels, cv="logo")                       # group MVPA → Predict
 result = bc.predict_group(labels, n_permute=100, random_state=0)   # + label-permutation null
+
+# NEW (v0.6.0) — per-subject decoding: N models, CV within each subject
+pc = bc.predict(y="condition", cv=5)          # → PredictCollection
+pc.scores                                     # per-subject accuracy table (polars)
+pc[0].weight_map.plot()                       # one subject's decoder map
+group = pc.weight_maps.ttest()                # second-level inference on the stack
 ```
 
-- **`predict_group(y, ...)`** is the old `predict(y=...)` under its true name, returning the same `Predict` dataclass. Calling `predict(y=...)` raises with this guidance; in a future release `predict(y=...)` will return per-subject decoding (one model per subject), completing the map-over-subjects contract.
-- **Bug fix — int `cv` no longer discards `groups=`.** `predict(cv=5, groups=subject_ids)` previously resolved to plain `KFold`, which ignores its `groups` argument entirely — folds were byte-identical to passing no groups, with the same subject in train and test. `predict_group(cv=5, groups=...)` resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) via the new `nltools.cross_validation.resolve_group_cv`, so a group never straddles a train/test boundary.
-- **The legacy `cv()` pipeline is gone** (`BrainCollectionPipeline`, the `pipesteps` machinery, and the never-read `CVScheme.split_by` knob with it). Its one capability `predict_group` didn't already cover — the label-permutation null — moved onto `predict_group(n_permute=, random_state=)`, which attaches `permutation_scores` and `permutation_pvalue` to the returned `Predict`.
+- **`predict_group(y, ...)`** is the old `predict(y=...)` under its true name, returning the same `Predict` dataclass, with the label-permutation null from the removed `cv()` pipeline available via `n_permute=`/`random_state=`.
+- **`predict(y=...)` returns a `PredictCollection`** — one `Predict` per subject plus the collection's metadata. `mean_scores`/`scores` summarize per-subject performance; `weight_maps`/`accuracy_maps` stack the per-subject maps into one `BrainData (n_subjects, n_voxels)` for group inference. Labels resolve per subject: `y=None` uses each subject's single-column `.Y`, `y='name'` picks a `.Y` column, one shared array applies to every subject, and a list of arrays is per-subject. `groups=` resolves the same way for within-subject schemes (`cv='logo', groups='run'` = leave-one-run-out inside each subject). Runs through the standard execution machinery (`n_jobs`, `progress_bar`, `cache=` — caching writes one predict bundle `.h5` per subject holding the result's ingredients; fitted `estimator`s are never persisted, so cached results carry `estimator=None`).
+- **cv specs use sklearn-style names.** `'loso'`/`'loro'` are removed — both were `LeaveOneGroupOut` differing only in the implied grouping. Use `cv='logo'` and say the grouping via `groups=`: `predict_group(cv='logo')` defaults groups to one per subject (leave-one-subject-out); `predict_group(cv='logo', groups='run')` is leave-one-run-out. `'loo'` (`LeaveOneOut`) is also accepted, at every level (`BrainData.predict` included).
+- **Bug fix — int `cv` no longer discards `groups=`, at either level.** `predict(cv=5, groups=...)` previously resolved to plain `KFold`, which ignores its `groups` argument entirely — folds were byte-identical to passing no groups. Int specs now resolve through the shared `nltools.cross_validation.resolve_cv`: `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) when groups are supplied, so a group never straddles a train/test boundary, and `StratifiedKFold` (previously plain `KFold`) for classifiers without groups at the group level.
+- **The legacy `cv()` pipeline is gone** (`BrainCollectionPipeline`, the `pipesteps` machinery, and the never-read `CVScheme.split_by` knob with it).
 
 (iplot-autoscale)=
 ### `iplot()` autoscales robustly; percentile thresholds are shared and zero-aware
@@ -2026,11 +2034,11 @@ fitted = bc.smooth(6).fit(
 con = fitted.compute_contrasts("face_c0 - house_c0", statistic="beta")
 con.ttest()                              # {'mean', 't', 'z', 'p'}
 con.permutation_test(n_permute=5000)     # {'mean', 'p'}
-con.predict(y=labels, cv="loso", spatial_scale="roi", roi_mask=atlas)
+con.predict_group(labels, cv="logo", spatial_scale="roi", roi_mask=atlas)
 ```
 
 Constructors: `from_bids`, `from_glob`, `from_paths`. Also available:
-`align`, `anova`, `isc`, `cv`, `map`, `apply`, `detrend`, `filter`,
+`align`, `anova`, `isc`, `predict`, `map`, `apply`, `detrend`, `filter`,
 `standardize`, `resample`, `threshold`, `write`.
 
 Two contracts worth knowing:

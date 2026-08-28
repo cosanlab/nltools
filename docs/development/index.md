@@ -74,6 +74,7 @@ public signature against in CI. The table below is rendered from it:
 | Spatial scale | `spatial_scale` (`'whole_brain' \| 'roi' \| 'searchlight'`) |
 | Distance / similarity metric | `metric` |
 | Central tendency | `summary` (`'mean' \| 'median'`) |
+| Cross-validation spec | `cv` (`int \| 'loo' \| 'logo' \|` splitter; sklearn-style names — the grouping lives in `groups=`) |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
 | Backend (ridge/alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine uses `device` as of v0.6.0) |

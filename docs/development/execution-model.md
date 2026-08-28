@@ -23,11 +23,13 @@ The machinery lives under `nltools/data/collection/`:
 
 ## Path-backed by default
 
-After any parallel op (`fit`, `compute_contrasts`, `smooth`, `standardize`, `detrend`,
-`threshold`, `resample`, `predict`, `map`, `apply`), the returned collection is
-**path-backed**: workers write each per-subject result to disk and the parent never
-accumulates per-subject `BrainData` in RAM. Peak memory stays at roughly
-`n_workers × 1 subject`.
+After any collection-returning parallel op (`fit`, `compute_contrasts`, `smooth`,
+`standardize`, `detrend`, `threshold`, `resample`, `predict(X_new=)`, `map`, `apply`),
+the returned collection is **path-backed**: workers write each per-subject result to
+disk and the parent never accumulates per-subject `BrainData` in RAM. Peak memory stays
+at roughly `n_workers × 1 subject`. (`predict(y=)` runs through the same machinery but
+returns a `PredictCollection` of per-subject decoding results — see the predict-bundle
+section.)
 
 Reductions (`concat`, `mean`, `std`, `ttest`, `anova`, `isc(method='loo')`, …) stream
 from path-backed inputs and produce a small in-memory `BrainData` (or dict of them). They
@@ -147,7 +149,7 @@ lazy/fused chain machinery.
 
 | Output shape | Format | Used by |
 |---|---|---|
-| Bundle (multiple arrays + state per subject) | HDF5 (`sub-XXXX_fit.h5`) | `fit(model='glm')`, `fit(model='ridge')` |
+| Bundle (multiple arrays + state per subject) | HDF5 (`sub-XXXX_fit.h5` / `sub-XXXX.h5`) | `fit(model='glm')`, `fit(model='ridge')`, `predict(y=)` |
 | Single image per subject | NIfTI via `BrainData.write()` (`sub-XXXX.nii.gz`) | `smooth`, `standardize`, `detrend`, `threshold`, `resample`, `compute_contrasts`, `predict(X_new=)`, `align`, `map`, `apply` |
 
 ## HDF5 fit bundle
@@ -181,6 +183,34 @@ parser supports coefficients (e.g. `"2*A - B"`), not just `"A - B"`.
 `predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs.
 `predict(X_new=)` reads the bundle and writes per-subject prediction NIfTIs
 (`X_new @ weights + intercept`, with JSON sidecars).
+
+## HDF5 predict bundle
+
+`predict(y=)` — per-subject decoding — is the one parallel op whose per-subject result
+is a `Predict` dataclass rather than an image, so it returns a `PredictCollection`
+(never a path-backed `BrainCollection`). When caching, each worker also writes a
+predict bundle holding the result's **ingredients**:
+
+```text
+{step_dir}/sub-XXXX.h5
+├── /predictions, /scores, /cv_folds, ...      (whichever array fields are populated)
+├── /mean_score, /std_score                    (scalar or per-ROI array)
+├── /weight_map, /fold_weight_maps, /accuracy_map   (.data of the BrainData fields)
+├── /mask         (embedded NIfTI bytes)
+└── attrs:
+    ├── bundle_kind='predict', present_fields, scalar_summaries
+    ├── model_spec (JSON — model/cv/scoring/etc., enough to refit)
+    ├── permutation_pvalue (when set), affine
+    ├── nltools_version, bundle_schema_version
+    └── step_id, parent_step_id, op, kwargs (JSON-encoded)
+```
+
+The fitted sklearn `estimator` is deliberately **not** persisted (pickled estimators are
+version-fragile and rarely used — refit from the stored spec on demand). For
+consistency, the in-memory results of a caching run mirror the bundle
+(`estimator=None`); only uncached runs keep live estimators. `read_predict_bundle`
+rebuilds a `Predict` with `BrainData` maps on the embedded mask, and refuses fit
+bundles (`bundle_kind` check) with a pointer to the right reader.
 
 **On read:** `bundle_schema_version` mismatch raises with a clear migration message
 (schema is currently at version 2). `nltools_version` mismatch logs a warning but does

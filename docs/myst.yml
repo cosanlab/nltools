@@ -69,11 +69,6 @@ project:
             - file: api/data/collection_execution.md
             - file: api/data/collection_inference.md
             - file: api/data/collection_io.md
-            - file: api/data/collection_pipeline.md
-            - file: api/data/collection_pipesteps.md
-            - file: api/data/collection_pipesteps_base.md
-            - file: api/data/collection_pipesteps_cv.md
-            - file: api/data/collection_pipesteps_steps.md
         - title: Atlases
           children:
             - file: api/data/atlases.md

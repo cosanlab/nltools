@@ -83,20 +83,11 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.data.designmatrix.diagnostics", "data/design_matrix_diagnostics.md"),
     ("nltools.data.designmatrix.plotting", "data/design_matrix_plotting.md"),
     ("nltools.data.designmatrix.io", "data/design_matrix_io.md"),
-    # NOTE: BrainCollection is a scaffold on this branch; the full split
-    # (constructors/transforms/modeling/prediction) lives on the
-    # BrainCollection feature branch. Document only what exists here.
     ("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
     ("nltools.data.collection.core", "data/collection_core.md"),
     ("nltools.data.collection.execution", "data/collection_execution.md"),
     ("nltools.data.collection.inference", "data/collection_inference.md"),
     ("nltools.data.collection.io", "data/collection_io.md"),
-    ("nltools.data.collection.pipeline", "data/collection_pipeline.md"),
-    # collection pipeline primitives (co-located under collection/pipesteps)
-    ("nltools.data.collection.pipesteps", "data/collection_pipesteps.md"),
-    ("nltools.data.collection.pipesteps.base", "data/collection_pipesteps_base.md"),
-    ("nltools.data.collection.pipesteps.cv", "data/collection_pipesteps_cv.md"),
-    ("nltools.data.collection.pipesteps.steps", "data/collection_pipesteps_steps.md"),
     # --- atlases ---
     ("nltools.data.atlases", "data/atlases.md"),
     ("nltools.data.atlases.registry", "data/atlases_registry.md"),

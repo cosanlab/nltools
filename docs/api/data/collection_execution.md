@@ -28,8 +28,10 @@ Name | Description
 Name | Description
 ---- | -----------
 [`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+[`read_predict_bundle`](#data-collection-execution-read-predict-bundle) | Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
 [`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 [`write_glm_bundle`](#data-collection-execution-write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
+[`write_predict_bundle`](#data-collection-execution-write-predict-bundle) | Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
 [`write_ridge_bundle`](#data-collection-execution-write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 ### Classes
@@ -81,6 +83,19 @@ Schema-version mismatch raises with a migration message; nltools-version
 mismatch logs a warning but does not refuse — bundles are usually
 forward-compatible within a minor version.
 
+(data-collection-execution-read-predict-bundle)=
+#### `read_predict_bundle`
+
+```python
+read_predict_bundle(path: Path)
+```
+
+Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
+
+Brain-map fields are rebuilt as ``BrainData`` on the embedded mask. Same
+schema/version handling as the fit-bundle readers; refuses non-predict
+bundles with a pointer to the right reader.
+
 (data-collection-execution-read-ridge-bundle)=
 #### `read_ridge_bundle`
 
@@ -107,6 +122,26 @@ Layout (see ``docs/development/execution-model.md``):
 
 Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
 portable across machines. Uses ``h5py.File(..., locking=False)``.
+
+(data-collection-execution-write-predict-bundle)=
+#### `write_predict_bundle`
+
+```python
+write_predict_bundle(out_path: Path, *, result: Any, mask_bytes: bytes, affine: np.ndarray, model_spec: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
+```
+
+Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
+
+Layout (see ``docs/development/execution-model.md``):
+    datasets: every populated array field of the `Predict` (predictions,
+    scores, cv_folds, roi_labels, permutation_scores, mean_score,
+    std_score), each brain-map field's ``.data`` (weight_map,
+    fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
+    attrs: bundle_kind='predict', present_fields, scalar_summaries,
+    permutation_pvalue (when set), model_spec (JSON — the refit
+    ingredients), affine, plus the shared lineage attrs.
+
+The fitted ``estimator`` is deliberately not persisted.
 
 (data-collection-execution-write-ridge-bundle)=
 #### `write_ridge_bundle`

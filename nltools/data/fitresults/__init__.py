@@ -410,8 +410,8 @@ class PredictCollection:
         pc[0].weight_map.plot()      # one subject's decoder map
 
         # Second-level inference on the decoder maps:
-        from nltools.algorithms import permutation_test
-        group = permutation_test(pc.weight_maps.data, method="one_sample")
+        from nltools.algorithms import one_sample_permutation_test
+        group = one_sample_permutation_test(pc.weight_maps.data)
         ```
     """
 
