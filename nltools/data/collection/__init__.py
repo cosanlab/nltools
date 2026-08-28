@@ -872,7 +872,7 @@ class BrainCollection:
         *,
         spatial_scale: str = "whole_brain",
         model: str = "svm",
-        cv: int | str = "loso",
+        cv: int | str = "logo",
         groups: str | np.ndarray | None = None,
         roi_mask: nib.Nifti1Image | Path | str | None = None,
         radius_mm: float = 10.0,
@@ -896,15 +896,16 @@ class BrainCollection:
                 of a metadata column.
             spatial_scale: ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``.
             model: Model name (see ``BrainData.predict``).
-            cv: ``'loso'`` (leave-one-subject-out, default), ``'loro'``
-                (leave-one-run-out via ``run`` metadata), an int fold count,
-                or an sklearn splitter. An int spec **honors** ``groups``:
-                it resolves to `StratifiedGroupKFold` (classifiers) /
-                `GroupKFold` (regressors) so a group never straddles a
-                train/test boundary.
+            cv: ``'logo'`` (leave-one-group-out, default — with the default
+                ``groups`` this is leave-one-subject-out), ``'loo'``
+                (leave-one-out), an int fold count, or an sklearn splitter.
+                An int spec **honors** ``groups``: it resolves to
+                `StratifiedGroupKFold` (classifiers) / `GroupKFold`
+                (regressors) so a group never straddles a train/test
+                boundary.
             groups: Group labels, or a metadata column name. Defaults to one
-                group per subject for ``'loso'``, the ``run`` column for
-                ``'loro'``.
+                group per subject; pass ``groups='run'`` (or any metadata
+                column) for e.g. leave-one-run-out under ``cv='logo'``.
             roi_mask: Restrict to an ROI.
             radius_mm: Searchlight radius.
             scoring: ``'auto'`` → accuracy (classifier) / r2 (regressor).
@@ -958,22 +959,18 @@ class BrainCollection:
             else (np.asarray(groups) if groups is not None else None)
         )
 
-        # Default the group labels for the leave-one-group-out schemes
-        if cv == "loso" and groups_arr is None:
-            # Default: each subject is its own group
+        # Default the group labels for the leave-one-group-out scheme:
+        # each subject is its own group (leave-one-subject-out).
+        if cv == "logo" and groups_arr is None:
             groups_arr = np.arange(len(self))
-        elif cv == "loro" and groups_arr is None:
-            if "run" not in self._metadata.columns:
-                raise ValueError("cv='loro' requires 'run' metadata or explicit groups")
-            groups_arr = np.asarray(self._metadata["run"].to_list())
 
         # Resolve the spec into an sklearn splitter that honors groups
         from sklearn.base import is_classifier
 
-        from ...cross_validation import resolve_group_cv
+        from ...cross_validation import resolve_cv
         from ..braindata.prediction import resolve_model
 
-        cv_arg = resolve_group_cv(
+        cv_arg = resolve_cv(
             cv, groups=groups_arr, classifier=is_classifier(resolve_model(model))
         )
 

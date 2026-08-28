@@ -83,7 +83,7 @@ class TestPredictSignature:
         sig = inspect.signature(BrainCollection.predict_group)
         assert sig.parameters["spatial_scale"].default == "whole_brain"
         assert sig.parameters["model"].default == "svm"
-        assert sig.parameters["cv"].default == "loso"
+        assert sig.parameters["cv"].default == "logo"
         assert sig.parameters["n_permute"].default == 0
 
     def test_predict_no_longer_carries_group_kwargs(self):
@@ -390,44 +390,84 @@ class TestPredictGroupCarveOut:
             from nltools.data.collection import BrainCollectionPipeline  # noqa: F401
 
 
-class TestResolveGroupCv:
-    """The int/str cv spec -> sklearn splitter resolution is a pure function."""
+class TestResolveCv:
+    """The int/str cv spec -> sklearn splitter resolution is a pure function.
 
-    def test_int_without_groups_is_kfold(self):
+    String names follow sklearn's splitter classes: 'loo' (LeaveOneOut) and
+    'logo' (LeaveOneGroupOut). The old domain names 'loso'/'loro' were removed
+    in v0.6.0 — they were both LeaveOneGroupOut, differing only in the default
+    groups, which is what ``groups=`` expresses directly.
+    """
+
+    def test_int_without_groups_regression_is_kfold(self):
         from sklearn.model_selection import KFold
 
-        from nltools.cross_validation import resolve_group_cv
+        from nltools.cross_validation import resolve_cv
 
-        assert isinstance(resolve_group_cv(3), KFold)
+        assert isinstance(resolve_cv(3), KFold)
+
+    def test_int_without_groups_classification_is_stratifiedkfold(self):
+        from sklearn.model_selection import StratifiedKFold
+
+        from nltools.cross_validation import resolve_cv
+
+        assert isinstance(resolve_cv(3, classifier=True), StratifiedKFold)
+
+    def test_int_shuffle_and_random_state_pass_through(self):
+        from nltools.cross_validation import resolve_cv
+
+        cv = resolve_cv(3, shuffle=True, random_state=7)
+        assert cv.shuffle is True
+        assert cv.random_state == 7
 
     def test_int_with_groups_regression_is_groupkfold(self):
         from sklearn.model_selection import GroupKFold
 
-        from nltools.cross_validation import resolve_group_cv
+        from nltools.cross_validation import resolve_cv
 
-        cv = resolve_group_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=False)
+        cv = resolve_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=False)
         assert isinstance(cv, GroupKFold)
 
     def test_int_with_groups_classification_is_stratifiedgroupkfold(self):
         from sklearn.model_selection import StratifiedGroupKFold
 
-        from nltools.cross_validation import resolve_group_cv
+        from nltools.cross_validation import resolve_cv
 
-        cv = resolve_group_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=True)
+        cv = resolve_cv(3, groups=np.array([0, 0, 1, 1, 2, 2]), classifier=True)
         assert isinstance(cv, StratifiedGroupKFold)
 
-    def test_loso_loro_are_leave_one_group_out(self):
+    def test_loo_is_leave_one_out(self):
+        from sklearn.model_selection import LeaveOneOut
+
+        from nltools.cross_validation import resolve_cv
+
+        assert isinstance(resolve_cv("loo"), LeaveOneOut)
+
+    def test_logo_is_leave_one_group_out(self):
         from sklearn.model_selection import LeaveOneGroupOut
 
-        from nltools.cross_validation import resolve_group_cv
+        from nltools.cross_validation import resolve_cv
 
-        assert isinstance(resolve_group_cv("loso"), LeaveOneGroupOut)
-        assert isinstance(resolve_group_cv("loro"), LeaveOneGroupOut)
+        assert isinstance(resolve_cv("logo"), LeaveOneGroupOut)
+
+    def test_removed_names_raise_with_migration_guidance(self):
+        from nltools.cross_validation import resolve_cv
+
+        with pytest.raises(ValueError, match="logo"):
+            resolve_cv("loso")
+        with pytest.raises(ValueError, match="logo"):
+            resolve_cv("loro")
+
+    def test_unknown_string_raises(self):
+        from nltools.cross_validation import resolve_cv
+
+        with pytest.raises(ValueError, match="cv"):
+            resolve_cv("bogus")
 
     def test_splitter_passes_through(self):
         from sklearn.model_selection import KFold
 
-        from nltools.cross_validation import resolve_group_cv
+        from nltools.cross_validation import resolve_cv
 
         splitter = KFold(4)
-        assert resolve_group_cv(splitter) is splitter
+        assert resolve_cv(splitter) is splitter

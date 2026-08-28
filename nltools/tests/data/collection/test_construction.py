@@ -222,7 +222,7 @@ class TestSignatures:
     def test_predict_group_default_model_and_cv(self):
         params = self._params(BrainCollection.predict_group)
         assert params["model"].default == "svm"
-        assert params["cv"].default == "loso"
+        assert params["cv"].default == "logo"
 
     def test_isc_default_method_loo(self):
         """Cross-subject ops: ``method='loo'`` default."""

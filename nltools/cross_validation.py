@@ -1,6 +1,6 @@
 """Scikit-learn-compatible cross-validation data classes."""
 
-__all__ = ["KFoldStratified"]
+__all__ = ["KFoldStratified", "resolve_cv"]
 
 from sklearn.model_selection._split import _BaseKFold
 from sklearn.utils import check_random_state
@@ -74,34 +74,69 @@ class KFoldStratified(_BaseKFold):
         return super().split(X, y, groups)
 
 
-def resolve_group_cv(cv, *, groups=None, classifier: bool = False):
-    """Resolve a collection-level cv spec into an sklearn splitter.
+def resolve_cv(
+    cv,
+    *,
+    groups=None,
+    classifier: bool = False,
+    shuffle: bool = False,
+    random_state: int | None = None,
+):
+    """Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
 
-    The group-aware piece of `BrainCollection.predict_group`: an int spec
-    must honor ``groups`` when one is supplied — plain ``KFold`` silently
-    ignores its ``groups`` argument, which previously produced folds
-    byte-identical to passing no groups at all.
+    The single cv-resolution rule shared by `BrainData.predict`,
+    `BrainCollection.predict`, and `BrainCollection.predict_group`. String
+    names follow sklearn's splitter classes; an int spec must honor
+    ``groups`` when one is supplied — plain ``KFold`` silently ignores its
+    ``groups`` argument, which previously produced folds byte-identical to
+    passing no groups at all.
 
     Args:
-        cv: ``'loso'`` / ``'loro'`` (leave-one-group-out), an int fold
-            count, or an sklearn splitter (returned unchanged).
+        cv: ``'loo'`` (`LeaveOneOut`), ``'logo'`` (`LeaveOneGroupOut` — pass
+            the grouping variable via ``groups``), an int fold count, or an
+            sklearn splitter (returned unchanged).
         groups: Group labels, or None. Only consulted for int specs.
-        classifier: Whether the downstream model is a classifier — with
-            groups, an int spec becomes `StratifiedGroupKFold` (classifier)
-            or `GroupKFold` (regressor).
+        classifier: Whether the downstream model is a classifier — an int
+            spec becomes the stratified variant (`StratifiedKFold`, or
+            `StratifiedGroupKFold` with groups) for classifiers.
+        shuffle: Whether an int spec's KFold variant shuffles samples before
+            splitting. Ignored for the group variants (fold membership is
+            set by ``groups``).
+        random_state: Seed for ``shuffle``.
 
     Returns:
         An sklearn splitter instance.
+
+    Raises:
+        ValueError: On an unknown string spec, including the pre-v0.6.0
+            names ``'loso'`` / ``'loro'`` (use ``'logo'`` with ``groups=``).
     """
     from sklearn.model_selection import (
         GroupKFold,
         KFold,
         LeaveOneGroupOut,
+        LeaveOneOut,
         StratifiedGroupKFold,
+        StratifiedKFold,
     )
 
-    if cv in ("loso", "loro"):
-        return LeaveOneGroupOut()
+    if isinstance(cv, str):
+        if cv == "loo":
+            return LeaveOneOut()
+        if cv == "logo":
+            return LeaveOneGroupOut()
+        if cv in ("loso", "loro"):
+            raise ValueError(
+                f"cv={cv!r} was removed in v0.6.0 — both names were "
+                f"LeaveOneGroupOut with an implied grouping. Use cv='logo' "
+                f"and say the grouping explicitly via groups= "
+                f"(predict_group defaults groups to one per subject; "
+                f"pass groups='run' for leave-one-run-out)."
+            )
+        raise ValueError(
+            f"unknown cv spec {cv!r}: expected 'loo', 'logo', an int fold "
+            f"count, or an sklearn splitter."
+        )
     if isinstance(cv, int):
         if groups is not None:
             return (
@@ -109,5 +144,11 @@ def resolve_group_cv(cv, *, groups=None, classifier: bool = False):
                 if classifier
                 else GroupKFold(n_splits=cv)
             )
-        return KFold(n_splits=cv)
+        # sklearn refuses random_state without shuffle — drop it when unused.
+        rs = random_state if shuffle else None
+        return (
+            StratifiedKFold(n_splits=cv, shuffle=shuffle, random_state=rs)
+            if classifier
+            else KFold(n_splits=cv, shuffle=shuffle, random_state=rs)
+        )
     return cv
