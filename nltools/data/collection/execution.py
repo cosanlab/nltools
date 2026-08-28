@@ -41,9 +41,11 @@ __all__ = [
     "_apply",
     "_materialize",
     "read_glm_bundle",
+    "read_predict_bundle",
     "read_ridge_bundle",
     "tqdm_joblib",
     "write_glm_bundle",
+    "write_predict_bundle",
     "write_ridge_bundle",
 ]
 
@@ -669,6 +671,137 @@ def _to_str(v: Any) -> str:
     return str(v)
 
 
+# Predict-bundle field partitions. Bundles store the *ingredients* of a
+# `Predict` — arrays, brain maps, and the model spec needed to refit — never
+# a pickled estimator (version-fragile, rarely used; refit on demand).
+_PREDICT_ARRAY_FIELDS = (
+    "predictions",
+    "scores",
+    "cv_folds",
+    "roi_labels",
+    "permutation_scores",
+)
+_PREDICT_SUMMARY_FIELDS = ("mean_score", "std_score")  # float or ndarray
+_PREDICT_MAP_FIELDS = ("weight_map", "fold_weight_maps", "accuracy_map")
+
+
+def write_predict_bundle(
+    out_path: Path,
+    *,
+    result: Any,  # Predict
+    mask_bytes: bytes,
+    affine: np.ndarray,
+    model_spec: dict,
+    step_id: str,
+    parent_step_id: str | None,
+    op: str,
+    op_kwargs: dict,
+    nltools_version: str,
+) -> Path:
+    """Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
+
+    Layout (see ``docs/development/execution-model.md``):
+        datasets: every populated array field of the `Predict` (predictions,
+        scores, cv_folds, roi_labels, permutation_scores, mean_score,
+        std_score), each brain-map field's ``.data`` (weight_map,
+        fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
+        attrs: bundle_kind='predict', present_fields, scalar_summaries,
+        permutation_pvalue (when set), model_spec (JSON — the refit
+        ingredients), affine, plus the shared lineage attrs.
+
+    The fitted ``estimator`` is deliberately not persisted.
+    """
+    import json
+
+    datasets: dict[str, np.ndarray | bytes] = {"mask": mask_bytes}
+    present: list[str] = []
+    scalar_summaries: list[str] = []
+
+    for name in _PREDICT_ARRAY_FIELDS:
+        value = getattr(result, name)
+        if value is not None:
+            datasets[name] = np.asarray(value)
+            present.append(name)
+    for name in _PREDICT_SUMMARY_FIELDS:
+        value = getattr(result, name)
+        if value is not None:
+            arr = np.asarray(value)
+            if arr.ndim == 0:
+                scalar_summaries.append(name)
+            datasets[name] = arr
+            present.append(name)
+    for name in _PREDICT_MAP_FIELDS:
+        value = getattr(result, name)
+        if value is not None:
+            datasets[name] = np.asarray(value.data)
+            present.append(name)
+
+    attrs: dict[str, Any] = {
+        "bundle_kind": "predict",
+        "present_fields": json.dumps(present),
+        "scalar_summaries": json.dumps(scalar_summaries),
+        "model_spec": json.dumps(model_spec),
+        "affine": np.asarray(affine),
+        "nltools_version": nltools_version,
+        "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+        "step_id": step_id,
+        "parent_step_id": parent_step_id or "",
+        "op": op,
+        "kwargs": json.dumps(op_kwargs),
+    }
+    if result.permutation_pvalue is not None:
+        attrs["permutation_pvalue"] = float(result.permutation_pvalue)
+
+    return _write_bundle(out_path, datasets=datasets, attrs=attrs)
+
+
+def read_predict_bundle(path: Path):
+    """Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
+
+    Brain-map fields are rebuilt as ``BrainData`` on the embedded mask. Same
+    schema/version handling as the fit-bundle readers; refuses non-predict
+    bundles with a pointer to the right reader.
+    """
+    import json
+
+    from ..braindata import BrainData as _BrainData
+    from ..fitresults import Predict
+
+    f, attrs = _read_bundle_attrs_and_validate(Path(path))
+    try:
+        kind = _to_str(attrs.get("bundle_kind", ""))
+        if kind != "predict":
+            raise ValueError(
+                f"{Path(path).name} is not a predict bundle (kind="
+                f"{kind or 'fit'!r}); use read_glm_bundle/read_ridge_bundle "
+                f"for fit bundles."
+            )
+        present = set(json.loads(attrs["present_fields"]))
+        scalar_summaries = set(json.loads(attrs["scalar_summaries"]))
+
+        fields: dict[str, Any] = {}
+        for name in _PREDICT_ARRAY_FIELDS:
+            if name in present:
+                fields[name] = f[name][:]
+        for name in _PREDICT_SUMMARY_FIELDS:
+            if name in present:
+                arr = f[name][()]
+                fields[name] = float(arr) if name in scalar_summaries else arr
+        if any(name in present for name in _PREDICT_MAP_FIELDS):
+            mask = _bytes_to_mask(bytes(f["mask"][:]))
+            for name in _PREDICT_MAP_FIELDS:
+                if name in present:
+                    arr = np.asarray(f[name][:])
+                    if arr.ndim == 1:
+                        arr = arr.reshape(1, -1)
+                    fields[name] = _BrainData(arr, mask=mask)
+        if "permutation_pvalue" in attrs:
+            fields["permutation_pvalue"] = float(attrs["permutation_pvalue"])
+        return Predict(**fields)
+    finally:
+        f.close()
+
+
 # ---------------------------------------------------------------------------
 # Bundle extraction from a fitted BrainData
 # ---------------------------------------------------------------------------
@@ -1038,6 +1171,76 @@ def _predict_after_fit_worker(
         nltools_version=_v,
     )
     return task.out_path
+
+
+def _resolve_per_item(spec: tuple[str, Any], idx: int):
+    """Resolve a ``(mode, value)`` spec for one item.
+
+    ``'passthrough'`` hands the value (None or a ``.Y`` column name) to
+    ``BrainData.predict`` unchanged, ``'shared'`` applies one array to every
+    subject, ``'list'`` indexes a per-subject sequence.
+    """
+    mode, value = spec
+    if mode == "passthrough" or mode == "shared":
+        return value
+    if mode == "list":
+        return value[idx]
+    raise ValueError(f"unknown spec mode {mode!r}")
+
+
+def _predict_mvpa_worker(
+    task: _ItemTask,
+    *,
+    y_spec: tuple[str, Any],
+    groups_spec: tuple[str, Any],
+    predict_kwargs: dict,
+    model_spec: dict,
+    step_id: str,
+    parent_step_id: str | None,
+    op_kwargs: dict,
+):
+    """Worker for ``BC.predict(y=...)``: decode one subject via ``BD.predict``.
+
+    Returns ``(Predict, bundle_path | None)``. When caching, the bundle holds
+    the ingredients (arrays, maps, model spec) and the returned in-memory
+    result mirrors it — ``estimator`` dropped — so a resumed session reading
+    the bundle sees exactly what this session saw.
+    """
+    from dataclasses import replace as dataclass_replace
+
+    bd, _ = _materialize(task)
+    y = _resolve_per_item(y_spec, task.idx)
+    groups = _resolve_per_item(groups_spec, task.idx)
+
+    result = bd.predict(
+        y=y,
+        groups=groups,
+        inplace=False,
+        n_jobs=1,
+        progress_bar=False,
+        **predict_kwargs,
+    )
+
+    if task.out_path is None:
+        return result, None
+
+    try:
+        from nltools import __version__ as _v
+    except Exception:
+        _v = ""
+    write_predict_bundle(
+        task.out_path,
+        result=result,
+        mask_bytes=_mask_to_bytes(bd.mask),
+        affine=np.asarray(bd.mask.affine),
+        model_spec=model_spec,
+        step_id=step_id,
+        parent_step_id=parent_step_id,
+        op="predict_mvpa",
+        op_kwargs=op_kwargs,
+        nltools_version=_v,
+    )
+    return dataclass_replace(result, estimator=None), task.out_path
 
 
 def _fit_worker(

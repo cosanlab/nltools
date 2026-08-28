@@ -74,7 +74,7 @@ class TestComputeContrastsSignature:
 
 class TestPredictSignature:
     def test_dispatch_args_default_none(self):
-        """bc.predict — per-subject path; y kept only to route to predict_group."""
+        """bc.predict — per-subject decoding (y) and predict-after-fit (X_new)."""
         sig = inspect.signature(BrainCollection.predict)
         assert sig.parameters["y"].default is None
         assert sig.parameters["X_new"].default is None
@@ -86,10 +86,16 @@ class TestPredictSignature:
         assert sig.parameters["cv"].default == "logo"
         assert sig.parameters["n_permute"].default == 0
 
-    def test_predict_no_longer_carries_group_kwargs(self):
+    def test_predict_carries_per_subject_decode_kwargs(self):
+        """#478 phases 2-3: predict(y=) maps BrainData.predict over subjects."""
         sig = inspect.signature(BrainCollection.predict)
-        for gone in ("spatial_scale", "model", "cv", "groups"):
-            assert gone not in sig.parameters
+        assert sig.parameters["spatial_scale"].default == "whole_brain"
+        assert sig.parameters["model"].default == "svm"
+        # Per-subject decoding: an int KFold default — 'logo' would be
+        # incoherent inside a single subject without a groups variable.
+        assert sig.parameters["cv"].default == 5
+        assert sig.parameters["groups"].default is None
+        assert sig.parameters["cache"].default == "auto"
 
 
 # ---------------------------------------------------------------------------
@@ -256,12 +262,13 @@ class TestComputeContrastsBehavior:
 class TestPredictDispatch:
     """predict() is the per-subject path; group MVPA lives on predict_group()."""
 
-    def test_y_raises_even_with_x_new(self, bc_inmem):
-        with pytest.raises(ValueError, match="predict_group"):
+    def test_y_and_x_new_together_raise(self, bc_inmem):
+        with pytest.raises(ValueError, match="both"):
             bc_inmem.predict(y=[0, 1, 0], X_new=np.zeros((5, 3)))
 
-    def test_neither_arg_raises(self, bc_inmem):
-        with pytest.raises(ValueError, match="X_new"):
+    def test_no_args_without_stored_y_raises(self, bc_inmem):
+        """bc_inmem items carry no .Y — nothing to decode against."""
+        with pytest.raises(ValueError, match="Y"):
             bc_inmem.predict()
 
     def test_predict_group_requires_single_map_per_subject(self, bc_inmem):
@@ -341,10 +348,13 @@ class TestPredictGroupCarveOut:
         assert out.predictions.shape == (6,)
         assert isinstance(out.mean_score, float)
 
-    def test_predict_y_raises_with_guidance(self, tiny_mask):
+    def test_predict_y_is_per_subject_not_group(self, tiny_mask):
+        """predict(y=) maps over subjects — single-map items can't CV within."""
         bc = self._single_map_bc(tiny_mask)
-        with pytest.raises(ValueError, match="predict_group"):
-            bc.predict(y=np.array([0, 1, 0, 1, 0, 1]))
+        with pytest.raises(Exception, match="predict_group|splits|samples|fold"):
+            # One map per subject → within-subject CV is impossible; the
+            # group question belongs to predict_group.
+            bc.predict(y=np.array([0]), n_jobs=1)
 
     def test_int_cv_honors_groups(self, tiny_mask):
         """cv=2 with groups= must keep each group intact within a fold.
@@ -388,6 +398,185 @@ class TestPredictGroupCarveOut:
         assert not hasattr(bc_inmem, "cv")
         with pytest.raises(ImportError):
             from nltools.data.collection import BrainCollectionPipeline  # noqa: F401
+
+
+class TestPredictPerSubject:
+    """#478 phases 2-3: predict(y=) maps BrainData.predict over subjects.
+
+    One model per subject (CV within each subject's own rows), results in a
+    `PredictCollection` carrying the collection's per-subject metadata.
+    """
+
+    N_OBS = 12
+
+    def _labels(self, seed=0):
+        return np.tile([0, 1], self.N_OBS // 2)
+
+    def _bc(self, tiny_mask, tiny_brain_factory, *, with_y=False, metadata=None):
+        from nltools.data import BrainCollection
+
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(3)]
+        if with_y:
+            for bd in brains:
+                bd.Y = {
+                    "condition": self._labels(),
+                    "run": np.repeat([0, 1, 2], self.N_OBS // 3),
+                }
+        return BrainCollection(
+            brains, mask=tiny_mask, metadata=metadata, lazy=False, cache_dir=None
+        )
+
+    def test_returns_predict_collection_one_result_per_subject(
+        self, tiny_mask, tiny_brain_factory
+    ):
+        from nltools.data.fitresults import Predict, PredictCollection
+
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        assert isinstance(pc, PredictCollection)
+        assert len(pc) == 3
+        assert all(isinstance(r, Predict) for r in pc)
+        # Whole-brain decoding fields per subject.
+        assert pc[0].predictions.shape == (self.N_OBS,)
+        assert isinstance(pc[0].mean_score, float)
+
+    def test_models_are_per_subject(self, tiny_mask, tiny_brain_factory):
+        """Different subject data → different decoder weight maps."""
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        w0 = pc[0].weight_map.data.reshape(-1)
+        w1 = pc[1].weight_map.data.reshape(-1)
+        assert not np.allclose(w0, w1)
+
+    def test_stored_y_default(self, tiny_mask, tiny_brain_factory):
+        """y=None decodes each subject's own .Y — labels travel with the data."""
+        bc = self._bc(tiny_mask, tiny_brain_factory, with_y=True)
+        pc = bc.predict(y="condition", cv=3, random_state=0, n_jobs=1)
+        assert len(pc) == 3
+
+    def test_y_list_per_subject(self, tiny_mask, tiny_brain_factory):
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        ys = [np.roll(self._labels(), i) for i in range(3)]
+        pc = bc.predict(y=ys, cv=3, random_state=0, n_jobs=1)
+        assert len(pc) == 3
+
+    def test_y_list_wrong_length_raises(self, tiny_mask, tiny_brain_factory):
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        with pytest.raises(ValueError, match="3 subjects"):
+            bc.predict(y=[self._labels()] * 2, n_jobs=1)
+
+    def test_groups_column_logo_within_subject(self, tiny_mask, tiny_brain_factory):
+        """cv='logo', groups='run' → leave-one-run-out within each subject."""
+        bc = self._bc(tiny_mask, tiny_brain_factory, with_y=True)
+        pc = bc.predict(
+            y="condition", cv="logo", groups="run", random_state=0, n_jobs=1
+        )
+        # 3 runs per subject → 3 folds each.
+        assert pc[0].scores.shape == (3,)
+
+    def test_metadata_carried_into_scores(self, tiny_mask, tiny_brain_factory):
+        bc = self._bc(
+            tiny_mask,
+            tiny_brain_factory,
+            metadata={"subject": ["s1", "s2", "s3"]},
+        )
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        assert pc.scores["subject"].to_list() == ["s1", "s2", "s3"]
+
+    def test_weight_maps_stack_for_second_level(self, tiny_mask, tiny_brain_factory):
+        from nltools.data import BrainData
+
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        wm = pc.weight_maps
+        assert isinstance(wm, BrainData)
+        assert wm.data.shape == (3, 27)
+
+    def test_parallel_matches_serial(self, tiny_mask, tiny_brain_factory):
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        serial = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        par = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=2)
+        for s, p in zip(serial, par):
+            np.testing.assert_array_equal(s.predictions, p.predictions)
+            assert s.mean_score == p.mean_score
+
+    def test_fit_bundle_items_raise_with_guidance(self, bc_ridge_fitted):
+        with pytest.raises(ValueError, match="bundle"):
+            bc_ridge_fitted.predict(y=np.tile([0, 1], 4), n_jobs=1)
+
+    def test_inmem_items_without_y_raise_eagerly(self, tiny_mask, tiny_brain_factory):
+        bc = self._bc(tiny_mask, tiny_brain_factory, with_y=False)
+        with pytest.raises(ValueError, match="Y"):
+            bc.predict(n_jobs=1)
+
+
+class TestPredictPerSubjectCaching:
+    """cache=True writes one predict bundle (.h5) per subject."""
+
+    N_OBS = 12
+
+    def _bc(self, tiny_mask, tiny_brain_factory, tmp_path):
+        from nltools.data import BrainCollection
+
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(3)]
+        return BrainCollection(
+            brains, mask=tiny_mask, lazy=False, cache_dir=tmp_path / "cache"
+        )
+
+    def _labels(self):
+        return np.tile([0, 1], self.N_OBS // 2)
+
+    def test_cache_true_writes_bundles_and_records_paths(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        from pathlib import Path
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, tmp_path)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, cache=True, n_jobs=1)
+        assert pc.paths is not None and len(pc.paths) == 3
+        for p in pc.paths:
+            assert isinstance(p, Path)
+            assert p.suffix == ".h5"
+            assert p.exists()
+
+    def test_cached_bundle_round_trips_ingredients(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        from nltools.data.collection.execution import read_predict_bundle
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, tmp_path)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, cache=True, n_jobs=1)
+        loaded = read_predict_bundle(pc.paths[0])
+        np.testing.assert_array_equal(loaded.predictions, pc[0].predictions)
+        np.testing.assert_allclose(
+            loaded.weight_map.data, pc[0].weight_map.data, rtol=1e-6
+        )
+        assert loaded.mean_score == pc[0].mean_score
+
+    def test_cached_results_carry_no_estimator(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        """Bundles store the ingredients, never a pickled estimator — and the
+        in-memory results mirror the bundle so resumed sessions see the same
+        fields."""
+        bc = self._bc(tiny_mask, tiny_brain_factory, tmp_path)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, cache=True, n_jobs=1)
+        assert all(r.estimator is None for r in pc)
+
+    def test_uncached_results_keep_estimator(self, tiny_mask, tiny_brain_factory):
+        from nltools.data import BrainCollection
+
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(2)]
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)
+        assert all(r.estimator is not None for r in pc)
+
+    def test_pathbacked_nifti_items_decode_with_explicit_y(self, bc_pathbacked):
+        """NIfTI items carry no .Y; explicit y decodes and cache='auto' persists."""
+        y = np.tile([0, 1], 4)  # tiny_nifti_paths items have 8 obs
+        pc = bc_pathbacked.predict(y=y, cv=2, random_state=0, n_jobs=1)
+        assert len(pc) == 3
+        assert pc.paths is not None  # path-backed source → 'auto' caches
 
 
 class TestResolveCv:

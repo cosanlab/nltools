@@ -831,37 +831,99 @@ class BrainCollection:
         y: str | list | np.ndarray | None = None,
         *,
         X_new: np.ndarray | None = None,
+        spatial_scale: str = "whole_brain",
+        model: str = "svm",
+        cv: int | str = 5,
+        groups: str | list | np.ndarray | None = None,
+        roi_mask: nib.Nifti1Image | Path | str | None = None,
+        radius_mm: float = 10.0,
+        scoring: str = "auto",
+        standardize: bool = True,
         n_jobs: int = -1,
+        random_state: int | None = None,
         progress_bar: bool = False,
         cache: Literal["auto", True, False] = "auto",
-    ) -> BrainCollection:
-        """Per-subject predict-after-fit over fitted ridge bundles.
+    ):  # -> PredictCollection | BrainCollection
+        """Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 
-        Pass ``X_new`` (a new design matrix) to map each subject's fitted
-        model over it, returning a ``BrainCollection`` of predicted maps.
+        The per-subject counterpart to every other method on this class —
+        one operation per subject, no cross-subject mixing. (For **group
+        MVPA** — subjects as samples, one model across the collection — use
+        `predict_group`.) Dispatched by which argument is provided:
 
-        ``predict(y=...)`` is reserved: per-subject decoding (one model per
-        subject, consistent with every other per-subject method) lands in a
-        future release (#478). For **group MVPA** — subjects as samples, one
-        model across the collection — use `predict_group`.
+        1. **Per-subject decoding** (``y``, or omitted with stored labels):
+           maps `BrainData.predict` over subjects — one model per subject,
+           cross-validated within that subject's own rows — and returns a
+           `PredictCollection` carrying the collection's metadata. Stack the
+           per-subject decoder maps for second-level inference via
+           ``result.weight_maps``.
+        2. **Predict-after-fit** (``X_new``): map each subject's fitted
+           ridge model over a new design matrix, returning a
+           ``BrainCollection`` of predicted maps. Requires ridge fit-bundle
+           items (``.fit(model='ridge', cache=True)``).
+
+        Labels travel with the data: with ``y`` omitted, each subject
+        decodes its own single-column ``.Y``; ``y='name'`` picks a column of
+        each subject's ``.Y``, and ``groups='name'`` does the same for a
+        within-subject grouping variable (e.g. run). Alternatively pass one
+        shared label array (applied to every subject) or a list of arrays
+        (one per subject, in collection order).
+
+        Args:
+            y: Per-subject decoding targets — ``None`` (each subject's
+                single-column ``.Y``), a ``.Y`` column name, one shared
+                array, or a list of per-subject arrays.
+            X_new: New design matrix for predict-after-fit (mode 2).
+            spatial_scale: ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``.
+            model: Model name or sklearn estimator (see ``BrainData.predict``).
+            cv: Within-subject CV — an int fold count (default 5, honoring
+                ``groups`` via the Group variants), ``'loo'``, ``'logo'``
+                (with ``groups``, e.g. leave-one-run-out), or an sklearn
+                splitter.
+            groups: Within-subject grouping variable — a ``.Y`` column name,
+                one shared array, or a list of per-subject arrays.
+            roi_mask: Atlas image for ``spatial_scale='roi'``.
+            radius_mm: Searchlight radius.
+            scoring: ``'auto'`` → accuracy (classifier) / r2 (regressor).
+            standardize: Standardize features within each CV fold.
+            n_jobs: CPU workers (subject-level; each subject decodes with
+                ``n_jobs=1`` to avoid nested parallelism).
+            random_state: Seed for shuffled int-``cv`` folds.
+            progress_bar: Whether to display a progress bar.
+            cache: ``'auto'`` (cache when the source is path-backed) |
+                ``True`` | ``False``. Caching writes one predict bundle
+                (``.h5``) per subject holding the result's ingredients —
+                never a pickled estimator, so cached results have
+                ``estimator=None``.
+
+        Returns:
+            `PredictCollection` (mode 1) or ``BrainCollection`` (mode 2).
         """
-        if y is not None:
-            raise ValueError(
-                "predict(y=...) no longer runs group MVPA — that operation "
-                "collapses across subjects, unlike every other per-subject "
-                "method on this class. Use predict_group(y, ...) for group "
-                "MVPA (subjects as samples). Per-subject decoding via "
-                "predict(y=...) arrives in a future release (#478)."
-            )
-        if X_new is None:
-            raise ValueError(
-                "predict requires X_new= (per-subject predict-after-fit). "
-                "For group MVPA use predict_group(y, ...)."
+        if X_new is not None:
+            if y is not None:
+                raise ValueError(
+                    "Cannot specify both y and X_new. Use y for per-subject "
+                    "decoding or X_new for predict-after-fit."
+                )
+            return self._predict_per_subject(
+                X_new,
+                n_jobs=n_jobs,
+                progress_bar=progress_bar,
+                cache=cache,
             )
 
-        return self._predict_per_subject(
-            X_new,
+        return self._predict_mvpa_per_subject(
+            y,
+            spatial_scale=spatial_scale,
+            model=model,
+            cv=cv,
+            groups=groups,
+            roi_mask=roi_mask,
+            radius_mm=radius_mm,
+            scoring=scoring,
+            standardize=standardize,
             n_jobs=n_jobs,
+            random_state=random_state,
             progress_bar=progress_bar,
             cache=cache,
         )
@@ -1009,6 +1071,142 @@ class BrainCollection:
                 / (n_permute + 1),
             )
         return result
+
+    @staticmethod
+    def _classify_spec(value, n_subjects: int, name: str) -> tuple[str, Any]:
+        """Classify a per-subject argument into a pickle-friendly spec.
+
+        ``None`` / column-name strings pass through to ``BrainData.predict``
+        (resolved against each item's ``.Y``); a flat array/list of scalars
+        is one shared vector; a list of array-likes is per-subject (length
+        must match the collection).
+        """
+        if value is None or isinstance(value, str):
+            return ("passthrough", value)
+        if isinstance(value, (list, tuple)) and all(
+            isinstance(el, (np.ndarray, list, tuple)) for el in value
+        ):
+            if len(value) != n_subjects:
+                raise ValueError(
+                    f"{name} has {len(value)} entries for {n_subjects} "
+                    f"subjects — a per-subject list must match the "
+                    f"collection length."
+                )
+            return ("list", [np.asarray(el) for el in value])
+        return ("shared", np.asarray(value))
+
+    def _predict_mvpa_per_subject(
+        self,
+        y,
+        *,
+        spatial_scale: str,
+        model,
+        cv,
+        groups,
+        roi_mask,
+        radius_mm: float,
+        scoring: str,
+        standardize: bool,
+        n_jobs: int,
+        random_state: int | None,
+        progress_bar: bool,
+        cache: Literal["auto", True, False],
+    ):  # -> PredictCollection
+        """Map ``BrainData.predict(y=...)`` over subjects via ``_apply``."""
+        from ..braindata import BrainData
+        from ..fitresults import PredictCollection
+        from . import execution
+
+        # Fit bundles hold model arrays, not decodable images — refuse
+        # eagerly with a pointer to the right paths.
+        for i, item in enumerate(self._items):
+            if isinstance(item, Path) and item.suffix in (".h5", ".hdf5"):
+                raise ValueError(
+                    f"item {i} is a fit bundle ({item.name}); predict(y=...) "
+                    f"decodes image items. Use predict(X_new=...) for "
+                    f"predict-after-fit, or compute_contrasts(...) + "
+                    f"predict_group(...) for group MVPA."
+                )
+
+        y_spec = self._classify_spec(y, len(self), "y")
+        groups_spec = self._classify_spec(groups, len(self), "groups")
+
+        # Eager stored-Y validation for in-memory items — surface a clean
+        # collection-level message before workers spin up. Path-backed items
+        # resolve at load time inside the worker.
+        if y_spec[0] == "passthrough":
+            for i, item in enumerate(self._items):
+                if not isinstance(item, BrainData):
+                    continue
+                if item.Y is None or item.Y.is_empty():
+                    raise ValueError(
+                        f"subject {i} has no stored .Y frame to decode "
+                        f"against — set each item's .Y, or pass y= (a shared "
+                        f"array or per-subject list)."
+                    )
+                if isinstance(y, str) and y not in item.Y.columns:
+                    raise ValueError(
+                        f"y={y!r} is not a column of subject {i}'s .Y "
+                        f"(columns: {item.Y.columns})."
+                    )
+
+        predict_kwargs = {
+            "spatial_scale": spatial_scale,
+            "model": model,
+            "cv": cv,
+            "standardize": standardize,
+            "scoring": scoring,
+            "roi_mask": roi_mask,
+            "radius_mm": radius_mm,
+            "random_state": random_state,
+        }
+        model_spec = {
+            "model": model if isinstance(model, str) else repr(model),
+            "spatial_scale": spatial_scale,
+            "cv": cv if isinstance(cv, (int, str)) else repr(cv),
+            "scoring": scoring,
+            "standardize": standardize,
+            "radius_mm": radius_mm,
+            "random_state": random_state,
+        }
+        op_kwargs = {
+            "spatial_scale": spatial_scale,
+            "model": model if isinstance(model, str) else type(model).__name__,
+            "cv": str(cv),
+        }
+        step_id = core.make_run_id()
+
+        def worker(task):
+            return execution._predict_mvpa_worker(
+                task,
+                y_spec=y_spec,
+                groups_spec=groups_spec,
+                predict_kwargs=predict_kwargs,
+                model_spec=model_spec,
+                step_id=step_id,
+                parent_step_id=self._step_id,
+                op_kwargs=op_kwargs,
+            )
+
+        raw, _step_dir, _step_id = execution._apply(
+            self,
+            worker,
+            op="predict_mvpa",
+            op_kwargs=op_kwargs,
+            step_id=step_id,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
+            cache=cache,
+            out_ext=".h5",
+        )
+
+        results = tuple(r for r, _ in raw)
+        paths = tuple(p for _, p in raw)
+        return PredictCollection(
+            results=results,
+            metadata=self._metadata,
+            paths=paths if any(p is not None for p in paths) else None,
+        )
 
     def _predict_per_subject(
         self,
