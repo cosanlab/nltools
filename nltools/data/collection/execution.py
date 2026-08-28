@@ -186,16 +186,44 @@ def _atomic_write_nifti(out_path: Path, bd: BrainData) -> Path:
     return out_path
 
 
-def _wrap_worker(fn: Callable[[_ItemTask], T], task: _ItemTask) -> T:
-    """Run ``fn(task)``, wrapping exceptions in ``BrainCollectionWorkerError``.
+@dataclass(frozen=True)
+class _WorkerWarning:
+    """Pickle-safe record of one warning raised inside a worker.
 
-    The per-subject chokepoint for both the serial fast path and the loky
-    path, so ``coalesced_gc()`` here collapses nilearn's per-copy gc storm
-    inside each worker process (one real collect per item, not dozens).
+    The category travels as import-path strings (never the class object —
+    a dynamically created class would poison the whole result pickle);
+    `_relay_worker_warnings` re-resolves it parent-side.
     """
+
+    category_module: str
+    category_qualname: str
+    message: str
+    filename: str
+    lineno: int
+    idx: int
+    subject: str | None
+
+
+def _wrap_worker(
+    fn: Callable[[_ItemTask], T], task: _ItemTask
+) -> tuple[T, tuple[_WorkerWarning, ...]]:
+    """Run ``fn(task)``; return ``(result, warnings raised while running it)``.
+
+    Exceptions are wrapped in ``BrainCollectionWorkerError``. The per-subject
+    chokepoint for both the serial fast path and the loky path, so
+    ``coalesced_gc()`` here collapses nilearn's per-copy gc storm inside each
+    worker process (one real collect per item, not dozens) — and warnings are
+    captured here rather than dying on a worker's stderr (invisible to the
+    parent's warning machinery, and to notebook front-ends entirely).
+    Warnings raised before a worker exception are dropped: the error
+    supersedes them.
+    """
+    import warnings
+
     try:
-        with coalesced_gc():
-            return fn(task)
+        with coalesced_gc(), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = fn(task)
     except BrainCollectionWorkerError:
         raise
     except Exception as e:
@@ -207,6 +235,81 @@ def _wrap_worker(fn: Callable[[_ItemTask], T], task: _ItemTask) -> T:
         raise BrainCollectionWorkerError(
             f"[{', '.join(ctx_parts)}] {type(e).__name__}: {e}"
         ) from e
+
+    subject = task.metadata_row.get("subject")
+    records = tuple(
+        _WorkerWarning(
+            category_module=w.category.__module__,
+            category_qualname=w.category.__qualname__,
+            message=str(w.message),
+            filename=w.filename,
+            lineno=w.lineno,
+            idx=task.idx,
+            subject=str(subject) if subject is not None else None,
+        )
+        for w in caught
+    )
+    return result, records
+
+
+def _resolve_warning_category(module: str, qualname: str) -> type[Warning] | None:
+    """Re-import a worker warning's category parent-side; None if impossible."""
+    import importlib
+
+    try:
+        obj: Any = importlib.import_module(module)
+        for part in qualname.split("."):
+            obj = getattr(obj, part)
+    except Exception:
+        return None
+    if isinstance(obj, type) and issubclass(obj, Warning):
+        return obj
+    return None
+
+
+def _relay_worker_warnings(
+    records: list[_WorkerWarning] | tuple[_WorkerWarning, ...],
+    *,
+    n_subjects: int,
+) -> None:
+    """Re-emit worker warnings through the parent's warning machinery.
+
+    Deduplicated by (category, message) across subjects — one relay per
+    unique warning, annotated with which subjects raised it — and emitted
+    via ``warnings.warn_explicit`` with the real category, so parent-side
+    filters (``ignore``, ``error``, ``pytest.warns``) apply. A category that
+    can't be re-imported falls back to ``UserWarning`` with the original
+    class name kept in the text.
+    """
+    import warnings
+
+    grouped: dict[tuple[str, str, str], list[_WorkerWarning]] = {}
+    for r in records:
+        grouped.setdefault(
+            (r.category_module, r.category_qualname, r.message), []
+        ).append(r)
+
+    for (module, qualname, message), group in grouped.items():
+        category = _resolve_warning_category(module, qualname)
+        if category is None:
+            message = f"[{module}.{qualname}] {message}"
+            category = UserWarning
+
+        first = min(group, key=lambda r: r.idx)
+        who = f"idx={first.idx}" + (
+            f" ({first.subject})" if first.subject is not None else ""
+        )
+        if len(group) > 1:
+            note = f"[raised for {len(group)}/{n_subjects} subjects; first: {who}]"
+        else:
+            note = f"[subject {who}]"
+
+        warnings.warn_explicit(
+            f"{message} {note}",
+            category,
+            first.filename,
+            first.lineno,
+        )
 
 
 def _resolve_cache_mode(
@@ -356,15 +459,18 @@ def _apply(
     # Single-job fast path — avoid joblib overhead and surface tracebacks
     # without the extra wrapping layer.
     if n_jobs == 1 or len(tasks) == 1:
-        results = [_wrap_worker(fn, t) for t in tasks]
+        wrapped = [_wrap_worker(fn, t) for t in tasks]
     else:
         with (
             parallel_backend(backend, inner_max_num_threads=1),
             tqdm_joblib(total=len(tasks), desc=op, disable=not progress_bar),
         ):
-            results = Parallel(n_jobs=n_jobs)(
+            wrapped = Parallel(n_jobs=n_jobs)(
                 delayed(_wrap_worker)(fn, t) for t in tasks
             )
+
+    results = [r for r, _ in wrapped]
+    _relay_worker_warnings([w for _, ws in wrapped for w in ws], n_subjects=len(tasks))
 
     return results, step_dir, step_id
 

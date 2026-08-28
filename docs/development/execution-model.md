@@ -139,6 +139,28 @@ Two HPC patterns are explicitly supported:
 2. **Cache directly on network storage** (slower but persistent across job restarts).
    Default `./.nltools_cache` works when cwd is on the network mount.
 
+## Warnings from workers
+
+Warnings raised inside `_apply` workers would otherwise die on the worker
+process's stderr — invisible to `warnings.catch_warnings`, `pytest.warns`, and
+`filterwarnings("error")` in the parent, and usually invisible entirely in
+notebook front-ends. `_wrap_worker` captures them (as pickle-safe
+`_WorkerWarning` records — the category travels as import-path strings, never a
+class object), and `_apply` relays them through the parent's warning machinery
+via `warnings.warn_explicit`:
+
+- **Deduplicated across subjects** — one relay per unique (category, message),
+  annotated with who raised it (`[raised for 3/20 subjects; first: idx=4
+  (sub-0005)]`). The serial `n_jobs=1` fast path goes through the same
+  capture/relay, so warning behavior is identical at any `n_jobs`.
+- **Categories preserved** — parent-side filters (`ignore`, `error`,
+  `pytest.warns(RankDeficientDesignWarning)`) work on relayed warnings. A
+  category that can't be re-imported parent-side falls back to `UserWarning`
+  with the original class name kept in the message text.
+- **Timing caveat** — `filterwarnings("error")` promotes at relay time, after
+  the parallel step completes; it does not abort workers mid-run. Warnings
+  raised before a worker *exception* are dropped — the error supersedes them.
+
 ## Eager, no fused chains
 
 Each step is eager. `bc.smooth().standardize()` produces *two* on-disk steps (smoothed
