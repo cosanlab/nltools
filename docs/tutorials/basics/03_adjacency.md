@@ -89,8 +89,7 @@ print(f"Symmetric:     {np.allclose(square, square.T)}")
 
 ```{code-cell} python3
 adj.plot()
-plt.gca().set_title("Random Similarity Matrix")
-plt.gcf()
+_ = plt.gca().set_title("Random Similarity Matrix")
 ```
 
 ### With labels
@@ -101,8 +100,7 @@ adj_labeled = Adjacency(
     data=random_matrix, matrix_type="similarity", labels=_roi_names
 )
 adj_labeled.plot()
-plt.gca().set_title("Labeled Matrix")
-plt.gcf()
+_ = plt.gca().set_title("Labeled Matrix")
 ```
 
 ### MDS plot
@@ -111,8 +109,7 @@ Multidimensional scaling lays out the structure of a distance matrix in 2D:
 
 ```{code-cell} python3
 dist_matrix.plot_mds(n_components=2, figsize=(6, 5))
-plt.gca().set_title("MDS of Image Distances")
-plt.gcf()
+_ = plt.gca().set_title("MDS of Image Distances")
 ```
 
 ## Thresholding
@@ -142,7 +139,6 @@ _axes[1].set_title("Thresholded (> 0.3)")
 binary.plot(axes=_axes[2])
 _axes[2].set_title("Binarized")
 _fig.tight_layout()
-_fig
 ```
 
 ## Statistics
@@ -225,8 +221,7 @@ np.fill_diagonal(_fc_matrix, 0)
 _roi_labels = ["DLPFC_L", "DLPFC_R", "ACC", "Insula_L", "Insula_R"]
 fc = Adjacency(_fc_matrix, matrix_type="similarity", labels=_roi_labels)
 fc.plot()
-plt.gca().set_title("ROI-to-ROI Functional Connectivity")
-plt.gcf()
+_ = plt.gca().set_title("ROI-to-ROI Functional Connectivity")
 ```
 
 ## Application: representational similarity analysis
@@ -248,8 +243,7 @@ np.fill_diagonal(_rdm, 0)
 _labels = ["Face1", "Face2", "Face3", "Object1", "Object2", "Object3"]
 rsa = Adjacency(_rdm, matrix_type="distance", labels=_labels)
 rsa.plot()
-plt.gca().set_title("Representational Dissimilarity Matrix")
-plt.gcf()
+_ = plt.gca().set_title("Representational Dissimilarity Matrix")
 ```
 
 Notice the block-diagonal structure: faces are similar to faces (low dissimilarity), objects to objects.

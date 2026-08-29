@@ -155,8 +155,7 @@ def _(mo):
 @app.cell
 def _(adj, plt):
     adj.plot()
-    plt.gca().set_title("Random Similarity Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Random Similarity Matrix")
     return
 
 
@@ -173,8 +172,7 @@ def _(Adjacency, n_nodes, plt, random_matrix):
         data=random_matrix, matrix_type="similarity", labels=_roi_names
     )
     adj_labeled.plot()
-    plt.gca().set_title("Labeled Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Labeled Matrix")
     return
 
 
@@ -190,8 +188,7 @@ def _(mo):
 @app.cell
 def _(dist_matrix, plt):
     dist_matrix.plot_mds(n_components=2, figsize=(6, 5))
-    plt.gca().set_title("MDS of Image Distances")
-    plt.gcf()
+    _ = plt.gca().set_title("MDS of Image Distances")
     return
 
 
@@ -233,7 +230,6 @@ def _(adj, binary, plt, thresh):
     binary.plot(axes=_axes[2])
     _axes[2].set_title("Binarized")
     _fig.tight_layout()
-    _fig
     return
 
 
@@ -359,8 +355,7 @@ def _(Adjacency, np, plt):
     _roi_labels = ["DLPFC_L", "DLPFC_R", "ACC", "Insula_L", "Insula_R"]
     fc = Adjacency(_fc_matrix, matrix_type="similarity", labels=_roi_labels)
     fc.plot()
-    plt.gca().set_title("ROI-to-ROI Functional Connectivity")
-    plt.gcf()
+    _ = plt.gca().set_title("ROI-to-ROI Functional Connectivity")
     return
 
 
@@ -392,8 +387,7 @@ def _(Adjacency, np, plt):
     _labels = ["Face1", "Face2", "Face3", "Object1", "Object2", "Object3"]
     rsa = Adjacency(_rdm, matrix_type="distance", labels=_labels)
     rsa.plot()
-    plt.gca().set_title("Representational Dissimilarity Matrix")
-    plt.gcf()
+    _ = plt.gca().set_title("Representational Dissimilarity Matrix")
     return
 
 
