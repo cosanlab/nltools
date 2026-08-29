@@ -26,7 +26,9 @@ Run linting: `uv run ruff check`
 
 Fix linting: `uv run ruff check --fix`
 
-Build docs locally: `uv run jupyter-book build docs/`
+Build docs locally: `uv run poe docs-build` (or `uv run poe docs-preview` for a live server; both execute the tutorial notebooks, reusing MyST's execute cache)
+
+Edit a tutorial: `uv run marimo edit docs/tutorials/<group>/<notebook>.py`, then `uv run poe docs-generate` to re-render its `.md`
 
 Generate changelog: `uv run poe changelog`
 

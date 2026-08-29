@@ -18,11 +18,9 @@ project:
       children:
         - title: Basics
           children:
-            # Static tutorial pages: MyST-NB markdown auto-generated from the marimo
-            # .py notebooks by scripts/marimo_to_myst.py (run in docs-generate) and
-            # executed at build time (--execute) to bake outputs. The interactive
-            # marimo/WASM version of each (built by scripts/build_marimo_wasm.py) is
-            # linked as an opt-in from the tutorial gallery + each page.
+            # Tutorial pages: MyST-NB markdown auto-generated from the marimo .py
+            # notebooks by scripts/marimo_to_myst.py (run in docs-generate) and
+            # executed at build time (--execute) to bake outputs.
             - file: tutorials/basics/01_brain_data.md
             - file: tutorials/basics/02_design_matrix.md
             - file: tutorials/basics/03_adjacency.md
@@ -121,8 +119,8 @@ project:
         - title: Architecture & Internals
           children:
             # Standalone interactive HTML page (copied into _build/html by the
-            # docs-site / docs-site-pages tasks). Literal URL; the docs-site-pages
-            # perl rewrite prefixes /nltools for GitHub Pages.
+            # docs-site task). Literal URL; docs-site's perl rewrite prefixes
+            # BASE_URL (/nltools) for GitHub Pages.
             - title: Design Tour
               url: /design-tour.html
             - file: development/index.md

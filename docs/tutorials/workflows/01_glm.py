@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools",
 # ]
 # ///
+# GLM Analysis — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,70 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -117,8 +49,7 @@ def _(mo):
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import numpy as np
     from joblib import Memory
 
@@ -138,96 +69,41 @@ def _(mo):
         r"""
     ## How to do it
 
-    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV. In the browser (Pyodide), the same analysis uses a trimmed copy of the eight subjects fitted below so it runs without a server.
+    We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV.
     """
     )
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready):
-    # In-browser only: seed the trimmed BIDS subset into the IDBFS cache and
-    # resolve each subject's files from it. `browser_get_sub_files` stays None
-    # locally, where the visible cell below loads from nilearn instead. Imports
-    # are underscore-aliased to keep them cell-local (marimo defines each name
-    # once across cells).
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_get_sub_files = None
-    if IN_WASM:
-        import json as _json
-        from pathlib import Path as _Path
-
-        from nltools.templates import fetch_resource as _fetch, seed_resources as _seed
-
-        _pyodide_subjects = [f"{_subject:02d}" for _subject in range(1, 9)]
-
-        def _resource_paths(sub: str) -> dict:
-            stem = f"sub-{sub}_task-languagelocalizer"
-            return {
-                "bold": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.nii.gz",
-                "sidecar": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-preproc_bold.json",
-                "confounds": f"tutorials/glm/derivatives/sub-{sub}/func/{stem}_desc-confounds_regressors.tsv",
-                "events": f"tutorials/glm/sub-{sub}/func/{stem}_events.tsv",
-            }
-
-        _glm_resources = [
-            _relpath
-            for _sub in _pyodide_subjects
-            for _relpath in _resource_paths(_sub).values()
-        ] + [
-            # MNI templates the resample + slice plots fetch — pre-seed in Pyodide.
-            # Both 2mm (BrainData default brainspace) and 3mm are covered.
-            "default/2mm-MNI152-2009fsl-mask.nii.gz",
-            "default/2mm-MNI152-2009fsl-brain.nii.gz",
-            "default/2mm-MNI152-2009fsl-T1.nii.gz",
-            "default/3mm-MNI152-2009fsl-mask.nii.gz",
-            "default/3mm-MNI152-2009fsl-brain.nii.gz",
-            "default/3mm-MNI152-2009fsl-T1.nii.gz",
-        ]
-        await _seed(_glm_resources)
-
-        _pyodide_files = {}
-        for _sub in _pyodide_subjects:
-            _relpaths = _resource_paths(_sub)
-            _sidecar = _fetch(_relpaths["sidecar"])
-            _pyodide_files[_sub] = {
-                "bold": _fetch(_relpaths["bold"]),
-                "events": _fetch(_relpaths["events"]),
-                "confounds": _fetch(_relpaths["confounds"]),
-                "TR": _json.loads(_Path(_sidecar).read_text())["RepetitionTime"],
-            }
-
-        def browser_get_sub_files(sub: str) -> dict:
-            """Resolve one subject's trimmed browser-ready tutorial files."""
-            return _pyodide_files[sub]
-
-    return (browser_get_sub_files,)
-
-
 @app.cell
-def _(IN_WASM, browser_get_sub_files):
+def _():
     import json
     from pathlib import Path
 
     from nilearn.datasets import fetch_language_localizer_demo_dataset
     from nilearn.interfaces.bids import get_bids_files
 
-    if IN_WASM:
-        get_sub_files = browser_get_sub_files
-    else:
-        DATASET = fetch_language_localizer_demo_dataset(verbose=0)
-        DATA_DIR = Path(DATASET["data_dir"])
+    DATASET = fetch_language_localizer_demo_dataset(verbose=0)
+    DATA_DIR = Path(DATASET["data_dir"])
 
-        def get_sub_files(sub: str) -> dict:
-            """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
-            derivatives = DATA_DIR / "derivatives"
-            sidecar = get_bids_files(derivatives, file_tag="bold", file_type="json", sub_label=sub)[0]
-            return {
-                "bold": get_bids_files(derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub)[0],
-                "events": get_bids_files(DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub)[0],
-                "confounds": get_bids_files(derivatives, file_type="tsv", modality_folder="func", sub_label=sub)[0],
-                "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
-            }
+    def get_sub_files(sub: str) -> dict:
+        """Resolve one subject's BOLD, events, confounds, and TR from BIDS."""
+        derivatives = DATA_DIR / "derivatives"
+        sidecar = get_bids_files(
+            derivatives, file_tag="bold", file_type="json", sub_label=sub
+        )[0]
+        return {
+            "bold": get_bids_files(
+                derivatives, file_tag="bold", file_type="nii.gz", sub_label=sub
+            )[0],
+            "events": get_bids_files(
+                DATA_DIR, file_tag="events", file_type="tsv", sub_label=sub
+            )[0],
+            "confounds": get_bids_files(
+                derivatives, file_type="tsv", modality_folder="func", sub_label=sub
+            )[0],
+            "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
+        }
 
     return (get_sub_files,)
 
@@ -283,7 +159,9 @@ def _(mo):
 
 @app.cell
 def _(contrasts):
-    contrasts["t"].plot(method="slices", threshold=3.09, title="sub-01: language > string (t)")
+    contrasts["t"].plot(
+        method="slices", threshold=3.09, title="sub-01: language > string (t)"
+    )
     return
 
 
@@ -326,7 +204,9 @@ def _(beta_maps, concatenate, threshold):
     group = concatenate(beta_maps)
     group_result = group.ttest()
     group_z = threshold(group_result["z"], group_result["p"], thr=0.001)
-    group_z.plot(method="slices", title="Group: language > string (voxelwise p < 0.001)")
+    group_z.plot(
+        method="slices", title="Group: language > string (voxelwise p < 0.001)"
+    )
     return (group_result,)
 
 
@@ -336,7 +216,7 @@ def _(mo):
         r"""
     ### Multiple-comparisons correction
 
-    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](workflows-03_mvpa.html)) recovers power.
+    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
     """
     )
     return
@@ -379,9 +259,9 @@ def _(mo):
 
     **Next steps**
 
-    - [Encoding models](workflows-02_encoding.html) — predict brain activity *from* stimulus features (GLM vs. Ridge).
-    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode conditions and compare representational geometry.
-    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
+    - [Encoding models](02_encoding.md) — predict brain activity *from* stimulus features (GLM vs. Ridge).
+    - [Multivariate pattern analysis](03_mvpa.md) — decode conditions and compare representational geometry.
+    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
     """
     )
     return

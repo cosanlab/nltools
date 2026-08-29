@@ -2,19 +2,14 @@
 
 Functions to help download example datasets. The curated example datasets
 (`fetch_pain`, `fetch_emotion_ratings`) are hosted on the ``nltools/niftis``
-Hugging Face dataset and resolve through the same `fetch_resource` /
-`seed_resources` machinery as the MNI templates and atlases, so they work both
-on a normal Python kernel and in Pyodide / JupyterLite (pre-seed with
-`seed_resources` there). Arbitrary Neurovault collections are still available
-via `fetch_neurovault_collection`.
+Hugging Face dataset and resolve through the same `fetch_resource` machinery
+as the MNI templates and atlases. Arbitrary Neurovault collections are still
+available via `fetch_neurovault_collection`.
 
 """
 
 __all__ = [
-    "EMOTION_METADATA",
-    "PAIN_RESOURCES",
     "download_nifti",
-    "emotion_resources",
     "fetch_emotion_ratings",
     "fetch_neurovault_collection",
     "fetch_pain",
@@ -35,55 +30,10 @@ try:
 except ImportError:
     requests = None
 
-# Curated pain dataset hosted on the ``nltools/niftis`` HF dataset. The 84
-# images form a complete 28-subject x 3-pain-level grid; filenames are
-# deterministic so the full resource list can be enumerated without a
-# network round-trip (needed to pre-seed the Pyodide cache).
+# Curated datasets hosted on the ``nltools/niftis`` HF dataset. Each directory
+# holds a ``metadata.csv`` whose ``filename`` column is the image manifest.
 _PAIN_DIR = "datasets/pain"
-_PAIN_LEVELS = ("low", "medium", "high")
-PAIN_RESOURCES: list[str] = [f"{_PAIN_DIR}/metadata.csv"] + [
-    f"{_PAIN_DIR}/sub-{sub:02d}_pain-{level}.nii.gz"
-    for sub in range(1, 29)
-    for level in _PAIN_LEVELS
-]
-"""Every `fetch_resource` relpath the pain dataset needs (metadata + 84 images).
-
-Pass to `nltools.templates.seed_resources` before calling `fetch_pain` in
-Pyodide / JupyterLite, where synchronous downloads are unavailable:
-``await seed_resources(PAIN_RESOURCES)``.
-"""
-
-# Curated emotion-rating dataset hosted on the ``nltools/niftis`` HF dataset.
-# Unlike pain, the 679 images are keyed by Neurovault id rather than a
-# generable subject x condition grid, so the filename manifest is read from
-# ``metadata.csv`` (see `emotion_resources`) instead of being a static list.
 _EMOTION_DIR = "datasets/emotion_ratings"
-EMOTION_METADATA = f"{_EMOTION_DIR}/metadata.csv"
-"""Relpath of the emotion dataset's metadata table (its filename manifest)."""
-
-
-def emotion_resources() -> list[str]:
-    """List every `fetch_resource` relpath the emotion dataset needs.
-
-    The emotion image filenames are keyed by Neurovault id (not a generable
-    grid like `PAIN_RESOURCES`), so this reads `EMOTION_METADATA` to enumerate
-    them. To pre-seed the Pyodide / JupyterLite cache, seed the metadata file
-    first (it is read here), then seed the images:
-
-    ```python
-    await seed_resources([EMOTION_METADATA])
-    await seed_resources(emotion_resources())
-    ```
-
-    Returns:
-        list[str]: `[EMOTION_METADATA, ...679 image relpaths]`.
-    """
-    import polars as pl
-
-    meta = pl.read_csv(fetch_resource(EMOTION_METADATA))
-    return [EMOTION_METADATA] + [
-        f"{_EMOTION_DIR}/{fn}" for fn in meta["filename"].to_list()
-    ]
 
 
 def download_nifti(url, data_dir=None):
@@ -174,9 +124,7 @@ def fetch_pain(verbose=0):
     `Sex`, provenance `neurovault_id` / `name`).
 
     Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
-    locally on first use, so this works on a normal Python kernel with no extra
-    setup. In Pyodide / JupyterLite, pre-seed the cache first:
-    ``await seed_resources(PAIN_RESOURCES)``.
+    locally on first use, so this works with no extra setup.
 
     Args:
         verbose (int, optional): Verbosity passed to `BrainData` while loading.
@@ -210,9 +158,7 @@ def fetch_emotion_ratings(verbose=0):
     metadata (key columns: `SubjectID`, `Rating`, `Holdout`, `AGE`, `SEX`).
 
     Data is hosted on the ``nltools/niftis`` Hugging Face dataset and cached
-    locally on first use, so this works on a normal Python kernel with no extra
-    setup. In Pyodide / JupyterLite, pre-seed the cache first (see
-    `emotion_resources`).
+    locally on first use, so this works with no extra setup.
 
     Args:
         verbose (int, optional): Verbosity passed to `BrainData` while loading.
@@ -229,7 +175,7 @@ def fetch_emotion_ratings(verbose=0):
     import polars as pl
 
     try:
-        metadata = pl.read_csv(fetch_resource(EMOTION_METADATA))
+        metadata = pl.read_csv(fetch_resource(f"{_EMOTION_DIR}/metadata.csv"))
         files = [
             fetch_resource(f"{_EMOTION_DIR}/{fn}")
             for fn in metadata["filename"].to_list()
@@ -261,8 +207,8 @@ def load_haxby_example(n_runs=1, random_state=42):
     No network I/O, no disk I/O, no nilearn fetcher dependency. Runs in
     well under a second.
 
-    Intended for tutorials, documentation examples, and Pyodide / in-browser
-    environments where downloading a real fMRI dataset is impractical. The
+    Intended for tutorials, documentation examples, and tests where
+    downloading a real fMRI dataset is impractical. The
     eight conditions match the real Haxby 2001 object-recognition experiment
     (face, house, cat, bottle, scissors, shoe, chair, scrambledpix), arranged
     in a randomized 9-TR block design with TR=2.5s.

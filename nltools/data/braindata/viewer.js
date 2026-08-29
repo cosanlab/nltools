@@ -1,15 +1,11 @@
 // niivue viewer for BrainData.iplot(), driven through anywidget's *standard*
-// model API (get / set / save_changes / on) only. This is the deliberate
-// contrast with ipyniivue, whose custom chunked-binary protocol reaches for a
-// non-standard `model.onChange(...)` that exists only on a live marimo server
-// and is therefore `undefined` on a server-less `marimo export html-wasm` page
-// (see cosanlab/nltools#455). Staying on the standard API makes the widget work
-// identically in Jupyter, `marimo edit`, and a WASM/Pyodide export.
+// model API (get / set / save_changes / on) only — no host-specific protocol
+// (the contrast with ipyniivue, see cosanlab/nltools#455), so the widget works
+// identically in Jupyter and `marimo edit`.
 //
 // niivue itself is pulled from a CDN as an ES module. `_esm` is an ES module, so
-// a top-level `import` is resolved by the browser at render time; on any
-// HTTP-served page (incl. a marimo WASM export) this fetches and runs. The pin
-// keeps the API stable.
+// a top-level `import` is resolved by the browser at render time. The pin keeps
+// the API stable.
 import {
   Niivue,
   NVImage,

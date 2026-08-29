@@ -18,8 +18,8 @@ Usage:
     uv run poe release
     uv run poe release --target testpypi
 
-This script intentionally does not build/deploy docs or run the optional
-Pyodide suite. Run those separately when a release requires them.
+This script intentionally does not build/deploy docs. Run that separately
+when a release requires it.
 """
 
 from __future__ import annotations
@@ -176,7 +176,9 @@ def parse_pytest_summary(path: Path) -> tuple[int | None, int | None, str | None
     passed_matches = re.findall(r"(\d+) passed", text)
     failed_matches = re.findall(r"(\d+) failed", text)
     passed = int(passed_matches[-1]) if passed_matches else None
-    failed = int(failed_matches[-1]) if failed_matches else 0 if passed is not None else None
+    failed = (
+        int(failed_matches[-1]) if failed_matches else 0 if passed is not None else None
+    )
 
     summary = None
     for line in reversed(text.splitlines()):
@@ -221,10 +223,14 @@ def step_review_test_state() -> str:
         )
     elif passed is None:
         status = "unknown"
-        table.add_row("pytest.log", f"{age:.1f}h", summary or "unparseable", "[yellow]?[/]")
+        table.add_row(
+            "pytest.log", f"{age:.1f}h", summary or "unparseable", "[yellow]?[/]"
+        )
     elif age >= 24:
         status = "stale"
-        table.add_row("pytest.log", f"{age:.1f}h", f"{passed} passed", "[yellow]STALE[/]")
+        table.add_row(
+            "pytest.log", f"{age:.1f}h", f"{passed} passed", "[yellow]STALE[/]"
+        )
     else:
         status = "current"
         table.add_row("pytest.log", f"{age:.1f}h", f"{passed} passed", "[green]OK[/]")
@@ -241,7 +247,9 @@ def step_review_test_state() -> str:
         if result.returncode == 0:
             console.print("[bold green]Current default test suite passed.[/]")
             return "rerun-passed"
-        console.print(f"[bold red]Current test suite failed (exit {result.returncode}).[/]")
+        console.print(
+            f"[bold red]Current test suite failed (exit {result.returncode}).[/]"
+        )
         if not confirm("Continue despite the test failure?"):
             abort("Fix test failures before releasing.")
         return "rerun-failed"
@@ -263,7 +271,9 @@ def step_version_review(target: str) -> tuple[str, str]:
     table = Table(show_header=True, header_style="bold")
     table.add_column("", style="cyan")
     table.add_column("Version")
-    table.add_row(f"Published ({'TestPyPI' if target == 'testpypi' else 'PyPI'})", published)
+    table.add_row(
+        f"Published ({'TestPyPI' if target == 'testpypi' else 'PyPI'})", published
+    )
     table.add_row("Source (current)", old_version)
     table.add_row("Next (proposed)", f"[bold green]{proposed}[/]")
     console.print(table)
@@ -404,7 +414,9 @@ def step_confirm(
     console.print(table)
 
     if not confirm("Create the release commit/tag and publish these artifacts?"):
-        console.print("[yellow]Release cancelled; generated version/changelog edits remain.[/]")
+        console.print(
+            "[yellow]Release cancelled; generated version/changelog edits remain.[/]"
+        )
         raise SystemExit(0)
 
 

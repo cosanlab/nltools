@@ -1,7 +1,6 @@
 ---
 # AUTO-GENERATED from 04_brain_collection.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3
@@ -9,8 +8,8 @@ kernelspec:
 
 # BrainCollection Basics
 
-:::{tip} Interactive version
-The outputs below are pre-computed. [**Open this tutorial as a live notebook →**](/tutorials/basics-04_brain_collection.html) to run and edit every cell in your browser (via marimo + WebAssembly).
+:::{tip} Run this tutorial locally
+The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/04_brain_collection.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py) — that you can open and edit locally with `uvx marimo edit --sandbox 04_brain_collection.py`.
 :::
 
 A `BrainCollection` is a **parallel, memory-efficient iterator of `BrainData`** —
@@ -23,102 +22,15 @@ group operations (`mean`, `ttest`, ...) reduce over subjects to a single
 By default it is **lazy and path-backed**: subjects are loaded on demand and the
 results of parallel ops are streamed to a visible disk cache, so peak memory stays
 at roughly `n_workers × 1 subject` no matter how many subjects you have.
-
-```{code-cell} python3
-:tags: [remove-input]
-import sys
-
-IN_WASM = sys.platform == "emscripten"
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: install nltools + its full runtime stack before any nltools import
-# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-# marimo never re-runs a cell that already failed with ModuleNotFoundError. This cell
-# runs in the Pyodide *web worker*, where js.location is the worker script URL — resolve
-# the wheel against the shared origin, not location.href.
-wasm_ready = True
-if IN_WASM:
-    import asyncio
-
-    import micropip
-    import js
-
-    async def _pip(reqs, **kw):
-        # Install packages ONE AT A TIME instead of a single concurrent
-        # micropip.install([...]) call. The big concurrent batch download
-        # occasionally returns a truncated wheel (BadZipFile); micropip then
-        # caches the corrupt bytes so an in-session retry keeps failing — and
-        # marimo never re-runs an errored cell, permanently bricking the
-        # page. Sequential installs keep peak download concurrency low and
-        # sidestep the corruption; a per-package retry still rides out
-        # ordinary network blips. (see nltools#455 investigation)
-        items = [reqs] if isinstance(reqs, str) else list(reqs)
-        for _item in items:
-            for _attempt in range(3):
-                try:
-                    await micropip.install(_item, **kw)
-                    break
-                except Exception:  # noqa: BLE001
-                    if _attempt == 2:
-                        raise
-                    await asyncio.sleep(0.75 * (_attempt + 1))
-
-    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-    # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-    # transitively at their bundled versions.
-    await _pip(
-        [
-            "nibabel",
-            "nilearn==0.13.1",
-            "seaborn",
-            "polars",
-            "pynv",
-            "huggingface-hub",
-            "anywidget",
-        ]
-    )
-    # deps=False installs the wheel without re-checking nltools' own version pins.
-    await _pip(
-        js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-    )
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
-# synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-# doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded` is
-# threaded into the data-loading cell so fetch_pain() waits for the cache.
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-seeded = True
-if IN_WASM:
-    from nltools.datasets import PAIN_RESOURCES
-    from nltools.templates import seed_resources
-
-    _ = await seed_resources(
-        [
-            "default/2mm-MNI152-2009fsl-mask.nii.gz",
-            "default/2mm-MNI152-2009fsl-brain.nii.gz",
-            "default/2mm-MNI152-2009fsl-T1.nii.gz",
-            *PAIN_RESOURCES,
-        ]
-    )
-```
-
+<!---->
 ## From a stack of images to a collection
 
 To keep things self-contained we reuse the pain dataset from the
-[BrainData tutorial](basics-01_brain_data.html): `fetch_pain()` returns a single
+[BrainData tutorial](01_brain_data.md): `fetch_pain()` returns a single
 `BrainData` of 84 images — 28 subjects × 3 stimulus-intensity conditions
 (low / medium / high) — with a metadata table in `.X`.
 
 ```{code-cell} python3
-_ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
 import polars as pl
 
 from nltools.datasets import fetch_pain
@@ -148,9 +60,7 @@ from nltools.data import BrainCollection
 # One BrainData per subject (each = that subject's low/medium/high maps)
 subject_ids = sorted(stacked.X["SubjectID"].unique().to_list())
 per_subject = [
-    stacked[
-        [i for i, s in enumerate(stacked.X["SubjectID"]) if s == sid]
-    ]
+    stacked[[i for i, s in enumerate(stacked.X["SubjectID"]) if s == sid]]
     for sid in subject_ids
 ]
 
@@ -230,8 +140,10 @@ bc[pl.col("Sex") == "Female"]
 ```{code-cell} python3
 # Iterate to get each subject's BrainData
 per_subject_means = [bd.mean().data.mean() for bd in bc]
-print(f"grand mean of {len(per_subject_means)} subject means: "
-      f"{sum(per_subject_means) / len(per_subject_means):.3f}")
+print(
+    f"grand mean of {len(per_subject_means)} subject means: "
+    f"{sum(per_subject_means) / len(per_subject_means):.3f}"
+)
 ```
 
 ## Per-subject operations (parallel)
@@ -240,11 +152,10 @@ Every per-subject method mirrors the same method on `BrainData`, but runs across
 all subjects in parallel and returns a **new** `BrainCollection`. They all accept
 `n_jobs`, `progress_bar`, and `cache`.
 
-Here we smooth every subject at 6 mm FWHM. On a real install you'd drop `n_jobs=1`
-(the default `-1` uses every core).
+Here we smooth every subject at 6 mm FWHM (the default `n_jobs=-1` uses every core).
 
 ```{code-cell} python3
-smoothed = bc.smooth(fwhm=6, n_jobs=1)
+smoothed = bc.smooth(fwhm=6)
 smoothed
 ```
 
@@ -254,7 +165,7 @@ when there's no dedicated wrapper. Here we reduce each subject to just their
 **high-pain** map (the 3rd image), giving a single-map-per-subject collection.
 
 ```{code-cell} python3
-high_pain = bc.map(lambda bd: bd[2], n_jobs=1)  # 3rd condition = "high"
+high_pain = bc.map(lambda bd: bd[2])  # 3rd condition = "high"
 high_pain.shape  # (28, n_voxels) — one map per subject
 ```
 
@@ -280,7 +191,7 @@ root for this collection and its derived clones. Let's force one op to disk and
 inspect the trail.
 
 ```{code-cell} python3
-cached = bc.smooth(fwhm=6, n_jobs=1, cache=True)
+cached = bc.smooth(fwhm=6, cache=True)
 print(f"result loaded in RAM? {any(cached.is_loaded)}")
 print("cache steps:")
 for step in cached.steps():

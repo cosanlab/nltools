@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools",
 # ]
 # ///
+# Inter-Subject Correlation — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,74 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    #
-    # The dataset (nilearn development_fmri) is hosted under tutorials/isc/ in the
-    # nltools/niftis HF dataset; the data cell seeds a light 6-subject subset into the
-    # IDBFS cache in the browser and reads the full 12 from local nilearn otherwise.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -119,8 +47,7 @@ def _(mo):
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import warnings
 
     import numpy as np
@@ -129,7 +56,7 @@ def _(wasm_ready):
     from nltools.algorithms.inference.isc import isc_permutation_test
     from nltools.data import BrainData
     from nltools.mask import roi_to_brain_from_atlas
-    from nltools.templates import fetch_resource, seed_resources
+    from nltools.templates import fetch_resource
 
     memory = Memory(".cache/tutorials", verbose=0)
     warnings.filterwarnings("ignore", message="Cannot detect name collisions")
@@ -140,7 +67,6 @@ def _(wasm_ready):
         memory,
         np,
         roi_to_brain_from_atlas,
-        seed_resources,
     )
 
 
@@ -156,42 +82,12 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
-    # In-browser only: seed a light 6-subject movie subset + the ROI atlas, and
-    # wrap the BOLD in a Bunch mimicking nilearn's fetch_development_fmri().
-    # `browser_movie` stays None locally, where the visible cell below loads from
-    # nilearn. (6 matches N_SUBJECTS in the browser; see the visible cell.)
-    # Imports/vars are underscore-aliased to stay cell-local.
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_movie = None
-    if IN_WASM:
-        from sklearn.utils import Bunch as _Bunch
-
-        _subs = [f"{_i:02d}" for _i in range(1, 7)]
-        _isc_resources = [
-            f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz" for _s in _subs
-        ] + ["masks/default/3mm-MNI152-2009fsl-k50.nii.gz"]
-        await seed_resources(_isc_resources)
-        browser_movie = _Bunch(
-            func=[
-                fetch_resource(f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz")
-                for _s in _subs
-            ]
-        )
-    return (browser_movie,)
-
-
 @app.cell
-def _(IN_WASM, browser_movie, BrainData, fetch_resource, memory, np):
+def _(BrainData, fetch_resource, memory, np):
     from nilearn.datasets import fetch_development_fmri
 
-    # In-browser a light 6-subject subset streams from HF; locally use the full 12.
-    N_SUBJECTS = 6 if IN_WASM else 12
-    if IN_WASM:
-        DATA = browser_movie
-    else:
-        DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
+    N_SUBJECTS = 12
+    DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
 
     ATLAS = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 
@@ -224,7 +120,7 @@ def _(isc_data, isc_permutation_test, np):
     pairwise = isc_permutation_test(
         isc_data,
         summary_statistic="pairwise",
-        metric="median",
+        summary="median",
         n_permute=1000,
         random_state=0,
         progress_bar=False,
@@ -284,7 +180,7 @@ def _(isc_data, isc_permutation_test, isc_values, np):
     loo = isc_permutation_test(
         isc_data,
         summary_statistic="leave-one-out",
-        metric="median",
+        summary="median",
         n_permute=1000,
         random_state=0,
         progress_bar=False,
@@ -321,9 +217,9 @@ def _(mo):
 
     **Next steps**
 
-    - [GLM analysis](workflows-01_glm.html) — model a known design instead of using subjects as each other's model.
-    - [Encoding models](workflows-02_encoding.html) — predict brain activity from explicit stimulus features.
-    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode conditions and compare representational geometry.
+    - [GLM analysis](01_glm.md) — model a known design instead of using subjects as each other's model.
+    - [Encoding models](02_encoding.md) — predict brain activity from explicit stimulus features.
+    - [Multivariate pattern analysis](03_mvpa.md) — decode conditions and compare representational geometry.
     """
     )
     return

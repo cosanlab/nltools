@@ -140,18 +140,6 @@ class TestIntegration:
 class TestFetchPain:
     """HF-backed pain dataset loader."""
 
-    def test_pain_resources_manifest(self):
-        """PAIN_RESOURCES is the metadata CSV + a full 28x3 image grid."""
-        from nltools.datasets import PAIN_RESOURCES
-
-        assert PAIN_RESOURCES[0] == "datasets/pain/metadata.csv"
-        images = PAIN_RESOURCES[1:]
-        assert len(images) == 84  # 28 subjects x 3 pain levels
-        assert all(f.endswith(".nii.gz") for f in images)
-        # deterministic grid, sorted subject-major then low/medium/high
-        assert images[0] == "datasets/pain/sub-01_pain-low.nii.gz"
-        assert images[-1] == "datasets/pain/sub-28_pain-high.nii.gz"
-
     @pytest.mark.slow
     def test_fetch_pain_from_hf(self):
         """Downloads the real dataset from HF and returns a populated BrainData."""
@@ -180,25 +168,6 @@ class TestFetchEmotionRatings:
     """HF-backed IAPS emotion-rating dataset loader."""
 
     @pytest.mark.slow
-    def test_emotion_resources_manifest(self):
-        """emotion_resources() reads metadata.csv to list the 679 id-keyed images."""
-        from nltools.datasets import EMOTION_METADATA, emotion_resources
-
-        try:
-            resources = emotion_resources()
-        except Exception as e:
-            pytest.skip(f"Skipped due to network error: {e}")
-
-        assert EMOTION_METADATA == "datasets/emotion_ratings/metadata.csv"
-        assert resources[0] == EMOTION_METADATA
-        images = resources[1:]
-        assert len(images) == 679
-        assert all(
-            f.startswith("datasets/emotion_ratings/img-") and f.endswith(".nii.gz")
-            for f in images
-        )
-
-    @pytest.mark.slow
     def test_fetch_emotion_ratings_from_hf(self):
         """Downloads the real dataset from HF and returns a populated BrainData."""
         from nltools.datasets import fetch_emotion_ratings
@@ -215,7 +184,7 @@ class TestFetchEmotionRatings:
 
 
 class TestLoadHaxbyExample:
-    """Offline synthetic Haxby dataset for tutorials / Pyodide."""
+    """Offline synthetic Haxby dataset for tutorials and tests."""
 
     def test_return_shape(self):
         from nltools.datasets import load_haxby_example

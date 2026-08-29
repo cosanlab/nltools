@@ -1,7 +1,6 @@
 ---
 # AUTO-GENERATED from 01_brain_data.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3
@@ -9,8 +8,8 @@ kernelspec:
 
 # BrainData Basics
 
-:::{tip} Interactive version
-The outputs below are pre-computed. [**Open this tutorial as a live notebook →**](/tutorials/basics-01_brain_data.html) to run and edit every cell in your browser (via marimo + WebAssembly).
+:::{tip} Run this tutorial locally
+The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/01_brain_data.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py) — that you can open and edit locally with `uvx marimo edit --sandbox 01_brain_data.py`.
 :::
 
 The `BrainData` class is the core data structure in `nltools` for working with
@@ -19,96 +18,6 @@ computation, automatically handles resampling to standard MNI space (default),
 and supports standard Python operations like indexing, arithmetic, and iteration.
 
 ```{code-cell} python3
-:tags: [remove-input]
-import sys
-
-IN_WASM = sys.platform == "emscripten"
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: install nltools + its full runtime stack before any nltools import
-# runs. We can't rely on marimo's PEP 723 header auto-install alone: it races cell
-# execution (cells run before numpy/nibabel/... finish installing) and marimo does not
-# re-run a cell that already failed with ModuleNotFoundError. So we install everything
-# *here* and await it, then hand `wasm_ready` to every nltools-importing cell to force
-# ordering. This cell runs in the Pyodide web worker, where js.location is the worker
-# script URL — resolve the wheel against the shared origin, not location.href.
-wasm_ready = True
-if IN_WASM:
-    import asyncio
-
-    import micropip
-    import js
-
-    async def _pip(reqs, **kw):
-        # Install packages ONE AT A TIME instead of a single concurrent
-        # micropip.install([...]) call. The big concurrent batch download
-        # occasionally returns a truncated wheel (BadZipFile); micropip then
-        # caches the corrupt bytes so an in-session retry keeps failing — and
-        # marimo never re-runs an errored cell, permanently bricking the
-        # page. Sequential installs keep peak download concurrency low and
-        # sidestep the corruption; a per-package retry still rides out
-        # ordinary network blips. (see nltools#455 investigation)
-        items = [reqs] if isinstance(reqs, str) else list(reqs)
-        for _item in items:
-            for _attempt in range(3):
-                try:
-                    await micropip.install(_item, **kw)
-                    break
-                except Exception:  # noqa: BLE001
-                    if _attempt == 2:
-                        raise
-                    await asyncio.sleep(0.75 * (_attempt + 1))
-
-    # Install nltools' runtime stack UNPINNED so micropip takes Pyodide's bundled
-    # builds (e.g. joblib 1.4.0) — pinning to nltools' host versions (joblib>=1.5.3)
-    # fails because Pyodide ships one build of each package and micropip won't upgrade
-    # a bundled one. nilearn is the exception: 0.14+ needs packaging>=26 (absent in
-    # Pyodide 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib
-    # come in transitively at their bundled versions.
-    await _pip(
-        [
-            "nibabel",
-            "nilearn==0.13.1",
-            "seaborn",
-            "polars",
-            "pynv",
-            "huggingface-hub",
-            "anywidget",
-        ]
-    )
-    # deps=False installs the wheel without re-checking nltools' own version pins
-    # (which would re-trigger the joblib>=1.5.3 conflict above).
-    await _pip(
-        js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-    )
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
-# synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-# doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded`
-# is threaded into the data-loading cell so fetch_pain() waits for the cache.
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-seeded = True
-if IN_WASM:
-    from nltools.datasets import PAIN_RESOURCES
-    from nltools.templates import seed_resources
-
-    _ = await seed_resources(
-        [
-            "default/2mm-MNI152-2009fsl-mask.nii.gz",
-            "default/2mm-MNI152-2009fsl-brain.nii.gz",
-            "default/2mm-MNI152-2009fsl-T1.nii.gz",
-            *PAIN_RESOURCES,
-        ]
-    )
-```
-
-```{code-cell} python3
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
 from nltools import BrainData
 
 # Empty brain
@@ -126,7 +35,6 @@ downloads a pain-perception study (Chang et al., 2015): 28 subjects x 3
 conditions = 84 images.
 
 ```{code-cell} python3
-_ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
 from nltools.datasets import fetch_pain
 
 brains = fetch_pain()
@@ -350,17 +258,14 @@ mean_brain.plot(
 a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
 stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
 right-drag on the image) to window the map live; scroll through slices, scrub 4D
-frames, render in 3D, and overlay nltools atlases with hover-to-label. Because it
-speaks anywidget's standard model API, it renders both in a live kernel and in
-this notebook's in-browser WASM export — right here.
+frames, render in 3D, and overlay nltools atlases with hover-to-label. It speaks
+anywidget's standard model API, so it renders in any live kernel (marimo, Jupyter).
 
 Pass `controls=False` to hide the slider (right-drag windowing still works), and
 `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
 
 ```{code-cell} python3
-# Interactive niivue viewer with a threshold slider. The widget drives
-# @niivue/niivue directly through anywidget's standard model API, so it
-# renders live here *and* in the in-browser WASM export of this notebook
-# (the old ipyniivue backend broke under WASM — see nltools#455).
+# Interactive niivue viewer with a threshold slider (an anywidget driving
+# @niivue/niivue directly, so it renders in any live kernel).
 masked_data.iplot()
 ```

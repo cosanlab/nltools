@@ -1,19 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools",
 # ]
 # ///
-# DesignMatrix basics — runs entirely in the browser via marimo + Pyodide.
-# Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
-# build-hosted wheel URL by the IN_WASM setup cell below.
+# DesignMatrix basics — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
 
 import marimo
 
@@ -39,80 +31,9 @@ def _(mo):
         a voxel-wise model (e.g. encoding models, group analysis). It's backed by `polars`
         internally for fast operations but accepts pandas DataFrames, dicts, and numpy
         arrays as input.
-
-        /// admonition | Running live in your browser
-        This page **is** a running notebook — the cells below execute in a Pyodide kernel
-        inside the page. The first load boots the kernel and installs the scientific
-        stack (about a minute; cached afterwards). Edit any cell and re-run to explore.
-        ///
         """
     )
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError. Resolve the
-    # wheel against the shared worker origin.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-        # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -128,8 +49,7 @@ def _(mo):
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     from nltools.data import DesignMatrix
     import numpy as np
 
@@ -137,12 +57,28 @@ def _(wasm_ready):
     dm = DesignMatrix(
         np.array(
             [
-                [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0],
-                [0, 0, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0],
-                [0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 1],
-                [0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-                [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-                [0, 0, 0, 0], [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [1, 0, 0, 0],
+                [1, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 1, 0, 0],
+                [0, 1, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 1],
+                [0, 0, 0, 1],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
             ]
         ),
         columns=["face_A", "face_B", "house_A", "house_B"],
@@ -340,17 +276,24 @@ def _(mo):
         r"""
         ### Cleaning correlated columns
 
-        Let's build a degenerate design by duplicating the columns:
+        Let's build a near-degenerate design: a jittered copy of every column, appended
+        column-wise (`axis=1`) under new names. (`append()` refuses *exact* duplicates
+        outright — identical values under different names make the design rank
+        deficient by construction — so we add a little noise to each copy.)
         """
     )
     return
 
 
 @app.cell
-def _(dm):
-    # Duplicate the design under new names, then append column-wise (axis=1)
-    dm2 = dm.copy()
-    dm2.columns = ["car_A", "car_B", "dog_A", "dog_B"]
+def _(DesignMatrix, dm, np):
+    # A jittered copy of the design under new names, appended column-wise (axis=1)
+    _rng = np.random.default_rng(0)
+    dm2 = DesignMatrix(
+        dm.to_numpy() + _rng.normal(0, 0.02, dm.shape),
+        columns=["car_A", "car_B", "dog_A", "dog_B"],
+        sampling_freq=dm.sampling_freq,
+    )
     duplicated_dm = dm.append(dm2, axis=1)
     duplicated_dm.plot()
     return (duplicated_dm,)
@@ -358,7 +301,7 @@ def _(dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("The duplicated columns are perfectly correlated:")
+    mo.md("Each copy is almost perfectly correlated with its original (r > 0.95):")
     return
 
 
@@ -370,7 +313,9 @@ def _(duplicated_dm):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("So the VIFs are essentially infinite:")
+    mo.md(
+        "So the variance inflation factors are huge (hundreds, versus ~1 for an orthogonal design):"
+    )
     return
 
 
@@ -383,14 +328,14 @@ def _(duplicated_dm):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
-        "`.clean()` automatically drops columns whose correlation exceeds a threshold:"
+        "`.clean()` drops columns whose absolute correlation with an earlier column meets a threshold (`thresh=0.95` by default) — the four jittered copies go, the originals stay:"
     )
     return
 
 
 @app.cell
 def _(duplicated_dm):
-    duplicated_dm.clean(thresh=0.99).plot()
+    duplicated_dm.clean(thresh=0.95).plot()
     return
 
 

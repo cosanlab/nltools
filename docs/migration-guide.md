@@ -1069,7 +1069,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
 | `BrainData.icc()` | Removed — voxelwise intraclass correlation is out of scope for v0.6.0. Compute ICC externally (e.g. `pingouin.intraclass_corr`) on extracted values. The `nltools.stats.compute_icc` helper is also removed. | **Low** |
-| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, autoscale=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel or marimo-WASM. See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
+| `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, autoscale=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel (Jupyter, marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
 :::{note}
 `BrainData.ttest()` was briefly removed earlier in v0.6.0 development, then restored because one-sample voxelwise t-tests across stacked subject-level contrast maps are the 99% group-inference use case. The old `threshold_dict=` kwarg is gone — use the new permutation-based API instead.
@@ -1099,7 +1099,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 
 **Status**: 🔧 **REBUILT** — `BrainData.iplot()` is now a WebGL [niivue](https://niivue.com) viewer instead of the nilearn HTML viewer. It is a self-owned `anywidget` (`NiivueViewer`) that drives `@niivue/niivue` (loaded from a CDN) directly through anywidget's standard model API — **not** `ipyniivue`. By default it renders an in-widget **threshold slider** above the viewer and shows the **stat-map colorbar**; niivue also gives live windowing (right-drag), native 4D frame scrubbing, true 3D rendering, and — the headline feature — direct overlays of nltools atlases (colored regions, outlines, hover-to-label).
 
-`iplot` renders in a live kernel (Jupyter, marimo) **and** in a `marimo export html-wasm` page (the in-browser tutorials). The old ipyniivue backend broke under WASM (nltools#455); staying on the standard model API fixes that. It does not render in statically-built (plain-Markdown) docs — use `BrainData.plot()` there.
+`iplot` renders in a live kernel (Jupyter, marimo), including marimo's WASM export (the old ipyniivue backend broke there — nltools#455; staying on the standard model API fixes that). It does not render in statically-built (plain-Markdown) docs — use `BrainData.plot()` there.
 
 **What changed:**
 
@@ -1115,7 +1115,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | Atlas overlay | — | `atlas='aal'` (or an `Atlas`) overlays colored regions / outlines (`outline=`) with hover labels |
 | `mode=`, `units=`, `cut_coords=`, `symmetric_cmap=` | supported | **removed** (divergent windowing is implicit) |
 | `cmap` default | `'RdBu_r'` | `'warm'` (niivue colormap; matplotlib names auto-mapped with a warning) |
-| Static docs | mimebundle + pre-rendered fallback | none — live kernel or WASM export only |
+| Static docs | mimebundle + pre-rendered fallback | none — live kernel only |
 
 **Before (v0.5.1):**
 ```python
@@ -1910,10 +1910,6 @@ Avoid the v0.5.1-era `BrainData('https://...nii.gz').to_nifti()` round-trip
 when the goal is just to feed a remote NIfTI to nilearn — it parses the
 file into nltools' internal masked NumPy array and immediately reverses the
 process. `fetch_resource(...)` returns a path nilearn accepts directly.
-
-`list_resources()` requires `huggingface_hub` and is unavailable in
-Pyodide; browser-deployed code should pre-seed known paths via
-`await seed_resources([...])` instead.
 
 ---
 

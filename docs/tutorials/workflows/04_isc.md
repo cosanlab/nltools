@@ -1,82 +1,15 @@
 ---
 # AUTO-GENERATED from 04_isc.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3
 ---
 
-```{code-cell} python3
-:tags: [remove-input]
-import sys
-
-IN_WASM = sys.platform == "emscripten"
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: install nltools + its full runtime stack before any nltools import
-# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-# marimo never re-runs a cell that already failed with ModuleNotFoundError.
-#
-# The dataset (nilearn development_fmri) is hosted under tutorials/isc/ in the
-# nltools/niftis HF dataset; the data cell seeds a light 6-subject subset into the
-# IDBFS cache in the browser and reads the full 12 from local nilearn otherwise.
-wasm_ready = True
-if IN_WASM:
-    import asyncio
-
-    import micropip
-    import js
-
-    async def _pip(reqs, **kw):
-        # Install packages ONE AT A TIME instead of a single concurrent
-        # micropip.install([...]) call. The big concurrent batch download
-        # occasionally returns a truncated wheel (BadZipFile); micropip then
-        # caches the corrupt bytes so an in-session retry keeps failing — and
-        # marimo never re-runs an errored cell, permanently bricking the
-        # page. Sequential installs keep peak download concurrency low and
-        # sidestep the corruption; a per-package retry still rides out
-        # ordinary network blips. (see nltools#455 investigation)
-        items = [reqs] if isinstance(reqs, str) else list(reqs)
-        for _item in items:
-            for _attempt in range(3):
-                try:
-                    await micropip.install(_item, **kw)
-                    break
-                except Exception:  # noqa: BLE001
-                    if _attempt == 2:
-                        raise
-                    await asyncio.sleep(0.75 * (_attempt + 1))
-
-    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-    # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-    # transitively at their bundled versions.
-    await _pip(
-        [
-            "nibabel",
-            "nilearn==0.13.1",
-            "seaborn",
-            "polars",
-            "pynv",
-            "huggingface-hub",
-            "anywidget",
-        ]
-    )
-    # deps=False installs the wheel without re-checking nltools' own version pins.
-    await _pip(
-        js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-    )
-```
-
 # Inter-Subject Correlation
 
-:::{tip} Interactive version
-The outputs below are pre-computed. [**Open this tutorial as a live notebook →**](/tutorials/workflows-04_isc.html) to run and edit every cell in your browser (via marimo + WebAssembly).
+:::{tip} Run this tutorial locally
+The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/workflows/04_isc.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py) — that you can open and edit locally with `uvx marimo edit --sandbox 04_isc.py`.
 :::
 
 **What it answers.** Which brain regions respond *consistently across people* to a shared naturalistic stimulus (a movie, a story)? There's no explicit design matrix to model — instead, ISC uses other subjects' responses as the model, asking where the stimulus drives a common, time-locked signal.
@@ -89,7 +22,6 @@ For the theory, see the ISC material in [naturalistic-data](https://naturalistic
 - **Group inference** on whether that similarity exceeds chance, via a permutation/bootstrap test that respects the temporal structure.
 
 ```{code-cell} python3
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
 import warnings
 
 import numpy as np
@@ -98,7 +30,7 @@ from joblib import Memory
 from nltools.algorithms.inference.isc import isc_permutation_test
 from nltools.data import BrainData
 from nltools.mask import roi_to_brain_from_atlas
-from nltools.templates import fetch_resource, seed_resources
+from nltools.templates import fetch_resource
 
 memory = Memory(".cache/tutorials", verbose=0)
 warnings.filterwarnings("ignore", message="Cannot detect name collisions")
@@ -109,39 +41,10 @@ warnings.filterwarnings("ignore", message="Cannot detect name collisions")
 We use nilearn's **development_fmri** dataset — children and adults watching the same short Pixar movie. For each subject we extract a region-mean timeseries with the bundled k50 atlas, giving one `(timepoints, regions)` array per subject; stacking them is the `(timepoints, subjects, regions)` input ISC expects. (In a full analysis you'd regress the provided confounds first.)
 
 ```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: seed a light 6-subject movie subset + the ROI atlas, and
-# wrap the BOLD in a Bunch mimicking nilearn's fetch_development_fmri().
-# `browser_movie` stays None locally, where the visible cell below loads from
-# nilearn. (6 matches N_SUBJECTS in the browser; see the visible cell.)
-# Imports/vars are underscore-aliased to stay cell-local.
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-browser_movie = None
-if IN_WASM:
-    from sklearn.utils import Bunch as _Bunch
-
-    _subs = [f"{_i:02d}" for _i in range(1, 7)]
-    _isc_resources = [
-        f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz" for _s in _subs
-    ] + ["masks/default/3mm-MNI152-2009fsl-k50.nii.gz"]
-    await seed_resources(_isc_resources)
-    browser_movie = _Bunch(
-        func=[
-            fetch_resource(f"tutorials/isc/sub-{_s}_task-pixar_bold.nii.gz")
-            for _s in _subs
-        ]
-    )
-```
-
-```{code-cell} python3
 from nilearn.datasets import fetch_development_fmri
 
-# In-browser a light 6-subject subset streams from HF; locally use the full 12.
-N_SUBJECTS = 6 if IN_WASM else 12
-if IN_WASM:
-    DATA = browser_movie
-else:
-    DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
+N_SUBJECTS = 12
+DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
 
 ATLAS = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 
@@ -164,7 +67,7 @@ print(f"ISC input: {isc_data.shape}  (timepoints, subjects, regions)")
 pairwise = isc_permutation_test(
     isc_data,
     summary_statistic="pairwise",
-    metric="median",
+    summary="median",
     n_permute=1000,
     random_state=0,
     progress_bar=False,
@@ -204,7 +107,7 @@ import matplotlib.pyplot as plt
 loo = isc_permutation_test(
     isc_data,
     summary_statistic="leave-one-out",
-    metric="median",
+    summary="median",
     n_permute=1000,
     random_state=0,
     progress_bar=False,
@@ -236,6 +139,6 @@ fig
 
 **Next steps**
 
-- [GLM analysis](workflows-01_glm.html) — model a known design instead of using subjects as each other's model.
-- [Encoding models](workflows-02_encoding.html) — predict brain activity from explicit stimulus features.
-- [Multivariate pattern analysis](workflows-03_mvpa.html) — decode conditions and compare representational geometry.
+- [GLM analysis](01_glm.md) — model a known design instead of using subjects as each other's model.
+- [Encoding models](02_encoding.md) — predict brain activity from explicit stimulus features.
+- [Multivariate pattern analysis](03_mvpa.md) — decode conditions and compare representational geometry.

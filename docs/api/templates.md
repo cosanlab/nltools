@@ -28,7 +28,6 @@ Name | Description
 [`reset_brainspace`](#templates-reset-brainspace) | Reset the global brain-space configuration to defaults.
 [`resolve_paths`](#templates-resolve-paths) | Build mask/brain/plot paths for a template + resolution.
 [`resolve_template_name`](#templates-resolve-template-name) | Resolve a template name string to a file path.
-[`seed_resources`](#templates-seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 [`set_brainspace`](#templates-set-brainspace) | Set the global brain-space configuration.
 [`with_brainspace`](#templates-with-brainspace) | Temporarily change the global brain-space configuration.
 
@@ -236,9 +235,7 @@ Type | Description
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Hits the HF API once per session (cached). Not available in
-Pyodide — browser-deployed code should know its paths in advance
-and pre-seed via `seed_resources`.
+Hits the HF API once per session (cached).
 
 </details>
 
@@ -322,30 +319,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[str](#str)</code> | Absolute path to the requested template file.
-
-(templates-seed-resources)=
-#### `seed_resources`
-
-```python
-seed_resources(relpaths: list[str]) -> None
-```
-
-Pre-download dataset files in Pyodide so sync fetches resolve from cache.
-
-No-op outside Pyodide — `fetch_resource` does its own lazy download
-via ``huggingface_hub`` there. In Pyodide this must be called (and
-awaited) before any code path that calls `fetch_resource`,
-`resolve_paths`, or `resolve_template_name` synchronously.
-
-The cache is backed by IndexedDB, so files persist across page reloads.
-The first call per session mounts IDBFS and pulls any prior data;
-subsequent calls only download files not already cached.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
 
 (templates-set-brainspace)=
 #### `set_brainspace`
@@ -560,14 +533,6 @@ First call for a given file downloads it into the local HF cache
 (``~/.cache/huggingface/hub`` by default); subsequent calls return the
 cached path without touching the network.
 
-In Pyodide the synchronous HF cache is unavailable (``huggingface_hub``
-isn't installed and sync HTTP from Python is not viable). Consumers must
-``await seed_resources([...])`` once at app boot to pre-download the
-files they need; subsequent sync ``fetch_resource()`` calls then hit
-the IDBFS-backed cache populated by the seed. The cache persists across
-page reloads via IndexedDB, so seeding only does network work once per
-browser per dataset revision.
-
 **Attributes:**
 
 Name | Type | Description
@@ -583,7 +548,6 @@ Name | Description
 ---- | -----------
 [`fetch_resource`](#templates-fetch-resource) | Return a local path to a file from the ``nltools/niftis`` HF dataset.
 [`list_resources`](#templates-list-resources) | List files available in the ``nltools/niftis`` HF dataset.
-[`seed_resources`](#templates-seed-resources) | Pre-download dataset files in Pyodide so sync fetches resolve from cache.
 
 ##### Methods
 
@@ -648,34 +612,9 @@ Type | Description
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Hits the HF API once per session (cached). Not available in
-Pyodide — browser-deployed code should know its paths in advance
-and pre-seed via `seed_resources`.
+Hits the HF API once per session (cached).
 
 </details>
-
-###### `seed_resources`
-
-```python
-seed_resources(relpaths: list[str]) -> None
-```
-
-Pre-download dataset files in Pyodide so sync fetches resolve from cache.
-
-No-op outside Pyodide — `fetch_resource` does its own lazy download
-via ``huggingface_hub`` there. In Pyodide this must be called (and
-awaited) before any code path that calls `fetch_resource`,
-`resolve_paths`, or `resolve_template_name` synchronously.
-
-The cache is backed by IndexedDB, so files persist across page reloads.
-The first call per session mounts IDBFS and pulls any prior data;
-subsequent calls only download files not already cached.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`relpaths` | <code>[list](#list)[[str](#str)]</code> | Paths within the dataset repo to pre-fetch. | *required*
 
 (templates-matching)=
 #### `matching`

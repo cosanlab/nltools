@@ -217,10 +217,6 @@ cmd = "pytest nltools/tests/plotting -n auto --maxprocesses=4 -x"
 help = "Test support utilities"
 cmd = "pytest nltools/tests/support -n auto --maxprocesses=4 -x"
 
-[tool.poe.tasks.test-pyodide]
-help = "Build wheel and run Pyodide/WASM smoke tests (requires node)"
-shell = "uv build --wheel && cd nltools/tests/pyodide && npm install --silent && node test_runner.mjs"
-
 [tool.poe.tasks.docs-clean]
 help = "Clean built docs (preserves execute cache so unchanged cells don't re-run)"
 shell = """cd docs && myst clean --site --html --temp --logs --cache --exports --templates -y"""
@@ -242,7 +238,7 @@ python scripts/marimo_to_myst.py --all
 # kernel to bake outputs (figures, prints). Set BASE_URL (e.g. /nltools) to deploy
 # under a GitHub Pages subpath; leave it unset for a root/local build.
 [tool.poe.tasks.docs-site]
-help = "Build the MyST site and execute tutorials to bake outputs (set BASE_URL=/nltools for a subpath deploy)"
+help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (set BASE_URL=/nltools for a subpath deploy)"
 shell = """
 set -eu
 # MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
@@ -253,30 +249,23 @@ cd docs
 myst build --site --html --execute
 # Standalone interactive Design Tour page (not a MyST page; copied verbatim).
 cp public/design-tour.html _build/html/design-tour.html
-# MyST does not apply BASE_URL to literal url: TOC/card links (the interactive
-# tutorial links + the Design Tour link). On a subpath deploy, prefix them. The
-# (?<![\\w-]) guard keeps it idempotent (skips already-prefixed links).
+# MyST does not apply BASE_URL to the literal `url:` Design Tour TOC link. On a
+# subpath deploy, prefix it. The (?<![\\w-]) guard keeps it idempotent.
 if [ -n "${BASE_URL:-}" ]; then
-  find _build/html -type f -name '*.html' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
-  find _build/html -type f -name '*.json' -exec perl -pi -e 's{(?<![\\w-])/tutorials/((?:basics|workflows)-)}{$ENV{BASE_URL}/tutorials/$1}g; s{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
+  find _build/html -type f \\( -name '*.html' -o -name '*.json' \\) -exec perl -pi -e 's{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
 fi
 """
 
-[tool.poe.tasks.docs-wasm]
-help = "Export the marimo tutorials to interactive WASM pages under _build/html/tutorials (honors BASE_URL)"
-shell = """python scripts/build_marimo_wasm.py ${BASE_URL:+--base-url ${BASE_URL}/}"""
-
 [tool.poe.tasks.docs-build]
-help = "Full docs build: regenerate sources → build + execute the site → add interactive WASM pages (set BASE_URL=/nltools for GitHub Pages)"
+help = "Full docs build: regenerate sources → build + execute the site (set BASE_URL=/nltools for GitHub Pages)"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
-  { ref = "docs-wasm" },
 ]
 
 [tool.poe.tasks.docs-preview]
-help = "Live preview the MyST site (API reference + tutorial gallery)"
-shell = """cd docs && myst start"""
+help = "Live preview the MyST site with executed tutorial outputs (reuses the execute cache; only changed cells re-run)"
+shell = """cd docs && myst start --execute"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"

@@ -1,7 +1,6 @@
 ---
 # AUTO-GENERATED from 02_design_matrix.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3
@@ -9,8 +8,8 @@ kernelspec:
 
 # DesignMatrix Basics
 
-:::{tip} Interactive version
-The outputs below are pre-computed. [**Open this tutorial as a live notebook →**](/tutorials/basics-02_design_matrix.html) to run and edit every cell in your browser (via marimo + WebAssembly).
+:::{tip} Run this tutorial locally
+The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/02_design_matrix.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py) — that you can open and edit locally with `uvx marimo edit --sandbox 02_design_matrix.py`.
 :::
 
 The `DesignMatrix` class is the core data structure for working with
@@ -18,76 +17,12 @@ csv/tsv/dataframes that capture your experimental design (e.g. a GLM analysis) o
 a voxel-wise model (e.g. encoding models, group analysis). It's backed by `polars`
 internally for fast operations but accepts pandas DataFrames, dicts, and numpy
 arrays as input.
-
-```{code-cell} python3
-:tags: [remove-input]
-import sys
-
-IN_WASM = sys.platform == "emscripten"
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: install nltools + its full runtime stack before any nltools import
-# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-# marimo never re-runs a cell that already failed with ModuleNotFoundError. Resolve the
-# wheel against the shared worker origin.
-wasm_ready = True
-if IN_WASM:
-    import asyncio
-
-    import micropip
-    import js
-
-    async def _pip(reqs, **kw):
-        # Install packages ONE AT A TIME instead of a single concurrent
-        # micropip.install([...]) call. The big concurrent batch download
-        # occasionally returns a truncated wheel (BadZipFile); micropip then
-        # caches the corrupt bytes so an in-session retry keeps failing — and
-        # marimo never re-runs an errored cell, permanently bricking the
-        # page. Sequential installs keep peak download concurrency low and
-        # sidestep the corruption; a per-package retry still rides out
-        # ordinary network blips. (see nltools#455 investigation)
-        items = [reqs] if isinstance(reqs, str) else list(reqs)
-        for _item in items:
-            for _attempt in range(3):
-                try:
-                    await micropip.install(_item, **kw)
-                    break
-                except Exception:  # noqa: BLE001
-                    if _attempt == 2:
-                        raise
-                    await asyncio.sleep(0.75 * (_attempt + 1))
-
-    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-    # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-    # transitively at their bundled versions.
-    await _pip(
-        [
-            "nibabel",
-            "nilearn==0.13.1",
-            "seaborn",
-            "polars",
-            "pynv",
-            "huggingface-hub",
-            "anywidget",
-        ]
-    )
-    # deps=False installs the wheel without re-checking nltools' own version pins.
-    await _pip(
-        js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-    )
-```
-
+<!---->
 ## Basics
 
 Let's build a small toy design matrix to learn the basics.
 
 ```{code-cell} python3
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
 from nltools.data import DesignMatrix
 import numpy as np
 
@@ -95,12 +30,28 @@ import numpy as np
 dm = DesignMatrix(
     np.array(
         [
-            [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0],
-            [0, 0, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0],
-            [0, 0, 1, 0], [0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 1],
-            [0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-            [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0],
-            [0, 0, 0, 0], [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [1, 0, 0, 0],
+            [1, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 0, 1],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
         ]
     ),
     columns=["face_A", "face_B", "house_A", "house_B"],
@@ -207,32 +158,39 @@ dm.corr()
 
 ### Cleaning correlated columns
 
-Let's build a degenerate design by duplicating the columns:
+Let's build a near-degenerate design: a jittered copy of every column, appended
+column-wise (`axis=1`) under new names. (`append()` refuses *exact* duplicates
+outright — identical values under different names make the design rank
+deficient by construction — so we add a little noise to each copy.)
 
 ```{code-cell} python3
-# Duplicate the design under new names, then append column-wise (axis=1)
-dm2 = dm.copy()
-dm2.columns = ["car_A", "car_B", "dog_A", "dog_B"]
+# A jittered copy of the design under new names, appended column-wise (axis=1)
+_rng = np.random.default_rng(0)
+dm2 = DesignMatrix(
+    dm.to_numpy() + _rng.normal(0, 0.02, dm.shape),
+    columns=["car_A", "car_B", "dog_A", "dog_B"],
+    sampling_freq=dm.sampling_freq,
+)
 duplicated_dm = dm.append(dm2, axis=1)
 duplicated_dm.plot()
 ```
 
-The duplicated columns are perfectly correlated:
+Each copy is almost perfectly correlated with its original (r > 0.95):
 
 ```{code-cell} python3
 duplicated_dm.plot(method="corr")
 ```
 
-So the VIFs are essentially infinite:
+So the variance inflation factors are huge (hundreds, versus ~1 for an orthogonal design):
 
 ```{code-cell} python3
 duplicated_dm.vif()
 ```
 
-`.clean()` automatically drops columns whose correlation exceeds a threshold:
+`.clean()` drops columns whose absolute correlation with an earlier column meets a threshold (`thresh=0.95` by default) — the four jittered copies go, the originals stay:
 
 ```{code-cell} python3
-duplicated_dm.clean(thresh=0.99).plot()
+duplicated_dm.clean(thresh=0.95).plot()
 ```
 
 ## Combining runs

@@ -1,89 +1,22 @@
 ---
 # AUTO-GENERATED from 02_encoding.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
-file_format: mystnb
 kernelspec:
   name: python3
   display_name: Python 3
 ---
 
-```{code-cell} python3
-:tags: [remove-input]
-import sys
-
-IN_WASM = sys.platform == "emscripten"
-```
-
-```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: install nltools + its full runtime stack before any nltools import
-# runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-# can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-# marimo never re-runs a cell that already failed with ModuleNotFoundError.
-#
-# The dataset (nilearn Miyawaki) is hosted as a trimmed subset under
-# tutorials/encoding/ in the nltools/niftis HF dataset; the data cell seeds it
-# into the IDBFS cache in the browser and reads from local nilearn otherwise.
-wasm_ready = True
-if IN_WASM:
-    import asyncio
-
-    import micropip
-    import js
-
-    async def _pip(reqs, **kw):
-        # Install packages ONE AT A TIME instead of a single concurrent
-        # micropip.install([...]) call. The big concurrent batch download
-        # occasionally returns a truncated wheel (BadZipFile); micropip then
-        # caches the corrupt bytes so an in-session retry keeps failing — and
-        # marimo never re-runs an errored cell, permanently bricking the
-        # page. Sequential installs keep peak download concurrency low and
-        # sidestep the corruption; a per-package retry still rides out
-        # ordinary network blips. (see nltools#455 investigation)
-        items = [reqs] if isinstance(reqs, str) else list(reqs)
-        for _item in items:
-            for _attempt in range(3):
-                try:
-                    await micropip.install(_item, **kw)
-                    break
-                except Exception:  # noqa: BLE001
-                    if _attempt == 2:
-                        raise
-                    await asyncio.sleep(0.75 * (_attempt + 1))
-
-    # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-    # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-    # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-    # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-    # transitively at their bundled versions.
-    await _pip(
-        [
-            "nibabel",
-            "nilearn==0.13.1",
-            "seaborn",
-            "polars",
-            "pynv",
-            "huggingface-hub",
-            "anywidget",
-        ]
-    )
-    # deps=False installs the wheel without re-checking nltools' own version pins.
-    await _pip(
-        js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-    )
-```
-
 # Encoding Models
 
-:::{tip} Interactive version
-The outputs below are pre-computed. [**Open this tutorial as a live notebook →**](/tutorials/workflows-02_encoding.html) to run and edit every cell in your browser (via marimo + WebAssembly).
+:::{tip} Run this tutorial locally
+The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/workflows/02_encoding.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/02_encoding.py) — that you can open and edit locally with `uvx marimo edit --sandbox 02_encoding.py`.
 :::
 
 **What it answers.** How much of each voxel's response can a stimulus feature space explain — on *held-out* data? An encoding model is the inverse of decoding: instead of predicting the stimulus from the brain, you predict the brain from features of the stimulus, and score each voxel by its cross-validated R².
 
 For the theory, see the encoding-model material in [naturalistic-data](https://naturalistic-data.org). This tutorial is about *running* one in nltools.
 <!---->
-**How it works.** Compared with the [GLM](workflows-01_glm.html), an encoding model flips the question and the machinery:
+**How it works.** Compared with the [GLM](01_glm.md), an encoding model flips the question and the machinery:
 
 - **GLM** assumes a canonical HRF, uses a few categorical regressors, and asks *which voxels respond* (β / t / p).
 - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (cross-validated R²).
@@ -91,12 +24,10 @@ For the theory, see the encoding-model material in [naturalistic-data](https://n
 Two ideas make it work: a **FIR (finite impulse response)** feature bank — lagged copies of the stimulus, so ridge learns the per-voxel HRF instead of assuming one — and **ridge regularization with per-voxel α**, since hundreds of features would make ordinary least squares overfit. We compare an optimistic in-sample fit against an honest cross-validated one.
 
 ```{code-cell} python3
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
 import numpy as np
 from joblib import Memory
 
 from nltools.data import BrainData
-from nltools.templates import fetch_resource, seed_resources
 from nltools.utils import concatenate
 
 # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
@@ -108,44 +39,9 @@ memory = Memory(".cache/tutorials", verbose=0)
 We use the classic **Miyawaki 2008** dataset — one subject viewing 10×10 binary contrast figures while we record from visual cortex. The stimulus is naturally 100-dimensional, so encoding is the right tool. The data ships in *subject-native space* (anisotropic voxels), so we pass `mask=` to skip MNI resampling and plot on the bundled anatomical with slice views (glass-brain/MNI views would misalign).
 
 ```{code-cell} python3
-:tags: [remove-input]
-# In-browser only: seed the trimmed run subset and wrap it in a Bunch that
-# mimics nilearn's fetch_miyawaki2008() (.func/.label/.mask/.background).
-# `browser_encoding` stays None locally, where the visible cell below loads
-# from nilearn. Imports/vars are underscore-aliased to stay cell-local
-# (marimo defines each name once across cells).
-_ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-browser_encoding = None
-if IN_WASM:
-    from sklearn.utils import Bunch as _Bunch
-
-    _runs = [f"{_i:02d}" for _i in range(1, 9)]
-    _encoding_resources = (
-        [f"tutorials/encoding/run-{_r}_bold.nii.gz" for _r in _runs]
-        + [f"tutorials/encoding/run-{_r}_label.csv" for _r in _runs]
-        + ["tutorials/encoding/mask.nii.gz", "tutorials/encoding/background.nii.gz"]
-    )
-    await seed_resources(_encoding_resources)
-    browser_encoding = _Bunch(
-        func=[
-            fetch_resource(f"tutorials/encoding/run-{_r}_bold.nii.gz")
-            for _r in _runs
-        ],
-        label=[
-            fetch_resource(f"tutorials/encoding/run-{_r}_label.csv") for _r in _runs
-        ],
-        mask=fetch_resource("tutorials/encoding/mask.nii.gz"),
-        background=fetch_resource("tutorials/encoding/background.nii.gz"),
-    )
-```
-
-```{code-cell} python3
 from nilearn.datasets import fetch_miyawaki2008
 
-if IN_WASM:
-    DATASET = browser_encoding
-else:
-    DATASET = fetch_miyawaki2008(verbose=0)
+DATASET = fetch_miyawaki2008(verbose=0)
 
 @memory.cache
 def load_runs(n_runs: int):
@@ -264,6 +160,6 @@ alpha_fig
 
 **Next steps**
 
-- [GLM analysis](workflows-01_glm.html) — the inferential counterpart: which voxels respond.
-- [Multivariate pattern analysis](workflows-03_mvpa.html) — decode the stimulus from brain patterns.
-- [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
+- [GLM analysis](01_glm.md) — the inferential counterpart: which voxels respond.
+- [Multivariate pattern analysis](03_mvpa.md) — decode the stimulus from brain patterns.
+- [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.

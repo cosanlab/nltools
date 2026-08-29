@@ -583,8 +583,7 @@ iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float
 
 Interactive WebGL brain viewer powered by niivue.
 
-Renders inline in a live kernel (Jupyter, marimo) — and, unlike the
-old ipyniivue backend, in a ``marimo export html-wasm`` page too — with
+Renders inline in a live kernel (Jupyter, marimo) with
 live windowing (right-drag to set the threshold/contrast), slice
 scrolling, native 4D frame scrubbing, true 3D rendering, a stat-map
 colorbar, and optional nltools-atlas overlays. Static-built docs (plain

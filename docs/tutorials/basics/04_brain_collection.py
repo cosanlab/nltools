@@ -1,19 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools",
 # ]
 # ///
-# BrainCollection basics — runs entirely in the browser via marimo + Pyodide.
-# Source of truth for the docs tutorial; exported to WASM by
-# scripts/build_marimo_wasm.py. `nltools` is micropip-installed in the browser from a
-# build-hosted wheel URL by the IN_WASM setup cells below.
+# BrainCollection basics — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
 
 import marimo
 
@@ -44,109 +36,9 @@ def _(mo):
         By default it is **lazy and path-backed**: subjects are loaded on demand and the
         results of parallel ops are streamed to a visible disk cache, so peak memory stays
         at roughly `n_workers × 1 subject` no matter how many subjects you have.
-
-        /// admonition | Running live in your browser
-        This page **is** a running notebook. The cells below execute in a Pyodide kernel
-        inside the page — no install, no server. The first load boots the kernel and
-        downloads the scientific stack + example data, which takes a minute; it's cached
-        for later visits. Edit any cell and re-run to explore.
-
-        Parallel ops below pass `n_jobs=1` so they run in this single-threaded browser
-        kernel; on a normal Python install you'd use the default `n_jobs=-1` to fan out
-        across every core.
-        ///
         """
     )
     return
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError. This cell
-    # runs in the Pyodide *web worker*, where js.location is the worker script URL — resolve
-    # the wheel against the shared origin, not location.href.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning to
-        # nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready):
-    # In-browser only: pre-seed the HF-hosted resources into the IDBFS cache so the
-    # synchronous fetch_resource()/fetch_pain() calls below hit the cache instead of
-    # doing (unsupported) sync HTTP. Persists across reloads via IndexedDB. `seeded` is
-    # threaded into the data-loading cell so fetch_pain() waits for the cache.
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    seeded = True
-    if IN_WASM:
-        from nltools.datasets import PAIN_RESOURCES
-        from nltools.templates import seed_resources
-
-        _ = await seed_resources(
-            [
-                "default/2mm-MNI152-2009fsl-mask.nii.gz",
-                "default/2mm-MNI152-2009fsl-brain.nii.gz",
-                "default/2mm-MNI152-2009fsl-T1.nii.gz",
-                *PAIN_RESOURCES,
-            ]
-        )
-    return (seeded,)
 
 
 @app.cell(hide_code=True)
@@ -156,7 +48,7 @@ def _(mo):
         ## From a stack of images to a collection
 
         To keep things self-contained we reuse the pain dataset from the
-        [BrainData tutorial](basics-01_brain_data.html): `fetch_pain()` returns a single
+        [BrainData tutorial](01_brain_data.md): `fetch_pain()` returns a single
         `BrainData` of 84 images — 28 subjects × 3 stimulus-intensity conditions
         (low / medium / high) — with a metadata table in `.X`.
         """
@@ -165,8 +57,7 @@ def _(mo):
 
 
 @app.cell
-def _(seeded, wasm_ready):
-    _ = wasm_ready, seeded  # wheel installed + resources seeded first (WASM)
+def _():
     import polars as pl
 
     from nltools.datasets import fetch_pain
@@ -206,9 +97,7 @@ def _(pl, stacked):
     # One BrainData per subject (each = that subject's low/medium/high maps)
     subject_ids = sorted(stacked.X["SubjectID"].unique().to_list())
     per_subject = [
-        stacked[
-            [i for i, s in enumerate(stacked.X["SubjectID"]) if s == sid]
-        ]
+        stacked[[i for i, s in enumerate(stacked.X["SubjectID"]) if s == sid]]
         for sid in subject_ids
     ]
 
@@ -320,8 +209,10 @@ def _(bc, pl):
 def _(bc):
     # Iterate to get each subject's BrainData
     per_subject_means = [bd.mean().data.mean() for bd in bc]
-    print(f"grand mean of {len(per_subject_means)} subject means: "
-          f"{sum(per_subject_means) / len(per_subject_means):.3f}")
+    print(
+        f"grand mean of {len(per_subject_means)} subject means: "
+        f"{sum(per_subject_means) / len(per_subject_means):.3f}"
+    )
     return
 
 
@@ -335,8 +226,7 @@ def _(mo):
         all subjects in parallel and returns a **new** `BrainCollection`. They all accept
         `n_jobs`, `progress_bar`, and `cache`.
 
-        Here we smooth every subject at 6 mm FWHM. On a real install you'd drop `n_jobs=1`
-        (the default `-1` uses every core).
+        Here we smooth every subject at 6 mm FWHM (the default `n_jobs=-1` uses every core).
         """
     )
     return
@@ -344,7 +234,7 @@ def _(mo):
 
 @app.cell
 def _(bc):
-    smoothed = bc.smooth(fwhm=6, n_jobs=1)
+    smoothed = bc.smooth(fwhm=6)
     smoothed
     return (smoothed,)
 
@@ -364,7 +254,7 @@ def _(mo):
 
 @app.cell
 def _(bc):
-    high_pain = bc.map(lambda bd: bd[2], n_jobs=1)  # 3rd condition = "high"
+    high_pain = bc.map(lambda bd: bd[2])  # 3rd condition = "high"
     high_pain.shape  # (28, n_voxels) — one map per subject
     return (high_pain,)
 
@@ -400,7 +290,7 @@ def _(mo):
 
 @app.cell
 def _(bc):
-    cached = bc.smooth(fwhm=6, n_jobs=1, cache=True)
+    cached = bc.smooth(fwhm=6, cache=True)
     print(f"result loaded in RAM? {any(cached.is_loaded)}")
     print("cache steps:")
     for step in cached.steps():

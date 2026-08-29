@@ -2169,8 +2169,7 @@ iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float
 
 Interactive WebGL brain viewer powered by niivue.
 
-Renders inline in a live kernel (Jupyter, marimo) — and, unlike the
-old ipyniivue backend, in a ``marimo export html-wasm`` page too — with
+Renders inline in a live kernel (Jupyter, marimo) with
 live windowing (right-drag to set the threshold/contrast), slice
 scrolling, native 4D frame scrubbing, true 3D rendering, a stat-map
 colorbar, and optional nltools-atlas overlays. Static-built docs (plain
@@ -7382,8 +7381,7 @@ iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float
 
 Interactive WebGL brain viewer powered by niivue.
 
-Renders inline in a live kernel (Jupyter, marimo) — and, unlike the
-old ipyniivue backend, in a ``marimo export html-wasm`` page too — with
+Renders inline in a live kernel (Jupyter, marimo) with
 live windowing (right-drag to set the threshold/contrast), slice
 scrolling, native 4D frame scrubbing, true 3D rendering, a stat-map
 colorbar, and optional nltools-atlas overlays. Static-built docs (plain
@@ -10529,12 +10527,9 @@ optional nltools-atlas overlays (colored regions / outlines / hover labels).
 
 Unlike the previous `ipyniivue` backend, this widget drives the
 `@niivue/niivue` JavaScript library directly through anywidget's **standard**
-model API (see ``viewer.js``). That is the whole point: ipyniivue's custom
-chunked-binary protocol calls a non-standard ``model.onChange`` that only
-exists on a live marimo server, so it dies on a server-less
-``marimo export html-wasm`` page (cosanlab/nltools#455). Staying on the standard
-API makes the viewer render identically in Jupyter, ``marimo edit``, and a
-WASM/Pyodide export — the last is where the tutorials run in-browser.
+model API (see ``viewer.js``), so it renders identically in Jupyter and
+``marimo edit`` without depending on any host-specific protocol
+(cosanlab/nltools#455).
 
 The module is split functional-core / imperative-shell:
 

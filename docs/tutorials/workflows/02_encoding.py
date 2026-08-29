@@ -1,15 +1,11 @@
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.11"
 # dependencies = [
-#     # Only marimo + the emscripten HTTP shim load from this header. nltools and its whole
-#     # runtime stack are micropip-installed by the IN_WASM setup cell (UNPINNED, so Pyodide's
-#     # bundled builds win) — see that cell. Listing the stack here too makes marimo's header
-#     # auto-install redundantly pull unpinned latest scikit-learn/scipy/pandas/matplotlib,
-#     # which drag in `packaging>=26` (absent in Pyodide 0.27.7) and error out.
 #     "marimo",
-#     "pyodide-http; sys_platform == 'emscripten'",
+#     "nltools",
 # ]
 # ///
+# Encoding Models — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.
 import marimo
 
 __generated_with = "0.23.9"
@@ -21,74 +17,6 @@ def _():
     import marimo as mo
 
     return (mo,)
-
-
-@app.cell(hide_code=True)
-def _():
-    import sys
-
-    IN_WASM = sys.platform == "emscripten"
-    return (IN_WASM,)
-
-
-@app.cell(hide_code=True)
-async def _(IN_WASM):
-    # In-browser only: install nltools + its full runtime stack before any nltools import
-    # runs, then hand `wasm_ready` to every nltools-importing cell to force ordering. We
-    # can't rely on marimo's PEP 723 header auto-install alone: it races cell execution and
-    # marimo never re-runs a cell that already failed with ModuleNotFoundError.
-    #
-    # The dataset (nilearn Miyawaki) is hosted as a trimmed subset under
-    # tutorials/encoding/ in the nltools/niftis HF dataset; the data cell seeds it
-    # into the IDBFS cache in the browser and reads from local nilearn otherwise.
-    wasm_ready = True
-    if IN_WASM:
-        import asyncio
-
-        import micropip
-        import js
-
-        async def _pip(reqs, **kw):
-            # Install packages ONE AT A TIME instead of a single concurrent
-            # micropip.install([...]) call. The big concurrent batch download
-            # occasionally returns a truncated wheel (BadZipFile); micropip then
-            # caches the corrupt bytes so an in-session retry keeps failing — and
-            # marimo never re-runs an errored cell, permanently bricking the
-            # page. Sequential installs keep peak download concurrency low and
-            # sidestep the corruption; a per-package retry still rides out
-            # ordinary network blips. (see nltools#455 investigation)
-            items = [reqs] if isinstance(reqs, str) else list(reqs)
-            for _item in items:
-                for _attempt in range(3):
-                    try:
-                        await micropip.install(_item, **kw)
-                        break
-                    except Exception:  # noqa: BLE001
-                        if _attempt == 2:
-                            raise
-                        await asyncio.sleep(0.75 * (_attempt + 1))
-
-        # Install the stack UNPINNED so micropip takes Pyodide's bundled builds (pinning
-        # to nltools' host versions, e.g. joblib>=1.5.3, fails against Pyodide's bundled
-        # joblib). nilearn is the exception: 0.14+ needs packaging>=26 (absent in Pyodide
-        # 0.27.7), so pin the last 0.13.x. numpy/scipy/pandas/sklearn/matplotlib come in
-        # transitively at their bundled versions.
-        await _pip(
-            [
-                "nibabel",
-                "nilearn==0.13.1",
-                "seaborn",
-                "polars",
-                "pynv",
-                "huggingface-hub",
-                "anywidget",
-            ]
-        )
-        # deps=False installs the wheel without re-checking nltools' own version pins.
-        await _pip(
-            js.location.origin + "__NLTOOLS_WHEEL_URL__", deps=False
-        )
-    return (wasm_ready,)
 
 
 @app.cell(hide_code=True)
@@ -109,7 +37,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    **How it works.** Compared with the [GLM](workflows-01_glm.html), an encoding model flips the question and the machinery:
+    **How it works.** Compared with the [GLM](01_glm.md), an encoding model flips the question and the machinery:
 
     - **GLM** assumes a canonical HRF, uses a few categorical regressors, and asks *which voxels respond* (β / t / p).
     - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (cross-validated R²).
@@ -121,18 +49,16 @@ def _(mo):
 
 
 @app.cell
-def _(wasm_ready):
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
+def _():
     import numpy as np
     from joblib import Memory
 
     from nltools.data import BrainData
-    from nltools.templates import fetch_resource, seed_resources
     from nltools.utils import concatenate
 
     # Memoize the (slow) multi-run load to disk (.cache/ is git-ignored).
     memory = Memory(".cache/tutorials", verbose=0)
-    return BrainData, Memory, concatenate, fetch_resource, memory, np, seed_resources
+    return BrainData, Memory, concatenate, memory, np
 
 
 @app.cell(hide_code=True)
@@ -147,47 +73,11 @@ def _(mo):
     return
 
 
-@app.cell(hide_code=True)
-async def _(IN_WASM, wasm_ready, fetch_resource, seed_resources):
-    # In-browser only: seed the trimmed run subset and wrap it in a Bunch that
-    # mimics nilearn's fetch_miyawaki2008() (.func/.label/.mask/.background).
-    # `browser_encoding` stays None locally, where the visible cell below loads
-    # from nilearn. Imports/vars are underscore-aliased to stay cell-local
-    # (marimo defines each name once across cells).
-    _ = wasm_ready  # ensure the nltools wheel is installed first (WASM)
-    browser_encoding = None
-    if IN_WASM:
-        from sklearn.utils import Bunch as _Bunch
-
-        _runs = [f"{_i:02d}" for _i in range(1, 9)]
-        _encoding_resources = (
-            [f"tutorials/encoding/run-{_r}_bold.nii.gz" for _r in _runs]
-            + [f"tutorials/encoding/run-{_r}_label.csv" for _r in _runs]
-            + ["tutorials/encoding/mask.nii.gz", "tutorials/encoding/background.nii.gz"]
-        )
-        await seed_resources(_encoding_resources)
-        browser_encoding = _Bunch(
-            func=[
-                fetch_resource(f"tutorials/encoding/run-{_r}_bold.nii.gz")
-                for _r in _runs
-            ],
-            label=[
-                fetch_resource(f"tutorials/encoding/run-{_r}_label.csv") for _r in _runs
-            ],
-            mask=fetch_resource("tutorials/encoding/mask.nii.gz"),
-            background=fetch_resource("tutorials/encoding/background.nii.gz"),
-        )
-    return (browser_encoding,)
-
-
 @app.cell
-def _(IN_WASM, browser_encoding, BrainData, concatenate, memory, np):
+def _(BrainData, concatenate, memory, np):
     from nilearn.datasets import fetch_miyawaki2008
 
-    if IN_WASM:
-        DATASET = browser_encoding
-    else:
-        DATASET = fetch_miyawaki2008(verbose=0)
+    DATASET = fetch_miyawaki2008(verbose=0)
 
     @memory.cache
     def load_runs(n_runs: int):
@@ -363,9 +253,9 @@ def _(mo):
 
     **Next steps**
 
-    - [GLM analysis](workflows-01_glm.html) — the inferential counterpart: which voxels respond.
-    - [Multivariate pattern analysis](workflows-03_mvpa.html) — decode the stimulus from brain patterns.
-    - [Inter-subject correlation](workflows-04_isc.html) — shared responses to naturalistic stimuli.
+    - [GLM analysis](01_glm.md) — the inferential counterpart: which voxels respond.
+    - [Multivariate pattern analysis](03_mvpa.md) — decode the stimulus from brain patterns.
+    - [Inter-subject correlation](04_isc.md) — shared responses to naturalistic stimuli.
     """
     )
     return

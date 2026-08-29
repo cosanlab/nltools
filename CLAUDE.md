@@ -59,41 +59,26 @@ Version lives **only** in `pyproject.toml`. A single `BASE_URL` env var paramete
 ```bash
 uv run poe docs-generate   # regen sources: API docs (griffe2md) + tutorial .md (marimo → MyST-NB)
 uv run poe docs-site       # myst build --site --html --execute (bakes tutorial outputs)
-uv run poe docs-wasm       # export tutorials to interactive in-browser WASM pages (opt-in)
-uv run poe docs-build      # full: docs-generate → docs-site → docs-wasm
-uv run poe docs-preview    # myst start (live preview)
+uv run poe docs-build      # full: docs-generate → docs-site
+uv run poe docs-preview    # myst start --execute (live preview; reuses the execute cache)
 uv run poe docs-clean      # rm _build
 uv run poe tutorials       # run every tutorial notebook end-to-end (fast; no MyST)
 uv run poe changelog       # regenerate docs/changelog.md (git-cliff)
 uv run poe release         # bump version, build, smoke-test, changelog, tag, publish
 ```
 
-Scripts: `build_api_docs.py` (API md), `marimo_to_myst.py` (marimo → MyST-NB), `build_marimo_wasm.py`
-(WASM export), `release.py`. Config: `docs/myst.yml`, `[tool.griffe2md]` in `pyproject.toml`, `cliff.toml`.
+Scripts: `build_api_docs.py` (API md), `marimo_to_myst.py` (marimo → MyST-NB), `release.py`.
+Config: `docs/myst.yml`, `[tool.griffe2md]` in `pyproject.toml`, `cliff.toml`.
 
-**Tutorials** — marimo `.py` notebooks under `docs/tutorials/{basics,workflows}/` are the single source
-of truth, rendered two ways from the same `.py`: **static `.md`** (default; generated in `docs-generate`
-and committed, executed at build by `docs-site --execute`) and **interactive WASM** (opt-in; runs live
-in-browser via Pyodide). Notebook structure gotcha: WASM-only plumbing lives in `hide_code=True` cells,
-and each data-load cell is **split** into a hidden `browser_*` seeder + a visible
-`if IN_WASM: … else: fetch_local()` loader — don't blanket-strip cells mentioning `IN_WASM`; some
-interleave real logic.
-
-### marimo-WASM gotchas (Pyodide 0.27.7 in-browser)
-
-Break any one and the kernel silently dies with an unrecoverable `ModuleNotFoundError` (marimo never
-re-runs an errored cell). Verify in a **real browser** (playwright-cli on served `docs/_build/html`),
-not `tests/pyodide/test_runner.mjs` (that tests the wheel, not the page). Full detail lives in
-`scripts/build_marimo_wasm.py` and the notebooks' `IN_WASM` cells.
-
-- **Export `--no-execute`** (script default) — `--execute` freezes the dev env's too-new dep versions
-  into the browser micropip list, which Pyodide 0.27 can't provide.
-- **PEP 723 header carries ONLY `marimo` + `pyodide-http`** — no runtime stack, no `file://` wheel
-  (either prevents boot).
-- **The `IN_WASM` install cell is the sole installer**: installs the full runtime stack UNPINNED (so
-  micropip takes Pyodide's bundled builds) except `nilearn==0.13.1` (0.14+ needs packaging>=26), then
-  the wheel `deps=False`, then sets a `wasm_ready` sentinel that every nltools/numpy-importing cell
-  depends on (data-load cells also gate on a `seeded` sentinel).
+**Tutorials** — plain marimo `.py` notebooks under `docs/tutorials/{basics,workflows}/` are the single
+source of truth (edit locally with `uv run marimo edit <nb>.py`; the PEP 723 header lists only
+`marimo` + `nltools` so `uvx marimo edit --sandbox` and molab can run them). `marimo_to_myst.py`
+(in `docs-generate`) renders each to a committed sibling `.md` that `docs-site`/`docs-preview` execute
+through a `python3` ipykernel; outputs are cached in `docs/_build/execute`, so `myst` **must** be given
+`--execute` or the pages render with no outputs. A cell that raises halts execution of every cell after
+it in that notebook (the build still exits 0) — grep the build log for `⛔️`. In-browser support (marimo
+WASM tutorial pages *and* the library's Pyodide path — `seed_resources`, IDBFS cache, node smoke tests)
+is deferred to post-0.6.0 and preserved on the `0.6.1-browser` branch.
 
 ### Docstring style — Google-style Markdown, NO RST
 
