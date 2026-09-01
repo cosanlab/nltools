@@ -31,6 +31,9 @@ import ast
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manifest import iter_py_files, rel_posix  # noqa: E402
+
 # Minimum number of loose (defaulted, non-keyword-only) params to require a `*`.
 THRESHOLD = 3
 
@@ -54,19 +57,6 @@ EXEMPT: dict[tuple[str, str], str] = {
         "mirrors np.testing.assert_array_almost_equal"
     ),
 }
-
-
-def iter_py_files(roots: list[str]) -> list[Path]:
-    files: list[Path] = []
-    for root in roots:
-        p = Path(root)
-        if p.is_file() and p.suffix == ".py":
-            files.append(p)
-        elif p.is_dir():
-            files.extend(
-                f for f in p.rglob("*.py") if not (EXCLUDE_PARTS & set(f.parts))
-            )
-    return files
 
 
 def loose_kwargs(node: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
@@ -94,10 +84,11 @@ def has_star_marker(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
 
 
 def check_file(path: Path) -> list[tuple[int, str, int]]:
+    rel = rel_posix(path)
     try:
-        tree = ast.parse(path.read_text(), filename=str(path))
+        tree = ast.parse(path.read_text(), filename=rel)
     except SyntaxError as e:  # pragma: no cover - surfaced to caller
-        print(f"{path}: SyntaxError: {e}", file=sys.stderr)
+        print(f"{rel}: SyntaxError: {e}", file=sys.stderr)
         return []
     violations: list[tuple[int, str, int]] = []
     for node in ast.walk(tree):
@@ -105,7 +96,7 @@ def check_file(path: Path) -> list[tuple[int, str, int]]:
             continue
         if node.name.startswith("_") and node.name != "__init__":
             continue
-        if (path.as_posix(), node.name) in EXEMPT:
+        if (rel, node.name) in EXEMPT:
             continue
         if has_star_marker(node):
             continue
@@ -118,10 +109,10 @@ def check_file(path: Path) -> list[tuple[int, str, int]]:
 def main(argv: list[str]) -> int:
     roots = argv[1:] or DEFAULT_ROOTS
     total = 0
-    for path in sorted(iter_py_files(roots)):
+    for path in iter_py_files(roots, exclude_parts=EXCLUDE_PARTS):
         for lineno, name, n in check_file(path):
             print(
-                f"{path}:{lineno}: {name}() has {n} loose kwargs and no "
+                f"{rel_posix(path)}:{lineno}: {name}() has {n} loose kwargs and no "
                 f"keyword-only `*` marker (convention: `*` required for 3+ kwargs)"
             )
             total += 1

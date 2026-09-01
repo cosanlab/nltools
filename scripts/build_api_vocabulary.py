@@ -33,10 +33,9 @@ import re
 import sys
 from pathlib import Path
 
-import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from manifest import PROJECT_ROOT, load_vocab  # noqa: E402
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VOCAB_YML = PROJECT_ROOT / "docs" / "_data" / "api-vocabulary.yml"
 INDEX_MD = PROJECT_ROOT / "docs" / "development" / "index.md"
 DESIGN_TOUR = PROJECT_ROOT / "docs" / "public" / "design-tour.html"
 
@@ -51,11 +50,6 @@ _NUMBER_WORDS = {
     8: "Eight",
     9: "Nine",
 }
-
-
-def _load_vocab() -> dict:
-    with VOCAB_YML.open() as f:
-        return yaml.safe_load(f)
 
 
 def _md_inline_to_html(text: str) -> str:
@@ -147,7 +141,7 @@ def _apply(path: Path, blocks: dict[str, str]) -> str:
 
 
 def build(check: bool) -> int:
-    vocab = _load_vocab()
+    vocab = load_vocab()
 
     targets = {
         INDEX_MD: {"index-table": render_index_table(vocab)},
