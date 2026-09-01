@@ -140,6 +140,9 @@ exceptions:
 #                     `exceptions:` above (which the checker also honors).
 #                     `path` is the defining module, prefix-matched like
 #                     exclude_paths. Each needs a reason.
+#   kwonly_exemptions — (path, function) suppressions for the keyword-only
+#                     `*`-marker check (scripts/check_kwonly.py). Same path
+#                     semantics; each needs a reason.
 enforcement:
   exclude_paths:
     - "nltools/tests/"
@@ -212,3 +215,15 @@ enforcement:
     # parallelism (see docs/development/execution-model.md and the docstring).
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight memory + nested-parallelism guard; documented in the docstring"}
     - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
+  # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
+  # functions deliberately mirror numpy signatures so they are drop-in
+  # substitutes inside backend-generic code (numpy accepts
+  # `np.zeros_like(a, dtype, order)` positionally); forcing a `*` here would
+  # break that substitutability for no safety gain. Do NOT add entries to
+  # escape the convention for ordinary nltools functions — this list exists
+  # only for signatures whose shape is dictated by an external API.
+  kwonly_exemptions:
+    - {path: "nltools/algorithms/backends.py", function: "zeros_like", reason: "mirrors np.zeros_like"}
+    - {path: "nltools/algorithms/backends.py", function: "ones_like", reason: "mirrors np.ones_like"}
+    - {path: "nltools/algorithms/backends.py", function: "full_like", reason: "mirrors np.full_like"}
+    - {path: "nltools/algorithms/backends.py", function: "assert_array_almost_equal", reason: "mirrors np.testing.assert_array_almost_equal"}
