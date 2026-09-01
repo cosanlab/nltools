@@ -1154,7 +1154,9 @@ def _compute_contrast_from_bundle(
     if contrast_type == "t":
         return t_stat
 
-    from scipy.stats import norm, t as t_dist
+    from scipy.stats import t as t_dist
+
+    from nltools.algorithms.inference.utils import _signed_z_from_p
 
     df = max(X.shape[0] - int(np.linalg.matrix_rank(X)), 1)
     p = 2.0 * t_dist.sf(np.abs(t_stat), df)
@@ -1162,7 +1164,7 @@ def _compute_contrast_from_bundle(
     if contrast_type == "p":
         return p
 
-    z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    z = _signed_z_from_p(t_stat, p)
 
     if contrast_type == "z":
         return z

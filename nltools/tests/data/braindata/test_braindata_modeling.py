@@ -1024,6 +1024,20 @@ class TestBrainDataTTest:
         # monotonic since z is derived from the same p)
         assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.99
 
+    def test_ttest_one_tailed_wrong_direction_z_is_finite(self, minimal_brain_data):
+        """tail=1 on strongly negative data must not leak z = -inf.
+
+        ``t.sf(t, df)`` saturates to exactly 1.0 for large negative t, and
+        an unclipped ``norm.isf(1.0)`` is ``-inf`` — poisoning any downstream
+        percentile / plotting of the z map.
+        """
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data - 10.0
+        res = bd.ttest(tail=1)
+        z = np.asarray(res["z"].data)
+        assert np.all(np.isfinite(z))
+        assert np.all(z < 0)
+
     def test_ttest_popmean(self, minimal_brain_data):
         """popmean kwarg shifts the null and the reported mean."""
         from scipy.stats import ttest_1samp

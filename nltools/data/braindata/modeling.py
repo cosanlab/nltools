@@ -8,6 +8,10 @@ import warnings
 
 import numpy as np
 
+# Shared z-from-p conversion (single source of truth for the clipping policy
+# that keeps z finite in both directions) — also used by BrainCollection's
+# ttest/ttest2 and the GLM-bundle contrast reader.
+from nltools.algorithms.inference.utils import _signed_z_from_p
 from .utils import shallow_copy
 
 
@@ -794,23 +798,6 @@ def to_fit_dataclass(bd, model):
         )
 
     raise AssertionError(f"unvalidated model passed to to_fit_dataclass: {model!r}")
-
-
-def _signed_z_from_p(t_like_arr, p_arr, tail_internal="two"):
-    """Compute a signed z-score map from a p-value map.
-
-    Two-tailed p: ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching
-    nilearn's ``output_type='z_score'`` convention, with the sign copied from
-    the accompanying statistic. One-tailed (upper) p: ``z = norm.isf(p)`` —
-    a one-sided p already encodes direction, so no sign copy is needed.
-    """
-    from scipy.stats import norm
-
-    p_clipped = np.clip(np.asarray(p_arr), np.finfo(float).tiny, 1.0)
-    if tail_internal == "upper":
-        return norm.isf(p_clipped)
-    z_abs = norm.isf(p_clipped / 2.0)
-    return np.sign(np.asarray(t_like_arr)) * z_abs
 
 
 def ttest(

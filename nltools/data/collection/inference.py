@@ -210,8 +210,9 @@ def ttest(
     mean > popmean; negate the data for the other direction). The z map is
     derived from the reported p, so it matches the requested tail.
     """
-    from scipy.stats import norm, t as t_dist
+    from scipy.stats import t as t_dist
 
+    from nltools.algorithms.inference.utils import _signed_z_from_p
     from nltools.algorithms.inference.validation import validate_tail_parameter
 
     tail_internal = validate_tail_parameter(tail)
@@ -231,10 +232,9 @@ def ttest(
     df = n - 1
     if tail_internal == "upper":
         p = t_dist.sf(t_stat, df)
-        z = norm.isf(np.clip(p, 1e-300, 1.0))
     else:
         p = 2.0 * t_dist.sf(np.abs(t_stat), df)
-        z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    z = _signed_z_from_p(t_stat, p, tail_internal)
 
     return {
         "mean": _make_braindata(m, bc._mask),
@@ -256,8 +256,9 @@ def ttest2(
     ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
     bc > other; swap the operands for the other direction).
     """
-    from scipy.stats import norm, t as t_dist
+    from scipy.stats import t as t_dist
 
+    from nltools.algorithms.inference.utils import _signed_z_from_p
     from nltools.algorithms.inference.validation import validate_tail_parameter
 
     tail_internal = validate_tail_parameter(tail)
@@ -285,10 +286,9 @@ def ttest2(
     t_stat = np.divide(diff, se, out=np.zeros_like(diff), where=se > 0)
     if tail_internal == "upper":
         p = t_dist.sf(t_stat, df)
-        z = norm.isf(np.clip(p, 1e-300, 1.0))
     else:
         p = 2.0 * t_dist.sf(np.abs(t_stat), df)
-        z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    z = _signed_z_from_p(t_stat, p, tail_internal)
 
     return {
         "mean": _make_braindata(diff, bc._mask),
