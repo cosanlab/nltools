@@ -80,9 +80,13 @@ def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
     nltools <= 0.6.0 wrote tab-separated data into whatever extension it was
     handed, so a ``.csv`` on disk may really be a TSV. Parsing it with the
     wrong delimiter yields a single column whose *name* still contains the
-    real one, which is an unambiguous tell — retry rather than hand back one
-    mashed column.
+    real one. That is only a hint, not proof — ``onset,ms`` is a valid
+    single-column TSV header — so the re-parse is accepted only when it
+    actually produces multiple fully-populated columns (a header that merely
+    *contains* the alternate delimiter splits into all-null columns instead),
+    and it warns, since it reinterprets the file against its extension.
     """
+    import warnings
 
     def read(delimiter: str) -> pl.DataFrame:
         return pl.read_csv(
@@ -96,7 +100,27 @@ def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
     if raw.width == 1:
         alternate = "," if sep == "\t" else "\t"
         if alternate in raw.columns[0]:
-            return read(alternate)
+            reparsed = read(alternate)
+            plausible = reparsed.width > 1 and (
+                reparsed.height == 0
+                or all(
+                    reparsed[c].null_count() < reparsed.height for c in reparsed.columns
+                )
+            )
+            if plausible:
+                shown = {",": "','", "\t": "tab"}
+                warnings.warn(
+                    f"{path.name} parsed as a single column with the "
+                    f"{shown[sep]} separator its extension implies, but "
+                    f"re-parsing with {shown[alternate]} produced "
+                    f"{reparsed.width} columns — using the re-parse. The "
+                    f"file's separator does not match its extension "
+                    f"(nltools <= 0.6.0 wrote such files); rewrite it to "
+                    f"silence this warning.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return reparsed
     return raw
 
 

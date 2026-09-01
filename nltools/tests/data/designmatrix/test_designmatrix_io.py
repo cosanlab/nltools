@@ -72,15 +72,36 @@ class TestTextRoundTrip:
 
         Files written by earlier versions carry the wrong separator for their
         extension; falling back rather than handing back one mashed column
-        keeps them readable.
+        keeps them readable. The recovery is a silent reinterpretation of the
+        file, so it must announce itself with a warning.
         """
         path = tmp_path / "legacy.csv"
         dm.write(path, sep="\t")
 
-        back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
+        with pytest.warns(UserWarning, match="separator"):
+            back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
 
         assert back.columns == dm.columns
         np.testing.assert_allclose(back.to_numpy(), dm.to_numpy())
+
+    def test_single_column_with_alternate_delimiter_in_name_stays_one_column(
+        self, tmp_path
+    ):
+        """A legitimate one-column .tsv whose header contains a comma is not re-read as CSV.
+
+        The recovery heuristic fires on "one column whose name contains the
+        alternate delimiter", but that is not proof of a mismatched separator:
+        `onset,ms` is a perfectly valid single column name. Re-parsing such a
+        file as CSV splits the header into `onset` + an all-null `ms`, silently
+        corrupting the data — the re-parse must be validated and rejected.
+        """
+        path = tmp_path / "one_column.tsv"
+        path.write_text("onset,ms\n1.0\n2.0\n3.0\n")
+
+        back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
+
+        assert back.columns == ["onset,ms"]
+        np.testing.assert_allclose(back.to_numpy().ravel(), [1.0, 2.0, 3.0])
 
 
 class TestH5RoundTrip:
