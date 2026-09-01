@@ -59,19 +59,39 @@ def load_enforcement(vocab_yml: Path = VOCAB_YML) -> dict:
     """Load the enforcement rules + suppression set from the vocabulary manifest.
 
     Returns the `enforcement:` mapping with one derived key added:
-    `suppressions`, a set of `(qualname, kwarg)` pairs merged from the
-    documented `exceptions:` entries and `enforcement.exemptions:`.
+    `suppressions`, a set of `(path, qualname, kwarg)` triples merged from the
+    documented `exceptions:` entries and `enforcement.exemptions:`. `path` is
+    the entry's required module path (prefix-matched, like `exclude_paths`), so
+    a suppression binds to its defining module — a bare (function, kwarg) key
+    would exempt any future same-named def anywhere in the package.
     """
     with vocab_yml.open() as f:
         vocab = yaml.safe_load(f)
     enforcement = vocab["enforcement"]
-    suppressions: set[tuple[str, str]] = set()
+    suppressions: set[tuple[str, str, str]] = set()
     for entry in list(vocab.get("exceptions", [])) + list(
         enforcement.get("exemptions", [])
     ):
-        suppressions.add((entry["function"], entry["kwarg"]))
+        if "path" not in entry:
+            raise SystemExit(
+                f"error: manifest entry for {entry.get('function')!r} / "
+                f"{entry.get('kwarg')!r} is missing the required `path:` field "
+                f"(the defining module, e.g. 'nltools/models/glm.py')."
+            )
+        suppressions.add((entry["path"], entry["function"], entry["kwarg"]))
     enforcement["suppressions"] = suppressions
     return enforcement
+
+
+def _is_suppressed(
+    suppressions: set[tuple[str, str, str]], path: str, qualname: str, kwarg: str
+) -> bool:
+    """True if a manifest suppression covers this (path, qualname, kwarg)."""
+    posix = Path(path).as_posix()
+    return any(
+        qualname == q and kwarg == k and posix.startswith(prefix)
+        for prefix, q, k in suppressions
+    )
 
 
 def _is_excluded(path: str, prefixes: list[str]) -> bool:
@@ -111,7 +131,7 @@ def _check_def(
     suppressions: set = enforcement["suppressions"]
 
     for name, default, is_kwonly in _iter_params(node):
-        if (qualname, name) in suppressions:
+        if _is_suppressed(suppressions, path, qualname, name):
             continue
 
         rule = banned.get(name)

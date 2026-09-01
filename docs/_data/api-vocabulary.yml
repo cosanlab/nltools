@@ -97,23 +97,29 @@ vocabulary:
     index_md: "`radius_mm: float`"
 
 # Deliberate deviations from the table (design-tour "exceptions" callout).
-# Each entry names the function + kwarg it exempts (the checker suppresses that
-# exact pair) and carries `text`, the Markdown → HTML sentence the design tour
+# Each entry names the module `path` (prefix-matched, like exclude_paths),
+# function, and kwarg it exempts — the checker suppresses that exact
+# (path, function, kwarg) triple, so a same-named def elsewhere is still
+# checked — and carries `text`, the Markdown → HTML sentence the design tour
 # renders. Keep in sync with CLAUDE.md exceptions F175/F105/F077.
 exceptions:
-  - function: "BrainData.fit"
+  - path: "nltools/data/braindata/__init__.py"
+    function: "BrainData.fit"
     kwarg: "model"
     finding: F175
     text: "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
-  - function: "Ridge.__init__"
+  - path: "nltools/models/ridge.py"
+    function: "Ridge.__init__"
     kwarg: "n_iter"
     finding: F105
     text: "`Ridge(n_iter=)` matches sklearn's random-search name."
-  - function: "Glm.compute_contrasts"
+  - path: "nltools/models/glm.py"
+    function: "Glm.compute_contrasts"
     kwarg: "statistic"
     finding: F077
     text: "`compute_contrasts(statistic=)` selects an output map (t/z/p/β), not an algorithm."
-  - function: "Glm.compute_contrast"
+  - path: "nltools/models/glm.py"
+    function: "Glm.compute_contrast"
     kwarg: "tail"
     finding: tails-sweep
     text: "GLM contrast p-maps are *one-sided* (the nilearn/SPM directional-contrast convention) and take no `tail=` knob — the one deliberate exception to the two-tailed default."
@@ -130,8 +136,10 @@ exceptions:
 #                     appears WITH a literal default: `banned_defaults` (values
 #                     that signal the wrong concept), `allowed_defaults` (the
 #                     closed set of legal defaults), `keyword_only: true`.
-#   exemptions      — extra (function, kwarg) suppressions beyond `exceptions:`
-#                     above (which the checker also honors). Each needs a reason.
+#   exemptions      — extra (path, function, kwarg) suppressions beyond
+#                     `exceptions:` above (which the checker also honors).
+#                     `path` is the defining module, prefix-matched like
+#                     exclude_paths. Each needs a reason.
 enforcement:
   exclude_paths:
     - "nltools/tests/"
@@ -197,10 +205,10 @@ enforcement:
     # n_iter here is the LocalAlignment/SRM solver iteration count, matching the
     # estimator's own kwarg (same rationale as the Ridge n_iter exception F105) —
     # not a permutation count.
-    - {function: "BrainCollection.align", kwarg: "n_iter", reason: "SRM/LocalAlignment solver iterations, matching the estimator's own name"}
-    - {function: "align", kwarg: "n_iter", reason: "delegation target of BrainCollection.align (collection/inference.py)"}
+    - {path: "nltools/data/collection/__init__.py", function: "BrainCollection.align", kwarg: "n_iter", reason: "SRM/LocalAlignment solver iterations, matching the estimator's own name"}
+    - {path: "nltools/data/collection/inference.py", function: "align", kwarg: "n_iter", reason: "delegation target of BrainCollection.align"}
     # BrainData.predict deliberately defaults n_jobs=1: searchlight at n_jobs=-1
     # duplicates the brain per worker (memory) and nests under collection-level
     # parallelism (see docs/development/execution-model.md and the docstring).
-    - {function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight memory + nested-parallelism guard; documented in the docstring"}
-    - {function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict (braindata/prediction.py)"}
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight memory + nested-parallelism guard; documented in the docstring"}
+    - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
