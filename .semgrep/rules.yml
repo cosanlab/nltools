@@ -82,6 +82,14 @@ rules:
       - metavariable-regex:
           metavariable: $F
           regex: '^[^_]'
+      # _NullProgressBar (nltools/utils.py) is the no-op tqdm stand-in: its
+      # set_postfix/set_description mirror tqdm's own signatures so call sites
+      # need no branching — a legitimate third-party-shaped surface, exempted
+      # here (the manifest/config is the single home for suppressions; no
+      # inline nosemgrep comments).
+      - pattern-not-inside: |
+          class _NullProgressBar:
+              ...
     paths:
       exclude:
         - "**/tests/**"
