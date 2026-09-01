@@ -639,14 +639,12 @@ def isc_test(
     # re-centered at 0 (subtract obs_map) before the comparison — otherwise the
     # null sits on top of the observed value and every voxel gets p ≈ 0.5. This
     # restores the pre-0.6.0 behavior (`_calc_pvalue(all_bootstraps - isc, isc)`)
-    # that the collection refactor dropped.
+    # that the collection refactor dropped. The Phipson-Smyth (count+1)/(n+1)
+    # form lives in the shared engine helper, not inline.
+    from nltools.algorithms.inference.utils import _compute_pvalue
+
     centered_null = null - obs_map
-    if tail_internal == "upper":
-        p = (np.sum(centered_null >= obs_map, axis=0) + 1) / (n_samples + 1)
-    else:
-        p = (np.sum(np.abs(centered_null) >= np.abs(obs_map), axis=0) + 1) / (
-            n_samples + 1
-        )
+    p = _compute_pvalue(obs_map, centered_null, tail=tail_internal)
     return {
         "isc": observed["isc"],
         "p": _make_braindata(p.reshape(obs_map.shape), out_mask),
