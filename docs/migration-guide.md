@@ -487,6 +487,23 @@ stats = isc_permutation_test(data, progress_bar=True)
 The mechanism is also unified: all bars go through shared helpers in `nltools.utils` (`maybe_tqdm` / `make_progress_bar`) built on `tqdm.auto`, so notebooks render widget bars and terminals render text bars.
 
 
+(ttest-popmean-permutation)=
+### `BrainData.ttest(popmean=..., permutation=True)` now tests against `popmean`
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0) — silently wrong p-values fixed
+
+The permutation branch of `BrainData.ttest` previously handed the *raw* data to the sign-flip engine, so with a non-zero `popmean` the returned p-values answered "mean ≠ 0" while the parametric branch (and the docstring) answered "mean ≠ `popmean`". The permutation branch also overwrote the returned `"mean"` map with the raw voxelwise mean instead of the documented effect size. Both are fixed: the engine now sign-flips `images - popmean`, and `"mean"` is `mean(images) - popmean` on both branches.
+
+```python
+# v0.6.0-dev (buggy): p tested mean != 0 regardless of popmean
+res = bd.ttest(popmean=0.5, permutation=True)
+
+# v0.6.0: p tests mean != 0.5; res["mean"] is mean(images) - 0.5
+```
+
+Calls with the default `popmean=0.0` (the overwhelmingly common case) are numerically unchanged. If you recorded permutation p-values from a non-zero `popmean` call, they were wrong — re-run that analysis.
+
+
 (browser-support-deferred)=
 ### In-browser (WASM) support removed — returns in 0.6.1
 

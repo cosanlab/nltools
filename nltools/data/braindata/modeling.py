@@ -820,7 +820,8 @@ def ttest(
     Args:
         bd: BrainData instance (must contain multiple images).
         popmean: Population mean to test against. Default 0.0.
-        permutation: If True, use sign-flip permutation test via
+        permutation: If True, use a sign-flip permutation test on
+            ``images - popmean`` via
             ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come
             from the empirical null and the parametric t-statistic is still
             reported alongside for reference.
@@ -875,8 +876,11 @@ def ttest(
     if permutation:
         from nltools.algorithms.inference import one_sample_permutation_test
 
+        # Sign-flipping tests symmetry around 0, so the engine must see the
+        # popmean-referenced data — flipping the raw data would silently test
+        # mean != 0 instead of mean != popmean.
         perm = one_sample_permutation_test(
-            bd.data,
+            bd.data - popmean,
             n_permute=n_permute,
             tail=tail,
             return_null=return_null,
@@ -884,8 +888,8 @@ def ttest(
             random_state=random_state,
         )
         p_arr = np.asarray(perm["p"])
-        # Permutation gave us its own mean — prefer it for numerical
-        # consistency with the reported p.
+        # The engine's mean of the shifted data IS mean(images) - popmean —
+        # keep it for numerical consistency with the reported p.
         mean_arr = np.asarray(perm["mean"])
     else:
         p_arr = np.asarray(p_param)
