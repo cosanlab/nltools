@@ -6,6 +6,7 @@ Each takes a DesignMatrix instance (`dm`) as its first argument.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -309,12 +310,46 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
         meta.attrs["obj_type"] = "design_matrix"
 
 
+# Pre-`.nl_` spellings of the column names nltools generated before commit
+# 604073fb reserved the namespace: `poly_0` / `cosine_1` (add_poly /
+# add_dct_basis), `global_spike1` / `diff_spike1` (find_spikes), and the
+# run-separated `{run}_{base}` variants a multi-run append produced. Only these
+# exact shapes translate — everything else in a legacy file is a user column.
+_LEGACY_GENERATED_RE = re.compile(
+    r"(?:(?P<run>\d+)_)?(?P<base>(?:poly|cosine)_\d+|(?:global|diff)_spike\d+)"
+)
+
+
+def _legacy_generated_to_reserved(name: str) -> str:
+    """Translate a pre-0.6 generated column name into the `.nl_` namespace.
+
+    Applied ONLY to the legacy h5 layout in `read_h5`, where the names are
+    provably machine-generated (the old writer produced them). Every other
+    ingestion path deliberately treats `poly_0` as a user column (see
+    `nltools.utils.RESERVED_PREFIX`), so recognition stays keyed on the
+    reserved prefix alone.
+    """
+    from nltools.utils import is_reserved_name, reserved_name, run_separated_name
+
+    if is_reserved_name(name):
+        return name
+    match = _LEGACY_GENERATED_RE.fullmatch(name)
+    if match is None:
+        return name
+    if match["run"] is not None:
+        return run_separated_name(int(match["run"]), match["base"])
+    return reserved_name(match["base"])
+
+
 def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
     """Read a DesignMatrix HDF5 file written by `write_h5`.
 
     Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
     and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
-    in ``data`` beside an ``S``-typed ``columns`` dataset).
+    in ``data`` beside an ``S``-typed ``columns`` dataset). Legacy files may
+    also carry pre-`.nl_` generated column names (``poly_0``, ``0_poly_0``,
+    ``cosine_1``); those are translated into the reserved namespace at load
+    time so downstream recognition stays keyed on the prefix alone.
 
     Args:
         file_name: Path to the HDF5 file.
@@ -332,10 +367,14 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
         return [v.decode() if isinstance(v, bytes) else str(v) for v in values]
 
     with h5py.File(file_name, "r") as f:
-        if "columns" in f:
+        legacy = "columns" in f
+        if legacy:
             # Legacy layout: homogeneous matrix + separate column names.
             values = np.asarray(f["data"])
-            columns = _decode(np.asarray(f["columns"]))
+            columns = [
+                _legacy_generated_to_reserved(c)
+                for c in _decode(np.asarray(f["columns"]))
+            ]
             data = pl.DataFrame(values, schema=columns)
         else:
             data = _read_polars_frame(f, "data")
@@ -353,5 +392,13 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
                 metadata["multi"] = bool(attrs["multi"])
             if "n_rows" in attrs:
                 metadata["n_rows"] = int(attrs["n_rows"])
+
+        if legacy:
+            # The legacy metadata lists name the same old spellings.
+            for key in ("convolved", "confounds"):
+                if key in metadata:
+                    metadata[key] = [
+                        _legacy_generated_to_reserved(c) for c in metadata[key]
+                    ]
 
     return data, metadata
