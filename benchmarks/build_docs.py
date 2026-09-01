@@ -58,7 +58,8 @@ def _provenance(env: dict) -> str:
         f"**Python:** {env.get('python', '?')}",
         f"**NumPy:** {env.get('numpy', '?')}",
         f"**PyTorch:** {env.get('torch', 'n/a')}",
-        f"**nltools:** {env.get('nltools', '?')}",
+        f"**nltools:** {env.get('nltools', '?')}"
+        + (f" @ {env['commit']}" if env.get("commit") else ""),
     ]
     mps = env.get("mps_available")
     cuda = env.get("cuda_available")

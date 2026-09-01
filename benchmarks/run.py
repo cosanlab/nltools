@@ -49,8 +49,9 @@ def main() -> None:
     ap.add_argument("--quick", action="store_true", help="Tiny sizes for validation.")
     ap.add_argument(
         "--device",
-        default="cpu",
-        help="Provenance label for the run's primary device (cpu/mps/cuda).",
+        default=None,
+        help="Provenance label for the run's primary device (cpu/mps/cuda); "
+        "defaults to the detected GPU, else cpu.",
     )
     ap.add_argument("--tag", default=None, help="Optional suffix on the artifact name.")
     ap.add_argument("--out", default="benchmarks/results", help="Output directory.")

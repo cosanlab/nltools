@@ -78,6 +78,22 @@ def test_env_metadata_has_core_keys():
         assert key in meta
 
 
+def test_env_metadata_records_git_commit():
+    import re
+
+    assert re.fullmatch(r"[0-9a-f]{7,40}(-dirty)?", env_metadata()["commit"])
+
+
+def test_env_metadata_device_defaults_to_detected_gpu(monkeypatch):
+    from benchmarks import harness
+
+    monkeypatch.setattr(harness, "gpu_device", lambda: "cuda")
+    assert env_metadata()["device"] == "cuda"
+    monkeypatch.setattr(harness, "gpu_device", lambda: None)
+    assert env_metadata()["device"] == "cpu"
+    assert env_metadata(device="mps")["device"] == "mps"
+
+
 def test_write_results_roundtrips(tmp_path):
     results = [
         benchmark(lambda: sum(range(1000)), domain="smoke", name="a", reps=1, warmup=0),

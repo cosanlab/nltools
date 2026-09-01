@@ -29,6 +29,7 @@ import gc
 import json
 import platform
 import statistics
+import subprocess
 import threading
 import time
 from collections.abc import Callable
@@ -46,6 +47,36 @@ def _torch():
         return torch
     except ModuleNotFoundError:
         return None
+
+
+def _git_commit() -> str:
+    """Short HEAD SHA of the benchmarked tree, ``-dirty`` if uncommitted changes."""
+    root = Path(__file__).resolve().parent.parent
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            [
+                "git",
+                "status",
+                "--porcelain",
+                "--untracked-files=no",
+                "--",
+                ":!benchmarks/results",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return f"{sha}-dirty" if dirty else sha
 
 
 def gpu_device() -> str | None:
@@ -241,10 +272,16 @@ def benchmark(
     )
 
 
-def env_metadata(device: str = "cpu") -> dict[str, Any]:
-    """Capture reproducibility provenance for a benchmark run."""
+def env_metadata(device: str | None = None) -> dict[str, Any]:
+    """Capture reproducibility provenance for a benchmark run.
+
+    ``device`` labels the run's primary device; ``None`` records whatever
+    `gpu_device` detects (falling back to ``"cpu"``).
+    """
     import numpy as np
 
+    if device is None:
+        device = gpu_device() or "cpu"
     torch = _torch()
     meta: dict[str, Any] = {
         "host": platform.node(),
@@ -261,6 +298,7 @@ def env_metadata(device: str = "cpu") -> dict[str, Any]:
         meta["nltools"] = version("nltools")
     except Exception:  # noqa: BLE001
         meta["nltools"] = "unknown"
+    meta["commit"] = _git_commit()
     if torch is not None:
         meta["torch"] = torch.__version__
         meta["cuda_available"] = torch.cuda.is_available()
@@ -272,7 +310,7 @@ def write_results(
     results: list[BenchResult],
     out_dir: Path | str,
     *,
-    device: str = "cpu",
+    device: str | None = None,
     tag: str | None = None,
 ) -> tuple[Path, Path]:
     """Write results to ``<out_dir>/<host>[-<tag>].parquet`` + an ``env.json``.
