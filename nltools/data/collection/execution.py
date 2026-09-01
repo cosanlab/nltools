@@ -539,7 +539,10 @@ def _write_bundle(
 
     Used by ``write_glm_bundle`` and ``write_ridge_bundle``. Embeds raw bytes
     via ``np.frombuffer(..., dtype=np.uint8)`` so HDF5 stores them as a
-    fixed-shape uint8 dataset (rather than a variable-length blob).
+    fixed-shape uint8 dataset (rather than a variable-length blob). Unicode
+    arrays (e.g. string class labels in predict bundles) are stored as
+    UTF-8 variable-length strings — h5py cannot store numpy ``'<U'`` dtypes
+    directly; readers decode them back via ``Dataset.asstr()``.
     """
     import h5py
 
@@ -548,6 +551,14 @@ def _write_bundle(
         for name, value in datasets.items():
             if isinstance(value, bytes):
                 f.create_dataset(name, data=np.frombuffer(value, dtype=np.uint8))
+            elif isinstance(value, np.ndarray) and value.dtype.kind == "U":
+                # h5py has no conversion path for numpy '<U' dtypes — hand it
+                # an object array of str with an explicit vlen string dtype.
+                f.create_dataset(
+                    name,
+                    data=value.astype(object),
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
             else:
                 f.create_dataset(name, data=value)
         for k, v in attrs.items():
@@ -882,13 +893,21 @@ def read_predict_bundle(path: Path):
                 f"{kind or 'fit'!r}); use read_glm_bundle/read_ridge_bundle "
                 f"for fit bundles."
             )
+        import h5py
+
         present = set(json.loads(attrs["present_fields"]))
         scalar_summaries = set(json.loads(attrs["scalar_summaries"]))
 
         fields: dict[str, Any] = {}
         for name in _PREDICT_ARRAY_FIELDS:
             if name in present:
-                fields[name] = f[name][:]
+                ds = f[name]
+                if h5py.check_string_dtype(ds.dtype):
+                    # Stored as UTF-8 var-length strings (numpy '<U' arrays
+                    # can't go into HDF5 directly); decode back to '<U'.
+                    fields[name] = ds.asstr()[:].astype(str)
+                else:
+                    fields[name] = ds[:]
         for name in _PREDICT_SUMMARY_FIELDS:
             if name in present:
                 arr = f[name][()]

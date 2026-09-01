@@ -653,3 +653,32 @@ class TestPipelineStandardizeDetect:
             "Pipeline" in str(warn.message) and "standardize" in str(warn.message)
             for warn in w
         )
+
+
+# ---------------------------------------------------------------------------
+# String class labels (F4): labels travel with the data as strings
+# ---------------------------------------------------------------------------
+
+
+class TestStringLabels:
+    """Decoding with string class labels — the headline stored-Y use case."""
+
+    def test_whole_brain_predict_with_string_labels(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        labels = np.array(["face", "house"] * (n // 2))
+        minimal_brain_data.Y = {"condition": labels}
+        result = minimal_brain_data.predict(y="condition", cv=5, random_state=0)
+        preds = np.asarray(result.predictions)
+        assert preds.dtype.kind == "U"
+        covered = np.asarray(result.cv_folds) >= 0
+        assert set(np.unique(preds[covered])) <= {"face", "house"}
+        assert 0.0 <= result.mean_score <= 1.0
+
+    def test_whole_brain_numeric_predictions_stay_float(self, minimal_brain_data):
+        """Regression path must keep float predictions (no int truncation)."""
+        n = minimal_brain_data.shape[0]
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(n)
+        result = minimal_brain_data.predict(y=y, model="ridge", cv=5, random_state=0)
+        preds = np.asarray(result.predictions)
+        assert preds.dtype.kind == "f"

@@ -84,6 +84,22 @@ def predict(
 # ---------------------------------------------------------------------------
 
 
+def _series_to_numpy(series):
+    """Convert a polars Series to numpy, mapping string columns to ``'<U'``.
+
+    Polars Utf8 columns come back from ``to_numpy()`` as object arrays;
+    sklearn then propagates the object dtype into ``classes_`` and
+    ``predict()`` outputs, which breaks HDF5 persistence and dtype checks.
+    A real unicode dtype keeps label arrays first-class end to end.
+    """
+    import polars as pl
+
+    arr = series.to_numpy()
+    if arr.dtype == object and series.dtype == pl.String:
+        return arr.astype(str)
+    return arr
+
+
 def _resolve_stored_y(bd, y):
     """Resolve ``y`` against the stored ``bd.Y`` frame.
 
@@ -109,7 +125,7 @@ def _resolve_stored_y(bd, y):
             raise ValueError(
                 f"y={y!r} is not a column of .Y (columns: {stored.columns})."
             )
-        return stored[y].to_numpy()
+        return _series_to_numpy(stored[y])
 
     if y is not None:
         return np.asarray(y)
@@ -128,7 +144,7 @@ def _resolve_stored_y(bd, y):
             f".Y has {stored.shape[1]} columns ({stored.columns}); pass "
             f"y='name' to pick the label column."
         )
-    return stored[stored.columns[0]].to_numpy()
+    return _series_to_numpy(stored[stored.columns[0]])
 
 
 def _resolve_stored_groups(bd, groups):
@@ -150,7 +166,7 @@ def _resolve_stored_groups(bd, groups):
         raise ValueError(
             f"groups={groups!r} is not a column of .Y (columns: {stored.columns})."
         )
-    return stored[groups].to_numpy()
+    return _series_to_numpy(stored[groups])
 
 
 # ---------------------------------------------------------------------------
@@ -427,9 +443,10 @@ def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring) -> Predict:
     n_samples = X.shape[0]
     n_voxels = X.shape[1]
     fold_scores: list[float] = []
-    fold_predictions = np.zeros(n_samples, dtype=float)
     fold_idx_array = np.full(n_samples, -1, dtype=int)
     fold_weight_maps: list[np.ndarray | None] = []
+    fold_preds: list[np.ndarray] = []
+    fold_test_idx: list[np.ndarray] = []
 
     scorer = check_scoring(pipe, scoring=scoring)
 
@@ -437,9 +454,24 @@ def _run_whole_brain(bd, X, y, pipe, cv, groups, scoring) -> Predict:
         fitted = clone(pipe).fit(X[train_idx], y[train_idx])
         score = scorer(fitted, X[test_idx], y[test_idx])
         fold_scores.append(float(score))
-        fold_predictions[test_idx] = fitted.predict(X[test_idx])
+        fold_preds.append(np.asarray(fitted.predict(X[test_idx])))
+        fold_test_idx.append(np.asarray(test_idx))
         fold_idx_array[test_idx] = fold_idx
         fold_weight_maps.append(_extract_weight_map(fitted, n_voxels))
+
+    # Assemble out-of-fold predictions with a dtype wide enough for every
+    # fold — string class labels included (np.result_type widens e.g.
+    # '<U4' vs '<U5'; float folds stay float). Samples never in a test fold
+    # (possible with e.g. ShuffleSplit) keep the dtype's zero value and are
+    # identifiable via cv_folds == -1.
+    pred_dtype = (
+        np.result_type(*(p.dtype for p in fold_preds))
+        if fold_preds
+        else np.dtype(float)
+    )
+    fold_predictions = np.zeros(n_samples, dtype=pred_dtype)
+    for test_idx, preds in zip(fold_test_idx, fold_preds):
+        fold_predictions[test_idx] = preds
 
     scores = np.asarray(fold_scores, dtype=float)
     _, fold_weight_maps_arr = _aggregate_weight_maps(

@@ -579,6 +579,41 @@ class TestPredictPerSubjectCaching:
         assert pc.paths is not None  # path-backed source → 'auto' caches
 
 
+class TestStringLabelDecoding:
+    """String class labels through the per-subject path and the cache (F4/F10)."""
+
+    N_OBS = 12
+
+    def _bc(self, tiny_mask, tiny_brain_factory, cache_dir=None):
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(3)]
+        for bd in brains:
+            bd.Y = {"condition": np.tile(["face", "house"], self.N_OBS // 2)}
+        return BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=cache_dir)
+
+    def test_predict_string_labels_per_subject(self, tiny_mask, tiny_brain_factory):
+        """bd.Y stores string conditions; predict(y='condition') must decode."""
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        pc = bc.predict(y="condition", cv=3, random_state=0, n_jobs=1, cache=False)
+        assert len(pc) == 3
+        for r in pc:
+            preds = np.asarray(r.predictions)
+            assert preds.dtype.kind == "U"
+            assert set(np.unique(preds)) <= {"face", "house"}
+
+    def test_predict_bundle_round_trips_string_predictions(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        """cache=True must persist string predictions bit-perfectly (F10)."""
+        from nltools.data.collection.execution import read_predict_bundle
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, cache_dir=tmp_path / "cache")
+        pc = bc.predict(y="condition", cv=3, random_state=0, n_jobs=1, cache=True)
+        assert pc.paths is not None
+        loaded = read_predict_bundle(pc.paths[0])
+        np.testing.assert_array_equal(loaded.predictions, pc[0].predictions)
+        assert np.asarray(loaded.predictions).dtype.kind == "U"
+
+
 class TestResolveCv:
     """The int/str cv spec -> sklearn splitter resolution is a pure function.
 
