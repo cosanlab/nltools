@@ -120,9 +120,41 @@ class TestExemptions:
         import copy
 
         e = copy.deepcopy(enforcement)
-        e["suppressions"].add(("A.f", "kind"))
+        e["suppressions"].add(("nltools/data/foo.py", "A.f", "kind"))
         src = "class A:\n    def f(self, kind=None):\n        pass\n"
         assert checker.check_source(src, "nltools/data/foo.py", e) == []
+
+    def test_exemption_is_path_qualified(self, checker, enforcement):
+        """A suppression binds to its module, not to every same-named def (C-13).
+
+        A bare (function, kwarg) key would exempt ANY future module-level
+        `predict` anywhere in the package.
+        """
+        import copy
+
+        e = copy.deepcopy(enforcement)
+        e["suppressions"].add(("nltools/data/foo.py", "A.f", "kind"))
+        src = "class A:\n    def f(self, kind=None):\n        pass\n"
+        v = checker.check_source(src, "nltools/data/elsewhere.py", e)
+        assert [w.kwarg for w in v] == ["kind"]
+
+    def test_exemption_path_is_a_prefix(self, checker, enforcement):
+        """Paths match by prefix, like enforcement exclude_paths."""
+        import copy
+
+        e = copy.deepcopy(enforcement)
+        e["suppressions"].add(("nltools/data/", "A.f", "kind"))
+        src = "class A:\n    def f(self, kind=None):\n        pass\n"
+        assert checker.check_source(src, "nltools/data/foo.py", e) == []
+        assert len(checker.check_source(src, "nltools/models/foo.py", e)) == 1
+
+    def test_manifest_entries_carry_paths(self, enforcement):
+        """Every suppression loaded from the YAML is a (path, qualname, kwarg) triple."""
+        assert enforcement["suppressions"], "manifest should define suppressions"
+        for entry in enforcement["suppressions"]:
+            assert len(entry) == 3
+            path = entry[0]
+            assert path.startswith("nltools/"), entry
 
 
 class TestRealTree:

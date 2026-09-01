@@ -78,6 +78,25 @@ class TestPlotBetweenLabelDistance:
         assert diag.mean() < 0.2
         assert off.mean() > 0.7
 
+    def test_default_permutation_test_completes(self, well_separated_distance):
+        """The default permutation_test=True path must not crash (F-6).
+
+        It reads the two-sample result's `mean_diff` key — the stale `mean`
+        key raised KeyError.
+        """
+        distance, labels = well_separated_distance
+        long_df, within_mean, mean_diff_df, p_df = plot_between_label_distance(
+            distance, labels, n_permute=100
+        )
+        assert set(mean_diff_df.columns) == {"label1", "label2", "mean_diff"}
+        assert set(p_df.columns) == {"label1", "label2", "p"}
+        # Diagonal comparisons are skipped: mean_diff 0, p 1.
+        diag = mean_diff_df.filter(pl.col("label1") == pl.col("label2"))
+        assert (diag["mean_diff"] == 0.0).all()
+        # Off-diagonal: within - between is negative for well-separated clusters.
+        off = mean_diff_df.filter(pl.col("label1") != pl.col("label2"))
+        assert (off["mean_diff"] < 0).all()
+
 
 class TestPlotSilhouette:
     def test_silhouette_scores_positive_for_well_separated(

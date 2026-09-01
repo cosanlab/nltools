@@ -72,15 +72,36 @@ class TestTextRoundTrip:
 
         Files written by earlier versions carry the wrong separator for their
         extension; falling back rather than handing back one mashed column
-        keeps them readable.
+        keeps them readable. The recovery is a silent reinterpretation of the
+        file, so it must announce itself with a warning.
         """
         path = tmp_path / "legacy.csv"
         dm.write(path, sep="\t")
 
-        back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
+        with pytest.warns(UserWarning, match="separator"):
+            back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
 
         assert back.columns == dm.columns
         np.testing.assert_allclose(back.to_numpy(), dm.to_numpy())
+
+    def test_single_column_with_alternate_delimiter_in_name_stays_one_column(
+        self, tmp_path
+    ):
+        """A legitimate one-column .tsv whose header contains a comma is not re-read as CSV.
+
+        The recovery heuristic fires on "one column whose name contains the
+        alternate delimiter", but that is not proof of a mismatched separator:
+        `onset,ms` is a perfectly valid single column name. Re-parsing such a
+        file as CSV splits the header into `onset` + an all-null `ms`, silently
+        corrupting the data — the re-parse must be validated and rejected.
+        """
+        path = tmp_path / "one_column.tsv"
+        path.write_text("onset,ms\n1.0\n2.0\n3.0\n")
+
+        back = DesignMatrix(path, sampling_freq=0.5, run_length="infer")
+
+        assert back.columns == ["onset,ms"]
+        np.testing.assert_allclose(back.to_numpy().ravel(), [1.0, 2.0, 3.0])
 
 
 class TestH5RoundTrip:
@@ -210,3 +231,105 @@ class TestH5LegacyLayout:
         np.testing.assert_allclose(back.to_numpy(), values)
         assert back.sampling_freq == 0.5
         assert back.confounds == [".nl_poly_0"]
+
+    @staticmethod
+    def _write_legacy_h5(path, values, columns, *, confounds=(), multi=False):
+        import h5py
+
+        with h5py.File(path, "w") as f:
+            f.create_dataset("data", data=values)
+            f.create_dataset("columns", data=np.array(columns, dtype="S"))
+            meta = f.create_group("metadata")
+            meta.attrs["sampling_freq"] = 0.5
+            meta.attrs["convolved"] = np.array([], dtype="S")
+            meta.attrs["confounds"] = np.array(list(confounds), dtype="S")
+            meta.attrs["multi"] = multi
+            meta.attrs["obj_type"] = "design_matrix"
+
+    def test_translates_legacy_generated_names(self, tmp_path):
+        """Pre-`.nl_` generated names load into the reserved namespace (A-2).
+
+        Recognition keys solely on the `.nl_` prefix, so a legacy file's
+        `poly_0` / `cosine_1` / `global_spike1` must be translated at load
+        time or every downstream recognizer treats them as user columns.
+        """
+        pytest.importorskip("h5py")
+        path = tmp_path / "legacy.h5"
+        rng = np.random.default_rng(0)
+        n = 20
+        values = np.column_stack(
+            [
+                rng.standard_normal(n),
+                rng.standard_normal(n),
+                np.ones(n),
+                np.cos(np.linspace(0, np.pi, n)),
+                (np.arange(n) == 3).astype(float),
+            ]
+        )
+        self._write_legacy_h5(
+            path,
+            values,
+            ["stim_a", "stim_b", "poly_0", "cosine_1", "global_spike1"],
+            confounds=["poly_0", "cosine_1", "global_spike1"],
+        )
+
+        back = DesignMatrix(path)
+
+        assert back.columns == [
+            "stim_a",
+            "stim_b",
+            ".nl_poly_0",
+            ".nl_cosine_1",
+            ".nl_global_spike1",
+        ]
+        assert back.confounds == [".nl_poly_0", ".nl_cosine_1", ".nl_global_spike1"]
+        # vif(exclude_confounds=False) must drop the all-ones legacy intercept
+        # instead of producing a singular/NaN correlation matrix.
+        vif = back.vif(exclude_confounds=False)
+        assert vif is not None
+        assert np.isfinite(vif).all()
+
+    def test_legacy_run_separated_names_keep_single_mechanism_behavior(self, tmp_path):
+        """Legacy `0_poly_0`-style run columns translate to `.nl_r0_poly_0` (A-2).
+
+        Untranslated, add_poly() silently adds a global drift beside per-run
+        drift, and a later append restarts run numbering at `.nl_r0_`.
+        """
+        pytest.importorskip("h5py")
+        path = tmp_path / "legacy_multi.h5"
+        rng = np.random.default_rng(1)
+        n = 12
+        run = np.repeat([0, 1], n // 2)
+        values = np.column_stack(
+            [
+                rng.standard_normal(n),
+                (run == 0).astype(float),
+                (run == 1).astype(float),
+            ]
+        )
+        self._write_legacy_h5(
+            path,
+            values,
+            ["stim", "0_poly_0", "1_poly_0"],
+            confounds=["0_poly_0", "1_poly_0"],
+            multi=True,
+        )
+
+        back = DesignMatrix(path)
+
+        assert back.columns == ["stim", ".nl_r0_poly_0", ".nl_r1_poly_0"]
+        assert back.confounds == [".nl_r0_poly_0", ".nl_r1_poly_0"]
+
+        # Adding global drift beside per-run drift is ambiguous — must raise.
+        with pytest.raises(ValueError):
+            back.add_poly(1)
+        with pytest.raises(ValueError):
+            back.add_dct_basis()
+
+        # Appending a new run continues numbering at r2 instead of restarting.
+        new_run = DesignMatrix(
+            {"stim": rng.standard_normal(6)}, sampling_freq=0.5
+        ).add_poly(0)
+        combined = back.append(new_run, keep_separate=True)
+        assert ".nl_r2_poly_0" in combined.columns
+        assert combined.columns.count(".nl_r0_poly_0") == 1

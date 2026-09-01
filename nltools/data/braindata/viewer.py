@@ -432,9 +432,13 @@ def compute_display_window(
         return float(np.percentile(magnitudes, pct))
 
     # Resolve percentile strings against the magnitude distribution.
-    threshold = resolve_threshold(threshold, np.abs(arr))
-    lower = resolve_threshold(lower, np.abs(arr))
-    upper = resolve_threshold(upper, np.abs(arr))
+    # `magnitudes` (finite nonzero |values|) is exactly the population
+    # resolve_threshold would keep after its own finite/nonzero filtering, so
+    # reuse it instead of materializing np.abs(arr) three times per call
+    # (~540 MB of transients on a 100×228k float64 map).
+    threshold = resolve_threshold(threshold, magnitudes)
+    lower = resolve_threshold(lower, magnitudes)
+    upper = resolve_threshold(upper, magnitudes)
 
     # Precedence: lower/upper win; else threshold sets the floor.
     if lower is not None or upper is not None:

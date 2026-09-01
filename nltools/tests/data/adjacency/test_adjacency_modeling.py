@@ -67,6 +67,22 @@ class TestAdjacencyModeling:
         with pytest.raises(ValueError, match="Unsupported stat"):
             sim_adjacency_multiple.bootstrap(stat="invalid_stat", n_samples=10)
 
+    def test_bootstrap_tail_pins(self, sim_adjacency_multiple):
+        """Pin tail=1/tail=2 p-values to the shared bootstrap formula (C-8)."""
+        from scipy.stats import norm
+
+        two = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=50, random_state=42, tail=2
+        )
+        one = sim_adjacency_multiple.bootstrap(
+            stat="mean", n_samples=50, random_state=42, tail=1
+        )
+
+        z = two["Z"].data
+        np.testing.assert_array_equal(z, one["Z"].data)
+        np.testing.assert_allclose(two["p"].data, 2 * (1 - norm.cdf(np.abs(z))))
+        np.testing.assert_allclose(one["p"].data, 1 - norm.cdf(z))
+
     def test_generate_permutations(self, sim_adjacency_single):
         """Test lazy generation of permuted adjacency matrices."""
         n_permute = 10

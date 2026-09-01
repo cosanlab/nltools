@@ -31,6 +31,8 @@ def bootstrap(
         save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                    Default: False
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            statistic > 0; negate the data for the other direction).
         n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
         random_state: (int, optional) Random seed for reproducibility
         progress_bar: (bool) If True, show a progress bar. Default False.
@@ -47,11 +49,7 @@ def bootstrap(
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
-        _p_from_z,
     )
-    from nltools.algorithms.inference.validation import validate_tail_parameter
-
-    tail_internal = validate_tail_parameter(tail)
 
     # Validate stat parameter
     SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
@@ -73,12 +71,9 @@ def bootstrap(
         n_jobs=n_jobs,
         random_state=random_state,
         percentiles=percentiles,
+        tail=tail,
         progress_bar=progress_bar,
     )
-
-    if tail_internal == "upper":
-        # Engines report the default two-tailed p; convert post-hoc for tail=1.
-        result["p"] = _p_from_z(np.asarray(result["Z"]), "upper")
 
     # Convert result to Adjacency format
     return convert_bootstrap_results_to_adjacency(adj, result, save_boots=save_boots)

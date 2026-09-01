@@ -278,7 +278,7 @@ def plot_between_label_distance(
                     within_i, between_ij, n_permute=n_permute
                 )
                 mean_diff_rows.append(
-                    {"label1": i, "label2": j, "mean_diff": float(s["mean"])}
+                    {"label1": i, "label2": j, "mean_diff": float(s["mean_diff"])}
                 )
                 p_rows.append({"label1": i, "label2": j, "p": float(s["p"])})
         mean_diff_df = pl.DataFrame(mean_diff_rows)

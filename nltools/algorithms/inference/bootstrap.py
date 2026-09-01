@@ -5,6 +5,7 @@ import warnings
 from scipy.stats import norm
 
 from .validation import (
+    validate_tail_parameter,
     validate_bootstrap_method,
     validate_bootstrap_data,
     validate_percentiles,
@@ -24,9 +25,9 @@ FITTED_METHODS = ["weights", "predict"]  # For future use
 def _p_from_z(z: np.ndarray, tail_internal: str) -> np.ndarray:
     """P-values from bootstrap Z-scores: 'two' → 2·(1−Φ(|z|)), 'upper' → 1−Φ(z).
 
-    The single home of the bootstrap p formula — `OnlineBootstrapStats.get_results`
-    and the BrainData/Adjacency facades (which convert post-hoc for tail=1) both
-    use it, so the two paths can never drift.
+    The single home of the bootstrap p formula. `OnlineBootstrapStats.get_results`
+    applies it for every engine, and the facades thread their ``tail`` kwarg down
+    to that call, so tail handling has exactly one mechanism.
     """
     if tail_internal == "upper":
         return 1 - norm.cdf(z)
@@ -218,8 +219,6 @@ class OnlineBootstrapStats:
         with np.errstate(invalid="ignore", divide="ignore"):
             z = self.mean / std
 
-        from .validation import validate_tail_parameter
-
         p = _p_from_z(z, validate_tail_parameter(tail))
 
         # Build result dictionary
@@ -297,6 +296,7 @@ def _bootstrap_simple_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
     """Bootstrap simple aggregation methods using CPU parallelization.
@@ -312,13 +312,14 @@ def _bootstrap_simple_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
 
     Returns:
         Dictionary containing:
         - 'mean': Bootstrap mean
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -338,6 +339,7 @@ def _bootstrap_simple_cpu_parallel(
     _validate_bootstrap_method(method)
     _validate_n_samples(n_samples)
     _validate_percentiles(percentiles)
+    validate_tail_parameter(tail)
 
     # Convert to array and validate
     data = np.asarray(data, dtype=np.float64)
@@ -385,7 +387,7 @@ def _bootstrap_simple_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -443,6 +445,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -461,6 +464,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -468,7 +472,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         - 'mean': Bootstrap mean weights
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -491,6 +495,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
     validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    validate_tail_parameter(tail)
 
     # Handle 1D y
     single_voxel = y.ndim == 1
@@ -535,7 +540,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -599,6 +604,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -617,6 +623,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -624,7 +631,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         - 'mean': Bootstrap mean predictions
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -654,6 +661,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         raise ValueError(
             f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
         )
+    validate_tail_parameter(tail)
 
     # Handle 1D y
     single_voxel = y.ndim == 1
@@ -699,7 +707,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -752,28 +760,42 @@ def _auto_batch_size_ridge(
     )
 
 
-def _bootstrap_ridge_weights_gpu_batched(
+def _bootstrap_ridge_gpu_batched(
     X: np.ndarray,
     y: np.ndarray,
     alpha: float,
+    *,
+    compute_sample,
+    output_shape: tuple[int, ...],
+    desc: str,
     n_samples: int = 5000,
     save_boots: bool = False,
     backend=None,
     max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
-    **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model weights using GPU with automatic batching.
+    """Shared GPU bootstrap driver for Ridge statistics, with automatic batching.
 
-    Processes bootstrap samples in batches to avoid GPU OOM. Transfers X, y
-    to GPU once and reuses across batches for efficiency.
+    Owns everything the weights and predict bootstraps have in common:
+    pre-drawn resample indices, `_auto_batch_size_ridge`, one-time device
+    transfer of X/y, the inline per-sample ridge-SVD solve inside an OOM-safe
+    batch loop, `OnlineBootstrapStats` aggregation, the progress bar, and
+    result formatting. The per-sample statistic is injected via
+    ``compute_sample``.
 
     Args:
-        X: Feature matrix, shape (n_samples, n_features).
-        y: Target matrix, shape (n_samples, n_voxels).
+        X: Feature matrix, shape (n_samples, n_features), float32, 2-D.
+        y: Target matrix, shape (n_samples, n_voxels), float32, 2-D.
         alpha: Ridge regularization parameter.
+        compute_sample: Callable ``(backend, coef_device) -> np.ndarray``
+            mapping one bootstrap sample's on-device ridge coefficients
+            ``(n_features, n_voxels)`` to the statistic aggregated on CPU
+            (the weights themselves, or predictions from them).
+        output_shape: Shape of each ``compute_sample`` result.
+        desc: Progress-bar description.
         n_samples: Number of bootstrap iterations. Defaults to 5000.
         save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
         backend: Backend instance (must be PyTorch). If None, auto-selects.
@@ -781,21 +803,13 @@ def _bootstrap_ridge_weights_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        progress_bar: If True, show a progress bar. Defaults to False.
 
     Returns:
-        Dictionary containing bootstrap statistics (same format as CPU version).
+        Dictionary containing bootstrap statistics (same format as the CPU engines).
     """
-    from nltools.algorithms.backends import auto_select_backend
-    from .validation import validate_array_shape_range
-
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
-
-    validate_array_shape(X, 2, name="X")
-    validate_array_shape_range(y, 1, 2, name="y")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    from nltools.algorithms.backends import auto_select_backend, compute_oom_safe
 
     # Handle backend
     if backend is None:
@@ -805,25 +819,18 @@ def _bootstrap_ridge_weights_gpu_batched(
             f"GPU backend requires 'torch' or 'torch-mps', got '{backend.name}'"
         )
 
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
-        y = y[:, np.newaxis]
-
     n_obs, n_features = X.shape
     n_voxels = y.shape[1]
-    output_shape = (n_features, n_voxels)
 
     # Validate inputs
     _validate_n_samples(n_samples)
     _validate_percentiles(percentiles)
+    validate_tail_parameter(tail)
 
     # Pre-generate bootstrap indices (deterministic)
     all_indices = generate_bootstrap_indices(
         n_obs, n_samples, random_state=random_state
     )
-
-    from nltools.algorithms.backends import compute_oom_safe
 
     # Determine batch size based on memory budget
     batch_size, n_batches = _auto_batch_size_ridge(
@@ -840,10 +847,10 @@ def _bootstrap_ridge_weights_gpu_batched(
     y_device = backend.to_device(y)
 
     def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
-        """GPU ridge weights for one (sub-)batch of pre-drawn resample indices."""
-        # Process each bootstrap sample in batch sequentially
-        # Inline ridge computation on GPU to avoid CPU round-trips
-        batch_weights = []
+        """GPU ridge statistics for one (sub-)batch of pre-drawn resample indices."""
+        # Process each bootstrap sample in batch sequentially, with the ridge
+        # computation inlined on the GPU to avoid CPU round-trips.
+        batch_results = []
         for i in range(len(batch_indices)):
             # Resample data using advanced indexing
             indices_np = batch_indices[i].astype(np.int64)
@@ -858,211 +865,17 @@ def _bootstrap_ridge_weights_gpu_batched(
             X_boot_device = X_device[indices_device]
             y_boot_device = y_device[indices_device]
 
-            # Compute Ridge weights directly on GPU (inline SVD computation)
-            # This avoids CPU round-trips from backend.to_numpy() → ridge_svd()
             # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
             U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
-
-            # Compute shrinkage: s / (s² + alpha)
             shrinkage = s / (s**2 + alpha)
-
-            # Compute: U.T @ y
             Uty = backend.matmul(U.T, y_boot_device)
-
-            # Compute: V.T @ (shrinkage[:, None] * Uty)
             coef_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
 
-            # Transfer weights back to CPU for aggregation
-            batch_weights.append(backend.to_numpy(coef_device))
+            # Per-sample statistic, back on CPU for aggregation.
+            batch_results.append(compute_sample(backend, coef_device))
 
-        # Shape: (current_batch_size, n_features, n_voxels)
-        return np.array(batch_weights)
-
-    # Initialize online statistics aggregator (on CPU)
-    stats = OnlineBootstrapStats(
-        shape=output_shape,
-        save_samples=save_boots,
-        percentiles=percentiles,
-    )
-
-    # Process bootstrap samples in batches with progress bar
-    pbar = make_progress_bar(
-        progress_bar=progress_bar,
-        total=n_samples,
-        desc="GPU bootstrap Ridge weights",
-        unit="iter",
-        disable=n_batches == 1,
-    )
-
-    for batch_idx in range(n_batches):
-        # Determine current batch size
-        start_idx = batch_idx * batch_size
-        end_idx = min(start_idx + batch_size, n_samples)
-        current_batch_size = end_idx - start_idx
-
-        # Bootstrap indices for this batch were all pre-drawn (all_indices),
-        # so OOM recovery reuses them exactly.
-        batch_indices = all_indices[
-            start_idx:end_idx
-        ]  # Shape: (current_batch_size, n_obs)
-
-        batch_weights = compute_oom_safe(_compute_batch, batch_indices)
-        for weights in batch_weights:
-            stats.update(weights)
-
-        # Update progress bar
-        pbar.update(current_batch_size)
-
-    pbar.close()
-
-    # Get final results
-    result = stats.get_results()
-
-    # Add backend info
-    result["backend"] = f"gpu-{backend.device}"
-
-    # Remove samples if not requested
-    if not save_boots:
-        result.pop("samples", None)
-
-    return result
-
-
-def _bootstrap_ridge_predict_gpu_batched(
-    X: np.ndarray,
-    y: np.ndarray,
-    X_pred: np.ndarray,
-    alpha: float,
-    n_samples: int = 5000,
-    save_boots: bool = False,
-    backend=None,
-    max_gpu_memory_gb: float | None = None,
-    random_state: int | None = None,
-    percentiles: tuple[float, float] = (2.5, 97.5),
-    progress_bar: bool = False,
-    **ridge_kwargs,
-) -> dict[str, np.ndarray]:
-    """Bootstrap Ridge model predictions using GPU with automatic batching.
-
-    Resamples training data, fits Ridge models, and aggregates predictions
-    on test data. Uses same GPU optimizations as weights bootstrap.
-
-    Args:
-        X: Training feature matrix, shape (n_samples, n_features).
-        y: Training target matrix, shape (n_samples, n_voxels).
-        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
-        alpha: Ridge regularization parameter.
-        n_samples: Number of bootstrap iterations. Defaults to 5000.
-        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
-        backend: Backend instance (must be PyTorch). If None, auto-selects.
-        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
-            measures the device's available memory.
-        random_state: Random seed for reproducibility.
-        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        **ridge_kwargs: Additional parameters passed to ridge_svd().
-
-    Returns:
-        Dictionary containing bootstrap statistics (same format as CPU version).
-    """
-    from nltools.algorithms.backends import auto_select_backend
-    from .validation import validate_array_shape, validate_array_shape_range
-
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
-    X_pred = np.asarray(X_pred, dtype=np.float32)
-
-    validate_array_shape(X, 2, name="X")
-    validate_array_shape_range(y, 1, 2, name="y")
-    validate_array_shape(X_pred, 2, name="X_pred")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
-    if X.shape[1] != X_pred.shape[1]:
-        raise ValueError(
-            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
-        )
-
-    # Handle backend
-    if backend is None:
-        backend = auto_select_backend(X.shape[0], X.shape[1])
-    if backend.name not in ["torch", "torch-mps"]:
-        raise ValueError(
-            f"GPU backend requires 'torch' or 'torch-mps', got '{backend.name}'"
-        )
-
-    # Handle 1D y
-    single_voxel = y.ndim == 1
-    if single_voxel:
-        y = y[:, np.newaxis]
-
-    n_obs = X.shape[0]
-    n_test_samples = X_pred.shape[0]
-    n_voxels = y.shape[1]
-    output_shape = (n_test_samples, n_voxels)
-
-    # Validate inputs
-    _validate_n_samples(n_samples)
-    _validate_percentiles(percentiles)
-
-    # Pre-generate bootstrap indices (deterministic)
-    all_indices = generate_bootstrap_indices(
-        n_obs, n_samples, random_state=random_state
-    )
-
-    # Determine batch size (same as weights, but also account for X_pred)
-    batch_size, n_batches = _auto_batch_size_ridge(
-        n_samples,
-        n_obs,
-        X.shape[1],
-        n_voxels,
-        max_memory_gb=max_gpu_memory_gb,
-        backend=backend,
-    )
-
-    from nltools.algorithms.backends import compute_oom_safe
-
-    # Transfer X, y, X_pred to GPU once (reused across batches)
-    X_device = backend.to_device(X)
-    y_device = backend.to_device(y)
-    X_pred_device = backend.to_device(X_pred)
-
-    def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
-        """GPU ridge predictions for one (sub-)batch of pre-drawn indices."""
-        # Process each bootstrap sample in batch sequentially
-        # Inline ridge computation on GPU to avoid CPU round-trips
-        batch_predictions = []
-        for i in range(len(batch_indices)):
-            # Resample training data
-            indices_np = batch_indices[i].astype(np.int64)
-            indices_device = backend.to_device(indices_np)
-            # Ensure indices are int64 on GPU (MPS requires this)
-            if hasattr(indices_device, "long"):
-                indices_device = indices_device.long()
-            elif hasattr(indices_device, "to"):
-                import torch
-
-                indices_device = indices_device.to(torch.int64)
-            X_boot_device = X_device[indices_device]
-            y_boot_device = y_device[indices_device]
-
-            # Fit Ridge model directly on GPU (inline SVD computation)
-            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
-            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
-
-            # Compute shrinkage: s / (s² + alpha)
-            shrinkage = s / (s**2 + alpha)
-
-            # Compute: U.T @ y
-            Uty = backend.matmul(U.T, y_boot_device)
-
-            # Compute: V.T @ (shrinkage[:, None] * Uty)
-            weights_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
-
-            # Make predictions on GPU: X_pred @ weights
-            predictions_device = backend.matmul(X_pred_device, weights_device)
-            batch_predictions.append(backend.to_numpy(predictions_device))
-
-        # Shape: (current_batch_size, n_test_samples, n_voxels)
-        return np.array(batch_predictions)
+        # Shape: (current_batch_size, *output_shape)
+        return np.array(batch_results)
 
     # Initialize online statistics aggregator (on CPU)
     stats = OnlineBootstrapStats(
@@ -1075,7 +888,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     pbar = make_progress_bar(
         progress_bar=progress_bar,
         total=n_samples,
-        desc="GPU bootstrap Ridge predictions",
+        desc=desc,
         unit="iter",
         disable=n_batches == 1,
     )
@@ -1090,9 +903,9 @@ def _bootstrap_ridge_predict_gpu_batched(
         # so OOM recovery reuses them exactly.
         batch_indices = all_indices[start_idx:end_idx]
 
-        batch_predictions = compute_oom_safe(_compute_batch, batch_indices)
-        for predictions in batch_predictions:
-            stats.update(predictions)
+        batch_results = compute_oom_safe(_compute_batch, batch_indices)
+        for sample in batch_results:
+            stats.update(sample)
 
         # Update progress bar
         pbar.update(current_batch_size)
@@ -1100,7 +913,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     pbar.close()
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     result["backend"] = f"gpu-{backend.device}"
@@ -1110,3 +923,156 @@ def _bootstrap_ridge_predict_gpu_batched(
         result.pop("samples", None)
 
     return result
+
+
+def _bootstrap_ridge_weights_gpu_batched(
+    X: np.ndarray,
+    y: np.ndarray,
+    alpha: float,
+    n_samples: int = 5000,
+    save_boots: bool = False,
+    backend=None,
+    max_gpu_memory_gb: float | None = None,
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
+    progress_bar: bool = False,
+    **ridge_kwargs,
+) -> dict[str, np.ndarray]:
+    """Bootstrap Ridge model weights using GPU with automatic batching.
+
+    Thin wrapper over `_bootstrap_ridge_gpu_batched` whose per-sample
+    statistic is the ridge coefficients themselves.
+
+    Args:
+        X: Feature matrix, shape (n_samples, n_features).
+        y: Target matrix, shape (n_samples, n_voxels).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap samples (memory intensive). Defaults to False.
+        backend: Backend instance (must be PyTorch). If None, auto-selects.
+        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
+            measures the device's available memory.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
+
+    Returns:
+        Dictionary containing bootstrap statistics (same format as CPU version).
+    """
+    # Input validation
+    X = np.asarray(X, dtype=np.float32)
+    y = np.asarray(y, dtype=np.float32)
+
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+
+    # Handle 1D y
+    if y.ndim == 1:
+        y = y[:, np.newaxis]
+
+    def _compute_sample(backend, coef_device):
+        return backend.to_numpy(coef_device)
+
+    return _bootstrap_ridge_gpu_batched(
+        X,
+        y,
+        alpha,
+        compute_sample=_compute_sample,
+        output_shape=(X.shape[1], y.shape[1]),
+        desc="GPU bootstrap Ridge weights",
+        n_samples=n_samples,
+        save_boots=save_boots,
+        backend=backend,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+        random_state=random_state,
+        percentiles=percentiles,
+        tail=tail,
+        progress_bar=progress_bar,
+    )
+
+
+def _bootstrap_ridge_predict_gpu_batched(
+    X: np.ndarray,
+    y: np.ndarray,
+    X_pred: np.ndarray,
+    alpha: float,
+    n_samples: int = 5000,
+    save_boots: bool = False,
+    backend=None,
+    max_gpu_memory_gb: float | None = None,
+    random_state: int | None = None,
+    percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
+    progress_bar: bool = False,
+    **ridge_kwargs,
+) -> dict[str, np.ndarray]:
+    """Bootstrap Ridge model predictions using GPU with automatic batching.
+
+    Thin wrapper over `_bootstrap_ridge_gpu_batched` whose per-sample
+    statistic is ``X_pred @ coef``, computed on the GPU (``X_pred`` is
+    transferred to the device once and reused across samples).
+
+    Args:
+        X: Training feature matrix, shape (n_samples, n_features).
+        y: Training target matrix, shape (n_samples, n_voxels).
+        X_pred: Test feature matrix for prediction, shape (n_test_samples, n_features).
+        alpha: Ridge regularization parameter.
+        n_samples: Number of bootstrap iterations. Defaults to 5000.
+        save_boots: If True, store all bootstrap predictions (memory intensive). Defaults to False.
+        backend: Backend instance (must be PyTorch). If None, auto-selects.
+        max_gpu_memory_gb: Explicit GPU memory budget in GB. None (default)
+            measures the device's available memory.
+        random_state: Random seed for reproducibility.
+        percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        **ridge_kwargs: Additional parameters passed to ridge_svd().
+
+    Returns:
+        Dictionary containing bootstrap statistics (same format as CPU version).
+    """
+    # Input validation
+    X = np.asarray(X, dtype=np.float32)
+    y = np.asarray(y, dtype=np.float32)
+    X_pred = np.asarray(X_pred, dtype=np.float32)
+
+    validate_array_shape(X, 2, name="X")
+    validate_array_shape_range(y, 1, 2, name="y")
+    validate_array_shape(X_pred, 2, name="X_pred")
+    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    if X.shape[1] != X_pred.shape[1]:
+        raise ValueError(
+            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+        )
+
+    # Handle 1D y
+    if y.ndim == 1:
+        y = y[:, np.newaxis]
+
+    # X_pred moves to the device once, lazily (the driver resolves the backend).
+    device_cache: dict[str, object] = {}
+
+    def _compute_sample(backend, coef_device):
+        if "X_pred" not in device_cache:
+            device_cache["X_pred"] = backend.to_device(X_pred)
+        predictions_device = backend.matmul(device_cache["X_pred"], coef_device)
+        return backend.to_numpy(predictions_device)
+
+    return _bootstrap_ridge_gpu_batched(
+        X,
+        y,
+        alpha,
+        compute_sample=_compute_sample,
+        output_shape=(X_pred.shape[0], y.shape[1]),
+        desc="GPU bootstrap Ridge predictions",
+        n_samples=n_samples,
+        save_boots=save_boots,
+        backend=backend,
+        max_gpu_memory_gb=max_gpu_memory_gb,
+        random_state=random_state,
+        percentiles=percentiles,
+        tail=tail,
+        progress_bar=progress_bar,
+    )
