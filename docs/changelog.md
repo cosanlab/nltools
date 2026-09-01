@@ -139,6 +139,10 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> one core GPU execution layer — measured budgets, OOM recovery, run-or-raise
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> carve out predict_group(); remove the legacy cv() pipeline
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> iplot robust autoscaling + shared zero-aware percentile thresholds
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> sklearn-style cv names — 'logo'/'loo' replace 'loso'/'loro'
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict() decodes against the stored .Y slot — labels travel with the data
+- <span class="badge badge-feature">Feature</span> PredictCollection — per-subject decoding results container
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict(y=) maps per-subject decoding — closes the #478 map-reduce gap
 
 ### Improvements
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
@@ -395,6 +399,10 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-fix">Bug Fix</span> thread progress_bar through the bootstrap and Adjacency stat facades
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make options keyword-only across the inference layer
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> make write() and the file constructor round-trip
+- <span class="badge badge-fix">Bug Fix</span> compare OOM-recovered results at float32-ulp tolerance, not bitwise
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> timeseries GPU draws match CPU exactly; conjugate pairing fixed in batched phase randomization
+- <span class="badge badge-fix">Bug Fix</span> relay worker warnings to the parent — deduplicated, categories preserved
+- <span class="badge badge-fix">Bug Fix</span> adjacency plots rendered twice
 
 ### Documentation
 - <span class="badge badge-docs">Docs</span> Streamline CLAUDE.md and add token-efficient pytest guidance
@@ -506,6 +514,9 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-docs">Docs</span> regenerate API docs (griffe2md)
 - <span class="badge badge-docs">Docs</span> integrate pikachu CUDA run, make perf doc host-aware
 - <span class="badge badge-docs">Docs</span> correct the nilearn cluster-forming threshold scale
+- <span class="badge badge-docs">Docs</span> batched regeneration — API sources, changelog, tail-docstring cleanup
+- <span class="badge badge-docs">Docs</span> per-subject predict + sklearn cv names — migration guide, execution model, vocabulary
+- ⚠ **Breaking** <span class="badge badge-docs">Docs</span> plain marimo notebooks, executed previews; defer browser support to 0.6.1
 
 
 ## 0.5.0 (2023-10-31)
