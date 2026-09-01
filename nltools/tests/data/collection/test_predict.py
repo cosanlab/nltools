@@ -400,6 +400,143 @@ class TestPredictGroupCarveOut:
             from nltools.data.collection import BrainCollectionPipeline  # noqa: F401
 
 
+class TestPredictGroupNull:
+    """predict_group(n_permute>0) across all three spatial scales (F5/C-2).
+
+    The null was whole-brain-only (scalar mean_score assumed) and re-ran the
+    full CV — including a discarded all-data refit and weight-map stacking —
+    per permutation. Now: per-ROI nulls for 'roi', per-voxel null + BrainData
+    p-map for 'searchlight', and null iterations run the scoring core only.
+    """
+
+    def _single_map_bc(self, tiny_mask, n=6, seed=0):
+        rng = np.random.default_rng(seed)
+        maps = [
+            BrainData(rng.standard_normal((1, 27)).astype(np.float32), mask=tiny_mask)
+            for _ in range(n)
+        ]
+        return BrainCollection(maps, mask=tiny_mask, lazy=False, cache_dir=None)
+
+    @staticmethod
+    def _two_parcel_atlas(tiny_mask):
+        import nibabel as nib
+
+        labels = np.full((3, 3, 3), 2, dtype=np.int32)
+        labels.reshape(-1)[:13] = 1
+        return nib.Nifti1Image(labels, tiny_mask.affine)
+
+    def test_roi_null_shapes_and_per_roi_pvalues(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(
+            y,
+            spatial_scale="roi",
+            roi_mask=self._two_parcel_atlas(tiny_mask),
+            n_permute=8,
+            random_state=0,
+            n_jobs=1,
+        )
+        assert out.permutation_scores.shape == (8, 2)
+        p = np.asarray(out.permutation_pvalue)
+        assert p.shape == (2,)
+        assert np.all((p > 0.0) & (p <= 1.0))
+
+    def test_roi_null_deterministic(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        atlas = self._two_parcel_atlas(tiny_mask)
+        kw = {
+            "spatial_scale": "roi",
+            "roi_mask": atlas,
+            "n_permute": 6,
+            "random_state": 11,
+            "n_jobs": 1,
+        }
+        a = bc.predict_group(y, **kw)
+        b = bc.predict_group(y, **kw)
+        np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
+        np.testing.assert_array_equal(
+            np.asarray(a.permutation_pvalue), np.asarray(b.permutation_pvalue)
+        )
+
+    def test_searchlight_null_shapes_and_pvalue_map(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(
+            y,
+            spatial_scale="searchlight",
+            radius_mm=3.0,
+            n_permute=5,
+            random_state=0,
+            n_jobs=1,
+        )
+        assert out.permutation_scores.shape == (5, 27)
+        assert isinstance(out.permutation_pvalue, BrainData)
+        pv = np.asarray(out.permutation_pvalue.data).reshape(-1)
+        acc = np.asarray(out.accuracy_map.data).reshape(-1)
+        scored = np.isfinite(acc)
+        assert np.all((pv[scored] > 0.0) & (pv[scored] <= 1.0))
+        assert np.all(np.isnan(pv[~scored]))
+
+    def test_searchlight_null_deterministic(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        kw = {
+            "spatial_scale": "searchlight",
+            "radius_mm": 3.0,
+            "n_permute": 4,
+            "random_state": 5,
+            "n_jobs": 1,
+        }
+        a = bc.predict_group(y, **kw)
+        b = bc.predict_group(y, **kw)
+        np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
+        np.testing.assert_array_equal(
+            np.asarray(a.permutation_pvalue.data), np.asarray(b.permutation_pvalue.data)
+        )
+
+    def test_whole_brain_null_matches_full_rerun_stream(self, tiny_mask):
+        """The seeded draw stream and per-draw scores match the old
+        run-the-full-CV implementation (null values unchanged for a seed)."""
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(y, n_permute=5, random_state=3, n_jobs=1)
+        rng = np.random.default_rng(3)
+        expected = [
+            bc.predict_group(rng.permutation(y), n_jobs=1).mean_score for _ in range(5)
+        ]
+        np.testing.assert_allclose(out.permutation_scores, expected)
+
+    def test_null_iterations_skip_refit_and_weight_maps(self, tiny_mask, monkeypatch):
+        """Efficiency contract: only the observed run extracts weight maps —
+        null iterations run the scoring core only."""
+        from nltools.data.braindata import prediction as bd_prediction
+
+        calls = {"n": 0}
+        orig = bd_prediction._extract_weight_map
+
+        def counting(*args, **kwargs):
+            calls["n"] = calls["n"] + 1
+            return orig(*args, **kwargs)
+
+        monkeypatch.setattr(bd_prediction, "_extract_weight_map", counting)
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        bc.predict_group(y, n_permute=4, random_state=0, n_jobs=1)
+        # Observed run: one per fold (6 logo folds) + the all-data refit.
+        assert calls["n"] == 7, (
+            f"weight-map extraction ran {calls['n']} times — null iterations "
+            f"must not refit or stack weight maps"
+        )
+
+    def test_whole_brain_pvalue_is_phipson_smyth_upper(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(y, n_permute=10, random_state=2, n_jobs=1)
+        expected = (1.0 + np.sum(out.permutation_scores >= out.mean_score)) / 11.0
+        assert out.permutation_pvalue == pytest.approx(expected)
+
+
 class TestPredictPerSubject:
     """#478 phases 2-3: predict(y=) maps BrainData.predict over subjects.
 

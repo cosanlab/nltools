@@ -667,13 +667,28 @@ def _aggregate_weight_maps(
 # ---------------------------------------------------------------------------
 
 
+def _score_sphere(X, y, pipe, cv, groups, scoring, neighbor_indices) -> float:
+    """Mean CV score for one searchlight sphere (NaN for degenerate/failed)."""
+    from sklearn.base import clone
+    from sklearn.model_selection import cross_val_score
+
+    X_sphere = X[:, neighbor_indices]
+    if X_sphere.shape[1] < 2:
+        return np.nan
+    try:
+        scores = cross_val_score(
+            clone(pipe), X_sphere, y, cv=cv, groups=groups, scoring=scoring
+        )
+        return float(np.mean(scores))
+    except Exception:
+        return np.nan
+
+
 def _run_searchlight(
     bd, X, y, pipe, cv, groups, scoring, radius_mm, n_jobs, progress_bar
 ) -> Predict:
     """Per-voxel-neighborhood CV decoding. Returns Predict with accuracy_map."""
     from joblib import Parallel, delayed
-    from sklearn.base import clone
-    from sklearn.model_selection import cross_val_score
 
     from .neighborhoods import compute_searchlight_neighborhoods
 
@@ -682,16 +697,7 @@ def _run_searchlight(
     )
 
     def decode_sphere(center_idx, neighbor_indices):
-        X_sphere = X[:, neighbor_indices]
-        if X_sphere.shape[1] < 2:
-            return np.nan
-        try:
-            scores = cross_val_score(
-                clone(pipe), X_sphere, y, cv=cv, groups=groups, scoring=scoring
-            )
-            return float(np.mean(scores))
-        except Exception:
-            return np.nan
+        return _score_sphere(X, y, pipe, cv, groups, scoring, neighbor_indices)
 
     neighborhood_list = maybe_tqdm(
         list(neighborhoods.iter_neighborhoods()),
@@ -714,6 +720,44 @@ def _run_searchlight(
 # ---------------------------------------------------------------------------
 # ROI runner
 # ---------------------------------------------------------------------------
+
+
+def _resolve_roi_labels(brain_mask, roi_mask) -> tuple[np.ndarray, np.ndarray]:
+    """Resolve an atlas image into per-voxel labels on ``brain_mask``.
+
+    Loads a path, resamples (nearest) into the brain mask's grid when shapes
+    or affines differ, and returns ``(label_vec, unique_labels)`` where
+    ``label_vec`` is the ``(n_voxels,)`` int atlas label per in-mask voxel
+    and ``unique_labels`` the sorted non-zero labels. Shared by ``_run_roi``
+    and ``BrainCollection.predict_group``'s permutation null.
+    """
+    from pathlib import Path
+
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+
+    if roi_mask is None:
+        raise ValueError("roi_mask required for spatial_scale='roi'")
+
+    if isinstance(roi_mask, (str, Path)):
+        roi_mask = nib.load(roi_mask)
+
+    if roi_mask.shape != brain_mask.shape or not np.allclose(
+        roi_mask.affine, brain_mask.affine
+    ):
+        roi_mask = resample_to_img(
+            roi_mask,
+            brain_mask,
+            interpolation="nearest",
+            force_resample=True,
+            copy_header=True,
+        )
+
+    label_vec = apply_mask(roi_mask, brain_mask).astype(np.int64)
+    unique_labels = np.unique(label_vec)
+    unique_labels = unique_labels[unique_labels != 0]
+    return label_vec, unique_labels
 
 
 def _run_roi(
@@ -746,35 +790,11 @@ def _run_roi(
     ``estimator`` are all None for the whole call (matches whole_brain's
     behavior for non-linear models).
     """
-    from pathlib import Path
-
-    import nibabel as nib
     from joblib import Parallel, delayed
-    from nilearn.image import resample_to_img
-    from nilearn.masking import apply_mask
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
-    if roi_mask is None:
-        raise ValueError("roi_mask required for spatial_scale='roi'")
-
-    if isinstance(roi_mask, (str, Path)):
-        roi_mask = nib.load(roi_mask)
-
-    if roi_mask.shape != bd.mask.shape or not np.allclose(
-        roi_mask.affine, bd.mask.affine
-    ):
-        roi_mask = resample_to_img(
-            roi_mask,
-            bd.mask,
-            interpolation="nearest",
-            force_resample=True,
-            copy_header=True,
-        )
-
-    label_vec = apply_mask(roi_mask, bd.mask).astype(np.int64)
-    unique_labels = np.unique(label_vec)
-    unique_labels = unique_labels[unique_labels != 0]
+    label_vec, unique_labels = _resolve_roi_labels(bd.mask, roi_mask)
 
     n_folds = cv.get_n_splits(X, y, groups=groups)
     # Pre-compute split indices once so workers see the same splits; cv objects
@@ -884,4 +904,83 @@ def _run_roi(
         weight_map=_to_braindata(weight_arr, bd.mask),
         fold_weight_maps=_to_braindata(fold_weight_arr, bd.mask),
         estimator=estimator_dict,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Score-only CV cores — used by BrainCollection.predict_group's permutation
+# null so null iterations pay for scoring only (no all-data refit, no
+# weight-map extraction, no map assembly). Each mirrors its runner's fold
+# loop exactly so null values match a full re-run for the same labels.
+# ---------------------------------------------------------------------------
+
+
+def _cv_mean_score(X, y, pipe, cv, groups, scoring) -> float:
+    """Mean CV score only — the scoring core of ``_run_whole_brain``."""
+    from sklearn.base import clone
+    from sklearn.metrics import check_scoring
+
+    scorer = check_scoring(pipe, scoring=scoring)
+    fold_scores = [
+        float(
+            scorer(
+                clone(pipe).fit(X[train_idx], y[train_idx]), X[test_idx], y[test_idx]
+            )
+        )
+        for train_idx, test_idx in _iter_split(cv, X, y, groups)
+    ]
+    return float(np.mean(fold_scores))
+
+
+def _cv_roi_mean_scores(
+    X, y, pipe, cv, groups, scoring, label_vec, unique_labels
+) -> np.ndarray:
+    """Per-parcel mean CV scores only — the scoring core of ``_run_roi``.
+
+    Returns ``(n_rois,)`` with NaN for empty or failing parcels, matching
+    ``_run_roi``'s per-parcel error semantics.
+    """
+    from sklearn.base import clone
+    from sklearn.metrics import check_scoring
+
+    split_indices = list(_iter_split(cv, X, y, groups))
+    scorer = check_scoring(pipe, scoring=scoring)
+    out = np.full(len(unique_labels), np.nan, dtype=float)
+    for k, roi_label in enumerate(unique_labels):
+        cols = label_vec == roi_label
+        if not cols.any():
+            continue
+        X_roi = X[:, cols]
+        try:
+            fold_scores = [
+                float(
+                    scorer(
+                        clone(pipe).fit(X_roi[train_idx], y[train_idx]),
+                        X_roi[test_idx],
+                        y[test_idx],
+                    )
+                )
+                for train_idx, test_idx in split_indices
+            ]
+        except Exception:
+            continue
+        out[k] = float(np.nanmean(fold_scores))
+    return out
+
+
+def _cv_searchlight_scores(
+    X, y, pipe, cv, groups, scoring, neighborhood_list
+) -> np.ndarray:
+    """Per-voxel sphere scores only — the scoring core of ``_run_searchlight``.
+
+    ``neighborhood_list`` is ``[(center_idx, neighbor_indices), ...]`` in
+    mask-voxel order; returns ``(n_voxels,)`` with NaN for degenerate or
+    failing spheres.
+    """
+    return np.asarray(
+        [
+            _score_sphere(X, y, pipe, cv, groups, scoring, neighbor_indices)
+            for _, neighbor_indices in neighborhood_list
+        ],
+        dtype=float,
     )

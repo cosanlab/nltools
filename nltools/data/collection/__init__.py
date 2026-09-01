@@ -973,9 +973,15 @@ class BrainCollection:
             scoring: ``'auto'`` → accuracy (classifier) / r2 (regressor).
             standardize: Standardize features within each CV fold.
             n_permute: If ``> 0``, also build a label-permutation null of
-                the CV score — shuffle ``y``, re-run the identical CV,
-                record the mean score — attached as ``permutation_scores``
-                and ``permutation_pvalue``. Default 0 (no null).
+                the CV score — shuffle ``y`` and re-score the identical CV
+                (scoring only; no refit/weight-map work) — attached as
+                ``permutation_scores`` and ``permutation_pvalue``
+                (Phipson-Smyth upper-tail). Forms by ``spatial_scale``:
+                whole_brain → null ``(n_permute,)``, p float; roi → null
+                ``(n_permute, n_rois)``, p ``(n_rois,)``; searchlight →
+                null ``(n_permute, n_voxels)``, p a `BrainData` map (NaN
+                where the observed accuracy map is NaN). Default 0 (no
+                null).
             n_jobs: CPU workers.
             random_state: Seed for the permutation-null label shuffling.
             progress_bar: Whether to display a progress bar.
@@ -1057,21 +1063,26 @@ class BrainCollection:
 
         result = _run_cv(y_arr)
         if n_permute > 0:
-            # Label-permutation null: shuffle y, re-run the identical CV,
-            # collect the mean score. An outer loop over the whole CV — not a
-            # train/test split — so the null reflects only label exchange.
-            rng = np.random.default_rng(random_state)
-            observed = result.mean_score
-            null = np.empty(n_permute, dtype=np.float64)
-            for i in range(n_permute):
-                null[i] = _run_cv(rng.permutation(y_arr)).mean_score
-            from dataclasses import replace as dataclass_replace
-
-            result = dataclass_replace(
+            # Label-permutation null: shuffle y and re-score the identical CV.
+            # An outer loop over the whole CV — not a train/test split — so
+            # the null reflects only label exchange. Null iterations run the
+            # scoring cores only (no all-data refit, no weight maps).
+            result = _predict_group_null(
                 result,
-                permutation_scores=null,
-                permutation_pvalue=(1.0 + int(np.sum(null >= observed)))
-                / (n_permute + 1),
+                bd=bd,
+                y_arr=y_arr,
+                groups_arr=groups_arr,
+                cv_arg=cv_arg,
+                spatial_scale=spatial_scale,
+                model=model,
+                scoring=scoring,
+                standardize=standardize,
+                roi_mask=roi_mask,
+                radius_mm=radius_mm,
+                n_permute=n_permute,
+                n_jobs=n_jobs,
+                random_state=random_state,
+                progress_bar=progress_bar,
             )
         return result
 
@@ -1809,3 +1820,133 @@ class BrainCollection:
         n = len(items)
         loaded = sum(self.is_loaded) if items else 0
         return f"BrainCollection(n_subjects={n}, loaded={loaded}/{n})"
+
+
+def _predict_group_null(
+    result,
+    *,
+    bd,
+    y_arr: np.ndarray,
+    groups_arr: np.ndarray | None,
+    cv_arg,
+    spatial_scale: str,
+    model,
+    scoring: str,
+    standardize: bool,
+    roi_mask,
+    radius_mm: float,
+    n_permute: int,
+    n_jobs: int,
+    random_state: int | None,
+    progress_bar: bool,
+):
+    """Attach a label-permutation null to a ``predict_group`` result.
+
+    Each permutation shuffles ``y`` and re-scores the identical CV through
+    the score-only cores in ``braindata.prediction`` — no all-data refit, no
+    weight-map extraction — parallelized over permutations via joblib.
+    The draw stream is one ``rng.permutation(y)`` per iteration in order,
+    matching the pre-rework implementation, so whole-brain nulls for a given
+    ``random_state`` are unchanged.
+
+    Null / p-value forms by ``spatial_scale`` (p is Phipson-Smyth upper-tail
+    via the shared engine helper ``_compute_pvalue``):
+
+    - ``'whole_brain'``: null ``(n_permute,)``, p float.
+    - ``'roi'``: null ``(n_permute, n_rois)``, p ``(n_rois,)`` ndarray
+      (NaN where the observed per-ROI score is NaN).
+    - ``'searchlight'``: null ``(n_permute, n_voxels)``, p a ``BrainData``
+      ``(1, n_voxels)`` map (NaN where the observed accuracy map is NaN).
+    """
+    from dataclasses import replace as dataclass_replace
+
+    from joblib import Parallel, delayed
+    from sklearn.base import is_classifier
+
+    from nltools.algorithms.inference.utils import _compute_pvalue
+
+    from ..braindata import prediction as bdp
+    from . import execution
+
+    # Rebuild the exact pipeline/scoring the observed run used inside
+    # BrainData.predict so null scores are commensurable with the observed.
+    resolved_model = bdp.resolve_model(model)
+    scoring_resolved = bdp.resolve_scoring(scoring, is_classifier(resolved_model))
+    standardize_resolved = bdp._resolve_standardize_for_model(
+        resolved_model, standardize
+    )
+    pipe = bdp.build_pipeline(resolved_model, standardize_resolved, None, None)
+    X_data = bd.data
+
+    rng = np.random.default_rng(random_state)
+    permuted = [rng.permutation(y_arr) for _ in range(n_permute)]
+
+    if spatial_scale == "whole_brain":
+        jobs = (
+            delayed(bdp._cv_mean_score)(
+                X_data, labels, pipe, cv_arg, groups_arr, scoring_resolved
+            )
+            for labels in permuted
+        )
+    elif spatial_scale == "roi":
+        label_vec, unique_labels = bdp._resolve_roi_labels(bd.mask, roi_mask)
+        jobs = (
+            delayed(bdp._cv_roi_mean_scores)(
+                X_data,
+                labels,
+                pipe,
+                cv_arg,
+                groups_arr,
+                scoring_resolved,
+                label_vec,
+                unique_labels,
+            )
+            for labels in permuted
+        )
+    else:  # spatial_scale == 'searchlight'
+        from ..braindata.neighborhoods import compute_searchlight_neighborhoods
+
+        neighborhoods = compute_searchlight_neighborhoods(
+            bd.mask, radius_mm=radius_mm, use_cache=True
+        )
+        neighborhood_list = list(neighborhoods.iter_neighborhoods())
+        jobs = (
+            delayed(bdp._cv_searchlight_scores)(
+                X_data,
+                labels,
+                pipe,
+                cv_arg,
+                groups_arr,
+                scoring_resolved,
+                neighborhood_list,
+            )
+            for labels in permuted
+        )
+
+    with execution.tqdm_joblib(
+        total=n_permute, desc="Permutation null", disable=not progress_bar
+    ):
+        rows = Parallel(n_jobs=n_jobs)(jobs)
+
+    null = np.asarray(rows, dtype=np.float64)
+
+    if spatial_scale == "whole_brain":
+        pvalue = float(
+            np.squeeze(
+                _compute_pvalue(np.asarray(result.mean_score), null, tail="upper")
+            )
+        )
+    elif spatial_scale == "roi":
+        obs = np.asarray(result.mean_score, dtype=np.float64)
+        p = np.asarray(_compute_pvalue(obs, null, tail="upper")).reshape(-1)
+        p[~np.isfinite(obs)] = np.nan
+        pvalue = p
+    else:
+        from ..braindata import BrainData as _BrainData
+
+        obs = np.asarray(result.accuracy_map.data, dtype=np.float64).reshape(-1)
+        p = np.asarray(_compute_pvalue(obs, null, tail="upper")).reshape(-1)
+        p[~np.isfinite(obs)] = np.nan
+        pvalue = _BrainData(p.reshape(1, -1), mask=bd.mask)
+
+    return dataclass_replace(result, permutation_scores=null, permutation_pvalue=pvalue)
