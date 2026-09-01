@@ -872,6 +872,32 @@ class TestBootstrapPerformance:
 # ============================================================================
 
 
+class TestValidateGpuBackend:
+    """The GPU engine's backend guard must accept exactly the GPU device backends.
+
+    Regression test: the guard compared against 'torch' — a pre-hyphenation name
+    that matches no resolved backend — so torch-cuda was rejected and only
+    torch-mps passed. Runs without GPU hardware via stub backends.
+    """
+
+    @pytest.mark.parametrize("name", ["torch-cuda", "torch-mps"])
+    def test_accepts_gpu_device_backends(self, name):
+        from types import SimpleNamespace
+
+        from nltools.algorithms.inference.bootstrap import _validate_gpu_backend
+
+        _validate_gpu_backend(SimpleNamespace(name=name))  # must not raise
+
+    @pytest.mark.parametrize("name", ["torch-cpu", "numpy"])
+    def test_rejects_cpu_backends(self, name):
+        from types import SimpleNamespace
+
+        from nltools.algorithms.inference.bootstrap import _validate_gpu_backend
+
+        with pytest.raises(ValueError, match="torch-cuda"):
+            _validate_gpu_backend(SimpleNamespace(name=name))
+
+
 @pytest.mark.slow
 class TestBootstrapRidgeWeightsGPU:
     """Test suite for GPU-accelerated Ridge weights bootstrap."""

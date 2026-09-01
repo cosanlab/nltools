@@ -760,6 +760,24 @@ def _auto_batch_size_ridge(
     )
 
 
+def _validate_gpu_backend(backend) -> None:
+    """Raise unless *backend* is a GPU device backend (torch-cuda or torch-mps).
+
+    Guard for the GPU bootstrap engine: CPU backends ('numpy', 'torch-cpu')
+    must be rejected — this engine assumes device compute.
+
+    Args:
+        backend: Resolved Backend instance (only ``.name`` is inspected).
+
+    Raises:
+        ValueError: If ``backend.name`` is not 'torch-cuda' or 'torch-mps'.
+    """
+    if backend.name not in ("torch-cuda", "torch-mps"):
+        raise ValueError(
+            f"GPU backend requires 'torch-cuda' or 'torch-mps', got '{backend.name}'"
+        )
+
+
 def _bootstrap_ridge_gpu_batched(
     X: np.ndarray,
     y: np.ndarray,
@@ -814,10 +832,7 @@ def _bootstrap_ridge_gpu_batched(
     # Handle backend
     if backend is None:
         backend = auto_select_backend(X.shape[0], X.shape[1])
-    if backend.name not in ["torch", "torch-mps"]:
-        raise ValueError(
-            f"GPU backend requires 'torch' or 'torch-mps', got '{backend.name}'"
-        )
+    _validate_gpu_backend(backend)
 
     n_obs, n_features = X.shape
     n_voxels = y.shape[1]
