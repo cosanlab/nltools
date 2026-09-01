@@ -356,7 +356,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance (must contain multiple images). | *required*
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
+`permutation` |  | If True, use a sign-flip permutation test on ``images - popmean`` via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
 `tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>

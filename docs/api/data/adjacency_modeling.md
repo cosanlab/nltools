@@ -40,6 +40,7 @@ Name | Type | Description | Default
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `progress_bar` |  | (bool) If True, show a progress bar. Default False. | <code>False</code>

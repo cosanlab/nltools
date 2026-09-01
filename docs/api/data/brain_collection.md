@@ -606,7 +606,7 @@ Name | Type | Description | Default
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
 `standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
-`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y``, re-run the identical CV, record the mean score — attached as ``permutation_scores`` and ``permutation_pvalue``. Default 0 (no null). | <code>0</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y`` and re-score the identical CV (scoring only; no refit/weight-map work) — attached as ``permutation_scores`` and ``permutation_pvalue`` (Phipson-Smyth upper-tail). Forms by ``spatial_scale``: whole_brain → null ``(n_permute,)``, p float; roi → null ``(n_permute, n_rois)``, p ``(n_rois,)``; searchlight → null ``(n_permute, n_voxels)``, p a `BrainData` map (NaN where the observed accuracy map is NaN). Default 0 (no null). | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | CPU workers. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the permutation-null label shuffling. | <code>None</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>

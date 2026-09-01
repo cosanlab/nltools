@@ -101,7 +101,10 @@ Read a DesignMatrix HDF5 file written by `write_h5`.
 
 Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
 and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
-in ``data`` beside an ``S``-typed ``columns`` dataset).
+in ``data`` beside an ``S``-typed ``columns`` dataset). Legacy files may
+also carry pre-`.nl_` generated column names (``poly_0``, ``0_poly_0``,
+``cosine_1``); those are translated into the reserved namespace at load
+time so downstream recognition stays keyed on the prefix alone.
 
 **Parameters:**
 

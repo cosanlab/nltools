@@ -143,6 +143,7 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict() decodes against the stored .Y slot — labels travel with the data
 - <span class="badge badge-feature">Feature</span> PredictCollection — per-subject decoding results container
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict(y=) maps per-subject decoding — closes the #478 map-reduce gap
+- ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict_group permutation null for roi and searchlight
 
 ### Improvements
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
@@ -281,6 +282,11 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> remove nltools.stats; consolidate the functional core into nltools.algorithms
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize the ISC vocabulary (summary=/metric=/null_dist)
 - ⚠ **Breaking** <span class="badge badge-improvement">Improvement</span> canonicalize cluster_summary and extract_roi kwargs
+- <span class="badge badge-improvement">Improvement</span> isc_test p-values via the shared _compute_pvalue helper
+- <span class="badge badge-improvement">Improvement</span> thread tail through the bootstrap engines; drop the facade closures
+- <span class="badge badge-improvement">Improvement</span> one GPU bootstrap driver, two thin wrappers
+- <span class="badge badge-improvement">Improvement</span> stop materializing np.abs(arr) three times per iplot window
+- <span class="badge badge-improvement">Improvement</span> one shared manifest module for the lint-api trio
 
 ### Bug Fixes
 - <span class="badge badge-fix">Bug Fix</span> fix formatting
@@ -403,6 +409,20 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> timeseries GPU draws match CPU exactly; conjugate pairing fixed in batched phase randomization
 - <span class="badge badge-fix">Bug Fix</span> relay worker warnings to the parent — deduplicated, categories preserved
 - <span class="badge badge-fix">Bug Fix</span> adjacency plots rendered twice
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> GPU Spearman ranks ties correctly; device validation is run-or-raise
+- <span class="badge badge-fix">Bug Fix</span> one-tailed z maps stay finite; single shared z-from-p helper
+- ⚠ **Breaking** <span class="badge badge-fix">Bug Fix</span> ttest(popmean=X, permutation=True) tests mean != popmean
+- <span class="badge badge-fix">Bug Fix</span> string class labels decode and persist end to end
+- <span class="badge badge-fix">Bug Fix</span> predict worker closures no longer capture the collection
+- <span class="badge badge-fix">Bug Fix</span> classify .h5 items by bundle_kind, not bare suffix
+- <span class="badge badge-fix">Bug Fix</span> predict-bundle model_spec is a real refit spec, not a repr
+- <span class="badge badge-fix">Bug Fix</span> plot_between_label_distance crashed on its default permutation path
+- <span class="badge badge-fix">Bug Fix</span> validate the separator-recovery re-parse instead of trusting the header hint
+- <span class="badge badge-fix">Bug Fix</span> translate pre-.nl_ generated names when loading a legacy h5
+- <span class="badge badge-fix">Bug Fix</span> make the GPU bootstrap per-sample hooks private
+- <span class="badge badge-fix">Bug Fix</span> qualify vocabulary suppressions by module path
+- <span class="badge badge-fix">Bug Fix</span> move check_kwonly's inline EXEMPT dict into the vocabulary manifest
+- <span class="badge badge-fix">Bug Fix</span> move the _NullProgressBar nosemgrep suppressions into the semgrep config
 
 ### Documentation
 - <span class="badge badge-docs">Docs</span> Streamline CLAUDE.md and add token-efficient pytest guidance
@@ -517,6 +537,8 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-docs">Docs</span> batched regeneration — API sources, changelog, tail-docstring cleanup
 - <span class="badge badge-docs">Docs</span> per-subject predict + sklearn cv names — migration guide, execution model, vocabulary
 - ⚠ **Breaking** <span class="badge badge-docs">Docs</span> plain marimo notebooks, executed previews; defer browser support to 0.6.1
+- <span class="badge badge-docs">Docs</span> regenerate changelog for the commits since the batched docs pass
+- <span class="badge badge-docs">Docs</span> close the gaps found by the breaking-commit audit
 
 
 ## 0.5.0 (2023-10-31)

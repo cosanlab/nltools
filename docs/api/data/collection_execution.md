@@ -27,6 +27,7 @@ Name | Description
 
 Name | Description
 ---- | -----------
+[`detect_bundle_kind`](#data-collection-execution-detect-bundle-kind) | Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
 [`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
 [`read_predict_bundle`](#data-collection-execution-read-predict-bundle) | Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
 [`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
@@ -69,6 +70,27 @@ Name | Type | Description
 `total` |  | 
 
 ### Methods
+
+(data-collection-execution-detect-bundle-kind)=
+#### `detect_bundle_kind`
+
+```python
+detect_bundle_kind(path: Path | str) -> str | None
+```
+
+Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
+
+The structured replacement for bare-suffix checks, which misclassified
+user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
+
+1. The ``bundle_kind`` attr (``'glm'`` | ``'ridge'`` | ``'predict'``) —
+   stamped by every bundle writer.
+2. Dataset sniff for dev-cycle bundles written before the attr existed:
+   a file carrying ``bundle_schema_version`` with a ``weights`` dataset
+   is a ridge bundle, with ``betas`` a GLM bundle.
+3. Otherwise not a bundle (e.g. a user-saved BrainData ``.h5``).
+
+Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
 
 (data-collection-execution-read-glm-bundle)=
 #### `read_glm_bundle`
@@ -139,9 +161,14 @@ Layout (see ``docs/development/execution-model.md``):
     fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
     attrs: bundle_kind='predict', present_fields, scalar_summaries,
     permutation_pvalue (when set), model_spec (JSON — the refit
-    ingredients), affine, plus the shared lineage attrs.
+    ingredients; its ``model`` entry is a structured spec from
+    ``_serialize_model_spec``: shortcut name or estimator class + params,
+    or an explicit ``refittable: false`` marker when the estimator's
+    params can't be serialized), affine, plus the shared lineage attrs.
 
-The fitted ``estimator`` is deliberately not persisted.
+The fitted ``estimator`` is deliberately not persisted; rebuild one via
+``nltools.data.braindata.prediction._model_from_spec`` when the spec is
+refittable.
 
 (data-collection-execution-write-ridge-bundle)=
 #### `write_ridge_bundle`

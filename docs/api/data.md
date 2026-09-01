@@ -1347,7 +1347,7 @@ Name | Type | Description | Default
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
 `standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
-`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y``, re-run the identical CV, record the mean score — attached as ``permutation_scores`` and ``permutation_pvalue``. Default 0 (no null). | <code>0</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y`` and re-score the identical CV (scoring only; no refit/weight-map work) — attached as ``permutation_scores`` and ``permutation_pvalue`` (Phipson-Smyth upper-tail). Forms by ``spatial_scale``: whole_brain → null ``(n_permute,)``, p float; roi → null ``(n_permute, n_rois)``, p ``(n_rois,)``; searchlight → null ``(n_permute, n_voxels)``, p a `BrainData` map (NaN where the observed accuracy map is NaN). Default 0 (no null). | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | CPU workers. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the permutation-null label shuffling. | <code>None</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
@@ -5066,6 +5066,7 @@ Name | Type | Description | Default
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `progress_bar` |  | (bool) If True, show a progress bar. Default False. | <code>False</code>
@@ -8537,6 +8538,7 @@ Name | Type | Description | Default
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
 `device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
 `max_gpu_memory_gb` |  | (float, optional) Explicit GPU memory budget in GB when device is 'gpu' or 'auto'. None (default) measures the device. | <code>None</code>
+`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `progress_bar` |  | (bool) If True, show a progress bar. Default: False | <code>False</code>
@@ -9500,7 +9502,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance (must contain multiple images). | *required*
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` |  | If True, use sign-flip permutation test via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
+`permutation` |  | If True, use a sign-flip permutation test on ``images - popmean`` via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
 `tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
@@ -11356,7 +11358,7 @@ Name | Type | Description | Default
 `radius_mm` | <code>[float](#float)</code> | Searchlight radius. | <code>10.0</code>
 `scoring` | <code>[str](#str)</code> | ``'auto'`` → accuracy (classifier) / r2 (regressor). | <code>'auto'</code>
 `standardize` | <code>[bool](#bool)</code> | Standardize features within each CV fold. | <code>True</code>
-`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y``, re-run the identical CV, record the mean score — attached as ``permutation_scores`` and ``permutation_pvalue``. Default 0 (no null). | <code>0</code>
+`n_permute` | <code>[int](#int)</code> | If ``> 0``, also build a label-permutation null of the CV score — shuffle ``y`` and re-score the identical CV (scoring only; no refit/weight-map work) — attached as ``permutation_scores`` and ``permutation_pvalue`` (Phipson-Smyth upper-tail). Forms by ``spatial_scale``: whole_brain → null ``(n_permute,)``, p float; roi → null ``(n_permute, n_rois)``, p ``(n_rois,)``; searchlight → null ``(n_permute, n_voxels)``, p a `BrainData` map (NaN where the observed accuracy map is NaN). Default 0 (no null). | <code>0</code>
 `n_jobs` | <code>[int](#int)</code> | CPU workers. | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the permutation-null label shuffling. | <code>None</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
@@ -12076,7 +12078,8 @@ Name | Description
 
 Name | Description
 ---- | -----------
-[`read_glm_bundle`](#data-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+[`detect_bundle_kind`](#data-detect-bundle-kind) | Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
+`read_glm_bundle` | Read a GLM bundle. Validates ``bundle_schema_version``.
 `read_predict_bundle` | Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
 `read_ridge_bundle` | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
 `write_glm_bundle` | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
@@ -12151,8 +12154,28 @@ total = total
 
 ####### Functions##
 
-(data-read-glm-bundle)=
-###### `read_glm_bundle`
+(data-detect-bundle-kind)=
+###### `detect_bundle_kind`
+
+```python
+detect_bundle_kind(path: Path | str) -> str | None
+```
+
+Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
+
+The structured replacement for bare-suffix checks, which misclassified
+user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
+
+1. The ``bundle_kind`` attr (``'glm'`` | ``'ridge'`` | ``'predict'``) —
+   stamped by every bundle writer.
+2. Dataset sniff for dev-cycle bundles written before the attr existed:
+   a file carrying ``bundle_schema_version`` with a ``weights`` dataset
+   is a ridge bundle, with ``betas`` a GLM bundle.
+3. Otherwise not a bundle (e.g. a user-saved BrainData ``.h5``).
+
+Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
+
+######## `read_glm_bundle`
 
 ```python
 read_glm_bundle(path: Path) -> dict[str, Any]
@@ -12216,9 +12239,14 @@ Layout (see ``docs/development/execution-model.md``):
     fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
     attrs: bundle_kind='predict', present_fields, scalar_summaries,
     permutation_pvalue (when set), model_spec (JSON — the refit
-    ingredients), affine, plus the shared lineage attrs.
+    ingredients; its ``model`` entry is a structured spec from
+    ``_serialize_model_spec``: shortcut name or estimator class + params,
+    or an explicit ``refittable: false`` marker when the estimator's
+    params can't be serialized), affine, plus the shared lineage attrs.
 
-The fitted ``estimator`` is deliberately not persisted.
+The fitted ``estimator`` is deliberately not persisted; rebuild one via
+``nltools.data.braindata.prediction._model_from_spec`` when the spec is
+refittable.
 
 ######## `write_ridge_bundle`
 
@@ -13702,7 +13730,10 @@ Read a DesignMatrix HDF5 file written by `write_h5`.
 
 Handles both on-disk layouts: the current one (frame as Arrow IPC bytes)
 and the pre-reader one written by nltools <= 0.6.0 (a plain float matrix
-in ``data`` beside an ``S``-typed ``columns`` dataset).
+in ``data`` beside an ``S``-typed ``columns`` dataset). Legacy files may
+also carry pre-`.nl_` generated column names (``poly_0``, ``0_poly_0``,
+``cosine_1``); those are translated into the reserved namespace at load
+time so downstream recognition stays keyed on the prefix alone.
 
 **Returns:**
 
@@ -14777,7 +14808,7 @@ False
 ###### `Predict`
 
 ```python
-Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: Any = None, std_score: Any = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: Any = None, weight_map: Any = None, fold_weight_maps: Any = None, estimator: Any = None, permutation_scores: np.ndarray | None = None, permutation_pvalue: float | None = None) -> None
+Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: Any = None, std_score: Any = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: Any = None, weight_map: Any = None, fold_weight_maps: Any = None, estimator: Any = None, permutation_scores: np.ndarray | None = None, permutation_pvalue: Any = None) -> None
 ```
 
 Immutable container for prediction / MVPA decoding results.
@@ -14861,7 +14892,7 @@ Name | Type | Description
 `estimator` | <code>[Any](#typing.Any)</code> | 
 `fold_weight_maps` | <code>[Any](#typing.Any)</code> | 
 `mean_score` | <code>[Any](#typing.Any)</code> | 
-`permutation_pvalue` | <code>[float](#float) \| None</code> | 
+`permutation_pvalue` | <code>[Any](#typing.Any)</code> | 
 `permutation_scores` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
 `predictions` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
 `roi_labels` | <code>[ndarray](#numpy.ndarray) \| None</code> | 
@@ -14914,7 +14945,7 @@ mean_score: Any = None
 ######## `permutation_pvalue`
 
 ```python
-permutation_pvalue: float | None = None
+permutation_pvalue: Any = None
 ```
 
 ######## `permutation_scores`
