@@ -31,6 +31,18 @@ def _torch_cuda_available():
         return False
 
 
+def _torch_gpu_available():
+    """Check if PyTorch with any GPU device (CUDA or MPS) is available."""
+    try:
+        import torch
+
+        return torch.cuda.is_available() or (
+            hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        )
+    except ImportError:
+        return False
+
+
 class TestBandedRidgeBasics:
     """Test basic banded ridge functionality."""
 
@@ -412,6 +424,41 @@ class TestBackends:
         # Results should be on CPU as numpy arrays
         assert isinstance(best_alphas, np.ndarray)
         assert isinstance(coefs, np.ndarray)
+
+    @pytest.mark.gpu
+    @pytest.mark.skipif(
+        not _torch_gpu_available(), reason="GPU (CUDA or MPS) not available"
+    )
+    def test_gpu_refit_alpha_indices_on_device(self):
+        """Refit alpha-index bookkeeping must stay on the compute device.
+
+        Regression test: with the torch backend, ``xp.arange`` allocated on CPU
+        while ``alphas_indices`` (from ``searchsorted`` over device tensors)
+        lived on the GPU, so ``torch.isin``/``torch.searchsorted`` raised a
+        device-mismatch RuntimeError in the ``return_weights`` refit loop.
+        ``n_alphas_batch=2`` forces partial alpha batches so both sites that
+        index the arange by ``alpha_batch`` are exercised.
+        """
+        from nltools.algorithms.ridge.solvers import solve_banded_ridge_cv
+
+        np.random.seed(42)
+        X = np.random.randn(60, 20).astype(np.float32)
+        Y = np.random.randn(60, 8).astype(np.float32)
+
+        result = solve_banded_ridge_cv(
+            Xs=[X],
+            Y=Y,
+            n_iter=4,
+            alphas=[0.01, 0.1, 1.0, 10.0, 100.0],
+            n_alphas_batch=2,
+            cv=3,
+            return_weights=True,
+            parallel="gpu",
+            random_state=0,
+        )
+        coefs = result["coefs"]
+        assert coefs.shape == (20, 8)
+        assert np.all(np.isfinite(coefs))
 
 
 class TestYInCpu:

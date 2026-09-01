@@ -464,14 +464,19 @@ def solve_banded_ridge_cv(
                         alphas_indices = xp.searchsorted(
                             used_alphas, best_alphas[mask][batch]
                         )
-                        # Mask targets whose selected alphas are outside the alpha batch
-                        mask2 = xp.isin(
-                            alphas_indices,
-                            xp.arange(len(used_alphas))[alpha_batch],
+                        # Indices (within used_alphas) covered by this alpha
+                        # batch, on the compute device: torch.arange allocates
+                        # on CPU while alphas_indices lives on the device, and
+                        # torch.isin/searchsorted require same-device tensors.
+                        # to_gpu is a no-op for the numpy backend.
+                        batch_alpha_indices = backend.to_gpu(
+                            xp.arange(len(used_alphas))[alpha_batch]
                         )
+                        # Mask targets whose selected alphas are outside the alpha batch
+                        mask2 = xp.isin(alphas_indices, batch_alpha_indices)
                         # Get indices in alpha_batch
                         alphas_indices = xp.searchsorted(
-                            xp.arange(len(used_alphas))[alpha_batch],
+                            batch_alpha_indices,
                             alphas_indices[mask2],
                         )
                         # Update corresponding weights
@@ -482,6 +487,7 @@ def solve_banded_ridge_cv(
                             backend.to_cpu(tmp).T
                         )
                         del weights, alphas_indices, mask2, mask_target
+                        del batch_alpha_indices
 
                     del matrix
 
