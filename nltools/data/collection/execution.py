@@ -40,6 +40,7 @@ __all__ = [
     "_ItemTask",
     "_apply",
     "_materialize",
+    "detect_bundle_kind",
     "read_glm_bundle",
     "read_predict_bundle",
     "read_ridge_bundle",
@@ -567,6 +568,41 @@ def _write_bundle(
     return out_path
 
 
+def detect_bundle_kind(path: Path | str) -> str | None:
+    """Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
+
+    The structured replacement for bare-suffix checks, which misclassified
+    user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
+
+    1. The ``bundle_kind`` attr (``'glm'`` | ``'ridge'`` | ``'predict'``) —
+       stamped by every bundle writer.
+    2. Dataset sniff for dev-cycle bundles written before the attr existed:
+       a file carrying ``bundle_schema_version`` with a ``weights`` dataset
+       is a ridge bundle, with ``betas`` a GLM bundle.
+    3. Otherwise not a bundle (e.g. a user-saved BrainData ``.h5``).
+
+    Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
+    """
+    import h5py
+
+    path = Path(path)
+    if path.suffix not in (".h5", ".hdf5"):
+        return None
+    try:
+        with h5py.File(path, "r", locking=False) as f:
+            kind = _to_str(f.attrs.get("bundle_kind", "") or "")
+            if kind:
+                return kind
+            if "bundle_schema_version" in f.attrs:
+                if "weights" in f:
+                    return "ridge"
+                if "betas" in f:
+                    return "glm"
+            return None
+    except OSError:
+        return None
+
+
 def _read_bundle_attrs_and_validate(path: Path) -> tuple[Any, dict[str, Any]]:
     """Open ``path``, validate ``bundle_schema_version``, warn on nltools mismatch.
 
@@ -651,6 +687,7 @@ def write_glm_bundle(
             "mask": mask_bytes,
         },
         attrs={
+            "bundle_kind": "glm",
             "affine": np.asarray(affine),
             "regressor_names": json.dumps(list(regressor_names)),
             "scale": bool(scale),
@@ -739,6 +776,7 @@ def write_ridge_bundle(
             "mask": mask_bytes,
         },
         attrs={
+            "bundle_kind": "ridge",
             "affine": np.asarray(affine),
             "regressor_names": json.dumps(list(regressor_names)),
             "model_kwargs": json.dumps(model_kwargs),
@@ -1256,13 +1294,18 @@ def _predict_after_fit_worker(
     """
     from ..braindata import BrainData as _BrainData
 
-    if not isinstance(task.item, (str, Path)) or Path(task.item).suffix not in (
-        ".h5",
-        ".hdf5",
-    ):
+    if not isinstance(task.item, (str, Path)):
         raise ValueError(
             "predict(X_new=...) requires a ridge bundle path; got an in-memory "
             "object. Run .fit(model='ridge', cache=True) first."
+        )
+    kind = detect_bundle_kind(Path(task.item))
+    if kind != "ridge":
+        what = f"a {kind} bundle" if kind else "not a ridge bundle"
+        raise ValueError(
+            f"predict(X_new=...) requires a ridge fit bundle; "
+            f"{Path(task.item).name} is {what}. "
+            f"Run .fit(model='ridge', cache=True) first."
         )
 
     bundle = read_ridge_bundle(Path(task.item))

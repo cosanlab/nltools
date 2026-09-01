@@ -985,13 +985,16 @@ class BrainCollection:
             when ``n_permute > 0``.
         """
         from ..braindata import BrainData
+        from . import execution
 
-        # Items must be single-map-per-subject (1, n_voxels) shape.
-        # GLM bundles (.h5) and multi-row BD must call compute_contrasts first.
+        # Items must be single-map-per-subject (1, n_voxels) shape. Fit/predict
+        # bundles must call compute_contrasts first; a user-saved BrainData
+        # .h5 is a plain image and passes (structured bundle_kind check, not
+        # bare suffix).
         for i, item in enumerate(self._items):
-            if isinstance(item, Path) and item.suffix in (".h5", ".hdf5"):
+            if isinstance(item, Path) and (kind := execution.detect_bundle_kind(item)):
                 raise ValueError(
-                    f"item {i} is a fit bundle ({item.name}); call "
+                    f"item {i} is a {kind} bundle ({item.name}); call "
                     f"compute_contrasts(...) first to get a single map per subject."
                 )
 
@@ -1117,12 +1120,14 @@ class BrainCollection:
         from ..fitresults import PredictCollection
         from . import execution
 
-        # Fit bundles hold model arrays, not decodable images — refuse
-        # eagerly with a pointer to the right paths.
+        # Fit/predict bundles hold model arrays, not decodable images — refuse
+        # eagerly with a pointer to the right paths. A user-saved BrainData
+        # .h5 is a plain image and passes (structured bundle_kind check, not
+        # bare suffix).
         for i, item in enumerate(self._items):
-            if isinstance(item, Path) and item.suffix in (".h5", ".hdf5"):
+            if isinstance(item, Path) and (kind := execution.detect_bundle_kind(item)):
                 raise ValueError(
-                    f"item {i} is a fit bundle ({item.name}); predict(y=...) "
+                    f"item {i} is a {kind} bundle ({item.name}); predict(y=...) "
                     f"decodes image items. Use predict(X_new=...) for "
                     f"predict-after-fit, or compute_contrasts(...) + "
                     f"predict_group(...) for group MVPA."
@@ -1224,9 +1229,14 @@ class BrainCollection:
         from . import execution
 
         # Validate eagerly so the user gets a clean message before workers
-        # spin up. Mirrors the bundle-check at _predict_group above.
+        # spin up (a structured bundle_kind check — a bare .h5 suffix could
+        # be a user-saved BrainData image, which previously died inside
+        # read_ridge_bundle with a misleading schema error).
         for i, item in enumerate(self._items):
-            if not (isinstance(item, Path) and item.suffix in (".h5", ".hdf5")):
+            kind = (
+                execution.detect_bundle_kind(item) if isinstance(item, Path) else None
+            )
+            if kind != "ridge":
                 raise ValueError(
                     f"item {i} is not a ridge bundle; predict(X_new=...) "
                     f"requires items produced by .fit(model='ridge', cache=True)."

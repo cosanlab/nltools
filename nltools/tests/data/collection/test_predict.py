@@ -683,6 +683,57 @@ class TestStringLabelDecoding:
         assert np.asarray(loaded.predictions).dtype.kind == "U"
 
 
+class TestUserH5Items:
+    """User-saved BrainData .h5 files are images, not fit bundles (F7).
+
+    Bare-suffix detection misclassified them, so predict_group/predict(y=)
+    refused valid image collections and predict(X_new=) died inside
+    read_ridge_bundle with a misleading schema error.
+    """
+
+    def _mask(self, tmp_path, tiny_mask):
+        import nibabel as nib
+
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(tiny_mask, mask_path)
+        return nib.load(mask_path)
+
+    def _h5_paths(self, tmp_path, mask, *, n_subjects, n_obs, seed=0):
+        rng = np.random.default_rng(seed)
+        paths = []
+        for i in range(n_subjects):
+            bd = BrainData(
+                rng.standard_normal((n_obs, 27)).astype(np.float32), mask=mask
+            )
+            p = tmp_path / f"sub-{i + 1:02d}.h5"
+            bd.write(p)
+            paths.append(p)
+        return paths
+
+    def test_predict_group_works_on_user_h5_items(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=6, n_obs=1)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
+        assert out.predictions.shape == (6,)
+
+    def test_predict_y_works_on_user_h5_items(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=3, n_obs=12)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        pc = bc.predict(
+            y=np.tile([0, 1], 6), cv=3, random_state=0, n_jobs=1, cache=False
+        )
+        assert len(pc) == 3
+
+    def test_predict_x_new_on_user_h5_raises_clean_error(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=2, n_obs=1)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        with pytest.raises(ValueError, match="not a ridge bundle"):
+            bc.predict(X_new=np.zeros((4, 2)), n_jobs=1)
+
+
 class TestResolveCv:
     """The int/str cv spec -> sklearn splitter resolution is a pure function.
 

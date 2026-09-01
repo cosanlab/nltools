@@ -187,6 +187,7 @@ lazy/fused chain machinery.
 ├── /X            (n_obs, n_regressors)
 ├── /mask         (embedded NIfTI bytes — bundle is portable)
 └── attrs:
+    ├── bundle_kind='glm'
     ├── affine, regressor_names, scale, standardize, model_kwargs
     ├── nltools_version, bundle_schema_version
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
@@ -202,9 +203,19 @@ gets a `sub-XXXX.json` sidecar carrying the same lineage attrs. The contrast str
 parser supports coefficients (e.g. `"2*A - B"`), not just `"A - B"`.
 
 `fit(model='ridge')` writes a parallel HDF5 bundle holding `weights`, `cv_scores`,
-`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs.
-`predict(X_new=)` reads the bundle and writes per-subject prediction NIfTIs
-(`X_new @ weights + intercept`, with JSON sidecars).
+`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs
+(`bundle_kind='ridge'`). `predict(X_new=)` reads the bundle and writes per-subject
+prediction NIfTIs (`X_new @ weights + intercept`, with JSON sidecars).
+
+**Bundle-kind detection.** Every bundle writer stamps a `bundle_kind` attr
+(`'glm'` | `'ridge'` | `'predict'`), and `execution.detect_bundle_kind(path)` is the one
+shared "what kind of `.h5` is this?" helper: it reads the attr, falls back to a dataset
+sniff for dev-cycle bundles written before the attr existed (`weights` → ridge, `betas`
+→ glm), and returns `None` for anything else — including a user-saved `BrainData` `.h5`,
+which is a plain image, not a bundle. Every item-classification site
+(`predict_group`, `predict(y=)`, `predict(X_new=)` — eager check and worker) uses this
+helper; nothing classifies by file suffix alone. Adding the attr was additive, so the
+schema version stayed at 2 and pre-attr bundles remain readable.
 
 ## HDF5 predict bundle
 
