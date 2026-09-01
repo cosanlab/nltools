@@ -66,9 +66,9 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     results: list[BenchResult] = []
     for name, fn in cases:
         for n_permute in n_permutes:
-            for device, device in _backends():
+            for api_device, harness_device in _backends():
 
-                def _call(fn=fn, p=device, n=n_permute):
+                def _call(fn=fn, p=api_device, n=n_permute):
                     fn(p, n)
 
                 results.append(
@@ -76,14 +76,14 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
                         _call,
                         domain="inference",
                         name=f"{name}[perm={n_permute}]",
-                        device=device,
+                        device=harness_device,
                         reps=reps,
                         params={
                             "test": name,
                             "n_subjects": N_SUBJECTS,
                             "n_voxels": n_voxels,
                             "n_permute": n_permute,
-                            "backend": device,
+                            "backend": api_device,
                         },
                     )
                 )
