@@ -973,14 +973,14 @@ def _bootstrap_ridge_weights_gpu_batched(
     if y.ndim == 1:
         y = y[:, np.newaxis]
 
-    def compute_sample(backend, coef_device):
+    def _compute_sample(backend, coef_device):
         return backend.to_numpy(coef_device)
 
     return _bootstrap_ridge_gpu_batched(
         X,
         y,
         alpha,
-        compute_sample=compute_sample,
+        compute_sample=_compute_sample,
         output_shape=(X.shape[1], y.shape[1]),
         desc="GPU bootstrap Ridge weights",
         n_samples=n_samples,
@@ -1054,7 +1054,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     # X_pred moves to the device once, lazily (the driver resolves the backend).
     device_cache: dict[str, object] = {}
 
-    def compute_sample(backend, coef_device):
+    def _compute_sample(backend, coef_device):
         if "X_pred" not in device_cache:
             device_cache["X_pred"] = backend.to_device(X_pred)
         predictions_device = backend.matmul(device_cache["X_pred"], coef_device)
@@ -1064,7 +1064,7 @@ def _bootstrap_ridge_predict_gpu_batched(
         X,
         y,
         alpha,
-        compute_sample=compute_sample,
+        compute_sample=_compute_sample,
         output_shape=(X_pred.shape[0], y.shape[1]),
         desc="GPU bootstrap Ridge predictions",
         n_samples=n_samples,
