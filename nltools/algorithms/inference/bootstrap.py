@@ -5,6 +5,7 @@ import warnings
 from scipy.stats import norm
 
 from .validation import (
+    validate_tail_parameter,
     validate_bootstrap_method,
     validate_bootstrap_data,
     validate_percentiles,
@@ -24,9 +25,9 @@ FITTED_METHODS = ["weights", "predict"]  # For future use
 def _p_from_z(z: np.ndarray, tail_internal: str) -> np.ndarray:
     """P-values from bootstrap Z-scores: 'two' → 2·(1−Φ(|z|)), 'upper' → 1−Φ(z).
 
-    The single home of the bootstrap p formula — `OnlineBootstrapStats.get_results`
-    and the BrainData/Adjacency facades (which convert post-hoc for tail=1) both
-    use it, so the two paths can never drift.
+    The single home of the bootstrap p formula. `OnlineBootstrapStats.get_results`
+    applies it for every engine, and the facades thread their ``tail`` kwarg down
+    to that call, so tail handling has exactly one mechanism.
     """
     if tail_internal == "upper":
         return 1 - norm.cdf(z)
@@ -218,8 +219,6 @@ class OnlineBootstrapStats:
         with np.errstate(invalid="ignore", divide="ignore"):
             z = self.mean / std
 
-        from .validation import validate_tail_parameter
-
         p = _p_from_z(z, validate_tail_parameter(tail))
 
         # Build result dictionary
@@ -297,6 +296,7 @@ def _bootstrap_simple_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
 ) -> dict[str, np.ndarray]:
     """Bootstrap simple aggregation methods using CPU parallelization.
@@ -312,13 +312,14 @@ def _bootstrap_simple_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
 
     Returns:
         Dictionary containing:
         - 'mean': Bootstrap mean
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -338,6 +339,7 @@ def _bootstrap_simple_cpu_parallel(
     _validate_bootstrap_method(method)
     _validate_n_samples(n_samples)
     _validate_percentiles(percentiles)
+    validate_tail_parameter(tail)
 
     # Convert to array and validate
     data = np.asarray(data, dtype=np.float64)
@@ -385,7 +387,7 @@ def _bootstrap_simple_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -443,6 +445,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -461,6 +464,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -468,7 +472,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         - 'mean': Bootstrap mean weights
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -491,6 +495,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
     validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
     validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    validate_tail_parameter(tail)
 
     # Handle 1D y
     single_voxel = y.ndim == 1
@@ -535,7 +540,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -599,6 +604,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -617,6 +623,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -624,7 +631,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         - 'mean': Bootstrap mean predictions
         - 'std': Bootstrap standard deviation
         - 'Z': Z-scores (mean/std)
-        - 'p': Two-tailed p-values
+        - 'p': P-values (per ``tail``)
         - 'ci_lower': Lower confidence bound
         - 'ci_upper': Upper confidence bound
         - 'samples': All samples (only if save_boots=True)
@@ -654,6 +661,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         raise ValueError(
             f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
         )
+    validate_tail_parameter(tail)
 
     # Handle 1D y
     single_voxel = y.ndim == 1
@@ -699,7 +707,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
         stats.update(sample)
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     import multiprocessing
@@ -762,6 +770,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -781,6 +790,7 @@ def _bootstrap_ridge_weights_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -817,6 +827,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     # Validate inputs
     _validate_n_samples(n_samples)
     _validate_percentiles(percentiles)
+    validate_tail_parameter(tail)
 
     # Pre-generate bootstrap indices (deterministic)
     all_indices = generate_bootstrap_indices(
@@ -916,7 +927,7 @@ def _bootstrap_ridge_weights_gpu_batched(
     pbar.close()
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     result["backend"] = f"gpu-{backend.device}"
@@ -939,6 +950,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
+    tail: int | str = 2,
     progress_bar: bool = False,
     **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
@@ -959,6 +971,7 @@ def _bootstrap_ridge_predict_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -1002,6 +1015,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     # Validate inputs
     _validate_n_samples(n_samples)
     _validate_percentiles(percentiles)
+    validate_tail_parameter(tail)
 
     # Pre-generate bootstrap indices (deterministic)
     all_indices = generate_bootstrap_indices(
@@ -1100,7 +1114,7 @@ def _bootstrap_ridge_predict_gpu_batched(
     pbar.close()
 
     # Get final results
-    result = stats.get_results()
+    result = stats.get_results(tail)
 
     # Add backend info
     result["backend"] = f"gpu-{backend.device}"

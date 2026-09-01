@@ -161,6 +161,46 @@ class TestOnlineBootstrapStats:
         assert np.allclose(result["std"], expected_std, rtol=1e-5)
 
 
+class TestBootstrapTail:
+    """The engines take tail= and apply it in get_results (C-8).
+
+    One mechanism: the facades pass tail through rather than rewriting
+    result['p'] post-hoc.
+    """
+
+    def test_bootstrap_simple_tail_threads_to_get_results(self):
+        from scipy.stats import norm
+
+        np.random.seed(42)
+        data = np.random.randn(50, 20) + 0.3
+
+        two = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=1, random_state=42, tail=2
+        )
+        one = _bootstrap_simple_cpu_parallel(
+            data, "mean", n_samples=100, n_jobs=1, random_state=42, tail=1
+        )
+
+        np.testing.assert_array_equal(two["Z"], one["Z"])
+        np.testing.assert_allclose(two["p"], 2 * (1 - norm.cdf(np.abs(two["Z"]))))
+        np.testing.assert_allclose(one["p"], 1 - norm.cdf(one["Z"]))
+
+    def test_bootstrap_ridge_tail_threads_to_get_results(self):
+        from scipy.stats import norm
+
+        np.random.seed(0)
+        X = np.random.randn(40, 5)
+        y = np.random.randn(40, 8)
+        X_test = np.random.randn(6, 5)
+
+        for fn, args in [
+            (_bootstrap_ridge_weights_cpu_parallel, (X, y)),
+            (_bootstrap_ridge_predict_cpu_parallel, (X, y, X_test)),
+        ]:
+            one = fn(*args, alpha=1.0, n_samples=50, n_jobs=1, random_state=7, tail=1)
+            np.testing.assert_allclose(one["p"], 1 - norm.cdf(one["Z"]))
+
+
 @pytest.mark.slow
 class TestBootstrapSimpleMethods:
     """Test suite for simple bootstrap methods."""

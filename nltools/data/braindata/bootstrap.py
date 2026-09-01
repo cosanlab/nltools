@@ -43,6 +43,8 @@ def bootstrap(
             present, else CPU). Ignored for simple stats. Default: 'cpu'
         max_gpu_memory_gb: (float, optional) Explicit GPU memory budget in GB
             when device is 'gpu' or 'auto'. None (default) measures the device.
+        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            statistic > 0; negate the data for the other direction).
         n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
         random_state: (int, optional) Random seed for reproducibility
         progress_bar: (bool) If True, show a progress bar. Default: False
@@ -107,19 +109,7 @@ def bootstrap(
         _bootstrap_ridge_predict_cpu_parallel,
         _bootstrap_ridge_weights_gpu_batched,
         _bootstrap_ridge_predict_gpu_batched,
-        _p_from_z,
     )
-    from nltools.algorithms.inference.validation import validate_tail_parameter
-
-    tail_internal = validate_tail_parameter(tail)
-
-    def _apply_tail(result):
-        # Engines report the default two-tailed p; convert post-hoc for tail=1
-        # using the engine's own formula so the two paths cannot drift.
-        if tail_internal == "upper" and "Z" in result:
-            result["p"] = _p_from_z(np.asarray(result["Z"]), "upper")
-        return result
-
     from nltools.data import DesignMatrix
     from nltools.algorithms.backends import (
         Backend,
@@ -163,12 +153,13 @@ def bootstrap(
             n_jobs=n_jobs,
             random_state=random_state,
             percentiles=percentiles,
+            tail=tail,
             progress_bar=progress_bar,
         )
 
         # Convert result to BrainData format
         return convert_bootstrap_results_to_brain_data(
-            bd, _apply_tail(result), save_boots=save_boots, return_dict=False
+            bd, result, save_boots=save_boots, return_dict=False
         )
 
     if stat not in FITTED_STATS:
@@ -221,6 +212,7 @@ def bootstrap(
                 max_gpu_memory_gb=max_gpu_memory_gb,
                 random_state=random_state,
                 percentiles=percentiles,
+                tail=tail,
                 progress_bar=progress_bar,
             )
         else:
@@ -233,11 +225,12 @@ def bootstrap(
                 n_jobs=n_jobs,
                 random_state=random_state,
                 percentiles=percentiles,
+                tail=tail,
                 progress_bar=progress_bar,
             )
 
         return convert_bootstrap_results_to_brain_data(
-            bd, _apply_tail(result), save_boots=save_boots, return_dict=True
+            bd, result, save_boots=save_boots, return_dict=True
         )
 
     # stat == "predict"
@@ -261,6 +254,7 @@ def bootstrap(
             max_gpu_memory_gb=max_gpu_memory_gb,
             random_state=random_state,
             percentiles=percentiles,
+            tail=tail,
             progress_bar=progress_bar,
         )
     else:
@@ -274,11 +268,12 @@ def bootstrap(
             n_jobs=n_jobs,
             random_state=random_state,
             percentiles=percentiles,
+            tail=tail,
             progress_bar=progress_bar,
         )
 
     return convert_bootstrap_results_to_brain_data(
-        bd, _apply_tail(result), save_boots=save_boots, return_dict=True
+        bd, result, save_boots=save_boots, return_dict=True
     )
 
 

@@ -28,6 +28,26 @@ class TestBrainDataBootstrap:
         with pytest.raises(ValueError, match="Must call.*fit"):
             masked.bootstrap(stat="predict", n_samples=n_samples, X_test=X_test)
 
+    def test_bootstrap_tail_pins(self, sim_brain_data):
+        """Pin tail=1/tail=2 p-values to the shared bootstrap formula (C-8)."""
+        from scipy.stats import norm
+
+        masked = sim_brain_data.apply_mask(
+            create_sphere(radius=10, coordinates=[0, 0, 0])
+        )
+
+        two = masked.bootstrap(
+            stat="mean", n_samples=50, save_boots=True, random_state=42, tail=2
+        )
+        one = masked.bootstrap(
+            stat="mean", n_samples=50, save_boots=True, random_state=42, tail=1
+        )
+
+        z = two["Z"].data
+        np.testing.assert_array_equal(z, one["Z"].data)
+        np.testing.assert_allclose(two["p"].data, 2 * (1 - norm.cdf(np.abs(z))))
+        np.testing.assert_allclose(one["p"].data, 1 - norm.cdf(z))
+
     def test_bootstrap_invalid_method_error(self, sim_brain_data):
         """Test error raised for unsupported method."""
         # New implementation validates stat names upfront
