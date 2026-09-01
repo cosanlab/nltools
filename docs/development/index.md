@@ -46,7 +46,10 @@ The four facades and their submodules:
   `auto_batch_size`, `compute_oom_safe`, `auto_n_jobs_for_arrays`); an algorithm
   supplies its per-item working-set estimate and never its own budget math (pinned by
   a source-scan test in `test_backends.py`). `max_gpu_memory_gb=None` — the default
-  everywhere — means "measure the device". An explicit `device='gpu'` /
+  everywhere — means "measure the device"; when sizing batches, a measured budget is
+  capped at a saturation ceiling (`BATCH_WORKING_SET_CEILING_GB`, 8 GB) because
+  larger working sets add allocation cost without throughput gain, while an explicit
+  `max_gpu_memory_gb` is always used verbatim. An explicit `device='gpu'` /
   `parallel='gpu'` either runs on the GPU or raises; `'auto'` is the one documented
   graceful-fallback path.
 - **Generated column names live in the reserved `.nl_` namespace.** Any column nltools

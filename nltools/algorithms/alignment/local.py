@@ -458,7 +458,7 @@ class LocalAlignment:
         )
 
         budget_gb = device_memory_budget(
-            self.backend_, max_gpu_memory_gb=self.max_memory_gb
+            self.backend_, max_gpu_memory_gb=self.max_memory_gb, cap_for_batching=True
         )
         batch_size, _ = auto_batch_size(
             n_neighborhoods, bytes_per_neighborhood, budget_gb=budget_gb

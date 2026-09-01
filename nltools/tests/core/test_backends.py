@@ -944,6 +944,68 @@ class TestDeviceMemoryBudget:
             device_memory_budget(Backend("numpy"), max_gpu_memory_gb=0)
 
 
+class TestBatchingSaturationCeiling:
+    """Measured budgets are capped at a saturation ceiling for batch sizing only."""
+
+    @staticmethod
+    def _mock_measured_ram(monkeypatch, measured_gb):
+        """Make the measured system budget come out to exactly `measured_gb`."""
+        import psutil
+
+        from nltools.algorithms import backends
+
+        class _VM:
+            available = measured_gb / backends._SYSTEM_HEADROOM * 1e9
+
+        monkeypatch.setattr(psutil, "virtual_memory", lambda: _VM())
+
+    def test_measured_budget_capped_for_batching(self, monkeypatch):
+        from nltools.algorithms.backends import (
+            BATCH_WORKING_SET_CEILING_GB,
+            device_memory_budget,
+        )
+
+        self._mock_measured_ram(monkeypatch, 100.0)
+        capped = device_memory_budget(None, cap_for_batching=True)
+        assert capped == BATCH_WORKING_SET_CEILING_GB
+
+    def test_explicit_budget_never_capped(self):
+        from nltools.algorithms.backends import device_memory_budget
+
+        budget = device_memory_budget(
+            None, max_gpu_memory_gb=100.0, cap_for_batching=True
+        )
+        assert budget == 100.0
+
+    def test_measured_budget_below_ceiling_used_as_is(self, monkeypatch):
+        from nltools.algorithms.backends import device_memory_budget
+
+        self._mock_measured_ram(monkeypatch, 2.0)
+        assert device_memory_budget(None, cap_for_batching=True) == pytest.approx(2.0)
+
+    def test_capacity_queries_stay_uncapped(self, monkeypatch):
+        from nltools.algorithms.backends import device_memory_budget
+
+        self._mock_measured_ram(monkeypatch, 100.0)
+        assert device_memory_budget(None) == pytest.approx(100.0)
+
+    def test_auto_batch_size_working_set_bounded_by_ceiling(self, monkeypatch):
+        """A measured 100 GB budget must not produce ~100 GB batches."""
+        from nltools.algorithms.backends import (
+            BATCH_WORKING_SET_CEILING_GB,
+            gb_to_bytes,
+        )
+        from nltools.algorithms.inference.utils import _auto_batch_size
+
+        self._mock_measured_ram(monkeypatch, 100.0)
+        n_samples, n_features = 30, 50000
+        batch_size, _ = _auto_batch_size(
+            100000, n_samples, n_features, max_memory_gb=None
+        )
+        working_set = batch_size * n_samples * n_features * 4  # float32
+        assert working_set <= gb_to_bytes(BATCH_WORKING_SET_CEILING_GB)
+
+
 class TestAutoBatchSizeCore:
     def test_all_fit_in_one_batch(self):
         from nltools.algorithms.backends import auto_batch_size

@@ -409,7 +409,9 @@ def _correlation_permutation_gpu_batched(
         # Kendall's working set is the gathered pairwise-sign tensor
         # (batch, n, n, f) float32 plus its product scratch — n² per feature,
         # not n like the other metrics.
-        budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+        budget_gb = device_memory_budget(
+            backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
+        )
         batch_size, n_batches = auto_batch_size(
             n_permute,
             n_samples * n_samples * n_features * 4,

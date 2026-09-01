@@ -1571,12 +1571,15 @@ def _pairwise_gpu_batch_sizes(
     fall back to chunking voxels when even a single permutation over all voxels
     would blow the budget. The 2D (voxel × permutation) split is this site's own;
     the budget comes from the core layer in `nltools.algorithms.backends`
-    (``max_gpu_memory_gb=None`` measures the device).
+    (``max_gpu_memory_gb=None`` measures the device and caps batch sizing at the
+    core layer's saturation ceiling; an explicit value is used verbatim).
     """
     from nltools.algorithms.backends import device_memory_budget, gb_to_bytes
 
     per_elem = n_subjects * n_subjects * 4 * 3  # 3 working copies of (·, N, N)
-    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+    budget_gb = device_memory_budget(
+        backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
+    )
     budget = max(per_elem, gb_to_bytes(budget_gb))
     max_elems = max(1, budget // per_elem)  # bound on perm_batch * voxel_chunk
     voxel_chunk = min(n_voxels, max_elems)

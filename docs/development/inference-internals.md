@@ -185,9 +185,15 @@ Permutations are processed in memory-bounded batches. The budget and batch math 
 in the core execution layer (`algorithms.backends`) — the single source of truth for
 every batched code path in the package:
 
-- `device_memory_budget(backend, max_gpu_memory_gb)`: `None` (the default everywhere)
-  **measures** the device — free CUDA memory with headroom, or available system RAM
-  for MPS/CPU — while an explicit GB value caps it.
+- `device_memory_budget(backend, max_gpu_memory_gb, cap_for_batching=...)`: `None`
+  (the default everywhere) **measures** the device — free CUDA memory with headroom,
+  or available system RAM for MPS/CPU — while an explicit GB value is used verbatim.
+  Batch-sizing call sites pass `cap_for_batching=True`, which caps a *measured*
+  budget at `BATCH_WORKING_SET_CEILING_GB` (8 GB): working sets beyond the
+  saturation ceiling add allocation latency without throughput gain and starve
+  unified-memory hosts. The cap is sizing-only — an explicit `max_gpu_memory_gb` is
+  never capped, and capacity reasoning (OOM recovery, single-item-too-large errors)
+  uses the true measured budget.
 - `auto_batch_size(n_items, bytes_per_item, budget_gb=..., overhead=..., min_batch=...)`:
   the one batch calculator; each algorithm supplies only its per-item working-set
   estimate (`n_samples * n_features * 4` float32 bytes for the permutation engines,

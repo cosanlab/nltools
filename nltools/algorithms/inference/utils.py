@@ -214,7 +214,9 @@ def _auto_batch_size(
     """
     from nltools.algorithms.backends import auto_batch_size, device_memory_budget
 
-    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_memory_gb)
+    budget_gb = device_memory_budget(
+        backend, max_gpu_memory_gb=max_memory_gb, cap_for_batching=True
+    )
     bytes_per_perm = n_samples * n_features * 4  # float32 data_perm row
     return auto_batch_size(
         n_permute, bytes_per_perm, budget_gb=budget_gb, min_batch=100

@@ -753,7 +753,9 @@ def _auto_batch_size_ridge(
     """
     from nltools.algorithms.backends import auto_batch_size, device_memory_budget
 
-    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_memory_gb)
+    budget_gb = device_memory_budget(
+        backend, max_gpu_memory_gb=max_memory_gb, cap_for_batching=True
+    )
     bytes_per_boot = (n_samples * n_features + n_samples * n_voxels) * 4  # float32
     return auto_batch_size(
         n_bootstrap, bytes_per_boot, budget_gb=budget_gb, overhead=3.0, min_batch=10

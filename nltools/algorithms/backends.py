@@ -761,24 +761,42 @@ _FALLBACK_BUDGET_GB = 4.0
 _CUDA_HEADROOM = 0.8
 # Fraction of available system RAM for CPU work and MPS (unified memory).
 _SYSTEM_HEADROOM = 0.5
+# Saturation ceiling for batch *sizing*, in GB of per-batch working set.
+# Batches beyond this compute no faster — GPU kernels saturate at moderate
+# working sets — but add allocation latency and, on unified-memory systems,
+# starve the host (a measured ~100 GB budget on a 128 GB GB10 sized ~100 GB
+# ISC batches: 4.2s → 16.1s and a wedged machine). The cap applies only to
+# MEASURED budgets: an explicit `max_gpu_memory_gb` is the documented
+# contract and always wins, uncapped. Capacity reasoning (OOM recovery,
+# single-item-too-large errors) still uses the true measured budget.
+BATCH_WORKING_SET_CEILING_GB = 8.0
 
 
 def device_memory_budget(
     backend: "Backend | None" = None,
     max_gpu_memory_gb: float | None = None,
+    *,
+    cap_for_batching: bool = False,
 ) -> float:
     """Usable memory budget in GB for a backend's device.
 
-    An explicit `max_gpu_memory_gb` always wins. Otherwise the budget is
-    measured at call time: free CUDA memory (with headroom) on CUDA
-    devices; available system RAM (with headroom) for CPU and MPS, which
-    share unified/system memory. When nothing can be measured the
+    An explicit `max_gpu_memory_gb` always wins, uncapped. Otherwise the
+    budget is measured at call time: free CUDA memory (with headroom) on
+    CUDA devices; available system RAM (with headroom) for CPU and MPS,
+    which share unified/system memory. When nothing can be measured the
     conservative 4 GB fallback applies.
 
     Args:
         backend: Resolved `Backend` whose device the work runs on. None is
             treated as CPU.
         max_gpu_memory_gb: Explicit budget override in GB. Must be positive.
+        cap_for_batching: Pass True when the budget sizes batches — a
+            *measured* budget is then capped at
+            `BATCH_WORKING_SET_CEILING_GB`, because working sets beyond the
+            saturation ceiling add allocation cost without throughput gain
+            and starve unified-memory hosts. Never applied to an explicit
+            `max_gpu_memory_gb`; capacity queries (the default) stay
+            uncapped.
 
     Returns:
         float: Budget in GB.
@@ -792,20 +810,25 @@ def device_memory_budget(
                 f"max_gpu_memory_gb must be positive, got {max_gpu_memory_gb!r}"
             )
         return float(max_gpu_memory_gb)
+    measured = None
     if getattr(backend, "device", "cpu") == "cuda":
         try:
             import torch
 
             free_bytes, _ = torch.cuda.mem_get_info()
-            return free_bytes * _CUDA_HEADROOM / 1e9
+            measured = free_bytes * _CUDA_HEADROOM / 1e9
         except Exception:  # pragma: no cover - depends on driver state
             pass
-    try:
-        import psutil
+    if measured is None:
+        try:
+            import psutil
 
-        return psutil.virtual_memory().available * _SYSTEM_HEADROOM / 1e9
-    except ImportError:  # pragma: no cover - psutil ships with the dev env
-        return _FALLBACK_BUDGET_GB
+            measured = psutil.virtual_memory().available * _SYSTEM_HEADROOM / 1e9
+        except ImportError:  # pragma: no cover - psutil ships with the dev env
+            measured = _FALLBACK_BUDGET_GB
+    if cap_for_batching:
+        return min(measured, BATCH_WORKING_SET_CEILING_GB)
+    return measured
 
 
 def gb_to_bytes(gb: float) -> int:

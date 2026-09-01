@@ -49,7 +49,9 @@ def _auto_n_targets_batch(
     """
     from ..backends import auto_batch_size, device_memory_budget
 
-    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=max_gpu_memory_gb)
+    budget_gb = device_memory_budget(
+        backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
+    )
     n_targets_batch, _ = auto_batch_size(
         n_targets,
         elements_per_target * 4,  # float32
