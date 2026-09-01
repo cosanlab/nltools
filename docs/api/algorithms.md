@@ -4921,6 +4921,14 @@ Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for
 linear algebra operations. Enables transparent acceleration while
 maintaining NumPy-first development.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`BATCH_WORKING_SET_CEILING_GB` |  | 
+
+
+
 **Classes:**
 
 Name | Description
@@ -4942,8 +4950,6 @@ Name | Description
 [`gb_to_bytes`](#algorithms-gb-to-bytes) | Convert a GB budget to bytes — the package's one GB↔bytes conversion.
 [`is_oom_error`](#algorithms-is-oom-error) | True if `exc` is a device out-of-memory error (CUDA or MPS).
 [`resolve_backend`](#algorithms-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
-
-
 
 ##### Classes
 
@@ -5553,15 +5559,15 @@ Type | Description
 ###### `device_memory_budget`
 
 ```python
-device_memory_budget(backend: Backend | None = None, max_gpu_memory_gb: float | None = None) -> float
+device_memory_budget(backend: Backend | None = None, max_gpu_memory_gb: float | None = None, *, cap_for_batching: bool = False) -> float
 ```
 
 Usable memory budget in GB for a backend's device.
 
-An explicit `max_gpu_memory_gb` always wins. Otherwise the budget is
-measured at call time: free CUDA memory (with headroom) on CUDA
-devices; available system RAM (with headroom) for CPU and MPS, which
-share unified/system memory. When nothing can be measured the
+An explicit `max_gpu_memory_gb` always wins, uncapped. Otherwise the
+budget is measured at call time: free CUDA memory (with headroom) on
+CUDA devices; available system RAM (with headroom) for CPU and MPS,
+which share unified/system memory. When nothing can be measured the
 conservative 4 GB fallback applies.
 
 **Parameters:**
@@ -5570,6 +5576,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Resolved `Backend` whose device the work runs on. None is treated as CPU. | <code>None</code>
 `max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit budget override in GB. Must be positive. | <code>None</code>
+`cap_for_batching` | <code>[bool](#bool)</code> | Pass True when the budget sizes batches — a *measured* budget is then capped at `BATCH_WORKING_SET_CEILING_GB`, because working sets beyond the saturation ceiling add allocation cost without throughput gain and starve unified-memory hosts. Never applied to an explicit `max_gpu_memory_gb`; capacity queries (the default) stay uncapped. | <code>False</code>
 
 **Returns:**
 

@@ -144,6 +144,7 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-feature">Feature</span> PredictCollection — per-subject decoding results container
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict(y=) maps per-subject decoding — closes the #478 map-reduce gap
 - ⚠ **Breaking** <span class="badge badge-feature">Feature</span> predict_group permutation null for roi and searchlight
+- <span class="badge badge-feature">Feature</span> warn on near-collinear full-rank designs
 
 ### Improvements
 - <span class="badge badge-improvement">Improvement</span> refactor and improve brain data dunder math. improve first tutorial
@@ -423,6 +424,12 @@ All notable changes to nltools are documented here.
 - <span class="badge badge-fix">Bug Fix</span> qualify vocabulary suppressions by module path
 - <span class="badge badge-fix">Bug Fix</span> move check_kwonly's inline EXEMPT dict into the vocabulary manifest
 - <span class="badge badge-fix">Bug Fix</span> move the _NullProgressBar nosemgrep suppressions into the semgrep config
+- <span class="badge badge-fix">Bug Fix</span> serialize in-memory masks in BrainData h5 files
+- <span class="badge badge-fix">Bug Fix</span> GPU bootstrap guard accepts torch-cuda
+- <span class="badge badge-fix">Bug Fix</span> keep refit alpha indices on the compute device
+- <span class="badge badge-fix">Bug Fix</span> cap measured-budget batch sizing at a saturation ceiling
+- <span class="badge badge-fix">Bug Fix</span> bench_inference GPU leg passed the harness probe string as device=
+- <span class="badge badge-fix">Bug Fix</span> provenance label auto-detects the GPU; record the benchmarked commit
 
 ### Documentation
 - <span class="badge badge-docs">Docs</span> Streamline CLAUDE.md and add token-efficient pytest guidance
@@ -539,6 +546,8 @@ All notable changes to nltools are documented here.
 - ⚠ **Breaking** <span class="badge badge-docs">Docs</span> plain marimo notebooks, executed previews; defer browser support to 0.6.1
 - <span class="badge badge-docs">Docs</span> regenerate changelog for the commits since the batched docs pass
 - <span class="badge badge-docs">Docs</span> close the gaps found by the breaking-commit audit
+- <span class="badge badge-docs">Docs</span> regenerate API sources and changelog for the review-fix commits
+- <span class="badge badge-docs">Docs</span> refresh pikachu CUDA baseline at 55e44f06
 
 
 ## 0.5.0 (2023-10-31)
