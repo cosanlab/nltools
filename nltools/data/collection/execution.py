@@ -40,6 +40,7 @@ __all__ = [
     "_ItemTask",
     "_apply",
     "_materialize",
+    "detect_bundle_kind",
     "read_glm_bundle",
     "read_predict_bundle",
     "read_ridge_bundle",
@@ -539,7 +540,10 @@ def _write_bundle(
 
     Used by ``write_glm_bundle`` and ``write_ridge_bundle``. Embeds raw bytes
     via ``np.frombuffer(..., dtype=np.uint8)`` so HDF5 stores them as a
-    fixed-shape uint8 dataset (rather than a variable-length blob).
+    fixed-shape uint8 dataset (rather than a variable-length blob). Unicode
+    arrays (e.g. string class labels in predict bundles) are stored as
+    UTF-8 variable-length strings — h5py cannot store numpy ``'<U'`` dtypes
+    directly; readers decode them back via ``Dataset.asstr()``.
     """
     import h5py
 
@@ -548,12 +552,55 @@ def _write_bundle(
         for name, value in datasets.items():
             if isinstance(value, bytes):
                 f.create_dataset(name, data=np.frombuffer(value, dtype=np.uint8))
+            elif isinstance(value, np.ndarray) and value.dtype.kind == "U":
+                # h5py has no conversion path for numpy '<U' dtypes — hand it
+                # an object array of str with an explicit vlen string dtype.
+                f.create_dataset(
+                    name,
+                    data=value.astype(object),
+                    dtype=h5py.string_dtype(encoding="utf-8"),
+                )
             else:
                 f.create_dataset(name, data=value)
         for k, v in attrs.items():
             f.attrs[k] = v
     os.rename(tmp, out_path)
     return out_path
+
+
+def detect_bundle_kind(path: Path | str) -> str | None:
+    """Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
+
+    The structured replacement for bare-suffix checks, which misclassified
+    user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
+
+    1. The ``bundle_kind`` attr (``'glm'`` | ``'ridge'`` | ``'predict'``) —
+       stamped by every bundle writer.
+    2. Dataset sniff for dev-cycle bundles written before the attr existed:
+       a file carrying ``bundle_schema_version`` with a ``weights`` dataset
+       is a ridge bundle, with ``betas`` a GLM bundle.
+    3. Otherwise not a bundle (e.g. a user-saved BrainData ``.h5``).
+
+    Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
+    """
+    import h5py
+
+    path = Path(path)
+    if path.suffix not in (".h5", ".hdf5"):
+        return None
+    try:
+        with h5py.File(path, "r", locking=False) as f:
+            kind = _to_str(f.attrs.get("bundle_kind", "") or "")
+            if kind:
+                return kind
+            if "bundle_schema_version" in f.attrs:
+                if "weights" in f:
+                    return "ridge"
+                if "betas" in f:
+                    return "glm"
+            return None
+    except OSError:
+        return None
 
 
 def _read_bundle_attrs_and_validate(path: Path) -> tuple[Any, dict[str, Any]]:
@@ -640,6 +687,7 @@ def write_glm_bundle(
             "mask": mask_bytes,
         },
         attrs={
+            "bundle_kind": "glm",
             "affine": np.asarray(affine),
             "regressor_names": json.dumps(list(regressor_names)),
             "scale": bool(scale),
@@ -728,6 +776,7 @@ def write_ridge_bundle(
             "mask": mask_bytes,
         },
         attrs={
+            "bundle_kind": "ridge",
             "affine": np.asarray(affine),
             "regressor_names": json.dumps(list(regressor_names)),
             "model_kwargs": json.dumps(model_kwargs),
@@ -813,9 +862,14 @@ def write_predict_bundle(
         fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
         attrs: bundle_kind='predict', present_fields, scalar_summaries,
         permutation_pvalue (when set), model_spec (JSON — the refit
-        ingredients), affine, plus the shared lineage attrs.
+        ingredients; its ``model`` entry is a structured spec from
+        ``_serialize_model_spec``: shortcut name or estimator class + params,
+        or an explicit ``refittable: false`` marker when the estimator's
+        params can't be serialized), affine, plus the shared lineage attrs.
 
-    The fitted ``estimator`` is deliberately not persisted.
+    The fitted ``estimator`` is deliberately not persisted; rebuild one via
+    ``nltools.data.braindata.prediction._model_from_spec`` when the spec is
+    refittable.
     """
     import json
 
@@ -882,13 +936,21 @@ def read_predict_bundle(path: Path):
                 f"{kind or 'fit'!r}); use read_glm_bundle/read_ridge_bundle "
                 f"for fit bundles."
             )
+        import h5py
+
         present = set(json.loads(attrs["present_fields"]))
         scalar_summaries = set(json.loads(attrs["scalar_summaries"]))
 
         fields: dict[str, Any] = {}
         for name in _PREDICT_ARRAY_FIELDS:
             if name in present:
-                fields[name] = f[name][:]
+                ds = f[name]
+                if h5py.check_string_dtype(ds.dtype):
+                    # Stored as UTF-8 var-length strings (numpy '<U' arrays
+                    # can't go into HDF5 directly); decode back to '<U'.
+                    fields[name] = ds.asstr()[:].astype(str)
+                else:
+                    fields[name] = ds[:]
         for name in _PREDICT_SUMMARY_FIELDS:
             if name in present:
                 arr = f[name][()]
@@ -1154,7 +1216,9 @@ def _compute_contrast_from_bundle(
     if contrast_type == "t":
         return t_stat
 
-    from scipy.stats import norm, t as t_dist
+    from scipy.stats import t as t_dist
+
+    from nltools.algorithms.inference.utils import _signed_z_from_p
 
     df = max(X.shape[0] - int(np.linalg.matrix_rank(X)), 1)
     p = 2.0 * t_dist.sf(np.abs(t_stat), df)
@@ -1162,7 +1226,7 @@ def _compute_contrast_from_bundle(
     if contrast_type == "p":
         return p
 
-    z = np.sign(t_stat) * norm.isf(np.clip(p / 2.0, 1e-300, 1.0))
+    z = _signed_z_from_p(t_stat, p)
 
     if contrast_type == "z":
         return z
@@ -1235,13 +1299,18 @@ def _predict_after_fit_worker(
     """
     from ..braindata import BrainData as _BrainData
 
-    if not isinstance(task.item, (str, Path)) or Path(task.item).suffix not in (
-        ".h5",
-        ".hdf5",
-    ):
+    if not isinstance(task.item, (str, Path)):
         raise ValueError(
             "predict(X_new=...) requires a ridge bundle path; got an in-memory "
             "object. Run .fit(model='ridge', cache=True) first."
+        )
+    kind = detect_bundle_kind(Path(task.item))
+    if kind != "ridge":
+        what = f"a {kind} bundle" if kind else "not a ridge bundle"
+        raise ValueError(
+            f"predict(X_new=...) requires a ridge fit bundle; "
+            f"{Path(task.item).name} is {what}. "
+            f"Run .fit(model='ridge', cache=True) first."
         )
 
     bundle = read_ridge_bundle(Path(task.item))

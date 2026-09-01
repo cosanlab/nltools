@@ -1024,6 +1024,20 @@ class TestBrainDataTTest:
         # monotonic since z is derived from the same p)
         assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.99
 
+    def test_ttest_one_tailed_wrong_direction_z_is_finite(self, minimal_brain_data):
+        """tail=1 on strongly negative data must not leak z = -inf.
+
+        ``t.sf(t, df)`` saturates to exactly 1.0 for large negative t, and
+        an unclipped ``norm.isf(1.0)`` is ``-inf`` — poisoning any downstream
+        percentile / plotting of the z map.
+        """
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data - 10.0
+        res = bd.ttest(tail=1)
+        z = np.asarray(res["z"].data)
+        assert np.all(np.isfinite(z))
+        assert np.all(z < 0)
+
     def test_ttest_popmean(self, minimal_brain_data):
         """popmean kwarg shifts the null and the reported mean."""
         from scipy.stats import ttest_1samp
@@ -1052,6 +1066,36 @@ class TestBrainDataTTest:
         np.testing.assert_allclose(
             result["mean"].data, minimal_brain_data.data.mean(axis=0)
         )
+
+    def test_ttest_permutation_popmean_tests_shifted_hypothesis(
+        self, minimal_brain_data
+    ):
+        """permutation=True must test mean != popmean, not mean != 0.
+
+        Data centered at popmean is null under the requested hypothesis, so
+        the sign-flip p-values must look uniform — a zero-referenced test
+        (the pre-fix bug) would return the minimum p at every voxel.
+        """
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 5.0  # ~N(5, 1) per voxel
+        res = bd.ttest(popmean=5.0, permutation=True, n_permute=200, random_state=0)
+        # Under the correct H0 (mean == 5) nothing should be at the floor
+        # p = 1/(n_permute+1) ≈ 0.005; the zero-referenced bug puts every
+        # voxel there.
+        assert np.all(np.asarray(res["p"].data) > 0.02)
+        # Sanity: the same data against popmean=0 is overwhelmingly significant.
+        res0 = bd.ttest(popmean=0.0, permutation=True, n_permute=200, random_state=0)
+        assert np.all(np.asarray(res0["p"].data) < 0.01)
+
+    def test_ttest_permutation_popmean_mean_is_effect_size(self, minimal_brain_data):
+        """Both branches must report mean(images) - popmean, per the docstring."""
+        bd = minimal_brain_data.copy()
+        bd.data = bd.data + 5.0
+        expected = bd.data.mean(axis=0) - 5.0
+        res_perm = bd.ttest(popmean=5.0, permutation=True, n_permute=20, random_state=0)
+        np.testing.assert_allclose(res_perm["mean"].data, expected, rtol=1e-6)
+        res_param = bd.ttest(popmean=5.0)
+        np.testing.assert_allclose(res_param["mean"].data, expected, rtol=1e-6)
 
     def test_ttest2_two_sample(self, minimal_brain_data):
         """Two-sample voxelwise t-test returns dict of BrainData."""

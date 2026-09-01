@@ -345,9 +345,12 @@ class Predict:
     # All-data fitted estimator (whole_brain only)
     estimator: Any = None
 
-    # Label-permutation null (BrainCollection.predict_group(n_permute=))
+    # Label-permutation null (BrainCollection.predict_group(n_permute=)).
+    # Shapes follow spatial_scale: whole_brain → scores (n_permute,) with a
+    # float p; roi → scores (n_permute, n_rois) with p (n_rois,); searchlight
+    # → scores (n_permute, n_voxels) with p as a BrainData (1, n_voxels) map.
     permutation_scores: np.ndarray | None = None
-    permutation_pvalue: float | None = None
+    permutation_pvalue: Any = None  # float | ndarray (roi) | BrainData (searchlight)
 
     def available(self) -> list:
         """Return names of non-None fields (excludes private)."""

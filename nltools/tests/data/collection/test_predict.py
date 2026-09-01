@@ -400,6 +400,143 @@ class TestPredictGroupCarveOut:
             from nltools.data.collection import BrainCollectionPipeline  # noqa: F401
 
 
+class TestPredictGroupNull:
+    """predict_group(n_permute>0) across all three spatial scales (F5/C-2).
+
+    The null was whole-brain-only (scalar mean_score assumed) and re-ran the
+    full CV — including a discarded all-data refit and weight-map stacking —
+    per permutation. Now: per-ROI nulls for 'roi', per-voxel null + BrainData
+    p-map for 'searchlight', and null iterations run the scoring core only.
+    """
+
+    def _single_map_bc(self, tiny_mask, n=6, seed=0):
+        rng = np.random.default_rng(seed)
+        maps = [
+            BrainData(rng.standard_normal((1, 27)).astype(np.float32), mask=tiny_mask)
+            for _ in range(n)
+        ]
+        return BrainCollection(maps, mask=tiny_mask, lazy=False, cache_dir=None)
+
+    @staticmethod
+    def _two_parcel_atlas(tiny_mask):
+        import nibabel as nib
+
+        labels = np.full((3, 3, 3), 2, dtype=np.int32)
+        labels.reshape(-1)[:13] = 1
+        return nib.Nifti1Image(labels, tiny_mask.affine)
+
+    def test_roi_null_shapes_and_per_roi_pvalues(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(
+            y,
+            spatial_scale="roi",
+            roi_mask=self._two_parcel_atlas(tiny_mask),
+            n_permute=8,
+            random_state=0,
+            n_jobs=1,
+        )
+        assert out.permutation_scores.shape == (8, 2)
+        p = np.asarray(out.permutation_pvalue)
+        assert p.shape == (2,)
+        assert np.all((p > 0.0) & (p <= 1.0))
+
+    def test_roi_null_deterministic(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        atlas = self._two_parcel_atlas(tiny_mask)
+        kw = {
+            "spatial_scale": "roi",
+            "roi_mask": atlas,
+            "n_permute": 6,
+            "random_state": 11,
+            "n_jobs": 1,
+        }
+        a = bc.predict_group(y, **kw)
+        b = bc.predict_group(y, **kw)
+        np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
+        np.testing.assert_array_equal(
+            np.asarray(a.permutation_pvalue), np.asarray(b.permutation_pvalue)
+        )
+
+    def test_searchlight_null_shapes_and_pvalue_map(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(
+            y,
+            spatial_scale="searchlight",
+            radius_mm=3.0,
+            n_permute=5,
+            random_state=0,
+            n_jobs=1,
+        )
+        assert out.permutation_scores.shape == (5, 27)
+        assert isinstance(out.permutation_pvalue, BrainData)
+        pv = np.asarray(out.permutation_pvalue.data).reshape(-1)
+        acc = np.asarray(out.accuracy_map.data).reshape(-1)
+        scored = np.isfinite(acc)
+        assert np.all((pv[scored] > 0.0) & (pv[scored] <= 1.0))
+        assert np.all(np.isnan(pv[~scored]))
+
+    def test_searchlight_null_deterministic(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        kw = {
+            "spatial_scale": "searchlight",
+            "radius_mm": 3.0,
+            "n_permute": 4,
+            "random_state": 5,
+            "n_jobs": 1,
+        }
+        a = bc.predict_group(y, **kw)
+        b = bc.predict_group(y, **kw)
+        np.testing.assert_array_equal(a.permutation_scores, b.permutation_scores)
+        np.testing.assert_array_equal(
+            np.asarray(a.permutation_pvalue.data), np.asarray(b.permutation_pvalue.data)
+        )
+
+    def test_whole_brain_null_matches_full_rerun_stream(self, tiny_mask):
+        """The seeded draw stream and per-draw scores match the old
+        run-the-full-CV implementation (null values unchanged for a seed)."""
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(y, n_permute=5, random_state=3, n_jobs=1)
+        rng = np.random.default_rng(3)
+        expected = [
+            bc.predict_group(rng.permutation(y), n_jobs=1).mean_score for _ in range(5)
+        ]
+        np.testing.assert_allclose(out.permutation_scores, expected)
+
+    def test_null_iterations_skip_refit_and_weight_maps(self, tiny_mask, monkeypatch):
+        """Efficiency contract: only the observed run extracts weight maps —
+        null iterations run the scoring core only."""
+        from nltools.data.braindata import prediction as bd_prediction
+
+        calls = {"n": 0}
+        orig = bd_prediction._extract_weight_map
+
+        def counting(*args, **kwargs):
+            calls["n"] = calls["n"] + 1
+            return orig(*args, **kwargs)
+
+        monkeypatch.setattr(bd_prediction, "_extract_weight_map", counting)
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        bc.predict_group(y, n_permute=4, random_state=0, n_jobs=1)
+        # Observed run: one per fold (6 logo folds) + the all-data refit.
+        assert calls["n"] == 7, (
+            f"weight-map extraction ran {calls['n']} times — null iterations "
+            f"must not refit or stack weight maps"
+        )
+
+    def test_whole_brain_pvalue_is_phipson_smyth_upper(self, tiny_mask):
+        bc = self._single_map_bc(tiny_mask)
+        y = np.array([0, 1, 0, 1, 0, 1])
+        out = bc.predict_group(y, n_permute=10, random_state=2, n_jobs=1)
+        expected = (1.0 + np.sum(out.permutation_scores >= out.mean_score)) / 11.0
+        assert out.permutation_pvalue == pytest.approx(expected)
+
+
 class TestPredictPerSubject:
     """#478 phases 2-3: predict(y=) maps BrainData.predict over subjects.
 
@@ -577,6 +714,187 @@ class TestPredictPerSubjectCaching:
         pc = bc_pathbacked.predict(y=y, cv=2, random_state=0, n_jobs=1)
         assert len(pc) == 3
         assert pc.paths is not None  # path-backed source → 'auto' caches
+
+    def test_bundle_model_spec_refits_customized_estimator(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        """The stored model_spec is a refit ingredient, not a repr string (C-15)."""
+        import json
+
+        import h5py
+        from sklearn.svm import SVC
+
+        from nltools.data.braindata.prediction import _model_from_spec
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, tmp_path)
+        model = SVC(C=10.0, kernel="linear")
+        pc = bc.predict(
+            y=self._labels(), model=model, cv=3, random_state=0, cache=True, n_jobs=1
+        )
+        with h5py.File(pc.paths[0], "r") as f:
+            spec = json.loads(f.attrs["model_spec"])
+        rebuilt = _model_from_spec(spec["model"])
+        assert isinstance(rebuilt, SVC)
+        assert rebuilt.get_params()["C"] == 10.0
+        # Refit on data of the decoded shape works — the docstring's
+        # "refit from the stored spec on demand" claim holds.
+        rng = np.random.default_rng(0)
+        rebuilt.fit(rng.standard_normal((self.N_OBS, 27)), self._labels())
+
+
+class TestWorkerClosureHygiene:
+    """Workers must never capture the parent BrainCollection (F8).
+
+    execution-model.md: "a closure that references self (the BrainCollection)
+    ships every loaded BrainData to every worker." The fix pattern is hoisting
+    `parent_step_id = self._step_id` into a local before defining the closure
+    (as .fit() does). These tests spy on execution._apply and inspect the
+    dispatched worker's closure cells.
+    """
+
+    N_OBS = 12
+
+    @staticmethod
+    def _spy_worker(monkeypatch):
+        from nltools.data.collection import execution
+
+        captured = {}
+        orig = execution._apply
+
+        def spy(bc_arg, fn, **kw):
+            captured["worker"] = fn
+            return orig(bc_arg, fn, **kw)
+
+        monkeypatch.setattr(execution, "_apply", spy)
+        return captured
+
+    @staticmethod
+    def _assert_no_collection_in_closure(fn):
+        cells = fn.__closure__ or ()
+        offenders = [
+            c.cell_contents
+            for c in cells
+            if isinstance(c.cell_contents, BrainCollection)
+        ]
+        assert not offenders, (
+            "worker closure captures the BrainCollection — loky/cloudpickle "
+            "would serialize the whole collection per dispatched task (O(S^2))"
+        )
+
+    def test_predict_mvpa_worker_does_not_capture_collection(
+        self, tiny_mask, tiny_brain_factory, monkeypatch
+    ):
+        captured = self._spy_worker(monkeypatch)
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(2)]
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        bc.predict(
+            y=np.tile([0, 1], self.N_OBS // 2),
+            cv=3,
+            random_state=0,
+            n_jobs=1,
+            cache=False,
+        )
+        self._assert_no_collection_in_closure(captured["worker"])
+
+    def test_predict_x_new_worker_does_not_capture_collection(
+        self, bc_ridge_fitted, monkeypatch
+    ):
+        captured = self._spy_worker(monkeypatch)
+        rng = np.random.default_rng(0)
+        bc_ridge_fitted.predict(X_new=rng.standard_normal((4, 2)), n_jobs=1)
+        self._assert_no_collection_in_closure(captured["worker"])
+
+    def test_fit_worker_does_not_capture_collection(self, bc_with_designs, monkeypatch):
+        """Pin: the .fit() path already hoists parent_step_id — keep it so."""
+        captured = self._spy_worker(monkeypatch)
+        bc_with_designs.fit(model="glm", n_jobs=1, cache=False)
+        self._assert_no_collection_in_closure(captured["worker"])
+
+
+class TestStringLabelDecoding:
+    """String class labels through the per-subject path and the cache (F4/F10)."""
+
+    N_OBS = 12
+
+    def _bc(self, tiny_mask, tiny_brain_factory, cache_dir=None):
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(3)]
+        for bd in brains:
+            bd.Y = {"condition": np.tile(["face", "house"], self.N_OBS // 2)}
+        return BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=cache_dir)
+
+    def test_predict_string_labels_per_subject(self, tiny_mask, tiny_brain_factory):
+        """bd.Y stores string conditions; predict(y='condition') must decode."""
+        bc = self._bc(tiny_mask, tiny_brain_factory)
+        pc = bc.predict(y="condition", cv=3, random_state=0, n_jobs=1, cache=False)
+        assert len(pc) == 3
+        for r in pc:
+            preds = np.asarray(r.predictions)
+            assert preds.dtype.kind == "U"
+            assert set(np.unique(preds)) <= {"face", "house"}
+
+    def test_predict_bundle_round_trips_string_predictions(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        """cache=True must persist string predictions bit-perfectly (F10)."""
+        from nltools.data.collection.execution import read_predict_bundle
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, cache_dir=tmp_path / "cache")
+        pc = bc.predict(y="condition", cv=3, random_state=0, n_jobs=1, cache=True)
+        assert pc.paths is not None
+        loaded = read_predict_bundle(pc.paths[0])
+        np.testing.assert_array_equal(loaded.predictions, pc[0].predictions)
+        assert np.asarray(loaded.predictions).dtype.kind == "U"
+
+
+class TestUserH5Items:
+    """User-saved BrainData .h5 files are images, not fit bundles (F7).
+
+    Bare-suffix detection misclassified them, so predict_group/predict(y=)
+    refused valid image collections and predict(X_new=) died inside
+    read_ridge_bundle with a misleading schema error.
+    """
+
+    def _mask(self, tmp_path, tiny_mask):
+        import nibabel as nib
+
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(tiny_mask, mask_path)
+        return nib.load(mask_path)
+
+    def _h5_paths(self, tmp_path, mask, *, n_subjects, n_obs, seed=0):
+        rng = np.random.default_rng(seed)
+        paths = []
+        for i in range(n_subjects):
+            bd = BrainData(
+                rng.standard_normal((n_obs, 27)).astype(np.float32), mask=mask
+            )
+            p = tmp_path / f"sub-{i + 1:02d}.h5"
+            bd.write(p)
+            paths.append(p)
+        return paths
+
+    def test_predict_group_works_on_user_h5_items(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=6, n_obs=1)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
+        assert out.predictions.shape == (6,)
+
+    def test_predict_y_works_on_user_h5_items(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=3, n_obs=12)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        pc = bc.predict(
+            y=np.tile([0, 1], 6), cv=3, random_state=0, n_jobs=1, cache=False
+        )
+        assert len(pc) == 3
+
+    def test_predict_x_new_on_user_h5_raises_clean_error(self, tmp_path, tiny_mask):
+        mask = self._mask(tmp_path, tiny_mask)
+        paths = self._h5_paths(tmp_path, mask, n_subjects=2, n_obs=1)
+        bc = BrainCollection.from_paths(paths, mask=mask, cache_dir=tmp_path / "cache")
+        with pytest.raises(ValueError, match="not a ridge bundle"):
+            bc.predict(X_new=np.zeros((4, 2)), n_jobs=1)
 
 
 class TestResolveCv:

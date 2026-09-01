@@ -187,6 +187,7 @@ lazy/fused chain machinery.
 ├── /X            (n_obs, n_regressors)
 ├── /mask         (embedded NIfTI bytes — bundle is portable)
 └── attrs:
+    ├── bundle_kind='glm'
     ├── affine, regressor_names, scale, standardize, model_kwargs
     ├── nltools_version, bundle_schema_version
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
@@ -202,9 +203,19 @@ gets a `sub-XXXX.json` sidecar carrying the same lineage attrs. The contrast str
 parser supports coefficients (e.g. `"2*A - B"`), not just `"A - B"`.
 
 `fit(model='ridge')` writes a parallel HDF5 bundle holding `weights`, `cv_scores`,
-`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs.
-`predict(X_new=)` reads the bundle and writes per-subject prediction NIfTIs
-(`X_new @ weights + intercept`, with JSON sidecars).
+`predictions`, `scores`, and `intercept`, with the same versioning + lineage attrs
+(`bundle_kind='ridge'`). `predict(X_new=)` reads the bundle and writes per-subject
+prediction NIfTIs (`X_new @ weights + intercept`, with JSON sidecars).
+
+**Bundle-kind detection.** Every bundle writer stamps a `bundle_kind` attr
+(`'glm'` | `'ridge'` | `'predict'`), and `execution.detect_bundle_kind(path)` is the one
+shared "what kind of `.h5` is this?" helper: it reads the attr, falls back to a dataset
+sniff for dev-cycle bundles written before the attr existed (`weights` → ridge, `betas`
+→ glm), and returns `None` for anything else — including a user-saved `BrainData` `.h5`,
+which is a plain image, not a bundle. Every item-classification site
+(`predict_group`, `predict(y=)`, `predict(X_new=)` — eager check and worker) uses this
+helper; nothing classifies by file suffix alone. Adding the attr was additive, so the
+schema version stayed at 2 and pre-attr bundles remain readable.
 
 ## HDF5 predict bundle
 
@@ -221,14 +232,18 @@ predict bundle holding the result's **ingredients**:
 ├── /mask         (embedded NIfTI bytes)
 └── attrs:
     ├── bundle_kind='predict', present_fields, scalar_summaries
-    ├── model_spec (JSON — model/cv/scoring/etc., enough to refit)
+    ├── model_spec (JSON — refit ingredients; its `model` entry is a
+    │   structured spec: shortcut name, or estimator class + params, or an
+    │   explicit `refittable: false` marker when params can't serialize)
     ├── permutation_pvalue (when set), affine
     ├── nltools_version, bundle_schema_version
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
 ```
 
 The fitted sklearn `estimator` is deliberately **not** persisted (pickled estimators are
-version-fragile and rarely used — refit from the stored spec on demand). For
+version-fragile and rarely used — refit from the stored spec on demand via
+`braindata.prediction._model_from_spec`; a spec marked `refittable: false` must be
+rebuilt by hand). For
 consistency, the in-memory results of a caching run mirror the bundle
 (`estimator=None`); only uncached runs keep live estimators. `read_predict_bundle`
 rebuilds a `Predict` with `BrainData` maps on the embedded mask, and refuses fit

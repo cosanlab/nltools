@@ -429,6 +429,149 @@ class TestBundleIO:
         assert data["op"] == "smooth"
 
 
+class TestBundleKindDetection:
+    """Structured "what kind of .h5 is this?" detection (F7).
+
+    Suffix-only checks misclassified user-saved BrainData .h5 images as fit
+    bundles. Detection now reads the ``bundle_kind`` attr (stamped by every
+    bundle writer), falling back to a dataset sniff for dev-cycle bundles
+    written before the attr existed.
+    """
+
+    @staticmethod
+    def _write_ridge(path):
+        execution.write_ridge_bundle(
+            path,
+            weights=np.zeros((2, 27)),
+            intercept=np.zeros(27),
+            cv_scores=np.zeros(2),
+            predictions=np.zeros((8, 27)),
+            scores=np.zeros(1),
+            X=np.zeros((8, 2)),
+            mask_bytes=b"fake",
+            affine=np.eye(4),
+            regressor_names=["a", "b"],
+            model_kwargs={},
+            step_id="abc",
+            parent_step_id=None,
+            op="fit",
+            op_kwargs={},
+            nltools_version="0.6.0",
+        )
+
+    @staticmethod
+    def _write_glm(path):
+        execution.write_glm_bundle(
+            path,
+            betas=np.zeros((2, 27)),
+            residuals=np.zeros((8, 27)),
+            sigma2=np.zeros(27),
+            r2=np.zeros(27),
+            X=np.zeros((8, 2)),
+            mask_bytes=b"fake",
+            affine=np.eye(4),
+            regressor_names=["a", "b"],
+            scale=False,
+            standardize=None,
+            model_kwargs={},
+            step_id="abc",
+            parent_step_id=None,
+            op="fit",
+            op_kwargs={},
+            nltools_version="0.6.0",
+        )
+
+    def test_ridge_and_glm_bundles_detected(self, tmp_path):
+        ridge = tmp_path / "sub-01_fit.h5"
+        glm = tmp_path / "sub-02_fit.h5"
+        self._write_ridge(ridge)
+        self._write_glm(glm)
+        assert execution.detect_bundle_kind(ridge) == "ridge"
+        assert execution.detect_bundle_kind(glm) == "glm"
+
+    def test_predict_bundle_detected(self, tmp_path):
+        from nltools.data.fitresults import Predict
+
+        path = tmp_path / "sub-01.h5"
+        execution.write_predict_bundle(
+            path,
+            result=Predict(mean_score=0.5, scores=np.array([0.5])),
+            mask_bytes=b"fake",
+            affine=np.eye(4),
+            model_spec={},
+            step_id="abc",
+            parent_step_id=None,
+            op="predict_mvpa",
+            op_kwargs={},
+            nltools_version="0.6.0",
+        )
+        assert execution.detect_bundle_kind(path) == "predict"
+
+    def test_legacy_bundles_without_attr_detected_by_sniff(self, tmp_path):
+        """Dev-cycle bundles predate the bundle_kind attr — fallback sniff."""
+        ridge = tmp_path / "sub-01_fit.h5"
+        glm = tmp_path / "sub-02_fit.h5"
+        self._write_ridge(ridge)
+        self._write_glm(glm)
+        for p in (ridge, glm):
+            with h5py.File(p, "a") as f:
+                if "bundle_kind" in f.attrs:
+                    del f.attrs["bundle_kind"]
+        assert execution.detect_bundle_kind(ridge) == "ridge"
+        assert execution.detect_bundle_kind(glm) == "glm"
+
+    def test_plain_braindata_h5_is_not_a_bundle(self, tmp_path, tiny_mask):
+        import nibabel as nib
+
+        from nltools.data import BrainData
+
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(tiny_mask, mask_path)
+        mask = nib.load(mask_path)
+        bd = BrainData(np.zeros((1, 27), dtype=np.float32), mask=mask)
+        p = tmp_path / "sub-01.h5"
+        bd.write(p)
+        assert execution.detect_bundle_kind(p) is None
+
+    def test_non_h5_and_garbage_are_not_bundles(self, tmp_path):
+        assert execution.detect_bundle_kind(tmp_path / "sub-01.nii.gz") is None
+        garbage = tmp_path / "junk.h5"
+        garbage.write_bytes(b"not hdf5 at all")
+        assert execution.detect_bundle_kind(garbage) is None
+
+
+class TestPredictBundleStringPredictions:
+    """String class labels must survive the HDF5 predict bundle (F10)."""
+
+    def test_round_trip_bit_perfect(self, tmp_path):
+        from nltools.data.fitresults import Predict
+
+        result = Predict(
+            predictions=np.array(["face", "house", "face", "house"]),
+            scores=np.array([1.0, 0.5]),
+            mean_score=0.75,
+            std_score=0.25,
+            cv_folds=np.array([0, 1, 0, 1]),
+        )
+        path = tmp_path / "sub-01.h5"
+        execution.write_predict_bundle(
+            path,
+            result=result,
+            mask_bytes=b"fake",
+            affine=np.eye(4),
+            model_spec={},
+            step_id="abc",
+            parent_step_id=None,
+            op="predict_mvpa",
+            op_kwargs={},
+            nltools_version="0.6.0",
+        )
+        back = execution.read_predict_bundle(path)
+        np.testing.assert_array_equal(back.predictions, result.predictions)
+        assert back.predictions.dtype == result.predictions.dtype
+        np.testing.assert_array_equal(back.cv_folds, result.cv_folds)
+
+
 class TestNestedParallelismGuard:
     def test_inner_n_jobs_capped_when_outer_parallel(self, bc_pathbacked):
         """Nested parallelism: ``inner_max_num_threads=1`` by default."""

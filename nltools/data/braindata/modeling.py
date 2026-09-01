@@ -8,6 +8,10 @@ import warnings
 
 import numpy as np
 
+# Shared z-from-p conversion (single source of truth for the clipping policy
+# that keeps z finite in both directions) — also used by BrainCollection's
+# ttest/ttest2 and the GLM-bundle contrast reader.
+from nltools.algorithms.inference.utils import _signed_z_from_p
 from .utils import shallow_copy
 
 
@@ -796,23 +800,6 @@ def to_fit_dataclass(bd, model):
     raise AssertionError(f"unvalidated model passed to to_fit_dataclass: {model!r}")
 
 
-def _signed_z_from_p(t_like_arr, p_arr, tail_internal="two"):
-    """Compute a signed z-score map from a p-value map.
-
-    Two-tailed p: ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching
-    nilearn's ``output_type='z_score'`` convention, with the sign copied from
-    the accompanying statistic. One-tailed (upper) p: ``z = norm.isf(p)`` —
-    a one-sided p already encodes direction, so no sign copy is needed.
-    """
-    from scipy.stats import norm
-
-    p_clipped = np.clip(np.asarray(p_arr), np.finfo(float).tiny, 1.0)
-    if tail_internal == "upper":
-        return norm.isf(p_clipped)
-    z_abs = norm.isf(p_clipped / 2.0)
-    return np.sign(np.asarray(t_like_arr)) * z_abs
-
-
 def ttest(
     bd,
     *,
@@ -833,7 +820,8 @@ def ttest(
     Args:
         bd: BrainData instance (must contain multiple images).
         popmean: Population mean to test against. Default 0.0.
-        permutation: If True, use sign-flip permutation test via
+        permutation: If True, use a sign-flip permutation test on
+            ``images - popmean`` via
             ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come
             from the empirical null and the parametric t-statistic is still
             reported alongside for reference.
@@ -888,8 +876,11 @@ def ttest(
     if permutation:
         from nltools.algorithms.inference import one_sample_permutation_test
 
+        # Sign-flipping tests symmetry around 0, so the engine must see the
+        # popmean-referenced data — flipping the raw data would silently test
+        # mean != 0 instead of mean != popmean.
         perm = one_sample_permutation_test(
-            bd.data,
+            bd.data - popmean,
             n_permute=n_permute,
             tail=tail,
             return_null=return_null,
@@ -897,8 +888,8 @@ def ttest(
             random_state=random_state,
         )
         p_arr = np.asarray(perm["p"])
-        # Permutation gave us its own mean — prefer it for numerical
-        # consistency with the reported p.
+        # The engine's mean of the shifted data IS mean(images) - popmean —
+        # keep it for numerical consistency with the reported p.
         mean_arr = np.asarray(perm["mean"])
     else:
         p_arr = np.asarray(p_param)

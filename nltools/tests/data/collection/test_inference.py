@@ -47,6 +47,68 @@ class TestReductionShape:
             np.asarray(one["p"].data)[pos], np.asarray(two["p"].data)[pos] / 2
         )
 
+    def test_ttest_one_tailed_wrong_direction_z_is_finite(self, tiny_mask):
+        """tail=1 on strongly negative data must not leak z = -inf (F3).
+
+        ``t.sf(t, df)`` saturates to exactly 1.0 for large negative t; the
+        clip must be symmetric so the z map stays finite in both directions.
+        """
+        rng = np.random.default_rng(0)
+        # df must be high enough that t.sf(t, df) saturates to exactly 1.0
+        # (heavy small-df t tails never quite reach it).
+        brains = [
+            BrainData(
+                (rng.standard_normal((1, 27)) - 20.0).astype(np.float32),
+                mask=tiny_mask,
+            )
+            for _ in range(31)
+        ]
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        out = bc.ttest(tail=1)
+        z = np.asarray(out["z"].data)
+        assert np.all(np.isfinite(z))
+        assert np.all(z < 0)
+
+    def test_ttest2_one_tailed_wrong_direction_z_is_finite(self, tiny_mask):
+        """ttest2 tail=1 with bc << other must return finite z everywhere."""
+        rng = np.random.default_rng(1)
+
+        def _bc(shift):
+            brains = [
+                BrainData(
+                    (rng.standard_normal((1, 27)) + shift).astype(np.float32),
+                    mask=tiny_mask,
+                )
+                for _ in range(31)
+            ]
+            return BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+
+        out = _bc(-20.0).ttest2(_bc(20.0), tail=1)
+        z = np.asarray(out["z"].data)
+        assert np.all(np.isfinite(z))
+        assert np.all(z < 0)
+
+    def test_ttest_z_matches_braindata_ttest_z(self, tiny_mask):
+        """Collection ttest z must match stacking + BrainData.ttest (shared helper)."""
+        rng = np.random.default_rng(3)
+        maps = [rng.standard_normal((1, 27)).astype(np.float32) for _ in range(6)]
+        bc = BrainCollection(
+            [BrainData(m, mask=tiny_mask) for m in maps],
+            mask=tiny_mask,
+            lazy=False,
+            cache_dir=None,
+        )
+        bd_stack = BrainData(np.concatenate(maps, axis=0), mask=tiny_mask)
+        for tail in (2, 1):
+            coll = bc.ttest(tail=tail)
+            ref = bd_stack.ttest(tail=tail)
+            np.testing.assert_allclose(
+                np.asarray(coll["z"].data).reshape(-1),
+                np.asarray(ref["z"].data).reshape(-1),
+                rtol=1e-5,
+                atol=1e-8,
+            )
+
     def test_permutation_test_accepts_string_tail(self, bc_inmem):
         out = bc_inmem.permutation_test(n_permute=25, tail="one", random_state=0)
         assert 0 < float(np.asarray(out["p"].data).min()) <= 1

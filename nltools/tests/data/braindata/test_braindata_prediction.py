@@ -653,3 +653,92 @@ class TestPipelineStandardizeDetect:
             "Pipeline" in str(warn.message) and "standardize" in str(warn.message)
             for warn in w
         )
+
+
+# ---------------------------------------------------------------------------
+# String class labels (F4): labels travel with the data as strings
+# ---------------------------------------------------------------------------
+
+
+class TestStringLabels:
+    """Decoding with string class labels — the headline stored-Y use case."""
+
+    def test_whole_brain_predict_with_string_labels(self, minimal_brain_data):
+        n = minimal_brain_data.shape[0]
+        labels = np.array(["face", "house"] * (n // 2))
+        minimal_brain_data.Y = {"condition": labels}
+        result = minimal_brain_data.predict(y="condition", cv=5, random_state=0)
+        preds = np.asarray(result.predictions)
+        assert preds.dtype.kind == "U"
+        covered = np.asarray(result.cv_folds) >= 0
+        assert set(np.unique(preds[covered])) <= {"face", "house"}
+        assert 0.0 <= result.mean_score <= 1.0
+
+    def test_whole_brain_numeric_predictions_stay_float(self, minimal_brain_data):
+        """Regression path must keep float predictions (no int truncation)."""
+        n = minimal_brain_data.shape[0]
+        rng = np.random.default_rng(0)
+        y = rng.standard_normal(n)
+        result = minimal_brain_data.predict(y=y, model="ridge", cv=5, random_state=0)
+        preds = np.asarray(result.predictions)
+        assert preds.dtype.kind == "f"
+
+
+# ---------------------------------------------------------------------------
+# Model-spec serialization (C-15): refit ingredients, not repr strings
+# ---------------------------------------------------------------------------
+
+
+class TestModelSpecSerialization:
+    """Predict-bundle model specs must be reconstructable, not repr strings."""
+
+    def test_shortcut_round_trip(self):
+        import json
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        spec = json.loads(json.dumps(_serialize_model_spec("svm")))
+        rebuilt = _model_from_spec(spec)
+        assert hasattr(rebuilt, "fit") and hasattr(rebuilt, "predict")
+
+    def test_customized_estimator_round_trip(self):
+        import json
+
+        from sklearn.svm import SVC
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        spec = json.loads(
+            json.dumps(_serialize_model_spec(SVC(C=10.0, kernel="linear")))
+        )
+        rebuilt = _model_from_spec(spec)
+        assert isinstance(rebuilt, SVC)
+        assert rebuilt.get_params()["C"] == 10.0
+        assert rebuilt.get_params()["kernel"] == "linear"
+        # And it actually refits.
+        rng = np.random.default_rng(0)
+        rebuilt.fit(rng.standard_normal((10, 4)), np.tile([0, 1], 5))
+
+    def test_non_serializable_params_marked_non_refittable(self):
+        import json
+
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import LinearSVC
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        pipe = make_pipeline(StandardScaler(), LinearSVC(dual="auto"))
+        spec = json.loads(json.dumps(_serialize_model_spec(pipe)))
+        assert spec["refittable"] is False
+        with pytest.raises(ValueError, match="refit"):
+            _model_from_spec(spec)
