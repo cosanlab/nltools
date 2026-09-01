@@ -232,14 +232,18 @@ predict bundle holding the result's **ingredients**:
 ├── /mask         (embedded NIfTI bytes)
 └── attrs:
     ├── bundle_kind='predict', present_fields, scalar_summaries
-    ├── model_spec (JSON — model/cv/scoring/etc., enough to refit)
+    ├── model_spec (JSON — refit ingredients; its `model` entry is a
+    │   structured spec: shortcut name, or estimator class + params, or an
+    │   explicit `refittable: false` marker when params can't serialize)
     ├── permutation_pvalue (when set), affine
     ├── nltools_version, bundle_schema_version
     └── step_id, parent_step_id, op, kwargs (JSON-encoded)
 ```
 
 The fitted sklearn `estimator` is deliberately **not** persisted (pickled estimators are
-version-fragile and rarely used — refit from the stored spec on demand). For
+version-fragile and rarely used — refit from the stored spec on demand via
+`braindata.prediction._model_from_spec`; a spec marked `refittable: false` must be
+rebuilt by hand). For
 consistency, the in-memory results of a caching run mirror the bundle
 (`estimator=None`); only uncached runs keep live estimators. `read_predict_bundle`
 rebuilds a `Predict` with `BrainData` maps on the embedded mask, and refuses fit

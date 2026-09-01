@@ -862,9 +862,14 @@ def write_predict_bundle(
         fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
         attrs: bundle_kind='predict', present_fields, scalar_summaries,
         permutation_pvalue (when set), model_spec (JSON — the refit
-        ingredients), affine, plus the shared lineage attrs.
+        ingredients; its ``model`` entry is a structured spec from
+        ``_serialize_model_spec``: shortcut name or estimator class + params,
+        or an explicit ``refittable: false`` marker when the estimator's
+        params can't be serialized), affine, plus the shared lineage attrs.
 
-    The fitted ``estimator`` is deliberately not persisted.
+    The fitted ``estimator`` is deliberately not persisted; rebuild one via
+    ``nltools.data.braindata.prediction._model_from_spec`` when the spec is
+    refittable.
     """
     import json
 

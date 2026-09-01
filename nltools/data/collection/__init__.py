@@ -1165,8 +1165,14 @@ class BrainCollection:
             "radius_mm": radius_mm,
             "random_state": random_state,
         }
+        # The bundle's model entry is a structured refit spec (class path +
+        # params, or an explicit non-refittable marker) — never a bare repr,
+        # which cannot be reconstructed. cv stays informational: a custom
+        # splitter isn't needed to refit the final estimator.
+        from ..braindata.prediction import _serialize_model_spec
+
         model_spec = {
-            "model": model if isinstance(model, str) else repr(model),
+            "model": _serialize_model_spec(model),
             "spatial_scale": spatial_scale,
             "cv": cv if isinstance(cv, (int, str)) else repr(cv),
             "scoring": scoring,

@@ -578,6 +578,32 @@ class TestPredictPerSubjectCaching:
         assert len(pc) == 3
         assert pc.paths is not None  # path-backed source → 'auto' caches
 
+    def test_bundle_model_spec_refits_customized_estimator(
+        self, tiny_mask, tiny_brain_factory, tmp_path
+    ):
+        """The stored model_spec is a refit ingredient, not a repr string (C-15)."""
+        import json
+
+        import h5py
+        from sklearn.svm import SVC
+
+        from nltools.data.braindata.prediction import _model_from_spec
+
+        bc = self._bc(tiny_mask, tiny_brain_factory, tmp_path)
+        model = SVC(C=10.0, kernel="linear")
+        pc = bc.predict(
+            y=self._labels(), model=model, cv=3, random_state=0, cache=True, n_jobs=1
+        )
+        with h5py.File(pc.paths[0], "r") as f:
+            spec = json.loads(f.attrs["model_spec"])
+        rebuilt = _model_from_spec(spec["model"])
+        assert isinstance(rebuilt, SVC)
+        assert rebuilt.get_params()["C"] == 10.0
+        # Refit on data of the decoded shape works — the docstring's
+        # "refit from the stored spec on demand" claim holds.
+        rng = np.random.default_rng(0)
+        rebuilt.fit(rng.standard_normal((self.N_OBS, 27)), self._labels())
+
 
 class TestWorkerClosureHygiene:
     """Workers must never capture the parent BrainCollection (F8).

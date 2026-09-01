@@ -682,3 +682,63 @@ class TestStringLabels:
         result = minimal_brain_data.predict(y=y, model="ridge", cv=5, random_state=0)
         preds = np.asarray(result.predictions)
         assert preds.dtype.kind == "f"
+
+
+# ---------------------------------------------------------------------------
+# Model-spec serialization (C-15): refit ingredients, not repr strings
+# ---------------------------------------------------------------------------
+
+
+class TestModelSpecSerialization:
+    """Predict-bundle model specs must be reconstructable, not repr strings."""
+
+    def test_shortcut_round_trip(self):
+        import json
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        spec = json.loads(json.dumps(_serialize_model_spec("svm")))
+        rebuilt = _model_from_spec(spec)
+        assert hasattr(rebuilt, "fit") and hasattr(rebuilt, "predict")
+
+    def test_customized_estimator_round_trip(self):
+        import json
+
+        from sklearn.svm import SVC
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        spec = json.loads(
+            json.dumps(_serialize_model_spec(SVC(C=10.0, kernel="linear")))
+        )
+        rebuilt = _model_from_spec(spec)
+        assert isinstance(rebuilt, SVC)
+        assert rebuilt.get_params()["C"] == 10.0
+        assert rebuilt.get_params()["kernel"] == "linear"
+        # And it actually refits.
+        rng = np.random.default_rng(0)
+        rebuilt.fit(rng.standard_normal((10, 4)), np.tile([0, 1], 5))
+
+    def test_non_serializable_params_marked_non_refittable(self):
+        import json
+
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import LinearSVC
+
+        from nltools.data.braindata.prediction import (
+            _model_from_spec,
+            _serialize_model_spec,
+        )
+
+        pipe = make_pipeline(StandardScaler(), LinearSVC(dual="auto"))
+        spec = json.loads(json.dumps(_serialize_model_spec(pipe)))
+        assert spec["refittable"] is False
+        with pytest.raises(ValueError, match="refit"):
+            _model_from_spec(spec)

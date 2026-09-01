@@ -396,6 +396,69 @@ def resolve_model(model: Any):
     return model
 
 
+def _serialize_model_spec(model: Any) -> dict:
+    """Build a JSON-able refit spec for a ``model=`` argument.
+
+    Predict bundles persist the *ingredients* of a decoding run rather than
+    a pickled estimator; this is the model half of that contract. Shapes:
+
+    - string shortcut → ``{'kind': 'shortcut', 'name': 'svm',
+      'refittable': True}``;
+    - estimator whose shallow ``get_params()`` survive JSON →
+      ``{'kind': 'estimator', 'class': 'sklearn.svm._classes.SVC',
+      'params': {...}, 'refittable': True}``;
+    - anything else (nested estimators, callables, array params) →
+      ``{'kind': 'repr', 'repr': repr(model), 'refittable': False}`` — the
+      bundle is explicitly marked non-refittable rather than pretending a
+      repr string is a spec.
+
+    ``_model_from_spec`` is the inverse.
+    """
+    import json
+
+    if isinstance(model, str):
+        return {"kind": "shortcut", "name": model, "refittable": True}
+    if hasattr(model, "get_params"):
+        try:
+            params = model.get_params(deep=False)
+            json.dumps(params)
+        except (TypeError, ValueError):
+            pass
+        else:
+            cls = type(model)
+            return {
+                "kind": "estimator",
+                "class": f"{cls.__module__}.{cls.__qualname__}",
+                "params": params,
+                "refittable": True,
+            }
+    return {"kind": "repr", "repr": repr(model), "refittable": False}
+
+
+def _model_from_spec(spec: dict | str):
+    """Reconstruct an unfitted estimator from a ``_serialize_model_spec`` dict.
+
+    A bare string (legacy spec form) is treated as a shortcut name. Raises
+    ``ValueError`` for specs marked non-refittable.
+    """
+    import importlib
+
+    if isinstance(spec, str):
+        return resolve_model(spec)
+    kind = spec.get("kind")
+    if kind == "shortcut":
+        return resolve_model(spec["name"])
+    if kind == "estimator":
+        module_path, _, cls_name = spec["class"].rpartition(".")
+        cls = getattr(importlib.import_module(module_path), cls_name)
+        return cls(**spec["params"])
+    raise ValueError(
+        "model spec is not refittable (its params could not be serialized); "
+        f"stored repr: {spec.get('repr', '<missing>')}. Rebuild the estimator "
+        "by hand to refit."
+    )
+
+
 def resolve_scoring(scoring: str, classifier: bool) -> str:
     """Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor)."""
     if scoring == "auto":
