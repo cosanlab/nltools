@@ -107,6 +107,55 @@ class TestBrainDataIO:
         assert np.allclose(loaded.X.to_numpy(), X.to_numpy())
         assert np.allclose(loaded.Y.to_numpy(), Y.to_numpy())
 
+    def test_h5_roundtrip_in_memory_mask(self, tmp_path):
+        """write(...h5) with a programmatically built mask (no filename) works.
+
+        ``to_h5`` used to call ``mask.get_filename()`` unconditionally, which
+        is None for an in-memory Nifti — crash. The mask must instead
+        round-trip by value (data + affine).
+        """
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask = nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine)
+        assert mask.get_filename() is None
+        rng = np.random.default_rng(0)
+        vol = rng.standard_normal((4, 4, 4, 5)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask)
+
+        path = str(tmp_path / "in_memory_mask.h5")
+        bd.write(path)
+        loaded = BrainData(path)
+
+        np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
+        np.testing.assert_allclose(loaded.mask.affine, mask.affine)
+        assert loaded.mask.get_filename() is None
+        np.testing.assert_allclose(np.asarray(loaded.data), np.asarray(bd.data))
+        # The reconstructed BrainData is functional, not just loadable.
+        assert loaded.mean().shape == (bd.shape[1],)
+
+    def test_h5_file_backed_mask_keeps_filename(self, tmp_path):
+        """Regression pin: a mask WITH a filename keeps the existing on-disk
+        representation (``mask_file_name`` dataset) and loads it back."""
+        import h5py
+
+        affine = np.eye(4) * 2
+        affine[3, 3] = 1
+        mask_path = tmp_path / "mask.nii.gz"
+        nib.save(nib.Nifti1Image(np.ones((4, 4, 4), dtype=np.int8), affine), mask_path)
+        mask = nib.load(mask_path)
+        rng = np.random.default_rng(1)
+        vol = rng.standard_normal((4, 4, 4, 3)).astype(np.float32)
+        bd = BrainData(nib.Nifti1Image(vol, affine), mask=mask)
+
+        path = str(tmp_path / "file_mask.h5")
+        bd.write(path)
+        with h5py.File(path, "r") as f:
+            assert "mask_file_name" in f
+            assert f["mask_file_name"][()].decode() == str(mask_path)
+        loaded = BrainData(path)
+        assert loaded.mask.get_filename() == str(mask_path)
+        np.testing.assert_allclose(loaded.mask.get_fdata(), mask.get_fdata())
+
     # ==================== Resampling Methods ====================
 
     def test_resample_to_img_nibabel(self):

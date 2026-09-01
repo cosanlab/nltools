@@ -85,6 +85,9 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
 
     Uses h5py for both types; X/Y (BrainData) and Y (Adjacency) are stored
     as polars-compatible groups with ``columns`` and ``values`` datasets.
+    A BrainData mask is always stored by value (data + affine datasets); its
+    filename is stored alongside only when the mask is file-backed, so
+    in-memory masks serialize without one and round-trip by value.
 
     Args:
         obj: Object to save (BrainData or Adjacency).
@@ -105,7 +108,11 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             f.create_dataset(
                 "mask_data", data=obj.mask.get_fdata(), compression=h5_compression
             )
-            f.create_dataset("mask_file_name", data=obj.mask.get_filename())
+            mask_file_name = obj.mask.get_filename()
+            if mask_file_name is not None:
+                # In-memory masks have no filename; the mask still round-trips
+                # by value via the mask_data + mask_affine datasets above.
+                f.create_dataset("mask_file_name", data=mask_file_name)
             _write_polars_frame(f, "X", obj.X, h5_compression)
             _write_polars_frame(f, "Y", obj.Y, h5_compression)
     else:
@@ -150,12 +157,18 @@ def load_brain_data_h5(file_path, mask=None):
         result["Y"] = _read_polars_frame(f, "Y")
 
         if mask is None and "mask_data" in f:
+            if "mask_file_name" in f:
+                # Mask originally file-backed: keep the filename association.
+                file_map = {
+                    "image": nib.FileHolder(filename=f["mask_file_name"][()].decode())
+                }
+            else:
+                # Mask was in-memory at write time: reconstruct by value.
+                file_map = None
             result["mask"] = nib.Nifti1Image(
                 np.array(f["mask_data"]),
                 affine=np.array(f["mask_affine"]),
-                file_map={
-                    "image": nib.FileHolder(filename=f["mask_file_name"][()].decode())
-                },
+                file_map=file_map,
             )
             result["load_mask"] = True
         else:

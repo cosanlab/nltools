@@ -92,6 +92,9 @@ Save BrainData or Adjacency objects to HDF5 files.
 
 Uses h5py for both types; X/Y (BrainData) and Y (Adjacency) are stored
 as polars-compatible groups with ``columns`` and ``values`` datasets.
+A BrainData mask is always stored by value (data + affine datasets); its
+filename is stored alongside only when the mask is file-backed, so
+in-memory masks serialize without one and round-trip by value.
 
 **Parameters:**
 
@@ -191,6 +194,9 @@ Save BrainData or Adjacency objects to HDF5 files.
 
 Uses h5py for both types; X/Y (BrainData) and Y (Adjacency) are stored
 as polars-compatible groups with ``columns`` and ``values`` datasets.
+A BrainData mask is always stored by value (data + affine datasets); its
+filename is stored alongside only when the mask is file-backed, so
+in-memory masks serialize without one and round-trip by value.
 
 **Parameters:**
 
