@@ -1441,3 +1441,163 @@ class TestBrainDataRidgePerVoxelAlpha:
         assert mean_score.shape == (bd.shape[1],)
         assert mean_score.max() > 0.0
         assert mean_score.mean() > -1.0
+
+
+class TestWarnNearCollinear:
+    """Unit tests for the near-collinearity check `fit(model='glm')` runs.
+
+    Complements TestWarnRankDeficient: these designs are full rank, so the
+    exact-deficiency warning stays silent, but the columns are correlated
+    enough (pairwise |r|, or a large condition number) that OLS betas are
+    unstable. The helper is pure (array in, warning out).
+    """
+
+    @staticmethod
+    def _check(X, columns=None):
+        import polars as pl
+
+        from nltools.data.braindata.modeling import _warn_if_near_collinear
+
+        X = np.asarray(X, dtype=float)
+        model = (
+            pl.DataFrame({c: X[:, i] for i, c in enumerate(columns)})
+            if columns is not None
+            else X
+        )
+        _warn_if_near_collinear(X, model)
+
+    @staticmethod
+    def _correlated_pair(n=60, r=0.97, seed=0):
+        """Two unit-variance columns with exactly |r| = r (empirical)."""
+        rng = np.random.default_rng(seed)
+        a = rng.standard_normal(n)
+        a = (a - a.mean()) / a.std()
+        e = rng.standard_normal(n)
+        e = e - e.mean()
+        e = e - a * (e @ a) / (a @ a)  # orthogonalize against a
+        e = e / e.std()
+        b = r * a + np.sqrt(1 - r**2) * e
+        return a, b
+
+    def test_high_pairwise_r_warns_and_names_the_pair(self):
+        from nltools.data.braindata.modeling import NearCollinearDesignWarning
+
+        a, b = self._correlated_pair(r=0.97)
+        rng = np.random.default_rng(7)
+        other = rng.standard_normal(len(a))
+        with pytest.warns(NearCollinearDesignWarning, match="nearly collinear") as rec:
+            self._check(
+                np.column_stack([a, b, other]), columns=["condA", "condB", "other"]
+            )
+        msg = str(rec[0].message)
+        assert "condA" in msg and "condB" in msg
+        # The uninvolved column is not dragged into the message.
+        assert "other" not in msg
+
+    def test_message_offers_the_three_fixes(self):
+        """Same maintainer ask as the rank warning: vif, clean, ridge tips."""
+        a, b = self._correlated_pair(r=0.97)
+        with pytest.warns(UserWarning) as rec:
+            self._check(np.column_stack([a, b]), columns=["condA", "condB"])
+        msg = "\n".join(str(w.message) for w in rec)
+        assert "vif" in msg.lower()
+        assert "clean" in msg
+        assert "ridge" in msg
+
+    def test_orthogonal_design_is_silent(self):
+        rng = np.random.default_rng(0)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._check(rng.standard_normal((60, 4)))
+        assert not caught
+
+    def test_condition_number_catches_multi_column_dependence(self):
+        """Three columns nearly summing to zero: no pairwise |r| >= 0.95, but
+        the standardized design's condition number blows past the Belsley 30."""
+        from nltools.data.braindata.modeling import NearCollinearDesignWarning
+
+        rng = np.random.default_rng(3)
+        n = 60
+        a = rng.standard_normal(n)
+        b = rng.standard_normal(n)
+        c = -(a + b) + 0.02 * rng.standard_normal(n)
+        X = np.column_stack([a, b, c])
+        # Preconditions: full rank, and the pairwise signal alone cannot fire.
+        assert np.linalg.matrix_rank(X) == 3
+        corr = np.abs(np.corrcoef(X, rowvar=False))
+        np.fill_diagonal(corr, 0.0)
+        assert corr.max() < 0.95
+        with pytest.warns(NearCollinearDesignWarning, match="condition number"):
+            self._check(X, columns=["a", "b", "c"])
+
+    def test_intercept_and_drift_columns_do_not_warn(self):
+        """Constant intercepts are excluded from the scan; a linear drift next
+        to well-behaved regressors is not collinear."""
+        rng = np.random.default_rng(5)
+        n = 60
+        X = np.column_stack(
+            [
+                np.ones(n),
+                np.linspace(-1, 1, n),
+                rng.standard_normal(n),
+                rng.standard_normal(n),
+            ]
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self._check(X, columns=[".nl_poly_0", ".nl_poly_1", "condA", "condB"])
+        assert not caught
+
+    def test_pair_list_is_truncated(self):
+        """Many offending pairs must not flood the warning message."""
+        a, _ = self._correlated_pair(n=80, r=0.97)
+        cols = [a]
+        for seed in range(1, 9):
+            rng = np.random.default_rng(100 + seed)
+            e = rng.standard_normal(len(a))
+            e = e - e.mean()
+            e = e - a * (e @ a) / (a @ a)
+            e = e / e.std()
+            cols.append(0.97 * a + np.sqrt(1 - 0.97**2) * e)
+        X = np.column_stack(cols)
+        names = ["base"] + [f"near_{i}" for i in range(1, 9)]
+        with pytest.warns(UserWarning) as rec:
+            self._check(X, columns=names)
+        msg = str(rec[0].message)
+        assert "more" in msg  # "... and N more"
+        assert msg.count("&") <= 5
+
+    def test_exact_deficiency_fires_only_the_rank_warning(self, minimal_brain_data):
+        """Through fit(): an exactly rank-deficient design raises
+        RankDeficientDesignWarning alone, never both warnings."""
+        from nltools.data.braindata.modeling import (
+            NearCollinearDesignWarning,
+            RankDeficientDesignWarning,
+        )
+
+        n = len(minimal_brain_data)
+        rng = np.random.default_rng(11)
+        a = rng.standard_normal(n)
+        design_matrix = pd.DataFrame(
+            {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
+        )
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            minimal_brain_data.fit(model="glm", X=design_matrix)
+        assert any(issubclass(w.category, RankDeficientDesignWarning) for w in caught)
+        assert not any(
+            issubclass(w.category, NearCollinearDesignWarning) for w in caught
+        )
+
+    def test_near_collinear_design_warns_through_fit(self, minimal_brain_data):
+        """Through fit(): the v0.5 design_clean threshold case (r = 0.97) is no
+        longer silent — it warns, and nothing is dropped."""
+        from nltools.data.braindata.modeling import NearCollinearDesignWarning
+
+        n = len(minimal_brain_data)
+        a, b = self._correlated_pair(n=n, r=0.97, seed=21)
+        design_matrix = pd.DataFrame({"Intercept": np.ones(n), "condA": a, "condB": b})
+        with pytest.warns(NearCollinearDesignWarning):
+            minimal_brain_data.fit(model="glm", X=design_matrix)
+        # Warning only: every regressor is still estimated.
+        assert minimal_brain_data.glm_betas.shape[0] == 3

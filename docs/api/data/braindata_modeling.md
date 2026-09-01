@@ -6,10 +6,20 @@ BrainData modeling functions.
 Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`NEAR_COLLINEAR_CONDITION_THRESHOLD` |  | 
+`NEAR_COLLINEAR_CORR_THRESHOLD` |  | 
+
+
+
 **Classes:**
 
 Name | Description
 ---- | -----------
+[`NearCollinearDesignWarning`](#data-braindata-modeling-nearcollineardesignwarning) | The design matrix supplied to ``fit()`` is full rank but nearly collinear.
 [`RankDeficientDesignWarning`](#data-braindata-modeling-rankdeficientdesignwarning) | The design matrix supplied to ``fit()`` is rank deficient.
 
 **Methods:**
@@ -27,9 +37,18 @@ Name | Description
 [`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
-
-
 ### Classes
+
+(data-braindata-modeling-nearcollineardesignwarning)=
+#### `NearCollinearDesignWarning`
+
+Bases: <code>[UserWarning](#UserWarning)</code>
+
+The design matrix supplied to ``fit()`` is full rank but nearly collinear.
+
+Subclasses ``UserWarning`` so it participates in default filtering, while
+remaining individually silenceable:
+``warnings.filterwarnings("ignore", category=NearCollinearDesignWarning)``.
 
 (data-braindata-modeling-rankdeficientdesignwarning)=
 #### `RankDeficientDesignWarning`
@@ -149,6 +168,15 @@ Fit a model to brain imaging data.
 Creates and fits a model from string specification. The brain data
 (bd.data) is always used as the target variable. Model and results
 are stored for later use with predict().
+
+For ``model='glm'`` the design is diagnosed before estimation, as warnings
+only — nothing is ever dropped, modified, or raised on. An exactly
+rank-deficient design fires `RankDeficientDesignWarning`; a full-rank but
+near-collinear design (a column pair with |r| >= 0.95, or a
+column-standardized condition number above 30) fires
+`NearCollinearDesignWarning` instead — never both. Each has its own
+category so it can be silenced surgically with
+``warnings.filterwarnings``.
 
 **Parameters:**
 

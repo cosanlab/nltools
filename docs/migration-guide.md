@@ -430,6 +430,19 @@ being skipped. The warning has its own category so it can be silenced
 surgically: `warnings.filterwarnings("ignore",
 category=nltools.data.braindata.modeling.RankDeficientDesignWarning)`.
 
+**Full-rank but near-collinear designs warn too.** The designs the old
+`design_clean` used to prune — a column pair correlated at `|r| >= 0.95` — are
+technically estimable, so the rank check stays silent on them; `fit()` now
+fires a separate `NearCollinearDesignWarning` instead, naming the offending
+pair(s). A second signal, a condition number of the column-standardized design
+above 30 (Belsley's classic cutoff), catches near-dependence spread across
+three or more columns that no pairwise correlation reveals; the message says
+which signal fired. Constant (intercept-like) columns are excluded from the
+scan, so generated drift and intercept terms don't false-positive. Like the
+rank warning this is diagnosis only — nothing is dropped, and the same three
+fixes apply (`vif()`, an explicit `clean()`, or ridge). A rank-deficient
+design fires only `RankDeficientDesignWarning`, never both.
+
 #### Prefer regularization to dropping columns
 
 If the warning fires, **regularization is usually the better fix**. Ridge has a

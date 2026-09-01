@@ -18,7 +18,10 @@ import pandas as pd
 import pytest
 
 from nltools.data import BrainCollection, BrainData, DesignMatrix
-from nltools.data.braindata.modeling import RankDeficientDesignWarning
+from nltools.data.braindata.modeling import (
+    NearCollinearDesignWarning,
+    RankDeficientDesignWarning,
+)
 
 
 @pytest.fixture(scope="function")
@@ -43,6 +46,46 @@ def bc_rank_deficient(tiny_mask):
         )
         for i in range(3)
     ]
+    return BrainCollection(
+        brains, mask=tiny_mask, designs=designs, lazy=False, cache_dir=None
+    )
+
+
+@pytest.fixture(scope="function")
+def bc_near_collinear(tiny_mask):
+    """Three-subject collection whose designs are full rank but near-collinear.
+
+    Each subject's b is built to correlate with a at exactly |r| = 0.97 — the
+    heritage of the removed ``design_clean`` threshold — so the fit is fine
+    for the rank check but must relay ``NearCollinearDesignWarning``.
+    """
+    rng = np.random.default_rng(7)
+    n_obs = 24
+    brains = [
+        BrainData(
+            nib.Nifti1Image(
+                rng.standard_normal(tiny_mask.shape + (n_obs,)).astype(np.float32),
+                tiny_mask.affine,
+            ),
+            mask=tiny_mask,
+        )
+        for _ in range(3)
+    ]
+
+    def correlated_pair(seed):
+        local = np.random.default_rng(seed)
+        a = local.standard_normal(n_obs)
+        a = (a - a.mean()) / a.std()
+        e = local.standard_normal(n_obs)
+        e = e - e.mean()
+        e = e - a * (e @ a) / (a @ a)
+        e = e / e.std()
+        return a, 0.97 * a + np.sqrt(1 - 0.97**2) * e
+
+    designs = []
+    for i in range(3):
+        a, b = correlated_pair(seed=100 + i)
+        designs.append(DesignMatrix(pd.DataFrame({"a": a, "b": b}), TR=2.0))
     return BrainCollection(
         brains, mask=tiny_mask, designs=designs, lazy=False, cache_dir=None
     )
@@ -105,6 +148,21 @@ class TestWorkerWarningRelay:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             bc_with_designs.fit(model="glm", n_jobs=2)
+        assert not any(issubclass(x.category, RankDeficientDesignWarning) for x in w)
+
+
+class TestNearCollinearRelay:
+    def test_near_collinear_warning_relayed_from_workers(self, bc_near_collinear):
+        """The relay carries NearCollinearDesignWarning with its real category."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            bc_near_collinear.fit(model="glm", n_jobs=2)
+        near = [x for x in w if issubclass(x.category, NearCollinearDesignWarning)]
+        assert near, (
+            f"no NearCollinearDesignWarning relayed; got {[x.category for x in w]}"
+        )
+        assert all(x.category is NearCollinearDesignWarning for x in near)
+        # Near-collinear is full rank: the exact-deficiency warning must not fire.
         assert not any(issubclass(x.category, RankDeficientDesignWarning) for x in w)
 
 

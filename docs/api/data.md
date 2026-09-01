@@ -9333,11 +9333,23 @@ BrainData modeling functions.
 Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
 
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+[`NEAR_COLLINEAR_CONDITION_THRESHOLD`](#data-near-collinear-condition-threshold) |  | 
+`NEAR_COLLINEAR_CORR_THRESHOLD` |  | 
+
+
+
+####### Attributes##
+
 **Classes:**
 
 Name | Description
 ---- | -----------
-[`RankDeficientDesignWarning`](#data-rankdeficientdesignwarning) | The design matrix supplied to ``fit()`` is rank deficient.
+[`NearCollinearDesignWarning`](#data-nearcollineardesignwarning) | The design matrix supplied to ``fit()`` is full rank but nearly collinear.
+`RankDeficientDesignWarning` | The design matrix supplied to ``fit()`` is rank deficient.
 
 **Methods:**
 
@@ -9354,12 +9366,35 @@ Name | Description
 [`ttest`](#data-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
+(data-near-collinear-condition-threshold)=
+###### `NEAR_COLLINEAR_CONDITION_THRESHOLD`
+
+```python
+NEAR_COLLINEAR_CONDITION_THRESHOLD = 30.0
+```
+
+######## `NEAR_COLLINEAR_CORR_THRESHOLD`
+
+```python
+NEAR_COLLINEAR_CORR_THRESHOLD = 0.95
+```
+
 
 
 ####### Classes##
 
-(data-rankdeficientdesignwarning)=
-###### `RankDeficientDesignWarning`
+(data-nearcollineardesignwarning)=
+###### `NearCollinearDesignWarning`
+
+Bases: <code>[UserWarning](#UserWarning)</code>
+
+The design matrix supplied to ``fit()`` is full rank but nearly collinear.
+
+Subclasses ``UserWarning`` so it participates in default filtering, while
+remaining individually silenceable:
+``warnings.filterwarnings("ignore", category=NearCollinearDesignWarning)``.
+
+######## `RankDeficientDesignWarning`
 
 Bases: <code>[UserWarning](#UserWarning)</code>
 
@@ -9601,6 +9636,15 @@ Fit a model to brain imaging data.
 Creates and fits a model from string specification. The brain data
 (bd.data) is always used as the target variable. Model and results
 are stored for later use with predict().
+
+For ``model='glm'`` the design is diagnosed before estimation, as warnings
+only — nothing is ever dropped, modified, or raised on. An exactly
+rank-deficient design fires `RankDeficientDesignWarning`; a full-rank but
+near-collinear design (a column pair with |r| >= 0.95, or a
+column-standardized condition number above 30) fires
+`NearCollinearDesignWarning` instead — never both. Each has its own
+category so it can be silenced surgically with
+``warnings.filterwarnings``.
 
 **Returns:**
 
