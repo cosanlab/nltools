@@ -40,7 +40,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[ndarray](#numpy.ndarray)</code> | Data to test - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean != 0) - 2 | 'two': Two-tailed test (mean != 0) - 1 | 'one': One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 2 | 'two': Two-tailed test (mean != 0) - 1 | 'one': One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
 `device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>

@@ -19,7 +19,7 @@ from .utils import (
     maybe_tqdm,
     make_progress_bar,
 )
-from .validation import validate_tail_parameter
+from .validation import validate_device_parameter, validate_tail_parameter
 
 if TYPE_CHECKING:
     import torch
@@ -315,8 +315,8 @@ def _rank_transform_gpu(
 
     # Compute ranks for each batch
     ranked_flat = torch.zeros_like(data_flat, dtype=torch.float32)
-    for i in range(n_batches):
-        batch_data = data_flat[i]  # (n_samples,)
+    for row in range(n_batches):
+        batch_data = data_flat[row]  # (n_samples,)
 
         # Sort data to handle ties
         sorted_data, sorted_indices = torch.sort(batch_data, stable=True)
@@ -324,37 +324,23 @@ def _rank_transform_gpu(
         # Initial ranks: 1, 2, 3, ..., n_samples
         ranks = torch.arange(1, n_samples + 1, dtype=torch.float32, device=device)
 
-        # Handle tied ranks: average method
-        # Find consecutive duplicates and assign average rank
+        # Handle tied ranks: average method (matches scipy.stats.rankdata).
+        # Sorted equal values form runs; each run's ranks become its mean rank.
         if n_samples > 1:
-            # Compare adjacent sorted values
+            # ties[j] is True when sorted_data[j] == sorted_data[j - 1], so a
+            # run of equal values starts at each False position.
             diff = torch.diff(sorted_data)
             ties = torch.cat([torch.tensor([False], device=device), diff == 0])
 
             if ties.any():
-                # Group consecutive ties - simpler approach
-                # Find where ties start and end
-                tie_groups = []
-                i = 0
-                while i < n_samples:
-                    if ties[i]:
-                        # Found start of tie group
-                        start = i
-                        # Find end of tie group
-                        while i < n_samples and ties[i]:
-                            i += 1
-                        end = i + 1 if i < n_samples else n_samples
-                        tie_groups.append((start, end))
-                    else:
-                        i += 1
-
-                # Assign average rank to each tie group
-                for start, end in tie_groups:
-                    avg_rank = ranks[start:end].mean()
-                    ranks[start:end] = avg_rank
+                run_starts = torch.nonzero(~ties).flatten().tolist()
+                run_bounds = run_starts + [n_samples]
+                for start, end in zip(run_bounds[:-1], run_bounds[1:]):
+                    if end - start > 1:
+                        ranks[start:end] = ranks[start:end].mean()
 
         # Map ranks back to original order
-        ranked_flat[i, sorted_indices] = ranks
+        ranked_flat[row, sorted_indices] = ranks
 
     # Reshape back to reordered shape
     ranked_reordered = ranked_flat.reshape(*data_reordered.shape)
@@ -720,7 +706,6 @@ def correlation_permutation_test(
             - 'spearman': Spearman rank correlation (monotonic relationships)
             - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
         tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 'two' or 2: Two-tailed test (r != 0)
             - 2 | 'two': Two-tailed test (r != 0)
             - 1 | 'one': One-tailed (r > 0; negate one variable for the other
               direction). The fixed direction keeps MCP correction valid.
@@ -737,6 +722,7 @@ def correlation_permutation_test(
             device='gpu'. Larger values allow more permutations per batch but
             risk OOM on smaller GPUs.
         random_state (int, optional): Random seed for reproducibility
+        progress_bar (bool): Show a progress bar over permutations (default: False)
 
     Returns:
         dict: Dictionary with keys:
@@ -778,9 +764,7 @@ def correlation_permutation_test(
         - For multi-feature data, each feature pair tested independently
         - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
     """
-    # Validate device parameter
-    if device not in [None, "cpu", "gpu"]:
-        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
+    validate_device_parameter(device)
 
     # Input validation
     data1 = np.asarray(data1, dtype=np.float64)

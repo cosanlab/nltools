@@ -119,7 +119,7 @@ True
 #### `matrix_permutation_test`
 
 ```python
-matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, return_null: bool = False, progress_bar: bool = False, random_state: int | None = None) -> dict
+matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
 ```
 
 Matrix permutation test (Mantel test) for correlating two square matrices.
@@ -148,11 +148,12 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | Correlation metric ['pearson'|'spearman'|'kendall'] (default: 'pearson') | <code>'pearson'</code>
 `how` | <code>[str](#str)</code> | Which elements to compare ['upper'|'lower'|'full'] (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
 `device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
-`return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 

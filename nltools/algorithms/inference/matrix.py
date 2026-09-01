@@ -239,11 +239,11 @@ def matrix_permutation_test(
     how: str = "upper",
     include_diag: bool = False,
     tail: int | str = 2,
+    return_null: bool = False,
     device: str | None = "cpu",
     n_jobs: int = -1,
-    return_null: bool = False,
-    progress_bar: bool = False,
     random_state: int | None = None,
+    progress_bar: bool = False,
 ) -> dict:
     """Matrix permutation test (Mantel test) for correlating two square matrices.
 
@@ -272,16 +272,16 @@ def matrix_permutation_test(
             - 'full': All elements (see include_diag)
         include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
         tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 'two' or 2: Two-tailed test (r != 0)
             - 2 | 'two': Two-tailed test (r != 0)
             - 1 | 'one': One-tailed (r > 0; negate the data for the other direction)
+        return_null (bool): Return null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
             - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
         n_jobs (int): Number of parallel workers, -1 = all cores (default: -1)
             Only used when device='cpu'
-        return_null (bool): Return null distribution (default: False)
         random_state (int, optional): Random seed for reproducibility
+        progress_bar (bool): Show a progress bar over permutations (default: False)
 
     Returns:
         dict: Dictionary with keys:

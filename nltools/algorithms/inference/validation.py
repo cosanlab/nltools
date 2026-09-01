@@ -15,18 +15,26 @@ Usage:
 
 import numpy as np
 
+from .utils import _normalize_tail_internal
 
-def validate_device_parameter(device: str | None) -> None:
+
+def validate_device_parameter(device: str | None, *, allow_auto: bool = False) -> None:
     """Validate device parameter.
 
     Args:
-        device: Parallel parameter value
+        device: Device parameter value (None, 'cpu', or 'gpu')
+        allow_auto: Also accept 'auto' (entry points that resolve the device
+            themselves, e.g. `phase_randomize`)
 
     Raises:
-        ValueError: If device is not None, 'cpu', or 'gpu'
+        ValueError: If device is not one of the accepted values
     """
-    if device is not None and device not in ["cpu", "gpu"]:
-        raise ValueError(f"device must be None, 'cpu', or 'gpu', got: {device!r}")
+    allowed = [None, "cpu", "gpu"] + (["auto"] if allow_auto else [])
+    if device not in allowed:
+        options = (
+            "None, 'cpu', 'gpu', or 'auto'" if allow_auto else "None, 'cpu', or 'gpu'"
+        )
+        raise ValueError(f"device must be {options}, got {device!r}")
 
 
 def validate_device_parameter_matrix(device: str | None) -> None:
@@ -72,10 +80,13 @@ def validate_tail_parameter(tail: int | str) -> str:
         across all tests is essential — which is exactly why the direction is
         part of the vocabulary, not the data. See GH #315.
     """
-    if tail == 2 or tail == "two":
-        return "two"
-    if tail == 1 or tail == "one":
-        return "upper"
+    # One mapping table lives in `_normalize_tail_internal`; the public layer
+    # only rejects the internal-only directional forms it must not accept.
+    if tail not in (-1, "upper", "lower"):
+        try:
+            return _normalize_tail_internal(tail)
+        except ValueError:
+            pass
     raise ValueError(
         f"tail must be 2|'two' (two-tailed) or 1|'one' (one-tailed, the test's "
         f"positive direction), got {tail!r}. The 'upper'/'lower'/-1 forms were "

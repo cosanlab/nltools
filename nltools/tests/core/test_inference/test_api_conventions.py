@@ -59,6 +59,30 @@ def test_options_are_keyword_only(func, data_args):
     )
 
 
+def test_matrix_trailing_kwarg_order():
+    """CLAUDE.md trailing order: ..., return flags, n_jobs, random_state, progress_bar.
+
+    `matrix_permutation_test` drifted (`progress_bar` landed before
+    `random_state`, `return_null` after `n_jobs`); all params are keyword-only,
+    so pinning the canonical order is not a breaking change.
+    """
+    params = list(inspect.signature(matrix_permutation_test).parameters)
+    assert params == [
+        "data1",
+        "data2",
+        "n_permute",
+        "metric",
+        "how",
+        "include_diag",
+        "tail",
+        "return_null",
+        "device",
+        "n_jobs",
+        "random_state",
+        "progress_bar",
+    ]
+
+
 # NOTE: there is no wrapper layer to hold in parity anymore — the v0.6.0
 # consolidation (issue #474) made `nltools.algorithms` re-export the engine
 # functions themselves. `tests/core/test_algorithms_api.py` pins that identity.

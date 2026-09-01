@@ -9,6 +9,7 @@ key in result dicts.
 """
 
 import inspect
+import re
 import warnings
 
 import numpy as np
@@ -71,6 +72,45 @@ def test_invalid_device_raises():
         )
 
 
+def _device_call(func):
+    """Build minimal valid arguments for each device-taking entry point."""
+    rng = np.random.default_rng(0)
+    if func is one_sample_permutation_test:
+        return (rng.standard_normal(12),), {}
+    if func is isc_permutation_test:
+        return (rng.standard_normal((20, 5)),), {}
+    if func is isc_group_permutation_test:
+        return (rng.standard_normal((20, 4)), rng.standard_normal((20, 4))), {}
+    if func is phase_randomize:
+        return (rng.standard_normal(16),), {}
+    # two-array tests: two_sample / correlation / timeseries
+    return (rng.standard_normal(20), rng.standard_normal(20)), {}
+
+
+@pytest.mark.parametrize(
+    "func",
+    [f for f in DEVICE_FUNCTIONS if f is not matrix_permutation_test],
+    ids=lambda f: f.__name__,
+)
+def test_invalid_device_raises_shared_message(func):
+    """Every entry point rejects an invalid device with the one shared message.
+
+    Run-or-raise (CLAUDE.md): a typo like 'gup' must never warn and silently
+    run on CPU, and every entry point must use `validate_device_parameter`
+    rather than a hand-rolled (drifting) copy of the check.
+    """
+    args, kwargs = _device_call(func)
+    if func is phase_randomize:
+        # phase_randomize additionally accepts 'auto' (it resolves the device
+        # itself), so its message names the extra option.
+        expected = re.escape("device must be None, 'cpu', 'gpu', or 'auto', got 'gup'")
+    else:
+        kwargs.setdefault("n_permute", 20)
+        expected = re.escape("device must be None, 'cpu', or 'gpu', got 'gup'")
+    with pytest.raises(ValueError, match=expected):
+        func(*args, device="gup", random_state=0, **kwargs)
+
+
 def test_matrix_rejects_gpu_device():
     rng = np.random.default_rng(0)
     mat = rng.standard_normal((6, 6))
@@ -96,8 +136,13 @@ class TestPhaseRandomizeDevice:
             out = phase_randomize(x, random_state=0)
         assert out.shape == x.shape
 
-    def test_unknown_device_warns_and_falls_back(self):
+    def test_unknown_device_raises(self):
+        """Run-or-raise: no warn-and-fall-back-to-CPU for a typo'd device."""
         x = np.random.default_rng(0).standard_normal(64)
-        with pytest.warns(UserWarning, match="device"):
-            out = phase_randomize(x, device="quantum", random_state=0)
+        with pytest.raises(ValueError, match="device"):
+            phase_randomize(x, device="quantum", random_state=0)
+
+    def test_auto_device_accepted(self):
+        x = np.random.default_rng(0).standard_normal(64)
+        out = phase_randomize(x, device="auto", random_state=0)
         assert out.shape == x.shape

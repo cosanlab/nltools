@@ -1158,14 +1158,17 @@ class TestAutoNJobsForArrays:
         assert auto_n_jobs_for_arrays([]) == 1
         assert auto_n_jobs_for_arrays([None]) == 1
 
-    def test_n_jobs_helpers_single_source(self):
-        """inference.utils re-exports the backends implementations."""
+    def test_n_jobs_helpers_single_home(self):
+        """The n_jobs memory helpers live only in backends.
+
+        No compat re-export from inference.utils (one import path), and no
+        `_verify_n_jobs_memory_constraint` twin — it had no production caller
+        and duplicated `_auto_n_jobs_cpu`'s memory math verbatim.
+        """
         from nltools.algorithms import backends
         from nltools.algorithms.inference import utils as inf_utils
 
-        assert inf_utils._auto_n_jobs_cpu is backends._auto_n_jobs_cpu
-        assert inf_utils._estimate_data_size_mb is backends._estimate_data_size_mb
-        assert (
-            inf_utils._verify_n_jobs_memory_constraint
-            is backends._verify_n_jobs_memory_constraint
-        )
+        assert not hasattr(inf_utils, "_auto_n_jobs_cpu")
+        assert not hasattr(inf_utils, "_estimate_data_size_mb")
+        assert not hasattr(inf_utils, "_verify_n_jobs_memory_constraint")
+        assert not hasattr(backends, "_verify_n_jobs_memory_constraint")

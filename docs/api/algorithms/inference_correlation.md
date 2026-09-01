@@ -41,12 +41,13 @@ Name | Type | Description | Default
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Data to correlate with - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
 `metric` | <code>[str](#str)</code> | Correlation metric (default: 'pearson') - 'pearson': Pearson correlation (linear relationships) - 'spearman': Spearman rank correlation (monotonic relationships) - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties) | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (r != 0) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
 `device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
 `max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 

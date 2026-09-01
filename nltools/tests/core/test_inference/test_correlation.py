@@ -958,3 +958,144 @@ class TestKendallGpu:
         )
         assert result["device"] == "gpu"
         assert result["correlation"][1] == 0.0
+
+
+class TestGpuRankTransformTies:
+    """`_rank_transform_gpu` must match `scipy.stats.rankdata` on tied data.
+
+    Two historic bugs corrupted every GPU Spearman result over tied data
+    (integer ratings, discrete scores): the tie-group window was off by one on
+    both ends (excluding the first tied element, including the next distinct
+    one, and dropping trailing runs entirely), and the tie-scan loop shadowed
+    the batch row index (IndexError or wrong-row rank corruption for any batch
+    after the first). Torch-on-CPU runs the identical code path as CUDA/MPS.
+    """
+
+    pytestmark = pytest.mark.skipif(
+        __import__("importlib.util", fromlist=["util"]).find_spec("torch") is None,
+        reason="PyTorch not installed",
+    )
+
+    def _rank(self, values, dim=-1):
+        import torch
+
+        from nltools.algorithms.inference.correlation import _rank_transform_gpu
+
+        tensor = torch.tensor(values, dtype=torch.float32)
+        return _rank_transform_gpu(tensor, dim=dim).numpy()
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [1.0, 2.0, 2.0, 3.0],  # interior run: was [1, 2, 3.5, 3.5]
+            [2.0, 2.0, 3.0, 3.0],  # leading + trailing runs: was [1, 2.5, 2.5, 4]
+            [1.0, 2.0, 2.0],  # trailing run: was dropped entirely -> [1, 2, 3]
+            [2.0, 2.0, 2.0, 2.0],  # all tied
+            [3.0, 3.0, 1.0, 2.0, 2.0],  # unsorted input with two runs
+            [1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 4.0],  # adjacent runs of length 2 and 3
+            [5.0, 4.0, 4.0, 4.0, 1.0],  # interior run of 3, descending input
+            [1.0, 2.0, 3.0, 4.0],  # no ties (control)
+        ],
+        ids=[
+            "interior_pair",
+            "leading_and_trailing",
+            "trailing_pair",
+            "all_tied",
+            "unsorted_two_runs",
+            "adjacent_runs",
+            "descending_run_of_three",
+            "no_ties",
+        ],
+    )
+    def test_matches_scipy_rankdata(self, values):
+        from scipy.stats import rankdata
+
+        np.testing.assert_allclose(self._rank(values), rankdata(values))
+
+    def test_multi_row_batches_rank_independently(self):
+        """Every row gets its own ranks (the shadowed index corrupted rows)."""
+        from scipy.stats import rankdata
+
+        rows = np.array(
+            [
+                [1.0, 2.0, 2.0, 3.0, 0.0],
+                [4.0, 4.0, 4.0, 1.0, 2.0],
+                [0.0, 1.0, 2.0, 3.0, 4.0],
+            ]
+        )
+        expected = np.vstack([rankdata(row) for row in rows])
+        np.testing.assert_allclose(self._rank(rows), expected)
+
+    def test_dim0_matches_scipy_rankdata_per_column(self):
+        """The (n_samples, n_features) observed-data call site ranks along dim=0."""
+        from scipy.stats import rankdata
+
+        data = np.array(
+            [
+                [1.0, 4.0],
+                [2.0, 4.0],
+                [2.0, 4.0],
+                [3.0, 1.0],
+            ]
+        )
+        expected = np.column_stack([rankdata(data[:, j]) for j in range(data.shape[1])])
+        np.testing.assert_allclose(self._rank(data, dim=0), expected)
+
+
+class TestGpuSpearmanTies:
+    """GPU Spearman over tied data must agree with the CPU/scipy path."""
+
+    pytestmark = pytest.mark.skipif(
+        __import__("importlib.util", fromlist=["util"]).find_spec("torch") is None,
+        reason="PyTorch not installed",
+    )
+
+    def _tied_data(self, seed=0, n=25, f=4):
+        """Integer-valued data guarantees ties in every column."""
+        rng = np.random.default_rng(seed)
+        x = rng.integers(0, 6, size=(n, f)).astype(np.float64)
+        y = np.clip(x + rng.integers(-2, 3, size=(n, f)), 0, 7).astype(np.float64)
+        return x, y
+
+    def test_gpu_spearman_observed_matches_scipy(self):
+        from scipy.stats import spearmanr
+
+        x, y = self._tied_data(seed=1)
+        result = correlation_permutation_test(
+            x, y, metric="spearman", n_permute=50, device="gpu", random_state=0
+        )
+        assert result["device"] == "gpu"
+        expected = np.array([spearmanr(x[:, i], y[:, i])[0] for i in range(x.shape[1])])
+        np.testing.assert_allclose(result["correlation"], expected, atol=1e-5)
+
+    def test_gpu_spearman_null_matches_cpu(self):
+        """Same seed -> same permutations -> null distributions agree (float32 tol)."""
+        x, y = self._tied_data(seed=2)
+        kwargs = {
+            "metric": "spearman",
+            "n_permute": 200,
+            "random_state": 42,
+            "return_null": True,
+        }
+        gpu = correlation_permutation_test(x, y, device="gpu", **kwargs)
+        cpu = correlation_permutation_test(x, y, device=None, **kwargs)
+        assert gpu["device"] == "gpu"
+        np.testing.assert_allclose(gpu["null_dist"], cpu["null_dist"], atol=1e-4)
+        np.testing.assert_allclose(gpu["p"], cpu["p"], atol=0.02)
+
+    def test_gpu_spearman_single_feature_ties(self):
+        from scipy.stats import spearmanr
+
+        x, y = self._tied_data(seed=3, f=1)
+        result = correlation_permutation_test(
+            x[:, 0],
+            y[:, 0],
+            metric="spearman",
+            n_permute=50,
+            device="gpu",
+            random_state=0,
+        )
+        assert result["device"] == "gpu"
+        np.testing.assert_allclose(
+            result["correlation"], spearmanr(x[:, 0], y[:, 0])[0], atol=1e-5
+        )

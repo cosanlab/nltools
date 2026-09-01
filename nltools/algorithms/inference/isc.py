@@ -33,7 +33,7 @@ from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
 from .utils import _compute_pvalue, EPSILON, maybe_tqdm
-from .validation import validate_tail_parameter
+from .validation import validate_device_parameter, validate_tail_parameter
 
 
 # ============================================================================
@@ -693,7 +693,7 @@ def _permute_isc_group_cpu_parallel(
         - Shape (n_permute, n_voxels) for voxel-wise
     """
     from joblib import Parallel, delayed
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     # Estimate memory for combined groups
@@ -881,7 +881,7 @@ def _bootstrap_isc_group_cpu_parallel(
         - Shape (n_permute, n_voxels) for voxel-wise
     """
     from joblib import Parallel, delayed
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     # Estimate memory for combined groups
@@ -1060,9 +1060,7 @@ def isc_group_permutation_test(
             f"summary_statistic must be 'pairwise' or 'leave-one-out', got {summary_statistic}"
         )
 
-    # Validate device parameter
-    if device not in [None, "cpu", "gpu"]:
-        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
+    validate_device_parameter(device)
 
     # Determine backend for computation phase based on device parameter
     if device == "cpu" or device is None:
@@ -1297,7 +1295,7 @@ def _bootstrap_loo_cpu_parallel(
         Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
     """
     from joblib import Parallel, delayed
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     # Auto-detect optimal n_jobs based on memory if n_jobs=-1
     if n_jobs == -1:
@@ -1473,7 +1471,7 @@ def _bootstrap_pairwise_cpu_parallel(
         Bootstrap distribution, shape (n_permute,) or (n_permute, n_voxels).
     """
     from joblib import Parallel, delayed
-    from .utils import _auto_n_jobs_cpu, _estimate_data_size_mb
+    from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
 
     if n_subjects is None:
         raise ValueError("n_subjects is required for pairwise bootstrap")
@@ -1850,9 +1848,7 @@ def isc_permutation_test(
             f"got {method}"
         )
 
-    # Validate device parameter
-    if device not in [None, "cpu", "gpu"]:
-        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
+    validate_device_parameter(device)
 
     # Determine backend for computation phase based on device parameter
     if device == "cpu" or device is None:

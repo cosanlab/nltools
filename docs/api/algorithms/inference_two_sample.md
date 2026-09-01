@@ -41,7 +41,7 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data - shape (n_samples1,) for single feature - shape (n_samples1, n_features) for multi-feature (voxel-wise) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data - shape (n_samples2,) for single feature - shape (n_samples2, n_features) for multi-feature (voxel-wise) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 'two' or 2: Two-tailed test (mean1 != mean2) - 2 | 'two': Two-tailed test (mean1 != mean2) - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 2 | 'two': Two-tailed test (mean1 != mean2) - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
 `device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>

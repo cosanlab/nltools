@@ -26,7 +26,7 @@ from .utils import (
     maybe_tqdm,
     make_progress_bar,
 )
-from .validation import validate_tail_parameter
+from .validation import validate_device_parameter, validate_tail_parameter
 from .correlation import (
     _pearson_correlation,
     _spearman_correlation,
@@ -137,6 +137,10 @@ def phase_randomize(
     Returns:
         Phase-randomized data with same shape as input
 
+    Raises:
+        ValueError: If device is not None, 'cpu', 'gpu', or 'auto' (run-or-raise —
+            an invalid device never silently falls back to CPU)
+
     Notes:
         - **CRITICAL**: Preserves power spectrum exactly (within numerical precision)
         - Precision: the CPU path uses float64, the GPU path float32
@@ -153,6 +157,8 @@ def phase_randomize(
         >>> x_large = np.random.randn(10000)
         >>> x_rand_gpu = phase_randomize(x_large, device='gpu', random_state=42)
     """
+    validate_device_parameter(device, allow_auto=True)
+
     data = np.asarray(data)
     rng = check_random_state(random_state)
 
@@ -167,16 +173,7 @@ def phase_randomize(
         backend_obj = Backend("torch")
         return _phase_randomize_gpu(data, backend_obj, rng)
 
-    # Default: Use NumPy FFT (CPU)
-    if device is not None and device != "cpu":
-        import warnings
-
-        warnings.warn(
-            f"Unknown device '{device}'. Using 'cpu' as default.",
-            UserWarning,
-            stacklevel=2,
-        )
-
+    # device is None or 'cpu': NumPy FFT
     # Compute FFT
     fft_data = np.fft.fft(data, axis=0)
     n_samples = data.shape[0]
@@ -662,6 +659,7 @@ def timeseries_correlation_permutation_test(
             risk OOM on smaller GPUs.
         return_null: Whether to return null distribution
         random_state: Random seed for reproducibility
+        progress_bar: Show a progress bar over permutations (default: False)
 
     Returns:
         Dictionary with keys:
@@ -696,9 +694,7 @@ def timeseries_correlation_permutation_test(
         - Only data1 is randomized; data2 remains fixed to test correlation
         - phase_randomize benefits most from GPU (FFT acceleration)
     """
-    # Validate device parameter
-    if device not in [None, "cpu", "gpu"]:
-        raise ValueError(f"device must be None, 'cpu', or 'gpu', got {device!r}")
+    validate_device_parameter(device)
 
     # Validate tail up front (like one_sample/two_sample/matrix) so an invalid
     # value fails immediately rather than after every permutation has run.

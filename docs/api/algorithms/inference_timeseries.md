@@ -176,6 +176,7 @@ Name | Type | Description | Default
 `max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
 `return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
 `random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 

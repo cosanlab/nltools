@@ -297,7 +297,6 @@ def two_sample_permutation_test(
             - shape (n_samples2, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
         tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 'two' or 2: Two-tailed test (mean1 != mean2)
             - 2 | 'two': Two-tailed test (mean1 != mean2)
             - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the
               other direction). The fixed direction keeps MCP correction valid.

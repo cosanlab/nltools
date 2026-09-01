@@ -23,6 +23,11 @@ canonical vocabulary — renamed from `parallel=` in v0.6.0; not a `backend=` ar
 Matrix permutation (Mantel) is CPU/`None` only — GPU indexing is inefficient for the
 symmetric double-permutation, enforced by a validation guard.
 
+Every entry point validates `device=` up front through the shared
+`validate_device_parameter` (run-or-raise: an invalid value is a `ValueError`, never a
+warn-and-fall-back-to-CPU). `phase_randomize` additionally accepts `'auto'`
+(GPU if present, else CPU) via the validator's `allow_auto=` flag.
+
 ## Core algorithms
 
 ### One-sample test (sign-flipping)
@@ -169,10 +174,10 @@ Parallel(n_jobs=-1)(
 )
 ```
 
-Worker count is adaptively capped by a memory budget (`_auto_n_jobs_cpu` /
-`_verify_n_jobs_memory_constraint`, both living in `algorithms.backends` and
-re-exported here): it estimates per-worker serialization cost, leaves headroom, and
-emits a `UserWarning` if it reduces the requested `n_jobs`.
+Worker count is adaptively capped by a memory budget (`_auto_n_jobs_cpu`, living in
+`algorithms.backends`): it estimates per-worker serialization cost, leaves headroom,
+and never exceeds `max_jobs` (pass `min(requested, cpu_count)` to cap an explicit
+request).
 
 ## GPU batching (PyTorch)
 
@@ -194,10 +199,13 @@ every batched code path in the package:
   computation to within float32 reduction order (~1 ulp — torch blocks reductions
   differently per batch shape). Pinned by `test_oom_recovery.py`.
 
-Device compute is float32 (negligible p-value impact vs float64). Kendall has a real
-GPU kernel: tie-corrected tau-b via pre-computed pairwise sign tensors (permutations
-only re-index them, and the tie denominator is permutation-invariant), parity-tested
-against `scipy.stats.kendalltau`.
+Device compute is float32 (negligible p-value impact vs float64). Spearman's GPU path
+ranks with `_rank_transform_gpu` — a per-row stable sort whose tied runs get their
+mean rank, parity-tested against `scipy.stats.rankdata(method='average')` — then runs
+the vectorized Pearson on the ranks. Kendall has a real GPU kernel: tie-corrected
+tau-b via pre-computed pairwise sign tensors (permutations only re-index them, and the
+tie denominator is permutation-invariant), parity-tested against
+`scipy.stats.kendalltau`.
 
 ## Numerical stability
 

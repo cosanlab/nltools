@@ -177,12 +177,3 @@ def _auto_batch_size(
     return auto_batch_size(
         n_permute, bytes_per_perm, budget_gb=budget_gb, min_batch=100
     )
-
-
-# Re-exported from the core execution layer for backward compatibility —
-# the implementations live in nltools.algorithms.backends.
-from nltools.algorithms.backends import (  # noqa: E402,F401
-    _auto_n_jobs_cpu,
-    _estimate_data_size_mb,
-    _verify_n_jobs_memory_constraint,
-)
