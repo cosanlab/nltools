@@ -148,6 +148,42 @@ class TestSliceTypeFor:
             slice_type_for("surface")
 
 
+class TestComputeDisplayWindow:
+    """Pin the percentile-string frame of reference for the display window.
+
+    Percentile specs resolve against the finite nonzero magnitudes (C-10 pins
+    this so the abs-array computation can be shared with `magnitudes` instead
+    of being materialized three times per call).
+    """
+
+    def test_percentile_specs_resolve_against_finite_nonzero_magnitudes(self):
+        from nltools.data.braindata.viewer import compute_display_window
+
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal(500)
+        data[::7] = 0.0  # masked-out voxels
+        data[3] = np.nan
+        data[5] = np.inf
+
+        finite = data[np.isfinite(data)]
+        magnitudes = np.abs(finite[finite != 0])
+
+        floor, ceiling = compute_display_window(data, threshold="60%")
+        assert floor == pytest.approx(float(np.percentile(magnitudes, 60)))
+
+        floor, ceiling = compute_display_window(data, lower="10%", upper="90%")
+        assert floor == pytest.approx(float(np.percentile(magnitudes, 10)))
+        assert ceiling == pytest.approx(float(np.percentile(magnitudes, 90)))
+
+    def test_numeric_specs_pass_through_unchanged(self):
+        from nltools.data.braindata.viewer import compute_display_window
+
+        floor, ceiling = compute_display_window(
+            np.array([-3.0, 0.0, 1.0, 4.0]), lower=-1.0, upper=2.0
+        )
+        assert (floor, ceiling) == (-1.0, 2.0)
+
+
 class TestThresholdSliderBounds:
     def test_bounds_span_finite_data(self):
         lo, hi, vlo, vhi, step = threshold_slider_bounds(
