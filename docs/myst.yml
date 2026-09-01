@@ -120,7 +120,7 @@ project:
           children:
             # Standalone interactive HTML page (copied into _build/html by the
             # docs-site task). Literal URL; docs-site's perl rewrite prefixes
-            # BASE_URL (/nltools) for GitHub Pages.
+            # BASE_URL on a subpath deploy (nltools.org is a root deploy).
             - title: Design Tour
               url: /design-tour.html
             - file: development/index.md

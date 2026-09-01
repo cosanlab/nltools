@@ -1,30 +1,31 @@
 name: Docs
 
-# On every push to the active branches, build + EXECUTE the docs site (running the
-# tutorial notebooks doubles as a test layer) but do NOT deploy. Only on a release —
-# i.e. when a `v*` tag is pushed (same trigger as release.yml, so docs go live
-# alongside the PyPI publish) — build under the /nltools subpath and deploy to
-# GitHub Pages. A manual run can force the deploy via the `deploy` input.
+# Build + EXECUTE the docs site and deploy it to https://nltools.org on every push
+# to master, on every `v*` release tag (same trigger as release.yml), and on a
+# manual run. The site tracks master deliberately — docs run ahead of the PyPI
+# release so the merged API can be dogfooded (e.g. a GitHub install) and patched
+# before `poe release`. Executing every tutorial through a real Jupyter kernel is
+# also a test layer: a notebook that fails to run fails the build before deploy.
+#
+# nltools.org is a custom domain served from the site root, so BASE_URL stays
+# unset here. BASE_URL=/<repo> exists for subpath deploys (a fork's project page).
 on:
   push:
     branches:
-      - uv-cleanup
-      - main
+      - master
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: "Deploy the built docs to GitHub Pages"
-        type: boolean
-        default: false
 
-# Manual prerequisite: Settings -> Pages -> Build and deployment -> Source = GitHub Actions.
+# Pages source must be "GitHub Actions" (Settings -> Pages -> Build and deployment),
+# not the legacy gh-pages branch — actions/deploy-pages publishes the uploaded
+# artifact directly. The custom domain + HTTPS settings are independent of this.
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# One deploy at a time; never cancel an in-flight deploy under a newer push.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -32,6 +33,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       UV_PYTHON: "3.12"
 
@@ -62,34 +64,32 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra all
 
-      # Regenerate sources, then build + EXECUTE the MyST site through a real Jupyter
-      # kernel. Running every tutorial end-to-end doubles as a test layer. On a
-      # release / manual deploy the site is built under the /nltools GitHub Pages
-      # subpath; on a plain push BASE_URL stays unset (root).
+      # Tutorials fetch example data from the Hugging Face hub; cache it across runs.
+      - name: Cache HF niftis dataset
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        with:
+          path: ~/.cache/huggingface
+          key: hf-cache-${{ runner.os }}-${{ hashFiles('nltools/templates/fetch.py') }}
+          restore-keys: |
+            hf-cache-${{ runner.os }}-
+
+      # Regenerate sources (API reference, tutorial .md), then build + EXECUTE the
+      # MyST site. Root deploy: BASE_URL intentionally unset.
       - name: Build + execute docs
         env:
-          BASE_URL: ${{ (startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy)) && '/nltools' || '' }}
+          HF_HUB_ETAG_TIMEOUT: "30"
         run: uv run poe docs-build
 
-      # Pages configuration + artifact upload are deploy-only: on a plain push the
-      # build above still runs (it doubles as a notebook-execution test layer), but
-      # these steps would 404 off-release (Pages need not be enabled to build). Gate
-      # them on the same condition as the deploy job below.
       - name: Configure GitHub Pages
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
 
       - name: Upload GitHub Pages artifact
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
         with:
           path: docs/_build/html
 
   deploy:
     needs: build
-    # Deploy only on a release tag push, or a manual run that opts in. Plain
-    # pushes to uv-cleanup/main build above but stop here (no deploy).
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.deploy) }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages

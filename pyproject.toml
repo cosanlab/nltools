@@ -235,10 +235,11 @@ python scripts/marimo_to_myst.py --all
 """
 
 # Build + EXECUTE the MyST site: runs every tutorial code-cell through a Jupyter
-# kernel to bake outputs (figures, prints). Set BASE_URL (e.g. /nltools) to deploy
-# under a GitHub Pages subpath; leave it unset for a root/local build.
+# kernel to bake outputs (figures, prints). Leave BASE_URL unset for a root build
+# (local, and the nltools.org deploy); set it (e.g. /nltools) only for a subpath
+# deploy such as a fork's GitHub Pages project page.
 [tool.poe.tasks.docs-site]
-help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (set BASE_URL=/nltools for a subpath deploy)"
+help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (BASE_URL=/<repo> only for a subpath deploy)"
 shell = """
 set -eu
 # MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
@@ -257,7 +258,7 @@ fi
 """
 
 [tool.poe.tasks.docs-build]
-help = "Full docs build: regenerate sources → build + execute the site (set BASE_URL=/nltools for GitHub Pages)"
+help = "Full docs build: regenerate sources → build + execute the site (root build; BASE_URL=/<repo> only for a subpath deploy)"
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
