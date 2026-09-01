@@ -1175,6 +1175,10 @@ class BrainCollection:
             "cv": str(cv),
         }
         step_id = core.make_run_id()
+        # Hoist into a local so the closure never captures `self` — a closure
+        # referencing the collection makes loky/cloudpickle serialize the
+        # entire BrainCollection per dispatched task (see execution-model.md).
+        parent_step_id = self._step_id
 
         def worker(task):
             return execution._predict_mvpa_worker(
@@ -1184,7 +1188,7 @@ class BrainCollection:
                 predict_kwargs=predict_kwargs,
                 model_spec=model_spec,
                 step_id=step_id,
-                parent_step_id=self._step_id,
+                parent_step_id=parent_step_id,
                 op_kwargs=op_kwargs,
             )
 
@@ -1231,13 +1235,16 @@ class BrainCollection:
         X_new_arr = np.asarray(X_new)
         op_kwargs = {"X_new_shape": list(X_new_arr.shape)}
         step_id = core.make_run_id()
+        # Hoist into a local so the closure never captures `self` (see
+        # _predict_mvpa_per_subject / execution-model.md).
+        parent_step_id = self._step_id
 
         def worker(task):
             return execution._predict_after_fit_worker(
                 task,
                 X_new=X_new_arr,
                 step_id=step_id,
-                parent_step_id=self._step_id,
+                parent_step_id=parent_step_id,
                 op_kwargs=op_kwargs,
             )
 

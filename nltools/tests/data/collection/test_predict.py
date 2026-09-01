@@ -579,6 +579,75 @@ class TestPredictPerSubjectCaching:
         assert pc.paths is not None  # path-backed source → 'auto' caches
 
 
+class TestWorkerClosureHygiene:
+    """Workers must never capture the parent BrainCollection (F8).
+
+    execution-model.md: "a closure that references self (the BrainCollection)
+    ships every loaded BrainData to every worker." The fix pattern is hoisting
+    `parent_step_id = self._step_id` into a local before defining the closure
+    (as .fit() does). These tests spy on execution._apply and inspect the
+    dispatched worker's closure cells.
+    """
+
+    N_OBS = 12
+
+    @staticmethod
+    def _spy_worker(monkeypatch):
+        from nltools.data.collection import execution
+
+        captured = {}
+        orig = execution._apply
+
+        def spy(bc_arg, fn, **kw):
+            captured["worker"] = fn
+            return orig(bc_arg, fn, **kw)
+
+        monkeypatch.setattr(execution, "_apply", spy)
+        return captured
+
+    @staticmethod
+    def _assert_no_collection_in_closure(fn):
+        cells = fn.__closure__ or ()
+        offenders = [
+            c.cell_contents
+            for c in cells
+            if isinstance(c.cell_contents, BrainCollection)
+        ]
+        assert not offenders, (
+            "worker closure captures the BrainCollection — loky/cloudpickle "
+            "would serialize the whole collection per dispatched task (O(S^2))"
+        )
+
+    def test_predict_mvpa_worker_does_not_capture_collection(
+        self, tiny_mask, tiny_brain_factory, monkeypatch
+    ):
+        captured = self._spy_worker(monkeypatch)
+        brains = [tiny_brain_factory(n_obs=self.N_OBS, seed=i) for i in range(2)]
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        bc.predict(
+            y=np.tile([0, 1], self.N_OBS // 2),
+            cv=3,
+            random_state=0,
+            n_jobs=1,
+            cache=False,
+        )
+        self._assert_no_collection_in_closure(captured["worker"])
+
+    def test_predict_x_new_worker_does_not_capture_collection(
+        self, bc_ridge_fitted, monkeypatch
+    ):
+        captured = self._spy_worker(monkeypatch)
+        rng = np.random.default_rng(0)
+        bc_ridge_fitted.predict(X_new=rng.standard_normal((4, 2)), n_jobs=1)
+        self._assert_no_collection_in_closure(captured["worker"])
+
+    def test_fit_worker_does_not_capture_collection(self, bc_with_designs, monkeypatch):
+        """Pin: the .fit() path already hoists parent_step_id — keep it so."""
+        captured = self._spy_worker(monkeypatch)
+        bc_with_designs.fit(model="glm", n_jobs=1, cache=False)
+        self._assert_no_collection_in_closure(captured["worker"])
+
+
 class TestStringLabelDecoding:
     """String class labels through the per-subject path and the cache (F4/F10)."""
 
