@@ -39,18 +39,17 @@ def is_h5_path(file_name) -> bool:
     """Check if a file path indicates an HDF5 file.
 
     Args:
-        file_name: Path to check (str or Path object).
+        file_name (str | Path): Path to check.
 
     Returns:
-        bool: True if the file has an HDF5 extension (.h5 or .hdf5).
+        bool: True if the file has an HDF5 extension (`.h5` or `.hdf5`).
 
     Examples:
-        >>> is_h5_path("data.h5")
-        True
-        >>> is_h5_path("data.csv")
-        False
-        >>> is_h5_path(Path("results.hdf5"))
-        True
+        ```python
+        is_h5_path("data.h5")  # → True
+        is_h5_path("data.csv")  # → False
+        is_h5_path(Path("results.hdf5"))  # → True
+        ```
     """
     from pathlib import Path
 
@@ -85,17 +84,17 @@ def _read_polars_frame(h5_file, name):
 def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
     """Save BrainData or Adjacency objects to HDF5 files.
 
-    Uses h5py for both types; X/Y (BrainData) and Y (Adjacency) are stored
-    as polars-compatible groups with ``columns`` and ``values`` datasets.
-    A BrainData mask is always stored by value (data + affine datasets); its
-    filename is stored alongside only when the mask is file-backed, so
-    in-memory masks serialize without one and round-trip by value.
+    Uses h5py for both types; the `X`/`Y` frames (BrainData) and `Y` (Adjacency)
+    are stored as Arrow IPC byte datasets so every polars dtype round-trips
+    exactly. A BrainData mask is always stored by value (data + affine
+    datasets); its filename is stored alongside only when the mask is
+    file-backed, so in-memory masks serialize without one and round-trip by value.
 
     Args:
-        obj: Object to save (BrainData or Adjacency).
-        file_name: Path to save file to.
-        obj_type: Type of object ('brain_data' or 'adjacency').
-        h5_compression: Compression type for h5py datasets.
+        obj (BrainData | Adjacency): Object to save.
+        file_name (str | Path): Path to save the file to.
+        obj_type (str): `'brain_data'` or `'adjacency'`.
+        h5_compression (str): Compression filter for h5py datasets. Default `'gzip'`.
     """
     _require_h5()
     if obj_type not in ["brain_data", "adjacency"]:
@@ -135,18 +134,21 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
 
 
 def load_brain_data_h5(file_path, mask=None):
-    """Load BrainData from HDF5 file.
+    """Load BrainData contents from an HDF5 file.
 
-    Supports the v0.6 layout (X/Y as h5py groups with ``columns`` + ``values``)
-    and the legacy deepdish/PyTables layout written by nltools <= 0.5.1
-    (X/Y as flat datasets with sibling ``X_columns``/``X_index`` nodes).
+    Supports the v0.6 layout (`X`/`Y` as Arrow IPC byte datasets) and the legacy
+    deepdish/PyTables layout written by nltools <= 0.5.1 (`X`/`Y` as flat
+    datasets with sibling `X_columns`/`X_index` nodes).
 
     Args:
-        file_path: Path to HDF5 file.
-        mask: Optional mask to use. If None, loads mask from file if available.
+        file_path (str | Path): Path to the HDF5 file.
+        mask (nibabel.Nifti1Image, optional): Mask to use. If None, the mask stored
+            in the file is loaded when present.
 
     Returns:
-        dict: Dictionary containing loaded data, X, Y, and optionally mask info.
+        dict: Keys `'data'` (np.ndarray), `'X'` and `'Y'` (pl.DataFrame),
+            `'load_mask'` (bool), and `'mask'` (nibabel.Nifti1Image) when a mask was
+            loaded from the file.
     """
     _require_h5()
     with h5File(file_path, "r") as f:
@@ -182,8 +184,8 @@ def load_brain_data_h5(file_path, mask=None):
 def _is_legacy_brain_data_layout(f) -> bool:
     """Detect pre-0.6 deepdish/PyTables layout.
 
-    Modern files have X as a Group containing ``columns``/``values`` children.
-    Legacy files have X as a flat Dataset with a sibling ``X_columns`` node.
+    Modern files store X as a single Arrow IPC byte dataset. Legacy files have X
+    as a flat Dataset with a sibling `X_columns` node.
     """
     return "X_columns" in f
 
@@ -267,16 +269,18 @@ def _load_legacy_brain_data_h5(f, mask=None):
 def load_legacy_adjacency_h5(file_path, mask=None, matrix_type=None):
     """Load a pre-0.6 (deepdish/PyTables) Adjacency h5 file using only h5py.
 
-    Returns a dict with ``data``, ``Y``, ``matrix_type``, ``labels``. Optional
-    structural fields (``is_single_matrix``, ``issymmetric``) are derived by
-    the caller via ``import_single_data`` since older files predate them.
+    Structural fields (`is_single_matrix`, `issymmetric`) are derived by the
+    caller via `import_single_data` since older files predate them.
 
     Args:
-        file_path: Path to HDF5 file.
-        mask: Unused; accepted for API parity with load_brain_data_h5.
-        matrix_type: Optional override when the legacy file lacks ``matrix_type``.
-            If None and the file is missing the field, defaults to
-            ``"distance_flat"`` and emits a UserWarning.
+        file_path (str | Path): Path to the HDF5 file.
+        mask: Unused; accepted for API parity with `load_brain_data_h5`.
+        matrix_type (str, optional): Override used when the legacy file lacks
+            `matrix_type`. If None and the file is missing the field, defaults to
+            `'distance_flat'` and emits a UserWarning.
+
+    Returns:
+        dict: Keys `'data'`, `'Y'`, `'matrix_type'`, `'labels'`.
     """
     _require_h5()
     with h5File(file_path, "r") as f:
@@ -327,8 +331,8 @@ def load_legacy_adjacency_h5(file_path, mask=None, matrix_type=None):
 def is_legacy_adjacency_h5(file_path) -> bool:
     """Detect pre-0.6 deepdish/PyTables Adjacency layout.
 
-    Modern files have Y as a Group containing ``columns``/``values`` children.
-    Legacy files have Y as a flat Dataset with a sibling ``Y_columns`` node.
+    Modern files store Y as a single Arrow IPC byte dataset. Legacy files have Y
+    as a flat Dataset with a sibling `Y_columns` node.
     """
     _require_h5()
     with h5File(file_path, "r") as f:

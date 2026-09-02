@@ -4,11 +4,9 @@
 windowing, slice scrolling, native 4D frame scrubbing, true 3D rendering, and
 optional nltools-atlas overlays (colored regions / outlines / hover labels).
 
-Unlike the previous `ipyniivue` backend, this widget drives the
-`@niivue/niivue` JavaScript library directly through anywidget's **standard**
-model API (see ``viewer.js``), so it renders identically in Jupyter and
-``marimo edit`` without depending on any host-specific protocol
-(cosanlab/nltools#455).
+The widget drives the `@niivue/niivue` JavaScript library directly through
+anywidget's standard model API (see ``viewer.js``), so it renders identically
+in Jupyter and ``marimo edit`` without depending on any host-specific protocol.
 
 The module is split functional-core / imperative-shell:
 
@@ -307,8 +305,8 @@ def resolve_background(affine, bg_img: str | bool | None) -> str | None:
     """Resolve the ``bg_img`` argument to a background-image path or ``None``.
 
     Args:
-        affine: 4x4 affine of the BrainData (``bd.mask.affine``), used to
-            decide whether auto-MNI applies.
+        affine (np.ndarray): 4x4 affine of the BrainData (``bd.mask.affine``),
+            used to decide whether auto-MNI applies.
         bg_img: ``False`` → no background; a string/path → used as-is;
             ``None``/``True`` (auto) → the matching MNI template when the
             affine is standard space, else ``None``.
@@ -362,7 +360,7 @@ def bd_to_nifti_bytes(bd) -> bytes:
     gzip-compressed to match (see `gzip_nifti`).
 
     Args:
-        bd: A BrainData (3D for a single map, 4D for a stack).
+        bd (BrainData): A single map (3D) or a stack (4D).
 
     Returns:
         The image encoded as gzip-compressed NIfTI-1 bytes.
@@ -403,8 +401,7 @@ def compute_display_window(
       there).
     - ``(lo_pct, hi_pct)``: floor/ceiling at those percentiles of the
       finite nonzero magnitudes.
-    - ``False``: the raw finite data extremes (the pre-v0.6.0 behavior,
-      made explicit).
+    - ``False``: the raw finite data extremes.
 
     ``threshold`` / ``lower`` / ``upper`` accept percentile strings
     (``"98%"``), resolved over the finite nonzero **magnitudes** via
@@ -412,14 +409,15 @@ def compute_display_window(
     magnitude window, so its percentiles are magnitude percentiles.
 
     Args:
-        data: The BrainData's data array.
-        autoscale: See above.
-        threshold: Symmetric magnitude floor (ignored when lower/upper given).
-        lower: Explicit window floor.
-        upper: Explicit window ceiling.
+        data (np.ndarray): The BrainData's data array.
+        autoscale (bool | tuple[float, float]): See above.
+        threshold (float | str | None): Symmetric magnitude floor (ignored when
+            ``lower``/``upper`` are given).
+        lower (float | str | None): Explicit window floor.
+        upper (float | str | None): Explicit window ceiling.
 
     Returns:
-        ``(cal_min, cal_max)`` floats.
+        tuple[float, float]: ``(cal_min, cal_max)``.
     """
     import numpy as np
 
@@ -490,12 +488,13 @@ def threshold_slider_bounds(
     ``cal_min``/``cal_max`` when given, else at the data extremes.
 
     Args:
-        bd: The BrainData being viewed.
+        bd (BrainData): The BrainData being viewed.
         cal_min: Requested window floor, or ``None``.
         cal_max: Requested window ceiling, or ``None``.
 
     Returns:
-        ``(lo_bound, hi_bound, value_low, value_high, step)`` — all floats.
+        tuple[float, float, float, float, float]: ``(lo_bound, hi_bound,
+            value_low, value_high, step)``.
     """
     import numpy as np
 
@@ -591,7 +590,7 @@ def build_viewer(
     traits, computes the threshold-slider bounds, and sets the slice type.
 
     Args:
-        bd: BrainData to view.
+        bd (BrainData): BrainData to view.
         view: See `slice_type_for`.
         cal_min: Window floor (threshold), or ``None`` for auto.
         cal_max: Window ceiling, or ``None`` for auto.
@@ -610,7 +609,7 @@ def build_viewer(
             overrides ``colorbar``.
 
     Returns:
-        A configured `NiivueViewer` ready to display.
+        NiivueViewer: A configured widget ready to display.
     """
     cmap_resolved = resolve_cmap(cmap)
     cmap_negative = divergent_partner(cmap_resolved)

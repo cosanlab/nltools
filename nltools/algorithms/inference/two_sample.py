@@ -1,7 +1,9 @@
-"""Two-sample permutation test implementations.
+"""Two-sample permutation test (group-label shuffling).
 
-This module provides CPU-parallel and GPU-batched implementations
-of the two-sample permutation test (group permutation test).
+Tests whether two independent groups differ in mean by randomly reassigning
+observations to groups — the permutation analogue of an independent-samples
+t-test. `device=` picks the execution path (single-threaded numpy, joblib
+across `n_jobs` cores, or batched PyTorch on the GPU).
 """
 
 import numpy as np
@@ -34,23 +36,28 @@ def _two_sample_permutation_cpu_parallel(
     single_feature: bool = False,
     progress_bar: bool = False,
 ) -> dict:
-    """Two-sample permutation test using CPU parallelization with joblib.
+    """Two-sample permutation test parallelized across CPU cores with joblib.
 
-    Memory-efficient implementation that processes one permutation per worker.
-    Randomly shuffles group labels and computes mean difference.
+    Each worker shuffles the group labels for one permutation (from its own
+    pre-drawn seed) and computes the mean difference, so results are
+    reproducible regardless of worker count.
 
     Args:
-        data1 (np.ndarray): Group 1 data, shape (n_samples1, n_features)
-        data2 (np.ndarray): Group 2 data, shape (n_samples2, n_features)
-        n_permute (int): Number of permutations
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
-        return_null (bool): Whether to return null distribution
-        n_jobs (int): Number of parallel jobs (-1 = all cores)
-        random_state (int, optional): Random seed for reproducibility
-        single_feature (bool): Whether data is single feature
+        data1 (np.ndarray): Group 1 data, shape `(n_samples1, n_features)`.
+        data2 (np.ndarray): Group 2 data, shape `(n_samples2, n_features)`.
+        n_permute (int): Number of permutations.
+        tail (int | str): `2` or `'two'` for two-tailed; `1` or `'one'` for
+            one-tailed.
+        return_null (bool): Whether to return the null distribution.
+        n_jobs (int): Number of parallel jobs (-1 = all cores).
+        random_state (int | None): Random seed for reproducibility.
+        single_feature (bool): Whether the caller passed 1D data (results are
+            returned as scalars).
+        progress_bar (bool): Whether to display a tqdm progress bar.
 
     Returns:
-        dict: Same format as main function, with 'device' indicating CPU parallel
+        dict: Same format as `two_sample_permutation_test`, with `'device'`
+            set to `'cpu'`.
     """
     from joblib import Parallel, delayed
 
@@ -130,24 +137,29 @@ def _two_sample_permutation_gpu_batched(
     single_feature: bool = False,
     progress_bar: bool = False,
 ) -> dict:
-    """Two-sample permutation test using GPU with automatic batching.
+    """Two-sample permutation test on the GPU with automatic batching.
 
-    Processes permutations in batches to avoid GPU OOM. Transfers data once
-    and reuses across batches for efficiency.
+    Processes permutations in memory-budgeted batches to avoid GPU OOM; the
+    stacked data is transferred once and reused across batches.
 
     Args:
-        data1 (np.ndarray): Group 1 data, shape (n_samples1, n_features)
-        data2 (np.ndarray): Group 2 data, shape (n_samples2, n_features)
-        n_permute (int): Number of permutations
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
-        return_null (bool): Whether to return null distribution
-        backend (Backend): Backend instance (must be PyTorch)
-        max_gpu_memory_gb (float): Maximum GPU memory budget
-        random_state: Random state instance
-        single_feature (bool): Whether data is single feature
+        data1 (np.ndarray): Group 1 data, shape `(n_samples1, n_features)`.
+        data2 (np.ndarray): Group 2 data, shape `(n_samples2, n_features)`.
+        n_permute (int): Number of permutations.
+        tail (int | str): `2` or `'two'` for two-tailed; `1` or `'one'` for
+            one-tailed.
+        return_null (bool): Whether to return the null distribution.
+        backend (Backend): Resolved PyTorch backend.
+        max_gpu_memory_gb (float | None): GPU memory budget; None measures the
+            device.
+        random_state (np.random.RandomState): Random state instance.
+        single_feature (bool): Whether the caller passed 1D data (results are
+            returned as scalars).
+        progress_bar (bool): Whether to display a tqdm progress bar.
 
     Returns:
-        dict: Same format as main function, with 'device' indicating GPU device
+        dict: Same format as `two_sample_permutation_test`, with `'device'`
+            set to `'gpu'`.
     """
     import torch
 
@@ -279,74 +291,66 @@ def two_sample_permutation_test(
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
-    """Two-sample permutation test using group label shuffling.
+    """Two-sample permutation test using group-label shuffling.
 
     Tests whether two independent groups have different means by randomly
-    permuting group labels. This is the permutation test equivalent of an
-    independent samples t-test.
+    reassigning observations to groups — the permutation analogue of an
+    independent-samples t-test. Group sizes may differ. Multi-feature
+    (voxel-wise) data tests each column independently against the same
+    permutations.
 
-    Assumption: Exchangeability under the null hypothesis (group assignments
-    are arbitrary). Valid for independent samples from similar distributions.
+    Assumes exchangeability under the null (group assignment is arbitrary):
+    independent samples from similarly shaped distributions.
 
     Args:
-        data1 (np.ndarray): Group 1 data
-            - shape (n_samples1,) for single feature
-            - shape (n_samples1, n_features) for multi-feature (voxel-wise)
-        data2 (np.ndarray): Group 2 data
-            - shape (n_samples2,) for single feature
-            - shape (n_samples2, n_features) for multi-feature (voxel-wise)
-        n_permute (int): Number of permutations (default: 5000)
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
-            - `2`/`'two'`: Two-tailed test (mean1 != mean2)
-            - `1`/`'one'`: One-tailed (mean1 > mean2; swap the groups for the
-              other direction). The fixed direction keeps MCP correction valid.
-        return_null (bool): If True, return full null distribution (default: False)
-        device (str, optional): Parallelization method (default: 'cpu')
-            - None: Single-threaded NumPy (for debugging/small problems)
-            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
-            - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
-        n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when device='cpu'
-        max_gpu_memory_gb (float, optional): Explicit GPU memory budget in GB.
-            None (default) measures the device's available memory.
-            Controls automatic batching to prevent OOM errors. Only used with
-            device='gpu'. Larger values allow more permutations per batch but
-            risk OOM on smaller GPUs.
-        random_state (int, optional): Random seed for reproducibility
+        data1 (np.ndarray): Group 1 data, shape `(n_samples1,)` for a single
+            feature or `(n_samples1, n_features)` for voxel-wise data.
+        data2 (np.ndarray): Group 2 data, shape `(n_samples2,)` or
+            `(n_samples2, n_features)`; must have the same number of features
+            as `data1`.
+        n_permute (int): Number of permutations. Defaults to 5000.
+        tail (int | str): `2` or `'two'` (default) for a two-tailed test
+            (mean1 != mean2); `1` or `'one'` for a one-tailed test of
+            mean1 > mean2 (swap the groups for the other direction — the fixed
+            direction keeps multiple-comparison correction valid).
+        return_null (bool): If True, include the full null distribution in the
+            result. Defaults to False.
+        device (str | None): Execution path. `'cpu'` (default) parallelizes
+            with joblib across `n_jobs` cores (4-8× speedup); `'gpu'` batches
+            permutations through PyTorch (fastest for large problems); None
+            runs single-threaded numpy (small problems, debugging).
+        n_jobs (int): CPU cores for `device='cpu'`. Defaults to -1 (all cores).
+        max_gpu_memory_gb (float | None): GPU memory budget in GB for
+            `device='gpu'`; controls automatic batching. None (default)
+            measures the device's available memory.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Whether to display a progress bar. Defaults to False.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2)
-            - 'p' (float or np.ndarray): P-value(s)
-            - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'device' (str): Parallelization method used
+        dict: Keys `'mean_diff'` (float or np.ndarray, observed
+            `mean(data1) - mean(data2)`), `'p'` (float or np.ndarray,
+            p-value(s)), `'device'` (the execution path used), and — when
+            `return_null=True` — `'null_dist'` (np.ndarray, shape
+            `(n_permute,)` or `(n_permute, n_features)`).
 
     Examples:
-        >>> # Single feature (default CPU parallelization)
-        >>> data1 = np.random.randn(20)  # Group 1: 20 subjects
-        >>> data2 = np.random.randn(25)  # Group 2: 25 subjects
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000)
-        >>> result['p']
-        0.45
+        ```python
+        # Single feature (default CPU parallelization)
+        data1 = np.random.randn(20)  # Group 1: 20 subjects
+        data2 = np.random.randn(25)  # Group 2: 25 subjects
+        result = two_sample_permutation_test(data1, data2, n_permute=5000)
+        result["p"]  # → 0.45
 
-        >>> # Voxel-wise test with GPU
-        >>> data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
-        >>> data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device='gpu')
-        >>> result['mean_diff'].shape
-        (10000,)
-        >>> result['p'].shape
-        (10000,)
+        # Voxel-wise test on the GPU
+        data1 = np.random.randn(20, 10000)  # 20 subjects, 10K voxels
+        data2 = np.random.randn(25, 10000)  # 25 subjects, 10K voxels
+        result = two_sample_permutation_test(data1, data2, n_permute=5000, device="gpu")
+        result["mean_diff"].shape  # → (10000,)
+        result["p"].shape  # → (10000,)
 
-        >>> # Single-threaded (for debugging)
-        >>> result = two_sample_permutation_test(data1, data2, n_permute=5000, device=None)
-
-    Notes:
-        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
-        - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-        - Single-threaded (device=None): Use for small problems or debugging
-        - For voxel-wise tests, each voxel tested independently
-        - Group sizes can be unequal
+        # Single-threaded (for debugging)
+        result = two_sample_permutation_test(data1, data2, n_permute=5000, device=None)
+        ```
     """
     # Validate device parameter
     validate_device_parameter(device)

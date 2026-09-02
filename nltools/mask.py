@@ -19,15 +19,15 @@ def create_sphere(coordinates, radius=5, mask=None):
     """Generate spheres in brain-mask space.
 
     Args:
-        coordinates: a vector of sphere centers of the form `[px, py, pz]` or
-            `[[px1, py1, pz1], ..., [pxn, pyn, pzn]]`
-        radius: radius of the sphere(s). A scalar creates one sphere per
-            center; a vector creates multiple spheres if `len(radius) > 1`
-        mask: `Nifti1Image` (or path to a mask file) defining the brain space.
-            Defaults to the package brain-space mask when None.
+        coordinates (list): Sphere center `[x, y, z]` in voxel coordinates, or one
+            center per sphere `[[x1, y1, z1], ...]`.
+        radius (int | float | list): Radius of the sphere(s) in voxels. A scalar
+            applies to every center; a list gives one radius per center.
+        mask (nibabel.Nifti1Image | str, optional): Image (or path) defining the brain
+            space. Defaults to the package brain-space mask.
 
     Returns:
-        Nifti1Image: A binary image with the requested spheres in mask space.
+        nibabel.Nifti1Image: A binary image with the requested spheres in mask space.
     """
     from nltools.data import BrainData
 
@@ -100,12 +100,12 @@ def expand_mask(mask, custom_mask=None):
     """Expand an integer-labeled mask into separate binary masks.
 
     Args:
-        mask: nibabel or BrainData instance
-        custom_mask: nibabel instance or string to file path; optional
+        mask (nibabel.Nifti1Image | BrainData): Integer-labeled mask.
+        custom_mask (nibabel.Nifti1Image | str, optional): Brain mask (or path) used
+            when converting a nibabel `mask` to `BrainData`.
 
     Returns:
-        BrainData: BrainData instance of multiple binary masks.
-
+        BrainData: One binary mask per unique non-zero label.
     """
 
     from nltools.data import BrainData
@@ -129,19 +129,19 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
     Overlapping areas are ignored.
 
     Args:
-        mask: nibabel or BrainData instance holding 2+ separate masks
-            (stacked along the first axis).
-        auto_label: If True (default), label the collapsed regions with
+        mask (nibabel.Nifti1Image | BrainData): Two or more separate masks stacked
+            along the first axis.
+        auto_label (bool): If True (default), label the collapsed regions with
             sequential integers (1, 2, 3, …) in mask order. If False, keep each
             mask's own values as its label.
-        custom_mask: nibabel instance or string to file path; optional.
+        custom_mask (nibabel.Nifti1Image | str, optional): Brain mask (or path) used
+            when converting a nibabel `mask` to `BrainData`.
 
     Returns:
-        BrainData: BrainData instance of a mask with different integers indicating
-            different masks.
+        BrainData: A single mask whose integer values identify the source masks.
 
     Raises:
-        ValueError: If ``mask`` is neither a nibabel nor BrainData instance, or
+        ValueError: If `mask` is neither a nibabel nor BrainData instance, or
             if it holds fewer than 2 masks (nothing to collapse).
     """
 
@@ -201,9 +201,10 @@ def roi_to_brain(data, mask_x):
     observation.
 
     Args:
-        data: ROI values. 1-D length must equal len(mask_x);
-            2-D shape must be (n_rois, n_obs) or (n_obs, n_rois).
-        mask_x: An expanded binary mask (BrainData) with one row per ROI.
+        data (list | np.ndarray | pl.DataFrame | pl.Series | pd.DataFrame | pd.Series):
+            ROI values. 1-D length must equal `len(mask_x)`; 2-D shape must be
+            `(n_rois, n_obs)` or `(n_obs, n_rois)`.
+        mask_x (BrainData): An expanded binary mask with one row per ROI.
 
     Returns:
         BrainData: A BrainData instance with each ROI populated by the
@@ -269,26 +270,24 @@ def roi_to_brain_from_atlas(
 ):
     """Paint per-parcel values onto voxel space using a labeled atlas.
 
-    Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one
-    integer label per voxel — the form carried by
-    `SpatialScale`), not an expanded mask
-    with one binary row per ROI. Voxels whose atlas label is not in
-    ``roi_labels`` (or whose label is 0) receive ``fill``.
+    Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one integer label
+    per voxel — the form carried by `SpatialScale`), not an expanded mask with
+    one binary row per ROI. Voxels whose atlas label is not in `roi_labels` (or
+    whose label is 0) receive `fill`.
 
     Args:
-        values: Per-parcel scalars, either 1-D `(n_parcels,)` for a single
-            image or 2-D `(n_images, n_parcels)` for a stack of images. The
+        values (np.ndarray): Per-parcel scalars, either 1-D `(n_parcels,)` for a
+            single image or 2-D `(n_images, n_parcels)` for a stack of images. The
             trailing (parcel) axis must match `len(roi_labels)` (or the number
             of unique non-zero atlas labels when `roi_labels` is None).
-        atlas: Labeled image — ``BrainData``, ``Nifti1Image``, or path-like.
-            Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines
-            differ.
-        source_mask: ``Nifti1Image`` (or path) defining the output voxel
-            grid. The returned ``BrainData`` is masked to this image.
-        roi_labels: Integer atlas IDs in the same order as ``values``. If
-            None, defaults to ``np.unique`` of the atlas with 0 stripped
+        atlas (BrainData | nibabel.Nifti1Image | str | Path): Labeled image.
+            Resampled to `source_mask` (nearest-neighbor) if shapes/affines differ.
+        source_mask (nibabel.Nifti1Image | str | Path): Image (or path) defining the
+            output voxel grid. The returned `BrainData` is masked to this image.
+        roi_labels (array-like, optional): Integer atlas IDs in the same order as
+            `values`. If None, defaults to `np.unique` of the atlas with 0 stripped
             (sorted ascending).
-        fill: Value for voxels not in any provided ROI. Default ``np.nan``.
+        fill (float): Value for voxels not in any provided ROI. Default `np.nan`.
 
     Returns:
         BrainData: Masked to `source_mask`, with each in-atlas voxel set to its
@@ -296,13 +295,16 @@ def roi_to_brain_from_atlas(
             1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
     Examples:
-        >>> from nltools.mask import roi_to_brain_from_atlas
-        >>> brain_map = roi_to_brain_from_atlas(
-        ...     values=accuracies,
-        ...     atlas=atlas_img,
-        ...     source_mask=brain_mask,
-        ...     roi_labels=[1, 2, 3],
-        ... )
+        ```python
+        from nltools.mask import roi_to_brain_from_atlas
+
+        brain_map = roi_to_brain_from_atlas(
+            values=accuracies,
+            atlas=atlas_img,
+            source_mask=brain_mask,
+            roi_labels=[1, 2, 3],
+        )
+        ```
     """
     from pathlib import Path
 

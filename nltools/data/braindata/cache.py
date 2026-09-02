@@ -160,7 +160,8 @@ class CacheManager:
         Args:
             key: Cache key
             compressed: If True, use compressed npz format (smaller but slower)
-            **arrays: Named arrays to cache
+            **arrays (np.ndarray): Named arrays to cache, forwarded to
+                ``np.savez`` / ``np.savez_compressed``
 
         Returns:
             Path to saved cache file

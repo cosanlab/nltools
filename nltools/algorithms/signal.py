@@ -17,9 +17,8 @@ def calc_bpm(beat_interval, sampling_freq):
     """Calculate instantaneous BPM from beat to beat interval.
 
     Args:
-        beat_interval: (int) number of samples in between each beat
-                        (typically R-R Interval)
-        sampling_freq: (float) sampling frequency in Hz
+        beat_interval (int): Number of samples between beats (typically the R-R interval).
+        sampling_freq (float): Sampling frequency in Hz.
 
     Returns:
         float: Beats per minute for the time interval.
@@ -33,12 +32,12 @@ def downsample(
     """Downsample a Polars DataFrame/Series to a new target frequency or number of samples using averaging.
 
     Args:
-        data: (pl.DataFrame, pl.Series) data to downsample
-        sampling_freq:  (float) Sampling frequency of data in hertz
-        target: (float) downsampling target
-        target_type: type of target can be [samples,seconds,hz]
-        method: (str) type of downsample method ['mean','median'],
-                default: mean
+        data (pl.DataFrame | pl.Series): Data to downsample.
+        sampling_freq (float): Sampling frequency of the data in Hz.
+        target (float): Downsampling target.
+        target_type (str): Unit of `target`, one of 'samples', 'seconds', or 'hz'.
+            Defaults to 'samples'.
+        method (str): Aggregation within each bin, 'mean' or 'median'. Defaults to 'mean'.
 
     Returns:
         pl.DataFrame | pl.Series: Downsampled data (same type as input).
@@ -171,18 +170,16 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
     basis (i.e. sigmoidal/linear drift).
 
     Args:
-        nsamples (int): number of observations (e.g. TRs)
-        sampling_freq (float): sampling frequency in hertz (i.e. 1 / TR)
-        filter_length (int): length of filter in seconds
-        unit_scale (bool): assure that the basis functions are on the normalized range [-1, 1]; default True
-        drop (int): index of which early/slow bases to drop if any; default is
-            to drop constant (i.e. intercept) like SPM. Unlike SPM, retains
-            first basis (i.e. linear/sigmoidal). Will cumulatively drop bases
-            up to and inclusive of index provided (e.g. 2, drops bases 1 and 2)
+        nsamples (int): Number of observations (e.g. TRs).
+        sampling_freq (float): Sampling frequency in Hz (i.e. 1 / TR).
+        filter_length (int): Filter length in seconds.
+        unit_scale (bool): Scale the basis functions to the range [-1, 1]. Defaults to True.
+        drop (int): Number of leading (slowest) bases to drop after the constant is
+            removed; `drop=2` removes the first two. Defaults to 0, which keeps
+            the linear/sigmoidal drift basis that SPM discards.
 
     Returns:
-        np.ndarray: nsamples x number of basis sets numpy array.
-
+        np.ndarray: Basis matrix of shape (nsamples, n_bases).
     """
 
     # Figure out number of basis functions to create
@@ -227,15 +224,15 @@ def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis=0, order=5):
     """Apply a bandpass butterworth filter with zero-phase filtering.
 
     Args:
-        data: (np.array)
-        low_cut: (float) lower bound cutoff for high pass filter
-        high_cut: (float) upper bound cutoff for low pass filter
-        fs: (float) sampling frequency in Hz
-        axis: (int) axis to perform filtering.
-        order: (int) filter order for butterworth bandpass
+        data (np.ndarray): Signal(s) to filter.
+        low_cut (float): Lower cutoff frequency (high-pass edge) in Hz.
+        high_cut (float): Upper cutoff frequency (low-pass edge) in Hz.
+        fs (float): Sampling frequency in Hz.
+        axis (int): Axis along which to filter. Defaults to 0.
+        order (int): Butterworth filter order. Defaults to 5.
 
     Returns:
-        bandpass filtered data.
+        np.ndarray: Bandpass-filtered data with the same shape as `data`.
     """
     nyq = 0.5 * fs
     b, a = butter(order, [low_cut / nyq, high_cut / nyq], btype="band")
@@ -243,20 +240,16 @@ def _butter_bandpass_filter(data, low_cut, high_cut, fs, axis=0, order=5):
 
 
 def _phase_mean_angle(phase_angles):
-    """Compute mean phase angle using circular statistics.
+    """Compute the circular mean of phase angles.
 
-    Can take 1D (observation for a single feature) or 2D (observation x feature) signals
-
-    Implementation from:
-
-        Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+    Follows Fisher, N. I. (1995), *Statistical Analysis of Circular Data*.
 
     Args:
-        phase_angles: (np.array) 1D or 2D array of phase angles
+        phase_angles (np.ndarray): A 1D array of angles, or a 2D array whose rows
+            are sets of angles (e.g. time points x subjects).
 
     Returns:
-        np.ndarray: Mean phase angle (one value per feature for 2D input).
-
+        np.ndarray: The mean angle; one value per row for 2D input.
     """
 
     axis = 0 if len(phase_angles.shape) == 1 else 1
@@ -267,20 +260,16 @@ def _phase_mean_angle(phase_angles):
 
 
 def _phase_vector_length(phase_angles):
-    """Compute vector length of phase angles using circular statistics.
+    """Compute the mean resultant vector length of phase angles.
 
-    Can take 1D (observation for a single feature) or 2D (observation x feature) signals
-
-    Implementation from:
-
-        Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+    Follows Fisher, N. I. (1995), *Statistical Analysis of Circular Data*.
 
     Args:
-        phase_angles: (np.array) 1D or 2D array of phase angles
+        phase_angles (np.ndarray): A 1D array of angles, or a 2D array whose rows
+            are sets of angles (e.g. time points x subjects).
 
     Returns:
-        np.ndarray: Phase angle vector length (one value per feature for 2D input).
-
+        np.ndarray: Vector length in [0, 1]; one value per row for 2D input.
     """
 
     axis = 0 if len(phase_angles.shape) == 1 else 1
@@ -293,20 +282,20 @@ def _phase_vector_length(phase_angles):
 
 
 def _phase_rayleigh_p(phase_angles):
-    """Compute the p-value of the phase_angles using the Rayleigh statistic.
+    """Compute Rayleigh-test p-values for non-uniformity of phase angles.
 
-    Note: this test assumes every time point is independent, which is unlikely to be true in a timeseries with autocorrelation
-
-    Implementation from:
-
-        Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
+    Follows Fisher, N. I. (1995), *Statistical Analysis of Circular Data*.
 
     Args:
-        phase_angles: (np.array) 1D or 2D array of phase angles
+        phase_angles (np.ndarray): A 1D array of angles, or a 2D array whose rows
+            are sets of angles (e.g. time points x subjects).
 
     Returns:
-        np.ndarray: Rayleigh-test p-values (one value per feature for 2D input).
+        np.ndarray: Rayleigh p-values; one value per row for 2D input.
 
+    Note:
+        The test treats the angles in each set as independent, which
+        autocorrelated timeseries violate.
     """
 
     n = len(phase_angles) if len(phase_angles.shape) == 1 else phase_angles.shape[1]

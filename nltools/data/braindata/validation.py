@@ -1,8 +1,7 @@
-"""
-Validation utilities for BrainData class.
+"""Input validation for `BrainData`.
 
-This module contains helper functions for validating inputs, shapes, and
-compatibility between BrainData objects and other data types.
+Helpers that validate constructor inputs, array shapes, and operand
+compatibility between `BrainData` objects and other data types.
 """
 
 from pathlib import Path
@@ -19,11 +18,12 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
     polars DataFrame. Internal BrainData state should be polars-only.
 
     Args:
-        frame: Input to validate. Can be ``None``, a ``str``/``Path`` pointing
-            to a CSV, a polars or pandas DataFrame, a dict of columns, or a
-            1D/2D numpy array.
-        data_shape: Optional tuple of data shape to validate row count against.
-        frame_type: Type of frame for error messages (e.g., "X", "Y").
+        frame (pl.DataFrame | pd.DataFrame | dict | np.ndarray | str | Path | None):
+            Input to validate: ``None``, a path to a CSV, a polars or pandas
+            DataFrame, a dict of columns, or a 1D/2D numpy array.
+        data_shape (tuple | None): Data shape to validate the row count against.
+        frame_type (str): Name of the frame for error messages (e.g. ``"X"``,
+            ``"Y"``).
 
     Returns:
         pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
@@ -87,12 +87,12 @@ def validate_brain_data_shapes(brain1, brain2, operation="operation"):
     """Validate shape compatibility between two BrainData objects.
 
     Args:
-        brain1: First BrainData object.
-        brain2: Second BrainData object.
-        operation: Name of operation for error messages.
+        brain1 (BrainData): First operand.
+        brain2 (BrainData): Second operand.
+        operation (str): Name of the operation for error messages.
 
     Returns:
-        tuple: (brain1_is_single, brain2_is_single) booleans.
+        tuple[bool, bool]: ``(brain1_is_single, brain2_is_single)``.
 
     Raises:
         ValueError: If shapes are incompatible for the operation.
@@ -132,8 +132,9 @@ def validate_arithmetic_operand(other, operation_name):
     """Validate operand type for arithmetic operations.
 
     Args:
-        other: The operand to validate.
-        operation_name: Name of operation (e.g., 'add', 'multiply').
+        other (object): The operand to validate.
+        operation_name (str): Name of the operation (e.g. ``'add'``,
+            ``'multiply'``).
 
     Returns:
         str: Type of operand ('scalar', 'brain_data', or 'array').
@@ -163,10 +164,11 @@ def validate_data_type(data):
     """Validate input data type for BrainData initialization.
 
     Args:
-        data: Input data to validate.
+        data (object): Constructor input to classify.
 
     Returns:
-        str: Type of data ('brain_data', 'list', 'h5', 'url', 'file', 'nibabel', 'array', 'none').
+        str: One of ``'brain_data'``, ``'list'``, ``'h5'``, ``'url'``,
+            ``'file'``, ``'nibabel'``, ``'array'``, or ``'none'``.
 
     Raises:
         TypeError: If data type is not supported.
@@ -203,10 +205,10 @@ def validate_list_data(data_list):
     """Validate that all items in a list are the same type.
 
     Args:
-        data_list: List to validate.
+        data_list (list): Items to validate.
 
     Returns:
-        str: Type of items ('brain_data' or 'file').
+        str: ``'brain_data'`` or ``'file'``.
 
     Raises:
         ValueError: If list contains mixed types or unsupported types.
@@ -241,8 +243,8 @@ def validate_append_shapes(data1_shape, data2_shape):
     """Validate shape compatibility for appending BrainData objects.
 
     Args:
-        data1_shape: Shape of first BrainData.
-        data2_shape: Shape of second BrainData to append.
+        data1_shape (tuple[int, ...]): Shape of the first BrainData.
+        data2_shape (tuple[int, ...]): Shape of the BrainData being appended.
 
     Raises:
         ValueError: If shapes are incompatible for appending.

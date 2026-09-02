@@ -1,7 +1,8 @@
 """Utility functions for ridge regression.
 
-Contains helper functions for batching, decomposition, and other utilities
-following himalaya's implementation patterns.
+Helpers for target batching, the shared SVD decomposition across alphas, alpha
+selection from cross-validation scores, R² scoring, and Dirichlet sampling of
+feature-space weights for banded ridge (patterns follow the himalaya library).
 """
 
 from __future__ import annotations
@@ -23,29 +24,29 @@ def _auto_n_targets_batch(
 ) -> int:
     """Derive a GPU target-batch size from a memory budget.
 
-    Used by the GPU ridge paths when ``n_targets_batch`` is left unset so
-    ``max_gpu_memory_gb`` actually bounds GPU allocation instead of
-    processing all targets at once. Thin adapter over the core layer in
+    Used by the GPU ridge paths when `n_targets_batch` is left unset so
+    `max_gpu_memory_gb` actually bounds GPU allocation instead of processing
+    all targets at once. Thin adapter over the batching layer in
     `nltools.algorithms.backends`.
 
-    ``elements_per_target`` is the caller's estimate of the dominant
+    `elements_per_target` is the caller's estimate of the dominant
     target-scaling working set (in float32 elements) for a single target
-    column — e.g. the alpha-batched prediction block ``n_alphas_batch *
-    n_samples`` in the CV solvers, or ``rank + n_features + n_samples`` in
-    the single-fit SVD path. A 5x overhead factor keeps peak allocation
-    clear of the budget (mirroring the now-removed ICC GPU batcher). The
-    result is floored at ``min(1000, n_targets)`` and capped at ``n_targets``.
+    column — e.g. the alpha-batched prediction block `n_alphas_batch *
+    n_samples` in the CV solvers, or `rank + n_features + n_samples` in the
+    single-fit SVD path. A 5× overhead factor keeps peak allocation clear of
+    the budget. The result is floored at `min(1000, n_targets)` and capped at
+    `n_targets`.
 
     Args:
-        max_gpu_memory_gb: GPU memory budget in GB. None measures the device
-            via `device_memory_budget`.
-        elements_per_target: Dominant float32 working-set size per target.
-        n_targets: Total number of targets (columns of Y).
-        backend: Resolved `Backend` the work runs on (used only to measure
-            the budget when ``max_gpu_memory_gb`` is None).
+        max_gpu_memory_gb (float | None): GPU memory budget in GB. None measures
+            the device via `device_memory_budget`.
+        elements_per_target (int): Dominant float32 working-set size per target.
+        n_targets (int): Total number of targets (columns of Y).
+        backend (Backend | None): Resolved backend the work runs on (used only to
+            measure the budget when `max_gpu_memory_gb` is None).
 
     Returns:
-        int: Target batch size in ``[min(1000, n_targets), n_targets]``.
+        int: Target batch size in `[min(1000, n_targets), n_targets]`.
     """
     from ..backends import auto_batch_size, device_memory_budget
 
@@ -70,33 +71,28 @@ def generate_dirichlet_samples(
 ) -> np.ndarray:
     """Generate samples from a Dirichlet distribution.
 
-    This function generates random samples from a Dirichlet distribution,
-    which is used for sampling feature space weights (gamma) in banded ridge
-    regression random search.
+    Used to draw candidate feature-space weights (gamma) for the random search
+    in banded ridge regression.
 
     Args:
-        n_samples: Number of samples to generate.
-        n_kernels: Number of dimensions (feature spaces) of the distribution.
-        concentration: Concentration parameters of the Dirichlet distribution.
-            - A value of 1 corresponds to uniform sampling over the simplex.
-            - A value of infinity corresponds to equal weights.
-            - If a list, samples cycle through the list.
-            Defaults to [0.1, 1.0].
-        random_state: Random generator seed. Use an int for deterministic samples.
-            Defaults to None.
+        n_samples (int): Number of samples to generate.
+        n_kernels (int): Number of dimensions (feature spaces) of the distribution.
+        concentration (float | list[float]): Concentration parameter(s). A value
+            of 1 samples uniformly over the simplex; `np.inf` gives equal
+            weights; a list alternates between its values across samples.
+            Defaults to `[0.1, 1.0]`.
+        random_state (int | None): Random generator seed; use an int for
+            deterministic samples. Defaults to None.
 
     Returns:
-        np.ndarray: Dirichlet samples of shape (n_samples, n_kernels).
-            Each row sums to 1 (lies on simplex).
+        np.ndarray: Samples of shape (n_samples, n_kernels); each row sums to 1.
 
     Examples:
-        >>> # Generate 10 samples for 3 feature spaces
-        >>> gammas = generate_dirichlet_samples(10, 3, concentration=[0.1, 1.0])
-        >>> gammas.shape
-        (10, 3)
-        >>> # Each row sums to 1
-        >>> np.allclose(gammas.sum(axis=1), 1.0)
-        True
+        ```python
+        gammas = generate_dirichlet_samples(10, 3, concentration=[0.1, 1.0])
+        gammas.shape  # → (10, 3)
+        np.allclose(gammas.sum(axis=1), 1.0)  # → True
+        ```
     """
     random_generator = check_random_state(random_state)
 
@@ -138,48 +134,39 @@ def _decompose_ridge(
     method: str = "svd",
     backend: Backend | None = None,
 ) -> Iterator[tuple[np.ndarray, slice]]:
-    """Generator that yields resolution matrices for ridge predictions.
+    """Yield ridge resolution matrices `(X.T @ X + alpha * I)^-1 @ X.T`, batched over alphas.
 
-    This computes the resolution matrices needed for ridge predictions:
-        Ytest_hat = Xtest @ (XtX + alpha * I)^-1 @ Xtrain^T @ Ytrain
-
-    By using SVD decomposition, we can compute:
-        matrices = (XtX + alpha * I)^-1 @ Xtrain^T
-
-    for multiple alphas efficiently using a single SVD.
-
-    CRITICAL: This is a GENERATOR (uses yield) for memory efficiency.
-    Each alpha batch is yielded, processed, then deleted before the next batch.
+    Ridge predictions are `Ytest_hat = Xtest @ matrices @ Ytrain`. One SVD of
+    `Xtrain` serves every alpha, and the matrices are produced in alpha batches
+    so only one batch is alive at a time.
 
     Args:
-        Xtrain: Training features of shape (n_samples_train, n_features).
-        alphas: Ridge regularization parameters to try, shape (n_alphas,).
-        n_alphas_batch: If not None, yields batches of alphas. This saves memory
-            when trying many alphas. Defaults to None (process all at once).
-        method: Decomposition method. Currently only "svd" is supported.
-            Defaults to "svd".
-        backend: `Backend` providing `.svd`/`.matmul`/`.expand_dims` used for the
-            decomposition. Effectively required: the default `None` is not handled and
-            will raise `AttributeError`. Pass a numpy or torch `Backend` instance.
+        Xtrain (np.ndarray): Training features of shape (n_samples_train, n_features).
+        alphas (np.ndarray): Ridge regularization parameters, shape (n_alphas,).
+        n_alphas_batch (int | None): Number of alphas per yielded batch; smaller
+            batches use less memory. None processes all alphas at once.
+            Defaults to None.
+        method (str): Decomposition method; only `"svd"` is supported.
+            Defaults to `"svd"`.
+        backend (Backend | None): Backend providing `.svd`, `.matmul`, and
+            `.expand_dims`. Effectively required: the default None is not
+            handled and raises `AttributeError`.
 
     Yields:
-        tuple: (matrices, alpha_batch) where:
-            - matrices: Resolution matrices of shape (n_alphas_batch, n_features, n_samples_train)
-            - alpha_batch: Slice indicating which alphas this batch corresponds to
+        tuple[np.ndarray, slice]: `(matrices, alpha_batch)` — resolution matrices
+            of shape (n_alphas_batch, n_features, n_samples_train) and the slice
+            of `alphas` they correspond to.
+
+    Raises:
+        ValueError: If `method` is not `"svd"`.
 
     Examples:
-        >>> X = np.random.randn(100, 50)
-        >>> alphas = np.array([0.1, 1.0, 10.0])
-        >>> for matrices, batch in _decompose_ridge(X, alphas, n_alphas_batch=2):
-        ...     print(f"Processing alphas {alphas[batch]}")
-        ...     # Use matrices for predictions
-        ...     # matrices is automatically deleted after this iteration
-        Processing alphas [0.1 1.0]
-        Processing alphas [10.0]
-
-    Notes:
-        - Uses generator pattern for memory efficiency (Principle 2: automatic memory efficiency)
-        - Each batch is automatically cleaned up after yielding
+        ```python
+        X = np.random.randn(100, 50)
+        alphas = np.array([0.1, 1.0, 10.0])
+        for matrices, batch in _decompose_ridge(X, alphas, n_alphas_batch=2, backend=backend):
+            print(alphas[batch])  # → [0.1 1.0] then [10.0]
+        ```
     """
 
     # Default: process all alphas at once
@@ -223,30 +210,31 @@ def _select_best_alphas(
     backend: Backend | None = None,
     conservative: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Select best alphas from cross-validation scores.
+    """Select the best alphas from cross-validation scores.
+
+    Scores are averaged over splits, with a tiny bias toward larger alphas so
+    ties resolve toward more regularization (himalaya's convention).
 
     Args:
-        scores: Cross-validation scores of shape (n_splits, n_alphas, n_targets)
-            for each split, alpha, and target.
-        alphas: Ridge regularization parameters of shape (n_alphas,).
-        local_alpha: If True, select best alpha independently for each target.
-            If False, select single best alpha for all targets.
-        backend: `Backend` providing `.asarray`/`.xp`/`.full` used for the array
-            operations. Effectively required: the default `None` is not handled and will
-            raise `AttributeError`. Pass a numpy or torch `Backend` instance.
-        conservative: If True, select the largest alpha within 1 std of the best score.
-            This provides more regularization when performance is similar.
-            Defaults to False.
+        scores (np.ndarray): Cross-validation scores of shape
+            (n_splits, n_alphas, n_targets).
+        alphas (np.ndarray): Ridge regularization parameters, shape (n_alphas,).
+        local_alpha (bool): If True, pick the best alpha independently per
+            target; if False, pick one alpha for all targets.
+        backend (Backend | None): Backend providing `.asarray`, `.xp`, and
+            `.full`. Effectively required: the default None is not handled and
+            raises `AttributeError`.
+        conservative (bool): If True (and `local_alpha=True`), pick the largest
+            alpha whose mean score is within one standard deviation of the best,
+            trading a little fit for more regularization. Defaults to False.
 
     Returns:
-        tuple: (alphas_argmax, best_scores_mean) where:
-            - alphas_argmax: Indices of best alphas for each target, shape (n_targets,)
-            - best_scores_mean: Mean scores (averaged over CV splits) for best alphas,
-                shape (n_targets,)
+        tuple[np.ndarray, np.ndarray]: `(alphas_argmax, best_scores_mean)` — the
+            index of the selected alpha for each target and its split-averaged
+            score, both of shape (n_targets,).
 
-    Notes:
-        - Follows himalaya's implementation pattern
-        - Adds small epsilon bias toward larger alphas (more regularization) when scores are tied
+    Raises:
+        NotImplementedError: If `conservative=True` with `local_alpha=False`.
     """
 
     # Ensure scores and alphas are on the same device
@@ -307,25 +295,22 @@ def _select_best_alphas(
 def _r2_score(
     y_true: np.ndarray, y_pred: np.ndarray, backend: Backend | None = None
 ) -> np.ndarray:
-    """Compute R² score (coefficient of determination).
+    """Compute the R² score (coefficient of determination) per target.
 
-    Backend-agnostic implementation that works with NumPy, PyTorch, etc.
+    `R² = 1 - SS_res / SS_tot`, with the residual and total sums of squares
+    taken over samples; a `1e-10` guard avoids division by zero. Works with
+    NumPy or PyTorch arrays through the backend.
 
     Args:
-        y_true: True target values of shape (n_samples, n_targets).
-        y_pred: Predicted target values of shape (n_samples, n_targets) or
+        y_true (np.ndarray): True targets of shape (n_samples, n_targets).
+        y_pred (np.ndarray): Predictions of shape (n_samples, n_targets) or
             (n_alphas, n_samples, n_targets).
-        backend: `Backend` providing `.xp` (array module) used for the reductions.
-            Effectively required: the default `None` is not handled and will raise
-            `AttributeError`. Pass a numpy or torch `Backend` instance.
+        backend (Backend | None): Backend providing `.xp` for the reductions.
+            Effectively required: the default None is not handled and raises
+            `AttributeError`.
 
     Returns:
-        np.ndarray: R² scores for each target. Shape (n_targets,) or (n_alphas, n_targets).
-
-    Notes:
-        - R² = 1 - SS_res / SS_tot
-        - SS_res = sum((y_true - y_pred)^2)  # Residual sum of squares
-        - SS_tot = sum((y_true - y_mean)^2)  # Total sum of squares
+        np.ndarray: R² per target, shape (n_targets,) or (n_alphas, n_targets).
     """
     # Handle both 2D and 3D predictions (with alpha dimension)
     if len(y_pred.shape) == 3:

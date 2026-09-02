@@ -1,4 +1,4 @@
-"""BrainData plotting functions."""
+"""Glass-brain, slice, flatmap, timeseries, and histogram plots for `BrainData`."""
 
 import os
 import warnings
@@ -79,11 +79,11 @@ def plot_brain(
     """Plot BrainData instance using nilearn visualization or matplotlib.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Data to plot.
         method (str): Visualization type ('glass', 'slices', 'timeseries', 'histogram').
-        upper (str/float, optional): Upper threshold applied to the data
+        upper (str | float | None): Upper threshold applied to the data
             (nltools semantics; may be a percentile string like ``"95%"``).
-        lower (str/float, optional): Lower threshold applied to the data
+        lower (str | float | None): Lower threshold applied to the data
             (nltools semantics).
         threshold (float, optional): Absolute-value transparency cutoff
             forwarded to the underlying nilearn plot function. Voxels with
@@ -113,7 +113,8 @@ def plot_brain(
             ``limit``. Ignored for single-image data and for matplotlib-based
             methods (``"timeseries"``, ``"histogram"``), which already
             aggregate across images.
-        **kwargs: Additional arguments passed to nilearn plot functions.
+        **kwargs (dict): Additional arguments forwarded to
+            `nilearn.plotting.plot_glass_brain` / `plot_stat_map`.
 
     Returns:
         matplotlib.figure.Figure | list[matplotlib.figure.Figure]: For
@@ -368,7 +369,7 @@ def plot_flatmap_brain(
     """Plot brain data on cortical flatmap.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Data to plot (must be in standard MNI space).
         threshold (float, optional): Values below this absolute threshold
             are masked.
         cmap (str): Matplotlib colormap for data. Default: 'RdBu_r'.
@@ -441,13 +442,13 @@ def _plot_matplotlib(
     """Plot using matplotlib (timeseries or histogram).
 
     Args:
-        bd: BrainData instance.
-        method (str): 'timeseries' or 'histogram'
-        stat (str): Statistic for timeseries ('mean', 'median', 'std')
-        figsize (tuple, optional): default figure size if no axis (8, 6)
-        ax: Matplotlib axis.
-        title (str, optional): Plot title.
-        save (str, optional): Path to save figure.
+        bd (BrainData): Data to plot.
+        method (str): 'timeseries' or 'histogram'.
+        stat (str): Statistic for timeseries ('mean', 'median', 'std').
+        figsize (tuple): Figure size when no axis is given. Default: (8, 6).
+        ax (matplotlib.axes.Axes | None): Existing axis to plot on.
+        title (str | None): Plot title.
+        save (str | None): Path to save the figure.
 
     Returns:
         matplotlib.figure.Figure: The rendered figure.
@@ -531,10 +532,11 @@ def auto_select_colormap(data):
     """Auto-select colormap based on data characteristics.
 
     Args:
-        data (np.ndarray): numpy array of brain data
+        data (np.ndarray): Brain data values.
 
     Returns:
-        str: Colormap name
+        str: Colormap name — 'hot' if >90% of values are positive, 'cool' if
+            >90% are negative, otherwise the bipolar 'RdBu_r'.
     """
     # Flatten data for analysis
     if data.ndim > 1:
@@ -564,12 +566,14 @@ def prepare_save_paths(save, idx=None):
     """Prepare save paths for multiple plot outputs.
 
     Args:
-        save: Base save path (str or Path)
-        idx (int, optional): Image index appended as ``_img{idx}`` to the
-            base filename. Used to disambiguate saves across multiple images.
+        save (str | Path): Base save path; its extension is reused (default
+            `png`).
+        idx (int | None): Image index appended as ``_img{idx}`` to the base
+            filename, to disambiguate saves across multiple images.
 
     Returns:
-        dict: Dictionary with 'glass' and 'slices' keys containing save paths
+        dict: `'glass'` maps to one path; `'slices'` maps to a dict of per-axis
+            (`'x'`, `'y'`, `'z'`) paths.
     """
     save = str(save)  # Convert Path objects to strings
     path, filename = os.path.split(save)

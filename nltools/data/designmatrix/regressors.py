@@ -1,7 +1,9 @@
-"""Provide standalone regressor functions for DesignMatrix.
+"""Build regressors for a DesignMatrix: HRF convolution and drift terms.
 
-Each function takes a DesignMatrix as its first argument (`dm`) and returns
-a new DesignMatrix with the requested transformation applied.
+`convolve` applies the canonical Glover HRF or a custom kernel; `add_poly` and
+`add_dct_basis` add Legendre polynomial and discrete-cosine drift regressors in
+the reserved ``.nl_`` namespace. Each function returns a new `DesignMatrix`
+with metadata updated.
 """
 
 from __future__ import annotations
@@ -28,25 +30,29 @@ def convolve(
     """Convolve columns with an HRF or custom kernel.
 
     Args:
-        dm: DesignMatrix to convolve.
-        conv_func (str or ndarray): 'hrf' for canonical Glover HRF, or custom kernel(s).
-            Can be 1D array (single kernel) or 2D (samples x kernels)
-        columns (list of str, optional): Columns to convolve (default: all non-confound columns)
+        dm (DesignMatrix): DesignMatrix to convolve.
+        conv_func (str | np.ndarray): ``'hrf'`` for the canonical Glover HRF, or
+            custom kernel(s) as a 1D array (single kernel) or 2D array
+            (samples x kernels).
+        columns (list[str] | None): Columns to convolve. Default: all
+            non-confound columns that are not already convolved.
 
     Returns:
-        DesignMatrix: New DesignMatrix with convolved columns
+        DesignMatrix: New DesignMatrix with convolved columns.
 
     Examples:
-        >>> # Default HRF convolution → produces 'stim_c0'
-        >>> dm_conv = convolve(dm)
+        ```python
+        # Default HRF convolution → produces 'stim_c0'
+        dm_conv = convolve(dm)
 
-        >>> # Custom 1-D kernel → produces 'stim_c0'
-        >>> kernel = np.array([0.5, 1.0, 0.5])
-        >>> dm_conv = convolve(dm, conv_func=kernel)
+        # Custom 1-D kernel → produces 'stim_c0'
+        kernel = np.array([0.5, 1.0, 0.5])
+        dm_conv = convolve(dm, conv_func=kernel)
 
-        >>> # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
-        >>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
-        >>> dm_conv = convolve(dm, conv_func=kernels)
+        # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
+        kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
+        dm_conv = convolve(dm, conv_func=kernels)
+        ```
 
     Note:
         Convolved columns are always renamed to ``<col>_c{i}``; the source
@@ -160,7 +166,7 @@ def add_poly(
     """Add Legendre polynomial drift terms.
 
     Args:
-        dm: DesignMatrix to add polynomials to.
+        dm (DesignMatrix): DesignMatrix to add polynomials to.
         order (int): Polynomial order (0=intercept, 1=linear, 2=quadratic, ...).
             Default: 0.
         include_lower (bool): If True, include all orders from 0 to order.
@@ -255,7 +261,7 @@ def add_dct_basis(
     """Add discrete cosine transform basis functions for high-pass filtering.
 
     Args:
-        dm: DesignMatrix to add DCT basis to.
+        dm (DesignMatrix): DesignMatrix to add the DCT basis to.
         duration (float): Filter duration in seconds. Default: 180.
         drop (int): Number of low-frequency bases to drop. Default: 0.
         include_constant (bool): If True, also add a constant/intercept column

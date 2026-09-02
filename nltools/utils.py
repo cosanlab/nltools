@@ -180,31 +180,31 @@ class DesignMatrixWarning(UserWarning):
 
 @contextmanager
 def coalesced_gc():
-    """Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
+    """Collapse nilearn's forced per-copy `gc.collect()` calls into one per operation.
 
-    nilearn calls ``gc.collect()`` after every masked-array copy
-    (``_utils/niimg.py:safe_get_data``); a masking-heavy op — a GLM fit that
-    re-validates the same mask and builds several result maps — fires dozens.
-    With torch/nilearn/sklearn resident each sweep costs ~0.1s, so the storm
-    dominates the wall-clock of otherwise-trivial numerical work.
+    nilearn runs a full `gc.collect()` after every masked-array copy it makes; a
+    masking-heavy operation — a GLM fit that re-validates the same mask and
+    builds several result maps — fires dozens. With torch/nilearn/sklearn
+    resident each sweep costs ~0.1s, so the storm dominates the wall-clock of
+    otherwise-trivial numerical work.
 
     This no-ops the interim collects and runs a single real collect on exit,
     so peak memory stays bounded to one operation's worth of cyclic garbage
-    (the ``gc.collect()`` nilearn calls is a peak-memory optimization, not a
-    correctness requirement — suppressing it only defers reclamation). Opt out
-    with ``NLTOOLS_NO_GC_COALESCE=1``.
+    (nilearn's collect is a peak-memory optimization, not a correctness
+    requirement — suppressing it only defers reclamation). Opt out with
+    `NLTOOLS_NO_GC_COALESCE=1`.
 
-    Because ``@contextmanager`` results double as decorators, this can also be
-    used as ``@coalesced_gc()`` on an operation-boundary method.
+    Because `@contextmanager` results double as decorators, this can also be
+    used as `@coalesced_gc()` on an operation-boundary method.
 
     Nesting is safe: each frame restores whatever it saved, so only the
-    outermost frame restores the real ``gc.collect`` and runs the final sweep;
+    outermost frame restores the real `gc.collect` and runs the final sweep;
     inner frames' exit-time collect is a no-op.
 
     Caveat: this swaps a process-global builtin. It is safe under the default
-    loky (process) worker backend — each worker has its own ``gc``. Under a
+    loky (process) worker backend — each worker has its own `gc`. Under a
     *threading* backend there is a brief window where a concurrent thread sees
-    the no-op collect; ``NLTOOLS_NO_GC_COALESCE=1`` is the escape hatch there.
+    the no-op collect; `NLTOOLS_NO_GC_COALESCE=1` is the escape hatch there.
     """
     if os.environ.get("NLTOOLS_NO_GC_COALESCE"):
         yield
@@ -219,7 +219,11 @@ def coalesced_gc():
 
 
 def get_resource_path():
-    """Get path to nltools resource directory."""
+    """Get the path to the nltools resource directory.
+
+    Returns:
+        str: Absolute path to `nltools/resources/`, with a trailing separator.
+    """
     return join(dirname(__file__), "resources") + pathsep
 
 
@@ -235,19 +239,21 @@ def attempt_to_import(dependency, name=None, fromlist=None):
     allowing the calling code to check and handle missing dependencies.
 
     Args:
-        dependency: The module name to import (e.g., 'torch', 'cupy').
-        name: Optional name to store the dependency under in module_names.
-            Defaults to the dependency name.
-        fromlist: Optional list of names to import from the module.
+        dependency (str): The module name to import (e.g. `'torch'`, `'cupy'`).
+        name (str, optional): Key to record the dependency under in the module-level
+            `module_names` registry. Defaults to `dependency`.
+        fromlist (list[str], optional): Names to import from the module (passed to
+            `__import__`).
 
     Returns:
         ModuleType | None: The imported module, or None if the import failed.
 
     Examples:
-        >>> torch = attempt_to_import('torch')
-        >>> if torch is not None:
-        ...     # Use torch
-        ...     pass
+        ```python
+        torch = attempt_to_import("torch")
+        if torch is not None:
+            ...  # use torch
+        ```
     """
     if name is None:
         name = dependency
@@ -263,22 +269,33 @@ def all_same(items):
     """Check if all items in a sequence are equal to the first item.
 
     Args:
-        items: A sequence of items to compare.
+        items (Sequence): Items to compare (arrays are compared element-wise).
 
     Returns:
         bool: True if all items equal the first item, False otherwise.
 
     Examples:
-        >>> all_same([1, 1, 1])
-        True
-        >>> all_same([1, 2, 1])
-        False
+        ```python
+        all_same([1, 1, 1])  # → True
+        all_same([1, 2, 1])  # → False
+        ```
     """
     return all(np.array_equal(x, items[0]) for x in items)
 
 
 def concatenate(data):
-    """Concatenate a list of BrainData() or Adjacency() objects."""
+    """Concatenate a list of `BrainData` or `Adjacency` objects.
+
+    Args:
+        data (list[BrainData] | list[Adjacency]): Objects to concatenate; all must
+            be of the same class.
+
+    Returns:
+        BrainData | Adjacency: A single object holding every input in order.
+
+    Raises:
+        ValueError: If `data` is not a list or mixes classes.
+    """
 
     if not isinstance(data, list):
         raise ValueError("Make sure you are passing a list of objects.")
@@ -332,9 +349,9 @@ def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
     `tqdm.auto`, so notebooks get widget bars and terminals get text bars.
 
     Args:
-        iterable: The iterable to wrap.
-        progress_bar: Whether to display a progress bar.
-        **tqdm_kwargs: Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`).
+        iterable (Iterable): The iterable to wrap.
+        progress_bar (bool): Whether to display a progress bar.
+        **tqdm_kwargs (dict): Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`).
 
     Returns:
         Iterable: The original iterable, or a `tqdm`-wrapped version of it.
@@ -362,8 +379,8 @@ def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
     terminals get text bars.
 
     Args:
-        progress_bar: Whether to display a progress bar.
-        **tqdm_kwargs: Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`).
+        progress_bar (bool): Whether to display a progress bar.
+        **tqdm_kwargs (dict): Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`).
 
     Returns:
         tqdm | _NullProgressBar: A `tqdm` instance, or a `_NullProgressBar` exposing

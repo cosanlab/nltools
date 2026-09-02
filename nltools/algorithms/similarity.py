@@ -16,10 +16,10 @@ __all__ = [
 
 
 def fisher_r_to_z(r):
-    """Use Fisher transformation to convert correlation to z score.
+    """Convert correlation coefficients to Fisher z values.
 
     Args:
-        r: correlation coefficient(s)
+        r (float | np.ndarray): Correlation coefficient(s).
 
     Returns:
         np.ndarray: Fisher z-transformed correlation(s).
@@ -32,7 +32,7 @@ def fisher_z_to_r(z):
     """Convert Fisher z back to a correlation coefficient.
 
     Args:
-        z: Fisher z-transformed value(s)
+        z (float | np.ndarray): Fisher z value(s).
 
     Returns:
         np.ndarray: Correlation coefficient(s).
@@ -40,36 +40,29 @@ def fisher_z_to_r(z):
     return np.tanh(z)
 
 
+# Adapted from the scikit-learn RankSVM example by Fabian Pedregosa and
+# Alexandre Gramfort (BSD licensed).
 def transform_pairwise(X, y):
-    """Transform data into pairs with balanced labels for ranking.
+    """Transform data into pairwise differences with balanced labels for ranking.
 
-    Transforms a n-class ranking problem into a two-class classification
-    problem. Subclasses implementing particular strategies for choosing
-    pairs should override this method.
-    In this method, all pairs are choosen, except for those that have the
-    same target value. The output is an array of balanced classes, i.e.
-    there are the same number of -1 as +1
+    Turns an n-class ranking problem into a two-class classification problem:
+    every pair of samples with different target values becomes one difference
+    row, and signs are flipped so that the -1 and +1 classes are balanced.
 
-    Reference: "Large Margin Rank Boundaries for Ordinal Regression",
-    R. Herbrich, T. Graepel, K. Obermayer. Authors: Fabian Pedregosa
-    <fabian@fseoane.net> Alexandre Gramfort <alexandre.gramfort@inria.fr>
+    Reference: Herbrich, R., Graepel, T., & Obermayer, K. "Large Margin Rank
+    Boundaries for Ordinal Regression".
 
     Args:
-        X: (np.array), shape (n_samples, n_features)
-            The data
-        y: (np.array), shape (n_samples,) or (n_samples, 2)
-            Target labels. If it's a 2D array, the second column represents
-            the grouping of samples, i.e., samples with different groups will
-            not be considered.
+        X (np.ndarray): Data, shape (n_samples, n_features).
+        y (np.ndarray): Target labels, shape (n_samples,) or (n_samples, 2). A
+            second column groups the samples; pairs from different groups are skipped.
 
     Returns:
-        tuple[np.ndarray, np.ndarray]: `(X_trans, y_trans)` — `X_trans` has shape
-            (k, n_features) and holds the data as pairs, where
-            k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;
-            if grouping variables exist, values are computed within each group.
-            `y_trans` has shape (k,) and holds the output class labels with values
-            {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the
-            second dimension.
+        tuple[np.ndarray, np.ndarray]: `(X_trans, y_trans)`. `X_trans` has shape
+            (k, n_features) with one row per retained pair (k is at most
+            n_samples * (n_samples - 1) / 2; pairs are formed within groups when
+            given). `y_trans` holds the labels in {-1, +1}, shape (k,), or (k, 2)
+            with the group in the second column when `y` had two columns.
     """
     X = np.asarray(X)
     y = np.asarray(y)
@@ -111,32 +104,27 @@ def transform_pairwise(X, y):
 
 
 def compute_similarity(data1, data2, metric="correlation"):
-    """Compute similarity between two data arrays.
+    """Compute row-wise similarity between two data arrays.
 
-    This is the functional core implementation for similarity computation.
-    Used by BrainData.similarity() to delegate computation to the functional core.
+    The array engine behind `BrainData.similarity`.
 
     Args:
-        data1 (np.ndarray): First data array, shape (n_samples1, n_features)
-        data2 (np.ndarray): Second data array, shape (n_samples2, n_features)
-        metric (str): Type of similarity metric
-            - 'correlation' or 'pearson': Pearson correlation
-            - 'spearman' or 'rank_correlation': Spearman rank correlation
-            - 'dot_product': Dot product
-            - 'cosine': Cosine similarity
+        data1 (np.ndarray): First data array, shape (n_samples1, n_features).
+        data2 (np.ndarray): Second data array, shape (n_samples2, n_features).
+        metric (str): 'correlation' (or 'pearson'), 'spearman' (or
+            'rank_correlation'), 'dot_product', or 'cosine'. Defaults to 'correlation'.
 
     Returns:
-        np.ndarray: Similarity matrix or vector
-            - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar
-            - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array
-            - Otherwise: 2D array shape (n_samples1, n_samples2)
+        np.ndarray: Similarities of shape (n_samples1, n_samples2), squeezed: a 1D
+            array when either input has a single row, a scalar when both do.
 
     Examples:
-        >>> data1 = np.random.randn(10, 100)
-        >>> data2 = np.random.randn(5, 100)
-        >>> sim = compute_similarity(data1, data2, metric='correlation')
-        >>> sim.shape
-        (10, 5)
+        ```python
+        data1 = np.random.randn(10, 100)
+        data2 = np.random.randn(5, 100)
+        sim = compute_similarity(data1, data2, metric="correlation")
+        sim.shape  # → (10, 5)
+        ```
     """
     # Ensure 2D arrays
     data1 = np.atleast_2d(data1)
@@ -181,39 +169,33 @@ def compute_similarity(data1, data2, metric="correlation"):
 
 
 def compute_multivariate_similarity(y, X, method="ols", tail=2):
-    """Compute multivariate similarity via OLS regression.
+    """Compute multivariate similarity by regressing one pattern on several.
 
-    This is the functional core implementation for multivariate similarity computation.
-    Used by BrainData.multivariate_similarity() to delegate computation to the functional core.
-
-    Predicts spatial distribution of y from linear combination of X columns.
-    Computes OLS regression statistics including beta coefficients, t-statistics,
-    p-values, and residuals.
+    The array engine behind `BrainData.multivariate_similarity`: predicts the
+    spatial pattern `y` from a linear combination of the columns of `X` and
+    returns the OLS coefficients, t-statistics, p-values, and residuals.
 
     Args:
-        y (np.ndarray): Target data, shape (n_features,) - single image
-        X (np.ndarray): Predictor data, shape (n_features, n_predictors) where first column
-            should be intercept (ones) if intercept is desired. If X does not include intercept,
-            an intercept will be added automatically.
-        method (str): Regression method (currently only 'ols' supported)
+        y (np.ndarray): Target pattern, shape (n_features,).
+        X (np.ndarray): Predictor patterns, shape (n_features, n_predictors) (the
+            transpose is accepted). An intercept column is always prepended, so
+            do not include one.
+        method (str): Regression method; only 'ols' is implemented. Defaults to 'ols'.
+        tail (int): 2 for two-sided p-values, 1 for an upper-tail test. Defaults to 2.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)
-            - 't': t-statistics, shape (n_predictors+1,)
-            - 'p': p-values, shape (n_predictors+1,)
-            - 'df': Degrees of freedom (int)
-            - 'sigma': Residual standard deviation (float)
-            - 'residual': Residuals, shape (n_features,)
+        dict: Keys 'beta' (coefficients, intercept first, shape (n_predictors + 1,)),
+            't' (t-statistics, same shape), 'p' (p-values, same shape), 'df'
+            (residual degrees of freedom), 'sigma' (residual standard deviation),
+            and 'residual' (residuals, shape (n_features,)).
 
     Examples:
-        >>> y = np.random.randn(100)
-        >>> X = np.random.randn(100, 5)
-        >>> result = compute_multivariate_similarity(y, X, method='ols')
-        >>> 'beta' in result
-        True
-        >>> result['beta'].shape
-        (6,)  # 5 predictors + intercept
+        ```python
+        y = np.random.randn(100)
+        X = np.random.randn(100, 5)
+        result = compute_multivariate_similarity(y, X, method="ols")
+        result["beta"].shape  # → (6,)  5 predictors + intercept
+        ```
     """
     if method != "ols":
         raise NotImplementedError(f"method '{method}' not implemented")

@@ -13,8 +13,11 @@ class BrainSpaceConfig:
     """Immutable MNI template configuration.
 
     Attributes:
-        template: Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
-        resolution: Resolution in mm (1, 2, or 3).
+        template (str): Template variant (`'default'`, `'nilearn'`, `'fmriprep'`).
+        resolution (int): Resolution in mm (1, 2, or 3).
+        mask (str): Path to the brain mask file.
+        brain (str): Path to the brain-extracted image.
+        plot (str): Path to the full T1 image used for plotting.
     """
 
     template: TemplateName = "default"
@@ -65,7 +68,11 @@ _current: BrainSpaceConfig = _DEFAULT
 
 
 def get_brainspace() -> BrainSpaceConfig:
-    """Return the current global brain-space configuration."""
+    """Return the current global brain-space configuration.
+
+    Returns:
+        BrainSpaceConfig: The active configuration.
+    """
     return _current
 
 
@@ -80,11 +87,13 @@ def set_brainspace(
     fields retain their current value.
 
     Args:
-        template: Template name to set. If ``None``, keeps current.
-        resolution: Resolution to set. If ``None``, keeps current.
+        template (str, optional): Template name to set (`'default'`, `'nilearn'`,
+            `'fmriprep'`). If None, keeps the current value.
+        resolution (int, optional): Resolution in mm to set. If None, keeps the
+            current value.
 
     Returns:
-        The new (or unchanged) current ``BrainSpaceConfig``.
+        BrainSpaceConfig: The new (or unchanged) current configuration.
     """
     global _current
     if template is None and resolution is None:
@@ -99,7 +108,11 @@ def set_brainspace(
 
 
 def reset_brainspace() -> BrainSpaceConfig:
-    """Reset the global brain-space configuration to defaults."""
+    """Reset the global brain-space configuration to defaults.
+
+    Returns:
+        BrainSpaceConfig: The default configuration (`'default'` template, 2 mm).
+    """
     global _current
     _current = _DEFAULT
     return _current
@@ -116,11 +129,11 @@ def with_brainspace(
     raised inside the block.
 
     Args:
-        template: Template name for the duration of the block.
-        resolution: Resolution for the duration of the block.
+        template (str, optional): Template name for the duration of the block.
+        resolution (int, optional): Resolution in mm for the duration of the block.
 
     Yields:
-        The ``BrainSpaceConfig`` active inside the block.
+        BrainSpaceConfig: The configuration active inside the block.
     """
     global _current
     previous = _current

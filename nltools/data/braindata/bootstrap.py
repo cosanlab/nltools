@@ -1,4 +1,7 @@
-"""Bootstrap functions extracted from BrainData methods."""
+"""Bootstrap resampling for `BrainData` — aggregate statistics and Ridge model statistics.
+
+`BrainData.bootstrap` delegates here.
+"""
 
 import numpy as np
 
@@ -28,35 +31,37 @@ def bootstrap(
     streaming/online accumulator).
 
     Args:
-        bd: BrainData instance.
-        stat: (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std',
-            'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model,
-            'predict' requires fitted Ridge model + X_test).
-        n_samples: (int) Number of bootstrap iterations. Default: 5000
-        save_boots: (bool) If True, store all bootstrap samples (memory intensive).
-                   Default: False
-        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-        X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
-               Required if stat='predict'
-        device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
-            'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if
-            present, else CPU). Ignored for simple stats. Default: 'cpu'
-        max_gpu_memory_gb: (float, optional) Explicit GPU memory budget in GB
-            when device is 'gpu' or 'auto'. None (default) measures the device.
-        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-            (statistic > 0; negate the data for the other direction).
-        n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
-        random_state: (int, optional) Random seed for reproducibility
-        progress_bar: (bool) If True, show a progress bar. Default: False
+        bd (BrainData): Data to resample.
+        stat (str): Statistic to bootstrap. Simple aggregates: ``'mean'``,
+            ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
+            statistics (require a fitted Ridge model): ``'weights'``, or
+            ``'predict'`` (also requires ``X_test``).
+        n_samples (int): Number of bootstrap iterations. Default ``5000``.
+        save_boots (bool): Keep every bootstrap sample (memory intensive).
+            Default ``False``.
+        percentiles (tuple[float, float]): Percentiles for the confidence
+            interval. Default ``(2.5, 97.5)``.
+        X_test (np.ndarray | None): Test features for ``stat='predict'``.
+        device (str): Compute device for Ridge bootstraps: ``'cpu'`` (default),
+            ``'gpu'`` (PyTorch on CUDA/MPS; raises if none is available), or
+            ``'auto'`` (a GPU if present, else CPU). Ignored for simple stats.
+        max_gpu_memory_gb (float | None): Explicit GPU memory budget in GB when
+            ``device`` is ``'gpu'`` or ``'auto'``. ``None`` (default) measures
+            the device.
+        tail (int | str): ``2``/``'two'`` for two-tailed (default);
+            ``1``/``'one'`` for one-tailed (statistic > 0; negate the data for
+            the other direction).
+        n_jobs (int): CPU workers for parallelization. Default ``-1`` (all CPUs).
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar. Default ``False``.
 
     Returns:
-        BrainData or dict:
-            - For simple stats (with ``save_boots=False``): Returns BrainData
-              with bootstrap mean
-            - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
-              'ci_lower', 'ci_upper' (all BrainData objects)
-            - If ``save_boots=True``: Returns a dict (even for simple stats)
-              with an added 'samples' key holding all samples as a raw ndarray
+        BrainData | dict: For simple stats with ``save_boots=False``, a
+            `BrainData` holding the bootstrap mean. For model stats, a dict with
+            keys ``'mean'``, ``'std'``, ``'Z'``, ``'p'``, ``'ci_lower'``,
+            ``'ci_upper'`` (all `BrainData`). With ``save_boots=True``, a dict
+            (even for simple stats) with an added ``'samples'`` key holding the
+            raw sample array.
 
     Examples:
         ```python
@@ -88,11 +93,10 @@ def bootstrap(
         ```
 
     Note:
-        This method replaces the removed `summarize_bootstrap()` function. Use
-        `stat='mean'` to generate bootstrap samples of an aggregate; use
-        `stat='weights'` or `stat='predict'` to also get Z and p maps. To summarize
-        bootstrap samples you already have, feed them to `OnlineBootstrapStats`
-        directly (see Examples).
+        Use ``stat='mean'`` to bootstrap an aggregate; use ``stat='weights'`` or
+        ``stat='predict'`` to also get Z and p maps. To summarize bootstrap
+        samples you already have, feed them to `OnlineBootstrapStats` directly
+        (see Examples).
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
@@ -271,25 +275,22 @@ def bootstrap(
 def convert_bootstrap_results_to_brain_data(
     bd, result, save_boots=False, return_dict=False
 ):
-    """Convert bootstrap results dictionary to BrainData format.
-
-    Helper method to convert numpy arrays from bootstrap functions into
-    BrainData objects or dicts of BrainData objects.
+    """Wrap the arrays from a bootstrap run as `BrainData` objects.
 
     Args:
-        bd: BrainData instance.
-        result: (dict) Result dictionary from bootstrap function with keys:
-                'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
-        save_boots: (bool) If True, include 'samples' key in output
-        return_dict: (bool) If True, always return dict even for simple stats.
-                    If False, return BrainData for simple stats (when save_boots=False)
+        bd (BrainData): Template whose mask and metadata the outputs inherit.
+        result (dict): Bootstrap output with keys ``'mean'``, ``'std'``,
+            ``'Z'``, ``'p'``, ``'ci_lower'``, ``'ci_upper'``, and optionally
+            ``'samples'``.
+        save_boots (bool): Include the ``'samples'`` key in the output.
+        return_dict (bool): Always return a dict. If ``False`` and
+            ``save_boots=False``, return a `BrainData` holding the mean.
 
     Returns:
-        BrainData or dict:
-            - If return_dict=False and save_boots=False: Returns BrainData with mean
-            - Otherwise: Returns dict with BrainData objects for each statistic.
-              The optional 'samples' entry (when save_boots=True) is a raw
-              ndarray, not a BrainData.
+        BrainData | dict: A `BrainData` with the bootstrap mean when
+            ``return_dict=False`` and ``save_boots=False``; otherwise a dict of
+            `BrainData` per statistic, where the optional ``'samples'`` entry is
+            a raw ndarray.
     """
     if save_boots:
         # Return dict with samples

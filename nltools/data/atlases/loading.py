@@ -19,15 +19,14 @@ class Atlas:
     directly.
 
     Attributes:
-        name: Registry key (e.g. ``"harvard_oxford"``).
-        image: NIfTI volume. 3D for deterministic atlases, 4D for
-            probabilistic ones (last axis indexes regions).
-        labels: Two-column ``index, name`` table. For deterministic
-            atlases ``index`` is the integer voxel value; for
-            probabilistic atlases ``index`` is the region index along
-            the 4th dim of ``image``.
-        kind: ``"deterministic"`` or ``"probabilistic"``.
-        citation: Short citation for the original atlas.
+        name (str): Registry key (e.g. `'harvard_oxford'`).
+        image (nibabel.Nifti1Image): NIfTI volume. 3-D for deterministic atlases,
+            4-D for probabilistic ones (last axis indexes regions).
+        labels (pl.DataFrame): Two-column `index, name` table. For deterministic
+            atlases `index` is the integer voxel value; for probabilistic atlases
+            `index` is the region index along the 4th dim of `image`.
+        kind (AtlasKind): `'deterministic'` or `'probabilistic'`.
+        citation (str): Short citation for the original atlas.
     """
 
     name: str
@@ -41,18 +40,18 @@ class Atlas:
 def load_atlas(name: str) -> Atlas:
     """Lazy-load an atlas by registry name.
 
-    First call fetches the NIfTI + label CSV from
-    ``huggingface.co/datasets/nltools/niftis`` (cached locally
-    afterwards). Subsequent calls in the same process are memoized.
+    The first call fetches the NIfTI + label CSV from
+    `huggingface.co/datasets/nltools/niftis` (cached locally afterwards).
+    Subsequent calls in the same process are memoized.
 
     Args:
-        name: Atlas key from `list_atlases`.
+        name (str): Atlas key from `list_atlases`.
 
     Returns:
-        An `Atlas` with image, labels, and metadata loaded.
+        Atlas: The atlas with image, labels, and metadata loaded.
 
     Raises:
-        ValueError: If ``name`` isn't a registered atlas.
+        ValueError: If `name` isn't a registered atlas.
     """
     if name not in ATLASES:
         known = ", ".join(sorted(ATLASES))

@@ -41,11 +41,16 @@ def plot_interactive_brain(
     """Create an interactive brain visualization with nilearn.
 
     Args:
-        brain (nltools.BrainData): a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume)
-        threshold (float/str): threshold to initialize the visualization, may be a percentile string; default 1e-6
-        surface (bool): whether to create a surface-based plot; default False
-        percentile_threshold (bool): whether to interpret threshold values as percentiles
-        kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
+        brain (BrainData): A 1-D (single volume) or 2-D (stack of volumes) instance.
+        threshold (float | str): Initial threshold; a percentile string such as
+            `'95%'` switches on `percentile_threshold`. Default 1e-6.
+        surface (bool): Whether to create a surface-based plot. Default False.
+        percentile_threshold (bool): Whether to interpret threshold values as
+            percentiles. Default False.
+        anatomical (nibabel.Nifti1Image | str, optional): Background image; defaults
+            to nilearn's MNI152 template.
+        **kwargs (dict): Forwarded to `nilearn.plotting.view_img` or
+            `nilearn.plotting.view_img_on_surf`.
 
     Note:
         Returns nothing; the widgets render inline.
@@ -250,49 +255,48 @@ def plot_surf(
     axes=None,
     save=None,
 ):
-    """Plot volumetric data on fsaverage surfaces in a tight 2×2 montage.
+    """Plot volumetric data on fsaverage surfaces in a tight montage.
 
-    Like nilearn's ``plot_img_on_surf`` but with actually-tight framing
-    (via ``Axes3D.set_box_aspect(zoom=...)`` + ``set_axis_off``), an
-    auto-applied transparency mask (same convention as ``plot_flatmap``),
-    and a single shared colorbar instead of one-per-subplot.
+    Like nilearn's `plot_img_on_surf` but with tight framing (via
+    `Axes3D.set_box_aspect(zoom=...)` + `set_axis_off`), an auto-applied
+    transparency mask (same convention as `plot_flatmap`), and a single shared
+    colorbar instead of one per subplot.
 
-    The grid is ``len(view) × len(hemi)`` — rows = views, cols = hemispheres.
+    The grid is `len(view) × len(hemi)` — rows are views, columns are hemispheres.
 
     Args:
-        brain: BrainData, nibabel Nifti1Image, or file path (MNI-space).
-        hemi (str or list): ``"left"``, ``"right"``, ``"both"`` (default),
-            or a list subset like ``["left"]``.
-        view (str or list): ``"montage"`` (default, → ``["lateral",
-            "medial"]``), a single view string, or any list subset of
-            ``("lateral", "medial", "dorsal", "ventral", "anterior",
-            "posterior")``.
-        surface (str): fsaverage mesh to render on. One of ``"pial"``
-            (default), ``"inflated"``, ``"white"``, ``"sphere"``.
-        template (str): fsaverage resolution (``"fsaverage3"`` … ``"fsaverage"``).
-            Default ``"fsaverage5"``.
-        threshold (float or str, optional): Absolute cutoff (``0.3``) or
-            percentile string (``"95%"``).
-        cmap (str): Matplotlib colormap. Default ``"RdBu_r"``.
-        vmin, vmax (float, optional): Colormap range. Defaults to symmetric
-            ±max-abs.
-        transparency (BrainData, Nifti1Image, str, Path, or "auto"):
-            Binary mask used to NaN-out vertices outside the mask so the
-            background shines through. ``"auto"`` uses ``BrainData.mask``.
-        bg_on_data (bool): Whether to multiply data by background.
-        colorbar (bool): Show a single shared colorbar. Default ``True``.
-        colorbar_orientation (str): ``"horizontal"`` (default) or
-            ``"vertical"``.
-        figsize (tuple): Figure size. Default ``(10, 8)``.
+        brain (BrainData | nibabel.Nifti1Image | str | Path): MNI-space image to
+            plot.
+        hemi (str | list): `'left'`, `'right'`, `'both'` (default), or a list
+            subset like `['left']`.
+        view (str | list): `'montage'` (default, → `['lateral', 'medial']`), a
+            single view string, or any list subset of `'lateral'`, `'medial'`,
+            `'dorsal'`, `'ventral'`, `'anterior'`, `'posterior'`.
+        surface (str): fsaverage mesh to render on. One of `'pial'` (default),
+            `'inflated'`, `'white'`, `'sphere'`.
+        template (str): fsaverage resolution (`'fsaverage3'` … `'fsaverage'`).
+            Default `'fsaverage5'`.
+        threshold (float | str, optional): Absolute cutoff (`0.3`) or percentile
+            string (`'95%'`).
+        cmap (str): Matplotlib colormap. Default `'RdBu_r'`.
+        vmin (float, optional): Colormap lower bound. Defaults to −max-abs of the
+            data (symmetric range).
+        vmax (float, optional): Colormap upper bound. Defaults to +max-abs of the
+            data (symmetric range).
+        transparency (BrainData | nibabel.Nifti1Image | str | Path | None): Binary
+            mask used to NaN-out vertices outside the mask so the background shines
+            through. `'auto'` (default) uses `BrainData.mask`; None disables masking.
+        bg_on_data (bool): Whether to multiply data by the background. Default False.
+        colorbar (bool): Show a single shared colorbar. Default True.
+        colorbar_orientation (str): `'horizontal'` (default) or `'vertical'`.
+        figsize (tuple): Figure size. Default (10, 8).
         title (str, optional): Figure title.
-        radius_mm (float): vol_to_surf sampling radius. Default ``3.0``.
-        interpolation (str): vol_to_surf interpolation. Default
-            ``"linear"``.
-        zoom (float): Zoom factor for each 3D axis
-            (``Axes3D.set_box_aspect(zoom=...)``). Default ``1.2``; try
-            ``1.4`` for the tightest clean framing.
-        axes (ndarray of Axes3D, optional): Pre-existing 3D axes to draw
-            into. Shape should be ``(len(view), len(hemi))``.
+        radius_mm (float): `vol_to_surf` sampling radius. Default 3.0.
+        interpolation (str): `vol_to_surf` interpolation. Default `'linear'`.
+        zoom (float): Zoom factor for each 3-D axis (`Axes3D.set_box_aspect`).
+            Default 1.2; try 1.4 for the tightest clean framing.
+        axes (np.ndarray, optional): Pre-existing `Axes3D` array to draw into, of
+            shape `(len(view), len(hemi))`.
         save (str, optional): Path to save the figure.
 
     Returns:
@@ -463,8 +467,8 @@ def plot_flatmap(
     requiring external dependencies like pycortex.
 
     Args:
-        brain: BrainData, nibabel Nifti1Image, or file path to NIfTI image.
-            Data must be in MNI152 space.
+        brain (BrainData | nibabel.Nifti1Image | str | Path): Image to plot. Data
+            must be in MNI152 space.
         threshold (float or str, optional): Values below this absolute
             threshold are masked. Can be a float or percentile string
             like '95%'. Defaults to None (no threshold).
@@ -484,11 +488,11 @@ def plot_flatmap(
             (0=flat gray, 1=full contrast). Defaults to 0.5.
         curvature_brightness (float, optional): Mean brightness of
             curvature (0=dark, 1=bright). Defaults to 0.5.
-        transparency (BrainData, Nifti1Image, str, Path, or "auto", optional):
+        transparency (BrainData | nibabel.Nifti1Image | str | Path | None):
             Binary mask used to render vertices outside the mask as
-            transparent (so the curvature shows through). ``"auto"`` (default)
-            uses the input ``BrainData``'s ``.mask`` when available, matching
-            the behavior of the volumetric ``.plot()``. Pass ``None`` to
+            transparent (so the curvature shows through). `'auto'` (default)
+            uses the input `BrainData`'s `.mask` when available, matching
+            the behavior of the volumetric `.plot()`. Pass None to
             disable masking entirely.
         colorbar (bool, optional): Show colorbar. Defaults to True.
         colorbar_orientation (str, optional): 'horizontal' or 'vertical'.
@@ -511,31 +515,39 @@ def plot_flatmap(
     Examples:
         Basic flatmap with default settings:
 
-        >>> from nltools.plotting import plot_flatmap
-        >>> from nltools.data import BrainData
-        >>> brain = BrainData('stats.nii.gz')
-        >>> fig = plot_flatmap(brain)
+        ```python
+        from nltools.plotting import plot_flatmap
+        from nltools.data import BrainData
+
+        brain = BrainData("stats.nii.gz")
+        fig = plot_flatmap(brain)
+        ```
 
         Thresholded with custom colormap:
 
-        >>> fig = plot_flatmap(brain, threshold=2.5, cmap='hot')
+        ```python
+        fig = plot_flatmap(brain, threshold=2.5, cmap="hot")
+        ```
 
         Percentile threshold, no curvature:
 
-        >>> fig = plot_flatmap(brain, threshold='95%', with_curvature=False)
+        ```python
+        fig = plot_flatmap(brain, threshold="95%", with_curvature=False)
+        ```
 
         High resolution for publication:
 
-        >>> fig = plot_flatmap(brain, template='fsaverage6', figsize=(16, 8))
-        >>> fig.savefig('flatmap.pdf', dpi=300)
+        ```python
+        fig = plot_flatmap(brain, template="fsaverage6", figsize=(16, 8))
+        fig.savefig("flatmap.pdf", dpi=300)
+        ```
 
     Note:
-        - Data is projected from MNI152 space to fsaverage surface space.
-          Small alignment differences are expected at boundaries.
-        - Higher resolution templates (fsaverage6, fsaverage) produce
-          sharper images but take longer to render.
-        - The flat surfaces are cached by nilearn after first download
-          (~50MB for fsaverage5).
+        Data is projected from MNI152 space to fsaverage surface space, so small
+        alignment differences are expected at boundaries. Higher resolution
+        templates (fsaverage6, fsaverage) produce sharper images but take longer
+        to render. The flat surfaces are cached by nilearn after the first
+        download (~50MB for fsaverage5).
     """
     from nilearn import datasets, surface
     import nibabel as nib

@@ -12,10 +12,9 @@ import numpy as np
 class BaseModel(ABC):
     """Abstract base class for all nltools models.
 
-    Follows scikit-learn API conventions:
-    - fit(X, y) trains the model and returns self
-    - predict(X) generates predictions
-    - score(X, y) evaluates model performance
+    Follows scikit-learn API conventions: `fit(X, y)` trains the model and
+    returns `self`, `predict(X)` generates predictions, and `score(X, y)`
+    evaluates model performance.
 
     Attributes:
         n_features_in_ (int): Number of features seen during fit

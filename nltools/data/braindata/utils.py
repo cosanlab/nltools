@@ -32,7 +32,8 @@ def check_brain_data_is_single(data):
     """Logical test if BrainData instance is a single image.
 
     Args:
-        data: brain data
+        data (BrainData | Nifti1Image | str): Data to test; non-BrainData
+            inputs are coerced first.
 
     Returns:
         bool: True if the data holds a single image.
@@ -49,7 +50,7 @@ def shallow_copy(bd):
     should handle data copying as needed.
 
     Args:
-        bd: BrainData instance to copy.
+        bd (BrainData): Instance to copy.
 
     Returns:
         BrainData: New instance with shared/copied attributes.
@@ -93,12 +94,12 @@ def perform_arithmetic(
     """Perform an arithmetic operation with validation.
 
     Args:
-        bd: BrainData instance (left operand unless *reverse* is True).
-        other: The other operand (scalar, BrainData, or array).
-        operation: Numpy ufunc (e.g. ``np.add``, ``np.subtract``).
-        operation_name: Human-readable name for error messages.
-        inplace: If True, mutate *bd* in place.
-        reverse: If True, reverse operand order (for ``__rsub__`` etc.).
+        bd (BrainData): Left operand unless ``reverse`` is True.
+        other (float | BrainData | np.ndarray): The other operand.
+        operation (Callable): NumPy ufunc (e.g. ``np.add``, ``np.subtract``).
+        operation_name (str): Human-readable name for error messages.
+        inplace (bool): If True, mutate ``bd`` in place.
+        reverse (bool): If True, reverse operand order (for ``__rsub__`` etc.).
 
     Returns:
         BrainData: Result of the operation.
@@ -139,13 +140,13 @@ def apply_func(bd, stat_func, axis=0):
     within a single time-point).
 
     Args:
-        bd: BrainData instance.
-        stat_func: Callable accepting an array and an ``axis`` kwarg.
-        axis: 0 = across images, 1 = within images.
+        bd (BrainData): Data to reduce.
+        stat_func (Callable): Accepts an array and an ``axis`` kwarg.
+        axis (int): ``0`` = across images, ``1`` = within images.
 
     Returns:
         float | np.ndarray | BrainData: The reduced result; type depends on
-            whether the input is a single image and on `axis`.
+            whether the input is a single image and on ``axis``.
     """
     if check_brain_data_is_single(bd):
         return stat_func(bd.data)

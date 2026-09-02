@@ -1,12 +1,11 @@
 """Ridge regression algorithms and utilities.
 
-This package contains ridge regression implementations with GPU acceleration.
-
-Features:
-- Cross-validation with per-target or global alpha selection
-- Memory-efficient batching for large-scale problems
-- GPU acceleration (10-100x speedup on large datasets)
-- Banded ridge for multiple feature spaces
+Ridge regression solvers with cross-validated alpha selection (per target or
+global), memory-efficient batching for large problems, optional GPU acceleration
+(roughly 10-100× faster on large datasets), and banded ridge for multiple
+feature spaces. `solve_ridge_cv` and `solve_banded_ridge_cv` are the main entry
+points; `ridge_svd` and `ridge_cv` are simpler single-alpha and CV solvers.
+`BrainData.fit(model='ridge')` wraps these for brain data.
 
 Examples:
     ```python

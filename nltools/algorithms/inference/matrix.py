@@ -1,8 +1,12 @@
-"""Matrix permutation test implementations (Mantel test).
+"""Permutation tests and dependence measures for square matrices.
 
-This module provides CPU-parallel implementations of matrix permutation tests
-for testing correlation between two square matrices, as well as matrix utility
-functions for distance correlation and matrix centering operations.
+`matrix_permutation_test` is the Mantel test: it asks whether two square matrices
+(e.g. two representational dissimilarity matrices, or a brain and a model
+similarity matrix) are correlated, building the null by permuting the rows and
+columns of one matrix together. `distance_correlation` measures multivariate
+dependence (linear or not) between two arrays, with `double_center` and
+`u_center` as the centering steps it is built on. `device='cpu'` (default) runs
+the permutations across `n_jobs` workers; `device=None` runs single-threaded.
 """
 
 import numpy as np
@@ -32,15 +36,15 @@ def _extract_matrix_elements(
     how: str = "upper",
     include_diag: bool = False,
 ) -> np.ndarray:
-    """Extract elements from square matrix (wrapper for extract_triangle_elements).
+    """Extract elements from a square matrix (wrapper for `extract_triangle_elements`).
 
     Args:
-        matrix: Square matrix (n×n)
-        how: Which elements to extract, one of 'upper', 'lower', or 'full'
-        include_diag: Include diagonal (only for 'full')
+        matrix (np.ndarray): Square matrix (n×n).
+        how (str): Which elements to extract, one of 'upper', 'lower', or 'full'.
+        include_diag (bool): Include the diagonal (only for 'full').
 
     Returns:
-        1D array of extracted elements
+        np.ndarray: 1D array of extracted elements.
     """
     return extract_triangle_elements(matrix, triangle=how, include_diag=include_diag)
 
@@ -55,23 +59,24 @@ def _compute_matrix_correlation(
     include_diag: bool = False,
     metric: str = "pearson",
 ) -> float:
-    """Compute correlation between elements of two matrices.
+    """Compute the correlation between the elements of two square matrices.
 
     Args:
-        matrix1 (np.ndarray): First square matrix (n×n)
-        matrix2 (np.ndarray): Second square matrix (n×n)
-        how (str): Element extraction mode (passed to _extract_matrix_elements)
-        include_diag (bool): Include diagonal (passed to _extract_matrix_elements)
-        metric (str): Correlation type, one of 'pearson', 'spearman', or 'kendall'
+        matrix1 (np.ndarray): First square matrix (n×n).
+        matrix2 (np.ndarray): Second square matrix (n×n).
+        how (str): Which elements to compare, one of 'upper', 'lower', or 'full'.
+        include_diag (bool): Include the diagonal (only for `how='full'`).
+        metric (str): Correlation type, one of 'pearson', 'spearman', or 'kendall'.
 
     Returns:
-        float: Correlation coefficient
+        float: Correlation coefficient.
 
     Examples:
-        >>> m1 = np.eye(3)
-        >>> m2 = np.eye(3)
-        >>> _compute_matrix_correlation(m1, m2, metric='pearson')
-        1.0
+        ```python
+        m1 = np.eye(3)
+        m2 = np.eye(3)
+        _compute_matrix_correlation(m1, m2, metric="pearson")  # → 1.0
+        ```
     """
     # Extract elements from both matrices
     elements1 = _extract_matrix_elements(matrix1, how=how, include_diag=include_diag)
@@ -97,23 +102,25 @@ def _compute_cross_correlation(matrix1: np.ndarray, matrix2: np.ndarray) -> np.n
     such as in intersubject functional connectivity (ISFC).
 
     Args:
-        matrix1 (np.ndarray): First matrix with shape (n_observations, n_features1)
-        matrix2 (np.ndarray): Second matrix with shape (n_observations, n_features2)
+        matrix1 (np.ndarray): First matrix, shape (n_observations, n_features1).
+        matrix2 (np.ndarray): Second matrix, shape (n_observations, n_features2).
 
     Returns:
-        np.ndarray: Cross-correlation matrix with shape (n_features1, n_features2)
-            where element [i, j] is the correlation between matrix1[:, i] and matrix2[:, j]
+        np.ndarray: Cross-correlation matrix, shape (n_features1, n_features2),
+            where element [i, j] is the correlation between `matrix1[:, i]` and
+            `matrix2[:, j]`.
 
     Examples:
-        >>> matrix1 = np.random.randn(100, 5)  # 100 observations, 5 features
-        >>> matrix2 = np.random.randn(100, 3)  # 100 observations, 3 features
-        >>> corr = _compute_cross_correlation(matrix1, matrix2)
-        >>> corr.shape
-        (5, 3)
+        ```python
+        matrix1 = np.random.randn(100, 5)  # 100 observations, 5 features
+        matrix2 = np.random.randn(100, 3)  # 100 observations, 3 features
+        corr = _compute_cross_correlation(matrix1, matrix2)
+        corr.shape  # → (5, 3)
+        ```
 
-    Notes:
-        Uses np.corrcoef for efficient computation. The result is extracted
-        from the full correlation matrix by selecting the cross-correlation block.
+    Note:
+        Computed as the off-diagonal block of `np.corrcoef` over the concatenated
+        columns.
     """
     if matrix1.shape[0] != matrix2.shape[0]:
         raise ValueError(
@@ -147,31 +154,28 @@ def _matrix_permutation_cpu_parallel(
     random_state: int | None,
     progress_bar: bool = False,
 ) -> dict:
-    """Matrix permutation test using CPU parallelization with joblib.
+    """Matrix permutation test parallelized across CPU workers with joblib.
 
-    Pre-generates seeds deterministically, then parallelizes permutation
-    computation. This ensures perfect reproducibility across runs.
+    Seeds are pre-generated from `random_state` and one permutation runs per seed,
+    so results are identical regardless of `n_jobs`. Typical speedup is 4-8× on an
+    8-core machine.
 
     Args:
-        data1 (np.ndarray): First square matrix (n×n)
-        data2 (np.ndarray): Second square matrix (n×n)
-        n_permute (int): Number of permutations
-        metric (str): Correlation metric
-        how (str): Element extraction mode
-        include_diag (bool): Include diagonal
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
-        return_null (bool): Whether to return null distribution
-        n_jobs (int): Number of parallel jobs (-1 = all cores)
-        random_state (int, optional): Random seed for reproducibility
+        data1 (np.ndarray): First square matrix (n×n).
+        data2 (np.ndarray): Second square matrix (n×n).
+        n_permute (int): Number of permutations.
+        metric (str): Correlation metric, one of 'pearson', 'spearman', or 'kendall'.
+        how (str): Which elements to compare, one of 'upper', 'lower', or 'full'.
+        include_diag (bool): Include the diagonal (only for `how='full'`).
+        tail (int | str): `2` or `'two'` for two-tailed; `1` or `'one'` for one-tailed.
+        return_null (bool): Whether to return the null distribution.
+        n_jobs (int): Number of parallel workers (-1 = all cores).
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over permutations.
 
     Returns:
-        dict: Dictionary with 'correlation', 'p', 'backend', and optionally 'null_dist'
-
-    Notes:
-        - Pre-generates seeds (matches established pattern from two_sample.py)
-        - Parallelizes computation, not RNG (ensures determinism)
-        - Progress bar shows permutation completion
-        - Typical speedup: 4-8× on 8-core machines
+        dict: Keys 'correlation' (float), 'p' (float), 'device' (`'cpu'`), and
+            'null_dist' (np.ndarray) when `return_null=True`.
     """
     from joblib import Parallel, delayed
 
@@ -247,48 +251,42 @@ def matrix_permutation_test(
 ) -> dict:
     """Matrix permutation test (Mantel test) for correlating two square matrices.
 
-    Tests whether the correlation between elements of two matrices is significant
-    by permuting rows and columns of one matrix symmetrically while keeping the
-    other fixed.
-
-    **Statistical Method**:
-    For each permutation, create random permutation `perm`, then apply:
-    `matrix1[perm][:, perm]`. This preserves matrix structure while destroying
-    correlation. Count how often permuted correlation is as extreme as observed.
-
-    **Assumptions**:
-    - Matrices are square and same size
-    - Under H₀, row/column ordering is exchangeable
-    - Symmetric permutation preserves matrix properties (e.g., symmetry)
+    Tests whether the correlation between the elements of two matrices is
+    significant by permuting the rows and columns of one matrix together
+    (`data1[perm][:, perm]`) while keeping the other fixed. Each permutation
+    preserves the matrix's structure (including symmetry) but destroys its
+    relationship to `data2`; the p-value is the fraction of permuted correlations
+    at least as extreme as the observed one. Assumes both matrices are square and
+    the same size, and that row/column ordering is exchangeable under the null.
 
     Args:
-        data1 (np.ndarray): First square matrix (n×n)
-        data2 (np.ndarray): Second square matrix (n×n)
-        n_permute (int): Number of permutations (default: 5000)
-        metric (str): Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson')
-        how (str): Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper')
-            - 'upper': Upper triangle only (assumes symmetric matrices)
-            - 'lower': Lower triangle only
-            - 'full': All elements (see include_diag)
-        include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
-            - `2`/`'two'`: Two-tailed test (r != 0)
-            - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction)
-        return_null (bool): Return null distribution (default: False)
-        device (str, optional): Parallelization method (default: 'cpu')
-            - None: Single-threaded NumPy (for debugging/small problems)
-            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
-        n_jobs (int): Number of parallel workers, -1 = all cores (default: -1)
-            Only used when device='cpu'
-        random_state (int, optional): Random seed for reproducibility
-        progress_bar (bool): Show a progress bar over permutations (default: False)
+        data1 (np.ndarray): First square matrix (n×n).
+        data2 (np.ndarray): Second square matrix (n×n).
+        n_permute (int): Number of permutations. Defaults to 5000.
+        metric (str): Correlation metric, one of 'pearson', 'spearman', or
+            'kendall'. Defaults to 'pearson'.
+        how (str): Which elements to compare: 'upper' (upper triangle; assumes
+            symmetric matrices), 'lower' (lower triangle), or 'full' (all elements,
+            see `include_diag`). Defaults to 'upper'.
+        include_diag (bool): Include diagonal elements (only when `how='full'`).
+            Defaults to False.
+        tail (int | str): `2` or `'two'` for a two-tailed test (r != 0); `1` or
+            `'one'` for a one-tailed test of r > 0 (negate one matrix for the other
+            direction). Defaults to 2.
+        return_null (bool): Also return the null distribution. Defaults to False.
+        device (str | None): `'cpu'` parallelizes permutations across `n_jobs`
+            joblib workers (4-8× speedup); `None` runs single-threaded NumPy (for
+            debugging or small problems). Defaults to 'cpu'.
+        n_jobs (int): Number of parallel workers, -1 = all cores; only used when
+            `device='cpu'`. Defaults to -1.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over permutations. Defaults to False.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'correlation' (float): Observed correlation coefficient
-            - 'p' (float): P-value using Phipson-Smyth correction
-            - 'device' (str): Parallelization method used ('cpu' or None)
-            - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+        dict: Keys 'correlation' (float, observed correlation), 'p' (float,
+            Phipson-Smyth corrected p-value), 'device' (`'cpu'` or `None`, the
+            execution path used), and 'null_dist' (np.ndarray) when
+            `return_null=True`.
 
     References:
         Chen, G. et al. (2016). Untangling the relatedness among correlations,
@@ -299,19 +297,19 @@ def matrix_permutation_test(
         regression approach. Cancer Research, 27(2), 209-220.
 
     Examples:
-        >>> import numpy as np
-        >>> from nltools.algorithms.inference import matrix_permutation_test
-        >>>
-        >>> # Create two correlated similarity matrices
-        >>> np.random.seed(42)
-        >>> n = 50
-        >>> true_pattern = np.random.randn(n)
-        >>> data1 = np.corrcoef(true_pattern + np.random.randn(n) * 0.1)
-        >>> data2 = np.corrcoef(true_pattern + np.random.randn(n) * 0.1)
-        >>>
-        >>> # Test if matrices are correlated
-        >>> result = matrix_permutation_test(data1, data2, n_permute=1000)
-        >>> print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
+        ```python
+        import numpy as np
+        from nltools.algorithms.inference import matrix_permutation_test
+
+        # Two 20×20 similarity matrices sharing a common pattern
+        rng = np.random.default_rng(42)
+        pattern = rng.standard_normal((20, 10))
+        data1 = np.corrcoef(pattern + rng.standard_normal((20, 10)) * 0.5)
+        data2 = np.corrcoef(pattern + rng.standard_normal((20, 10)) * 0.5)
+
+        result = matrix_permutation_test(data1, data2, n_permute=1000)
+        print(f"Correlation: {result['correlation']:.3f}, p = {result['p']:.4f}")
+        ```
     """
     # Input validation
     if not isinstance(data1, np.ndarray) or not isinstance(data2, np.ndarray):
@@ -399,21 +397,21 @@ def double_center(mat: np.ndarray) -> np.ndarray:
     This centers both rows and columns around zero.
 
     Args:
-        mat (ndarray): 2d numpy array
+        mat (np.ndarray): 2d numpy array.
 
     Returns:
         np.ndarray: Double-centered version of the input.
 
     Raises:
-        ValueError: If input is not 2D
+        ValueError: If input is not 2D.
 
     Examples:
-        >>> mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
-        >>> result = double_center(mat)
-        >>> np.allclose(result.mean(axis=0), 0)
-        True
-        >>> np.allclose(result.mean(axis=1), 0)
-        True
+        ```python
+        mat = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+        result = double_center(mat)
+        np.allclose(result.mean(axis=0), 0)  # → True
+        np.allclose(result.mean(axis=1), 0)  # → True
+        ```
     """
     if len(mat.shape) != 2:
         raise ValueError("Array should be 2d")
@@ -433,19 +431,20 @@ def u_center(mat: np.ndarray) -> np.ndarray:
     The diagonal is explicitly set to zero.
 
     Args:
-        mat (ndarray): 2d numpy array
+        mat (np.ndarray): 2d numpy array.
 
     Returns:
-        ndarray: U-centered version of the input.
+        np.ndarray: U-centered version of the input.
 
     Raises:
-        ValueError: If input is not 2D
+        ValueError: If input is not 2D.
 
     Examples:
-        >>> mat = np.random.randn(5, 5)
-        >>> result = u_center(mat)
-        >>> np.allclose(np.diag(result), 0)
-        True
+        ```python
+        mat = np.random.randn(5, 5)
+        result = u_center(mat)
+        np.allclose(np.diag(result), 0)  # → True
+        ```
     """
     if len(mat.shape) != 2:
         raise ValueError("Array should be 2d")
@@ -472,49 +471,56 @@ def distance_correlation(
     bias_corrected: bool = True,
     ttest: bool = False,
 ) -> dict:
-    """Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
+    """Compute the distance correlation between two arrays to test for multivariate dependence.
 
-    Arrays must match on their first dimension. It's almost always preferable to compute the bias_corrected
-    version which can also optionally perform a ttest. This ttest operates on a statistic thats ~dcorr^2
-    and will be also returned.
+    Distance correlation detects linear and non-linear dependence. The arrays must
+    match on their first dimension. Prefer the bias-corrected version (the default),
+    which can also perform a t-test; that test operates on a statistic that is
+    approximately the squared distance correlation, which is also returned.
 
-    Explanation:
-    Distance correlation involves computing the normalized covariance of two centered euclidean distance
-    matrices. Each distance matrix is the euclidean distance between rows (if x or y are 2d) or scalars
-    (if x or y are 1d). Each matrix is centered prior to computing the covariance either using double-centering
-    or u-centering, which corrects for bias as the number of dimensions increases. U-centering is almost always
-    preferred in all cases. It also permits inference of the normalized covariance between each distance matrix
-    using a one-tailed directional t-test. (Szekely & Rizzo, 2013). While distance correlation is normally
-    bounded between 0 and 1, u-centering can produce negative estimates, which are never significant.
+    Distance correlation is the normalized covariance of two centered Euclidean
+    distance matrices. Each distance matrix holds the distances between rows (if x
+    or y is 2d) or scalars (if 1d). Each matrix is centered before the covariance
+    is computed, either by double-centering or by U-centering, which corrects the
+    bias that grows with the number of dimensions. U-centering is almost always
+    preferable and also permits a one-tailed directional t-test on the normalized
+    covariance (Szekely & Rizzo, 2013). Distance correlation is normally bounded
+    between 0 and 1, but U-centering can produce negative estimates, which are
+    never significant.
 
-    Validated against the dcor and dcor.ttest functions in the 'energy' R package and the
-    dcor.distance_correlation, dcor.udistance_correlation_sqr, and dcor.independence.distance_correlation_t_test
-    functions in the dcor Python package.
+    Validated against `dcor` and `dcor.ttest` in the R package *energy* and
+    `dcor.distance_correlation`, `dcor.u_distance_correlation_sqr`, and
+    `dcor.independence.distance_correlation_t_test` in the Python package *dcor*.
 
     Args:
-        x (ndarray): 1d or 2d numpy array of observations by features
-        y (ndarray): 1d or 2d numpy array of observations by features
-        bias_corrected (bool): if false use double-centering which produces a biased-estimate that converges
-            to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias.
-            **Note** this must be True if ttest=True; default True
-        ttest (bool): perform a ttest using the bias_corrected distance correlation; default False
+        x (np.ndarray): 1d or 2d array of observations by features.
+        y (np.ndarray): 1d or 2d array of observations by features.
+        bias_corrected (bool): If True, U-center the distance matrices; if False,
+            double-center them, which gives a biased estimate that converges to 1
+            as the number of dimensions grows. Must be True when `ttest=True`.
+            Defaults to True.
+        ttest (bool): Perform a t-test on the bias-corrected distance correlation.
+            Defaults to False.
 
     Returns:
-        dict: Dictionary of results (correlation, t, p, and df); optionally also
-            covariance, x variance, and y variance.
+        dict: Key 'dcorr' (float, distance correlation); with `bias_corrected=True`
+            also 'dcorr_squared' (float, the U-centered statistic, which can be
+            negative); with `ttest=True` also 't', 'p', and 'df'.
 
     Raises:
-        ValueError: If arrays are not 1d or 2d, or if ttest=True and bias_corrected=False
+        ValueError: If arrays are not 1d or 2d, or if `ttest=True` and
+            `bias_corrected=False`.
 
     Examples:
-        >>> import numpy as np
-        >>> x = np.random.randn(20, 3)
-        >>> y = x + np.random.randn(20, 3) * 0.1  # Strongly correlated
-        >>> result = distance_correlation(x, y, bias_corrected=True)
-        >>> 'dcorr' in result
-        True
-        >>> 0 <= result['dcorr'] <= 1
-        True
+        ```python
+        import numpy as np
+
+        x = np.random.randn(20, 3)
+        y = x + np.random.randn(20, 3) * 0.1  # strongly dependent
+        result = distance_correlation(x, y, bias_corrected=True)
+        "dcorr" in result  # → True
+        0 <= result["dcorr"] <= 1  # → True
+        ```
     """
     if len(x.shape) > 2 or len(y.shape) > 2:
         raise ValueError("Both arrays must be 1d or 2d")

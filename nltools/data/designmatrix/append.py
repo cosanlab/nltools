@@ -1,7 +1,9 @@
-"""Provide standalone DesignMatrix concatenation functions.
+"""Concatenate DesignMatrix objects horizontally or across runs.
 
-These functions implement the append/concatenation logic extracted from
-DesignMatrix methods, following the "functional core" pattern.
+`append` dispatches to `append_horizontal` (add columns) or `append_vertical`
+(stack runs). Vertical appends can keep confound columns separate per run by
+renaming them into the reserved ``.nl_r{run}_`` namespace, so each run gets
+its own intercept and drift terms.
 """
 
 from __future__ import annotations
@@ -61,8 +63,9 @@ def _coerce_horizontal_input(x, sampling_freq):
     usual use of this path (motion / physio / compcor confounds).
 
     Args:
-        x: Input to coerce.
-        sampling_freq: Base DM's sampling frequency (inherited by the wrapped DM).
+        x (DesignMatrix | pl.DataFrame | pd.DataFrame): Input to coerce.
+        sampling_freq (float | None): Base DM's sampling frequency (inherited
+            by the wrapped DM).
 
     Returns:
         DesignMatrix: The coerced input.
@@ -113,14 +116,16 @@ def append(
 
     Args:
         dm (DesignMatrix): The base design matrix.
-        other (DesignMatrix, DataFrame, or list): Matrix/matrices to append.
-            For ``axis=1`` (horizontal), also accepts a pandas or polars
-            DataFrame (or list thereof); the new columns are treated as
-            nuisance regressors (tracked in ``.confounds`` on the result).
-            For ``axis=0`` (vertical), all items must be ``DesignMatrix``.
+        other (DesignMatrix | pl.DataFrame | pd.DataFrame | list): Matrix or
+            matrices to append. For ``axis=1`` (horizontal), also accepts a
+            pandas or polars DataFrame (or list thereof); the new columns are
+            treated as nuisance regressors (tracked in `confounds` on the
+            result). For ``axis=0`` (vertical), all items must be `DesignMatrix`.
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
-        keep_separate (bool): Whether to separate confound columns across runs (only axis=0).
-        unique_cols (list of str, optional): Additional columns to keep separated (supports wildcards).
+        keep_separate (bool): Whether to separate confound columns across runs
+            (only ``axis=0``).
+        unique_cols (list[str] | None): Additional columns to keep separated
+            (supports ``*`` wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries introduced
             by the concatenation. Pass ``None`` to preserve nulls. Default: 0.
         as_confounds (bool): Only applies to ``axis=1``. When True, all columns
@@ -196,8 +201,8 @@ def append_horizontal(
     """Concatenate matrices horizontally by adding columns.
 
     Args:
-        dm: Base DesignMatrix instance.
-        to_append (list of DesignMatrix): Matrices whose columns to add.
+        dm (DesignMatrix): Base DesignMatrix instance.
+        to_append (list[DesignMatrix]): Matrices whose columns to add.
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
         as_confounds (bool): If True, mark all columns contributed by
@@ -326,11 +331,11 @@ def append_vertical(
     """Concatenate matrices vertically with optional confound separation.
 
     Args:
-        dm: Base DesignMatrix instance.
-        to_append (list of DesignMatrix): Matrices to stack below dm.
+        dm (DesignMatrix): Base DesignMatrix instance.
+        to_append (list[DesignMatrix]): Matrices to stack below `dm`.
         keep_separate (bool): Whether to separate confound columns across runs.
-        unique_cols (list of str, optional): Additional columns to keep separated
-            (supports wildcards).
+        unique_cols (list[str] | None): Additional columns to keep separated
+            (supports ``*`` wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
         progress_bar (bool): Print messages about confound separation.
@@ -366,11 +371,11 @@ def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
     """Match columns against a pattern with wildcard support.
 
     Args:
-        columns (list of str): Column names to search.
-        pattern (str): Pattern to match (supports '*' as wildcard).
-            - 'motion*' matches motion_x, motion_y
-            - '*_motion' matches x_motion, y_motion
-            - 'exact' matches only 'exact'
+        columns (list[str]): Column names to search.
+        pattern (str): Pattern to match, with ``*`` as a leading or trailing
+            wildcard: ``'motion*'`` matches ``motion_x`` and ``motion_y``,
+            ``'*_motion'`` matches ``x_motion`` and ``y_motion``, and
+            ``'exact'`` matches only ``exact``.
 
     Returns:
         list[str]: Column names matching the pattern.
@@ -388,10 +393,11 @@ def get_starting_run_idx(dm: DesignMatrix) -> int:
     """Determine the next run index for multi-run appending.
 
     Args:
-        dm: DesignMatrix instance to inspect.
+        dm (DesignMatrix): DesignMatrix instance to inspect.
 
     Returns:
-        int: Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
+        int: Next run index (0 if not multi-run, otherwise one past the highest
+            existing run index).
     """
     if not dm.multi:
         return 0
@@ -415,8 +421,9 @@ def identify_columns_to_separate(
 
     Args:
         dm (DesignMatrix): The base design matrix (used for context only).
-        all_dms (list of DesignMatrix): All matrices being concatenated.
-        unique_cols (list of str, optional): User-specified columns to separate (supports wildcards).
+        all_dms (list[DesignMatrix]): All matrices being concatenated.
+        unique_cols (list[str] | None): User-specified columns to separate
+            (supports ``*`` wildcards).
 
     Returns:
         set: Column names that should be separated with run prefixes.
@@ -454,14 +461,14 @@ def append_vertical_with_separation(
 ) -> DesignMatrix:
     """Concatenate vertically with automatic confound separation.
 
-    Creates run-specific columns (e.g., .nl_r0_poly_0, .nl_r1_poly_0) that are
-    active only in their respective runs (sparse representation).
+    Creates run-specific columns (e.g. ``.nl_r0_poly_0``, ``.nl_r1_poly_0``)
+    that are active only in their respective runs (sparse representation).
 
     Args:
-        dm: Base DesignMatrix instance.
-        to_append (list of DesignMatrix): Matrices to stack below dm.
-        unique_cols (list of str, optional): Additional columns to keep separated
-            (supports wildcards).
+        dm (DesignMatrix): Base DesignMatrix instance.
+        to_append (list[DesignMatrix]): Matrices to stack below `dm`.
+        unique_cols (list[str] | None): Additional columns to keep separated
+            (supports ``*`` wildcards).
         fill_na (int, float, or None): Value to fill NaN/null entries with.
             Pass ``None`` to preserve nulls.
         progress_bar (bool): Print messages about confound separation.

@@ -3,41 +3,34 @@
 
 """Shared Response Model (SRM) for multi-subject fMRI alignment.
 
-SRM finds a shared low-dimensional representation across subjects while
-allowing subject-specific transformations. This enables cross-subject
-analyses while preserving individual variability.
+SRM factorizes each subject's data as `X_i ≈ W_i S`: a shared low-dimensional
+response `S` common to all subjects plus a subject-specific orthogonal
+transform `W_i`. `SRM` is the probabilistic model fit by
+expectation-maximization; `DetSRM` is the deterministic variant fit by block
+coordinate descent.
 
-Algorithm overview:
-    1. Initialize subject-specific transforms W_i (random orthogonal matrices)
-    2. Iteratively optimize using Expectation-Maximization (EM):
-       - E-step: Update shared response S (group average in shared space)
-       - M-step: Update subject transforms W_i (solve Procrustes problem)
-       - Update noise variance rho_i^2 per subject
-       - Compute likelihood (measure of fit)
-    3. Converge when likelihood stabilizes or max iterations reached
+**Algorithm.** Initialize each `W_i` as a random orthogonal matrix (QR of a
+random matrix), then iterate: update the shared response `S` from the current
+transforms, update each `W_i` by solving an orthogonal Procrustes problem
+(`SRM` also re-estimates the per-subject noise variance `rho_i^2` and the
+shared-response covariance), for `n_iter` iterations.
 
-Performance:
-    - Time complexity: O(n_iter × (n_subjects × n_voxels × n_features × n_samples + n_features^3))
-    - Memory complexity: O(n_subjects × n_voxels × n_features)
-    - Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
-    - GPU acceleration: Falls back to CPU (not yet implemented)
+**Performance.** Time is O(n_iter × (V T K + V K^2 + K^3)) and memory O(V T),
+with V the total voxels across subjects, T samples, and K features (typically
+V ≫ T ≫ K). `parallel='cpu'` runs the per-subject transform updates with
+joblib. `parallel='gpu'` is not implemented and raises `NotImplementedError`
+rather than silently running on CPU.
 
-When to use SRM:
-    - Multi-subject alignment preserving representational structure
-    - Cross-subject analysis requiring shared response space
-    - Alternative to hyperalignment when spatial structure is less important
-    - See `nltools.algorithms.hyperalignment.HyperAlignment` for spatial-preserving alignment
+**When to use.** Cross-subject analyses that need a shared response space and
+tolerate dimension reduction. Use `HyperAlignment` when spatial structure and
+full dimensionality must be preserved.
 
-The implementations are based on the following publications:
-
-Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J., & Ramadge,
-P. J. (2015). A reduced-dimension fMRI shared response model. In Advances
-in Neural Information Processing Systems (pp. 460-468).
-
-Anderson, M. J., Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang,
-Y., & Norman, K. A. (2016, December). Enabling factor analysis on
-thousand-subject neuroimaging datasets. In Big Data (Big Data),
-2016 IEEE International Conference on (pp. 1151-1160). IEEE.
+**References.** Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
+& Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
+*Advances in Neural Information Processing Systems*, 460-468. Anderson, M. J.,
+Capota, M., Turek, J. S., Zhu, X., Willke, T. L., Wang, Y., & Norman, K. A.
+(2016). Enabling factor analysis on thousand-subject neuroimaging datasets.
+*2016 IEEE International Conference on Big Data*, 1151-1160.
 
 Copyright 2016 Intel Corporation
 
@@ -72,9 +65,16 @@ logger = logging.getLogger(__name__)
 
 
 def _validate_srm_parallel(parallel: str | None) -> None:
-    """Validate the parallel= backend selector for SRM/DetSRM.
+    """Validate the `parallel=` backend selector for SRM/DetSRM.
 
     Run-or-raise policy: an explicit GPU request never silently runs on CPU.
+
+    Args:
+        parallel (str | None): None, `'cpu'`, or `'gpu'`.
+
+    Raises:
+        ValueError: If `parallel` is not one of the accepted values.
+        NotImplementedError: If `parallel='gpu'` (no torch port yet).
     """
     if parallel not in (None, "cpu", "gpu"):
         raise ValueError(f"parallel must be None, 'cpu', or 'gpu', got {parallel}")
@@ -88,30 +88,23 @@ def _validate_srm_parallel(parallel: str | None) -> None:
 def _init_w_transforms(
     data: list[np.ndarray], features: int, random_states: list[Any]
 ) -> tuple[list[np.ndarray | None], np.ndarray]:
-    """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
+    """Initialize the mappings $W_i$ for the SRM with random orthogonal matrices.
 
-    Initialization strategy:
-        - Uses QR decomposition of random matrices to ensure orthogonality
-        - Each subject gets independent random initialization (via separate RandomState)
-        - Orthogonal matrices preserve distances and enable efficient optimization
+    Each subject's transform is the Q factor of the QR decomposition of a
+    random (voxels_i, features) matrix drawn from that subject's own
+    `RandomState`, so the initial transforms are orthogonal and independent
+    across subjects. Subjects whose data is None get a None transform and a
+    voxel count of 0.
 
     Args:
-        data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-            Each element in the list contains the fMRI data of one subject.
-        features (int): The number of features in the model.
-        random_states (list of `RandomState`s): One `RandomState` instance per subject.
+        data (list[np.ndarray | None]): One (voxels_i, samples) array per subject.
+        features (int): Number of features in the model.
+        random_states (list[np.random.RandomState]): One generator per subject.
 
     Returns:
-        tuple[list[np.ndarray], list[int]]: `(w, voxels)` — the initialized
-            orthogonal transforms (mappings) $W_i$ for each subject (element i has
-            shape=[voxels_i, features]), and a list with the number of voxels per
-            subject.
-
-    Note:
-        This function assumes that the numpy random number generator was
-        initialized.
-
-        Not thread safe.
+        tuple[list[np.ndarray | None], np.ndarray]: `(w, voxels)` — the initial
+            orthogonal transforms, element i of shape (voxels_i, features), and
+            an integer array with the number of voxels per subject.
     """
     w = []
     subjects = len(data)
@@ -138,66 +131,52 @@ def _init_w_transforms(
 class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM).
 
-    Given multi-subject data, factorize it as a shared response S among all
-    subjects and an orthogonal transform W per subject:
+    Factorizes multi-subject data as a shared response S plus one orthogonal
+    transform W per subject, so that for every subject i
 
     $$
     X_i \\approx W_i S, \\forall i=1 \\dots N
     $$
 
+    The model is fit by the expectation-maximization algorithm of Chen et al.
+    (2015) with the optimizations of Anderson et al. (2016). Subjects may have
+    different numbers of voxels; they must have the same number of samples
+    unless `fit(pad_samples=True)` zero-pads the shorter ones. Run time is
+    $O(I (V T K + V K^2 + K^3))$ and memory $O(V T)$, with I iterations, V the
+    sum of voxels across subjects, T samples, and K features (typically
+    $V \\gg T \\gg K$).
+
     Args:
-        n_iter (int, default=10): Number of iterations to run the algorithm.
-        features (int, default=50): Number of features to compute.
-        rand_seed (int, default=0): Seed for initializing the random number generator.
+        n_iter (int): Number of EM iterations. Defaults to 10.
+        features (int): Number of shared features to compute. Defaults to 50.
+        rand_seed (int): Seed for the random initialization. Defaults to 0.
 
     Attributes:
-        w_ (list of array, element i has shape=[voxels_i, features]):
-            The orthogonal transforms (mappings) for each subject.
-        s_ (array, shape=[features, samples]):
-            The shared response.
-        sigma_s_ (array, shape=[features, features]):
-            The covariance of the shared response Normal distribution.
-        mu_ (list of array, element i has shape=[voxels_i]):
-            The voxel means over the samples for each subject.
-        rho2_ (array, shape=[subjects]):
-            The estimated noise variance $\\rho_i^2$ for each subject
-        random_state_ (`RandomState`):
-            Random number generator initialized using rand_seed
-
-    Note:
-        The number of voxels may be different between subjects. However, the
-        number of samples must be the same across subjects.
-
-        The probabilistic Shared Response Model is approximated using the
-        Expectation Maximization (EM) algorithm proposed in **Chen2015**. The
-        implementation follows the optimizations published in **Anderson2016**.
-
-        This is a single node version.
-
-        The run-time complexity is $O(I (V T K + V K^2 + K^3))$ and the
-        memory complexity is $O(V T)$ with I - the number of iterations,
-        V - the sum of voxels from all subjects, T - the number of samples, and
-        K - the number of features (typically, $V \\gg T \\gg K$).
+        w_ (list[np.ndarray]): Per-subject orthogonal transforms, element i of
+            shape (voxels_i, features).
+        s_ (np.ndarray): The shared response, shape (features, samples).
+        sigma_s_ (np.ndarray): Covariance of the shared response's Normal
+            distribution, shape (features, features).
+        mu_ (list[np.ndarray]): Per-subject voxel means over samples, element i
+            of shape (voxels_i,).
+        rho2_ (np.ndarray): Estimated noise variance $\\rho_i^2$ per subject,
+            shape (subjects,).
+        random_state_ (np.random.RandomState): Generator seeded from `rand_seed`.
 
     Examples:
-        Basic multi-subject SRM fitting:
+        ```python
+        import numpy as np
+        from nltools.algorithms import SRM
 
-        >>> from nltools.algorithms import SRM
-        >>> import numpy as np
-        >>>
-        >>> # Create sample data (3 subjects)
-        >>> data = [np.random.randn(100, 50) for _ in range(3)]
-        >>>
-        >>> # Fit SRM with CPU parallelization (default)
-        >>> srm = SRM(n_iter=10, features=50)
-        >>> srm.fit(data, parallel="cpu", n_jobs=-1)
-        >>>
-        >>> # Transform to shared response space
-        >>> shared_responses = srm.transform(data)
-        >>>
-        >>> # Access fitted model components
-        >>> w = srm.w_  # Subject-specific transforms
-        >>> s = srm.s_  # Shared response
+        data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
+
+        srm = SRM(n_iter=10, features=50)
+        srm.fit(data, parallel="cpu", n_jobs=-1)
+        shared_responses = srm.transform(data)  # list of (50, 50) arrays
+
+        w = srm.w_  # subject-specific transforms
+        s = srm.s_  # shared response
+        ```
     """
 
     def __init__(
@@ -220,19 +199,18 @@ class SRM(BaseEstimator, TransformerMixin):
         """Compute the probabilistic Shared Response Model.
 
         Args:
-            X (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-                Subjects can have different numbers of samples if pad_samples=True.
-            y: not used
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
-            pad_samples (bool): If True (default), automatically zero-pad subjects with
-                fewer samples to match the longest subject. This allows fitting SRM on
-                data with unequal numbers of time points across subjects.
+            X (list[np.ndarray]): One (voxels_i, samples) array per subject.
+                Subjects may differ in the number of samples when
+                `pad_samples=True`.
+            y (Any | None): Ignored; present for scikit-learn compatibility.
+            parallel (str | None): `'cpu'` (default) updates subjects in parallel
+                with joblib; None runs single-threaded NumPy; `'gpu'` raises
+                `NotImplementedError` (never a silent CPU fallback).
+            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
+                (default) picks a count from available memory.
+            pad_samples (bool): If True (default), zero-pad subjects with fewer
+                samples up to the longest subject; if False, unequal sample
+                counts raise `ValueError`.
 
         Returns:
             SRM: Fitted model (`self`).
@@ -303,23 +281,23 @@ class SRM(BaseEstimator, TransformerMixin):
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray | None]:
-        """Use the model to transform matrix to Shared Response space.
+        """Project each subject's data into the shared response space.
 
         Args:
-            X (list of 2D arrays, element i has shape=[voxels_i, samples_i]):
-                Each element in the list contains the fMRI data of one subject.
-                Note that number of voxels and samples can vary across subjects.
-            y: not used (as it is unsupervised learning)
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
+            X (list[np.ndarray | None]): One (voxels_i, samples_i) array per
+                fitted subject, in the same order as `fit`; voxel and sample
+                counts may vary across subjects. A None entry yields None.
+            y (Any | None): Ignored; present for scikit-learn compatibility.
+            parallel (str | None): `'cpu'` (default) transforms subjects in
+                parallel with joblib; None runs single-threaded NumPy; `'gpu'`
+                raises `NotImplementedError`.
+            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
+                (default) reuses the value from `fit`, itself resolved from
+                available memory.
 
         Returns:
-            list[np.ndarray]: Shared responses from input data (X); element i has
-                shape=[features_i, samples_i].
+            list[np.ndarray | None]: Shared responses, element i of shape
+                (features, samples_i).
         """
 
         _validate_srm_parallel(parallel)
@@ -366,25 +344,24 @@ class SRM(BaseEstimator, TransformerMixin):
         return s
 
     def _init_structures(self, data, subjects):
-        """Initializes data structures for SRM and preprocess the data.
+        """Initialize the EM data structures and demean the data.
 
-        Data structure choices:
-            - Demeaning: Removes subject-specific baselines (important for alignment)
-            - Noise variance: Initialized to 1.0 (unit variance assumption)
-            - Trace storage: Pre-computes ||X_i||_F^2 for efficient likelihood computation
+        Removes each subject's voxel means (subject-specific baselines), sets
+        the initial noise variance to 1.0, and precomputes $||X_i||_F^2$ for
+        the likelihood computation.
 
         Args:
-            data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            subjects (int): The total number of subjects in `data`.
+            data (list[np.ndarray | None]): One (voxels_i, samples) array per
+                subject.
+            subjects (int): Number of subjects in `data`.
 
         Returns:
-            tuple[list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]: `(x, mu,
-                rho2, trace_xtx)` — the demeaned data for each subject (element i has
-                shape=[voxels_i, samples]); the voxel means over samples per subject
-                (element i has shape=[voxels_i]); the noise variance $\\rho^2$ per
-                subject (shape=[subjects]); and the squared Frobenius norm of the
-                demeaned data in `x` (shape=[subjects]).
+            tuple[list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]: `(x,
+                mu, rho2, trace_xtx)` — the demeaned data per subject (element i of
+                shape (voxels_i, samples)), the voxel means per subject (element i
+                of shape (voxels_i,)), the initial noise variance $\\rho^2$ per
+                subject (shape (subjects,)), and the squared Frobenius norm of
+                each subject's data (shape (subjects,)).
         """
         x = []
         mu = []
@@ -417,28 +394,24 @@ class SRM(BaseEstimator, TransformerMixin):
         wt_invpsi_x,
         samples,
     ):
-        """Calculate the log-likelihood function.
+        """Calculate the log-likelihood (up to a constant) for convergence logging.
 
-        Likelihood computation:
-            - Uses Cholesky decomposition for numerical stability (avoids direct matrix inversion)
-            - Computes log-determinant efficiently via Cholesky factors
-            - Tracks model fit via trace terms and quadratic form
-            - Used for convergence checking (when likelihood stabilizes)
+        Log-determinants come from the Cholesky factors rather than explicit
+        inverses, for numerical stability.
 
         Args:
-            chol_sigma_s_rhos (array, shape=[features, features]):
-                Cholesky factorization of the matrix (Sigma_S + sum_i(1/rho_i^2) * I)
-            log_det_psi (float):
-                Determinant of diagonal matrix Psi (containing the rho_i^2 value
-                voxels_i times).
-            chol_sigma_s (array, shape=[features, features]):
-                Cholesky factorization of the matrix Sigma_S
-            trace_xt_invsigma2_x (float):
-                Trace of $\\sum_i (||X_i||_F^2/\\rho_i^2)$
-            inv_sigma_s_rhos (array, shape=[features, features]):
-                Inverse of $(\\Sigma_S + \\sum_i(1/\\rho_i^2) * I)$
-            wt_invpsi_x (array, shape=[features, samples]):
-            samples (int): The total number of samples in the data.
+            chol_sigma_s_rhos (np.ndarray): Cholesky factor of
+                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (features, features).
+            log_det_psi (float): Log-determinant of the diagonal matrix Psi
+                (each $\\rho_i^2$ repeated voxels_i times).
+            chol_sigma_s (np.ndarray): Cholesky factor of $\\Sigma_S$, shape
+                (features, features).
+            trace_xt_invsigma2_x (float): $\\sum_i ||X_i||_F^2 / \\rho_i^2$.
+            inv_sigma_s_rhos (np.ndarray): Inverse of
+                $(\\Sigma_S + \\sum_i(1/\\rho_i^2) I)$, shape (features, features).
+            wt_invpsi_x (np.ndarray): $\\sum_i W_i^T X_i / \\rho_i^2$, shape
+                (features, samples).
+            samples (int): Number of samples in the data.
 
         Returns:
             float: The log-likelihood value.
@@ -460,23 +433,18 @@ class SRM(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def _update_transform_subject(Xi, S):
-        """Updates the mappings `W_i` for one subject.
+        """Update the mapping $W_i$ for one subject.
 
-        Optimization step:
-            - Solves orthogonal Procrustes problem: min ||X_i - W_i S||_F^2 s.t. W_i^T W_i = I
-            - Uses SVD: optimal W_i = U V^T where U Σ V^T = X_i S^T
-            - Ensures orthogonality constraint (W_i^T W_i = I) is satisfied
-            - This is the M-step update in the EM algorithm
+        Solves the orthogonal Procrustes problem
+        $\\min ||X_i - W_i S||_F^2$ subject to $W_i^T W_i = I$: with the SVD
+        $U \\Sigma V^T = X_i S^T$, the optimum is $W_i = U V^T$.
 
         Args:
-            Xi (array, shape=[voxels, timepoints]):
-                The fMRI data $X_i$ for aligning the subject.
-            S (array, shape=[features, timepoints]):
-                The shared response.
+            Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
+            S (np.ndarray): The shared response, shape (features, timepoints).
 
         Returns:
-            np.ndarray: The orthogonal transform (mapping) $W_i$ for the subject,
-                shape=[voxels, features].
+            np.ndarray: The orthogonal transform $W_i$, shape (voxels, features).
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -491,12 +459,12 @@ class SRM(BaseEstimator, TransformerMixin):
         The subject is assumed to have received equivalent stimulation.
 
         Args:
-            X (2D array, shape=[voxels, timepoints]):
-                The fMRI data of the new subject.
+            X (np.ndarray): The new subject's data, shape (voxels, timepoints);
+                the timepoints must match the fitted shared response.
 
         Returns:
-            np.ndarray: Orthogonal mapping `W_{new}` for the new subject,
-                shape=[voxels, features].
+            np.ndarray: Orthogonal mapping $W_{new}$ for the new subject, shape
+                (voxels, features).
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -513,23 +481,25 @@ class SRM(BaseEstimator, TransformerMixin):
         return w
 
     def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
-        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+        """Expectation-maximization algorithm for fitting the probabilistic SRM.
 
         Args:
-            data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            parallel (str, optional): Execution backend (None, "cpu", or "gpu").
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect).
+            data (list[np.ndarray | None]): One (voxels_i, samples) array per
+                subject.
+            parallel (str | None): None or `'cpu'` (joblib over subjects in the
+                M-step).
+            n_jobs (int): Number of CPU workers; -1 picks a count from available
+                memory.
 
         Returns:
             tuple[np.ndarray, list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]:
-                `(sigma_s, w, mu, rho2, s)` — the covariance $\\Sigma_s$ of the
-                shared response Normal distribution (shape=[features, features]); the
-                orthogonal transforms (mappings) $W_i$ for each subject (element i has
-                shape=[voxels_i, features]); the voxel means $\\mu_i$ over the samples
-                for each subject (element i has shape=[voxels_i]); the estimated noise
-                variance $\\rho_i^2$ for each subject (shape=[subjects]); and the
-                shared response (shape=[features, samples]).
+                `(sigma_s, w, mu, rho2, s)` — the shared-response covariance
+                $\\Sigma_s$ (shape (features, features)), the per-subject
+                orthogonal transforms $W_i$ (element i of shape (voxels_i,
+                features)), the per-subject voxel means $\\mu_i$ (element i of
+                shape (voxels_i,)), the per-subject noise variance $\\rho_i^2$
+                (shape (subjects,)), and the shared response (shape (features,
+                samples)).
         """
 
         samples = min([d.shape[1] for d in data if d is not None], default=sys.maxsize)
@@ -681,60 +651,44 @@ class SRM(BaseEstimator, TransformerMixin):
 class DetSRM(BaseEstimator, TransformerMixin):
     """Deterministic Shared Response Model (DetSRM).
 
-    Given multi-subject data, factorize it as a shared response S among all
-    subjects and an orthogonal transform W per subject:
+    Factorizes multi-subject data as a shared response S plus one orthogonal
+    transform W per subject, so that for every subject i
 
     $$
     X_i \\approx W_i S, \\forall i=1 \\dots N
     $$
 
+    The model is fit by the block coordinate descent algorithm of Chen et al.
+    (2015). Subjects may have different numbers of voxels but must have the
+    same number of samples. Run time is $O(I (V T K + V K^2))$ and memory
+    $O(V T)$, with I iterations, V the sum of voxels across subjects, T
+    samples, and K features (typically $V \\gg T \\gg K$).
+
     Args:
-        n_iter (int, default=10): Number of iterations to run the algorithm.
-        features (int, default=50): Number of features to compute.
-        rand_seed (int, default=0): Seed for initializing the random number generator.
+        n_iter (int): Number of coordinate-descent iterations. Defaults to 10.
+        features (int): Number of shared features to compute. Defaults to 50.
+        rand_seed (int): Seed for the random initialization. Defaults to 0.
 
     Attributes:
-        w_ (list of array, element i has shape=[voxels_i, features]):
-            The orthogonal transforms (mappings) for each subject.
-        s_ (array, shape=[features, samples]):
-            The shared response.
-        random_state_ (`RandomState`):
-            Random number generator initialized using rand_seed
-
-    Note:
-        The number of voxels may be different between subjects. However, the
-        number of samples must be the same across subjects.
-
-        The Deterministic Shared Response Model is approximated using the
-        Block Coordinate Descent (BCD) algorithm proposed in **Chen2015**.
-
-        This is a single node version.
-
-        The run-time complexity is $O(I (V T K + V K^2))$ and the memory
-        complexity is $O(V T)$ with I - the number of iterations, V - the
-        sum of voxels from all subjects, T - the number of samples, K - the
-        number of features (typically, $V \\gg T \\gg K$), and N - the
-        number of subjects.
+        w_ (list[np.ndarray]): Per-subject orthogonal transforms, element i of
+            shape (voxels_i, features).
+        s_ (np.ndarray): The shared response, shape (features, samples).
+        random_state_ (np.random.RandomState): Generator seeded from `rand_seed`.
 
     Examples:
-        Basic multi-subject DetSRM fitting:
+        ```python
+        import numpy as np
+        from nltools.algorithms import DetSRM
 
-        >>> from nltools.algorithms import DetSRM
-        >>> import numpy as np
-        >>>
-        >>> # Create sample data (3 subjects)
-        >>> data = [np.random.randn(100, 50) for _ in range(3)]
-        >>>
-        >>> # Fit DetSRM with CPU parallelization (default)
-        >>> detsrm = DetSRM(n_iter=10, features=50)
-        >>> detsrm.fit(data, parallel="cpu", n_jobs=-1)
-        >>>
-        >>> # Transform to shared response space
-        >>> shared_responses = detsrm.transform(data)
-        >>>
-        >>> # Access fitted model components
-        >>> w = detsrm.w_  # Subject-specific transforms
-        >>> s = detsrm.s_  # Shared response
+        data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
+
+        detsrm = DetSRM(n_iter=10, features=50)
+        detsrm.fit(data, parallel="cpu", n_jobs=-1)
+        shared_responses = detsrm.transform(data)  # list of (50, 50) arrays
+
+        w = detsrm.w_  # subject-specific transforms
+        s = detsrm.s_  # shared response
+        ```
     """
 
     def __init__(
@@ -755,15 +709,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
         """Compute the Deterministic Shared Response Model.
 
         Args:
-            X (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            y: not used
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
+            X (list[np.ndarray]): One (voxels_i, samples) array per subject; all
+                subjects must have the same number of samples.
+            y (Any | None): Ignored; present for scikit-learn compatibility.
+            parallel (str | None): `'cpu'` (default) updates subjects in parallel
+                with joblib; None runs single-threaded NumPy; `'gpu'` raises
+                `NotImplementedError` (never a silent CPU fallback).
+            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
+                (default) picks a count from available memory.
 
         Returns:
             DetSRM: Fitted model (`self`).
@@ -810,22 +763,23 @@ class DetSRM(BaseEstimator, TransformerMixin):
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray]:
-        """Use the model to transform data to the Shared Response subspace.
+        """Project each subject's data into the shared response subspace.
 
         Args:
-            X (list of 2D arrays, element i has shape=[voxels_i, samples_i]):
-                Each element in the list contains the fMRI data of one subject.
-            y: not used
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-                - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
+            X (list[np.ndarray]): One (voxels_i, samples_i) array per fitted
+                subject, in the same order as `fit`; voxel and sample counts may
+                vary across subjects.
+            y (Any | None): Ignored; present for scikit-learn compatibility.
+            parallel (str | None): `'cpu'` (default) transforms subjects in
+                parallel with joblib; None runs single-threaded NumPy; `'gpu'`
+                raises `NotImplementedError`.
+            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
+                (default) reuses the value from `fit`, itself resolved from
+                available memory.
 
         Returns:
-            list[np.ndarray]: Shared responses from input data (X); element i has
-                shape=[features_i, samples_i].
+            list[np.ndarray]: Shared responses, element i of shape
+                (features, samples_i).
         """
 
         _validate_srm_parallel(parallel)
@@ -867,18 +821,16 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return s
 
     def _objective_function(self, data, w, s):
-        """Calculate the objective function.
+        """Calculate the objective function (mean squared reconstruction error).
 
         Args:
-            data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            w (list of 2D arrays, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) $W_i$ for each subject.
-            s (array, shape=[features, samples]):
-                The shared response
+            data (list[np.ndarray]): One (voxels_i, samples) array per subject.
+            w (list[np.ndarray]): Per-subject orthogonal transforms $W_i$, element
+                i of shape (voxels_i, features).
+            s (np.ndarray): The shared response, shape (features, samples).
 
         Returns:
-            float: The objective function value.
+            float: $\\frac{1}{2T} \\sum_i ||X_i - W_i S||_F^2$.
         """
         subjects = len(data)
         objective = 0.0
@@ -888,17 +840,15 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return objective * 0.5 / data[0].shape[1]
 
     def _compute_shared_response(self, data, w):
-        """Compute the shared response S.
+        """Compute the shared response S as the mean of $W_i^T X_i$ over subjects.
 
         Args:
-            data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            w (list of 2D arrays, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) $W_i$ for each subject.
+            data (list[np.ndarray]): One (voxels_i, samples) array per subject.
+            w (list[np.ndarray]): Per-subject orthogonal transforms $W_i$, element
+                i of shape (voxels_i, features).
 
         Returns:
-            np.ndarray: The shared response for the subjects data with the mappings
-                in w, shape=[features, samples].
+            np.ndarray: The shared response, shape (features, samples).
         """
         s = np.zeros((w[0].shape[1], data[0].shape[1]))
         for m in range(len(w)):
@@ -909,23 +859,18 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     @staticmethod
     def _update_transform_subject(Xi, S):
-        """Updates the mappings `W_i` for one subject.
+        """Update the mapping $W_i$ for one subject.
 
-        Optimization step:
-            - Solves orthogonal Procrustes problem: min ||X_i - W_i S||_F^2 s.t. W_i^T W_i = I
-            - Uses SVD: optimal W_i = U V^T where U Σ V^T = X_i S^T
-            - Ensures orthogonality constraint (W_i^T W_i = I) is satisfied
-            - This is the M-step update in the EM algorithm
+        Solves the orthogonal Procrustes problem
+        $\\min ||X_i - W_i S||_F^2$ subject to $W_i^T W_i = I$: with the SVD
+        $U \\Sigma V^T = X_i S^T$, the optimum is $W_i = U V^T$.
 
         Args:
-            Xi (array, shape=[voxels, timepoints]):
-                The fMRI data $X_i$ for aligning the subject.
-            S (array, shape=[features, timepoints]):
-                The shared response.
+            Xi (np.ndarray): The subject's data $X_i$, shape (voxels, timepoints).
+            S (np.ndarray): The shared response, shape (features, timepoints).
 
         Returns:
-            np.ndarray: The orthogonal transform (mapping) $W_i$ for the subject,
-                shape=[voxels, features].
+            np.ndarray: The orthogonal transform $W_i$, shape (voxels, features).
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -940,12 +885,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
         The subject is assumed to have received equivalent stimulation.
 
         Args:
-            X (2D array, shape=[voxels, timepoints]):
-                The fMRI data of the new subject.
+            X (np.ndarray): The new subject's data, shape (voxels, timepoints);
+                the timepoints must match the fitted shared response.
 
         Returns:
-            np.ndarray: Orthogonal mapping `W_{new}` for the new subject,
-                shape=[voxels, features].
+            np.ndarray: Orthogonal mapping $W_{new}$ for the new subject, shape
+                (voxels, features).
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -962,18 +907,19 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return w
 
     def _srm(self, data, parallel: str | None = None, n_jobs: int = -1):
-        """Block Coordinate Descent algorithm for fitting the deterministic SRM.
+        """Block coordinate descent algorithm for fitting the deterministic SRM.
 
         Args:
-            data (list of 2D arrays, element i has shape=[voxels_i, samples]):
-                Each element in the list contains the fMRI data of one subject.
-            parallel (str, optional): Execution backend (None, "cpu", or "gpu").
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect).
+            data (list[np.ndarray]): One (voxels_i, samples) array per subject.
+            parallel (str | None): None or `'cpu'` (joblib over subjects in the
+                transform update).
+            n_jobs (int): Number of CPU workers; -1 picks a count from available
+                memory.
 
         Returns:
-            tuple[list[np.ndarray], np.ndarray]: `(w, s)` — the orthogonal transforms
-                (mappings) $W_i$ for each subject (element i has shape=[voxels_i,
-                features]), and the shared response (shape=[features, samples]).
+            tuple[list[np.ndarray], np.ndarray]: `(w, s)` — the per-subject
+                orthogonal transforms $W_i$ (element i of shape (voxels_i,
+                features)) and the shared response (shape (features, samples)).
         """
 
         subjects = len(data)

@@ -91,10 +91,10 @@ def copy_with(
     All methods that transform data should use this helper.
 
     Args:
-        dm: Source DesignMatrix whose metadata to copy.
+        dm (DesignMatrix): Source DesignMatrix whose metadata to copy.
         new_df (pl.DataFrame): New underlying data.
-        **metadata_updates: Metadata attributes to override
-            (e.g., convolved=['stim']).
+        **metadata_updates (dict): Metadata attributes to override
+            (e.g. ``convolved=['stim']``).
 
     Returns:
         DesignMatrix: New DesignMatrix with updated data and metadata.
@@ -129,10 +129,10 @@ def copy_with(
 
 
 def get_metadata(dm: DesignMatrix) -> dict:
-    """Extract metadata as dict (for copying).
+    """Extract metadata as a dict (for copying).
 
     Args:
-        dm: DesignMatrix instance.
+        dm (DesignMatrix): DesignMatrix instance.
 
     Returns:
         dict: Dictionary with keys 'sampling_freq', 'convolved', 'confounds',
@@ -150,14 +150,13 @@ def get_metadata(dm: DesignMatrix) -> dict:
 def get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[str]:
     """Get column names, optionally excluding confound regressors.
 
-    This helper reduces code duplication across methods that need to
-    distinguish between experimental regressors and nuisance/confound columns
-    (polynomial drift, DCT cosines, motion, etc.).
+    Used wherever experimental regressors must be distinguished from
+    nuisance/confound columns (polynomial drift, DCT cosines, motion, etc.).
 
     Args:
-        dm: DesignMatrix instance.
-        exclude_confounds (bool, default=True): If True, exclude nuisance
-            columns tracked in ``dm.confounds`` from the result.
+        dm (DesignMatrix): DesignMatrix instance.
+        exclude_confounds (bool): If True, exclude nuisance columns tracked in
+            ``dm.confounds`` from the result. Default: True.
 
     Returns:
         list[str]: Column names (excluding confounds if requested).

@@ -1,9 +1,14 @@
-"""Parallel execution machinery for BrainCollection.
+"""Parallel execution and on-disk bundle formats behind `BrainCollection`.
 
-Holds the worker-side dataclasses (``_ItemTask``, ``_DesignContext``), the
-single parallel primitive (``_apply``), the worker-error type, and the
-HDF5 fit-bundle IO. Every per-subject method on ``BrainCollection`` routes
-through ``_apply`` here.
+Every per-subject `BrainCollection` method runs its workers through this
+module. Users meet it through `BrainCollectionWorkerError` (raised when a
+worker fails, with the offending subject in the message), the readers and
+writers for the HDF5 bundles that `BrainCollection.fit` and
+`BrainCollection.predict` cache (`read_glm_bundle`, `read_ridge_bundle`,
+`read_predict_bundle`, and their ``write_*`` counterparts,
+`detect_bundle_kind`, `BUNDLE_SCHEMA_VERSION`), and `tqdm_joblib`, a
+progress bar for joblib work. The execution model itself is described in
+``docs/development/execution-model.md``.
 """
 
 from __future__ import annotations
@@ -54,8 +59,12 @@ __all__ = [
 T = TypeVar("T")
 
 
-# Bumped on any breaking change to the on-disk HDF5 fit-bundle layout.
 BUNDLE_SCHEMA_VERSION = 2
+"""Schema version stamped into every HDF5 bundle; bumped on any breaking change to the on-disk layout.
+
+Readers refuse bundles written under a different version with a message
+asking to re-run the upstream operation.
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -64,11 +73,12 @@ BUNDLE_SCHEMA_VERSION = 2
 
 
 class BrainCollectionWorkerError(RuntimeError):
-    """Raised in the parent process when a worker fails inside ``_apply``.
+    """Raised when a per-subject worker of a `BrainCollection` operation fails.
 
-    Wraps the original exception via ``raise ... from e`` so the full
-    traceback is preserved. The message embeds subject/run context from
-    ``_ItemTask.metadata_row`` so users can locate the offending item.
+    The message starts with the item's index and, when available, its
+    ``subject`` and ``run`` metadata (``[idx=3, subject=sub-04] ValueError:
+    ...``) so the offending item can be located. The original exception is
+    chained as ``__cause__``, preserving its traceback.
     """
 
 
@@ -478,11 +488,17 @@ def _apply(
 
 
 class tqdm_joblib:
-    """Context manager that updates a tqdm bar as joblib workers complete.
+    """Context manager that advances a progress bar as joblib workers *complete*.
 
-    Replaces today's submit-time wrapper, which advances on dispatch rather
-    than completion. Monkey-patches ``BatchCompletionCallBack.__call__`` for
-    the duration of the ``with`` block.
+    Wrap a ``joblib.Parallel(...)`` call in ``with tqdm_joblib(total=n):`` to
+    get a bar that tracks finished tasks rather than dispatched ones. Works by
+    patching joblib's batch-completion callback for the duration of the
+    ``with`` block.
+
+    Args:
+        total (int): Number of tasks the bar counts to.
+        desc (str): Label shown next to the bar.
+        disable (bool): If True, show nothing and patch nothing.
     """
 
     def __init__(self, total: int, desc: str = "", disable: bool = False) -> None:
@@ -567,17 +583,18 @@ def _write_bundle(
 def detect_bundle_kind(path: Path | str) -> str | None:
     """Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
 
-    The structured replacement for bare-suffix checks, which misclassified
-    user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
+    Checks the ``bundle_kind`` attribute stamped by every bundle writer, then
+    falls back to sniffing datasets (a ``weights`` dataset means ridge, a
+    ``betas`` dataset means GLM) for bundles written before that attribute
+    existed. A user-saved `BrainData` ``.h5`` image has neither and is not a
+    bundle.
 
-    1. The ``bundle_kind`` attr (``'glm'`` | ``'ridge'`` | ``'predict'``) —
-       stamped by every bundle writer.
-    2. Dataset sniff for dev-cycle bundles written before the attr existed:
-       a file carrying ``bundle_schema_version`` with a ``weights`` dataset
-       is a ridge bundle, with ``betas`` a GLM bundle.
-    3. Otherwise not a bundle (e.g. a user-saved BrainData ``.h5``).
+    Args:
+        path (Path | str): File to inspect.
 
-    Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
+    Returns:
+        str | None: ``'glm'``, ``'ridge'``, or ``'predict'``; ``None`` for
+            non-bundles, non-``.h5``/``.hdf5`` paths, and unreadable files.
     """
     import h5py
 
@@ -662,14 +679,34 @@ def write_glm_bundle(
 ) -> Path:
     """Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 
-    Layout (see ``docs/development/execution-model.md``):
-        /betas, /residuals, /sigma2, /r2, /X, /mask
-        attrs: affine, regressor_names, scale, standardize, model_kwargs,
-               nltools_version, bundle_schema_version,
-               step_id, parent_step_id, op, kwargs (JSON-encoded).
+    Datasets: ``betas``, ``residuals``, ``sigma2``, ``r2``, ``X``, and
+    ``mask`` (raw NIfTI bytes, so the bundle is portable across machines).
+    Attributes: ``affine``, ``regressor_names``, ``scale``, ``standardize``,
+    ``model_kwargs``, ``nltools_version``, ``bundle_schema_version``, and the
+    lineage fields ``step_id``, ``parent_step_id``, ``op``, ``kwargs``
+    (dict-valued attributes are JSON-encoded).
 
-    Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
-    portable across machines. Uses ``h5py.File(..., locking=False)``.
+    Args:
+        out_path (Path): Destination ``.h5`` path.
+        betas (np.ndarray): Regression coefficients, ``(n_regressors, n_voxels)``.
+        residuals (np.ndarray): Residuals, ``(n_obs, n_voxels)``.
+        sigma2 (np.ndarray): Residual variance per voxel.
+        r2 (np.ndarray): R² per voxel.
+        X (np.ndarray): Design matrix used for the fit.
+        mask_bytes (bytes): The mask image serialized as NIfTI bytes.
+        affine (np.ndarray): The data's affine.
+        regressor_names (list[str]): Column names of ``X``.
+        scale (bool): Whether percent-signal-change scaling was applied.
+        standardize (str | None): Standardization applied before fitting.
+        model_kwargs (dict): Extra fit keyword arguments.
+        step_id (str): Id of the cache step producing this bundle.
+        parent_step_id (str | None): Id of the upstream step.
+        op (str): Operation name (e.g. ``'fit_glm'``).
+        op_kwargs (dict): Scalar kwargs of the operation.
+        nltools_version (str): Version of nltools writing the bundle.
+
+    Returns:
+        Path: ``out_path``.
     """
     import json
 
@@ -701,11 +738,24 @@ def write_glm_bundle(
 
 
 def read_glm_bundle(path: Path) -> dict[str, Any]:
-    """Read a GLM bundle, validating ``bundle_schema_version``.
+    """Read a GLM bundle written by `write_glm_bundle`.
 
-    Schema-version mismatch raises with a migration message; nltools-version
-    mismatch logs a warning but does not refuse — bundles are usually
-    forward-compatible within a minor version.
+    A ``bundle_schema_version`` mismatch raises; an nltools-version mismatch
+    only warns, since bundles are usually compatible within a minor version.
+
+    Args:
+        path (Path): Bundle path.
+
+    Returns:
+        dict[str, Any]: The datasets (``betas``, ``residuals``, ``sigma2``,
+            ``r2``, ``X``, ``mask_bytes``) and decoded attributes (``affine``,
+            ``regressor_names``, ``scale``, ``standardize``, ``model_kwargs``,
+            ``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
+            ``nltools_version``, ``bundle_schema_version``).
+
+    Raises:
+        ValueError: If the bundle's schema version differs from
+            `BUNDLE_SCHEMA_VERSION`.
     """
     import json
 
@@ -756,8 +806,30 @@ def write_ridge_bundle(
 ) -> Path:
     """Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
-    Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
-    (``weights``, ``intercept``, ``cv_scores``, ``predictions``, ``scores``).
+    Same layout as `write_glm_bundle` with ridge datasets in place of the GLM
+    ones: ``weights``, ``intercept``, ``cv_scores``, ``predictions``,
+    ``scores``, ``X``, ``mask``.
+
+    Args:
+        out_path (Path): Destination ``.h5`` path.
+        weights (np.ndarray): Ridge coefficients, ``(n_features, n_voxels)``.
+        intercept (np.ndarray): Per-voxel intercepts.
+        cv_scores (np.ndarray): Per-fold cross-validation scores.
+        predictions (np.ndarray): Fitted values, ``(n_obs, n_voxels)``.
+        scores (np.ndarray): Training scores per voxel.
+        X (np.ndarray): Design matrix used for the fit.
+        mask_bytes (bytes): The mask image serialized as NIfTI bytes.
+        affine (np.ndarray): The data's affine.
+        regressor_names (list[str]): Column names of ``X``.
+        model_kwargs (dict): Extra fit keyword arguments.
+        step_id (str): Id of the cache step producing this bundle.
+        parent_step_id (str | None): Id of the upstream step.
+        op (str): Operation name (e.g. ``'fit_ridge'``).
+        op_kwargs (dict): Scalar kwargs of the operation.
+        nltools_version (str): Version of nltools writing the bundle.
+
+    Returns:
+        Path: ``out_path``.
     """
     import json
 
@@ -788,9 +860,23 @@ def write_ridge_bundle(
 
 
 def read_ridge_bundle(path: Path) -> dict[str, Any]:
-    """Read a ridge bundle.
+    """Read a ridge bundle written by `write_ridge_bundle`.
 
-    Same schema/version handling as ``read_glm_bundle``.
+    Same schema/version handling as `read_glm_bundle`.
+
+    Args:
+        path (Path): Bundle path.
+
+    Returns:
+        dict[str, Any]: The datasets (``weights``, ``intercept``,
+            ``cv_scores``, ``predictions``, ``scores``, ``X``, ``mask_bytes``)
+            and decoded attributes (``affine``, ``regressor_names``,
+            ``model_kwargs``, ``step_id``, ``parent_step_id``, ``op``,
+            ``kwargs``, ``nltools_version``, ``bundle_schema_version``).
+
+    Raises:
+        ValueError: If the bundle's schema version differs from
+            `BUNDLE_SCHEMA_VERSION`.
     """
     import json
 
@@ -855,21 +941,35 @@ def write_predict_bundle(
 ) -> Path:
     """Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
 
-    Layout (see ``docs/development/execution-model.md``):
-        datasets: every populated array field of the `Predict` (predictions,
-        scores, cv_folds, roi_labels, permutation_scores, mean_score,
-        std_score), each brain-map field's ``.data`` (weight_map,
-        fold_weight_maps, accuracy_map), and /mask (raw NIfTI bytes).
-        attrs: bundle_kind='predict', present_fields, scalar_summaries,
-        permutation_pvalue (when set), model_spec (JSON — the refit
-        ingredients; its ``model`` entry is a structured spec from
-        ``_serialize_model_spec``: shortcut name or estimator class + params,
-        or an explicit ``refittable: false`` marker when the estimator's
-        params can't be serialized), affine, plus the shared lineage attrs.
+    Datasets: every populated array field of the `Predict` (``predictions``,
+    ``scores``, ``cv_folds``, ``roi_labels``, ``permutation_scores``,
+    ``mean_score``, ``std_score``), the ``.data`` of each brain-map field
+    (``weight_map``, ``fold_weight_maps``, ``accuracy_map``), and ``mask``
+    (raw NIfTI bytes). Attributes: ``bundle_kind='predict'``,
+    ``present_fields``, ``scalar_summaries``, ``permutation_pvalue`` (when
+    set), ``model_spec`` (JSON), ``affine``, and the shared lineage fields.
 
-    The fitted ``estimator`` is deliberately not persisted; rebuild one via
-    ``nltools.data.braindata.prediction._model_from_spec`` when the spec is
-    refittable.
+    The fitted ``estimator`` is deliberately not persisted — pickled
+    estimators are version-fragile. ``model_spec`` carries what is needed to
+    refit one instead: the model shortcut name, or the estimator class and
+    its parameters, or an explicit not-refittable marker when the parameters
+    cannot be serialized.
+
+    Args:
+        out_path (Path): Destination ``.h5`` path.
+        result (Predict): The decoding result to persist.
+        mask_bytes (bytes): The mask image serialized as NIfTI bytes.
+        affine (np.ndarray): The data's affine.
+        model_spec (dict): Refit ingredients (model spec, ``spatial_scale``,
+            ``cv``, ``scoring``, ``standardize``, ...).
+        step_id (str): Id of the cache step producing this bundle.
+        parent_step_id (str | None): Id of the upstream step.
+        op (str): Operation name (e.g. ``'predict_mvpa'``).
+        op_kwargs (dict): Scalar kwargs of the operation.
+        nltools_version (str): Version of nltools writing the bundle.
+
+    Returns:
+        Path: ``out_path``.
     """
     import json
 
@@ -916,11 +1016,21 @@ def write_predict_bundle(
 
 
 def read_predict_bundle(path: Path):
-    """Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
+    """Read a predict bundle written by `write_predict_bundle` back into a `Predict`.
 
-    Brain-map fields are rebuilt as ``BrainData`` on the embedded mask. Same
-    schema/version handling as the fit-bundle readers; refuses non-predict
-    bundles with a pointer to the right reader.
+    Brain-map fields are rebuilt as `BrainData` on the embedded mask;
+    ``estimator`` is always ``None`` (see `write_predict_bundle`). Same
+    schema/version handling as the fit-bundle readers.
+
+    Args:
+        path (Path): Bundle path.
+
+    Returns:
+        Predict: The reconstructed result.
+
+    Raises:
+        ValueError: If the schema version differs from `BUNDLE_SCHEMA_VERSION`,
+            or the file is a GLM/ridge bundle rather than a predict bundle.
     """
     import json
 

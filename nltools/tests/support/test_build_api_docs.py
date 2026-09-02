@@ -95,33 +95,253 @@ class TestDriftCheck:
         ]
 
 
-class TestModulesRegistry:
-    """MODULES and the myst.yml TOC list exactly the same API pages."""
+def _toc_api_files() -> list[str]:
+    toc = yaml.safe_load((_ROOT / "docs" / "myst.yml").read_text())["project"]["toc"]
+    found: list[str] = []
 
-    @pytest.fixture(scope="class")
-    def toc_api_files(self):
-        toc = yaml.safe_load((_ROOT / "docs" / "myst.yml").read_text())["project"][
-            "toc"
+    def walk(entries):
+        for e in entries:
+            if "file" in e and e["file"].startswith("api/"):
+                found.append(e["file"][len("api/") :])
+            walk(e.get("children", []))
+
+    walk(toc)
+    return found
+
+
+class TestPagesRegistry:
+    """PAGES and the myst.yml TOC list exactly the same API pages.
+
+    Every generated page appears in the TOC exactly once, and every ``api/``
+    TOC entry is generated. Pages are either module pages (one griffe object
+    rendered with griffe2md's template), a namespace page (every public name
+    of a package, A-Z), or task pages (a hand-written intro over an explicit
+    object list).
+    """
+
+    def test_every_generated_page_is_in_toc_exactly_once(self, build_mod):
+        toc = _toc_api_files()
+        assert sorted(p.output for p in build_mod.PAGES) == sorted(toc)
+        assert len(toc) == len(set(toc))
+
+    def test_each_page_has_exactly_one_source(self, build_mod):
+        for page in build_mod.PAGES:
+            sources = [page.module, page.namespace, page.objects or None]
+            assert sum(s is not None for s in sources) == 1, page.output
+
+    def test_task_pages_have_intro_and_objects(self, build_mod):
+        tasks = [p for p in build_mod.PAGES if p.output.startswith("tasks/")]
+        assert sorted(p.output for p in tasks) == sorted(
+            f"tasks/{stem}.md"
+            for stem in (
+                "loading",
+                "preprocessing",
+                "design-and-glm",
+                "prediction",
+                "similarity",
+                "alignment",
+                "inference",
+                "intersubject",
+                "plotting",
+                "atlases",
+                "simulation",
+            )
+        )
+        for page in tasks:
+            assert page.intro.strip(), page.output
+            assert page.objects, page.output
+            assert not page.internal, page.output
+
+    def test_deleted_module_pages_are_gone(self, build_mod):
+        modules = {p.module for p in build_mod.PAGES if p.module}
+        for gone in (
+            "nltools.plotting",
+            "nltools.mask",
+            "nltools.io",
+            "nltools.datasets",
+            "nltools.cross_validation",
+            "nltools.data.roc",
+            "nltools.data.simulator",
+            "nltools.data.atlases",
+            "nltools.algorithms.corrections",
+            "nltools.algorithms.inference.one_sample",
+            "nltools.algorithms.inference.utils",
+        ):
+            assert gone not in modules
+        by_module = {p.module: p.output for p in build_mod.PAGES if p.module}
+        assert by_module["nltools.data.fitresults"] == "data/fitresults.md"
+        assert by_module["nltools.algorithms.inference"] == "algorithms/inference.md"
+
+    def test_a_to_z_index_is_the_algorithms_namespace(self, build_mod):
+        (index,) = [p for p in build_mod.PAGES if p.output == "algorithms.md"]
+        assert index.namespace == "nltools.algorithms"
+        assert not index.internal
+
+
+class TestComposeObjectsPage:
+    """Task pages: intro, per-kind summary tables, then category sections.
+
+    Attributes appear in their summary table only (no detail section — the
+    same policy the postprocess applies to module pages). Members keep the
+    registry order within a category.
+    """
+
+    def _members(self, build_mod):
+        M = build_mod.Member
+        return [
+            M("fdr", "function", "FDR threshold.", "### `fdr`\n\nBody f.\n"),
+            M("Roc", "class", "ROC analysis.", "### `Roc`\n\nBody r.\n"),
+            M("ATLASES", "attribute", "", "", annotation="dict[str, AtlasMetadata]"),
+            M("zscore", "function", "Z-score.", "### `zscore`\n\nBody z.\n"),
         ]
-        found: list[str] = []
 
-        def walk(entries):
-            for e in entries:
-                if "file" in e and e["file"].startswith("api/"):
-                    found.append(e["file"][len("api/") :])
-                walk(e.get("children", []))
+    def test_layout(self, build_mod):
+        out = build_mod.compose_objects_page("Intro line.", self._members(build_mod))
+        assert out.startswith("Intro line.\n\n")
+        # Summary tables in canonical order, then Classes before Functions.
+        order = [
+            "**Attributes:**",
+            "`ATLASES` | <code>dict[str, AtlasMetadata]</code> |",
+            "**Classes:**",
+            "[`Roc`](#roc) | ROC analysis.",
+            "**Functions:**",
+            "[`fdr`](#fdr) | FDR threshold.",
+            "[`zscore`](#zscore) | Z-score.",
+            "## Classes",
+            "### `Roc`",
+            "## Functions",
+            "### `fdr`",
+            "### `zscore`",
+        ]
+        positions = [out.index(s) for s in order]
+        assert positions == sorted(positions), out
+        assert "## Attributes" not in out
 
-        walk(toc)
-        return found
+    def test_missing_kinds_are_omitted(self, build_mod):
+        M = build_mod.Member
+        out = build_mod.compose_objects_page(
+            "I.", [M("f", "function", "F.", "### `f`\n\nB.\n")]
+        )
+        assert "Classes" not in out and "Attributes" not in out
 
-    def test_every_module_page_is_in_toc(self, build_mod, toc_api_files):
-        assert sorted(out for _, out in build_mod.MODULES) == sorted(toc_api_files)
 
-    def test_toc_has_no_duplicates(self, toc_api_files):
-        assert len(toc_api_files) == len(set(toc_api_files))
+# Public namespaces whose every ``__all__`` name must be documented on a page
+# a user is expected to browse (a task page, a class page, or the A-Z index).
+PUBLIC_NAMESPACES = [
+    "nltools",
+    "nltools.data",
+    "nltools.algorithms",
+    "nltools.plotting",
+    "nltools.mask",
+    "nltools.io",
+    "nltools.datasets",
+    "nltools.cross_validation",
+    "nltools.templates",
+    "nltools.models",
+    "nltools.data.atlases",
+    "nltools.utils",
+    "nltools.data.collection",
+]
 
-    def test_stub_and_missing_pages(self, build_mod):
-        modules = dict(build_mod.MODULES)
-        assert "nltools.algorithms.inference.utils" not in modules
-        assert modules["nltools.data.fitresults"] == "data/fitresults.md"
-        assert modules["nltools.data.adjacency.spatial"] == "data/adjacency_spatial.md"
+# Exported names whose home is an internal-module page by design: low-level
+# helpers with no user-facing task (they are still checked to be documented
+# somewhere, just not required on a task/class/index page).
+INTERNAL_ONLY = {
+    # nltools.utils plumbing (progress bars, reserved column names, imports).
+    "RESERVED_PREFIX",
+    "all_same",
+    "attempt_to_import",
+    "coalesced_gc",
+    "find_stack_level",
+    "get_resource_path",
+    "is_reserved_name",
+    "make_progress_bar",
+    "maybe_tqdm",
+    "reserved_name",
+    "run_separated_name",
+    # nltools.templates resolution internals behind get_brainspace/set_brainspace.
+    "TemplateMatch",
+    "match_resolution",
+    "resolve_paths",
+    "resolve_template_name",
+    # nltools.data.collection execution internals.
+    "BrainCollectionWorkerError",
+}
+
+# Exported module constants with no docstring: griffe2md hides them
+# (``show_if_no_docstring = false``), so no page can carry them until the
+# constant gets a docstring at its definition.
+UNDOCUMENTED_CONSTANTS = {"BUNDLE_SCHEMA_VERSION"}
+
+
+@pytest.fixture(scope="module")
+def site(build_mod, tmp_path_factory):
+    """Generate the whole docs/api tree once (griffe loads nltools in-process)."""
+    out = tmp_path_factory.mktemp("api")
+    report = build_mod.build(out, verbose=False)
+    assert not report.failed, report.failed
+    return report
+
+
+class TestGeneratedSite:
+    """Whole-tree invariants of the generated reference.
+
+    Runs the real pipeline into a temp dir: explicit labels are unique across
+    every page (mystmd otherwise reports duplicate identifiers), every public
+    name is documented where a user will find it, and the A-Z index carries
+    ``procrustes`` (whose name griffe resolves to the shadowing submodule).
+    """
+
+    def test_labels_unique_across_all_pages(self, build_mod, site):
+        import postprocess_api_docs as pp
+
+        seen: dict[str, str] = {}
+        duplicates: list[str] = []
+        for rel, text in site.pages.items():
+            for label in pp.collect_labels(text):
+                if label in seen:
+                    duplicates.append(f"{label}: {seen[label]} and {rel}")
+                seen[label] = rel
+        assert duplicates == []
+
+    def test_procrustes_is_on_the_a_to_z_index(self, site):
+        import postprocess_api_docs as pp
+
+        assert "procrustes" in pp.documented_names(site.pages["algorithms.md"])
+
+    @pytest.mark.parametrize("namespace", PUBLIC_NAMESPACES)
+    def test_public_names_documented_on_a_user_facing_page(
+        self, build_mod, site, namespace
+    ):
+        import importlib
+        import types
+
+        import postprocess_api_docs as pp
+
+        pages_by_output = {p.output: p for p in build_mod.PAGES}
+        user_facing: set[str] = set()
+        anywhere: set[str] = set()
+        for rel, text in site.pages.items():
+            page = pages_by_output[rel]
+            names = pp.documented_names(text)
+            if page.module:
+                # A module/class page documents its own object (the root
+                # heading is stripped in favour of the frontmatter title).
+                names.add(page.module.rsplit(".", 1)[-1])
+            anywhere |= names
+            if not page.internal:
+                user_facing |= names
+
+        mod = importlib.import_module(namespace)
+        missing: list[str] = []
+        for name in mod.__all__:
+            if (
+                name.startswith("__")
+                or name in UNDOCUMENTED_CONSTANTS
+                or isinstance(getattr(mod, name), types.ModuleType)
+            ):
+                continue
+            required_in = anywhere if name in INTERNAL_ONLY else user_facing
+            if name not in required_in:
+                missing.append(name)
+        assert missing == [], f"{namespace}: not documented: {missing}"

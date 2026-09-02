@@ -20,45 +20,61 @@ __all__ = ["BrainData"]
 class BrainData:
     """Represent neuroimaging data as vectors instead of three-dimensional matrices.
 
-    This representation makes it easier to perform data manipulation and analyses.
+    Each image is flattened to its in-mask voxels, so a stack of images is a 2D
+    ``(n_images, n_voxels)`` array. This representation makes it easier to perform
+    data manipulation and analyses.
 
     Args:
-        data: Neuroimaging data. Can be:
-            - None (empty BrainData)
-            - BrainData object
-            - List of BrainData objects or file paths
-            - File path (str/Path) to .nii/.nii.gz/.h5/.hdf5
-            - nibabel Nifti1Image object
-            - URL to download data from
-            - numpy array (1D ``(n_voxels,)`` for a single image or 2D
-              ``(n_images, n_voxels)`` for a stack). The ``mask`` argument
-              is required and must define the same number of in-mask voxels.
-        mask: Brain mask. Can be None (uses MNI template), a nibabel
-            Nifti1Image, a file path (str/Path) to a mask file, or a template
-            name string like ``'2mm-MNI152-2009c'`` (version: 'fsl' for
-            default/, 'a' for nilearn/, 'c' for fmriprep/).
-        masker: nilearn masker object (e.g. ROI or searchlight extractor).
-            Default will load data as voxels.
-        Y: Optional per-image target/label values, stored as a polars
-            DataFrame (``.Y``). Default None. If ``data`` is a BrainData with
-            a ``.Y``, that value is inherited when this is None.
-        X: Optional per-image design/feature values, stored as a polars
-            DataFrame (``.X``). Default None. If ``data`` is a BrainData with
-            an ``.X``, that value is inherited when this is None.
-        h5_compression (str, default='gzip'): Compression filter used when
-            writing HDF5 (``.h5``/``.hdf5``) output.
-        verbose (bool, default=False): Emit informational messages during
-            loading and other operations.
-        resample (bool, default=True): Whether to automatically resample data
-            to mask space. If True, data is resampled to match mask spatial
-            characteristics. If False, data must already be in mask space.
-            Default True preserves backward compatibility with v0.5.1.
-        interpolation (str, default='auto'): Interpolation method for resampling.
-            Options: 'auto' (detect based on data type; uses 'nearest' for
-            discrete data like atlases/masks and 'continuous' for stat maps),
-            'nearest' (nearest-neighbor, preserves discrete values),
-            'linear' (linear interpolation),
-            'continuous' (higher-order spline, use for stat maps).
+        data (None | BrainData | list | str | Path | Nifti1Image | np.ndarray):
+            Neuroimaging data. Accepts ``None`` (an empty BrainData), another
+            BrainData, a list of BrainData objects or file paths, a file path to
+            ``.nii``/``.nii.gz``/``.h5``/``.hdf5``, a nibabel ``Nifti1Image``, a URL
+            to download from, or a numpy array (1D ``(n_voxels,)`` for a single image
+            or 2D ``(n_images, n_voxels)`` for a stack). Array input requires
+            ``mask``, whose in-mask voxel count must match the array's last axis.
+        mask (None | Nifti1Image | str | Path): Brain mask. ``None`` uses the MNI
+            template; otherwise a nibabel ``Nifti1Image``, a file path to a mask
+            file, or a template name string like ``'2mm-MNI152-2009c'`` (version:
+            ``'fsl'`` for default/, ``'a'`` for nilearn/, ``'c'`` for fmriprep/).
+        masker (nilearn masker | None): nilearn masker object (e.g. ROI or
+            searchlight extractor). Default ``None`` loads data as voxels.
+        Y (DataFrame | np.ndarray | str | None): Optional per-image target/label
+            values, stored as a polars DataFrame (``.Y``). Default ``None``. If
+            ``data`` is a BrainData with a ``.Y``, that value is inherited when this
+            is ``None``.
+        X (DataFrame | np.ndarray | str | None): Optional per-image design/feature
+            values, stored as a polars DataFrame (``.X``). Default ``None``. If
+            ``data`` is a BrainData with an ``.X``, that value is inherited when this
+            is ``None``.
+        h5_compression (str): Compression filter used when writing HDF5
+            (``.h5``/``.hdf5``) output. Default ``'gzip'``.
+        verbose (bool): Emit informational messages during loading and other
+            operations. Default ``False``.
+        resample (bool): Whether to automatically resample data to mask space.
+            If ``True`` (default), data is resampled to match the mask's spatial
+            characteristics. If ``False``, data must already be in mask space.
+        interpolation (str): Interpolation method for resampling. ``'auto'``
+            (default) detects based on data type — ``'nearest'`` for discrete data
+            like atlases/masks and ``'continuous'`` for stat maps; ``'nearest'``
+            (nearest-neighbor, preserves discrete values), ``'linear'`` (linear
+            interpolation), or ``'continuous'`` (higher-order spline, use for stat
+            maps).
+
+    Attributes:
+        data (np.ndarray): In-mask voxel values, shape ``(n_voxels,)`` for a single
+            image or ``(n_images, n_voxels)`` for a stack.
+        mask (Nifti1Image): The brain mask every image is flattened against.
+        masker (nilearn masker | None): Masker used to extract data, or ``None``
+            when data are plain voxels.
+        design_matrix (DesignMatrix | None): Design matrix attached by
+            ``fit(model='glm', ...)``; ``None`` until a GLM is fit.
+        verbose (bool): Whether informational messages are emitted.
+        X (pl.DataFrame): Design matrix / per-image covariates (possibly empty).
+        Y (pl.DataFrame): Per-image targets (possibly empty).
+        dtype (np.dtype): Data type of ``data``.
+        is_empty (bool): Whether ``data`` holds no elements.
+        shape (tuple[int, ...]): Images-by-voxels shape of ``data``.
+        size (int): Total number of elements in ``data`` (numpy convention).
     """
 
     def __init__(
@@ -417,17 +433,18 @@ class BrainData:
         """Align BrainData instance to target object using functional alignment.
 
         Args:
-            target: (BrainData) object to align to.
-            method: (str) alignment method to use
-                ['probabilistic_srm','deterministic_srm','procrustes']
-            axis: (int) axis to align on
-            spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
+            target (BrainData): Object to align to.
+            method (str): Alignment method: ``'probabilistic_srm'``,
+                ``'deterministic_srm'``, or ``'procrustes'``. Default ``'procrustes'``.
+            axis (int): Axis to align on. Default 0.
+            spatial_scale (str): ``'whole_brain'`` (default), ``'roi'``, or
                 ``'searchlight'``. ``'roi'`` is supported (per-parcel
                 transforms + reassembly, requires `roi_mask`). ``'searchlight'``
                 is not yet implemented (overlapping spheres have no canonical
                 per-voxel transform).
-            roi_mask: Atlas image used when `spatial_scale='roi'`.
-            radius_mm: Reserved for ``spatial_scale='searchlight'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
+                used when ``spatial_scale='roi'``.
+            radius_mm (float): Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
             dict: A dictionary containing the transformed object, transformation
@@ -474,13 +491,13 @@ class BrainData:
         """Append data to BrainData instance.
 
         Args:
-            data: BrainData instance to append.
-            ignore_attrs: (bool) If True, skip concatenation of X and Y
-                    attributes. Useful when appending images where .X or .Y
-                    have different column counts. Default False.
-            kwargs: Currently ignored. X/Y are concatenated with polars'
-                    ``pl.concat(..., how="vertical_relaxed")``, which takes no
-                    caller-supplied options.
+            data (BrainData): BrainData instance to append.
+            ignore_attrs (bool): If True, skip concatenation of X and Y
+                attributes. Useful when appending images where .X or .Y
+                have different column counts. Default False.
+            **kwargs (dict): Currently ignored. X/Y are concatenated with polars'
+                ``pl.concat(..., how="vertical_relaxed")``, which takes no
+                caller-supplied options.
 
         Returns:
             BrainData: New appended BrainData instance.
@@ -525,8 +542,9 @@ class BrainData:
         resampled into the BrainData space, then set resample_mask_to_brain=True.
 
         Args:
-            mask: (BrainData or nifti object) mask to apply to BrainData object.
-            resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
+            mask (BrainData | Nifti1Image): Mask to apply to BrainData object.
+            resample_mask_to_brain (bool): Resample the mask to brain space before
+                applying it. Default False.
 
         Returns:
             BrainData: Masked BrainData object.
@@ -539,10 +557,10 @@ class BrainData:
         """Cast BrainData.data as type.
 
         Args:
-            dtype: datatype to convert
+            dtype (np.dtype | type | str): Datatype to convert to.
 
         Returns:
-            BrainData: BrainData instance with new datatype
+            BrainData: BrainData instance with new datatype.
         """
         from .utils import shallow_copy
 
@@ -571,33 +589,41 @@ class BrainData:
         Supports simple aggregation statistics and fitted model statistics (Ridge).
 
         Args:
-            stat: (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std',
-                'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model,
-                'predict' requires fitted Ridge model + X_test).
-            n_samples: (int) Number of bootstrap iterations. Default: 5000
-            save_boots: (bool) If True, store all bootstrap samples. Default: False
-            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-            X_test: (np.ndarray, optional) Test features for 'predict' bootstrap.
-            device: (str) Compute device for Ridge bootstrap: 'cpu' (default),
-                'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (GPU if
-                present, else CPU). Ignored for simple stats. Default: 'cpu'
-            max_gpu_memory_gb: (float, optional) Explicit GPU memory budget in GB
-                when device is 'gpu' or 'auto'. None (default) measures the device.
-            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
-            random_state: (int, optional) Random seed for reproducibility
-            progress_bar: (bool) If True, show a progress bar. Default: False
+            stat (str): Statistic to bootstrap. Simple stats: ``'mean'``,
+                ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
+                stats: ``'weights'`` (requires a fitted Ridge model) or
+                ``'predict'`` (requires a fitted Ridge model plus ``X_test``).
+            n_samples (int): Number of bootstrap iterations. Default 5000.
+            save_boots (bool): If True, store all bootstrap samples. Default False.
+            percentiles (tuple[float, float]): Percentiles for confidence
+                intervals. Default ``(2.5, 97.5)``.
+            X_test (np.ndarray | None): Test features for the ``'predict'`` bootstrap.
+            device (str): Compute device for the Ridge bootstrap: ``'cpu'``
+                (default), ``'gpu'`` (PyTorch on CUDA/MPS if available), or
+                ``'auto'`` (GPU if present, else CPU). Ignored for simple stats.
+            max_gpu_memory_gb (float | None): Explicit GPU memory budget in GB
+                when device is ``'gpu'`` or ``'auto'``. ``None`` (default) measures
+                the device.
+            tail (int | str): ``2``/``'two'`` for two-tailed p-values (default),
+                ``1``/``'one'`` for one-tailed.
+            n_jobs (int): Number of CPU cores for parallelization. -1 (default)
+                means all CPUs.
+            random_state (int | None): Random seed for reproducibility.
+            progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            BrainData or dict:
-                - For simple stats: Returns BrainData with bootstrap mean
-                - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',
-                  'ci_lower', 'ci_upper' (all BrainData objects)
-                - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
+            BrainData | dict: For simple stats, a BrainData holding the bootstrap
+                mean. For model stats, a dict of BrainData objects keyed ``'mean'``,
+                ``'std'``, ``'Z'``, ``'p'``, ``'ci_lower'``, ``'ci_upper'``. With
+                ``save_boots=True`` the dict also carries a ``'samples'`` key
+                holding every bootstrap sample.
 
         Examples:
-            >>> boot = brain.bootstrap(stat='mean', n_samples=1000)
-            >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-            >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
+            ```python
+            boot = brain.bootstrap(stat='mean', n_samples=1000)
+            brain.fit(X=dm, model='ridge', alpha=1.0)
+            boot = brain.bootstrap(stat='weights', n_samples=1000)
+            ```
         """
         from .bootstrap import bootstrap
 
@@ -620,47 +646,52 @@ class BrainData:
         """Compute contrasts from fitted GLM results.
 
         This method computes contrasts as linear combinations of the GLM beta coefficients.
-        Must be called after .fit(model='glm', X=design_matrix) has been run.
+        Must be called after ``fit(model='glm', X=design_matrix)`` has been run.
+
+        A contrast can be given three ways. A **string** names design-matrix columns
+        with optional coefficients, e.g. ``"conditionA - conditionB"`` or
+        ``"2*conditionA - conditionB - conditionC"``. A **numeric vector** lists one
+        weight per regressor, e.g. ``[1, -1, 0, 0]`` for a 4-regressor model. A
+        **dict** maps contrast names to either form, e.g.
+        ``{"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}``.
 
         Args:
-            contrasts: Can be:
-
-                - str: A string specifying the contrast using column names
-                  e.g., "conditionA - conditionB" or "2*conditionA - conditionB - conditionC"
-                - dict: Dictionary with contrast names as keys and contrast strings/vectors as values
-                  e.g., {"main_effect": "conditionA - conditionB", "interaction": [1, -1, -1, 1]}
-                - array: Numeric contrast vector matching the number of regressors
-                  e.g., [1, -1, 0, 0] for a 4-regressor model
-            statistic (str): Which statistic to return per contrast. One of `"t"`
-                (default, t-statistic map), `"z"` (z-score), `"p"` (p-value), `"beta"` /
-                `"effect_size"` (effect-size β map — use this when feeding a
-                second-level group analysis), or `"all"` (a bundle dict
-                `{"beta", "t", "z", "p", "se"}` of maps for one contrast). Default: `"t"`.
+            contrasts (str | array-like | dict): The contrast(s) to compute — a
+                string, a numeric vector, or a dict of named contrasts (see above).
+            statistic (str): Which statistic to return per contrast. One of ``"t"``
+                (default, t-statistic map), ``"z"`` (z-score), ``"p"`` (p-value),
+                ``"beta"`` / ``"effect_size"`` (effect-size β map — use this when
+                feeding a second-level group analysis), or ``"all"`` (a bundle dict
+                ``{"beta", "t", "z", "p", "se"}`` of maps for one contrast).
 
         Returns:
-            BrainData or dict: A single contrast with a scalar `statistic` returns a
-                `BrainData` map; with `statistic="all"` it returns a flat dict keyed by
-                `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed
-                by contrast name (nested under the five keys when `statistic="all"`).
+            BrainData | dict: A single contrast with a scalar ``statistic`` returns a
+                ``BrainData`` map; with ``statistic="all"`` it returns a flat dict keyed
+                by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. A dict of contrasts
+                returns a dict keyed by contrast name (nested under the five keys when
+                ``statistic="all"``).
 
         Raises:
-            RuntimeError: If .fit(model='glm') hasn't been called yet
-            ValueError: If contrast vector length doesn't match number of regressors
-            ValueError: If column name in string contrast not found in design matrix
+            RuntimeError: If ``fit(model='glm')`` hasn't been called yet.
+            ValueError: If a contrast vector's length doesn't match the number of
+                regressors, or a column named in a string contrast is not in the
+                design matrix.
 
         Examples:
-            >>> brain.fit(model='glm', X=design_matrix)
-            >>> contrast1 = brain.compute_contrasts([0, 1, -1])
-            >>> contrast2 = brain.compute_contrasts("conditionA - conditionB")
-            >>> results = brain.compute_contrasts({
-            ...     "A_vs_B": "conditionA - conditionB",
-            ...     "avg_effect": [0, 0.5, 0.5],
-            ... })
+            ```python
+            brain.fit(model='glm', X=design_matrix)
+            contrast1 = brain.compute_contrasts([0, 1, -1])
+            contrast2 = brain.compute_contrasts("conditionA - conditionB")
+            results = brain.compute_contrasts({
+                "A_vs_B": "conditionA - conditionB",
+                "avg_effect": [0, 0.5, 0.5],
+            })
+            ```
 
         Note:
-            - String contrasts support coefficients: "2*A - B" or "0.5*A + 0.5*B"
-            - Column names must match design matrix columns exactly (case-sensitive)
-            - Contrast weights should sum to zero for proper inference in most cases
+            String contrasts support coefficients (``"2*A - B"``, ``"0.5*A + 0.5*B"``).
+            Column names must match design-matrix columns exactly (case-sensitive).
+            Contrast weights should sum to zero for proper inference in most cases.
         """
         from .modeling import compute_contrasts
 
@@ -676,10 +707,10 @@ class BrainData:
         self-contained HTML report.
 
         Args:
-            contrasts (str, list, or dict, optional): Contrast(s) to render,
+            contrasts (str | list | dict | None): Contrast(s) to render,
                 same forms as `compute_contrasts`.
-            **kwargs: Forwarded to nilearn's ``generate_report`` (e.g. ``title``,
-                ``threshold``, ``alpha``).
+            **kwargs (dict): Forwarded to nilearn's ``generate_report`` (e.g.
+                ``title``, ``threshold``, ``alpha``).
 
         Returns:
             HTMLReport: nilearn report; call ``.save_as_html(path)`` or display
@@ -689,8 +720,10 @@ class BrainData:
             RuntimeError: If a GLM has not been fit yet.
 
         Examples:
-            >>> brain.fit(model='glm', X=design_matrix)
-            >>> brain.report(contrasts='conditionA - conditionB').save_as_html('report.html')
+            ```python
+            brain.fit(model='glm', X=design_matrix)
+            brain.report(contrasts='conditionA - conditionB').save_as_html('report.html')
+            ```
         """
         from nltools.models import Glm
 
@@ -730,12 +763,13 @@ class BrainData:
         """Decompose BrainData object.
 
         Args:
-            method: (str) Algorithm to perform decomposition
-                        types=['pca','ica','nnmf','fa','dictionary','kernelpca']
-            axis: dimension to decompose ['voxels','images']
-            n_components: (int) number of components. If None then retain
-                        as many as possible.
-            **kwargs: forwarded to the underlying sklearn decomposition estimator.
+            method (str): Decomposition algorithm: ``'pca'``, ``'ica'``, ``'nnmf'``,
+                ``'fa'``, ``'dictionary'``, or ``'kernelpca'``. Default ``'pca'``.
+            axis (str): Dimension to decompose: ``'voxels'`` (default) or ``'images'``.
+            n_components (int | None): Number of components. If ``None`` then retain
+                as many as possible.
+            **kwargs (dict): Forwarded to the underlying sklearn decomposition
+                estimator.
 
         Returns:
             dict: A dictionary of decomposition parameters.
@@ -754,7 +788,7 @@ class BrainData:
         """Remove linear trend from each voxel.
 
         Args:
-            method: ('linear','constant', optional) type of detrending
+            method (str): Type of detrending: ``'linear'`` (default) or ``'constant'``.
 
         Returns:
             BrainData: Detrended BrainData instance.
@@ -776,21 +810,21 @@ class BrainData:
         """Calculate distance between images within a BrainData() instance.
 
         Args:
-            metric: (str) type of distance metric (can use any scipy.spatial.distance
-                    metric supported by cdist)
-            **kwargs: Additional metric options forwarded to
-                ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski).
-            spatial_scale: One of ``'whole_brain'`` (default), ``'roi'``, or
+            metric (str): Distance metric — any ``scipy.spatial.distance`` metric
+                supported by ``cdist``. Default ``'euclidean'``.
+            spatial_scale (str): One of ``'whole_brain'`` (default), ``'roi'``, or
                 ``'searchlight'``. ``'whole_brain'`` returns a single
                 pairwise distance ``Adjacency`` between images. ``'roi'``
                 requires ``roi_mask`` and returns a stacked ``Adjacency``
                 with one RDM per parcel and ``spatial_scale`` provenance
                 attached for back-projection via ``Adjacency.to_brain()``.
                 ``'searchlight'`` requires ``radius_mm`` (and is not yet
-                implemented in this slice).
-            roi_mask: Atlas image (BrainData / Nifti1Image / path) for
-                ``spatial_scale='roi'``.
-            radius_mm: Searchlight radius in mm. Default 10.0.
+                implemented).
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
+                for ``spatial_scale='roi'``.
+            radius_mm (float): Searchlight radius in mm. Default 10.0.
+            **kwargs (dict): Additional metric options forwarded to
+                ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski).
 
         Returns:
             Adjacency: Single pairwise distance matrix for ``'whole_brain'``;
@@ -812,24 +846,29 @@ class BrainData:
     def extract_roi(self, mask, method="mean", n_components=None):
         """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
 
-        Args:
-            mask: BrainData, nibabel image, or file path. Can be:
+        The mask may be binary (a single ROI) or a labeled atlas (one value per
+        region, extracting from every ROI at once).
 
-                  - Binary mask (extracts from single ROI)
-                  - Labeled atlas (extracts from multiple ROIs)
-            method: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
-            n_components: If method='pca', number of components to return
+        Args:
+            mask (BrainData | Nifti1Image | str | Path): Binary mask or labeled
+                atlas to extract from.
+            method (str): Extraction method: ``'mean'`` (default), ``'median'``, or
+                ``'pca'``.
+            n_components (int | None): Number of components to return when
+                ``method='pca'``.
 
         Returns:
             float | np.ndarray: For a binary mask, a scalar (single image) or 1D
                 array (multiple images). For a labeled atlas, a 1D array (single
                 image), a 2D array of images x ROIs (multiple images), or the PCA
-                components array when `method='pca'`.
+                components array when ``method='pca'``.
 
         Examples:
-            >>> roi_values = brain.extract_roi(binary_mask)
-            >>> atlas_values = brain.extract_roi(atlas_mask)
-            >>> components = brain.extract_roi(mask, method='pca', n_components=5)
+            ```python
+            roi_values = brain.extract_roi(binary_mask)
+            atlas_values = brain.extract_roi(atlas_mask)
+            components = brain.extract_roi(mask, method='pca', n_components=5)
+            ```
         """
         from .analysis import extract_roi
 
@@ -845,13 +884,13 @@ class BrainData:
             detrend=True or standardize=True via kwargs to enable.
 
         Args:
-            sampling_freq: Sampling freq in hertz (i.e. 1 / TR)
-            high_pass: High pass cutoff frequency
-            low_pass: Low pass cutoff frequency
-            **kwargs: Additional arguments passed to nilearn.signal.clean
+            sampling_freq (float | None): Sampling frequency in hertz (i.e. 1 / TR).
+            high_pass (float | None): High-pass cutoff frequency in hertz.
+            low_pass (float | None): Low-pass cutoff frequency in hertz.
+            **kwargs (dict): Additional arguments passed to ``nilearn.signal.clean``.
 
         Returns:
-            BrainData: Filtered BrainData instance
+            BrainData: Filtered BrainData instance.
         """
         from .analysis import filter_data
 
@@ -956,21 +995,19 @@ class BrainData:
                 ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge,
                 ``None`` for glm.
             progress_bar (bool): Display a progress bar during fitting. Default: False.
-            **kwargs (dict): Additional arguments passed to model constructor
+            **kwargs (dict): Additional arguments passed to the model constructor
+                (e.g. ``alpha`` for ridge).
 
         Returns:
-            BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData).
-                If ``inplace=False``, returns Fit dataclass with results.
+            BrainData | Fit: If ``inplace=True``, returns self (fitted BrainData).
+                If ``inplace=False``, returns a `Fit` dataclass with results.
 
         Note:
             After ``model="glm"``, the following per-regressor BrainData
             attributes are populated — one map per design-matrix column:
-
-            - ``glm_betas``: effect-size (β) maps.
-            - ``glm_t``: marginal t-statistic for each regressor.
-            - ``glm_p``: marginal p-value.
-            - ``glm_se``: standard error of β.
-            - ``glm_r2``: voxel-wise R².
+            ``glm_betas`` (effect-size β maps), ``glm_t`` (marginal t-statistic for
+            each regressor), ``glm_p`` (marginal p-value), ``glm_se`` (standard
+            error of β), and ``glm_r2`` (voxel-wise R²).
 
             ``glm_t[i]`` is a valid t-map for the trivial one-hot contrast on
             regressor ``i`` only. For contrasts across regressors
@@ -982,8 +1019,10 @@ class BrainData:
             one contrast in a single call.
 
         Examples:
-            >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
-            >>> fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
+            ```python
+            brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+            fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
+            ```
         """
         from .modeling import fit
 
@@ -1006,17 +1045,18 @@ class BrainData:
         """Get mean of each voxel or image.
 
         Args:
-            axis: 0 = across images (default, returns BrainData),
+            axis (int): 0 = across images (default, returns BrainData),
                 1 = within images (returns array). Ignored when
                 ``spatial_scale='roi'``.
-            spatial_scale: ``'whole_brain'`` (default) preserves existing
-                behavior. ``'roi'`` requires ``roi_mask`` and returns a
+            spatial_scale (str): ``'whole_brain'`` (default) reduces along
+                ``axis``. ``'roi'`` requires ``roi_mask`` and returns a
                 BrainData of the same shape with each voxel painted with
                 its parcel's mean per image (parcellation smoothing).
-            roi_mask: Atlas image for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
+                for ``spatial_scale='roi'``.
 
         Returns:
-            float/np.array/BrainData: Mean values.
+            float | np.ndarray | BrainData: Mean values.
         """
         if spatial_scale == "roi":
             from .analysis import reduce_per_roi
@@ -1030,15 +1070,16 @@ class BrainData:
         """Get median of each voxel or image.
 
         Args:
-            axis: 0 = across images (default, returns BrainData),
+            axis (int): 0 = across images (default, returns BrainData),
                 1 = within images (returns array). Ignored when
                 ``spatial_scale='roi'``.
-            spatial_scale: ``'whole_brain'`` (default) or ``'roi'`` (paints
+            spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
                 each voxel with its parcel's median per image).
-            roi_mask: Atlas image for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
+                for ``spatial_scale='roi'``.
 
         Returns:
-            float/np.array/BrainData: Median values.
+            float | np.ndarray | BrainData: Median values.
         """
         if spatial_scale == "roi":
             from .analysis import reduce_per_roi
@@ -1054,10 +1095,11 @@ class BrainData:
         The predictors may be other BrainData instances or nibabel images.
 
         Args:
-            images: BrainData instance of weight map
+            images (BrainData | Nifti1Image | list): Predictor image(s) — a
+                BrainData stack of weight maps or nibabel images.
             method (str): Regression method. Default: 'ols'.
-            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-                (positive direction) regression p-values.
+            tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
+                ``'one'`` for one-tailed (positive direction) regression p-values.
 
         Returns:
             dict: Regression statistics as BrainData instances, keyed
@@ -1113,7 +1155,7 @@ class BrainData:
                 BrainData contains multiple maps and ``method`` is
                 ``"glass"`` or ``"slices"``. Default: 3. Warns when more
                 images exist than ``limit``.
-            **kwargs: Additional arguments passed to nilearn plot functions.
+            **kwargs (dict): Additional arguments passed to nilearn plot functions.
 
         Returns:
             matplotlib.figure.Figure | list[matplotlib.figure.Figure]: A single
@@ -1362,7 +1404,7 @@ class BrainData:
                 (default ``True``). ``False`` hides it; the viewer still
                 supports niivue's right-drag windowing. No extra dependency
                 either way — the slider is native to the widget frontend.
-            **kwargs: Forwarded verbatim to ``new Niivue(opts)`` (e.g.
+            **kwargs (dict): Forwarded verbatim to ``new Niivue(opts)`` (e.g.
                 ``height``, ConfigOptions like ``is_colorbar``).
 
         Returns:
@@ -1468,6 +1510,15 @@ class BrainData:
         the publishable *map*. The CV-mean is one line away if you want
         it: ``result.fold_weight_maps.data.mean(axis=0)``.
 
+        **Choosing a model.** String shortcuts for classification are ``'svm'``
+        (LinearSVC), ``'logistic'``, ``'lda'``, and ``'ridge_classifier'``; for
+        regression, ``'ridge'``, ``'lasso'``, and ``'svr'``. Any sklearn estimator
+        or ``Pipeline`` is also accepted (e.g.
+        ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``).
+        When ``model`` is a sklearn ``Pipeline``, ``standardize`` is auto-defaulted
+        to ``False`` (with a warning) so we don't wrap another StandardScaler
+        around your pipeline; pass ``standardize=True`` explicitly to override.
+
         Args:
             y (array-like, str, optional): Labels (classification) or
                 continuous targets (regression), shape ``(n_samples,)``, or
@@ -1477,18 +1528,10 @@ class BrainData:
                 shape ``(n_samples, n_features)``. Triggers encoding mode.
             spatial_scale (str): MVPA dispatch — ``'whole_brain'``,
                 ``'searchlight'``, or ``'roi'``.
-            model (str or sklearn estimator): Algorithm. String shortcuts:
-
-                - Classification: ``'svm'`` (LinearSVC), ``'logistic'``,
-                  ``'lda'``, ``'ridge_classifier'``.
-                - Regression: ``'ridge'``, ``'lasso'``, ``'svr'``.
-
-                Or pass any sklearn estimator / Pipeline (e.g.,
-                ``make_pipeline(StandardScaler(), SelectKBest(k=500), LinearSVC())``).
-                When ``model`` is a sklearn ``Pipeline``, ``standardize`` is
-                auto-defaulted to ``False`` (with a warning) so we don't wrap
-                another StandardScaler around your pipeline. Pass
-                ``standardize=True`` explicitly to override.
+            model (str | sklearn estimator): Algorithm — a string shortcut
+                (``'svm'``, ``'logistic'``, ``'lda'``, ``'ridge_classifier'``,
+                ``'ridge'``, ``'lasso'``, ``'svr'``) or any sklearn estimator /
+                Pipeline. Default ``'svm'``; see "Choosing a model" above.
             cv (int, str, or sklearn CV splitter): ``int`` → shuffled KFold
                 (regression) or StratifiedKFold (classification), honoring
                 ``groups`` via the Group variants; ``'loo'`` (leave-one-out);
@@ -1527,18 +1570,26 @@ class BrainData:
                 ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
         Examples:
-            >>> result = brain.predict(y=labels, spatial_scale='whole_brain', cv=5)
-            >>> result.weight_map.plot()       # publishable map (all-data fit)
-            >>> result.mean_score              # honest CV-derived accuracy
-            >>> new_pred = result.estimator.predict(new_X)  # apply to new data
+            Whole-brain decoding:
 
-            >>> result = brain.predict(y=labels, spatial_scale='searchlight',
-            ...                        radius_mm=8.0, n_jobs=4)
-            >>> result.accuracy_map.plot()
+            ```python
+            result = brain.predict(y=labels, spatial_scale='whole_brain', cv=5)
+            result.weight_map.plot()       # publishable map (all-data fit)
+            result.mean_score              # honest CV-derived accuracy
+            new_pred = result.estimator.predict(new_X)  # apply to new data
+            ```
 
-            >>> result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
-            >>> top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
-            >>> result.accuracy_map.plot()  # brain-space view of the same map
+            Searchlight and ROI decoding:
+
+            ```python
+            result = brain.predict(y=labels, spatial_scale='searchlight',
+                                   radius_mm=8.0, n_jobs=4)
+            result.accuracy_map.plot()
+
+            result = brain.predict(y=labels, spatial_scale='roi', roi_mask=atlas)
+            top = result.roi_labels[result.mean_score.argsort()[::-1][:10]]
+            result.accuracy_map.plot()  # brain-space view of the same map
+            ```
 
             Custom sklearn pipeline as model — standardize auto-defaults to
             False because we detect the Pipeline:
@@ -1616,15 +1667,18 @@ class BrainData:
         """Resample BrainData to match target image or resolution.
 
         Args:
-            img: Target image for resampling (nibabel Nifti1Image, str/Path, or None).
-            resolution: Target voxel size in mm (float/int for isotropic, or None).
-            interpolation: Interpolation method ('nearest', 'linear', 'continuous', or None).
+            img (Nifti1Image | str | Path | None): Target image for resampling.
+            resolution (float | int | None): Target isotropic voxel size in mm.
+            interpolation (str | None): Interpolation method: ``'nearest'``,
+                ``'linear'``, ``'continuous'``, or ``None`` to use the instance's
+                setting.
 
         Returns:
-            BrainData: New BrainData instance with resampled data
+            BrainData: New BrainData instance with resampled data.
 
         Raises:
-            ValueError: If both img and resolution are None, or both are provided
+            ValueError: If both ``img`` and ``resolution`` are None, or both are
+                provided.
         """
         from .io import resample_to
 
@@ -1635,18 +1689,16 @@ class BrainData:
     def scale(self, scale_val=100.0, axis=None):
         """Scale data via mean scaling.
 
-        Two scaling modes are available:
-
-        - **Grand-mean scaling** (axis=None, default): Divides all values by the
-          global mean across all voxels and timepoints.
-
-        - **Voxel-wise scaling** (axis=0): Divides each voxel's time-series by
-          its own temporal mean.
+        Two scaling modes are available. **Grand-mean scaling** (``axis=None``,
+        default) divides all values by the global mean across all voxels and
+        timepoints. **Voxel-wise scaling** (``axis=0``) divides each voxel's
+        time-series by its own temporal mean.
 
         Args:
-            scale_val: (int/float) Target value for the mean after scaling. Default 100.
-            axis: (int or None) None for grand-mean scaling (default),
-                0 for voxel-wise scaling.
+            scale_val (int | float): Target value for the mean after scaling.
+                Default 100.
+            axis (int | None): ``None`` for grand-mean scaling (default), ``0``
+                for voxel-wise scaling.
 
         Returns:
             BrainData: New BrainData instance with scaled data.
@@ -1660,9 +1712,10 @@ class BrainData:
         """Calculate similarity to a single BrainData or nibabel image.
 
         Args:
-            image: (BrainData, nifti) image to evaluate similarity
-            metric: (str) Type of similarity
-                    ['correlation','pearson','rank_correlation','spearman','dot_product','cosine']
+            image (BrainData | Nifti1Image): Image to evaluate similarity against.
+            metric (str): Type of similarity: ``'correlation'`` (default),
+                ``'pearson'``, ``'rank_correlation'``, ``'spearman'``,
+                ``'dot_product'``, or ``'cosine'``.
 
         Returns:
             float or np.ndarray: Similarity value(s).
@@ -1675,7 +1728,8 @@ class BrainData:
         """Apply spatial smoothing using nilearn smooth_img().
 
         Args:
-            fwhm: (float) full width half maximum of gaussian spatial filter
+            fwhm (float): Full width at half maximum of the Gaussian spatial
+                filter, in mm.
 
         Returns:
             BrainData: Copy with smoothed data.
@@ -1706,15 +1760,16 @@ class BrainData:
         """Get standard deviation of each voxel or image.
 
         Args:
-            axis: 0 = across images (default, returns BrainData),
+            axis (int): 0 = across images (default, returns BrainData),
                 1 = within images (returns array). Ignored when
                 ``spatial_scale='roi'``.
-            spatial_scale: ``'whole_brain'`` (default) or ``'roi'`` (paints
+            spatial_scale (str): ``'whole_brain'`` (default) or ``'roi'`` (paints
                 each voxel with its parcel's std per image).
-            roi_mask: Atlas image for ``spatial_scale='roi'``.
+            roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
+                for ``spatial_scale='roi'``.
 
         Returns:
-            float/np.array/BrainData: Standard deviation values.
+            float | np.ndarray | BrainData: Standard deviation values.
         """
         if spatial_scale == "roi":
             from .analysis import reduce_per_roi
@@ -1728,11 +1783,11 @@ class BrainData:
         """Get sum of each voxel or image.
 
         Args:
-            axis: 0 = across images (default, returns BrainData),
-                1 = within images (returns array)
+            axis (int): 0 = across images (default, returns BrainData),
+                1 = within images (returns array).
 
         Returns:
-            float/np.array/BrainData: Sum values.
+            float | np.ndarray | BrainData: Sum values.
         """
         from .utils import apply_func
 
@@ -1742,9 +1797,10 @@ class BrainData:
         """Resample BrainData timeseries to a new target frequency or number of samples.
 
         Args:
-            sampling_freq: (float) sampling frequency of data in hertz
-            target: (float) upsampling target
-            target_type: (str) type of target can be [samples,seconds,hz]
+            sampling_freq (float | None): Sampling frequency of the data in hertz.
+            target (float | None): Resampling target, interpreted per ``target_type``.
+            target_type (str): How to read ``target``: ``'hz'`` (default),
+                ``'samples'``, or ``'seconds'``.
 
         Returns:
             BrainData: Resampled BrainData instance.
@@ -1768,10 +1824,12 @@ class BrainData:
         """Threshold BrainData instance with optional cluster filtering.
 
         Args:
-            upper: (float or str) Upper cutoff for thresholding.
-            lower: (float or str) Lower cutoff for thresholding.
-            binarize (bool): return binarized image. Default False.
-            coerce_nan (bool): coerce nan values to 0s. Default True.
+            upper (float | str | None): Upper cutoff for thresholding; a
+                percentile string like ``'95%'`` is accepted.
+            lower (float | str | None): Lower cutoff for thresholding; a
+                percentile string is accepted.
+            binarize (bool): Return a binarized image. Default False.
+            coerce_nan (bool): Coerce NaN values to 0s. Default True.
             cluster_threshold (int): Minimum cluster size in voxels. Default 0.
 
         Returns:
@@ -1873,24 +1931,24 @@ class BrainData:
         contrast maps) with shape ``(n_samples, n_voxels)``.
 
         Args:
-            popmean: Population mean to test against. Default 0.0.
-            permutation: If True, use sign-flip permutation test via
-                `one_sample_permutation_test`.
-            n_permute: Number of permutations (used only when
+            popmean (float): Population mean to test against. Default 0.0.
+            permutation (bool): If True, use a sign-flip permutation test via
+                `one_sample_permutation_test`. Default False.
+            n_permute (int): Number of permutations (used only when
                 ``permutation=True``). Default 5000.
-            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-                (positive direction).
-            return_null: If True, also return the null distribution.
+            tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
+                ``'one'`` for one-tailed (positive direction).
+            return_null (bool): If True, also return the null distribution.
                 Default False.
-            n_jobs: Number of parallel jobs. Default -1 (all cores).
-            random_state: Random seed for reproducibility.
+            n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+            random_state (int | None): Random seed for reproducibility.
 
         Returns:
-            dict[str, BrainData]: Four keys. `"mean"` is the voxelwise mean across
-                images (effect size); `"t"` the parametric one-sample t-statistic;
-                `"z"` the signed z-score, `sign(t) * norm.isf(p/2)`, matching
-                nilearn's `output_type='z_score'`; `"p"` the parametric p-value,
-                or empirical p when `permutation=True`. The effect size is always
+            dict[str, BrainData]: Four keys. ``"mean"`` is the voxelwise mean across
+                images (effect size); ``"t"`` the parametric one-sample t-statistic;
+                ``"z"`` the signed z-score, ``sign(t) * norm.isf(p/2)``, matching
+                nilearn's ``output_type='z_score'``; ``"p"`` the parametric p-value,
+                or empirical p when ``permutation=True``. The effect size is always
                 returned alongside the inferential maps so group-level code never
                 has to recompute the mean.
 
@@ -1898,14 +1956,16 @@ class BrainData:
             ValueError: If this BrainData contains fewer than 2 images.
 
         Examples:
-            >>> # Stack of subject-level contrast maps
-            >>> result = contrast_maps.ttest()
-            >>> sig = result["p"].data < 0.05
-            >>> effect = result["mean"]       # for reporting magnitude
-            >>> z_map = result["z"]           # for nilearn-style thresholding
+            ```python
+            # Stack of subject-level contrast maps
+            result = contrast_maps.ttest()
+            sig = result["p"].data < 0.05
+            effect = result["mean"]       # for reporting magnitude
+            z_map = result["z"]           # for nilearn-style thresholding
 
-            >>> # Permutation-based p-values; still reports t/z/mean
-            >>> result = contrast_maps.ttest(permutation=True, n_permute=5000)
+            # Permutation-based p-values; still reports t/z/mean
+            result = contrast_maps.ttest(permutation=True, n_permute=5000)
+            ```
         """
         from .modeling import ttest
 
@@ -1924,12 +1984,13 @@ class BrainData:
         """Two-sample voxelwise t-test between two BrainData stacks.
 
         Args:
-            other: BrainData to compare against. Must have the same
+            other (BrainData): BrainData to compare against. Must have the same
                 number of voxels.
-            equal_var: If True (default), standard two-sample t-test.
+            equal_var (bool): If True (default), standard two-sample t-test.
                 If False, Welch's t-test.
-            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-                (self > other; swap the operands for the other direction).
+            tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
+                ``'one'`` for one-tailed (self > other; swap the operands for the
+                other direction).
 
         Returns:
             dict: ``{"t": BrainData, "p": BrainData}``.
@@ -1958,12 +2019,14 @@ class BrainData:
         the image name.
 
         Args:
-            access_token: (str, Required) Neurovault api access token
-            collection_name: (str, Optional) name of new collection to create
-            collection_id: (int, Optional) neurovault collection_id if adding images
-                            to existing collection
-            img_type: (str, Required) Neurovault map_type
-            img_modality: (str, Required) Neurovault image modality
+            access_token (str): NeuroVault API access token. Required.
+            collection_name (str | None): Name of a new collection to create.
+            collection_id (int | None): NeuroVault ``collection_id`` when adding
+                images to an existing collection.
+            img_type (str): NeuroVault ``map_type``. Required.
+            img_modality (str): NeuroVault image modality. Required.
+            **kwargs (dict): Additional image metadata forwarded to the NeuroVault
+                API.
 
         Returns:
             dict: NeuroVault collection information.

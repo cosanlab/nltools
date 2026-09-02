@@ -1,8 +1,11 @@
-"""IO and constructors for BrainCollection.
+"""Constructors and disk IO for `BrainCollection`.
 
-Constructors (``from_bids``, ``from_glob``, ``from_paths``, ``read``),
-write, load/unload, cache plumbing, and ``memory_estimate``. Anything that
-crosses the disk boundary lives here.
+Builds collections from a BIDS dataset (`from_bids`, `discover_bids`), a glob
+(`from_glob`), explicit paths (`from_paths`), or a directory written by
+`write` (`read`); moves items between disk and memory (`load`, `unload`); and
+estimates the memory a fully loaded collection would need
+(`memory_estimate`). The `BrainCollection` methods of the same names
+delegate here.
 """
 
 from __future__ import annotations
@@ -55,15 +58,43 @@ def from_bids(
     TR: float | str = "infer",
     cache_dir: Path | str | None = "./.nltools_cache",
 ) -> BrainCollection:
-    """Build a ``BrainCollection`` from a BIDS dataset.
+    """Build a `BrainCollection` from a BIDS dataset.
 
-    Delegates discovery to ``nilearn.glm.first_level.first_level_from_bids``
-    (which wraps pybids), drops the returned ``models``, and keeps paths +
-    events/confounds DataFrames. Per-item ``DesignMatrix`` is built from the
-    events DataFrame; convolution / drift / confound merging is **not** done
-    here — that's the user's ``transform_designs`` step.
+    Discovery goes through ``nilearn.glm.first_level.first_level_from_bids``
+    (which wraps pybids); the returned models are discarded and only the BOLD
+    paths plus events/confounds DataFrames are kept. Each events DataFrame
+    becomes an unconvolved `DesignMatrix` — HRF convolution, drift terms, and
+    confound columns are left to `BrainCollection.transform_designs`.
 
-    See ``docs/development/execution-model.md`` for edge cases.
+    Args:
+        cls (type[BrainCollection]): The collection class to construct.
+        root (Path | str): BIDS dataset root.
+        mask (Nifti1Image | Path | str): Mask shared by every item.
+        task (str | None): BIDS task label. ``None`` discovers BOLD files
+            without pairing events (designs are all ``None``).
+        space (str | None): Only keep images in this ``space-`` entity.
+        sub_labels (list[str] | None): Restrict to these subject labels.
+        img_filters (list[tuple[str, str]] | None): Extra BIDS
+            ``(entity, value)`` filters on image filenames.
+        derivatives_folder (str): Preprocessed-derivatives folder name under
+            ``root``.
+        pair_events (bool): If True (and ``task`` is set), build a
+            `DesignMatrix` from each run's ``events.tsv``. Runs without one get
+            ``None`` and a warning.
+        confounds_strategy (str | tuple[str, ...] | None): fMRIPrep confounds
+            strategy forwarded to nilearn's ``load_confounds``.
+        confounds_kwargs (dict | None): Extra keyword arguments for
+            ``load_confounds``.
+        TR (float | str): Repetition time in seconds, or ``'infer'`` to read it
+            from the BIDS sidecars.
+        cache_dir (Path | str | None): Cache location; see `BrainCollection`.
+
+    Returns:
+        BrainCollection: A lazy, path-backed collection with per-run designs,
+            confounds, and sample masks attached.
+
+    Raises:
+        ValueError: If no BOLD files are discovered.
     """
     discovered = discover_bids(
         root,
@@ -151,11 +182,26 @@ def from_glob(
     sort: bool = True,
     cache_dir: Path | str | None = "./.nltools_cache",
 ) -> BrainCollection:
-    """Build a collection by globbing for BOLD images (and optionally designs).
+    """Build a collection by globbing for brain images (and optionally designs).
 
-    ``pattern_groups`` extracts metadata from filename wildcards. Pass
-    ``{column_name: wildcard_index}`` (0-based) to capture each ``*`` in
-    ``pattern`` into a metadata column.
+    Args:
+        cls (type[BrainCollection]): The collection class to construct.
+        pattern (str): Glob matching one brain image per subject.
+        mask (Nifti1Image | Path | str): Mask shared by every item.
+        design_pattern (str | None): Glob matching per-subject design files,
+            paired positionally with the images (match counts must agree).
+        pattern_groups (dict[str, int] | None): Metadata extracted from the
+            filename wildcards — ``{column_name: wildcard_index}`` (0-based)
+            captures each ``*`` in ``pattern`` into a metadata column.
+        sort (bool): If True, sort matched paths before pairing.
+        cache_dir (Path | str | None): Cache location; see `BrainCollection`.
+
+    Returns:
+        BrainCollection: A lazy, path-backed collection.
+
+    Raises:
+        ValueError: If ``pattern`` matches nothing, or ``design_pattern``
+            matches a different number of files.
     """
     import glob as _glob
     import re
@@ -215,7 +261,20 @@ def from_paths(
 ) -> BrainCollection:
     """Build a collection from explicit lists of brain (and design) paths.
 
-    Always lazy — items are stored as ``Path`` and loaded on demand.
+    Always lazy — items are stored as paths and loaded on demand.
+
+    Args:
+        cls (type[BrainCollection]): The collection class to construct.
+        brain_paths (list[Path | str]): One brain image path per subject.
+        mask (Nifti1Image | Path | str): Mask shared by every item.
+        design_paths (list[Path | str | None] | None): Per-subject design
+            paths aligned with ``brain_paths`` (``None`` entries allowed).
+        metadata (pl.DataFrame | pd.DataFrame | dict | None): Per-subject
+            table, one row per path.
+        cache_dir (Path | str | None): Cache location; see `BrainCollection`.
+
+    Returns:
+        BrainCollection: A lazy, path-backed collection.
     """
     return cls(
         brains=list(brain_paths),
@@ -234,11 +293,24 @@ def read(
     mask: nib.Nifti1Image | Path | str,
     cache_dir: Path | str | None = "./.nltools_cache",
 ) -> BrainCollection:
-    """Inverse of ``write()``: read images + ``metadata.csv`` from ``directory``.
+    """Read a collection from a directory written by `write`.
 
-    Discovers items by globbing ``image_*.nii*`` (matches the ``write()``
-    default pattern) and pairs them with rows from ``metadata.csv`` if it
-    exists. Does **not** recover from cache subdirs in v0.6.0.
+    Discovers items by globbing ``image_*.nii*`` (the `write` default
+    pattern) and pairs them with the rows of ``metadata.csv`` when present.
+    Only this portable layout is readable — not the cache directories.
+
+    Args:
+        cls (type[BrainCollection]): The collection class to construct.
+        directory (Path | str): Directory produced by `write`.
+        mask (Nifti1Image | Path | str): Mask shared by every item.
+        cache_dir (Path | str | None): Cache location; see `BrainCollection`.
+
+    Returns:
+        BrainCollection: A lazy, path-backed collection.
+
+    Raises:
+        FileNotFoundError: If ``directory`` does not exist.
+        ValueError: If it holds no ``image_*.nii*`` files.
     """
     directory = Path(directory)
     if not directory.is_dir():
@@ -385,17 +457,36 @@ def discover_bids(
     confounds_kwargs: dict | None,
     TR: float | str,
 ) -> dict[str, list]:
-    """Walk the BIDS dataset and return aligned per-item lists.
+    """Walk a BIDS dataset and return aligned per-run lists.
 
-    Returns a dict with keys: ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
-    ``sample_masks``, ``metadata_rows``, ``TRs``. Each list is the same length
-    (one entry per BOLD file). Anything missing for an item is ``None``.
+    With ``task=None`` only BOLD files are discovered (no events, no
+    confounds); designs are left unset by the caller.
 
-    Errors (see ``docs/development/execution-model.md``):
-      - Missing TR with ``TR='infer'``: raise.
-      - ``task=None`` + ``pair_events=True``: caller silently downgrades.
-      - fmriprep absent + ``confounds_strategy`` set: raise.
-      - pybids not installed: raise ``ImportError``.
+    Args:
+        root (Path | str): BIDS dataset root.
+        task (str | None): BIDS task label, or ``None`` for BOLD-only discovery.
+        space (str | None): Only keep images in this ``space-`` entity.
+        sub_labels (list[str] | None): Restrict to these subject labels.
+        img_filters (list[tuple[str, str]] | None): Extra BIDS
+            ``(entity, value)`` filters on image filenames.
+        derivatives_folder (str): Preprocessed-derivatives folder name under
+            ``root``.
+        confounds_strategy (str | tuple[str, ...] | None): fMRIPrep confounds
+            strategy forwarded to nilearn's ``load_confounds``.
+        confounds_kwargs (dict | None): Extra keyword arguments for
+            ``load_confounds``.
+        TR (float | str): Repetition time in seconds, or ``'infer'``.
+
+    Returns:
+        dict[str, list]: Keys ``bold_paths``, ``events_dfs``, ``confounds_dfs``,
+            ``sample_masks``, ``metadata_rows``, ``TRs``. Every list has one
+            entry per BOLD file; anything missing for a run is ``None``.
+
+    Raises:
+        ValueError: If ``TR='infer'`` finds no repetition time for a run, or no
+            BOLD files match.
+        ImportError: If nilearn/pybids are unavailable, or
+            ``confounds_strategy`` is set without fMRIPrep support in nilearn.
     """
     try:
         from nilearn.glm.first_level import first_level_from_bids
@@ -531,9 +622,20 @@ def write(
 ) -> list[Path]:
     """Write a clean, portable copy of ``bc`` outside the cache root.
 
-    Inverse of ``BrainCollection.read()``. Writes one NIfTI per item under
-    ``directory`` plus a metadata CSV. Skips the cache layout entirely so
-    the result is shareable / archival.
+    Inverse of `read`. Writes one NIfTI per item under ``directory`` plus a
+    metadata CSV, without the cache layout, so the result is shareable and
+    archival.
+
+    Args:
+        bc (BrainCollection): The collection to write.
+        directory (Path | str): Output directory (created if missing).
+        pattern (str): Filename template per item, formatted with ``i`` (item
+            index).
+        metadata_file (str | None): CSV filename for the metadata table, or
+            ``None`` to skip it.
+
+    Returns:
+        list[Path]: Written NIfTI paths, in item order.
     """
     from .execution import _atomic_write_nifti
 
@@ -557,11 +659,17 @@ def load(
     bc: BrainCollection,
     indices: list[int] | None = None,
 ) -> BrainCollection:
-    """Materialize path-backed items into ``BrainData``.
+    """Load path-backed items into memory as `BrainData`.
 
-    Mutates ``bc`` in place. This is the only mutation method besides
-    ``unload`` and does not allocate a step
-    subdir, does not write to disk, does not produce a new identity.
+    Mutates ``bc`` in place (`load` and `unload` are the only operations
+    that do). Nothing is written to disk and no cache step is recorded.
+
+    Args:
+        bc (BrainCollection): The collection to load.
+        indices (list[int] | None): Items to load; ``None`` loads all.
+
+    Returns:
+        BrainCollection: ``bc`` itself, for chaining.
     """
     from ..braindata import BrainData as _BrainData
 
@@ -577,10 +685,17 @@ def unload(
     bc: BrainCollection,
     indices: list[int] | None = None,
 ) -> BrainCollection:
-    """Drop in-memory data for items that have backing paths.
+    """Drop in-memory data for items that have a backing path.
 
-    Mutates in place. This is a no-op for items that don't have a backing path
-    because dropping them would lose data.
+    Mutates ``bc`` in place. Items without a backing path are left untouched,
+    since dropping them would lose the data.
+
+    Args:
+        bc (BrainCollection): The collection to unload.
+        indices (list[int] | None): Items to unload; ``None`` unloads all.
+
+    Returns:
+        BrainCollection: ``bc`` itself, for chaining.
     """
     from ..braindata import BrainData as _BrainData
 
@@ -594,8 +709,15 @@ def unload(
 def memory_estimate(bc: BrainCollection) -> str:
     """Human-readable RAM estimate if every item were loaded.
 
-    Reports ``n_subjects``, the per-item shape (or "unknown" if path-backed
-    and not yet loaded), and an estimated total in MB/GB based on float32.
+    The shape is read from the first in-memory item, or from the first item
+    loaded on demand when none is in memory. The total assumes float32.
+
+    Args:
+        bc (BrainCollection): The collection to estimate.
+
+    Returns:
+        str: ``n_subjects``, the per-item shape, and the estimated total in
+            human-readable units.
     """
     from ..braindata import BrainData as _BrainData
 

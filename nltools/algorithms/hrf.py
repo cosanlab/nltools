@@ -1,14 +1,11 @@
 """Hemodynamic response functions — thin wrappers over nilearn.
 
-nilearn ships canonical SPM and Glover HRFs (and their derivatives) under
-``nilearn.glm.first_level``. This module wraps them (same
-parameters, keyword-only after ``t_r`` per the nltools convention) so
-``nltools.algorithms.hrf`` imports keep working and the API reference renders
-Markdown docstrings.
+The canonical SPM and Glover HRFs and their time and dispersion derivatives,
+as shipped in `nilearn.glm.first_level`, with the same parameters (keyword-only
+after `t_r`).
 
-Every function returns a 1D array sampled every ``t_r / oversampling``
-seconds for ``time_length`` seconds, and is scaled so the canonical HRF
-peaks at 1.
+Every function returns a 1D array sampled every `t_r / oversampling` seconds
+for `time_length` seconds; the canonical HRFs are scaled to peak at 1.
 """
 
 from nilearn.glm import first_level as _nilearn

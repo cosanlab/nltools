@@ -1,9 +1,14 @@
 """Coordinate-level atlas labeling.
 
 Adapted from [atlasreader](https://github.com/miykael/atlasreader)
-(BSD-3-Clause). Cite:
+(BSD-3-Clause); please cite it when using these tools.
 
-> Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
+References:
+    Notter, M. P., Gale, D., Herholz, P., Markello, R., Notter-Bielser, M.-L., &
+    Whittingstall, K. (2019). AtlasReader: A Python package to generate
+    coordinate tables, region labels, and informative figures from statistical
+    MRI images. *Journal of Open Source Software*, 4(34), 1257.
+    https://doi.org/10.21105/joss.01257
 """
 
 from collections.abc import Sequence
@@ -119,16 +124,17 @@ def label_coords(
 
     For each coordinate, returns the atlas region(s) it falls in. Works
     for both deterministic atlases (single label per coord) and
-    probabilistic atlases (formatted ``"42.0% Foo; 18.0% Bar"`` strings,
+    probabilistic atlases (formatted `"42.0% Foo; 18.0% Bar"` strings,
     sorted by descending probability).
 
     Args:
-        coords: ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``.
-            A single coord like ``(-42, -22, 56)`` is also accepted.
-        atlas: Atlas name or list of names from `list_atlases`.
-            One column is added to the output per atlas.
-        prob_threshold: For probabilistic atlases only — drop regions
-            with probability (in percent units) below this threshold.
+        coords (array-like): `(N, 3)` MNI mm coordinates `(x, y, z)`. A single
+            coordinate like `(-42, -22, 56)` is also accepted.
+        atlas (str | Sequence[str]): Atlas name or list of names from
+            `list_atlases`. One column is added to the output per atlas. Default
+            `'harvard_oxford'`.
+        prob_threshold (float): For probabilistic atlases only — drop regions
+            with probability (in percent units) below this threshold. Default 5.0.
 
     Returns:
         pl.DataFrame: Frame with columns `x`, `y`, `z` plus one column per atlas.

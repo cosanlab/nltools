@@ -22,8 +22,9 @@ def component_viewer(output, tr=2.0):
     """Interactively view the results of a `BrainData.decompose()` run.
 
     Args:
-        output: (dict) output dictionary from running BrainData.decompose()
-        tr: (float) repetition time of data
+        output (dict): Output dictionary from `BrainData.decompose()` (keys
+            `'components'`, `'weights'`, `'decomposition_object'`).
+        tr (float): Repetition time of the data in seconds. Default 2.0.
 
     Note:
         Returns nothing; the interactive widgets render inline.

@@ -25,10 +25,9 @@ class Ridge(BaseModel):
     regression with optional GPU acceleration via PyTorch.
 
     Supports both regular ridge (single feature space) and banded ridge
-    (multiple feature spaces). The model automatically detects the input type:
-
-    - Array X: Single feature space → uses solve_ridge_cv
-    - List X: Multiple feature spaces → uses solve_banded_ridge_cv (true banded/group ridge)
+    (multiple feature spaces). The model detects the input type: an array `X`
+    is a single feature space; a list `X` is multiple feature spaces and runs
+    banded (group) ridge with a random search over feature-space weights.
 
     Args:
         alpha (float or 'auto', default=1.0): Regularization strength. If 'auto',
@@ -40,14 +39,13 @@ class Ridge(BaseModel):
         n_iter (int, default=100): Number of random search iterations.
             Only used when X is a list (multiple feature spaces). Ignored for single
             feature space.
-        concentration (float or list, default=[0.1, 1.0]): Concentration parameters
-            for Dirichlet sampling. Only used when X is a list (multiple feature spaces).
-            - A value of 1 corresponds to uniform sampling over the simplex.
-            - A value of infinity corresponds to equal weights.
-            - If a list, samples cycle through the list.
-        device (str, default='cpu'): Compute device. One of ``'cpu'`` (NumPy),
-            ``'gpu'`` (PyTorch on CUDA/MPS when available, else torch-CPU), or
-            ``'auto'`` (use a GPU if one is present, otherwise NumPy). Selects
+        concentration (float or list, default=[0.1, 1.0]): Concentration parameter(s)
+            for Dirichlet sampling of feature-space weights. Only used when X is a
+            list. A value of 1 samples uniformly over the simplex, infinity gives
+            equal weights, and a list is cycled through across iterations.
+        device (str, default='cpu'): Compute device. One of `'cpu'` (NumPy),
+            `'gpu'` (PyTorch on CUDA/MPS when available, else torch-CPU), or
+            `'auto'` (use a GPU if one is present, otherwise NumPy). Selects
             *where* the SVD/CV math runs; distinct from any CPU-core parallelism.
         local_alpha (bool, default=True): If True, select best alpha independently
             for each target. If False, select single best alpha for all targets.
@@ -68,7 +66,7 @@ class Ridge(BaseModel):
         deltas_ (ndarray or None): Feature space weights (only if X was a list)
             Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
         backend_ (Backend): Resolved backend instance used for computation
-            (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
+            (its `.name` reports the concrete device, e.g. `'torch-cuda'`).
 
     Examples:
         ```python
@@ -330,9 +328,8 @@ class Ridge(BaseModel):
                 for X
 
         Returns:
-            float or ndarray:
-                - If y is 1D: scalar R²
-                - If y is 2D: array of shape (n_targets,) with per-target R² scores
+            float | np.ndarray: A scalar R² when `y` is 1-D; an array of shape
+                `(n_targets,)` with per-target R² scores when `y` is 2-D.
         """
         self._check_is_fitted()
         X, y = self._validate_X_y(X, y)

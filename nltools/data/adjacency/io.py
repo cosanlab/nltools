@@ -7,13 +7,13 @@ import polars as pl
 
 
 def write(adj, file_name, method="long"):
-    """Write out Adjacency object to csv file.
+    """Write an Adjacency to a `.csv` or `.h5` file.
 
     Args:
-        adj: Adjacency object to write
-        file_name (str):  name of file name to write
-        method (str):     method to write out data ['long','square']
-
+        adj (Adjacency): Adjacency object to write.
+        file_name (str | Path): Output path; an `.h5`/`.hdf5` suffix writes HDF5.
+        method (str): Layout for CSV output, `'long'` (vectorized rows) or `'square'`
+            (single matrix only).
     """
     from nltools.io import is_h5_path, to_h5
 

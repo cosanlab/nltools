@@ -32,19 +32,20 @@ def similarity(
 
     Args:
         adj (Adjacency): Adjacency instance.
-        data (Adjacency or array): Adjacency data, or 1-d array same size as adj.data.
+        data (Adjacency | np.ndarray): Adjacency to compare against, or a 1-D array the
+            same size as `adj.data`.
         plot (bool): If True, plot stacked adjacency matrices. Default False.
-        method (str): permutation scheme '1d', '2d', or None.
+        method (str | None): Permutation scheme, `'1d'`, `'2d'`, or None (no
+            permutation test).
         n_permute (int): Number of permutations. Default 5000.
-        metric (str): 'spearman', 'pearson', or 'kendall'.
-        include_diag (bool): Only applies to 'directed' Adjacency types using
-            method=None or method='1d'. Default False
-            (self-similarity is uninformative). Symmetric matrices never store
-            the diagonal, so this flag is a no-op for them.
-        nan_policy (str): How to handle NaN values. Options:
-            - 'omit': Remove NaN values pairwise before computing correlation (default)
-            - 'propagate': Allow NaN to propagate through calculations
-            - 'raise': Raise an error if NaN values are present
+        metric (str): `'spearman'`, `'pearson'`, or `'kendall'`.
+        include_diag (bool): Only applies to `'directed'` matrices with `method=None`
+            or `method='1d'`. Default False (self-similarity is uninformative).
+            Symmetric matrices never store the diagonal, so this flag is a no-op
+            for them.
+        nan_policy (str): How to handle NaN values: `'omit'` removes NaN pairwise
+            before computing the correlation (default), `'propagate'` lets NaN flow
+            through, `'raise'` errors if any NaN is present.
         tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction).
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
@@ -250,19 +251,16 @@ def threshold(adj, *, upper=None, lower=None, binarize=False):
     provided, otherwise respecting every non-zero value.
 
     Args:
-        adj (Adjacency): Adjacency instance
-        upper: (float or str) Upper cutoff for thresholding. If string
-                will interpret as percentile; can be None for one-sided
-                thresholding.
-        lower: (float or str) Lower cutoff for thresholding. If string
-                will interpret as percentile; can be None for one-sided
-                thresholding.
-        binarize (bool): return binarized image respecting thresholds if
-                provided, otherwise binarize on every non-zero value;
-                default False
+        adj (Adjacency): Adjacency instance.
+        upper (float | str, optional): Upper cutoff. A string such as `'95%'` is
+            interpreted as a percentile; None for one-sided thresholding.
+        lower (float | str, optional): Lower cutoff. A string such as `'5%'` is
+            interpreted as a percentile; None for one-sided thresholding.
+        binarize (bool): Return a binarized matrix respecting the thresholds if
+            provided, otherwise binarize on every non-zero value. Default False.
 
     Returns:
-        Adjacency: thresholded Adjacency instance
+        Adjacency: Thresholded Adjacency instance.
     """
 
     b = adj.copy()
@@ -293,22 +291,24 @@ def ttest(
     random_state=None,
     progress_bar=False,
 ):
-    """Calculate ttest across samples.
+    """Calculate a one-sample t-test across stacked matrices.
 
     Args:
-        adj (Adjacency): Adjacency instance (must contain multiple matrices)
-        permutation: (bool) Run ttest as permutation. Note this can be very slow.
-        n_permute: Number of permutations (used only when
-            ``permutation=True``). Default 5000.
-        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction).
-        return_null: If True, also return the null distribution. Default False.
-        n_jobs: Number of parallel jobs. Default -1 (all cores).
-        random_state: Random seed for reproducibility.
-        progress_bar: If True, show a progress bar. Default False.
+        adj (Adjacency): Adjacency instance (must contain multiple matrices).
+        permutation (bool): Run the test as a permutation test. Note this can be very
+            slow.
+        n_permute (int): Number of permutations (used only when `permutation=True`).
+            Default 5000.
+        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed,
+            positive direction).
+        return_null (bool): If True, also return the null distribution. Default False.
+        n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+        random_state (int, optional): Random seed for reproducibility.
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict: Contains Adjacency instances of t values (or mean if running
-            permutation) and Adjacency instance of p values.
+        dict: `'t'` — Adjacency of t values (or means when `permutation=True`) — and
+            `'p'` — Adjacency of p values.
     """
     from copy import deepcopy
 
@@ -389,9 +389,9 @@ def plot_label_distance(adj, labels=None, ax=None):
     """Create a violin plot of within- and between-label distances.
 
     Args:
-        adj (Adjacency): Adjacency instance (must be a single matrix)
-        labels (np.array):  numpy array of labels to plot
-
+        adj (Adjacency): Adjacency instance (must be a single matrix).
+        labels (np.ndarray, optional): Group label per node; defaults to `adj.labels`.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
     """
     from copy import deepcopy
 
@@ -428,13 +428,15 @@ def stats_label_distance(
     """Calculate permutation tests on within and between label distance.
 
     Args:
-        adj (Adjacency): Adjacency instance (must be a single matrix)
-        labels (np.array):  numpy array of labels to plot
-        n_permute (int): number of permutations to run (default=5000)
+        adj (Adjacency): Adjacency instance (must be a single matrix).
+        labels (np.ndarray, optional): Group label per node; defaults to `adj.labels`.
+        n_permute (int): Number of permutations to run. Default 5000.
+        n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict:  dictionary of within and between group differences
-                and p-values
+        dict: Per-group within-vs-between distance differences and p-values, keyed by
+            group label.
     """
     from copy import deepcopy
 
@@ -479,15 +481,18 @@ def plot_silhouette(
 
     Args:
         adj (Adjacency): Adjacency instance (must be a single matrix).
-        labels (np.array): Numpy array of cluster/group labels.
-        ax: Matplotlib axis handle.
+        labels (np.ndarray, optional): Cluster/group label per node; defaults to
+            `adj.labels`.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
         permutation_test (bool): Whether to run a permutation test. Default True.
         n_permute (int): Number of permutations for the test. Default 5000.
-        colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
-        figsize: Figure size tuple. Default (6, 4).
+        colors (list, optional): RGB triplets, one per cluster. Default: seaborn
+            `'hls'` palette.
+        figsize (tuple): Figure size. Default (6, 4).
 
     Returns:
-        dict: Silhouette plot results including scores and optional permutation p-value.
+        pl.DataFrame: Columns `label` and `mean_silhouette`, plus `p` when
+            `permutation_test=True`.
     """
     from copy import deepcopy
 
@@ -513,19 +518,20 @@ def plot_silhouette(
 
 
 def cluster_summary(adj, *, clusters=None, summary="mean", scope="within"):
-    """This function provides summaries of clusters within Adjacency matrices.
+    """Provide summaries of clusters within Adjacency matrices.
 
-    It can compute mean/median of within and between cluster values. Requires a
-    list of cluster ids indicating the row/column of each cluster.
+    Computes the mean/median of within- or between-cluster values. Requires a
+    list of cluster ids indicating the cluster of each row/column.
 
     Args:
-        adj (Adjacency): Adjacency instance
-        clusters: (list) list of cluster labels
-        summary: (str) central tendency, 'mean' or 'median'. If `None` then return all r values
-        scope: (str) summarize 'within' cluster or 'between' clusters
+        adj (Adjacency): Adjacency instance.
+        clusters (list): Cluster label for each row/column.
+        summary (str | None): Central tendency, `'mean'` or `'median'`. If None,
+            return all values instead of a summary.
+        scope (str): Summarize `'within'` cluster or `'between'` clusters.
 
     Returns:
-        dict: (dict) per-cluster summaries
+        dict: Per-cluster summaries keyed by cluster label.
     """
     if summary not in ["mean", "median", None]:
         raise ValueError("summary must be ['mean','median', None]")

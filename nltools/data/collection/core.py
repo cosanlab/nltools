@@ -1,7 +1,9 @@
-"""Module-level helpers for BrainCollection.
+"""Pure helpers behind `BrainCollection`: metadata coercion, mask and cache-dir resolution, run/step ids.
 
-Pure functions: metadata coercion, mask resolution, run/step ID generation,
-step-directory naming. No class state lives here.
+`coerce_metadata` and `resolve_mask` normalize constructor inputs;
+`resolve_cache_dir` applies the cache-location precedence; `make_run_id`
+and `make_step_dirname` name the cache root and its per-operation
+subdirectories.
 """
 
 from __future__ import annotations
@@ -39,11 +41,21 @@ def coerce_metadata(
 ) -> pl.DataFrame:
     """Coerce a metadata input into a polars DataFrame of length ``n_subjects``.
 
-    Accepts polars/pandas DataFrames or a dict-of-columns. ``None`` yields a
-    DataFrame with a default ``subject`` column (``sub-0001``, ...).
+    Metadata holds simple per-subject values only; DataFrames and arrays
+    (designs, confounds, sample masks) travel alongside it in their own
+    per-item slots.
 
-    Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
-    the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
+    Args:
+        metadata (pl.DataFrame | pd.DataFrame | dict | None): A polars or
+            pandas DataFrame, a dict of columns, or ``None`` for a default
+            ``subject`` column (``sub-0001``, ...).
+        n_subjects (int): Required number of rows.
+
+    Returns:
+        pl.DataFrame: One row per subject.
+
+    Raises:
+        ValueError: If the row count does not equal ``n_subjects``.
     """
     if metadata is None:
         return pl.DataFrame(
@@ -71,9 +83,16 @@ def resolve_mask(
 ) -> nib.Nifti1Image:
     """Resolve a mask spec into a Nifti1Image.
 
-    Accepts a Nifti1Image, a path, or a known nltools template string
-    (e.g. ``"3mm-MNI152-2009c"``). String templates dispatch to the same
-    resolver used by ``BrainData``.
+    Args:
+        mask (Nifti1Image | Path | str): An image, a path, or an nltools
+            template name such as ``'3mm-MNI152-2009c'`` (resolved the same
+            way `BrainData` resolves template masks).
+
+    Returns:
+        Nifti1Image: The loaded mask.
+
+    Raises:
+        TypeError: For any other input type.
     """
     if isinstance(mask, nib.Nifti1Image):
         return mask
@@ -90,12 +109,19 @@ def resolve_mask(
 
 
 def resolve_cache_dir(cache_dir: Path | str | None) -> Path | None:
-    """Resolve ``cache_dir`` per the spec's precedence rules.
+    """Resolve ``cache_dir`` in precedence order: explicit arg → ``NLTOOLS_CACHE_DIR`` → ``./.nltools_cache``.
 
-    Order: explicit arg → ``NLTOOLS_CACHE_DIR`` env var → ``./.nltools_cache``.
-    Returns ``None`` when the caller passes ``None`` (signaling tempdir mode).
-    The returned path is *not* yet decorated with a ``run_id`` subdir; that
-    happens at construction time on the instance.
+    The environment variable is consulted only when the default
+    ``'./.nltools_cache'`` was passed. The result is the cache *parent*; the
+    collection appends its own ``run_id`` subdirectory at construction.
+
+    Args:
+        cache_dir (Path | str | None): Requested location, or ``None`` to ask
+            for an auto-cleaned temp dir.
+
+    Returns:
+        Path | None: The resolved absolute path, or ``None`` when ``None`` was
+            passed.
     """
     if cache_dir is None:
         # Sentinel: caller wants an auto-cleaned tempdir.
@@ -111,10 +137,18 @@ _RUN_ID_RE = re.compile(r"^\d{8}T\d{6}_[0-9a-f]{8}$")
 
 
 def make_run_id(now: datetime | None = None) -> str:
-    """Build a fresh ``run_id`` of the form ``{timestamp}_{uuid8}``.
+    """Build a fresh ``run_id`` of the form ``{timestamp}_{token}``.
 
-    Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
-    ``secrets.token_hex(4)``. Lex-sortable, collision-free across processes.
+    The timestamp is UTC ``YYYYMMDDTHHMMSS``; the token is 8 random hex
+    characters, so ids sort lexicographically by time and do not collide
+    across processes.
+
+    Args:
+        now (datetime | None): Timestamp to use; ``None`` means the current
+            UTC time.
+
+    Returns:
+        str: The run id.
     """
     now = now or datetime.now(UTC)
     return f"{now.strftime('%Y%m%dT%H%M%S')}_{secrets.token_hex(4)}"
@@ -142,13 +176,23 @@ def make_step_dirname(
     *,
     now: datetime | None = None,
 ) -> str:
-    """Name a step subdir: ``{timestamp}_{seq}_{uuid8}_{op}_{key_kwargs}/``.
+    """Name a cache step subdirectory: ``{timestamp}_{seq}_{token}_{op}_{key_kwargs}``.
 
-    Each call yields a unique name (UUID tail) — same op + same params
-    twice produces two subdirs, never overwriting. The zero-padded ``seq`` is
-    a process-monotonic counter placed after the second-resolution timestamp,
-    so lexicographic order tracks creation order even for calls that share a
-    second (the timestamp stays the primary, cross-process ordering key).
+    Each call yields a unique name (random token), so running the same op
+    with the same parameters twice produces two subdirectories and never
+    overwrites. The zero-padded ``seq`` is a process-monotonic counter placed
+    after the second-resolution timestamp, so lexicographic order tracks
+    creation order even for calls within the same second.
+
+    Args:
+        op (str): Short operation name (e.g. ``'smooth'``).
+        kwargs (dict[str, Any] | None): Scalar kwargs to slug into the name
+            (``{'fwhm': 6.0}`` → ``fwhm-6.0``); ``None`` values are skipped.
+        now (datetime | None): Timestamp to use; ``None`` means the current
+            UTC time.
+
+    Returns:
+        str: The directory name (no path components).
     """
     now = now or datetime.now(UTC)
     stamp = now.strftime("%Y%m%dT%H%M%S")

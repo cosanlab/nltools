@@ -1,9 +1,12 @@
-"""Immutable container for model fitting results.
+"""Immutable result containers returned by model fitting and decoding.
 
-This module provides the Fit dataclass, which stores results from model fitting
-operations in nltools. It uses pure numpy arrays and has no dependencies on
-BrainData or other nltools data structures, making it suitable for standalone
-use with inference algorithms.
+`Fit` holds the arrays produced by `BrainData.fit` (GLM or ridge, with or
+without cross-validation); `Predict` holds the output of `BrainData.predict`
+(scores, out-of-fold predictions, and brain-space weight / accuracy maps);
+`PredictCollection` holds one `Predict` per subject from
+`BrainCollection.predict`. All three are frozen dataclasses: fields not
+computed for a given call are ``None`` and are dropped by `available` and
+`asdict`.
 
 Examples:
     ```python
@@ -57,56 +60,34 @@ import numpy as np
 class Fit:
     """Immutable container for model fitting results.
 
-    Pure numpy arrays with minimal introspection methods. This allows
-    users to work directly with nltools inference algorithms without
-    requiring BrainData objects.
-
-    Attributes depend on model type and CV usage:
-
-    **Ridge (no CV):**
-        weights (ndarray): Coefficients, shape (n_features, n_voxels)
-        scores (ndarray): R² scores, shape (n_voxels,)
-        fitted_values (ndarray): Training predictions, shape (n_samples, n_voxels)
-
-    **Ridge (with CV):**
-        All above plus:
-        cv_scores (ndarray): Per-fold R², shape (n_folds, n_voxels)
-        cv_mean_score (ndarray): Mean R² across folds, shape (n_voxels,)
-        cv_predictions (ndarray): Out-of-fold predictions, shape (n_samples, n_voxels)
-        cv_folds (ndarray): Fold indices, shape (n_samples,)
-        cv_best_alpha (float): Selected alpha (if alpha='auto')
-        cv_alpha_scores (ndarray): Alpha selection scores (if alpha='auto')
-
-    **GLM:**
-        betas (ndarray): Beta coefficients, shape (n_regressors, n_voxels)
-        t_stats (ndarray): T-statistics, shape (n_regressors, n_voxels)
-        p_values (ndarray): P-values, shape (n_regressors, n_voxels)
-        se (ndarray): Standard errors, shape (n_regressors, n_voxels)
-        residuals (ndarray): Residuals, shape (n_samples, n_voxels)
-        fitted_values (ndarray): Fitted values, shape (n_samples, n_voxels)
-        r2 (ndarray): R² values, shape (n_voxels,)
+    Plain numpy arrays with minimal introspection, so results can feed the
+    inference algorithms directly without a `BrainData`. Which fields are
+    populated depends on the model: **ridge** fills ``weights``, ``scores``,
+    and ``fitted_values``, plus the ``cv_*`` fields when fit with
+    cross-validation (``cv_best_alpha`` / ``cv_alpha_scores`` only under
+    ``alpha='auto'``); **GLM** fills ``betas``, ``t_stats``, ``p_values``,
+    ``se``, ``residuals``, ``r2``, and ``fitted_values``. Everything else is
+    ``None`` and omitted from `available` and `asdict`.
 
     Attributes:
-        fitted_values (ndarray): Fitted values or predictions, always present.
-        weights (ndarray | None): Model coefficients (Ridge).
-        scores (ndarray | None): R² scores (Ridge).
-        betas (ndarray | None): Beta coefficients (GLM).
-        t_stats (ndarray | None): T-statistics (GLM).
-        p_values (ndarray | None): P-values (GLM).
-        se (ndarray | None): Standard errors (GLM).
-        residuals (ndarray | None): Residuals (GLM).
-        r2 (ndarray | None): R² values (GLM).
-        cv_scores (ndarray | None): Per-fold cross-validation scores.
-        cv_mean_score (ndarray | None): Mean cross-validation score across folds.
-        cv_predictions (ndarray | None): Out-of-fold predictions.
-        cv_folds (ndarray | None): Fold indices for each sample.
-        cv_best_alpha (float | None): Best alpha selected via cross-validation.
-        cv_alpha_scores (ndarray | None): Cross-validation scores for each alpha tested.
-
-    Note:
-        Methods: `available` returns the list of non-None attribute names
-        (excludes private fields); `asdict` converts to a dictionary,
-        optionally excluding None values.
+        fitted_values (ndarray): Fitted values / training predictions,
+            ``(n_samples, n_voxels)``; always present.
+        weights (ndarray | None): Ridge coefficients, ``(n_features, n_voxels)``.
+        scores (ndarray | None): Ridge training R², ``(n_voxels,)``.
+        betas (ndarray | None): GLM coefficients, ``(n_regressors, n_voxels)``.
+        t_stats (ndarray | None): GLM t-statistics, ``(n_regressors, n_voxels)``.
+        p_values (ndarray | None): GLM p-values, ``(n_regressors, n_voxels)``.
+        se (ndarray | None): GLM standard errors, ``(n_regressors, n_voxels)``.
+        residuals (ndarray | None): GLM residuals, ``(n_samples, n_voxels)``.
+        r2 (ndarray | None): GLM R², ``(n_voxels,)``.
+        cv_scores (ndarray | None): Per-fold CV R², ``(n_folds, n_voxels)``.
+        cv_mean_score (ndarray | None): Mean CV R² across folds, ``(n_voxels,)``.
+        cv_predictions (ndarray | None): Out-of-fold predictions,
+            ``(n_samples, n_voxels)``.
+        cv_folds (ndarray | None): Fold index per sample, ``(n_samples,)``.
+        cv_best_alpha (float | None): Alpha selected under ``alpha='auto'``.
+        cv_alpha_scores (ndarray | None): Score per candidate alpha under
+            ``alpha='auto'``.
 
     Examples:
         ```python
@@ -146,10 +127,9 @@ class Fit:
         ```
 
     Note:
-        - Frozen dataclass ensures results cannot be accidentally modified.
-        - All attributes are numpy arrays (except cv_best_alpha which is float).
-        - None values indicate that field was not computed for this model/method.
-        - Private fields (starting with _) are excluded from available() and asdict().
+        The dataclass is frozen, so results cannot be modified by accident.
+        Every field is a numpy array except ``cv_best_alpha`` (a float); a
+        ``None`` value means the field was not computed for this model.
     """
 
     # Always available
@@ -245,73 +225,73 @@ class Fit:
 
 @dataclass(frozen=True)
 class Predict:
-    """Immutable container for prediction / MVPA decoding results.
+    """Immutable container for MVPA decoding results from `BrainData.predict`.
 
-    Mirrors `Fit`: frozen, all fields default to `None`, populated
-    based on the dispatch path (`spatial_scale`, `y` vs `X`, `refit`) used
-    by `BrainData.predict`. Fields not applicable to the call remain
-    `None` and are filtered from `available` and `asdict`.
+    Mirrors `Fit`: frozen, every field defaults to ``None``, and which fields
+    are populated depends on ``spatial_scale``. Fields not applicable to the
+    call stay ``None`` and are dropped by `available` and `asdict`.
 
-    **Brain-space outputs are `BrainData` objects**, not raw arrays —
-    so `result.weight_map.plot()` works directly. Drop down to numpy via
-    `result.weight_map.data` if needed. Non-spatial fields (`predictions`,
-    `cv_folds`, scalar scores) stay as numpy.
+    **Brain-space outputs are `BrainData` objects**, not raw arrays, so
+    ``result.weight_map.plot()`` works directly (``.data`` gives the array).
+    Non-spatial fields (``predictions``, ``cv_folds``, scalar scores) are
+    numpy.
 
-    Field shapes by dispatch:
+    **Populated by `spatial_scale`.** ``'whole_brain'``: ``predictions``,
+    ``scores``, ``mean_score``, ``std_score``, ``cv_folds``, ``weight_map``,
+    ``fold_weight_maps``, ``estimator``. ``'roi'``: ``scores``,
+    ``mean_score``, ``std_score``, ``roi_labels``, ``accuracy_map``,
+    ``weight_map``, ``fold_weight_maps``, ``estimator`` — and if any parcel's
+    model cannot expose ``coef_`` (a non-linear model, or feature selection in
+    the pipeline), ``weight_map`` / ``fold_weight_maps`` / ``estimator`` are
+    all ``None`` for the whole call. ``'searchlight'``: ``accuracy_map`` only.
 
-    **spatial_scale='whole_brain'** (with `y`):
-        - `predictions`: `(n_samples,)` ndarray, OOF predictions from CV
-        - `scores`: `(n_folds,)` ndarray, per-fold score
-        - `mean_score`: float, mean across folds
-        - `std_score`: float, std across folds
-        - `cv_folds`: `(n_samples,)` ndarray, fold index per sample
-        - `weight_map`: BrainData `(1, n_voxels)`, `coef_` from one
-          model fit on the **full** `(X, y)`. The publishable map.
-        - `fold_weight_maps`: BrainData `(n_folds, n_voxels)`, per-fold
-          `coef_` stack — for stability analysis (e.g., across-fold std).
-        - `estimator`: the fitted all-data sklearn estimator (use for
-          `.predict()` on new data).
+    **Why the all-data fit is the canonical map.** The mean of per-fold
+    ``coef_`` vectors corresponds to no actual fitted estimator (each fold saw
+    a different subset). The all-data refit is one real model using all the
+    information; CV gives the honest *score*, the refit gives the publishable
+    *map*. ``fold_weight_maps`` is still exposed for stability analysis, and
+    the CV mean is ``fold_weight_maps.data.mean(axis=0)``.
 
-    **spatial_scale='roi'** (with `y`):
-        - `scores`: `(n_folds, n_rois)` ndarray
-        - `mean_score`: `(n_rois,)` ndarray, mean across folds per parcel
-        - `std_score`: `(n_rois,)` ndarray
-        - `roi_labels`: `(n_rois,)` ndarray of atlas integer IDs in the
-          same order as `mean_score` / `std_score` / `scores` axis 1
-        - `accuracy_map`: BrainData `(1, n_voxels)`, every voxel inside
-          parcel *i* set to that parcel's mean accuracy (others NaN)
-        - `weight_map`: BrainData `(1, n_voxels)`, per-parcel `coef_`
-          from each parcel's all-data fit, written back into voxel space
-          (atlas is a label image so reassembly is disjoint). Voxels outside
-          any parcel are NaN. Magnitudes across parcels are not directly
-          comparable — different parcels live on different X distributions.
-        - `fold_weight_maps`: BrainData `(n_folds, n_voxels)`
-        - `estimator`: `dict[int, sklearn]` keyed by atlas label
-
-        If any parcel can't expose `.coef_` (non-linear model, `SelectKBest`
-        in pipeline), `weight_map` / `fold_weight_maps` / `estimator`
-        all collapse to `None` for the whole call.
-
-    **spatial_scale='searchlight'** (with `y`):
-        - `accuracy_map`: BrainData `(1, n_voxels)`, sphere-centered
-          accuracy at each voxel
+    Attributes:
+        predictions (ndarray | None): Out-of-fold CV predictions,
+            ``(n_samples,)`` (whole-brain only).
+        scores (ndarray | None): Per-fold score — ``(n_folds,)`` for
+            whole-brain, ``(n_folds, n_rois)`` for ROI.
+        mean_score (float | ndarray | None): Mean score across folds — a float
+            for whole-brain, ``(n_rois,)`` for ROI.
+        std_score (float | ndarray | None): Score standard deviation across
+            folds, same form as ``mean_score``.
+        cv_folds (ndarray | None): Fold index per sample, ``(n_samples,)``
+            (whole-brain only).
+        roi_labels (ndarray | None): Atlas integer ids, ``(n_rois,)``, in the
+            order of ``mean_score`` / ``std_score`` / ``scores`` axis 1 (ROI
+            only).
+        accuracy_map (BrainData | None): ``(1, n_voxels)`` map — for ROI,
+            every voxel in parcel *i* holds that parcel's mean score (NaN
+            outside parcels); for searchlight, the sphere-centered score at
+            each voxel.
+        weight_map (BrainData | None): ``(1, n_voxels)`` ``coef_`` of the model
+            refit on all data — the publishable map. For ROI, each parcel's
+            coefficients are written back into voxel space (NaN outside
+            parcels); magnitudes are not comparable across parcels.
+        fold_weight_maps (BrainData | None): ``(n_folds, n_voxels)`` stack of
+            per-fold ``coef_`` for stability analysis.
+        estimator (Any): The fitted all-data sklearn estimator (whole-brain;
+            use it to ``.predict()`` on new data), or a ``dict[int, estimator]``
+            keyed by atlas label (ROI). ``None`` when read back from a cached
+            bundle.
+        permutation_scores (ndarray | None): Label-permutation null from
+            `BrainCollection.predict_group` — ``(n_permute,)`` for whole-brain,
+            ``(n_permute, n_rois)`` for ROI, ``(n_permute, n_voxels)`` for
+            searchlight.
+        permutation_pvalue (float | ndarray | BrainData | None): Upper-tail
+            permutation p-value — a float, ``(n_rois,)``, or a
+            ``(1, n_voxels)`` `BrainData` map, matching ``permutation_scores``.
 
     Note:
-        Encoding-model timeseries prediction (`bd.predict(X=...)`) returns
-        a `BrainData` directly, not a `Predict` — the natural container for a
-        voxel timeseries.
-
-        Why the all-data fit is canonical: the CV mean of per-fold `coef_`
-        vectors doesn't correspond to any actual fitted estimator (each fold
-        saw a different subset). The all-data refit is a single, real model
-        with all the information used. CV gives the honest *score*; the refit
-        gives the publishable *map*. `fold_weight_maps` is still exposed for
-        stability analysis, and the CV-mean is one line away if you want it
-        (`fold_weight_maps.data.mean(axis=0)`).
-
-        Methods: `available` returns the names of non-None fields (excludes
-        private); `asdict` converts to a dict for serialization (private fields
-        always excluded).
+        Encoding-model timeseries prediction (``bd.predict(X=...)``) returns a
+        `BrainData` directly rather than a `Predict` — the natural container
+        for a voxel timeseries.
     """
 
     # MVPA / classification — populated when y given
@@ -378,20 +358,25 @@ class PredictCollection:
     for a group test.
 
     Attributes:
-        results: One `Predict` per subject, in collection order.
-        metadata: Optional per-subject metadata (polars DataFrame, one row
-            per subject), carried over from the source collection.
-        paths: Optional on-disk predict-bundle paths, populated when the
-            producing call cached its results (``cache=True``/``'auto'``).
-
-    Note:
-        Properties: ``mean_scores`` / ``std_scores`` stack each subject's
-        score summary — ``(n_subjects,)`` for whole-brain decoding,
-        ``(n_subjects, n_rois)`` for ROI. ``scores`` renders the whole-brain
-        case as a polars DataFrame alongside the metadata. ``weight_maps`` /
-        ``accuracy_maps`` stack the per-subject brain maps into one
-        ``BrainData``. ``available`` returns the field names populated on
-        *every* subject's result.
+        results (tuple[Predict, ...]): One `Predict` per subject, in
+            collection order.
+        metadata (pl.DataFrame | None): Per-subject metadata (one row per
+            subject), carried over from the source collection.
+        paths (tuple[Path | None, ...] | None): On-disk predict-bundle paths,
+            populated when the producing call cached its results
+            (``cache=True`` / ``'auto'``).
+        mean_scores (np.ndarray): Stacked per-subject mean CV score —
+            ``(n_subjects,)`` for whole-brain decoding, ``(n_subjects,
+            n_rois)`` for ROI.
+        std_scores (np.ndarray): Stacked per-subject score standard deviation
+            across folds, same shape as ``mean_scores``.
+        scores (pl.DataFrame): Per-subject score table — the metadata plus
+            ``mean_score`` / ``std_score`` columns. Whole-brain decoding only;
+            ROI results raise (use ``mean_scores`` / ``std_scores``).
+        weight_maps (BrainData): Per-subject decoder maps stacked into one
+            ``(n_subjects, n_voxels)`` `BrainData`.
+        accuracy_maps (BrainData): Per-subject accuracy maps stacked into one
+            ``(n_subjects, n_voxels)`` `BrainData`.
 
     Examples:
         ```python

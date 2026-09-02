@@ -1,8 +1,8 @@
-"""BrainData I/O and loading functions.
+"""Loading, resampling, writing, and uploading for `BrainData`.
 
-Standalone functions extracted from BrainData class methods for mask initialization,
-data loading (from files, lists, URLs, HDF5, other BrainData objects), resampling,
-writing, and uploading.
+Functions that resolve a mask, load data (from files, lists, URLs, HDF5, or other
+`BrainData` objects), resample to a target grid, write NIfTI/HDF5, and upload to
+NeuroVault. `BrainData` methods delegate here.
 """
 
 import os
@@ -68,10 +68,11 @@ def initialize_mask(bd, mask):
     """Initialize the mask image.
 
     Args:
-        bd: BrainData instance.
-        mask: Brain mask as nibabel object, file path, template name string, or None.
-            Template name strings supported: '{res}mm-MNI152-2009{version}'
-            (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl')
+        bd (BrainData): Instance whose mask is being set.
+        mask (Nifti1Image | str | Path | None): Brain mask as a nibabel image, file
+            path, template name string, or None. Template name strings follow
+            `'{res}mm-MNI152-2009{version}'` (e.g. `'2mm-MNI152-2009c'`,
+            `'3mm-MNI152-2009a'`, `'2mm-MNI152-2009fsl'`).
     """
     import nibabel as nib
     from nltools.templates import get_brainspace
@@ -121,13 +122,13 @@ def get_interpolation(bd, img):
     Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
 
     Args:
-        bd: BrainData instance.
-        img: nibabel image to check (used when interpolation='auto')
+        bd (BrainData): Instance whose interpolation setting is consulted.
+        img (Nifti1Image): Image to inspect when the setting is 'auto'.
 
     Returns:
-        str: Interpolation method. When 'auto', resolves to 'nearest' or
-            'continuous' based on data type. Otherwise returns the instance's
-            configured interpolation setting.
+        str: Interpolation method. When the instance setting is 'auto', resolves
+            to 'nearest' or 'continuous' based on data type; otherwise the
+            instance's configured interpolation setting.
     """
     if bd._interpolation == "auto":
         return _detect_interpolation(img)
@@ -183,11 +184,11 @@ def detect_and_update_mask(bd, data_img):
     and resamples the data_img accordingly.
 
     Args:
-        bd: BrainData instance.
-        data_img: nibabel Nifti1Image object from which to detect template
+        bd (BrainData): Instance whose mask may be updated.
+        data_img (Nifti1Image): Image from which to detect the template.
 
     Returns:
-        nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
+        Nifti1Image: The input image, resampled to the mask grid if needed.
     """
     import nibabel as nib
 
@@ -239,10 +240,10 @@ def detect_space(mask):
     """Detect if mask is in MNI space or native space.
 
     Args:
-        mask: nibabel Nifti1Image object
+        mask (Nifti1Image): Mask image to classify.
 
     Returns:
-        str: 'mni' if mask is MNI template, 'native' otherwise
+        str: 'mni' if the mask matches the MNI template, 'native' otherwise.
     """
     import nibabel as nib
     from nltools.templates import get_brainspace
@@ -286,11 +287,11 @@ def check_space_match(data_img, mask_img):
     """Check if data and mask are in same space.
 
     Args:
-        data_img: nibabel Nifti1Image object
-        mask_img: nibabel Nifti1Image object (mask)
+        data_img (Nifti1Image): Data image.
+        mask_img (Nifti1Image): Mask image.
 
     Returns:
-        bool: True if spaces match (no resampling needed), False otherwise
+        bool: True if affines and spatial shapes match (no resampling needed).
     """
     # Compare affine matrices
     affine_match = np.allclose(data_img.affine, mask_img.affine, rtol=1e-3)
@@ -309,7 +310,7 @@ def warn_if_resampling(bd, context=""):
     fires when the data is actually resampled to the mask's grid.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Instance whose `verbose` and resample settings apply.
         context (str): Why the spaces differ, appended to the message.
             Default: empty string.
     """
@@ -345,8 +346,8 @@ def mask_images(mask, imgs):
     ``apply_mask`` if the fast path raises for any reason.
 
     Args:
-        mask: A ``nibabel.Nifti1Image`` boolean/binary mask.
-        imgs: List of space-aligned ``nibabel`` images to mask.
+        mask (Nifti1Image): Boolean/binary mask image.
+        imgs (list[Nifti1Image]): Space-aligned images to mask.
 
     Returns:
         np.ndarray: Masked data of shape ``(len(imgs), n_voxels)``.
@@ -380,8 +381,9 @@ def load_from_list(bd, data_list):
     """Load data from a list of BrainData objects or file paths.
 
     Args:
-        bd: BrainData instance.
-        data_list: List of BrainData objects or file paths.
+        bd (BrainData): Instance to populate.
+        data_list (list[BrainData] | list[str | Path | Nifti1Image]): Items to load
+            and stack.
     """
     import nibabel as nib
     from nltools.utils import concatenate
@@ -451,9 +453,10 @@ def load_from_brain_data(bd, brain_data, mask=None):
     """Load data from another BrainData object.
 
     Args:
-        bd: BrainData instance.
-        brain_data: BrainData object to copy from.
-        mask: Optional mask to use. If None, uses mask from brain_data.
+        bd (BrainData): Instance to populate.
+        brain_data (BrainData): Object to copy from.
+        mask (Nifti1Image | str | Path | None): Mask to use. If None, uses the mask
+            from `brain_data`.
     """
     import nibabel as nib
     from nilearn.image import resample_to_img
@@ -533,9 +536,10 @@ def load_from_h5(bd, file_path, mask):
     """Load data from HDF5 file.
 
     Args:
-        bd: BrainData instance.
-        file_path: Path to HDF5 file.
-        mask: User-specified mask (to determine if we should load mask from file).
+        bd (BrainData): Instance to populate.
+        file_path (str | Path): Path to the HDF5 file.
+        mask (Nifti1Image | str | Path | None): User-specified mask; when None the
+            mask stored in the file is used.
     """
     from nltools.io import load_brain_data_h5
 
@@ -571,8 +575,8 @@ def load_from_url(bd, url):
     """Load data from URL.
 
     Args:
-        bd: BrainData instance.
-        url: URL to download data from.
+        bd (BrainData): Instance to populate.
+        url (str): URL of a NIfTI file to download.
     """
     import nibabel as nib
     from nltools.datasets import download_nifti
@@ -588,8 +592,8 @@ def load_from_file(bd, data):
     """Load data from file path or nibabel object.
 
     Args:
-        bd: BrainData instance.
-        data: File path or nibabel object.
+        bd (BrainData): Instance to populate.
+        data (str | Path | Nifti1Image): File path or nibabel image.
     """
     import nibabel as nib
     from nilearn.masking import apply_mask as nilearn_apply_mask
@@ -632,10 +636,10 @@ def to_nifti(bd):
     """Convert BrainData instance to a nibabel NIfTI image.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Instance to convert.
 
     Returns:
-        nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
+        Nifti1Image: Brain data in volumetric NIfTI format.
     """
     from nilearn.masking import unmask
 
@@ -668,27 +672,24 @@ def _ensure_sform(img):
 def resample_to(bd, *, img=None, resolution=None, interpolation=None):
     """Resample BrainData to match target image or resolution.
 
+    Exactly one of `img` or `resolution` must be given.
+
     Args:
-        bd: BrainData instance.
-        img: Target image for resampling. Can be:
-            - nibabel Nifti1Image object
-            - str/Path to .nii/.nii.gz file
-            - None (if using resolution parameter)
-        resolution: Target voxel size in mm. Can be:
-            - float/int: Isotropic resolution (e.g., 2.0 = 2mm^3)
-            - None (if using img parameter)
-        interpolation: Interpolation method for resampling. Can be:
-            - None (default): Uses instance's interpolation setting
-            - 'nearest': Nearest-neighbor (for atlases, masks, labels)
-            - 'linear': Linear interpolation
-            - 'continuous': Higher-order spline (for stat maps)
+        bd (BrainData): Instance to resample.
+        img (Nifti1Image | str | Path | None): Target image whose grid to match,
+            as a nibabel image or a path to a `.nii`/`.nii.gz` file.
+        resolution (float | int | None): Target isotropic voxel size in mm
+            (e.g. `2.0` for 2 mm³ voxels).
+        interpolation (str | None): Interpolation method: `'nearest'` (atlases,
+            masks, labels), `'linear'`, or `'continuous'` (higher-order spline, for
+            stat maps). None uses the instance's interpolation setting.
 
     Returns:
-        BrainData: New BrainData instance with resampled data
+        BrainData: New instance with resampled data and mask.
 
     Raises:
-        ValueError: If both img and resolution are None, or both are provided
-        TypeError: If img is not a valid image type
+        ValueError: If both `img` and `resolution` are None, or both are provided.
+        TypeError: If `img` is not a valid image type.
     """
     import nibabel as nib
     from nilearn.image import resample_to_img, resample_img
@@ -792,9 +793,9 @@ def write_brain_data(bd, file_name):
     """Write out BrainData object to Nifti or HDF5 File.
 
     Args:
-        bd: BrainData instance.
-        file_name (str or Path): Output file path. Supports .nii/.nii.gz (NIfTI)
-            and .h5/.hdf5 (HDF5) formats.
+        bd (BrainData): Instance to write.
+        file_name (str | Path): Output file path. Supports `.nii`/`.nii.gz` (NIfTI)
+            and `.h5`/`.hdf5` (HDF5) formats.
     """
     from nltools.io import is_h5_path, to_h5
 
@@ -824,17 +825,18 @@ def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to t
 ):
     """Upload data to NeuroVault.
 
-    Adds any columns in bd.X to image metadata. Index will be used as image name.
+    Adds any columns in `bd.X` to image metadata. Index will be used as image name.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Images to upload.
         access_token (str): NeuroVault API access token. Required.
-        collection_name (str, optional): Name of new collection to create.
-        collection_id (int, optional): NeuroVault collection ID if adding images
+        collection_name (str | None): Name of a new collection to create.
+        collection_id (int | None): NeuroVault collection ID when adding images
             to an existing collection.
-        img_type (str): NeuroVault map type. Required.
-        img_modality (str): NeuroVault image modality. Required.
-        **kwargs: Additional keyword arguments passed to the NeuroVault API.
+        img_type (str): NeuroVault map type (e.g. `'Z'`, `'T'`). Required.
+        img_modality (str): NeuroVault image modality (e.g. `'fMRI-BOLD'`). Required.
+        **kwargs (dict): Additional image metadata forwarded to
+            `pynv.Client.add_image`.
 
     Returns:
         dict: NeuroVault collection information.
@@ -877,11 +879,11 @@ def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to t
         """Upload an image to a NeuroVault collection.
 
         Args:
-            api: pynv Client instance
-            collection: collection information
-            dat: BrainData instance to upload
-            tmp_dir: temporary directory
-            index_id: (int) index for file naming
+            api (pynv.Client): Authenticated NeuroVault client.
+            collection (dict): Collection the image is added to.
+            dat (BrainData): Single-image BrainData instance to upload.
+            tmp_dir (str): Directory the image is written to before upload.
+            index_id (int): Index used to name the uploaded file.
         """
         if (len(dat.shape) > 1) & (dat.shape[0] > 1):
             raise ValueError('"dat" must be a single image.')

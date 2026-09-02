@@ -12,16 +12,15 @@ __all__ = ["find_spikes", "trim", "winsorize", "zscore"]
 def zscore(data):
     """Z-score every column of a Polars or pandas DataFrame/Series.
 
-    Accepts pandas inputs at the boundary for convenience and converts to
-    Polars internally. Always returns Polars output (DataFrame or Series,
-    matching the input shape).
+    Pandas inputs are converted to Polars; the result is always Polars (a
+    DataFrame for DataFrame input, a Series for Series input).
 
     Args:
-        data: pl.DataFrame, pl.Series, pd.DataFrame, or pd.Series.
+        data (pl.DataFrame | pl.Series | pd.DataFrame | pd.Series): Data to z-score.
 
     Returns:
-        pl.DataFrame | pl.Series: Same type and shape as the input, each column
-            z-scored using the sample standard deviation (ddof=1).
+        pl.DataFrame | pl.Series: Same shape as the input, each column z-scored
+            with the sample standard deviation (ddof=1).
     """
     import pandas as pd
 
@@ -86,22 +85,19 @@ def trim(data, cutoff=None):
 
 
 def _transform_outliers(data, cutoff, replace_with_cutoff, method):
-    """Transform outliers in a Polars DataFrame/Series using winsorize or trim.
-
-    This function is not exposed to user but is called by either trim
-    or winsorize.
+    """Winsorize or trim outliers in a Polars DataFrame/Series (shared by `trim` and `winsorize`).
 
     Args:
-        data: (pl.DataFrame, pl.Series) data to transform
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
-        replace_with_cutoff: (bool) If True, replace outliers with cutoff.
-                                    If False, replaces outliers with closest
-                                    existing values. (default: True)
-        method: 'winsorize' or 'trim'
+        data (pl.DataFrame | pl.Series): Data to transform.
+        cutoff (dict): A dictionary with keys `{'std': [low, high]}` or
+            `{'quantile': [low, high]}`.
+        replace_with_cutoff (bool | None): For winsorizing, replace outliers with
+            the cutoff value (True) or with the closest existing value (False).
+            Ignored when trimming.
+        method (str): 'winsorize' or 'trim'.
 
     Returns:
-        pl.DataFrame | pl.Series: Transformed data (same type as input).
+        pl.DataFrame | pl.Series: Transformed data, the same type as the input.
     """
     return_series = False
     if isinstance(data, pl.DataFrame):
@@ -199,29 +195,27 @@ def find_spikes(
     """Identify spikes (motion artifacts, intensity outliers) in 4D fMRI data.
 
     Args:
-        data: BrainData or nibabel instance
-        global_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
-            the per-TR global signal. None to skip.
-        diff_spike_cutoff: (int, None) cutoff in std-deviations for spikes in
-            the per-TR mean absolute frame-to-frame difference. None to skip.
-        TR: Repetition time in seconds. Sets the returned DesignMatrix's
-            sampling_freq for downstream `.append(...)` / `.convolve()`.
-            Pass exactly one of `TR` or `sampling_freq`.
-        sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
+        data (BrainData | nib.Nifti1Image): 4D functional data.
+        global_spike_cutoff (float | None): Cutoff in standard deviations for
+            spikes in the per-TR global mean signal; None skips this detector.
+            Defaults to 3.
+        diff_spike_cutoff (float | None): Cutoff in standard deviations for
+            spikes in the per-TR mean absolute frame-to-frame difference; None
+            skips this detector. Defaults to 3.
+        TR (float | None): Repetition time in seconds; sets the returned
+            DesignMatrix's `sampling_freq` for downstream `.append()` /
+            `.convolve()`. Pass at most one of `TR` and `sampling_freq`.
+        sampling_freq (float | None): Sampling frequency in Hz (1 / TR). See `TR`.
 
     Returns:
         DesignMatrix: One indicator column per detected spike TR, named
-            ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved
-            namespace for generated columns (see `RESERVED_PREFIX`), with all
-            spike columns pre-marked as confounds. The two detectors run
-            independently, so a single bad volume is routinely caught by both;
-            those detections are bitwise-identical one-hot columns, and only one
-            is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —
-            the column values are the same either way). Row position is the time
-            axis (no separate `TR` index column — that was a pandas-era
-            artifact). When `TR` / `sampling_freq` aren't provided the DM has
-            `sampling_freq=None`; you can still `.append()` it onto a DM that
-            does have one.
+            `.nl_global_spike{n}` / `.nl_diff_spike{n}` in the reserved namespace
+            for generated columns (see `RESERVED_PREFIX`) and pre-marked as
+            confounds. Row position is the time axis. A volume flagged by both
+            detectors yields identical one-hot columns, so only the
+            `.nl_global_spike*` one is kept. Without `TR` / `sampling_freq` the
+            result has `sampling_freq=None` and can still be appended to a
+            DesignMatrix that has one.
     """
 
     from nltools.data import BrainData

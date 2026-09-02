@@ -13,15 +13,15 @@ __all__ = [
 def fdr(p, q=0.05):
     """Determine an FDR threshold for an array of p-values.
 
-    Uses the desired false discovery rate ``q``. Written by Tal Yarkoni.
+    Benjamini-Hochberg procedure at false discovery rate `q` (valid under
+    independence or positive dependence). Written by Tal Yarkoni.
 
     Args:
-        p: (np.array) vector of p-values
-        q: (float) false discovery rate level
+        p (np.ndarray): Vector of p-values.
+        q (float): False discovery rate level. Defaults to 0.05.
 
     Returns:
-        float: p-value threshold based on independence or positive dependence.
-
+        float: The p-value threshold; `-1` when no p-value survives correction.
     """
 
     if not isinstance(p, np.ndarray):
@@ -37,19 +37,18 @@ def fdr(p, q=0.05):
 
 
 def holm_bonf(p, alpha=0.05):
-    """Compute Holm-Bonferroni-corrected p-values.
+    """Determine a Holm-Bonferroni (step-down) threshold for an array of p-values.
 
-    This step-down procedure applies iteratively less correction to the highest
-    p-values. It is a bit more conservative than FDR, but much more powerful than
-    vanilla Bonferroni correction.
+    The step-down procedure applies progressively less correction to larger
+    p-values. It is more conservative than FDR but much more powerful than plain
+    Bonferroni correction.
 
     Args:
-        p: (np.array) vector of p-values
-        alpha: (float) alpha level
+        p (np.ndarray): Vector of p-values.
+        alpha (float): Family-wise alpha level. Defaults to 0.05.
 
     Returns:
-        float: p-value threshold based on the Bonferroni step-down procedure.
-
+        float: The p-value threshold; `-1` when no p-value survives correction.
     """
 
     if not isinstance(p, np.ndarray):
@@ -63,27 +62,24 @@ def holm_bonf(p, alpha=0.05):
 
 
 def threshold(stat, p, thr=0.05, return_mask=False):
-    """Threshold test image by p-value from p image.
+    """Threshold a statistic image by the p-values in a separate image.
+
+    Voxels whose p-value is at or above `thr` are set to zero in a copy of `stat`.
 
     Args:
-        stat: (BrainData) BrainData instance of arbitrary statistic metric
-              (e.g., beta, t, etc)
-        p: (BrainData) BrainData instance of p-values
-        thr: (float) p-value threshold to apply
-        return_mask: (bool) optionally return the thresholding mask; default False
+        stat (BrainData): Statistic image (e.g. betas or t-values).
+        p (BrainData): P-value image with the same voxels as `stat`.
+        thr (float): P-value threshold; voxels with `p < thr` are kept. Defaults to 0.05.
+        return_mask (bool): Also return the binary thresholding mask. Defaults to False.
 
     Returns:
-        BrainData | tuple[BrainData, BrainData]: The thresholded BrainData instance;
-            if `return_mask=True`, a tuple `(out, mask)` where `mask` is the
-            BrainData instance of the thresholding mask.
+        BrainData | tuple[BrainData, BrainData]: The thresholded image, or the
+            tuple `(thresholded, mask)` when `return_mask=True`.
 
     Note:
-        This function provides unique functionality not available in nilearn:
-        - Thresholds stat image based on p-values from separate p-value image
-        - Neither nilearn.threshold_img nor BrainData.threshold() support this
-        - BrainData.threshold() thresholds based on stat values themselves
-        - nilearn.threshold_img() thresholds based on image intensity values
-
+        `BrainData.threshold` and `nilearn.image.threshold_img` threshold an image
+        by its own values; this function is the only one that thresholds one
+        image by the p-values of another.
     """
     from nltools.data import BrainData
 
@@ -129,27 +125,22 @@ def threshold(stat, p, thr=0.05, return_mask=False):
 
 
 def multi_threshold(t_map, p_map, thresh):
-    """Threshold test image by multiple p-values from p image.
+    """Threshold a statistic image at several p-values and count the passes per voxel.
 
     Args:
-        t_map: (BrainData) BrainData instance of statistic metric
-            (e.g., t-statistic, beta, etc)
-        p_map: (BrainData) BrainData instance of p-values
-        thresh: (list) list of p-values to threshold stat image
+        t_map (BrainData): Statistic image (e.g. t-values or betas).
+        p_map (BrainData): P-value image with the same voxels as `t_map`.
+        thresh (list[float]): P-value thresholds to apply.
 
     Returns:
-        BrainData: Thresholded BrainData instance with cumulative map. Positive
-            values indicate how many thresholds were passed for positive stats;
-            negative values indicate how many thresholds were passed for negative
-            stats.
+        BrainData: Cumulative map. Positive values count how many thresholds a
+            positive statistic passed; negative values count the same for negative
+            statistics.
 
     Note:
-        This function provides unique cumulative threshold map functionality:
-        - Creates a single map showing which thresholds were passed
-        - Different from calling threshold() multiple times (which would give separate images)
-        - Useful for visualizing threshold hierarchies
-        - nilearn.threshold_img() does not support cumulative multi-threshold maps
-
+        Calling `threshold` once per level gives separate images; this returns a
+        single map of the threshold hierarchy, which `nilearn.image.threshold_img`
+        cannot produce.
     """
     from nltools.data import BrainData
 

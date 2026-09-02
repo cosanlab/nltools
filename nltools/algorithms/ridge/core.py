@@ -1,32 +1,26 @@
-"""Ridge regression algorithms using SVD decomposition.
+"""Ridge regression solvers based on the singular value decomposition.
 
-This module implements ridge regression using Singular Value Decomposition (SVD),
-which provides numerical stability and efficiency for high-dimensional problems.
+Ridge regression solves `beta = (X.T @ X + alpha * I)^(-1) @ X.T @ y`. Writing
+`X = U @ diag(s) @ V.T` turns this into
+`beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y`, which avoids an explicit matrix
+inverse, is numerically stable for rank-deficient `X`, and costs
+`O(n_samples × n_features × min(n_samples, n_features))` once for any number of
+targets.
 
-Algorithm approach:
-    Why SVD vs direct inversion:
-        - Direct inversion: beta = (X.T @ X + alpha*I)^(-1) @ X.T @ y
-        - SVD approach: X = U @ diag(s) @ V.T, then beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y
-        - Benefits: Avoids explicit matrix inversion (numerically stable), efficient for rank-deficient X
-        - Performance: O(n_samples × n_features × min(n_samples, n_features)) for SVD
+**Backends.** NumPy (the default) is reliable everywhere; PyTorch on the CPU
+performs similarly; PyTorch on a GPU is roughly 10-100× faster for large problems
+(`n_features` above ~10K). For cross-validated alpha selection with GPU batching
+use `solve_ridge_cv`; the six tricks behind the solvers are described in
+`docs/development/ridge-internals.md`.
 
-Backend choice trade-offs:
-    - NumPy (CPU): Default, reliable, works everywhere
-    - PyTorch CPU: Similar performance to NumPy, useful for consistent API
-    - PyTorch GPU: ~10-100× speedup for large problems (n_features > 10K), requires GPU
-
-Cross-references:
-    - See `nltools.algorithms.ridge.solvers.solve_ridge_cv()` for GPU-accelerated cross-validation
-    - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator-based batching pattern
-    - See `docs/development/ridge-internals.md` for detailed algorithm explanation
-
-Inspired by the himalaya library's efficient SVD-based ridge regression approach.
-himalaya is licensed under BSD-3-Clause: https://github.com/gallantlab/himalaya
+Inspired by the himalaya library's SVD-based ridge regression (BSD-3-Clause,
+https://github.com/gallantlab/himalaya).
 
 References:
-    - Huth, A. G., et al. (2016). "Natural speech reveals the semantic maps that tile
-      human cerebral cortex." Nature, 532(7600), 453-458.
-    - himalaya documentation: https://gallantlab.github.io/himalaya/
+    Huth, A. G., et al. (2016). Natural speech reveals the semantic maps that tile
+    human cerebral cortex. Nature, 532(7600), 453-458.
+
+    himalaya documentation: https://gallantlab.github.io/himalaya/
 """
 
 from typing import TYPE_CHECKING
@@ -52,72 +46,50 @@ def ridge_svd(
     # Random state (last) - not used but kept for consistency
     random_state: int | None = None,
 ) -> np.ndarray:
-    """Solve ridge regression using Singular Value Decomposition.
+    """Solve ridge regression for one alpha using the singular value decomposition.
 
-    This function implements ridge regression using SVD, which provides
-    numerical stability and efficiency for high-dimensional problems.
-    The implementation is inspired by the himalaya library.
-
-    Algorithm:
-        The ridge regression solution is:
-            beta = (X.T @ X + alpha*I)^(-1) @ X.T @ y
-
-        Using SVD of X = U @ diag(s) @ V.T, this becomes:
-            beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y
-
-        This formulation avoids explicit matrix inversion and is numerically stable.
-        The shrinkage factor s / (s**2 + alpha) regularizes small singular values.
-
-    Performance:
-        - Time complexity: O(n_samples × n_features × min(n_samples, n_features))
-        - Space complexity: O(n_samples × n_features)
-        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
-        - See `solve_ridge_cv()` for cross-validation with GPU support
+    With `X = U @ diag(s) @ V.T` the solution is
+    `beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y`; the shrinkage factor
+    `s / (s**2 + alpha)` damps small singular values without an explicit matrix
+    inverse. Time is `O(n_samples × n_features × min(n_samples, n_features))`
+    and memory `O(n_samples × n_features)`. As `alpha → 0` this approaches
+    ordinary least squares; use `alpha=1e-6` rather than 0 for a stable OLS fit.
+    For cross-validated alpha selection use `solve_ridge_cv`.
 
     Args:
-        X (np.ndarray): Training data features with shape (n_samples, n_features)
-        y (np.ndarray): Target values with shape (n_samples,) or (n_samples, n_targets).
-            Can be 1D for single-target or 2D for multi-target
-        alpha (float, optional): Regularization strength. Must be positive. Higher values
-            increase regularization (shrink coefficients toward zero). Defaults to 1.0.
-        parallel (str, optional): Execution backend.
-            - None: Single-threaded NumPy (debugging/small problems)
-            - "cpu": CPU-only using NumPy (default)
-            - "gpu": GPU acceleration via PyTorch. Requires torch installed
-              (raises ImportError otherwise); degrades to torch-CPU only when no
-              GPU device is present. Use "auto" for torch-optional CPU fallback.
+        X (np.ndarray): Training features, shape (n_samples, n_features).
+        y (np.ndarray): Targets, shape (n_samples,) for a single target or
+            (n_samples, n_targets) for several.
+        alpha (float): Regularization strength; must be non-negative. Larger
+            values shrink the coefficients harder toward zero. Defaults to 1.0.
+        parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
+            `"gpu"` runs on PyTorch (requires torch, raising ImportError
+            otherwise, and falls back to the torch CPU device when no GPU is
+            present); `"auto"` uses torch when installed and NumPy otherwise.
             Defaults to None.
-        max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
-            Defaults to 4.0.
-        random_state (int, optional): Random seed (not currently used, kept for consistency).
+        max_gpu_memory_gb (float | None): GPU memory budget in GB for batching
+            over targets (torch backends only). None measures the device.
+            Defaults to None.
+        random_state (int | None): Unused; accepted for signature consistency.
             Defaults to None.
 
     Returns:
-        np.ndarray: Ridge regression coefficients
-            - shape (n_features,) for single-target regression
-            - shape (n_features, n_targets) for multi-target regression
+        np.ndarray: Coefficients, shape (n_features,) for a single target or
+            (n_features, n_targets) for several.
+
+    Raises:
+        ValueError: If `alpha` is negative, `X` is not 2D, `y` is not 1D or 2D,
+            or the sample counts differ.
 
     Examples:
-        >>> X = np.random.randn(100, 50)
-        >>> y = np.random.randn(100)
-        >>> beta = ridge_svd(X, y, alpha=1.0)
-        >>> beta.shape
-        (50,)
+        ```python
+        X = np.random.randn(100, 50)
+        y = np.random.randn(100)
+        ridge_svd(X, y, alpha=1.0).shape  # → (50,)
 
-        >>> # Multi-target regression
-        >>> Y = np.random.randn(100, 5)
-        >>> beta = ridge_svd(X, Y, alpha=1.0)
-        >>> beta.shape
-        (50, 5)
-
-    Notes:
-        - Time complexity: O(n_samples * n_features * min(n_samples, n_features))
-        - Space complexity: O(n_samples * n_features)
-        - For alpha→0, this reduces to ordinary least squares (OLS). Use alpha=1e-6
-          for OLS in practice (more numerically stable than alpha=0)
-        - Supports both CPU (NumPy) and GPU (PyTorch) backends
-        - See `nltools.algorithms.ridge.solvers.solve_ridge_cv()` for cross-validation
-        - See `nltools.algorithms.ridge.utils._decompose_ridge()` for generator pattern
+        Y = np.random.randn(100, 5)  # multi-target
+        ridge_svd(X, Y, alpha=1.0).shape  # → (50, 5)
+        ```
     """
     # Input validation
     if alpha < 0:
@@ -216,63 +188,56 @@ def ridge_cv(
     # Random state (last)
     random_state: int | None = None,
 ) -> dict:
-    """Ridge regression with cross-validation for hyperparameter selection.
+    """Ridge regression with cross-validated selection of a single global alpha.
 
-    Performs k-fold cross-validation to select the best alpha parameter,
-    then fits a final model on all data using the selected alpha.
+    Scores every alpha by out-of-fold R² on each fold, picks the alpha with the
+    highest mean R² across folds and targets, then refits on all the data with
+    it. For per-target alphas, memory-bounded batching, and GPU-batched folds
+    use `solve_ridge_cv`.
 
     Args:
-        X (np.ndarray): Training data features with shape (n_samples, n_features)
-        y (np.ndarray): Target values with shape (n_samples,) or (n_samples, n_targets)
-        alphas (np.ndarray, optional): Array of alpha values to try. If None, uses default range:
-            np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000]
-        cv (int or sklearn CV splitter, optional): Number of folds (int) or
-            an sklearn cross-validator (anything with ``.split(X)`` and
-            ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or
-            ``GroupKFold(8)``). Splitters are honored for the actual fold
-            iteration, so leave-one-run-out and shuffled-K-fold give different
-            results from contiguous K-fold. Defaults to 5.
-        fit_intercept (bool, optional): If True, center X and y on the
-            training mean before fitting and recover the intercept after.
-            The returned ``coef`` is on the centered scale; the recovered
-            intercept is returned under the ``intercept`` key. Defaults to
-            False.
-        parallel (str, optional): Execution backend.
-            - None: Single-threaded NumPy (debugging/small problems)
-            - "cpu": CPU-only using NumPy (default)
-            - "gpu": GPU acceleration via PyTorch. Requires torch installed
-              (raises ImportError otherwise); degrades to torch-CPU only when no
-              GPU device is present. Use "auto" for torch-optional CPU fallback.
-            Defaults to "cpu".
-        max_gpu_memory_gb (float, optional): GPU memory budget in GB (only used if parallel='gpu').
-            Defaults to 4.0.
-        random_state (int, optional): Random seed (not currently used, kept for consistency).
+        X (np.ndarray): Training features, shape (n_samples, n_features).
+        y (np.ndarray): Targets, shape (n_samples,) or (n_samples, n_targets).
+        alphas (np.ndarray | None): Alpha values to try. None uses
+            `np.logspace(-2, 4, 20)` (0.01 to 10000). Defaults to None.
+        cv (int | BaseCrossValidator): Number of folds, or an sklearn
+            cross-validator (anything with `.split(X)` and `.get_n_splits()`,
+            e.g. `KFold(5, shuffle=True)` or `GroupKFold(8)`). The splitter
+            drives the actual fold iteration, so leave-one-run-out and shuffled
+            K-fold give different results from contiguous K-fold. Defaults to 5.
+        fit_intercept (bool): If True, center `X` and `y` on their means before
+            fitting and recover the intercept afterwards. The returned `coef` is
+            on the centered scale; the intercept is returned under the
+            `'intercept'` key. Defaults to False.
+        parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
+            `"gpu"` runs on PyTorch (requires torch, raising ImportError
+            otherwise, and falls back to the torch CPU device when no GPU is
+            present — it never falls back to NumPy); `"auto"` uses torch when
+            installed and NumPy otherwise. Defaults to `"cpu"`.
+        max_gpu_memory_gb (float | None): GPU memory budget in GB for batching
+            over targets (torch backends only). None measures the device.
+            Defaults to None.
+        random_state (int | None): Unused; accepted for signature consistency.
             Defaults to None.
 
     Returns:
-        dict: Dictionary containing:
+        dict: Keys `'alpha'` (float, the selected alpha), `'coef'` (np.ndarray,
+            coefficients refit on all data with that alpha), `'cv_scores'`
+            (np.ndarray, out-of-fold R² with shape (n_folds, n_alphas,
+            n_targets)), `'backend'` (str, backend name), and — only when
+            `fit_intercept=True` — `'intercept'` (float or np.ndarray).
 
-            - 'alpha' (float): Best alpha value selected by CV
-            - 'coef' (np.ndarray): Coefficients using best alpha on full dataset
-            - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target
-                with shape (n_folds, n_alphas, n_targets)
-            - 'backend' (str): Backend used for computation
+    Raises:
+        TypeError: If `cv` is a generator rather than a re-iterable splitter.
 
     Examples:
-        >>> X = np.random.randn(100, 50)
-        >>> y = np.random.randn(100)
-        >>> result = ridge_cv(X, y, cv=3)
-        >>> result['alpha']  # Best alpha selected
-        1.0
-        >>> result['coef'].shape
-        (50,)
-
-    Notes:
-        - Uses R**2 (coefficient of determination) as the scoring metric
-        - For multi-target regression, selects alpha that maximizes mean R**2 across targets
-        - parallel='gpu' requires torch installed; with torch present but no GPU device it
-          runs on torch-CPU. It does not fall back to NumPy when torch is absent — use
-          parallel='auto' for that.
+        ```python
+        X = np.random.randn(100, 50)
+        y = np.random.randn(100)
+        result = ridge_cv(X, y, cv=3)
+        result["alpha"]  # → the selected alpha
+        result["coef"].shape  # → (50,)
+        ```
     """
     from sklearn.model_selection import check_cv
 

@@ -1,5 +1,9 @@
-"""
-nltools data types.
+"""Data classes for neuroimaging analysis.
+
+`BrainData` (masked voxel data), `Adjacency` (similarity/distance matrices),
+`DesignMatrix` (regressors), `BrainCollection` (per-subject stacks of
+`BrainData`), `Fit` (model-fit results), plus the `Roc` analysis class and the
+`Simulator`/`SimulateGrid` data simulators.
 """
 
 from .braindata import BrainData

@@ -22,13 +22,32 @@ class Roc:
     interval or forced choice.
 
     Args:
-        input_values: 1-D array/vector of continuous decision values (one per observation)
-        binary_outcome: vector of training labels
-        method: threshold-selection variant, one of `'optimal_overall'`,
-            `'optimal_balanced'`, `'minimum_sdt_bias'`
-        forced_choice: index indicating position for each unique subject
-            (default=None)
+        input_values (array-like): 1-D continuous decision values, one per observation.
+        binary_outcome (array-like): Boolean class label per observation.
+        method (str): Threshold-selection variant, one of `'optimal_overall'`,
+            `'optimal_balanced'`, `'minimum_sdt_bias'`.
+        forced_choice (array-like, optional): Subject id per observation for
+            forced-choice classification (each subject contributes one positive and
+            one negative observation).
 
+    Attributes:
+        input_values (np.ndarray): Decision values.
+        binary_outcome (np.ndarray): Boolean labels.
+        method (str): Threshold-selection variant.
+        forced_choice (np.ndarray | None): Subject ids for forced-choice classification.
+        criterion_values (np.ndarray): Thresholds at which `tpr`/`fpr` were evaluated;
+            set by `calculate`.
+        tpr (np.ndarray): True positive rate per criterion value; set by `calculate`.
+        fpr (np.ndarray): False positive rate per criterion value; set by `calculate`.
+        auc (float): Area under the ROC curve; set by `calculate`.
+        class_thr (float): Selected classification threshold; set by `calculate`.
+        sensitivity (float): Sensitivity at `class_thr`; set by `calculate`.
+        specificity (float): Specificity at `class_thr`; set by `calculate`.
+        ppv (float): Positive predictive value at `class_thr`; set by `calculate`.
+        accuracy (float): Classification accuracy; set by `calculate`.
+        accuracy_se (float): Standard error of the accuracy; set by `calculate`.
+        accuracy_p (BinomTestResult): `scipy.stats.binomtest` result comparing accuracy
+            against chance (read `.pvalue`); set by `calculate`.
     """
 
     def __init__(
@@ -74,24 +93,26 @@ class Roc:
         balanced_acc=False,
         tail=2,
     ):
-        """Calculate ROC metrics for single-interval classification.
+        """Calculate ROC metrics and store them on the instance.
 
         Args:
-            input_values: 1-D array/vector of continuous decision values (one per observation)
-            binary_outcome: vector of training labels
-            criterion_values: (optional) criterion values for calculating fpr
-                            & tpr
-            method: threshold-selection variant, one of `'optimal_overall'`,
-                            `'optimal_balanced'`, `'minimum_sdt_bias'`
-            forced_choice: index indicating position for each unique subject
-                            (default=None)
-            balanced_acc: balanced accuracy for single-interval classification
-                            (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE
-                            IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR
-                            THRESHOLD AT WHICH TO EVALUATE SENS/SPEC
-            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-                            (accuracy > chance) for the binomial ``accuracy_p``
-
+            input_values (array-like, optional): 1-D continuous decision values, one
+                per observation. Defaults to the values given at construction.
+            binary_outcome (array-like, optional): Boolean class label per
+                observation. Defaults to the labels given at construction.
+            criterion_values (array-like, optional): Thresholds at which to evaluate
+                `fpr` and `tpr`. Defaults to a dense grid over the range of
+                `input_values`.
+            method (str): Threshold-selection variant, one of `'optimal_overall'`,
+                `'optimal_balanced'`, `'minimum_sdt_bias'`.
+            forced_choice (array-like, optional): Subject id per observation for
+                forced-choice classification.
+            balanced_acc (bool): Report balanced accuracy (mean of sensitivity and
+                specificity) instead of overall accuracy. Only affects the accuracy
+                estimate, not the p-value or the threshold used for
+                sensitivity/specificity.
+            tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
+                one-tailed (accuracy > chance) in the binomial test for `accuracy_p`.
         """
         from nltools.algorithms.inference.validation import validate_tail_parameter
 
@@ -243,16 +264,15 @@ class Roc:
     def plot(self, *, method="gaussian", balanced_acc=False):
         """Create a ROC plot.
 
-        Create a specific kind of ROC curve plot, based on input values
-        along a continuous distribution and a binary outcome variable (logical)
+        Runs `calculate` first, then plots either a Gaussian-smoothed ROC curve fit
+        to the decision values or the observed empirical curve.
 
         Args:
-            method: type of plot, one of `'gaussian'`, `'observed'`
-            balanced_acc: balanced accuracy for single-interval classification
+            method (str): Type of plot, `'gaussian'` or `'observed'`.
+            balanced_acc (bool): Passed to `calculate`; report balanced accuracy.
 
         Returns:
             matplotlib.figure.Figure: The ROC figure.
-
         """
 
         self.calculate(balanced_acc=balanced_acc)  # Calculate ROC parameters

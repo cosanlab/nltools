@@ -1,8 +1,13 @@
-"""Correlation permutation test implementations.
+"""Permutation test for the correlation between two variables.
 
-This module provides CPU-parallel and GPU-batched implementations
-of correlation permutation tests for assessing statistical significance
-of correlations.
+`correlation_permutation_test` asks whether the Pearson, Spearman, or Kendall
+correlation between two arrays differs from zero, building the null distribution
+by shuffling one array's observations. It assumes observations are independent;
+for autocorrelated time series use `timeseries_correlation_permutation_test`.
+Multi-feature inputs (2D arrays) test each column pair independently. `device`
+selects the execution path: `'cpu'` (default) spreads permutations across
+`n_jobs` workers, `'gpu'` vectorizes them in memory-bounded batches, `None` runs
+single-threaded.
 """
 
 import numpy as np
@@ -29,17 +34,16 @@ def _pearson_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     """Compute Pearson correlation coefficient(s).
 
     Args:
-        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
-        y (np.ndarray): Data array, shape (n_samples,)
+        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples).
+        y (np.ndarray): Data array, shape (n_samples,).
 
     Returns:
-        np.ndarray: Correlation coefficient(s)
-            - scalar if x is 1D
-            - shape (n_permute,) if x is 2D
+        float | np.ndarray: A scalar if `x` is 1D, else one correlation per row
+            of `x`, shape (n_permute,).
 
-    Notes:
-        Uses centered data for numerical stability.
-        Handles broadcasting for vectorized computation.
+    Note:
+        Centers the data before computing, and vectorizes across the rows of a
+        2D `x`.
     """
     # Handle dimensions
     if x.ndim == 1:
@@ -71,17 +75,16 @@ def _spearman_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     It measures monotonic (not necessarily linear) relationships.
 
     Args:
-        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
-        y (np.ndarray): Data array, shape (n_samples,)
+        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples).
+        y (np.ndarray): Data array, shape (n_samples,).
 
     Returns:
-        np.ndarray: Spearman correlation coefficient(s)
-            - scalar if x is 1D
-            - shape (n_permute,) if x is 2D
+        float | np.ndarray: A scalar if `x` is 1D, else one correlation per row
+            of `x`, shape (n_permute,).
 
-    Notes:
-        Uses scipy.stats.rankdata for rank transformation, then applies
-        Pearson correlation to ranks. Handles tied ranks appropriately.
+    Note:
+        Ranks with `scipy.stats.rankdata` (ties get their average rank), then
+        applies the Pearson correlation to the ranks.
     """
     # Handle dimensions
     if x.ndim == 1:
@@ -125,18 +128,17 @@ def _kendall_correlation(x: np.ndarray, y: np.ndarray) -> np.ndarray | float:
     data with many tied ranks.
 
     Args:
-        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples)
-        y (np.ndarray): Data array, shape (n_samples,)
+        x (np.ndarray): Data array, shape (n_samples,) or (n_permute, n_samples).
+        y (np.ndarray): Data array, shape (n_samples,).
 
     Returns:
-        np.ndarray: Kendall correlation coefficient(s)
-            - scalar if x is 1D
-            - shape (n_permute,) if x is 2D
+        float | np.ndarray: A scalar if `x` is 1D, else one correlation per row
+            of `x`, shape (n_permute,). A NaN tau (constant input) is returned
+            as 0.0.
 
-    Notes:
-        Uses scipy.stats.kendalltau for each correlation computation.
-        This is O(n^2) complexity, slower than Pearson/Spearman.
-        For vectorized case, computes each correlation separately.
+    Note:
+        Calls `scipy.stats.kendalltau` once per row; O(n²) per call, so slower
+        than Pearson or Spearman.
     """
     # Handle dimensions
     if x.ndim == 1:
@@ -178,24 +180,28 @@ def _correlation_permutation_cpu_parallel(
     single_feature: bool = False,
     progress_bar: bool = False,
 ) -> dict:
-    """Correlation permutation test using CPU parallelization with joblib.
+    """Correlation permutation test parallelized across CPU workers with joblib.
 
-    Memory-efficient implementation that processes one permutation per worker.
-    Randomly shuffles data1 and computes correlation with data2.
+    Each worker handles one permutation: shuffle `data1`, correlate with `data2`.
+    Seeds are pre-generated from `random_state`, so results do not depend on
+    `n_jobs`.
 
     Args:
-        data1 (np.ndarray): Data to permute, shape (n_samples, n_features)
-        data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
-        n_permute (int): Number of permutations
-        metric (str): Correlation metric ('pearson', 'spearman', 'kendall')
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
-        return_null (bool): Whether to return null distribution
-        n_jobs (int): Number of parallel jobs (-1 = all cores)
-        random_state (int, optional): Random seed for reproducibility
-        single_feature (bool): Whether data is single feature
+        data1 (np.ndarray): Data to permute, shape (n_samples, n_features).
+        data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features).
+        n_permute (int): Number of permutations.
+        metric (str): Correlation metric, one of 'pearson', 'spearman', or 'kendall'.
+        tail (int | str): `2` or `'two'` for two-tailed; `1` or `'one'` for one-tailed.
+        return_null (bool): Whether to return the null distribution.
+        n_jobs (int): Number of parallel workers (-1 = all cores).
+        random_state (int | None): Random seed for reproducibility.
+        single_feature (bool): Whether the caller passed 1D inputs (results are
+            returned as scalars).
+        progress_bar (bool): Show a progress bar over permutations.
 
     Returns:
-        dict: Same format as main function, with 'device' indicating CPU parallel
+        dict: Same keys as `correlation_permutation_test`, with `'device'` set to
+            `'cpu'`.
     """
     from joblib import Parallel, delayed
 
@@ -274,22 +280,21 @@ def _rank_transform_gpu(
 ) -> "torch.Tensor":
     """GPU-accelerated rank transformation using PyTorch.
 
-    Computes ranks using the "average" method for tied ranks, matching
-    scipy.stats.rankdata behavior. This is used for Spearman correlation.
+    Ties receive their average rank, matching `scipy.stats.rankdata`. Used for
+    Spearman correlation.
 
     Args:
-        data: Input tensor, shape (..., n_samples, ...)
-        dim: Dimension along which to rank (default: last dimension)
-        method: Ranking method (currently only "average" supported)
+        data (torch.Tensor): Input tensor, shape (..., n_samples, ...).
+        dim (int): Dimension along which to rank. Defaults to the last dimension.
+        method (str): Ranking method; only "average" is supported.
 
     Returns:
-        Ranked tensor with same shape as input, dtype float32
+        torch.Tensor: Ranks with the same shape as the input, dtype float32.
 
-    Notes:
-        Uses torch.argsort twice to compute ranks:
-        1. First argsort: get indices that sort the data
-        2. Second argsort: get ranks (indices that sort the sorted indices)
-        Then averages ranks for tied values by grouping consecutive duplicates.
+    Note:
+        Each slice along `dim` is sorted (stably); runs of equal sorted values
+        share the mean of their positional ranks, and the ranks are scattered
+        back to the original order.
     """
     import torch
 
@@ -365,25 +370,30 @@ def _correlation_permutation_gpu_batched(
     single_feature: bool = False,
     progress_bar: bool = False,
 ) -> dict:
-    """Correlation permutation test using GPU with automatic batching.
+    """Correlation permutation test on the GPU with automatic batching.
 
-    Processes permutations in batches to avoid GPU OOM. Transfers data once
-    and reuses across batches for efficiency.
+    Permutations run in memory-bounded batches to avoid OOM; the data is
+    transferred once and reused across batches.
 
     Args:
-        data1 (np.ndarray): Data to permute, shape (n_samples, n_features)
-        data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
-        n_permute (int): Number of permutations
-        metric (str): Correlation metric ('pearson', 'spearman', or 'kendall')
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
-        return_null (bool): Whether to return null distribution
-        backend (Backend): Backend instance (must be PyTorch)
-        max_gpu_memory_gb (float): Maximum GPU memory budget
-        random_state: Random state instance
-        single_feature (bool): Whether data is single feature
+        data1 (np.ndarray): Data to permute, shape (n_samples, n_features).
+        data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features).
+        n_permute (int): Number of permutations.
+        metric (str): Correlation metric, one of 'pearson', 'spearman', or 'kendall'.
+        tail (int | str): `2` or `'two'` for two-tailed; `1` or `'one'` for one-tailed.
+        return_null (bool): Whether to return the null distribution.
+        backend (Backend): Backend instance (must be PyTorch).
+        max_gpu_memory_gb (float | None): GPU memory budget in GB; None measures
+            the device.
+        random_state (np.random.RandomState): Random state used to draw the
+            per-permutation seeds.
+        single_feature (bool): Whether the caller passed 1D inputs (results are
+            returned as scalars).
+        progress_bar (bool): Show a progress bar over batches.
 
     Returns:
-        dict: Same format as main function, with 'device' indicating GPU device
+        dict: Same keys as `correlation_permutation_test`, with `'device'` set to
+            `'gpu'`.
     """
     import torch
 
@@ -686,85 +696,79 @@ def correlation_permutation_test(
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
-    """Correlation permutation test.
+    """Permutation test for whether the correlation between two arrays differs from zero.
 
-    Tests whether the correlation between data1 and data2 is significantly
-    different from zero by randomly permuting data1 and computing correlations.
-
-    Assumption: Observations are independent (i.i.d.). For autocorrelated time
-    series, use timeseries_correlation_permutation_test with circle_shift or
-    phase_randomize methods instead.
+    Builds the null distribution by randomly permuting the observations of `data1`
+    and re-correlating with `data2`. Assumes observations are independent (i.i.d.);
+    for autocorrelated time series use `timeseries_correlation_permutation_test`,
+    whose `'circle_shift'` and `'phase_randomize'` methods preserve temporal
+    structure. With 2D inputs each column of `data1` is tested against the
+    matching column of `data2`, independently.
 
     Args:
-        data1 (np.ndarray): Data to permute
-            - shape (n_samples,) for single feature
-            - shape (n_samples, n_features) for multi-feature
-        data2 (np.ndarray): Data to correlate with
-            - shape (n_samples,) for single feature
-            - shape (n_samples, n_features) for multi-feature
-        n_permute (int): Number of permutations (default: 5000)
-        metric (str): Correlation metric (default: 'pearson')
-            - 'pearson': Pearson correlation (linear relationships)
-            - 'spearman': Spearman rank correlation (monotonic relationships)
-            - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
-            - `2`/`'two'`: Two-tailed test (r != 0)
-            - `1`/`'one'`: One-tailed (r > 0; negate one variable for the other
-              direction). The fixed direction keeps MCP correction valid.
-        return_null (bool): If True, return full null distribution (default: False)
-        device (str, optional): Parallelization method (default: 'cpu')
-            - None: Single-threaded NumPy (for debugging/small problems)
-            - 'cpu': CPU parallelization via joblib (default, 4-8× speedup)
-            - 'gpu': GPU acceleration via PyTorch (fastest for large problems)
-        n_jobs (int): Number of CPU cores for parallelization (default: -1 = all cores)
-            Only used when device='cpu'
-        max_gpu_memory_gb (float, optional): Explicit GPU memory budget in GB.
-            None (default) measures the device's available memory.
-            Controls automatic batching to prevent OOM errors. Only used with
-            device='gpu'. Larger values allow more permutations per batch but
-            risk OOM on smaller GPUs.
-        random_state (int, optional): Random seed for reproducibility
-        progress_bar (bool): Show a progress bar over permutations (default: False)
+        data1 (np.ndarray): Data to permute, shape (n_samples,) for a single
+            feature or (n_samples, n_features) for several.
+        data2 (np.ndarray): Data to correlate with, same shape as `data1`.
+        n_permute (int): Number of permutations. Defaults to 5000.
+        metric (str): 'pearson' (linear), 'spearman' (rank-based, monotonic), or
+            'kendall' (tau-b, ordinal association, tie-corrected). Defaults to
+            'pearson'.
+        tail (int | str): `2` or `'two'` for a two-tailed test (r != 0); `1` or
+            `'one'` for a one-tailed test of r > 0 (negate one variable for the
+            other direction; the fixed direction keeps multiple-comparison
+            correction valid). Defaults to 2.
+        return_null (bool): Also return the full null distribution. Defaults to
+            False.
+        device (str | None): Execution path. `'cpu'` parallelizes permutations
+            across `n_jobs` joblib workers (4-8× speedup); `'gpu'` vectorizes them
+            with PyTorch in memory-bounded batches (fastest for large problems;
+            Pearson and Spearman run 5-20× faster on multi-feature data, Kendall
+            needs O(n²) memory per permutation so its batches are smaller);
+            `None` runs single-threaded NumPy (for debugging or small problems).
+            Defaults to 'cpu'.
+        n_jobs (int): Number of CPU workers, -1 = all cores; only used when
+            `device='cpu'`. Defaults to -1.
+        max_gpu_memory_gb (float | None): GPU memory budget in GB that sizes the
+            permutation batches; only used when `device='gpu'`. None (default)
+            measures the device's available memory. Larger values fit more
+            permutations per batch but risk OOM on smaller GPUs.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Show a progress bar over permutations. Defaults to
+            False.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'correlation' (float or np.ndarray): Observed correlation(s)
-            - 'p' (float or np.ndarray): P-value(s)
-            - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
-            - 'device' (str): Parallelization method used
+        dict: Keys 'correlation' (float, or np.ndarray of shape (n_features,) for
+            2D inputs: the observed correlation), 'p' (float or np.ndarray, the
+            matching p-values), 'device' (the execution path used: `'cpu'`,
+            `'gpu'`, or `None`), and 'null_dist' (np.ndarray of shape
+            (n_permute,) or (n_permute, n_features)) when `return_null=True`.
 
     Examples:
-        >>> # Single feature (default CPU parallelization)
-        >>> x = np.random.randn(100)
-        >>> y = x + np.random.randn(100) * 0.5  # Correlated
-        >>> result = correlation_permutation_test(x, y, n_permute=5000)
-        >>> result['correlation']
-        0.85
-        >>> result['p']
-        0.001
+        ```python
+        import numpy as np
+        from nltools.algorithms import correlation_permutation_test
 
-        >>> # Multi-feature (2D arrays)
-        >>> data1 = np.random.randn(100, 10)  # 100 samples, 10 features
-        >>> data2 = data1 + np.random.randn(100, 10) * 0.3  # Correlated
-        >>> result = correlation_permutation_test(data1, data2, n_permute=5000)
-        >>> result['correlation'].shape
-        (10,)
-        >>> result['p'].shape
-        (10,)
+        # Single feature (default: CPU parallel)
+        x = np.random.randn(100)
+        y = x + np.random.randn(100) * 0.5
+        result = correlation_permutation_test(x, y, n_permute=5000)
+        result["correlation"]  # → 0.85 (approximately)
+        result["p"]  # → 0.0002
 
-        >>> # GPU acceleration
-        >>> result = correlation_permutation_test(data1, data2, n_permute=5000, device='gpu')
+        # Multi-feature: each column pair tested independently
+        data1 = np.random.randn(100, 10)
+        data2 = data1 + np.random.randn(100, 10) * 0.3
+        result = correlation_permutation_test(data1, data2, n_permute=5000)
+        result["correlation"].shape  # → (10,)
+        result["p"].shape  # → (10,)
 
-    Notes:
-        - Default (device='cpu'): CPU parallelization with joblib (4-8× speedup)
-        - GPU parallelization ('gpu'): Fastest for large problems with automatic batching
-            - Pearson: Fully vectorized across all features (5-20× speedup for multi-feature)
-            - Spearman: GPU rank transform (average ties) + vectorized Pearson on ranks
-            - Kendall: tie-corrected tau-b via pre-computed pairwise sign tensors;
-              O(n²) memory per permutation, so batches are sized accordingly
-        - Single-threaded (device=None): Use for small problems or debugging
-        - For multi-feature data, each feature pair tested independently
-        - Kendall is O(n^2) complexity, slower than Pearson/Spearman for large samples
+        # GPU acceleration
+        result = correlation_permutation_test(data1, data2, n_permute=5000, device="gpu")
+        ```
+
+    Note:
+        Kendall's tau is O(n²) in the number of samples on every path, so it is
+        markedly slower than Pearson or Spearman for large samples.
     """
     validate_device_parameter(device)
 

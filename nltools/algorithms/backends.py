@@ -1,8 +1,14 @@
 """Backend abstraction for CPU/GPU operations.
 
-Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for
-linear algebra operations. Enables transparent acceleration while
-maintaining NumPy-first development.
+Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for linear algebra
+operations, so algorithms are written once against NumPy semantics and run on a
+GPU when one is available.
+
+This module is also the package's single GPU execution layer: memory budgets
+(`device_memory_budget`), batch sizing (`auto_batch_size`), out-of-memory
+recovery (`compute_oom_safe`), and CPU worker sizing (`auto_n_jobs_for_arrays`)
+live only here. Algorithms supply per-item working-set estimates and never do
+their own budget math.
 """
 
 import warnings
@@ -20,19 +26,21 @@ _already_warned_float64 = [False]
 class Backend:
     """Backend abstraction for numerical operations.
 
-    Provides a unified interface for NumPy and PyTorch operations,
-    enabling transparent GPU acceleration when available.
+    Provides a unified interface for NumPy and PyTorch operations, enabling
+    transparent GPU acceleration when available.
 
     Args:
-        backend (str): Backend type: 'numpy', 'torch', or 'auto'
-            - 'numpy': CPU-only using NumPy
-            - 'torch': PyTorch with automatic device detection (cuda/mps/cpu)
-            - 'auto': Automatically select best available backend
+        backend (str): Backend type. `'numpy'` is CPU-only NumPy; `'torch'` is
+            PyTorch with automatic device detection (cuda, then mps, then cpu);
+            `'auto'` picks `'torch'` when PyTorch is installed and `'numpy'`
+            otherwise. Defaults to `'numpy'`.
 
     Attributes:
-        name (str): Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-        device (str): Device type ('cpu', 'cuda', or 'mps')
-        xp (module): Array library module (numpy or torch)
+        name (str): Backend identifier: `'numpy'`, `'torch-cpu'`, `'torch-cuda'`,
+            or `'torch-mps'`.
+        device (str): Device type: `'cpu'`, `'cuda'`, or `'mps'`.
+        xp (module): Array library module (`numpy` or `torch`).
+        is_gpu (bool): True when the device is a GPU (`'cuda'` or `'mps'`).
     """
 
     def __init__(self, backend: str = "numpy"):
@@ -108,13 +116,14 @@ class Backend:
             self._init_numpy()
 
     def to_device(self, arr: np.ndarray):
-        """Transfer array to backend device.
+        """Transfer an array to the backend device as float32.
 
         Args:
-            arr (np.ndarray): Input numpy array
+            arr (np.ndarray): Input numpy array.
 
         Returns:
-            array: Array on device (numpy array or torch tensor)
+            np.ndarray | torch.Tensor: The array on the device (a numpy array for
+                the numpy backend, a tensor for torch backends).
         """
         if self.name == "numpy":
             # NumPy backend: ensure float32
@@ -138,13 +147,13 @@ class Backend:
         return tensor.to(self._torch_device)
 
     def to_numpy(self, arr):
-        """Convert array back to NumPy.
+        """Convert an array back to NumPy.
 
         Args:
-            arr (np.ndarray or torch.Tensor): Array to convert
+            arr (np.ndarray | torch.Tensor): Array to convert.
 
         Returns:
-            ndarray: The input as a NumPy array.
+            np.ndarray: The input as a NumPy array.
         """
         if self.name == "numpy":
             # NumPy backend: identity operation
@@ -157,17 +166,19 @@ class Backend:
         return arr
 
     def svd(self, X, full_matrices=False):
-        """Compute Singular Value Decomposition.
+        """Compute the singular value decomposition `X = U @ diag(s) @ Vt`.
+
+        The numpy backend also accepts a 3D stack of matrices (SVD of each,
+        results stacked along axis 0). MPS devices compute the SVD in float64 on
+        the CPU and return float32 results on the device.
 
         Args:
-            X (array): Input matrix (n_samples, n_features)
-            full_matrices (bool, default=False): If False, returns reduced SVD
+            X (np.ndarray | torch.Tensor): Input matrix of shape (n_samples, n_features).
+            full_matrices (bool): If False, return the reduced SVD. Defaults to False.
 
         Returns:
-            tuple: (U, s, Vt) where:
-                - U (array): Left singular vectors
-                - s (array): Singular values
-                - Vt (array): Right singular vectors (transposed)
+            tuple[np.ndarray | torch.Tensor, ...]: `(U, s, Vt)` — the left singular
+                vectors, singular values, and transposed right singular vectors.
         """
         if self.name == "numpy":
             try:
@@ -202,11 +213,11 @@ class Backend:
         """Matrix multiplication.
 
         Args:
-            A (array): First matrix
-            B (array): Second matrix
+            A (np.ndarray | torch.Tensor): First matrix.
+            B (np.ndarray | torch.Tensor): Second matrix.
 
         Returns:
-            array: Result of A @ B
+            np.ndarray | torch.Tensor: `A @ B`.
         """
         if self.name == "numpy":
             return A @ B
@@ -223,11 +234,14 @@ class Backend:
         """Normalize a dtype (numpy, torch, or string) to its string name.
 
         Args:
-            dtype: Data type to convert (str, numpy dtype, torch dtype, or None).
+            dtype (str | np.dtype | type | torch.dtype | None): Data type to convert.
 
         Returns:
-            str | None: The dtype name (e.g. "float32", "float64"), or None if the
-                input was None.
+            str | None: The dtype name (e.g. `"float32"`, `"float64"`), or None if
+                the input was None.
+
+        Raises:
+            NotImplementedError: If the input cannot be interpreted as a dtype.
         """
         if isinstance(dtype, str):
             return dtype
@@ -254,15 +268,17 @@ class Backend:
     def asarray(self, x, dtype=None, device=None):
         """Convert input to a backend array.
 
-        Handles numpy arrays, lists, and torch tensors. Places result on
-        the backend's device (or an explicit *device*).
+        Handles numpy arrays, lists, and torch tensors. Places the result on
+        the backend's device (or an explicit `device`). On MPS a float64 dtype
+        is replaced by float32, which is all the device supports.
 
         Args:
-            x: Input data (array-like, tensor, list).
-            dtype: Desired dtype as string, numpy, or torch dtype. If None,
-                inferred from input.
-            device: Target device string (e.g. "cpu", "cuda"). Ignored for
-                numpy backend. If None, uses the backend's default device.
+            x (array-like | torch.Tensor | list): Input data.
+            dtype (str | np.dtype | torch.dtype | None): Desired dtype. If None,
+                inferred from the input.
+            device (str | torch.device | None): Target device (e.g. `"cpu"`,
+                `"cuda"`). Ignored for the numpy backend. If None, uses the
+                backend's default device.
 
         Returns:
             np.ndarray | torch.Tensor: Backend array.
@@ -308,14 +324,14 @@ class Backend:
             return torch.as_tensor(arr, dtype=dtype, device=device)
 
     def asarray_like(self, x, ref):
-        """Convert *x* to an array matching *ref*'s dtype (and device for torch).
+        """Convert `x` to an array matching `ref`'s dtype (and device for torch).
 
         Args:
-            x: Input data.
-            ref: Reference array whose dtype/device to match.
+            x (array-like | torch.Tensor): Input data.
+            ref (np.ndarray | torch.Tensor): Reference array whose dtype and device to match.
 
         Returns:
-            np.ndarray | torch.Tensor: Backend array with the same dtype/device as ref.
+            np.ndarray | torch.Tensor: Backend array with the same dtype and device as `ref`.
         """
         if self.name == "numpy":
             return np.asarray(x, dtype=ref.dtype)
@@ -330,10 +346,10 @@ class Backend:
         element-wise.
 
         Args:
-            *inputs: Arrays, lists of arrays, or None.
+            *inputs (array-like | list | None): Arrays, lists of arrays, or None.
 
         Returns:
-            list: Converted arrays in the same order as inputs.
+            list: Converted arrays in the same order as the inputs.
         """
         result = []
         first = self.asarray(inputs[0])
@@ -353,7 +369,15 @@ class Backend:
     # ------------------------------------------------------------------
 
     def _resolve_torch_device(self, array=None, device=None):
-        """Resolve target torch device from explicit arg, array, or backend default."""
+        """Resolve the target torch device: explicit `device`, else `array.device`, else the backend default.
+
+        Args:
+            array (torch.Tensor | None): Reference tensor whose device to reuse.
+            device (str | torch.device | None): Explicit device; wins when given.
+
+        Returns:
+            torch.device | str: The device to allocate on.
+        """
         if device is not None:
             return device
         if array is not None and hasattr(array, "device"):
@@ -361,13 +385,17 @@ class Backend:
         return self._torch_device
 
     def zeros_like(self, array, shape=None, dtype=None, device=None):
-        """Create zeros array, optionally with a different shape.
+        """Create an array of zeros, optionally with a different shape.
 
         Args:
-            array: Reference array for dtype inference.
-            shape: Output shape. If None, uses array.shape.
-            dtype: Output dtype. If None, uses array.dtype.
-            device: Target device (torch only). If None, uses array's device.
+            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
+            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
+            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
+            device (str | torch.device | None): Target device (torch only). If None,
+                uses the reference array's device.
+
+        Returns:
+            np.ndarray | torch.Tensor: Zero-filled array.
         """
         if shape is None:
             shape = array.shape
@@ -386,13 +414,17 @@ class Backend:
         )
 
     def ones_like(self, array, shape=None, dtype=None, device=None):
-        """Create ones array, optionally with a different shape.
+        """Create an array of ones, optionally with a different shape.
 
         Args:
-            array: Reference array for dtype inference.
-            shape: Output shape. If None, uses array.shape.
-            dtype: Output dtype. If None, uses array.dtype.
-            device: Target device (torch only). If None, uses array's device.
+            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
+            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
+            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
+            device (str | torch.device | None): Target device (torch only). If None,
+                uses the reference array's device.
+
+        Returns:
+            np.ndarray | torch.Tensor: One-filled array.
         """
         if shape is None:
             shape = array.shape
@@ -411,14 +443,18 @@ class Backend:
         )
 
     def full_like(self, array, fill_value, shape=None, dtype=None, device=None):
-        """Create array filled with *fill_value*, optionally with a different shape.
+        """Create an array filled with `fill_value`, optionally with a different shape.
 
         Args:
-            array: Reference array for dtype inference.
-            fill_value: Scalar fill value.
-            shape: Output shape. If None, uses array.shape.
-            dtype: Output dtype. If None, uses array.dtype.
-            device: Target device (torch only). If None, uses array's device.
+            array (np.ndarray | torch.Tensor): Reference array for dtype (and device) inference.
+            fill_value (float | int | bool): Scalar fill value.
+            shape (int | tuple[int, ...] | None): Output shape. If None, uses `array.shape`.
+            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None, uses `array.dtype`.
+            device (str | torch.device | None): Target device (torch only). If None,
+                uses the reference array's device.
+
+        Returns:
+            np.ndarray | torch.Tensor: Filled array.
         """
         if shape is None:
             shape = array.shape
@@ -440,12 +476,16 @@ class Backend:
         )
 
     def full(self, shape, fill_value, dtype=None):
-        """Create array filled with *fill_value*.
+        """Create an array filled with `fill_value` on the backend's device.
 
         Args:
-            shape: Output shape (int or tuple).
-            fill_value: Scalar fill value.
-            dtype: Output dtype. If None, inferred by the backend.
+            shape (int | tuple[int, ...]): Output shape.
+            fill_value (float | int | bool): Scalar fill value.
+            dtype (np.dtype | str | torch.dtype | None): Output dtype. If None,
+                inferred by the backend from `fill_value`.
+
+        Returns:
+            np.ndarray | torch.Tensor: Filled array.
         """
         if self.name == "numpy":
             return np.full(shape, fill_value, dtype=dtype)
@@ -467,10 +507,10 @@ class Backend:
         No-op for the numpy backend.
 
         Args:
-            array: Input array or tensor.
+            array (np.ndarray | torch.Tensor): Input array or tensor.
 
         Returns:
-            np.ndarray | torch.Tensor: Array on CPU.
+            np.ndarray | torch.Tensor: Array on the CPU.
         """
         if self.name == "numpy":
             return array
@@ -482,11 +522,13 @@ class Backend:
         No-op for the numpy backend.
 
         Args:
-            array: Input array or tensor.
-            device: Target device (defaults to backend's device).
+            array (np.ndarray | torch.Tensor): Input array or tensor.
+            device (str | torch.device | None): Target device. Defaults to the
+                backend's device.
 
         Returns:
-            torch.Tensor: Array on the GPU device.
+            np.ndarray | torch.Tensor: Tensor on the device (the input unchanged
+                for the numpy backend).
         """
         if self.name == "numpy":
             return array
@@ -505,8 +547,11 @@ class Backend:
         """Concatenate arrays along an axis.
 
         Args:
-            arrays: Sequence of arrays.
-            axis: Axis to concatenate along (default 0).
+            arrays (Sequence[np.ndarray | torch.Tensor]): Arrays to join.
+            axis (int): Axis to concatenate along. Defaults to 0.
+
+        Returns:
+            np.ndarray | torch.Tensor: Concatenated array.
         """
         if self.name == "numpy":
             return np.concatenate(arrays, axis=axis)
@@ -515,11 +560,14 @@ class Backend:
         return torch.cat(arrays, dim=axis)
 
     def expand_dims(self, array, axis):
-        """Insert a new axis.
+        """Insert a new axis of length one.
 
         Args:
-            array: Input array.
-            axis: Position of the new axis.
+            array (np.ndarray | torch.Tensor): Input array.
+            axis (int): Position of the new axis.
+
+        Returns:
+            np.ndarray | torch.Tensor: View with the added axis.
         """
         if self.name == "numpy":
             return np.expand_dims(array, axis=axis)
@@ -531,17 +579,23 @@ class Backend:
         """Return an independent copy of the array.
 
         Args:
-            array: Input array.
+            array (np.ndarray | torch.Tensor): Input array.
+
+        Returns:
+            np.ndarray | torch.Tensor: The copy.
         """
         if self.name == "numpy":
             return np.copy(array)
         return array.clone()
 
     def flatnonzero(self, array):
-        """Return indices of non-zero elements in the flattened array.
+        """Return indices of the non-zero elements of the flattened array.
 
         Args:
-            array: Input array.
+            array (np.ndarray | torch.Tensor): Input array.
+
+        Returns:
+            np.ndarray | torch.Tensor: 1D integer indices.
         """
         if self.name == "numpy":
             return np.flatnonzero(array)
@@ -553,8 +607,11 @@ class Backend:
         """Sort along an axis, returning values only.
 
         Args:
-            array: Input array.
-            axis: Axis to sort along (default -1).
+            array (np.ndarray | torch.Tensor): Input array.
+            axis (int): Axis to sort along. Defaults to -1.
+
+        Returns:
+            np.ndarray | torch.Tensor: Sorted values.
         """
         if self.name == "numpy":
             return np.sort(array, axis=axis)
@@ -566,27 +623,22 @@ class Backend:
 def resolve_backend(parallel):
     """Coerce a backend specifier into a `Backend` instance.
 
-    Accepts the values callers typically thread through the algorithms
-    package (``None``/``"cpu"`` → numpy, ``"gpu"``/``"torch"`` → torch,
-    ``"numpy"``/``"auto"`` → their direct `Backend` constructors).
-    Existing `Backend` instances are returned unchanged — this is
-    the main reason to prefer ``resolve_backend`` over constructing a new
-    ``Backend(...)`` at each call site: it avoids repeated device
-    detection/torch imports when a backend has already been chosen upstream.
+    Accepts the values callers thread through the algorithms package. An
+    existing `Backend` is returned unchanged, which is the reason to prefer
+    this over constructing `Backend(...)` at each call site: device detection
+    and the torch import happen once, upstream.
 
     Args:
-        parallel: Backend specifier. One of:
-
-            - ``None`` or ``"cpu"``: numpy backend.
-            - ``"numpy"``, ``"torch"``, ``"auto"``: forwarded to ``Backend(...)``.
-            - ``"gpu"``: alias for ``"torch"`` (auto-detects cuda/mps/cpu).
-            - An existing `Backend` instance (returned as-is).
+        parallel (str | Backend | None): Backend specifier. `None` or `"cpu"`
+            gives the numpy backend; `"gpu"` is an alias for `"torch"`
+            (auto-detects cuda, mps, or cpu); `"numpy"`, `"torch"`, and `"auto"`
+            are passed to `Backend(...)`; a `Backend` instance is returned as-is.
 
     Returns:
         Backend: Resolved backend instance.
 
     Raises:
-        ValueError: If ``parallel`` is a string not in the accepted set.
+        ValueError: If `parallel` is a string outside the accepted set.
     """
     if isinstance(parallel, Backend):
         return parallel
@@ -603,19 +655,21 @@ def resolve_backend(parallel):
 
 
 def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend=None):
-    """Test array equality with automatic precision adjustment for MPS backend.
+    """Assert two arrays are almost equal, relaxing precision for the MPS backend.
 
-    This utility automatically reduces precision expectations for torch-mps backend
-    due to float32 precision limitations, preventing test failures while maintaining
-    realistic precision checks for other backends.
+    A test helper: on `torch-mps` (float32 only) `decimal` is capped at 2 with a
+    warning, so the same assertion holds across backends. Torch tensors are
+    moved to the CPU and converted before comparison.
 
     Args:
-        x: First array to compare
-        y: Second array to compare
-        decimal: Desired decimal precision (default: 6)
-        err_msg: Error message prefix
-        verbose: Whether to print detailed error messages
-        backend: Backend instance (optional). If None, attempts to detect from x/y.
+        x (np.ndarray | torch.Tensor): First array to compare.
+        y (np.ndarray | torch.Tensor): Second array to compare.
+        decimal (int): Desired decimal precision. Defaults to 6.
+        err_msg (str): Error message prefix. Defaults to `""`.
+        verbose (bool): Whether to include the mismatching values in the error.
+            Defaults to True.
+        backend (Backend | None): Backend the arrays came from. If None, an MPS
+            tensor is detected from `x`.
 
     Raises:
         AssertionError: If the arrays don't match.
@@ -671,15 +725,13 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
 
 
 def check_gpu_available() -> tuple[bool, dict[str, Any]]:
-    """Check if GPU acceleration is available.
+    """Check whether GPU acceleration is available.
 
     Returns:
-        tuple: (available, info) where:
-            - available (bool): True if GPU (CUDA or MPS) is available
-            - info (dict): Dictionary with keys:
-                - 'backend': 'torch' or 'numpy'
-                - 'device': 'cpu', 'cuda', or 'mps'
-                - 'device_name': Human-readable device name
+        tuple[bool, dict[str, Any]]: `(available, info)`. `available` is True when
+            a CUDA or MPS device is usable. `info` has keys `'backend'`
+            (`'torch'` or `'numpy'`), `'device'` (`'cpu'`, `'cuda'`, or `'mps'`),
+            and `'device_name'` (human-readable device name).
     """
     try:
         import torch
@@ -710,26 +762,26 @@ def check_gpu_available() -> tuple[bool, dict[str, Any]]:
 
 
 def auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend:
-    """Automatically select backend based on problem size.
+    """Select a backend from the problem size.
 
-    Uses heuristics to decide between NumPy (CPU) and PyTorch (GPU)
-    based on the computational workload. Small problems use NumPy
-    to avoid GPU transfer overhead. Large problems prefer GPU when
-    available.
+    Small problems stay on NumPy to avoid GPU transfer overhead; large problems
+    prefer the GPU when one is available. The effective size is
+    `n_samples * n_features * cv`.
 
     Args:
-        n_samples (int): Number of samples in dataset
-        n_features (int): Number of features in dataset
-        cv (int, default=1): Number of cross-validation folds (multiplies effective size)
+        n_samples (int): Number of samples in the dataset.
+        n_features (int): Number of features in the dataset.
+        cv (int): Number of cross-validation folds, which multiplies the effective
+            size. Defaults to 1.
 
     Returns:
-        Backend: Selected backend instance
+        Backend: The selected backend.
 
-    Notes:
-        Selection criteria:
-        - Small problems (< 10M elements): Use NumPy
-        - Large problems (> 30M elements): Use GPU if available
-        - Cross-validation: Prefer GPU even for medium problems
+    Note:
+        Below 10M elements the numpy backend is returned. Above 30M elements the
+        torch backend is returned when a GPU is available, as it is for any
+        cross-validated problem (`cv > 1`) with a GPU. Everything else falls to
+        `Backend('auto')`.
     """
     # Compute effective problem size
     problem_size = n_samples * n_features * cv
@@ -769,15 +821,17 @@ _FALLBACK_BUDGET_GB = 4.0
 _CUDA_HEADROOM = 0.8
 # Fraction of available system RAM for CPU work and MPS (unified memory).
 _SYSTEM_HEADROOM = 0.5
-# Saturation ceiling for batch *sizing*, in GB of per-batch working set.
-# Batches beyond this compute no faster — GPU kernels saturate at moderate
-# working sets — but add allocation latency and, on unified-memory systems,
-# starve the host (a measured ~100 GB budget on a 128 GB GB10 sized ~100 GB
-# ISC batches: 4.2s → 16.1s and a wedged machine). The cap applies only to
-# MEASURED budgets: an explicit `max_gpu_memory_gb` is the documented
-# contract and always wins, uncapped. Capacity reasoning (OOM recovery,
-# single-item-too-large errors) still uses the true measured budget.
 BATCH_WORKING_SET_CEILING_GB = 8.0
+"""Saturation ceiling for batch sizing, in GB of per-batch working set.
+
+Batches beyond this compute no faster (GPU kernels saturate at moderate working
+sets) but add allocation latency and, on unified-memory systems, starve the host:
+a measured ~100 GB budget on a 128 GB GB10 sized ~100 GB ISC batches, 4.2s → 16.1s
+and a wedged machine. The cap applies only to *measured* budgets — an explicit
+`max_gpu_memory_gb` is the documented contract and always wins, uncapped.
+Capacity reasoning (OOM recovery, single-item-too-large errors) still uses the
+true measured budget. See `device_memory_budget(cap_for_batching=True)`.
+"""
 
 
 def device_memory_budget(
@@ -795,16 +849,16 @@ def device_memory_budget(
     conservative 4 GB fallback applies.
 
     Args:
-        backend: Resolved `Backend` whose device the work runs on. None is
-            treated as CPU.
-        max_gpu_memory_gb: Explicit budget override in GB. Must be positive.
-        cap_for_batching: Pass True when the budget sizes batches — a
-            *measured* budget is then capped at
-            `BATCH_WORKING_SET_CEILING_GB`, because working sets beyond the
-            saturation ceiling add allocation cost without throughput gain
-            and starve unified-memory hosts. Never applied to an explicit
-            `max_gpu_memory_gb`; capacity queries (the default) stay
-            uncapped.
+        backend (Backend | None): Resolved backend whose device the work runs
+            on. None is treated as CPU.
+        max_gpu_memory_gb (float | None): Explicit budget override in GB. Must
+            be positive.
+        cap_for_batching (bool): Pass True when the budget sizes batches — a
+            *measured* budget is then capped at `BATCH_WORKING_SET_CEILING_GB`,
+            because working sets beyond the saturation ceiling add allocation
+            cost without throughput gain and starve unified-memory hosts. Never
+            applied to an explicit `max_gpu_memory_gb`; capacity queries (the
+            default) stay uncapped.
 
     Returns:
         float: Budget in GB.
@@ -859,16 +913,20 @@ def auto_batch_size(
     allocation `overhead` factor; the clamp/ceil policy lives here.
 
     Args:
-        n_items: Total number of items (permutations, targets, ...).
-        bytes_per_item: Dominant working-set size of one item in bytes.
-        budget_gb: Memory budget from `device_memory_budget`.
-        overhead: Multiplier for intermediate allocations (e.g. 3.0 when
-            the computation holds ~3x the input working set).
-        min_batch: Smallest batch worth dispatching (amortizes launch and
-            transfer overhead). Never exceeds `n_items`.
+        n_items (int): Total number of items (permutations, targets, ...).
+        bytes_per_item (float): Dominant working-set size of one item in bytes.
+        budget_gb (float): Memory budget from `device_memory_budget`.
+        overhead (float): Multiplier for intermediate allocations (e.g. 3.0 when
+            the computation holds ~3x the input working set). Defaults to 1.0.
+        min_batch (int): Smallest batch worth dispatching (amortizes launch and
+            transfer overhead). Never exceeds `n_items`. Defaults to 1.
 
     Returns:
-        `(batch_size, n_batches)` with `batch_size * n_batches >= n_items`.
+        tuple[int, int]: `(batch_size, n_batches)` with
+            `batch_size * n_batches >= n_items`.
+
+    Raises:
+        ValueError: If `n_items` is not positive.
     """
     if n_items <= 0:
         raise ValueError(f"n_items must be positive, got {n_items}")
@@ -933,12 +991,14 @@ def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
     differences are ~1 float32 ulp).
 
     Args:
-        fn: Callable mapping the arrays to a numpy result (axis-0 aligned).
-        *arrays: Input arrays sharing axis-0 length.
-        min_chunk: Chunk size below which an OOM is considered fatal.
+        fn (Callable[..., np.ndarray]): Maps the arrays to a numpy result
+            (axis-0 aligned).
+        *arrays (np.ndarray): Input arrays sharing their axis-0 length.
+        min_chunk (int): Chunk size below which an OOM is considered fatal.
+            Defaults to 1.
 
     Returns:
-        ndarray: `fn`'s result, possibly assembled from retried chunks.
+        np.ndarray: `fn`'s result, possibly assembled from retried chunks.
 
     Raises:
         MemoryError: If the device OOMs even at `min_chunk` items.
@@ -974,40 +1034,31 @@ def _auto_n_jobs_cpu(
     min_jobs: int = 1,
     max_jobs: int | None = None,
 ) -> int:
-    """Automatically determine optimal number of CPU workers to avoid memory exhaustion.
+    """Choose how many CPU workers fit in memory for a permutation job.
 
-    Calculates how many parallel workers can safely process permutations given
-    available memory. Each worker process needs to serialize (pickle) data,
-    which typically requires 2-4× the original data size in memory.
+    Each joblib worker pickles its copy of the data, which costs roughly 3× the
+    array size, so the worker count is the memory budget divided by that
+    per-worker cost, clamped to `[min_jobs, max_jobs]`.
 
     Args:
-        data_size_mb (float): Size of data array in MB (float32: 4 bytes per element)
-        n_permute (int): Number of permutations to compute
-        max_memory_gb (float, optional): Explicit memory budget in GB. None
+        data_size_mb (float): Size of the data array in MB.
+        n_permute (int): Number of permutations to compute (adds a small
+            per-worker result overhead).
+        max_memory_gb (float | None): Explicit memory budget in GB. None
             (default) measures available system RAM with headroom via
             `device_memory_budget`.
-        min_jobs (int): Minimum number of workers (default: 1)
-        max_jobs (int, optional): Maximum number of workers (default: None = all cores)
+        min_jobs (int): Minimum number of workers. Defaults to 1.
+        max_jobs (int | None): Maximum number of workers. None (default) means
+            all cores.
 
     Returns:
-        int: Optimal number of workers (n_jobs parameter for joblib.Parallel)
+        int: Worker count for `joblib.Parallel(n_jobs=...)`.
 
     Examples:
-        >>> # Small data: Use all cores
-        >>> n_jobs = _auto_n_jobs_cpu(1.0, 5000, max_memory_gb=8.0)
-        >>> n_jobs >= 4  # Should use multiple cores
-        True
-
-        >>> # Large data: Limit workers
-        >>> n_jobs = _auto_n_jobs_cpu(100.0, 5000, max_memory_gb=8.0)
-        >>> n_jobs < 8  # Should limit workers
-        True
-
-    Notes:
-        - Accounts for joblib serialization overhead (3× multiplier)
-        - Leaves 50% headroom for OS and other processes
-        - Minimum 1 worker, maximum all available cores (unless max_jobs specified)
-        - Uses available RAM if max_memory_gb is None
+        ```python
+        _auto_n_jobs_cpu(1.0, 5000, max_memory_gb=8.0)  # small data → many workers
+        _auto_n_jobs_cpu(100.0, 5000, max_memory_gb=8.0)  # large data → fewer workers
+        ```
     """
     import multiprocessing
 
@@ -1038,15 +1089,15 @@ def _auto_n_jobs_cpu(
 
 
 def _estimate_data_size_mb(data: np.ndarray) -> float:
-    """Estimate memory size of data array in MB.
+    """Estimate the memory footprint of an array in MB.
 
-    Accounts for numpy array overhead and dtype.
+    Accounts for the dtype item size plus a fixed numpy object overhead.
 
     Args:
-        data (np.ndarray): Data array
+        data (np.ndarray): Data array.
 
     Returns:
-        float: Estimated size in MB
+        float: Estimated size in MB (0.0 for an empty array).
     """
     if data.size == 0:
         return 0.0
@@ -1073,16 +1124,16 @@ def auto_n_jobs_for_arrays(
 
     Sizes workers by the largest item (each worker pickles its item), using
     the same measured budget as the device batching layer. None entries are
-    ignored; an empty list returns ``min_jobs``.
+    ignored; an empty list returns `min_jobs`.
 
     Args:
-        arrays: Iterable of numpy arrays (None entries allowed).
-        max_memory_gb: Explicit memory budget in GB. None (default) measures
-            available system RAM with headroom via `device_memory_budget`.
-        min_jobs: Minimum number of workers (default: 1).
+        arrays (Iterable[np.ndarray | None]): Arrays to map over (None entries allowed).
+        max_memory_gb (float | None): Explicit memory budget in GB. None (default)
+            measures available system RAM with headroom via `device_memory_budget`.
+        min_jobs (int): Minimum number of workers. Defaults to 1.
 
     Returns:
-        int: Worker count for ``joblib.Parallel(n_jobs=...)``.
+        int: Worker count for `joblib.Parallel(n_jobs=...)`.
     """
     arrays = [a for a in arrays if a is not None]
     if not arrays:

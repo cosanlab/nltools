@@ -1,35 +1,28 @@
-"""HyperAlignment: Multi-subject cortical surface alignment using iterative Procrustes refinement.
+"""HyperAlignment: multi-subject alignment by iterative Procrustes refinement.
 
-Hyperalignment finds a common representational space across subjects by iteratively
-refining pairwise Procrustes transformations. Unlike simple alignment, hyperalignment
-preserves both spatial structure and representational similarity.
+Hyperalignment finds a common representational space across subjects by
+iteratively refining pairwise Procrustes transformations (Haxby et al., 2011).
+Every subject keeps its full feature dimensionality — unlike `SRM`, which
+projects into a lower-dimensional shared space.
 
-Algorithm overview:
-    1. Initialize template (first subject or group average)
-    2. For each iteration:
-       - Align each subject to template (Procrustes transformation)
-       - Update template (average in aligned space)
-    3. Converge when transformations stabilize or max iterations reached
-    4. Final alignment: Apply learned transformations to all subjects
+**Algorithm.** Initialize the template from the first subject, incrementally
+aligning and averaging the rest; then for `n_iter` iterations align each
+subject to the template with a Procrustes transform and re-average in the
+aligned space; finally align every subject to the refined template.
 
-Performance:
-    - Time complexity: O(n_iter × n_subjects² × n_voxels × n_samples)
-    - Memory complexity: O(n_subjects × n_voxels × n_features)
-    - Parallelization: ~4-8× speedup with CPU-parallel (parallel="cpu")
-    - Most beneficial when subjects have many voxels (>10K) and multiple iterations
+**Performance.** Time is O(n_iter × n_subjects × n_voxels × n_samples) with an
+SVD per subject per iteration; memory is O(n_subjects × n_voxels × n_samples).
+`parallel='cpu'` runs the per-subject Procrustes fits with joblib, which pays
+off with 3+ subjects, many voxels (>10K), or several iterations.
 
-When to use hyperalignment:
-    - Multi-subject alignment preserving spatial structure
-    - Alternative to SRM when spatial structure is important
-    - See `nltools.algorithms.srm.SRM` for dimension-reduction approach
-    - See `nltools.algorithms.procrustes()` for single-subject alignment
+**When to use.** Multi-subject alignment that must preserve spatial structure;
+an alternative to `SRM` when dimension reduction is not wanted. For aligning a
+single pair of matrices use `procrustes`.
 
-This module implements the hyperalignment technique described in:
-
-Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
-Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
-A common, high-dimensional model of the representational space in
-human ventral temporal cortex. Neuron, 72(2), 404-416.
+**Reference.** Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko,
+Y. O., Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011). A common,
+high-dimensional model of the representational space in human ventral temporal
+cortex. *Neuron*, 72(2), 404-416.
 """
 
 import numpy as np
@@ -44,50 +37,36 @@ def _procrustes_pairwise(
 ) -> tuple[np.ndarray, np.ndarray, float, np.ndarray, float]:
     """Pairwise Procrustes alignment between two matrices.
 
-    Procrustes alignment finds the optimal orthogonal transformation (rotation + reflection)
-    and scaling to align data2 to data1, minimizing the sum of squared differences.
-
-    Algorithm:
-        - Centers both matrices (removes translation)
-        - Normalizes to unit Frobenius norm (removes scale)
-        - Finds optimal rotation via SVD: R = U V^T where U Σ V^T = data1^T @ data2
-        - Applies transformation: data2_aligned = data2 @ R^T * scale
-
-    Performance:
-        - Time complexity: O(min(n_samples, n_features)^3) for SVD
-        - Memory complexity: O(n_samples × n_features)
-        - Used in pairwise fashion during hyperalignment iterations
-
-    Internal helper function that performs pairwise Procrustes alignment.
-    This is adapted from `algorithms.alignment.procrustes.procrustes` for internal use.
+    Finds the orthogonal transformation (rotation + reflection) and scaling that
+    aligns `data2` to `data1` with minimum sum of squared differences. Both
+    matrices are centered and normalized to unit Frobenius norm, the rotation
+    `R = U V^T` is taken from the SVD `U Σ V^T = data1^T @ data2`, and the
+    result is `data2 @ R^T * scale`. Matrices with different column counts are
+    zero-padded to match. Same computation as `procrustes`; used pairwise inside
+    the hyperalignment iterations (one SVD, O(min(n_samples, n_features)^3)).
 
     Args:
-        data1: Reference matrix (target for alignment), shape (n_samples, n_features).
-        data2: Matrix to be aligned to data1, shape (n_samples, n_features).
+        data1 (np.ndarray): Reference matrix, shape (n_samples, n_features).
+        data2 (np.ndarray): Matrix to align to `data1`, shape (n_samples, n_features).
 
     Returns:
-        tuple: (mtx1, mtx2, disparity, R, scale) where:
-            - mtx1: Standardized version of data1 (centered and normalized).
-            - mtx2: Aligned version of data2 (transformed to match mtx1).
-            - disparity: Sum of squared differences between aligned matrices.
-            - R: Orthogonal transformation matrix (rotation + reflection).
-            - scale: Scale factor from singular values.
+        tuple[np.ndarray, np.ndarray, float, np.ndarray, float]: `(mtx1, mtx2,
+            disparity, R, scale)` — the standardized `data1`, the aligned `data2`,
+            the sum of squared differences between them, the orthogonal
+            transformation matrix, and the scale factor from the singular values.
 
     Raises:
         ValueError: If input matrices have incompatible shapes or are empty.
 
     Examples:
-        >>> import numpy as np
-        >>> data1 = np.random.randn(100, 50)
-        >>> data2 = np.random.randn(100, 50)
-        >>> mtx1, mtx2, disparity, R, scale = _procrustes_pairwise(data1, data2)
-        >>> disparity  # Should be small after alignment
-        0.023
+        ```python
+        import numpy as np
 
-    Notes:
-        - Handles different column sizes by zero-padding the smaller matrix.
-        - Centers and normalizes inputs before alignment.
-        - Uses singular value decomposition to find optimal transformation.
+        data1 = np.random.randn(100, 50)
+        data2 = np.random.randn(100, 50)
+        mtx1, mtx2, disparity, R, scale = _procrustes_pairwise(data1, data2)
+        disparity  # → small after alignment, e.g. 0.023
+        ```
     """
     mtx1 = np.array(data1, dtype=np.double, copy=True)
     mtx2 = np.array(data2, dtype=np.double, copy=True)
@@ -135,82 +114,60 @@ def _procrustes_pairwise(
 
 
 class HyperAlignment(BaseEstimator, TransformerMixin):
-    """Hyperalignment using iterative Procrustes alignment.
+    """Hyperalignment using iterative Procrustes alignment (Haxby et al., 2011).
 
-    Three-stage iterative process for aligning multi-subject data:
-    1. Create initial average template
-    2. Refine template through n_iter iterations
-    3. Final alignment of all subjects to refined template
-
-    This implements the Procrustes-based hyperalignment method commonly
-    used in multi-subject neuroimaging analysis.
+    Aligns multi-subject data in three stages: build an initial average
+    template, refine it over `n_iter` rounds of align-and-average, then align
+    every subject to the refined template. Each subject's data is a
+    (n_features, n_samples) matrix; subjects may differ in `n_features` when
+    `auto_pad=True`.
 
     Args:
-        n_iter (int, default=2): Number of template refinement iterations
-            (stages 1-2).
-        auto_pad (bool, default=True): If True, automatically zero-pad matrices
-            to standardize sizes. If False, caller must ensure all matrices have
-            same dimensions.
+        n_iter (int): Number of template refinement iterations. Defaults to 2.
+        auto_pad (bool): If True, zero-pad each subject's feature axis up to the
+            largest feature count. If False, all matrices must already have the
+            same shape. Defaults to True.
 
     Attributes:
-        w_ (list of ndarray, element i has shape=[features_i, features]): The
-            transformation matrices (rotation + reflection) for each subject.
-        s_ (ndarray, shape=[features, samples]): The aligned common template
-            (shared response).
-        disparity_ (list of float): Disparity (sum of squared differences) for
-            each subject.
-        scale_ (list of float): Scale factors for each subject.
+        w_ (list[np.ndarray]): Per-subject transformation matrices (rotation +
+            reflection), each of shape (n_features, n_features).
+        s_ (np.ndarray): The common template, shape (n_features, n_samples).
+        common_model_ (np.ndarray): Alias for `s_`.
+        disparity_ (list[float]): Per-subject sum of squared differences from the
+            template after alignment.
+        scale_ (list[float]): Per-subject scale factors.
 
     Note:
-        ``common_model_`` property provides alias for ``s_`` (backward compatibility).
+        `parallel='cpu'` (the default of `fit` and `transform`) runs the
+        per-subject Procrustes fits with joblib; it pays off with 3+ subjects,
+        many voxels (>10K), or several iterations. Use `parallel=None` for
+        debugging or small problems.
 
     Examples:
-        Basic multi-subject alignment:
+        ```python
+        import numpy as np
+        from nltools.algorithms import HyperAlignment
 
-        >>> from nltools.algorithms import HyperAlignment
-        >>> import numpy as np
-        >>>
-        >>> # Create sample data (3 subjects)
-        >>> data = [np.random.randn(100, 50) for _ in range(3)]
-        >>>
-        >>> # Fit hyperalignment with CPU parallelization (default)
-        >>> hyper = HyperAlignment(n_iter=2)
-        >>> hyper.fit(data, parallel="cpu", n_jobs=-1)
-        >>>
-        >>> # Transform to common space
-        >>> aligned = hyper.transform(data)
-        >>>
-        >>> # Access common template
-        >>> template = hyper.s_  # or hyper.common_model_
-        >>>
-        >>> # Align a new subject
-        >>> new_subject = np.random.randn(100, 50)
-        >>> new_transform = hyper.transform_subject(new_subject)
+        data = [np.random.randn(100, 50) for _ in range(3)]  # 3 subjects
 
-    Note:
-        When to use parallel processing:
+        hyper = HyperAlignment(n_iter=2)
+        hyper.fit(data, parallel="cpu", n_jobs=-1)
+        aligned = hyper.transform(data)  # list of arrays in the common space
+        template = hyper.s_  # or hyper.common_model_
 
-        - Use ``parallel="cpu"`` (default) for datasets with 3+ subjects to speed up
-          pairwise Procrustes operations during template refinement.
-        - Use ``parallel=None`` for debugging or small datasets (<3 subjects) where
-          parallelization overhead isn't beneficial.
-        - Parallel processing is most beneficial when subjects have many voxels
-          (>10K) and template refinement requires multiple iterations.
-
-    Note:
-        Reference: Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
-        Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
-        A common, high-dimensional model of the representational space in
-        human ventral temporal cortex. Neuron, 72(2), 404-416.
+        # Align a new subject to the fitted template
+        new_subject = np.random.randn(100, 50)
+        transformed, R, disparity, scale = hyper.transform_subject(new_subject)
+        ```
     """
 
     def __init__(self, n_iter: int = 2, auto_pad: bool = True) -> None:
         """Initialize HyperAlignment.
 
         Args:
-            n_iter (int, default=2): Number of template refinement iterations
-            auto_pad (bool, default=True): Whether to automatically pad matrices
-                to same size
+            n_iter (int): Number of template refinement iterations. Defaults to 2.
+            auto_pad (bool): Whether to zero-pad matrices to the same size.
+                Defaults to True.
         """
         self.n_iter = n_iter
         self.auto_pad = auto_pad
@@ -225,14 +182,13 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         """Fit hyperalignment model to data.
 
         Args:
-            data (list of ndarray): List of data matrices, each with shape
-                (n_features, n_samples). Different subjects can have different
-                numbers of features if auto_pad=True.
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
+            data (list[np.ndarray]): Data matrices, each of shape
+                (n_features, n_samples). Subjects may differ in `n_features`
+                when `auto_pad=True`.
+            parallel (str | None): `'cpu'` (default) aligns subjects in parallel
+                with joblib; None runs single-threaded NumPy.
+            n_jobs (int): Number of CPU workers when `parallel='cpu'`; -1
+                (default) picks a count from available memory.
 
         Returns:
             HyperAlignment: Fitted model (`self`).
@@ -365,7 +321,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
 
     @property
     def common_model_(self):
-        """Alias for ``s_`` (common template)."""
+        """Alias for `s_` (the common template)."""
         return self.s_
 
     def transform(
@@ -375,19 +331,19 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         parallel: str | None = "cpu",
         n_jobs: int = -1,
     ) -> list[np.ndarray]:
-        """Transform data to common space using fitted transformations.
+        """Transform data to the common space using the fitted transformations.
 
         Args:
-            data (list of ndarray): List of data matrices to transform. Should be
-                the same data used for fitting (or have compatible dimensions).
-            parallel (str, optional): Execution backend.
-                - None: Single-threaded NumPy (debugging/small problems)
-                - "cpu": CPU parallelization via joblib (default, multi-subject processing)
-            n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect based on memory).
-                Only used when parallel="cpu". Defaults to -1.
+            data (list[np.ndarray]): Data matrices to transform, one per fitted
+                subject in the same order as `fit` (the same data or data of
+                compatible shape).
+            parallel (str | None): `'cpu'` (default) transforms subjects in
+                parallel with joblib; None falls back to the setting used in `fit`.
+            n_jobs (int): Number of CPU workers when parallel; -1 (default) reuses
+                the value from `fit`, itself resolved from available memory.
 
         Returns:
-            list[np.ndarray]: List of transformed data matrices in common space.
+            list[np.ndarray]: Transformed data matrices in the common space.
         """
         # Validate parallel parameter
         if parallel not in [None, "cpu"]:
@@ -458,8 +414,8 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         """Align a new subject to the common space.
 
         Args:
-            subject_data (ndarray, shape (n_features, n_samples)): Data from a new
-                subject to align to the common template
+            subject_data (np.ndarray): Data from a new subject, shape
+                (n_features, n_samples), to align to the common template.
 
         Returns:
             tuple[np.ndarray, np.ndarray, float, float]: `(transformed, R, disparity,

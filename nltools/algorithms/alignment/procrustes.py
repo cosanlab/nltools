@@ -21,30 +21,34 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
 ):
     """Align subject data into a common response model.
 
-    This function is a convenience wrapper around `HyperAlignment` and `SRM` classes.
-
-    Can be used to hyperalign source data to target data using
-    Hyperalignment from Dartmouth (i.e., procrustes transformation; see
-    nltools.algorithms.procrustes) or Shared Response Model from Princeton (see
-    nltools.algorithms.srm). (see nltools.data.BrainData.align for aligning
-    a single Brain object to another). Common Model is shared response
-    model or centered target data. Transformed data can be back projected to
-    original data using Tranformation matrix. Inputs must be a list of BrainData
-    instances or numpy arrays (observations by features).
-
+    A convenience wrapper around the `HyperAlignment` and `SRM`/`DetSRM` classes.
+    Aligns a group of subjects either by Procrustes-based hyperalignment
+    (Haxby et al., 2011) or by the Shared Response Model (Chen et al., 2015).
+    The common model is the shared response (SRM) or the centered group template
+    (Procrustes). Transformed data can be projected back into each subject's
+    original space with its transformation matrix. To align a single `BrainData`
+    to another, use `BrainData.align` instead.
 
     Args:
-        data: (list) A list of BrainData objects
-        method: (str) alignment method to use
-            ['probabilistic_srm','deterministic_srm','procrustes']
-        n_features: (int) number of features to align to common space.
-            If None then will select number of voxels
-        axis: (int) axis to align on
+        data (list[BrainData] | list[np.ndarray]): Subjects to align; all elements
+            must be the same type. Arrays are observations x features.
+        method (str): One of `'probabilistic_srm'`, `'deterministic_srm'`, or
+            `'procrustes'`. Defaults to `'deterministic_srm'`.
+        n_features (int | None): Number of features in the common space (SRM only).
+            None uses the number of voxels. Must be None for `'procrustes'`.
+        axis (int): Axis to align on: 0 aligns timepoints (ISC computed per voxel),
+            1 aligns voxels (ISC computed per timepoint). Defaults to 0.
+        *args (Any): Positional arguments forwarded to the `SRM`/`DetSRM`
+            constructor.
+        **kwargs (Any): Keyword arguments forwarded to the `SRM`/`DetSRM`
+            constructor.
 
     Returns:
-        dict: A dictionary containing a list of transformed subject matrices, a
-            list of transformation matrices, the shared response matrix, and the
-            intersubject correlation of the shared responses.
+        dict: Keys `'transformed'` (list of aligned subject data, same type as the
+            input), `'transformation_matrix'` (per-subject transforms),
+            `'common_model'` (shared response or group template), and `'isc'`
+            (dict mapping each aligned unit to its mean intersubject correlation).
+            With `method='procrustes'` also `'disparity'` and `'scale'`.
 
     Examples:
         ```python
@@ -237,25 +241,22 @@ def procrustes(data1, data2):
 
     Each input matrix is a set of points or vectors (the rows of the matrix).
     The dimension of the space is the number of columns of each matrix. Given
-    two identically sized matrices, procrustes standardizes both such that:
-    - $tr(AA^{T}) = 1$.
-    - Both sets of points are centered around the origin.
-    Procrustes then applies the optimal transform to the second
-    matrix (including scaling/dilation, rotations, and reflections) to minimize
-    $M^{2}=\\sum(data1-data2)^{2}$, or the sum of the squares of the
-    pointwise differences between the two input datasets.
-    This function was not designed to handle datasets with different numbers of
-    datapoints (rows).  If two data sets have different dimensionality
-    (different number of columns), this function will add columns of zeros to
-    the smaller of the two.
+    two identically sized matrices, procrustes standardizes both so that
+    $tr(AA^{T}) = 1$ and both sets of points are centered around the origin.
+    It then applies the optimal transform to the second matrix (including
+    scaling/dilation, rotations, and reflections) to minimize
+    $M^{2}=\\sum(data1-data2)^{2}$, the sum of squared pointwise differences
+    between the two datasets. Both inputs must have the same number of rows;
+    if they differ in the number of columns, the narrower one is padded with
+    columns of zeros.
 
     Args:
-        data1: Matrix whose n rows represent points in k (columns) space.
-            `data1` is the reference data; after it is standardized, the data
-            from `data2` will be transformed to fit the pattern in `data1`
+        data1 (np.ndarray): Matrix whose n rows represent points in k (columns)
+            space. `data1` is the reference data; after it is standardized, the
+            data from `data2` will be transformed to fit the pattern in `data1`
             (must have >1 unique points).
-        data2: n rows of data in k space to be fit to `data1`. Must be the same
-            shape `(numrows, numcols)` as `data1` (must have >1 unique points).
+        data2 (np.ndarray): n rows of data in k space to be fit to `data1`. Must
+            have the same number of rows as `data1` (must have >1 unique points).
 
     Returns:
         tuple[np.ndarray, np.ndarray, float, np.ndarray, float]: `(mtx1, mtx2,
@@ -325,18 +326,20 @@ def procrustes_distance(
     inference (Peres-Neto & Jackson, 2001).
 
     Args:
-        mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
-        mat2 (ndarray): 1d or 2d numpy array; must have same number of rows as mat1
-        n_permute (int): number of permutation iterations to perform
-        tail (int or str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for
-            one-tailed (similarity > chance)
-        n_jobs (int): The number of CPUs to use to do permutation; default -1 (all)
-        random_state (int, np.random.RandomState, or None): seed or generator for
-            the permutation shuffling; default None
+        mat1 (np.ndarray): 1d or 2d array; must have the same number of rows as
+            `mat2`.
+        mat2 (np.ndarray): 1d or 2d array; must have the same number of rows as
+            `mat1`.
+        n_permute (int): Number of permutation iterations. Defaults to 5000.
+        tail (int | str): `2` or `'two'` for a two-tailed test (default); `1` or
+            `'one'` for one-tailed (similarity greater than chance).
+        n_jobs (int): Number of CPUs for the permutations; -1 (default) uses all.
+        random_state (int | np.random.RandomState | None): Seed or generator for
+            the row shuffling. Defaults to None.
 
     Returns:
-        dict: results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
-
+        dict: Keys `'similarity'` (float in [0, 1], one minus the Procrustes
+            disparity) and `'p'` (permutation p-value).
     """
 
     # raise NotImplementedError("procrustes distance is not currently implemented")
@@ -397,13 +400,16 @@ def align_states(
     different from aligning multiple subjects' data.
 
     Args:
-        reference: (np.array) reference pattern x state matrix
-        target: (np.array) target pattern x state matrix to align to reference
-        metric: (str) distance metric to use
-        return_index: (bool) return index if True, return remapped data if False
-        replace_zero_variance: (bool) transform a vector with zero variance to random
-            numbers from a uniform distribution. Useful when using correlation as a
-            distance metric to avoid NaNs.
+        reference (np.ndarray): Reference pattern x state matrix.
+        target (np.ndarray): Target pattern x state matrix to align to `reference`;
+            must have the same shape.
+        metric (str): Distance metric passed to `sklearn.metrics.pairwise_distances`.
+            Defaults to `'correlation'`.
+        return_index (bool): If True return the remapping index instead of the
+            reordered data. Defaults to False.
+        replace_zero_variance (bool): Replace zero-variance columns with uniform
+            random numbers before computing distances; avoids NaNs with the
+            correlation metric. Defaults to False.
 
     Returns:
         np.ndarray: If `return_index=False` (default), `target[:, remapping]` — the
@@ -424,10 +430,10 @@ def align_states(
         constant columns.
 
         Args:
-            data: 2-D array whose columns are checked for zero variance.
+            data (np.ndarray): 2-D array whose columns are checked for zero variance.
 
         Returns:
-            Array with zero-variance columns replaced by U(0, 1) random values.
+            np.ndarray: Array with zero-variance columns replaced by U(0, 1) values.
         """
         if np.any(data.std(axis=0) == 0):
             for i in np.where(data.std(axis=0) == 0)[0]:

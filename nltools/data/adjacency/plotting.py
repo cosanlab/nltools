@@ -4,14 +4,15 @@ import numpy as np
 
 
 def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
-    """Create Heatmap of Adjacency Matrix.
-
-    Can pass in any ``sns.heatmap`` argument.
+    """Create a heatmap of an Adjacency matrix.
 
     Args:
         adj (Adjacency): Adjacency object to plot.
-        limit (int): Number of heatmaps to plot if object contains multiple adjacencies (default: 3).
-        axes: Matplotlib axis handle.
+        limit (int): Number of heatmaps to plot if the object contains multiple
+            matrices. Default 3.
+        axes (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
+        *args (tuple): Forwarded positionally to `seaborn.heatmap`.
+        **kwargs (dict): Forwarded to `seaborn.heatmap`.
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -66,19 +67,21 @@ def plot_mds(
     n_jobs=-1,
     **kwargs,
 ):
-    """Plot Multidimensional Scaling.
+    """Plot multidimensional scaling.
 
     Args:
-        adj (Adjacency): Adjacency object to plot (must be a distance matrix).
-        n_components (int): Number of dimensions to project (can be 2 or 3).
-        metric_mds (bool): Perform metric (True) or non-metric (False) dimensional scaling. Default True.
-        labels (list): Can override labels stored in Adjacency Class.
-        labels_color (list): List of colors for labels.
-        cmap: Colormap instance (default: ``plt.cm.hot_r``).
-        view (tuple): View for 3-Dimensional plot. Default (30, 20).
+        adj (Adjacency): Adjacency object to plot (must be a single distance matrix).
+        n_components (int): Number of dimensions to project (2 or 3).
+        metric_mds (bool): Perform metric (True) or non-metric (False) scaling.
+            Default True.
+        labels (list, optional): Overrides the labels stored on `adj`.
+        labels_color (list, optional): One color per label.
+        cmap (matplotlib.colors.Colormap, optional): Colormap. Default `plt.cm.hot_r`.
+        view (tuple): Elevation/azimuth for a 3-D plot. Default (30, 20).
         figsize (list): Figure size. Default [12, 8].
-        ax: Matplotlib axis handle.
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
         n_jobs (int): Number of parallel jobs.
+        **kwargs (dict): Forwarded to `sklearn.manifold.MDS`.
     """
     import matplotlib.pyplot as plt
     from sklearn.manifold import MDS

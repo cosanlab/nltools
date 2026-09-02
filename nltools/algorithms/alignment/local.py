@@ -29,20 +29,19 @@ logger = logging.getLogger(__name__)
 def _orthogonal_procrustes_backend(
     A: np.ndarray, B: np.ndarray, backend: Backend
 ) -> np.ndarray:
-    """GPU-compatible orthogonal Procrustes using Backend.svd().
+    """GPU-compatible orthogonal Procrustes using `Backend.svd`.
 
-    Finds the orthogonal matrix R that minimizes ||A - B @ R||_F.
-
-    This is equivalent to scipy.linalg.orthogonal_procrustes but uses
-    the Backend abstraction for GPU acceleration.
+    Finds the orthogonal matrix R that minimizes `||A - B @ R||_F`. Equivalent
+    to `scipy.linalg.orthogonal_procrustes` (used directly on the numpy backend)
+    but runs the SVD through the `Backend` abstraction for GPU acceleration.
 
     Args:
-        A: Target matrix, shape (n, m)
-        B: Matrix to transform, shape (n, m)
-        backend: Backend instance for computations
+        A (np.ndarray): Target matrix, shape (n, m).
+        B (np.ndarray): Matrix to transform, shape (n, m).
+        backend (Backend): Backend instance for the computation.
 
     Returns:
-        R: Orthogonal matrix, shape (m, m)
+        np.ndarray: Orthogonal matrix R, shape (m, m).
     """
     if backend.name == "numpy":
         # Use scipy for numpy backend (more efficient)
@@ -80,9 +79,10 @@ class RoiNeighborhoods:
     (the piecewise scheme of Bazeille et al. 2021).
 
     Attributes:
-        parcel_to_voxels: Dict mapping parcel_id → array of voxel indices
-        n_voxels: Total number of voxels
-        n_parcels: Number of parcels (excluding background)
+        parcel_to_voxels (dict[int, np.ndarray]): Maps each parcel id to the array
+            of masked voxel indices it contains.
+        n_voxels (int): Total number of voxels in the mask.
+        n_parcels (int): Number of parcels (excluding the background label 0).
     """
 
     parcel_to_voxels: dict[int, np.ndarray]
@@ -94,8 +94,11 @@ class RoiNeighborhoods:
     ) -> Iterator[tuple[int, np.ndarray]]:
         """Iterate over all parcels.
 
+        Args:
+            progress_bar (bool): Show a tqdm progress bar. Defaults to False.
+
         Yields:
-            Tuple of (parcel_id, voxel_indices) for each parcel
+            tuple[int, np.ndarray]: `(parcel_id, voxel_indices)` for each parcel.
         """
         iterator = self.parcel_to_voxels.items()
 
@@ -114,15 +117,15 @@ def _compute_roi_neighborhoods(
     """Compute ROI-scale (parcel) neighborhoods from a parcellation image.
 
     Args:
-        roi_mask: NIfTI image with integer labels for each parcel.
-            Background/unlabeled voxels should be 0.
-        mask: Brain mask defining the voxel space.
+        roi_mask (nib.Nifti1Image): Image with an integer label per parcel;
+            background/unlabeled voxels are 0.
+        mask (nib.Nifti1Image): Brain mask defining the voxel space.
 
     Returns:
-        RoiNeighborhoods with parcel-to-voxel mappings.
+        RoiNeighborhoods: Parcel-to-voxel mappings.
 
     Raises:
-        ValueError: If roi_mask and mask have incompatible shapes.
+        ValueError: If `roi_mask` and `mask` have different shapes.
     """
     parc_data = roi_mask.get_fdata().astype(int)
     mask_data = mask.get_fdata().astype(bool)
@@ -168,21 +171,22 @@ def _fit_one_neighborhood(
     n_features: int | None,
     backend: Backend | None = None,
 ) -> tuple[int, list[np.ndarray], np.ndarray]:
-    """Fit alignment for a single neighborhood.
-
-    Helper function for parallel processing.
+    """Fit alignment for a single neighborhood (the unit of parallel work).
 
     Args:
-        region_id: ID of the neighborhood/parcel
-        voxel_indices: Voxel indices in this neighborhood
-        data: Full subject data arrays
-        method: Alignment method ('procrustes', 'srm', 'hyperalignment')
-        n_iter: Number of iterations
-        n_features: Number of features for SRM (None for auto)
-        backend: Backend instance for GPU acceleration (None for numpy)
+        region_id (int): Id of the neighborhood (center voxel) or parcel.
+        voxel_indices (np.ndarray): Voxel indices in this neighborhood.
+        data (list[np.ndarray]): Full subject data arrays, each
+            (n_voxels, n_samples).
+        method (str): One of `'procrustes'`, `'srm'`, or `'hyperalignment'`.
+        n_iter (int): Number of refinement iterations.
+        n_features (int | None): Number of SRM features; None uses
+            `min(n_local_voxels, n_samples)`.
+        backend (Backend | None): Backend for GPU acceleration; None uses numpy.
 
     Returns:
-        Tuple of (region_id, transforms, template)
+        tuple[int, list[np.ndarray], np.ndarray]: `(region_id, transforms,
+            template)` — the per-subject transforms and the aligned template.
     """
     n_subjects = len(data)
 
@@ -243,9 +247,10 @@ def _fit_local_procrustes(
     This is a simplified version of HyperAlignment for local neighborhoods.
 
     Args:
-        data: List of arrays, each shape (n_local_voxels, n_samples).
-        n_iter: Number of refinement iterations.
-        backend: Backend instance for GPU acceleration (None for numpy/scipy).
+        data (list[np.ndarray]): Arrays of shape (n_local_voxels, n_samples).
+        n_iter (int): Number of refinement iterations. Defaults to 3.
+        backend (Backend | None): Backend for GPU acceleration; None uses
+            numpy/scipy.
 
     Returns:
         tuple[list[np.ndarray], np.ndarray]: `(transforms, template)` — the list of
@@ -303,13 +308,16 @@ class LocalAlignment:
             'hyperalignment'. Defaults to 'procrustes'.
         radius_mm (float): Sphere radius in millimeters for the searchlight scale.
             Defaults to 10.0.
-        roi_mask (Nifti1Image | None): Parcellation image for the ROI scale.
+        roi_mask (nib.Nifti1Image | None): Parcellation image for the ROI scale.
             Required if `spatial_scale='roi'`. Defaults to None.
-        n_features (int | None): Number of features for SRM. None uses full Procrustes
-            (preserves dims). Defaults to None.
+        n_features (int | None): Number of SRM features per neighborhood. None uses
+            `min(n_local_voxels, n_samples)`; ignored by the other methods.
+            Defaults to None.
         n_iter (int): Number of iterations for alignment refinement. Defaults to 3.
-        aggregation (str): Aggregation method: 'center' (center-only, preserves
-            orthogonality) or 'all'. Defaults to 'center'.
+        aggregation (str): `'center'` writes only each sphere's center voxel
+            (preserves orthogonality); `'all'` writes every voxel in the region
+            and is selected automatically for `spatial_scale='roi'`. Defaults to
+            `'center'`.
         parallel (str | None): Parallelization mode. None runs single-threaded numpy,
             'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU
             acceleration applies only to `method='procrustes'`; requesting
@@ -327,30 +335,36 @@ class LocalAlignment:
             (default) measures the device's available memory.
 
     Attributes:
-        transforms_ (dict[int, list[np.ndarray]]): Per-neighborhood transforms. Keys are
-            center voxel indices, values are lists of transform matrices (one per subject).
-        template_ (dict[int, np.ndarray]): Per-neighborhood templates used for alignment.
-        neighborhoods_ (SphereNeighborhoods | dict): Computed neighborhoods (searchlight
-            or roi).
+        transforms_ (dict[int, list[np.ndarray]]): Per-neighborhood transforms. Keys
+            are center voxel indices (searchlight) or parcel ids (roi); values are
+            lists of transform matrices, one per subject.
+        template_ (dict[int, np.ndarray]): Per-neighborhood templates used for
+            alignment.
+        neighborhoods_ (SphereNeighborhoods | RoiNeighborhoods): Computed
+            neighborhoods (searchlight spheres or parcels).
         n_voxels_ (int): Total number of voxels in the mask.
-        mask_ (Nifti1Image): Brain mask used for fitting.
+        mask_ (nib.Nifti1Image): Brain mask used for fitting.
+        backend_ (Backend): Execution backend selected from `parallel`.
 
     Examples:
-        >>> import numpy as np
-        >>> import nibabel as nib
-        >>> from nltools.algorithms.alignment import LocalAlignment
-        >>> # Create synthetic multi-subject data (voxels, samples)
-        >>> data = [np.random.randn(1000, 100) for _ in range(5)]
-        >>> # Build a mask whose nonzero voxels match the 1000-voxel data
-        >>> mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
-        >>> la = LocalAlignment(spatial_scale='searchlight', method='procrustes', radius_mm=10.0)
-        >>> la.fit(data, mask)
-        >>> aligned = la.transform(data)
+        ```python
+        import numpy as np
+        import nibabel as nib
+        from nltools.algorithms.alignment import LocalAlignment
+
+        # Synthetic multi-subject data (voxels, samples) and a matching 1000-voxel mask
+        data = [np.random.randn(1000, 100) for _ in range(5)]
+        mask = nib.Nifti1Image(np.ones((10, 10, 10), dtype=np.int8), np.eye(4))
+
+        la = LocalAlignment(spatial_scale="searchlight", method="procrustes", radius_mm=10.0)
+        la.fit(data, mask)
+        aligned = la.transform(data)  # list of (1000, 100) arrays
+        ```
 
     Note:
-        Based on Bazeille et al. 2021 "An empirical evaluation of functional
-        alignment using inter-subject decoding". Center-only aggregation is
-        used to preserve local orthogonality of transforms.
+        Based on Bazeille et al. 2021, "An empirical evaluation of functional
+        alignment using inter-subject decoding". Center-only aggregation
+        preserves the local orthogonality of the transforms.
     """
 
     # Configuration
@@ -410,12 +424,12 @@ class LocalAlignment:
         """Initialize backend based on parallel setting.
 
         Returns:
-            Backend instance configured for the requested execution mode.
+            Backend: Backend configured for the requested execution mode.
 
         Raises:
-            ImportError: If ``parallel='gpu'`` and PyTorch is not installed.
-                An explicit GPU request never silently degrades to CPU; use
-                ``parallel='cpu'`` when torch is unavailable.
+            ImportError: If `parallel='gpu'` and PyTorch is not installed. An
+                explicit GPU request never silently degrades to CPU; use
+                `parallel='cpu'` when torch is unavailable.
         """
         if self.parallel is None or self.parallel == "cpu":
             return Backend("numpy")
@@ -438,13 +452,13 @@ class LocalAlignment:
         clamp policy live in `auto_batch_size`/`device_memory_budget`.
 
         Args:
-            n_neighborhoods: Total number of neighborhoods to process
-            n_subjects: Number of subjects
-            avg_region_size: Average voxels per neighborhood/parcel
-            n_samples: Number of time samples
+            n_neighborhoods (int): Total number of neighborhoods to process.
+            n_subjects (int): Number of subjects.
+            avg_region_size (int): Average voxels per neighborhood/parcel.
+            n_samples (int): Number of time samples.
 
         Returns:
-            Number of neighborhoods per batch
+            int: Number of neighborhoods per batch.
         """
         from ..backends import auto_batch_size, device_memory_budget
 
@@ -478,18 +492,20 @@ class LocalAlignment:
         n_subjects: int,
         n_samples: int,
     ) -> Iterator[list[tuple[int, np.ndarray]]]:
-        """Generator yielding batches of neighborhoods.
+        """Yield neighborhoods in batches sized to the memory budget.
 
-        Critical: Uses yield + del pattern for memory efficiency.
-        Only one batch is in memory at a time.
+        Only one batch is materialized at a time; the caller processes it and
+        deletes it before the next is yielded.
 
         Args:
-            neighborhoods: Computed neighborhoods (searchlight or roi)
-            n_subjects: Number of subjects
-            n_samples: Number of time samples
+            neighborhoods (SphereNeighborhoods | RoiNeighborhoods): Computed
+                neighborhoods (searchlight or roi).
+            n_subjects (int): Number of subjects.
+            n_samples (int): Number of time samples.
 
         Yields:
-            Lists of (region_id, voxel_indices) tuples, one batch at a time
+            list[tuple[int, np.ndarray]]: One batch of `(region_id, voxel_indices)`
+                pairs.
         """
         # Collect all neighborhoods
         all_neighborhoods = list(neighborhoods.iter_neighborhoods(progress_bar=False))
@@ -526,11 +542,10 @@ class LocalAlignment:
         """Fit local alignment on multi-subject data.
 
         Args:
-            data (list[np.ndarray]): List of subject data arrays, each shape
-                (n_voxels, n_samples). Subjects can have different numbers of samples -
-                the underlying alignment methods (SRM, HyperAlignment) handle this via
-                zero-padding.
-            mask (Nifti1Image): Brain mask defining the voxel space.
+            data (list[np.ndarray]): Subject data arrays, each of shape
+                (n_voxels, n_samples). Subjects may differ in the number of
+                samples; shorter subjects are zero-padded within each neighborhood.
+            mask (nib.Nifti1Image): Brain mask defining the voxel space.
 
         Returns:
             LocalAlignment: The fitted alignment model (`self`).
@@ -756,9 +771,9 @@ class LocalAlignment:
         """Fit alignment and transform data in one step.
 
         Args:
-            data (list[np.ndarray]): List of subject data arrays, each shape
+            data (list[np.ndarray]): Subject data arrays, each of shape
                 (n_voxels, n_samples).
-            mask (Nifti1Image): Brain mask defining the voxel space.
+            mask (nib.Nifti1Image): Brain mask defining the voxel space.
 
         Returns:
             list[np.ndarray]: Aligned data for each subject.
@@ -766,4 +781,4 @@ class LocalAlignment:
         return self.fit(data, mask).transform(data)
 
 
-__all__ = ["LocalAlignment"]
+__all__ = ["LocalAlignment", "RoiNeighborhoods"]

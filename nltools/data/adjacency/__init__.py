@@ -39,14 +39,33 @@ class Adjacency:
     manipulation and analyses.
 
     Args:
-        data: pandas data instance or list of files
-        matrix_type: (str) type of matrix.  Possible values include:
-                    ['distance','similarity','directed','distance_flat',
-                    'similarity_flat','directed_flat']
-        Y: Pandas DataFrame of training labels
-        labels: (list) optional node labels
-        spatial_scale: (SpatialScale, optional) spatial-scale metadata linking rows/
-            columns to a brain parcellation, enabling projection back into brain space
+        data (np.ndarray | pd.DataFrame | pl.DataFrame | str | Path | list): A square
+            matrix, a flattened vector, a `.csv`/`.h5` path, or a list of
+            matrices/`Adjacency` instances/`.csv` paths to stack.
+        Y (pd.DataFrame | pl.DataFrame, optional): Training labels, one row per matrix.
+        matrix_type (str, optional): Type of matrix. One of `'distance'`, `'similarity'`,
+            `'directed'`, `'distance_flat'`, `'similarity_flat'`, `'directed_flat'`.
+        labels (list, optional): Node labels, one per row/column.
+        spatial_scale (SpatialScale, optional): Spatial-scale metadata linking rows/
+            columns to a brain parcellation, enabling projection back into brain space.
+
+    Attributes:
+        data (np.ndarray): Vectorized matrix values. Shape `(vector_length,)` for a
+            single matrix or `(n_matrices, vector_length)` for a stack; symmetric
+            matrices store only the upper triangle without the diagonal.
+        matrix_type (str): One of `'distance'`, `'similarity'`, `'directed'`, or
+            `'empty'` (the `'_flat'` input variants are normalized to their base type).
+        is_single_matrix (bool): True when the instance holds exactly one matrix.
+        issymmetric (bool): True for distance/similarity matrices, False for directed.
+        labels (list): Node labels (empty list when none were given).
+        spatial_scale (SpatialScale | None): Parcellation provenance for a stack
+            produced by `BrainData.distance`; None otherwise.
+        Y (pl.DataFrame): Training labels as a polars DataFrame (possibly empty).
+        is_empty (bool): True if the instance holds no data.
+        n_nodes (int): Number of nodes `n` for an `(n, n)` matrix.
+        shape (tuple): Logical shape — `(n_nodes, n_nodes)` for a single matrix,
+            `(n_matrices, n_nodes, n_nodes)` for a stack, `(0, 0)` when empty.
+        vector_shape (tuple): Shape of the internal vectorized storage (`data.shape`).
     """
 
     def __init__(
@@ -336,9 +355,8 @@ class Adjacency:
         """Return the logical shape of the adjacency matrix.
 
         Returns:
-            tuple: For single matrix: (n_nodes, n_nodes)
-                   For stacked matrices: (n_matrices, n_nodes, n_nodes)
-                   For empty: (0, 0)
+            tuple: `(n_nodes, n_nodes)` for a single matrix, `(n_matrices, n_nodes,
+                n_nodes)` for stacked matrices, `(0, 0)` when empty.
 
         Note:
             Use `.vector_shape` to get the internal vectorized representation shape.
@@ -368,8 +386,8 @@ class Adjacency:
         """Return shape of internal vectorized representation.
 
         Returns:
-            tuple: For single matrix: (vector_length,)
-                   For stacked matrices: (n_matrices, vector_length)
+            tuple: `(vector_length,)` for a single matrix, `(n_matrices,
+                vector_length)` for stacked matrices.
 
         Note:
             This is the raw shape of the internal data storage.
@@ -383,7 +401,7 @@ class Adjacency:
         """Append data to an Adjacency instance.
 
         Args:
-            data:  (Adjacency) Adjacency instance to append
+            data (Adjacency): Adjacency instance to append.
 
         Returns:
             Adjacency: New appended Adjacency instance.
@@ -423,25 +441,28 @@ class Adjacency:
         Supports simple aggregation statistics (mean, std, median, sum, min, max).
 
         Args:
-            stat: (str) Statistic to bootstrap. Options:
-                - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
-            n_samples: (int) Number of bootstrap iterations. Default: 5000
-            save_boots: (bool) If True, store all bootstrap samples (memory intensive).
-                       Default: False
-            percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-            n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
-            random_state: (int, optional) Random seed for reproducibility
-            progress_bar: (bool) If True, show a progress bar. Default False.
+            stat (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`,
+                `'min'`, or `'max'`.
+            n_samples (int): Number of bootstrap iterations. Default 5000.
+            save_boots (bool): If True, store all bootstrap samples (memory intensive).
+                Default False.
+            percentiles (tuple): Percentiles for confidence intervals. Default (2.5, 97.5).
+            tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
+                one-tailed (statistic > 0; negate the data for the other direction).
+            n_jobs (int): Number of CPU cores for parallelization. -1 means all CPUs.
+            random_state (int, optional): Random seed for reproducibility.
+            progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
-                  (all Adjacency objects). If save_boots=True, also includes 'samples'.
+            dict: Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,
+                `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also
+                includes `'samples'`.
 
         Examples:
-            >>> # Simple aggregation
-            >>> boot = adj.bootstrap(stat='mean', n_samples=1000)
-            >>> assert 'mean' in boot
-            >>> assert isinstance(boot['mean'], Adjacency)
+            ```python
+            boot = adj.bootstrap(stat="mean", n_samples=1000)
+            boot["mean"]  # → Adjacency
+            ```
         """
         from .modeling import bootstrap
 
@@ -464,12 +485,13 @@ class Adjacency:
         list of cluster ids indicating the row/column of each cluster.
 
         Args:
-            clusters: (list) list of cluster labels
-            summary: (str) central tendency, 'mean' or 'median'. If `None` then return all r values
-            scope: (str) summarize 'within' cluster or 'between' clusters
+            clusters (list): Cluster label for each row/column.
+            summary (str | None): Central tendency, `'mean'` or `'median'`. If None,
+                return all values instead of a summary.
+            scope (str): Summarize `'within'` cluster or `'between'` clusters.
 
         Returns:
-            dict: per-cluster summaries
+            dict: Per-cluster summaries keyed by cluster label.
         """
         from .stats import cluster_summary
 
@@ -485,12 +507,13 @@ class Adjacency:
         """Calculate distance between images within an Adjacency() instance.
 
         Args:
-            metric: (str) type of distance metric (can use any scikit learn or
-                    scipy metric)
-            include_diag: (bool) whether to include the main diagonal when
-                    computing distances between adjacency matrices. Only applies
-                    to symmetric matrices. Default False (consistent with how
-                    symmetric matrices are stored without diagonal).
+            metric (str): Distance metric; any metric accepted by
+                `sklearn.metrics.pairwise_distances` (scikit-learn or scipy).
+            include_diag (bool): Whether to include the main diagonal when
+                computing distances between adjacency matrices. Only applies
+                to symmetric matrices. Default False (consistent with how
+                symmetric matrices are stored without the diagonal).
+            **kwargs (dict): Forwarded to `sklearn.metrics.pairwise_distances`.
 
         Returns:
             Adjacency: A 2D distance matrix.
@@ -544,16 +567,18 @@ class Adjacency:
         """Generate permuted versions of an Adjacency instance lazily.
 
         Args:
-            n_permute (int): number of permutations
-            random_state (int, np.random.seed, optional): random seed for reproducibility.
-
-        Examples:
-            >>> for perm in adj.generate_permutations(1000):
-            >>>     out = neural_distance_mat.similarity(perm)
-            >>>     ...
+            n_permute (int): Number of permutations.
+            random_state (int | np.random.RandomState, optional): Random seed for
+                reproducibility.
 
         Yields:
-            Adjacency: permuted version of self
+            Adjacency: Permuted version of self.
+
+        Examples:
+            ```python
+            for perm in adj.generate_permutations(1000):
+                out = neural_distance_mat.similarity(perm)
+            ```
         """
         from .modeling import generate_permutations
 
@@ -563,7 +588,7 @@ class Adjacency:
         """Calculate mean of Adjacency.
 
         Args:
-            axis: Calculate mean over matrices (0) or upper triangle (1).
+            axis (int): Calculate mean over matrices (0) or upper triangle (1).
 
         Returns:
             float | Adjacency | np.ndarray: A float for a single matrix; an
@@ -575,7 +600,7 @@ class Adjacency:
         """Calculate median of Adjacency.
 
         Args:
-            axis: Calculate median over matrices (0) or upper triangle (1).
+            axis (int): Calculate median over matrices (0) or upper triangle (1).
 
         Returns:
             float | Adjacency | np.ndarray: A float for a single matrix; an
@@ -588,11 +613,12 @@ class Adjacency:
     ):
         """Create a heatmap of an Adjacency matrix.
 
-        Can pass in any sns.heatmap argument
-
         Args:
-            limit: (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3)
-            axes: matplotlib axis handle
+            limit (int): Number of heatmaps to plot if the object contains multiple
+                matrices. Default 3.
+            axes (matplotlib.axes.Axes, optional): Axis to draw on (single matrix only).
+            *args (tuple): Forwarded positionally to `seaborn.heatmap`.
+            **kwargs (dict): Forwarded to `seaborn.heatmap`.
         """
         from .plotting import plot_adjacency
 
@@ -602,8 +628,9 @@ class Adjacency:
         """Create a violin plot of within- and between-label distances.
 
         Args:
-            labels (np.array):  numpy array of labels to plot
-
+            labels (np.ndarray, optional): Group label per node; defaults to the
+                stored labels.
+            ax (matplotlib.axes.Axes, optional): Axis to draw on.
         """
         from .stats import plot_label_distance
 
@@ -626,15 +653,17 @@ class Adjacency:
         """Plot multidimensional scaling.
 
         Args:
-            n_components: (int) Number of dimensions to project (can be 2 or 3)
-            metric_mds: (bool) Perform metric (True) or non-metric (False) dimensional scaling; default True
-            labels: (list) Can override labels stored in Adjacency Class
-            labels_color: (str) list of colors for labels, if len(1) then make all same color
-            cmap: colormap instance (default: plt.cm.hot_r)
-            view: (tuple) view for 3-Dimensional plot; default (30,20)
-            figsize: (list) figure size; default [12, 8]
-            ax: matplotlib axis handle
-            n_jobs: (int) Number of parallel jobs
+            n_components (int): Number of dimensions to project (2 or 3).
+            metric_mds (bool): Perform metric (True) or non-metric (False) scaling.
+                Default True.
+            labels (list, optional): Overrides the labels stored on the instance.
+            labels_color (list, optional): One color per label.
+            cmap (matplotlib.colors.Colormap, optional): Colormap. Default `plt.cm.hot_r`.
+            view (tuple): Elevation/azimuth for a 3-D plot. Default (30, 20).
+            figsize (list): Figure size. Default [12, 8].
+            ax (matplotlib.axes.Axes, optional): Axis to draw on.
+            n_jobs (int): Number of parallel jobs.
+            **kwargs (dict): Forwarded to `sklearn.manifold.MDS`.
         """
         from .plotting import plot_mds
 
@@ -665,12 +694,18 @@ class Adjacency:
         """Create a silhouette plot.
 
         Args:
-            labels: Numpy array of cluster/group labels (overrides stored labels).
-            ax: Matplotlib axis handle.
-            permutation_test: (bool) Whether to run a permutation test. Default True.
-            n_permute: (int) Number of permutations for the test. Default 5000.
-            colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
-            figsize: Figure size tuple. Default (6, 4).
+            labels (np.ndarray, optional): Cluster/group label per node (overrides
+                stored labels).
+            ax (matplotlib.axes.Axes, optional): Axis to draw on.
+            permutation_test (bool): Whether to run a permutation test. Default True.
+            n_permute (int): Number of permutations for the test. Default 5000.
+            colors (list, optional): RGB triplets, one per cluster. Default: seaborn
+                `'hls'` palette.
+            figsize (tuple): Figure size. Default (6, 4).
+
+        Returns:
+            pl.DataFrame: Columns `label` and `mean_silhouette`, plus `p` when
+                `permutation_test=True`.
         """
         from .stats import plot_silhouette
 
@@ -692,17 +727,19 @@ class Adjacency:
 
     def regress(self, X, method="ols", tail=2):
         """Run a regression on an adjacency instance.
-        You can decompose an adjacency instance with another adjacency instance.
-        You can also decompose each pixel by passing a design_matrix instance.
+
+        Pass an `Adjacency` as `X` to decompose this matrix with other matrices, or a
+        `DesignMatrix` to regress each cell across a stack of matrices.
 
         Args:
-            X: Design matrix can be an Adjacency or DesignMatrix instance
-            method: type of regression (default: ols) - only 'ols' is currently supported
-            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0;
-                negate a regressor for the other direction)
+            X (Adjacency | DesignMatrix): Design matrix.
+            method (str): Type of regression; only `'ols'` is currently supported.
+            tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
+                (one-tailed: beta > 0; negate a regressor for the other direction).
 
         Returns:
-            dict: Dictionary of stats outputs.
+            dict: Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,
+                `'residual'`.
         """
         from .modeling import regress
 
@@ -730,25 +767,28 @@ class Adjacency:
         The default uses Spearman correlation and a permutation test.
 
         Args:
-            data (Adjacency or array): Adjacency data, or 1-d array same size as self.data
-            plot: (bool) plot the two stacked adjacency matrices being compared. Default False
-            method: (str) permutation scheme '1d', '2d', or None
-            n_permute: (int) number of permutations for the p-value. Default 5000
-            metric: (str) 'spearman','pearson','kendall'
-            include_diag: (bool) only applies to 'directed' Adjacency types using
-                method=None or method='1d'. Default False
-                (self-similarity is uninformative). Symmetric matrices never store
-                the diagonal, so this flag is a no-op for them.
-            nan_policy: (str) How to handle NaN values. Options:
-                - 'omit': Remove NaN values pairwise before computing correlation (default)
-                - 'propagate': Allow NaN to propagate through calculations
-                - 'raise': Raise an error if NaN values are present
-            tail: (int) Tail of the test (1 or 2). Default 2.
-            return_null: (bool) If True, also return the null distribution. Default False.
-            n_jobs: (int) Number of parallel jobs. Default -1 (all cores).
-            random_state: (int, optional) Random seed for reproducibility.
-            progress_bar: (bool) If True, show a progress bar. Default False.
-            project: (bool) If True and this Adjacency has a spatial_scale, project
+            data (Adjacency | np.ndarray): Adjacency to compare against, or a 1-D array
+                the same size as `self.data`.
+            plot (bool): Plot the two stacked adjacency matrices being compared.
+                Default False.
+            method (str | None): Permutation scheme, `'1d'`, `'2d'`, or None (no
+                permutation test).
+            n_permute (int): Number of permutations for the p-value. Default 5000.
+            metric (str): `'spearman'`, `'pearson'`, or `'kendall'`.
+            include_diag (bool): Only applies to `'directed'` matrices with
+                `method=None` or `method='1d'`. Default False (self-similarity is
+                uninformative). Symmetric matrices never store the diagonal, so this
+                flag is a no-op for them.
+            nan_policy (str): How to handle NaN values: `'omit'` removes NaN pairwise
+                before computing the correlation (default), `'propagate'` lets NaN
+                flow through, `'raise'` errors if any NaN is present.
+            tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
+                (one-tailed, positive direction).
+            return_null (bool): If True, also return the null distribution. Default False.
+            n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+            random_state (int, optional): Random seed for reproducibility.
+            progress_bar (bool): If True, show a progress bar. Default False.
+            project (bool): If True and this Adjacency has a `spatial_scale`, project
                 the per-matrix correlations back into brain space. Default False.
 
         Returns:
@@ -786,36 +826,39 @@ class Adjacency:
         $\\alpha_i$ is person i's actor effect, $\\beta_j$ is person j's partner effect, $g_{ij}$
         is the relationship effect and $\\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
-        This model is primarily concerned with partioning the variance of the various effects.
+        This model is primarily concerned with partitioning the variance of the various
+        effects. The implementation follows Chapter 8 of Kenny, Kashy, & Cook (2006) and
+        the tests replicate the book's examples. Actor scores are rows (lower triangle)
+        and partner scores are columns (upper triangle). The minimal sample size to
+        estimate these effects is 4.
 
-        Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
-        Tests replicate examples  presented in the book. Note, that this method assumes that
-        actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
-        The minimal sample size to estimate these effects is 4.
-
-        Model Assumptions:
-         - Social interactions are exclusively dyadic
-         - People are randomly sampled from population
-         - No order effects
-         - The effects combine additively and relationships are linear
-
-        In the future we might update the formulas and standard errors based on
-        Bond and Lashley, 1996
+        **Model assumptions:** social interactions are exclusively dyadic; people are
+        randomly sampled from the population; there are no order effects; the effects
+        combine additively and relationships are linear.
 
         Args:
-            summarize_results (bool): If True, provide a formatted summary of model results.
+            summarize_results (bool): If True, print a formatted summary of model results.
             nan_replace (bool): If True, replace NaN values with row and column means.
 
         Returns:
             pd.Series | pd.DataFrame: All of the effects estimated using SRM, as a
                 Series (single matrix) or DataFrame (one row per matrix).
+
+        References:
+            Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
+            Guilford Press.
         """
         from .modeling import social_relations_model
 
         return social_relations_model(self, summarize_results, nan_replace)
 
     def squareform(self):
-        """Convert adjacency data back to square form."""
+        """Convert adjacency data back to square form.
+
+        Returns:
+            np.ndarray | list[np.ndarray]: A square matrix, or a list of them for a
+                stack.
+        """
         if self.issymmetric:
             if self.is_single_matrix:
                 return squareform(self.data)
@@ -833,12 +876,14 @@ class Adjacency:
         """Calculate permutation tests on within and between label distance.
 
         Args:
-            labels (np.array):  numpy array of labels to plot
-            n_permute (int): number of permutations to run (default=5000)
+            labels (np.ndarray, optional): Group label per node; defaults to the
+                stored labels.
+            n_permute (int): Number of permutations to run. Default 5000.
+            n_jobs (int): Number of parallel jobs. Default -1 (all cores).
 
         Returns:
-            dict:  dictionary of within and between group differences
-                    and p-values
+            dict: Per-group within-vs-between distance differences and p-values, keyed
+                by group label.
         """
         from .stats import stats_label_distance
 
@@ -850,7 +895,7 @@ class Adjacency:
         """Calculate standard deviation of Adjacency.
 
         Args:
-            axis: Calculate std over matrices (0) or upper triangle (1).
+            axis (int): Calculate std over matrices (0) or upper triangle (1).
 
         Returns:
             float | Adjacency | np.ndarray: A float for a single matrix; an
@@ -862,7 +907,7 @@ class Adjacency:
         """Calculate sum of Adjacency.
 
         Args:
-            axis: Calculate sum over matrices (0) or upper triangle (1).
+            axis (int): Calculate sum over matrices (0) or upper triangle (1).
 
         Returns:
             float | Adjacency | np.ndarray: A float for a single matrix; an
@@ -878,18 +923,15 @@ class Adjacency:
         if provided, otherwise respecting every non-zero value.
 
         Args:
-            upper: (float or str) Upper cutoff for thresholding. If string
-                    will interpret as percentile; can be None for one-sided
-                    thresholding.
-            lower: (float or str) Lower cutoff for thresholding. If string
-                    will interpret as percentile; can be None for one-sided
-                    thresholding.
-            binarize (bool): return binarized image respecting thresholds if
-                    provided, otherwise binarize on every non-zero value;
-                    default False
+            upper (float | str, optional): Upper cutoff. A string such as `'95%'` is
+                interpreted as a percentile; None for one-sided thresholding.
+            lower (float | str, optional): Lower cutoff. A string such as `'5%'` is
+                interpreted as a percentile; None for one-sided thresholding.
+            binarize (bool): Return a binarized matrix respecting the thresholds if
+                provided, otherwise binarize on every non-zero value. Default False.
 
         Returns:
-            Adjacency: thresholded Adjacency instance
+            Adjacency: Thresholded Adjacency instance.
         """
         from .stats import threshold
 
@@ -900,29 +942,30 @@ class Adjacency:
 
         Requires `spatial_scale` to be set (i.e. this stack came from
         `BrainData.distance` or another spatial-scale-aware producer).
-        Each entry of ``values`` is painted onto the voxels assigned to its
-        corresponding parcel by ``spatial_scale.atlas`` /
-        ``spatial_scale.roi_labels``. Voxels outside the atlas receive
-        ``fill``.
+        Each entry of `values` is painted onto the voxels assigned to its
+        corresponding parcel by `spatial_scale.atlas` /
+        `spatial_scale.roi_labels`. Voxels outside the atlas receive
+        `fill`.
 
         Args:
-            values: 1-D array of length ``len(self)`` — one scalar per
+            values (np.ndarray): 1-D array of length `len(self)` — one scalar per
                 matrix in the stack.
-            fill: Value for voxels not covered by any provided ROI label.
-                Default ``np.nan``.
+            fill (float): Value for voxels not covered by any provided ROI label.
+                Default `np.nan`.
 
         Returns:
-            BrainData: Single image masked to ``spatial_scale.source_mask``.
+            BrainData: Single image masked to `spatial_scale.source_mask`.
 
         Raises:
-            ValueError: If ``spatial_scale`` is None, or ``values`` has the
+            ValueError: If `spatial_scale` is None, or `values` has the
                 wrong length.
 
         Examples:
-            >>> rdms = brain.distance(metric='correlation',
-            ...                       spatial_scale='roi', roi_mask=atlas)
-            >>> sims = rdms.similarity(model_rdm)
-            >>> brain_map = rdms.to_brain(sims)
+            ```python
+            rdms = brain.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas)
+            sims = [r["correlation"] for r in rdms.similarity(model_rdm)]
+            brain_map = rdms.to_brain(sims)
+            ```
         """
         from nltools.mask import roi_to_brain_from_atlas
 
@@ -951,7 +994,11 @@ class Adjacency:
     def to_graph(self):
         """Convert a single Adjacency matrix into a NetworkX graph.
 
-        This currently works only for ``single_matrix``.
+        This currently works only when `is_single_matrix` is True.
+
+        Returns:
+            networkx.Graph | networkx.DiGraph: `DiGraph` for directed matrices,
+                `Graph` otherwise; nodes are relabeled with `labels` when set.
         """
         from .io import to_graph
 
@@ -979,23 +1026,24 @@ class Adjacency:
         random_state=None,
         progress_bar: bool = False,
     ):
-        """Calculate ttest across samples.
+        """Calculate a one-sample t-test across stacked matrices.
 
         Args:
-            permutation: (bool) Run ttest as permutation. Note this can be very slow.
-            n_permute: Number of permutations (used only when
-                ``permutation=True``). Default 5000.
-            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
-                mean > 0; negate the data for the other direction). Applies to
-                both the parametric and permutation paths.
-            return_null: If True, also return the null distribution. Default False.
-            n_jobs: Number of parallel jobs. Default -1 (all cores).
-            random_state: Random seed for reproducibility.
-            progress_bar: If True, show a progress bar. Default False.
+            permutation (bool): Run the test as a permutation test. Note this can be
+                very slow.
+            n_permute (int): Number of permutations (used only when
+                `permutation=True`). Default 5000.
+            tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
+                (one-tailed: mean > 0; negate the data for the other direction).
+                Applies to both the parametric and permutation paths.
+            return_null (bool): If True, also return the null distribution. Default False.
+            n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+            random_state (int, optional): Random seed for reproducibility.
+            progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            dict: Contains Adjacency instances of t values (or mean if running
-                permutation) and Adjacency instance of p values.
+            dict: `'t'` — Adjacency of t values (or means when `permutation=True`) —
+                and `'p'` — Adjacency of p values.
         """
         from .stats import ttest
 
@@ -1011,11 +1059,12 @@ class Adjacency:
         )
 
     def write(self, file_name, method="long"):
-        """Write out Adjacency object to csv file.
+        """Write the Adjacency to a `.csv` or `.h5` file.
 
         Args:
-            file_name (str):  name of file name to write
-            method (str):     method to write out data ['long','square']
+            file_name (str | Path): Output path; an `.h5`/`.hdf5` suffix writes HDF5.
+            method (str): Layout for CSV output, `'long'` (vectorized rows) or
+                `'square'` (single matrix only).
         """
         from .io import write
 

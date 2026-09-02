@@ -90,7 +90,8 @@ def fetch_neurovault_collection(collection_id, data_dir=None, verbose=1):
         verbose (int, optional): Verbosity level. Default: 1
 
     Returns:
-        tuple: (metadata polars.DataFrame, list of image file paths)
+        tuple[pl.DataFrame, list[str]]: `(metadata, files)` — the image metadata
+            table and the downloaded image paths.
 
     Raises:
         ValueError: If collection_id is invalid
@@ -218,18 +219,19 @@ def load_haxby_example(n_runs=1, random_state=42):
         random_state (int | None): Seed for reproducible output. Default 42.
 
     Returns:
-        tuple: `(list[BrainData], list[DesignMatrix])`, each of length n_runs.
+        tuple: `(list[BrainData], list[DesignMatrix])`, each of length `n_runs`.
             The DesignMatrix columns are the eight condition names suffixed
-            with ``_c0`` (HRF-convolved boxcars).
+            with `_c0` (HRF-convolved boxcars).
 
     Examples:
-        >>> from nltools.datasets import load_haxby_example
-        >>> brain_data, design_matrices = load_haxby_example()
-        >>> data, dm = brain_data[0], design_matrices[0]
-        >>> data.shape
-        (72, 500)
-        >>> "face_c0" in dm.columns
-        True
+        ```python
+        from nltools.datasets import load_haxby_example
+
+        brain_data, design_matrices = load_haxby_example()
+        data, dm = brain_data[0], design_matrices[0]
+        data.shape  # → (72, 500)
+        "face_c0" in dm.columns  # → True
+        ```
     """
     import numpy as np
     import pandas as pd

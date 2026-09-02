@@ -14,16 +14,16 @@ class KFoldStratified(_BaseKFold):
     Unlike the scikit-learn equivalent, this iterator stratifies continuous data.
 
     Provides train/test indices to split data in train test sets. Samples are
-    ordered by their continuous target ``y`` and dealt round-robin into k folds
-    so each fold spans the full range of ``y``. Each fold is then used as a
+    ordered by their continuous target `y` and dealt round-robin into k folds
+    so each fold spans the full range of `y`. Each fold is then used as a
     validation set once while the k - 1 remaining folds form the training set.
 
     Args:
-        n_splits: Number of folds. Must be at least 2. Defaults to 3.
-        shuffle: Whether to shuffle the data before splitting into batches.
-        random_state: Pseudo-random number generator state used for random
-            sampling. If None, use the default numpy RNG for shuffling.
-
+        n_splits (int): Number of folds. Must be at least 2. Defaults to 3.
+        shuffle (bool): Whether to break ties in `y` randomly before dealing samples
+            into folds. Default False.
+        random_state (int | np.random.RandomState, optional): Seed or RandomState for
+            the tie-break shuffle. If None, use the default numpy RNG.
     """
 
     def __init__(self, n_splits=3, *, shuffle=False, random_state=None):
@@ -56,19 +56,17 @@ class KFoldStratified(_BaseKFold):
         """Generate indices to split data into training and test set.
 
         Args:
-            X: Training data of shape `(n_samples, n_features)`, where
-                `n_samples` is the number of samples and `n_features` is the
-                number of features. Note that providing `y` is sufficient to
-                generate the splits, hence `np.zeros(n_samples)` may be used as
-                a placeholder for `X` instead of actual training data.
-            y: The target variable of shape `(n_samples,)` for supervised
-                learning problems. Stratification is done based on the y labels.
-            groups: Always ignored, exists for compatibility.
+            X (array-like): Training data of shape `(n_samples, n_features)`. Only
+                `y` is needed to generate the splits, so `np.zeros(n_samples)` works
+                as a placeholder.
+            y (array-like): Continuous target of shape `(n_samples,)`; stratification
+                is based on its ordering.
+            groups (array-like, optional): Always ignored; exists for sklearn
+                compatibility.
 
         Yields:
             tuple[np.ndarray, np.ndarray]: `(train, test)` — the training set indices
                 and the testing set indices for that split.
-
         """
         y = check_array(y, ensure_2d=False, dtype=None)
         return super().split(X, y, groups)
@@ -86,30 +84,29 @@ def resolve_cv(
 
     The single cv-resolution rule shared by `BrainData.predict`,
     `BrainCollection.predict`, and `BrainCollection.predict_group`. String
-    names follow sklearn's splitter classes; an int spec must honor
-    ``groups`` when one is supplied — plain ``KFold`` silently ignores its
-    ``groups`` argument, which previously produced folds byte-identical to
-    passing no groups at all.
+    names follow sklearn's splitter classes. An int spec honors `groups` when
+    one is supplied (it becomes a `GroupKFold` variant rather than a plain
+    `KFold`, which would ignore the groups).
 
     Args:
-        cv: ``'loo'`` (`LeaveOneOut`), ``'logo'`` (`LeaveOneGroupOut` — pass
-            the grouping variable via ``groups``), an int fold count, or an
-            sklearn splitter (returned unchanged).
-        groups: Group labels, or None. Only consulted for int specs.
-        classifier: Whether the downstream model is a classifier — an int
+        cv (str | int | BaseCrossValidator): `'loo'` (`LeaveOneOut`), `'logo'`
+            (`LeaveOneGroupOut` — pass the grouping variable via `groups`), an int
+            fold count, or an sklearn splitter (returned unchanged).
+        groups (array-like, optional): Group labels. Only consulted for int specs.
+        classifier (bool): Whether the downstream model is a classifier — an int
             spec becomes the stratified variant (`StratifiedKFold`, or
             `StratifiedGroupKFold` with groups) for classifiers.
-        shuffle: Whether an int spec's KFold variant shuffles samples before
+        shuffle (bool): Whether an int spec's KFold variant shuffles samples before
             splitting. Ignored for the group variants (fold membership is
-            set by ``groups``).
-        random_state: Seed for ``shuffle``.
+            set by `groups`).
+        random_state (int, optional): Seed for `shuffle`.
 
     Returns:
         BaseCrossValidator: An sklearn splitter instance.
 
     Raises:
         ValueError: On an unknown string spec, including the pre-v0.6.0
-            names ``'loso'`` / ``'loro'`` (use ``'logo'`` with ``groups=``).
+            names `'loso'` / `'loro'` (use `'logo'` with `groups=`).
     """
     from sklearn.model_selection import (
         GroupKFold,

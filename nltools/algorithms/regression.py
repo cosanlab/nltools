@@ -1,9 +1,10 @@
-"""Standalone OLS regression on numpy arrays.
+"""Ordinary least squares on plain numpy arrays.
 
-Pedagogical helper used in tutorials and notebooks where callers want a
-``(b, se, t, p, df, res)`` tuple from a design matrix ``X`` and response
-``Y`` without constructing a `BrainData` or `Glm`. For
-4D neuroimaging data use `BrainData.fit` with ``model='glm'``.
+`regress` fits `Y ~ X` and returns coefficients, standard errors,
+t-statistics, p-values, degrees of freedom, and residuals as arrays. Use it for
+quick regressions on tabular or behavioral data; for voxel-wise models on
+imaging data use `BrainData.fit(model='glm')`, which adds masking, run
+handling, and the modeling helpers.
 """
 
 from __future__ import annotations
@@ -16,27 +17,27 @@ __all__ = ["regress"]
 
 
 def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str = 2):
-    """Fit an OLS regression of ``Y`` on ``X``.
+    """Fit an OLS regression of `Y` on `X`.
 
-    Does not add an intercept — include one in ``X`` explicitly. If ``Y``
-    is 2D, a separate regression is fit to each column.
+    Does not add an intercept; include one in `X` explicitly. If `Y` is 2D, a
+    separate regression is fit to each column.
 
     Args:
-        X: Design matrix, shape ``(n_samples, n_regressors)``.
-        Y: Response, shape ``(n_samples,)`` or ``(n_samples, n_targets)``.
-        method: Only ``'ols'`` is supported in v0.6.0. The legacy
-            ``'robust'`` and ``'arma'`` methods were dropped; use
-            statsmodels or a dedicated package if you need them.
-        stats: ``'full'`` returns the 6-tuple below; ``'betas'`` returns
-            just ``b``; ``'tstats'`` returns ``(b, t)``.
-        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0;
-            negate a regressor for the other direction).
+        X (np.ndarray): Design matrix, shape (n_samples, n_regressors).
+        Y (np.ndarray): Response, shape (n_samples,) or (n_samples, n_targets).
+        method (str): Only 'ols' is implemented; for robust or ARMA fits use
+            statsmodels. Defaults to 'ols'.
+        stats (str): 'full' returns the 6-tuple below, 'betas' returns just `b`,
+            'tstats' returns `(b, t)`. Defaults to 'full'.
+        tail (int | str): 2 or 'two' for two-tailed p-values (default); 1 or
+            'one' for a one-tailed test of beta > 0 (negate a regressor for the
+            other direction).
 
     Returns:
-        tuple: ``(b, se, t, p, df, res)`` when ``stats='full'`` — coefficients,
-            standard errors, t-statistics, p-values (per ``tail``), residual
-            degrees of freedom, and residuals. ``stats='betas'`` returns just
-            ``b``; ``stats='tstats'`` returns ``(b, t)``.
+        tuple: `(b, se, t, p, df, res)` when `stats='full'`: coefficients,
+            standard errors, t-statistics, p-values (per `tail`), residual
+            degrees of freedom, and residuals. `stats='betas'` returns just `b`;
+            `stats='tstats'` returns `(b, t)`.
     """
     from .inference.validation import validate_tail_parameter
 

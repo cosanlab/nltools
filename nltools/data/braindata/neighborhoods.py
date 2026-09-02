@@ -50,11 +50,15 @@ class SphereNeighborhoods:
     iteration over neighborhoods for searchlight-style analyses.
 
     Attributes:
-        adjacency: Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j]
-            is True if voxel j is within radius of voxel i
-        mask_hash: Hash of the source mask for validation
-        radius_mm: Radius in millimeters
-        n_voxels: Number of voxels in the mask
+        adjacency (sparse.csr_matrix): ``(n_voxels, n_voxels)`` matrix where
+            ``adjacency[i, j]`` is nonzero if voxel ``j`` is within the radius
+            of voxel ``i``.
+        mask_hash (str): Hash of the source mask, for cache validation.
+        radius_mm (float): Radius in millimeters.
+        n_voxels (int): Number of voxels in the mask.
+        mean_size (float): Mean neighborhood size in voxels.
+        min_size (int): Smallest neighborhood size in voxels.
+        max_size (int): Largest neighborhood size in voxels.
 
     Examples:
         ```python
@@ -99,11 +103,12 @@ class SphereNeighborhoods:
     ) -> Iterator[tuple[int, np.ndarray]]:
         """Iterate over all neighborhoods.
 
-        Yields:
-            Tuple of (center_voxel_idx, neighbor_indices) for each voxel
-
         Args:
-            progress_bar: If True, wrap iterator with tqdm progress bar
+            progress_bar: If True, wrap the iterator with a tqdm progress bar.
+
+        Yields:
+            tuple[int, np.ndarray]: ``(center_voxel_idx, neighbor_indices)`` for
+                each voxel.
         """
         iterator = maybe_tqdm(
             range(self.n_voxels),
@@ -184,11 +189,9 @@ def compute_searchlight_neighborhoods(
         ```
 
     Note:
-        Cache location: ~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz
-
-        For a typical 2mm MNI mask (~50k voxels) with 10mm radius:
-        - First run: ~1-2 seconds
-        - Cached load: ~50ms
+        Cache location: ``~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz``.
+        For a typical 2mm MNI mask (~50k voxels) with a 10mm radius the first
+        run takes ~1-2 seconds; a cached load takes ~50ms.
     """
     from nilearn.image.resampling import coord_transform
 

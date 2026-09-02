@@ -24,28 +24,28 @@ def bootstrap(
     Supports simple aggregation statistics (mean, std, median, sum, min, max).
 
     Args:
-        adj: (Adjacency) Adjacency instance containing multiple matrices
-        stat: (str) Statistic to bootstrap. Options:
-            - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max'
-        n_samples: (int) Number of bootstrap iterations. Default: 5000
-        save_boots: (bool) If True, store all bootstrap samples (memory intensive).
-                   Default: False
-        percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-            (statistic > 0; negate the data for the other direction).
-        n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
-        random_state: (int, optional) Random seed for reproducibility
-        progress_bar: (bool) If True, show a progress bar. Default False.
+        adj (Adjacency): Adjacency instance containing multiple matrices.
+        stat (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`,
+            `'min'`, or `'max'`.
+        n_samples (int): Number of bootstrap iterations. Default 5000.
+        save_boots (bool): If True, store all bootstrap samples (memory intensive).
+            Default False.
+        percentiles (tuple): Percentiles for confidence intervals. Default (2.5, 97.5).
+        tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
+            one-tailed (statistic > 0; negate the data for the other direction).
+        n_jobs (int): Number of CPU cores for parallelization. -1 means all CPUs.
+        random_state (int, optional): Random seed for reproducibility.
+        progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict: Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'
-              (all Adjacency objects). If save_boots=True, also includes 'samples'.
+        dict: Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,
+            `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also includes
+            `'samples'`.
 
     Examples:
         ```python
-        # Simple aggregation
-        boot = bootstrap(adj, stat='mean', n_samples=1000)
-        assert isinstance(boot['mean'], Adjacency)
+        boot = bootstrap(adj, stat="mean", n_samples=1000)
+        boot["mean"]  # → Adjacency
         ```
     """
     from nltools.algorithms.inference.bootstrap import (
@@ -87,13 +87,13 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
     Adjacency objects.
 
     Args:
-        adj: (Adjacency) Adjacency instance (used for matrix_type metadata)
-        result: (dict) Result dictionary from bootstrap function with keys:
-                'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples'
-        save_boots: (bool) If True, include 'samples' key in output
+        adj (Adjacency): Adjacency instance (used for `matrix_type` metadata).
+        result (dict): Result dictionary from a bootstrap function with keys `'mean'`,
+            `'std'`, `'Z'`, `'p'`, `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`.
+        save_boots (bool): If True, include the `'samples'` key in the output.
 
     Returns:
-        dict: Dictionary with Adjacency objects for each statistic
+        dict: Adjacency objects for each statistic.
     """
     from nltools.data.adjacency import Adjacency
 
@@ -125,18 +125,20 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
 
 def regress(adj, X, method="ols", tail=2):
     """Run a regression on an adjacency instance.
-    You can decompose an adjacency instance with another adjacency instance.
-    You can also decompose each pixel by passing a design_matrix instance.
+
+    Pass an `Adjacency` as `X` to decompose `adj` with other matrices, or a
+    `DesignMatrix` to regress each cell across a stack of matrices.
 
     Args:
-        adj: (Adjacency) Adjacency instance
-        X: Design matrix can be an Adjacency or DesignMatrix instance
-        method: type of regression (default: ols) - only 'ols' is currently supported
-        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-            (beta > 0; negate a regressor for the other direction).
+        adj (Adjacency): Adjacency instance.
+        X (Adjacency | DesignMatrix): Design matrix.
+        method (str): Type of regression; only `'ols'` is currently supported.
+        tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
+            one-tailed (beta > 0; negate a regressor for the other direction).
 
     Returns:
-        dict: Dictionary of stats outputs.
+        dict: Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,
+            `'residual'`.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
@@ -300,30 +302,28 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
     $\\alpha_i$ is person i's actor effect, $\\beta_j$ is person j's partner effect, $g_{ij}$
     is the relationship effect and $\\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
-    This model is primarily concerned with partioning the variance of the various effects.
+    This model is primarily concerned with partitioning the variance of the various
+    effects. The implementation follows Chapter 8 of Kenny, Kashy, & Cook (2006) and
+    the tests replicate the book's examples. Actor scores are rows (lower triangle)
+    and partner scores are columns (upper triangle). The minimal sample size to
+    estimate these effects is 4.
 
-    Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
-    Tests replicate examples  presented in the book. Note, that this method assumes that
-    actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
-    The minimal sample size to estimate these effects is 4.
-
-    Model Assumptions:
-     - Social interactions are exclusively dyadic
-     - People are randomly sampled from population
-     - No order effects
-     - The effects combine additively and relationships are linear
-
-    In the future we might update the formulas and standard errors based on
-    Bond and Lashley, 1996
+    **Model assumptions:** social interactions are exclusively dyadic; people are
+    randomly sampled from the population; there are no order effects; the effects
+    combine additively and relationships are linear.
 
     Args:
-        adj: (Adjacency) can be a single matrix or many matrices for each group
-        summarize_results: (bool) will provide a formatted summary of model results
-        nan_replace: (bool) will replace nan values with row and column means
+        adj (Adjacency): A single matrix, or one matrix per group.
+        summarize_results (bool): If True, print a formatted summary of model results.
+        nan_replace (bool): If True, replace NaN values with row and column means.
 
     Returns:
         pd.Series | pd.DataFrame: All of the effects estimated using SRM (a Series
             for a single matrix, a DataFrame with one row per matrix otherwise).
+
+    References:
+        Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
+        Guilford Press.
     """
     import pandas as pd
 
@@ -635,13 +635,13 @@ def generate_permutations(adj, n_permute, random_state=None):
     This is useful for iterative comparisons.
 
     Args:
-        adj: (Adjacency) Adjacency instance
-        n_permute (int): number of permutations
-        random_state (int or np.random.RandomState, optional): random seed for
+        adj (Adjacency): Adjacency instance.
+        n_permute (int): Number of permutations.
+        random_state (int | np.random.RandomState, optional): Random seed for
             reproducibility. Defaults to None.
 
     Yields:
-        Adjacency: permuted version of adj
+        Adjacency: Permuted version of `adj`.
 
     Examples:
         ```python

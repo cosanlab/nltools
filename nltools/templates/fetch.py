@@ -1,9 +1,9 @@
-"""Lazy fetcher for files hosted in the ``nltools/niftis`` HF dataset.
+"""Lazy fetcher for files hosted in the `nltools/niftis` HF dataset.
 
 Covers MNI templates, parcellation label maps, the parcel-names CSV, and
 any other resources living under huggingface.co/datasets/nltools/niftis.
 First call for a given file downloads it into the local HF cache
-(``~/.cache/huggingface/hub`` by default); subsequent calls return the
+(`~/.cache/huggingface/hub` by default); subsequent calls return the
 cached path without touching the network.
 """
 
@@ -15,12 +15,12 @@ REVISION = "main"
 
 @functools.cache
 def fetch_resource(relpath: str) -> str:
-    """Return a local path to a file from the ``nltools/niftis`` HF dataset.
+    """Return a local path to a file from the `nltools/niftis` HF dataset.
 
     Args:
-        relpath: Path within the dataset repo, e.g.
-            ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or
-            ``'masks/k88_parcel_names.csv'``. Use `list_resources`
+        relpath (str): Path within the dataset repo, e.g.
+            `'default/2mm-MNI152-2009fsl-mask.nii.gz'` or
+            `'masks/k88_parcel_names.csv'`. Use `list_resources`
             to enumerate what's available.
 
     Returns:
@@ -29,12 +29,10 @@ def fetch_resource(relpath: str) -> str:
             and masking helpers, `nibabel.load`, and `BrainData(path)`.
 
     Note:
-        Resolution is memoized per ``relpath`` for the session — repeated
-        calls (e.g. every default-mask ``BrainData`` construction) return the
-        cached path with no work. On the first call for a file already in the
-        HF cache we resolve it with ``local_files_only=True`` so we never make
-        a network round-trip to revalidate an ETag; only a genuine cache miss
-        touches the network.
+        Resolution is memoized per `relpath` for the session — repeated
+        calls (e.g. every default-mask `BrainData` construction) return the
+        cached path with no work. A file already in the HF cache is resolved
+        offline, so only a genuine cache miss touches the network.
     """
     from huggingface_hub import hf_hub_download
     from huggingface_hub.utils import LocalEntryNotFoundError
@@ -68,19 +66,18 @@ def _list_repo_files_cached(repo_id: str, revision: str) -> tuple[str, ...]:
 
 
 def list_resources(prefix: str | None = None) -> list[str]:
-    """List files available in the ``nltools/niftis`` HF dataset.
+    """List files available in the `nltools/niftis` HF dataset.
 
     Companion to `fetch_resource` — surfaces what's downloadable
     without forcing users to remember relpath strings or visit the HF
     web UI.
 
     Args:
-        prefix: Optional path prefix to filter by (e.g., ``'masks/'``,
-            ``'default/'``, ``'fmriprep/'``). Matches with
-            ``str.startswith``.
+        prefix (str, optional): Path prefix to filter by (e.g. `'masks/'`,
+            `'default/'`, `'fmriprep/'`). Matches with `str.startswith`.
 
     Returns:
-        Sorted list of relative paths usable with `fetch_resource`.
+        list[str]: Sorted relative paths usable with `fetch_resource`.
 
     Note:
         Hits the HF API once per session (cached).

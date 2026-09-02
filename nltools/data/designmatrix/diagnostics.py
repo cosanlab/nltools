@@ -1,4 +1,4 @@
-"""Diagnostic and utility functions for DesignMatrix."""
+"""Collinearity diagnostics for DesignMatrix: column correlations, VIF, and cleanup."""
 
 from __future__ import annotations
 
@@ -29,10 +29,10 @@ def corr(
     restores it for display.
 
     Args:
-        dm: DesignMatrix instance.
+        dm (DesignMatrix): DesignMatrix instance.
         metric (str): ``'pearson'`` (default) or ``'spearman'``. Spearman is
             computed as Pearson on column ranks.
-        columns (list of str, optional): Subset of columns to correlate.
+        columns (list[str] | None): Subset of columns to correlate.
             Defaults to all columns.
 
     Returns:
@@ -85,12 +85,12 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
     (same method as Matlab and R).
 
     Args:
-        dm: DesignMatrix instance.
+        dm (DesignMatrix): DesignMatrix instance.
         exclude_confounds (bool): Skip nuisance/confound columns. Default: True.
 
     Returns:
-        VIF values for each included column, or None if the correlation matrix
-            is singular (perfect collinearity detected).
+        np.ndarray | None: VIF values for each included column, or None if the
+            correlation matrix is singular (perfect collinearity detected).
 
     Raises:
         ValueError: If the DesignMatrix has only 1 column.
@@ -157,8 +157,8 @@ def clean(
     of correlated pair, drops duplicates.
 
     Args:
-        dm: DesignMatrix instance.
-        fill_na (int, float, or None): Fill NaN values before checking correlations.
+        dm (DesignMatrix): DesignMatrix instance.
+        fill_na (int | float | None): Fill NaN values before checking correlations.
             Default: 0.
         exclude_confounds (bool): Skip nuisance/confound columns from correlation check.
             Default: False.

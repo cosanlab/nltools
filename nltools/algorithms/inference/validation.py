@@ -1,10 +1,7 @@
-"""Shared validation utilities for algorithms module.
+"""Shared input validation for the algorithms module.
 
-This module provides common validation functions to reduce code duplication
-and ensure consistent error handling across the algorithms module.
-
-These functions are used throughout the algorithms module to validate input
-parameters. They provide consistent error messages and behavior.
+One home for the argument checks the permutation, bootstrap, and matrix tests
+share, so every entry point raises the same `ValueError` for the same mistake.
 
 Examples:
     ```python
@@ -21,15 +18,15 @@ from .utils import _normalize_tail_internal
 
 
 def validate_device_parameter(device: str | None, *, allow_auto: bool = False) -> None:
-    """Validate device parameter.
+    """Validate the `device` parameter.
 
     Args:
-        device: Device parameter value (None, 'cpu', or 'gpu')
-        allow_auto: Also accept 'auto' (entry points that resolve the device
-            themselves, e.g. `phase_randomize`)
+        device (str | None): None, `'cpu'`, or `'gpu'`.
+        allow_auto (bool): Also accept `'auto'` (for entry points that resolve
+            the device themselves, e.g. `phase_randomize`).
 
     Raises:
-        ValueError: If device is not one of the accepted values
+        ValueError: If `device` is not one of the accepted values.
     """
     allowed = [None, "cpu", "gpu"] + (["auto"] if allow_auto else [])
     if device not in allowed:
@@ -40,13 +37,14 @@ def validate_device_parameter(device: str | None, *, allow_auto: bool = False) -
 
 
 def validate_device_parameter_matrix(device: str | None) -> None:
-    """Validate device parameter for matrix operations.
+    """Validate the `device` parameter for matrix permutation tests.
 
     Args:
-        device: Parallel parameter value
+        device (str | None): None or `'cpu'`.
 
     Raises:
-        ValueError: If device is not None or 'cpu' (GPU not yet supported)
+        ValueError: If `device` is not None or `'cpu'` (matrix permutation tests
+            have no GPU path yet).
     """
     if device not in [None, "cpu"]:
         raise ValueError(
@@ -58,29 +56,26 @@ def validate_device_parameter_matrix(device: str | None) -> None:
 def validate_tail_parameter(tail: int | str) -> str:
     """Validate the public tail vocabulary and normalize to the internal form.
 
-    The public vocabulary (v0.6.0) is deliberately two-valued — the *direction*
-    of a one-tailed test is fixed by the test's convention, never chosen from
-    the data (a data-driven direction would silently halve every p-value):
+    The public vocabulary is deliberately two-valued: the *direction* of a
+    one-tailed test is fixed by the test's convention, never chosen from the
+    data (a data-driven direction would silently halve every p-value). A fixed
+    direction across all tests is what keeps multiple-comparison correction
+    (FDR, Bonferroni) valid (GH #315).
 
     Args:
-        tail: Tail parameter value. Can be:
-            - 2 or 'two' (default everywhere): two-tailed test (|obs| vs |null|)
-            - 1 or 'one': one-tailed test in the test's canonical positive
-              direction (correlation/ISC/similarity > 0, mean > popmean,
-              group1 > group2). To test the negative direction, negate your
-              data, swap the groups, or flip the contrast.
+        tail (int | str): `2` or `'two'` (the default everywhere) for a
+            two-tailed test (`|obs|` vs `|null|`); `1` or `'one'` for a
+            one-tailed test in the test's canonical positive direction
+            (correlation/ISC/similarity > 0, mean > popmean, group1 > group2).
+            To test the negative direction, negate your data, swap the groups,
+            or flip the contrast.
 
     Returns:
-        Normalized internal tail string: 'two' or 'upper'
+        str: Normalized internal tail, `'two'` or `'upper'`.
 
     Raises:
-        ValueError: If tail is not a valid option (including the removed
-            v0.5 forms 'upper'/'lower'/-1)
-
-    Notes:
-        For multiple comparisons correction (FDR, Bonferroni) a fixed direction
-        across all tests is essential — which is exactly why the direction is
-        part of the vocabulary, not the data. See GH #315.
+        ValueError: If `tail` is not a valid option (including the removed
+            `'upper'`/`'lower'`/`-1` forms).
     """
     # One mapping table lives in `_normalize_tail_internal`; the public layer
     # only rejects the internal-only directional forms it must not accept.
@@ -105,12 +100,12 @@ def validate_array_shape(
     """Validate array dimensionality.
 
     Args:
-        array: Array to validate
-        expected_ndim: Expected number of dimensions
-        name: Name of array for error message
+        array (np.ndarray): Array to validate.
+        expected_ndim (int): Expected number of dimensions.
+        name (str): Name of the array for the error message.
 
     Raises:
-        ValueError: If array has wrong number of dimensions
+        ValueError: If the array has the wrong number of dimensions.
     """
     if array.ndim != expected_ndim:
         raise ValueError(
@@ -124,16 +119,16 @@ def validate_array_shape_range(
     max_ndim: int,
     name: str = "array",
 ) -> None:
-    """Validate array dimensionality is within a range.
+    """Validate that array dimensionality falls within a range.
 
     Args:
-        array: Array to validate
-        min_ndim: Minimum number of dimensions (inclusive)
-        max_ndim: Maximum number of dimensions (inclusive)
-        name: Name of array for error message
+        array (np.ndarray): Array to validate.
+        min_ndim (int): Minimum number of dimensions (inclusive).
+        max_ndim (int): Maximum number of dimensions (inclusive).
+        name (str): Name of the array for the error message.
 
     Raises:
-        ValueError: If array has wrong number of dimensions
+        ValueError: If the array has the wrong number of dimensions.
     """
     if not (min_ndim <= array.ndim <= max_ndim):
         raise ValueError(
@@ -148,16 +143,16 @@ def validate_same_shape(
     name1: str = "array1",
     name2: str = "array2",
 ) -> None:
-    """Validate two arrays have same shape.
+    """Validate that two arrays have the same shape.
 
     Args:
-        array1: First array
-        array2: Second array
-        name1: Name of first array for error message
-        name2: Name of second array for error message
+        array1 (np.ndarray): First array.
+        array2 (np.ndarray): Second array.
+        name1 (str): Name of the first array for the error message.
+        name2 (str): Name of the second array for the error message.
 
     Raises:
-        ValueError: If arrays have different shapes
+        ValueError: If the arrays have different shapes.
     """
     if array1.shape != array2.shape:
         raise ValueError(
@@ -171,15 +166,15 @@ def validate_metric_parameter(
     allowed: list[str],
     name: str = "metric",
 ) -> None:
-    """Validate metric parameter.
+    """Validate a metric name against an allowed list.
 
     Args:
-        metric: Metric parameter value
-        allowed: List of allowed metric values
-        name: Name of parameter for error message
+        metric (str): Metric name to validate.
+        allowed (list[str]): Allowed metric names.
+        name (str): Name of the parameter for the error message.
 
     Raises:
-        ValueError: If metric is not in allowed list
+        ValueError: If `metric` is not in `allowed`.
     """
     if metric not in allowed:
         allowed_str = ", ".join(f"'{m}'" for m in allowed)
@@ -187,40 +182,41 @@ def validate_metric_parameter(
 
 
 def validate_how_parameter(how: str) -> None:
-    """Validate 'how' parameter for matrix operations.
+    """Validate the `how` parameter for matrix operations.
 
     Args:
-        how: How parameter value
+        how (str): `'upper'`, `'lower'`, or `'full'`.
 
     Raises:
-        ValueError: If how is not 'upper', 'lower', or 'full'
+        ValueError: If `how` is not one of those values.
     """
     if how not in ["upper", "lower", "full"]:
         raise ValueError(f"how must be 'upper', 'lower', or 'full', got {how!r}")
 
 
 def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
-    """Validate matrix is square.
+    """Validate that a matrix is square.
 
     Args:
-        matrix: Matrix to validate
-        name: Name of matrix for error message
+        matrix (np.ndarray): Matrix to validate.
+        name (str): Name of the matrix for the error message.
 
     Raises:
-        ValueError: If matrix is not square
+        ValueError: If the matrix is not square.
     """
     if matrix.shape[0] != matrix.shape[1]:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
 
 
 def validate_percentiles(percentiles: tuple[float, float]) -> None:
-    """Validate percentile values for confidence intervals.
+    """Validate percentile bounds for confidence intervals.
 
     Args:
-        percentiles: Percentile values (lower, upper)
+        percentiles (tuple[float, float]): `(lower, upper)` with
+            `0 < lower < 50 < upper < 100`.
 
     Raises:
-        ValueError: If percentiles are invalid
+        ValueError: If the percentiles are not a valid pair.
     """
     if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
         raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
@@ -245,16 +241,16 @@ def validate_shape_compatibility(
     X_name: str = "X",
     y_name: str = "y",
 ) -> None:
-    """Validate that X and y have compatible shapes for regression.
+    """Validate that X and y have the same number of samples.
 
     Args:
-        X: Feature matrix
-        y: Target vector or matrix
-        X_name: Name of X for error message
-        y_name: Name of y for error message
+        X (np.ndarray): Feature matrix.
+        y (np.ndarray): Target vector or matrix.
+        X_name (str): Name of X for the error message.
+        y_name (str): Name of y for the error message.
 
     Raises:
-        ValueError: If shapes are incompatible
+        ValueError: If the first dimensions differ.
     """
     if X.shape[0] != y.shape[0]:
         raise ValueError(
@@ -266,15 +262,15 @@ def validate_shape_compatibility(
 def validate_bootstrap_method(
     method: str, simple_methods: list[str], fitted_methods: list[str]
 ) -> None:
-    """Validate bootstrap method name.
+    """Validate a bootstrap method name.
 
     Args:
-        method: Method name to validate
-        simple_methods: List of simple method names
-        fitted_methods: List of fitted method names
+        method (str): Method name to validate.
+        simple_methods (list[str]): Methods that need no fitted model.
+        fitted_methods (list[str]): Methods that require a prior `.fit()`.
 
     Raises:
-        ValueError: If method is not supported
+        ValueError: If `method` is in neither list.
     """
     supported = simple_methods + fitted_methods
     if method not in supported:
@@ -290,11 +286,11 @@ def validate_bootstrap_data(data: np.ndarray, method: str) -> None:
     """Validate input data for bootstrapping.
 
     Args:
-        data: Data to validate
-        method: Bootstrap method
+        data (np.ndarray): 1D or 2D data with at least 2 samples along axis 0.
+        method (str): Bootstrap method name (reserved for method-specific checks).
 
     Raises:
-        ValueError: If data is invalid (wrong shape, too few samples, etc.)
+        ValueError: If the data is not 1D/2D or has fewer than 2 samples.
     """
     # Check dimensionality
     if data.ndim not in [1, 2]:

@@ -1,6 +1,6 @@
 """Global MNI brain-space configuration for nltools.
 
-This module manages the default MNI template used by ``BrainData`` and
+This module manages the default MNI template used by `BrainData` and
 related classes when no explicit mask is provided. Set it once (e.g., at
 the top of a notebook) and all subsequent operations pick it up
 automatically.
@@ -9,22 +9,23 @@ Examples:
     Set the global brain space:
 
     ```python
-        import nltools
-        nltools.set_brainspace(template="fmriprep", resolution=2)
+    import nltools
+
+    nltools.set_brainspace(template="fmriprep", resolution=2)
     ```
 
     Inspect the current configuration:
 
     ```python
-        cfg = nltools.get_brainspace()
-        print(cfg.mask)
+    cfg = nltools.get_brainspace()
+    print(cfg.mask)
     ```
 
     Scope a change to a block:
 
     ```python
-        with nltools.with_brainspace(resolution=1):
-            brain = BrainData(...)
+    with nltools.with_brainspace(resolution=1):
+        brain = BrainData(...)
     ```
 """
 
@@ -36,12 +37,19 @@ from .config import (
     with_brainspace,
 )
 from .fetch import fetch_resource, list_resources
-from .matching import TemplateMatch, get_bg_image, is_standard_space, match_resolution
+from .matching import (
+    TemplateMatch,
+    detect_resolution,
+    get_bg_image,
+    is_standard_space,
+    match_resolution,
+)
 from .paths import resolve_paths, resolve_template_name
 
 __all__ = [
     "BrainSpaceConfig",
     "TemplateMatch",
+    "detect_resolution",
     "fetch_resource",
     "get_bg_image",
     "get_brainspace",

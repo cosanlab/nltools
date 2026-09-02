@@ -1,7 +1,8 @@
-"""BrainData modeling functions.
+"""Model fitting, contrasts, and statistical tests for `BrainData`.
 
-Standalone functions extracted from BrainData class methods for model
-fitting, GLM estimation, Ridge regression, and contrast computation.
+GLM and ridge fitting (with cross-validation), contrast computation, one- and
+two-sample t-tests, and the design-matrix diagnostics `fit` runs before a GLM.
+`BrainData` methods delegate here.
 """
 
 import warnings
@@ -304,74 +305,68 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     category so it can be silenced surgically with
     ``warnings.filterwarnings``.
 
+    **Results stored on `bd`** (when `inplace=True`; with `inplace=False` the same
+    values are returned on a `Fit` instead):
+
+    - `model_` — the fitted `Ridge` or `Glm` instance (always set, so `predict()`
+      works).
+    - `X_` — the training design/features, used as the `predict()` default.
+    - `cv_results_` — dict with keys `'scores'`, `'mean_score'`, `'predictions'`,
+      `'folds'`, `'best_alpha'`, `'alpha_scores'` (ridge with `cv` only).
+    - GLM: `glm_betas`, `glm_t`, `glm_p`, `glm_se`, `glm_residual`,
+      `glm_predicted`, `glm_r2` (each a `BrainData`).
+    - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_scores` (each a
+      `BrainData`).
+
     Args:
-        bd: BrainData instance.
-        model (str): Model type: 'ridge', 'glm', or future model names
-        X (array-like or DataFrame): Design matrix or feature matrix, shape (n_samples, n_features)
-            - For GLM: Design matrix with regressors (n_samples must match bd.data)
-            - For Ridge: Feature matrix for prediction (n_samples must match bd.data)
-        cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification (Ridge only):
-            - int: Number of folds for k-fold CV (returns CV scores)
-            - 'auto': Triggers alpha selection via CV (implies alpha='auto')
-            - sklearn CV object: Custom CV splitter (e.g., KFold(3, shuffle=True))
-            - None: No CV (default, backward compatible)
-        device (str, default='cpu'): Ridge only. Compute device for the ridge
-            solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when
-            available), or ``'auto'`` (GPU if present, else CPU). Forwarded to
-            ``Ridge`` and the CV evaluation. Ignored for ``model='glm'``.
-        local_alpha (bool, default=True): Ridge only. If True, select a
-            separate best alpha per voxel; if False, select a single shared
-            alpha across all voxels. Forwarded to ``Ridge``.
-        fit_intercept (bool, default=False): Ridge only. If True, fit an
-            intercept term. Redundant (and warned against) when the data is
-            already centered via ``scale`` or ``standardize``. Forwarded to
-            ``Ridge``.
-        inplace (bool, default=True): If True, mutate bd and return bd (backward compatible).
-            If False, return a Fit dataclass with the results. In this case
-            bd's ``.data`` and the result attributes (``ridge_*`` / ``glm_*`` /
-            ``cv_results_``) are left unchanged, but ``bd.model_`` and
-            ``bd.X_`` (plus ``bd.design_matrix`` for GLM) ARE updated on bd so
-            that ``predict()`` / ``compute_contrasts()`` still work off bd.
-            Successive ``inplace=False`` fits therefore overwrite the model
-            used by a later ``bd.predict()``.
+        bd (BrainData): Data whose `.data` is the regression target.
+        model (str): `'glm'` (default) or `'ridge'`.
+        X (array-like | DataFrame | DesignMatrix): Design matrix (GLM) or feature
+            matrix (ridge) of shape `(n_samples, n_features)`; `n_samples` must
+            match `bd.data`. For banded ridge, a list of such matrices.
+        cv (int | str | CV splitter | None): Cross-validation specification, ridge
+            only. An int is the number of k-fold splits (returns CV scores);
+            `'auto'` selects alpha via CV (implies `alpha='auto'`); an sklearn
+            splitter (e.g. `KFold(3, shuffle=True)`) is used as given; None
+            (default) runs no CV.
+        device (str): Ridge only. Compute device for the ridge solve/CV: `'cpu'`
+            (NumPy), `'gpu'` (PyTorch on CUDA/MPS when available), or `'auto'`
+            (GPU if present, else CPU). Forwarded to `Ridge` and the CV
+            evaluation. Ignored for `model='glm'`. Default: `'cpu'`.
+        local_alpha (bool): Ridge only. If True, select a separate best alpha per
+            voxel; if False, select a single shared alpha across all voxels.
+            Forwarded to `Ridge`. Default: True.
+        fit_intercept (bool): Ridge only. If True, fit an intercept term.
+            Redundant (and warned against) when the data is already centered via
+            `scale` or `standardize`. Forwarded to `Ridge`. Default: False.
+        inplace (bool): If True, mutate `bd` and return it. If False, return a
+            `Fit` dataclass; `bd.data` and the result attributes (`ridge_*` /
+            `glm_*` / `cv_results_`) are left unchanged, but `bd.model_` and
+            `bd.X_` (plus `bd.design_matrix` for GLM) are still updated so that
+            `predict()` / `compute_contrasts()` work off `bd`. Successive
+            `inplace=False` fits therefore overwrite the model used by a later
+            `bd.predict()`. Default: True.
         progress_bar (bool): Display a progress bar for long-running
             operations. Default: False.
-        scale (bool or 'auto', default='auto'): Apply percent-signal-change
-            scaling to the data before fitting, via nilearn's per-voxel
-            ``mean_scaling`` (each voxel's time-series is divided by its own
-            temporal mean, de-meaned, and multiplied by 100). ``'auto'``
-            resolves to False for both models — PSC is opt-in. Useful for GLM
-            (interpretable % betas); for ridge it is redundant with
-            ``standardize='zscore'`` (a warning is raised for that combination).
-            Applied before ``standardize``.
-        standardize (str or None or 'auto', default='auto'): Standardize each
-            voxel across observations after scaling. One of ``'center'``
-            (subtract the mean), ``'zscore'`` (subtract mean, divide by std),
-            or ``None`` (off). ``'auto'`` resolves to ``'zscore'`` for
-            ``model='ridge'`` (so a shared alpha regularizes voxels fairly) and
-            ``None`` for ``model='glm'``.
-        **kwargs (dict): Additional arguments passed to model constructor
-            - Ridge: alpha, alphas, random_state (device is a named param above)
-            - Glm: noise_model, minimize_memory, etc.
+        scale (bool | str): Apply percent-signal-change scaling to the data
+            before fitting, via nilearn's per-voxel `mean_scaling` (each voxel's
+            time-series is divided by its own temporal mean, de-meaned, and
+            multiplied by 100). `'auto'` (default) resolves to False for both
+            models — PSC is opt-in. Useful for GLM (interpretable % betas); for
+            ridge it is redundant with `standardize='zscore'` (a warning is
+            raised for that combination). Applied before `standardize`.
+        standardize (str | None): Standardize each voxel across observations
+            after scaling: `'center'` (subtract the mean), `'zscore'` (subtract
+            mean, divide by std), or None (off). `'auto'` (default) resolves to
+            `'zscore'` for `model='ridge'` (so a shared alpha regularizes voxels
+            fairly) and None for `model='glm'`.
+        **kwargs (dict): Additional arguments passed to the model constructor —
+            for `Ridge`: `alpha`, `alphas`, `random_state`; for `Glm`:
+            `noise_model`, `minimize_memory`, etc.
 
     Returns:
-        BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData).
-            If ``inplace=False``, returns Fit dataclass with results.
-
-    Attributes:
-        model_ (BaseModel): Fitted model instance (Ridge, Glm, etc.). Set on bd when ``inplace=True``.
-        X_ (ndarray): Training data X, stored for predict() default.
-        cv_results_ (dict, optional): Cross-validation results dict with keys 'scores', 'mean_score', 'predictions', 'folds', 'best_alpha', 'alpha_scores' (if cv is not None).
-        glm_betas (BrainData, optional): Beta coefficients (for model='glm')
-        glm_t (BrainData, optional): T-statistics (for model='glm')
-        glm_p (BrainData, optional): P-values (for model='glm')
-        glm_se (BrainData, optional): Standard errors (for model='glm')
-        glm_residual (BrainData, optional): Residuals (for model='glm')
-        glm_predicted (BrainData, optional): Fitted values (for model='glm')
-        glm_r2 (BrainData, optional): R-squared values (for model='glm')
-        ridge_weights (BrainData, optional): Model coefficients (for model='ridge')
-        ridge_fitted_values (BrainData, optional): Fitted values (for model='ridge')
-        ridge_scores (BrainData, optional): R-squared scores (for model='ridge')
+        BrainData | Fit: `bd` itself when `inplace=True`; a `Fit` dataclass with
+            the results when `inplace=False`.
 
     Examples:
         ```python
@@ -565,16 +560,18 @@ def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params
     """Fit Ridge model and extract results.
 
     Args:
-        bd: BrainData instance.
-        X (ndarray): Training features
-        cv (int, 'auto', or sklearn CV splitter, optional): Cross-validation specification
-        device (str, default='cpu'): Compute device ('cpu'/'gpu'/'auto') for the
-            held-out CV evaluation, forwarded to ``compute_ridge_cv``.
-        **kwargs (dict): Additional arguments for CV (alpha, etc.)
+        bd (BrainData): Data with `bd.model_` already set to a `Ridge` instance.
+        X (np.ndarray | list[np.ndarray]): Training features (a list for banded
+            ridge).
+        cv (int | str | CV splitter | None): Cross-validation specification; see
+            `fit`.
+        device (str): Compute device (`'cpu'`/`'gpu'`/`'auto'`) for the held-out
+            CV evaluation, forwarded to `compute_ridge_cv`. Default: `'cpu'`.
+        **kwargs (dict): Additional ridge arguments for CV (`alpha`, etc.).
 
     Note:
-        Sets ridge_weights, ridge_fitted_values, ridge_scores, and
-        cv_results_ (if cv provided) on bd.
+        Sets `ridge_weights`, `ridge_fitted_values`, `ridge_scores`, and
+        `cv_results_` (if `cv` is given) on `bd`.
     """
     alpha = bd.model_.alpha if hasattr(bd.model_, "alpha") else None
 
@@ -731,20 +728,20 @@ def _assemble_ridge_cv_results(bd, X, cv):
 def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
     """Held-out CV scores under a fixed Ridge α.
 
-    Used only for the *fixed-α* + CV branch — alpha selection is now
-    handled by ``Ridge.fit`` (which delegates to ``solve_ridge_cv``) and
-    assembled into ``cv_results_`` by ``_assemble_ridge_cv_results``.
+    Used only for the *fixed-α* + CV branch. When `alpha='auto'`, alpha selection
+    is handled by `Ridge.fit` (which delegates to `solve_ridge_cv`) and `fit`
+    assembles `cv_results_` from the fitted model instead.
 
     Args:
-        bd: BrainData instance.
-        X (ndarray): Training features, shape (n_samples, n_features).
-        cv (int or sklearn CV splitter): Cross-validation specification.
-        alpha (float, optional): Fixed regularization strength. If None,
-            extracted from ``bd.model_.alpha``.
-        device (str): Compute device ('cpu'/'gpu'/'auto'). Default: 'cpu'.
+        bd (BrainData): Data with `bd.model_` set to a `Ridge` instance.
+        X (np.ndarray): Training features, shape `(n_samples, n_features)`.
+        cv (int | CV splitter): Cross-validation specification.
+        alpha (float | None): Fixed regularization strength. If None, taken from
+            `bd.model_.alpha`.
+        device (str): Compute device (`'cpu'`/`'gpu'`/`'auto'`). Default: `'cpu'`.
 
     Returns:
-        dict: ``{"scores", "mean_score", "predictions", "folds"}``.
+        dict: Keys `'scores'`, `'mean_score'`, `'predictions'`, `'folds'`.
     """
     from nltools.algorithms.ridge import cross_val_predict_ridge
     from nltools.algorithms.backends import resolve_backend
@@ -793,12 +790,12 @@ def fit_glm(bd, X):
     """Fit GLM model and extract results.
 
     Args:
-        bd: BrainData instance.
-        X: Design matrix (DataFrame or DesignMatrix).
+        bd (BrainData): Data with `bd.model_` set to a `Glm` instance.
+        X (DataFrame | DesignMatrix): Design matrix.
 
     Note:
-        Sets glm_betas, glm_t, glm_p, glm_se, glm_residual, glm_predicted,
-        glm_r2, and design_matrix on bd.
+        Sets `glm_betas`, `glm_t`, `glm_p`, `glm_se`, `glm_residual`,
+        `glm_predicted`, `glm_r2`, and `design_matrix` on `bd`.
     """
     from nltools.data.designmatrix import DesignMatrix
     from nltools.data import BrainData
@@ -864,11 +861,11 @@ def to_fit_dataclass(bd, model):
     """Convert BrainData fit results to Fit dataclass.
 
     Args:
-        bd: BrainData instance.
-        model (str): Model type ('ridge' or 'glm')
+        bd (BrainData): Fitted data carrying `ridge_*` or `glm_*` result attributes.
+        model (str): Model type (`'ridge'` or `'glm'`).
 
     Returns:
-        Fit: Dataclass containing fit results
+        Fit: Dataclass containing the fit results.
     """
     from nltools.data.fitresults import Fit
 
@@ -966,22 +963,22 @@ def ttest(
     from ``popmean``.
 
     Args:
-        bd: BrainData instance (must contain multiple images).
-        popmean: Population mean to test against. Default 0.0.
-        permutation: If True, use a sign-flip permutation test on
+        bd (BrainData): Stack of two or more images.
+        popmean (float): Population mean to test against. Default 0.0.
+        permutation (bool): If True, use a sign-flip permutation test on
             ``images - popmean`` via
             ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come
             from the empirical null and the parametric t-statistic is still
-            reported alongside for reference.
-        n_permute: Number of permutations (used only when
+            reported alongside for reference. Default False.
+        n_permute (int): Number of permutations (used only when
             ``permutation=True``). Default 5000.
-        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-            (positive direction).
-        return_null: Currently has no effect. The returned dict always
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
+            for one-tailed (positive direction).
+        return_null (bool): Currently has no effect. The returned dict always
             contains exactly ``{"mean", "t", "z", "p"}`` and the null
             distribution is discarded even when this is True. Default False.
-        n_jobs: Number of parallel jobs. Default -1 (all cores).
-        random_state: Random seed for reproducibility.
+        n_jobs (int): Number of parallel jobs. Default -1 (all cores).
+        random_state (int | None): Random seed for reproducibility.
 
     Returns:
         dict[str, BrainData]: Four keys. `"mean"` is the voxelwise mean across
@@ -1053,12 +1050,13 @@ def ttest2(bd, other, equal_var=True, tail=2):
     """Two-sample voxelwise t-test between two BrainData stacks.
 
     Args:
-        bd: First BrainData (shape ``(n1, n_voxels)``).
-        other: Second BrainData (shape ``(n2, n_voxels)``).
-        equal_var: If True (default), standard two-sample t-test. If False,
-            Welch's t-test.
-        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
-            (bd > other; swap the arguments for the other direction).
+        bd (BrainData): First stack, shape ``(n1, n_voxels)``.
+        other (BrainData): Second stack, shape ``(n2, n_voxels)``.
+        equal_var (bool): If True (default), standard two-sample t-test. If
+            False, Welch's t-test.
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
+            for one-tailed (bd > other; swap the arguments for the other
+            direction).
 
     Returns:
         dict: ``{"t": BrainData, "p": BrainData}``.
@@ -1142,42 +1140,39 @@ def compute_contrasts(bd, contrasts, statistic="t"):
 
     Must be called after ``.fit(model='glm', X=design_matrix)`` has been run.
 
+    **Contrast forms.** A string names columns with optional coefficients
+    (``"conditionA - conditionB"``, ``"2*conditionA - conditionB - conditionC"``,
+    ``"0.5*A + 0.5*B"``; names are case-sensitive and must match the design
+    exactly). An array-like is a numeric contrast vector with one weight per
+    regressor (``[1, -1, 0, 0]``). A dict ``{name: contrast}`` evaluates several
+    contrasts at once.
+
+    **Statistics.** ``"t"`` (default) is the t-statistic map for thresholding /
+    single-subject inference; ``"z"`` the z-score map; ``"p"`` the p-value map;
+    ``"beta"`` / ``"effect_size"`` the effect-size (β) map to feed into a
+    second-level (group) analysis; ``"all"`` returns every view for one fit — a
+    dict ``{"beta", "t", "z", "p", "se"}`` of `BrainData` maps — so group-level
+    code never has to recompute beta separately.
+
+    Contrast p-values are **one-sided** (the nilearn/SPM directional-contrast
+    convention: a contrast tests "A > B"; flip the contrast for the other
+    direction). This is the documented exception to the library's two-tailed
+    default.
+
     Args:
-        bd: BrainData instance.
-        contrasts: Can be:
-
-            - str: a contrast expressed in terms of column names, e.g.
-              ``"conditionA - conditionB"`` or ``"2*conditionA - conditionB - conditionC"``
-            - array-like: a numeric contrast vector, one weight per regressor
-              (e.g. ``[1, -1, 0, 0]``)
-            - dict: ``{name: contrast}`` for multiple contrasts at once
-        statistic (str): Which statistic to return per contrast. One of:
-
-            - ``"t"`` (default): t-statistic map (for thresholding /
-              single-subject inference)
-            - ``"z"``: z-score map
-            - ``"p"``: p-value map. Note: contrast p-values are **one-sided**
-              (the nilearn/SPM directional-contrast convention — a contrast
-              tests "A > B"; flip the contrast for the other direction). This
-              is the documented exception to the library's two-tailed default.
-            - ``"beta"`` / ``"effect_size"``: effect-size (β) map — use this
-              when feeding into a second-level (group) analysis
-            - ``"all"``: a bundle dict ``{"beta", "t", "z", "p", "se"}``
-              of BrainData maps for this one contrast. One fit, one call,
-              every view — effect size *and* inferential maps together so
-              group-level code never has to recompute beta separately.
+        bd (BrainData): Data fitted with ``model='glm'``.
+        contrasts (str | array-like | dict): One contrast (string or numeric
+            vector) or a ``{name: contrast}`` dict of several; see above.
+        statistic (str): ``"t"`` (default), ``"z"``, ``"p"``, ``"beta"`` /
+            ``"effect_size"``, or ``"all"``; see above.
 
     Returns:
-        Depends on inputs:
-
-            - single contrast (str or array) + scalar ``statistic``:
-              a single BrainData.
-            - single contrast + ``statistic="all"``: a flat dict of five
-              BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``.
-            - dict of contrasts + scalar ``statistic``: a dict
-              ``{name: BrainData}``.
-            - dict of contrasts + ``statistic="all"``: a nested dict
-              ``{name: {"beta", "t", "z", "p", "se"}}``.
+        BrainData | dict: A single `BrainData` for one contrast with a scalar
+            ``statistic``; a dict keyed ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``
+            for one contrast with ``statistic="all"``; ``{name: BrainData}`` for
+            a dict of contrasts with a scalar ``statistic``; and a nested
+            ``{name: {"beta", "t", "z", "p", "se"}}`` for a dict of contrasts
+            with ``statistic="all"``.
 
     Raises:
         RuntimeError: if ``.fit(model='glm')`` has not been run.
@@ -1201,12 +1196,11 @@ def compute_contrasts(bd, contrasts, statistic="t"):
         ```
 
     Note:
-        - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.
-        - Column names must match design matrix columns exactly (case-sensitive).
-        - For group analysis, stack per-subject effect-size maps
-          (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``)
-          and run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
-          t-maps into a group one-sample test conflates effect magnitude with precision.
+        For group analysis, stack per-subject effect-size maps
+        (``statistic="beta"`` or ``res["beta"]`` from ``statistic="all"``) and
+        run a second-level test (e.g. ``BrainData.ttest``). Mixing first-level
+        t-maps into a group one-sample test conflates effect magnitude with
+        precision.
     """
     from . import BrainData
 
@@ -1273,15 +1267,15 @@ def parse_contrast_string(bd, contrast_str):
     """Parse a contrast string into a numeric contrast vector.
 
     Args:
-        bd: BrainData instance.
-        contrast_str (str): Contrast string like "A - B" or "2*A - B - C"
+        bd (BrainData): Data with a `design_matrix` from a prior GLM fit.
+        contrast_str (str): Contrast string like `"A - B"` or `"2*A - B - C"`.
 
     Returns:
-        np.array: Numeric contrast vector
+        np.ndarray: Numeric contrast vector, one weight per design column.
 
     Raises:
-        RuntimeError: If design_matrix not found (fit() not called)
-        ValueError: If column name not found in design_matrix
+        RuntimeError: If no design matrix is attached (`fit()` not called).
+        ValueError: If a column name is not in the design matrix.
     """
     import re
 

@@ -1,8 +1,9 @@
-"""BrainData analysis functions.
+"""Analysis operations on `BrainData`.
 
-Standalone functions extracted from BrainData class methods for similarity,
-distance, masking, ROI extraction, filtering, thresholding, decomposition,
-alignment, smoothing, and other analytical operations.
+Functions for similarity, distance, masking, ROI extraction, filtering,
+thresholding, decomposition, alignment, smoothing, and related operations.
+Each takes a `BrainData` as its first argument; the corresponding
+`BrainData` methods delegate here.
 """
 
 import numpy as np
@@ -15,11 +16,12 @@ def check_masks(bd, image):
     """Ensure two datasets use compatible masks, creating a union mask if needed.
 
     Args:
-        bd: BrainData instance
-        image: BrainData instance to compare masks with
+        bd (BrainData): Reference dataset.
+        image (BrainData): Dataset whose mask is compared with ``bd``'s.
 
     Returns:
-        tuple: (data2, image2) arrays with compatible masks
+        tuple[np.ndarray, np.ndarray]: ``(data, image_data)`` arrays sampled on
+            a shared mask.
     """
     from nilearn.masking import apply_mask, intersect_masks
 
@@ -41,14 +43,14 @@ def similarity(bd, image, metric="correlation"):
     """Calculate similarity to a single BrainData or nibabel image.
 
     Args:
-        bd: BrainData instance.
-        image: (BrainData, nifti)  image to evaluate similarity
-        metric: (str) Type of similarity
-                ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine']
+        bd (BrainData): Dataset to compare.
+        image (BrainData | Nifti1Image): Image to evaluate similarity against.
+        metric (str): Similarity metric, one of ``'correlation'``, ``'pearson'``,
+            ``'rank_correlation'``, ``'spearman'``, ``'dot_product'``, or
+            ``'cosine'``.
 
     Returns:
         np.ndarray: Similarity values.
-
     """
     from nltools.algorithms.similarity import compute_similarity
     from .utils import check_brain_data
@@ -83,20 +85,21 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
     """Calculate distance between images within a BrainData() instance.
 
     Args:
-        bd: BrainData instance.
-        metric: (str) type of distance metric (can use any scipy.spatial.distance
-                metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',
-                'correlation', 'hamming', 'jaccard', etc.)
-        spatial_scale: ``'whole_brain'`` (default), ``'roi'``, or
+        bd (BrainData): Dataset whose images are compared.
+        metric (str): Any distance metric supported by
+            ``scipy.spatial.distance.cdist`` (e.g. ``'euclidean'``,
+            ``'cityblock'``, ``'cosine'``, ``'correlation'``, ``'hamming'``,
+            ``'jaccard'``).
+        spatial_scale (str): ``'whole_brain'`` (default), ``'roi'``, or
             ``'searchlight'``. See `BrainData.distance`.
-        roi_mask: Atlas for ``spatial_scale='roi'``.
-        radius_mm: Searchlight radius for ``spatial_scale='searchlight'``.
-        **kwargs: Additional arguments passed to scipy.spatial.distance.cdist.
+        roi_mask (BrainData | Nifti1Image | str | None): Atlas for
+            ``spatial_scale='roi'``.
+        radius_mm (float): Searchlight radius for ``spatial_scale='searchlight'``.
+        **kwargs (dict): Forwarded to ``scipy.spatial.distance.cdist``.
 
     Returns:
         Adjacency: Whole-brain pairwise distance matrix, or a stacked Adjacency
             (one per parcel/searchlight) with ``spatial_scale`` provenance set.
-
     """
     valid = {"whole_brain", "roi", "searchlight"}
     if spatial_scale not in valid:
@@ -174,6 +177,21 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
     parcel = NaN). Per-parcel transform matrices and common-model
     objects are kept as dicts keyed by atlas label, since matrices over
     different voxel subsets can't be painted into one image.
+
+    Args:
+        bd (BrainData): Source data to align.
+        target (BrainData | np.ndarray): Alignment target (a `BrainData` for
+            ``'procrustes'``; a common-model array for the SRM methods).
+        method (str): ``'procrustes'``, ``'probabilistic_srm'``, or
+            ``'deterministic_srm'``.
+        axis (int): Axis to align over; see `align`.
+        roi_mask (BrainData | Nifti1Image | str): Integer-labeled atlas defining
+            the parcels.
+
+    Returns:
+        dict: ``'transformed'`` (`BrainData`), ``'transformation_matrix'`` and
+            ``'common_model'`` (dicts keyed by atlas label), ``'disparity'`` and
+            ``'scale'`` (arrays, one entry per parcel), and ``'roi_labels'``.
     """
     roi_img, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
@@ -256,6 +274,16 @@ def reduce_per_roi(bd, reducer, *, roi_mask):
     NaN. Output is a `BrainData` of the same shape as the input.
 
     Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
+
+    Args:
+        bd (BrainData): Data to reduce.
+        reducer (Callable): NumPy-style reducer accepting ``axis=``, e.g.
+            ``np.mean``.
+        roi_mask (BrainData | Nifti1Image | str): Integer-labeled atlas defining
+            the parcels.
+
+    Returns:
+        BrainData: Parcel-wise reduced values painted back to voxel space.
     """
     from pathlib import Path
 
@@ -425,14 +453,15 @@ def multivariate_similarity(bd, images, method="ols", tail=2):
     The predictors may be other BrainData instances or nibabel images.
 
     Args:
-        bd: BrainData instance of data to be applied
-        images: BrainData instance of weight map
-        method (str): Regression method. Default: 'ols'.
+        bd (BrainData): Single image to be explained.
+        images (BrainData | Nifti1Image): Predictor images (weight maps).
+        method (str): Regression method. Default: ``'ols'``.
+        tail (int): ``1`` or ``2`` for one- or two-tailed p-values.
 
     Returns:
         dict: Raw regression statistics (numpy arrays/scalars, not BrainData)
-            with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
-
+            with keys ``'beta'``, ``'t'``, ``'p'``, ``'df'``, ``'sigma'``,
+            ``'residual'``.
     """
     # Notes:  Should add ridge, and lasso, elastic net options options
     from nltools.algorithms.similarity import compute_multivariate_similarity
@@ -460,18 +489,16 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     resampled into the BrainData space, then set resample_mask_to_brain=True.
 
     Args:
-        bd: BrainData instance.
-        mask: (BrainData or nifti object) mask to apply to BrainData object.
-        resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
+        bd (BrainData): Data to mask.
+        mask (BrainData | Nifti1Image): Mask to apply.
+        resample_mask_to_brain (bool): Resample the mask into the brain's space
+            before applying it. Default: ``False``.
 
     Returns:
-        BrainData: Masked BrainData object.
+        BrainData: Masked copy of ``bd``.
 
     Note:
-        Uses nilearn.masking.apply_mask for efficient, validated masking.
-        Simplified from 47-line manual implementation to leverage nilearn's
-        Cython-optimized code with better validation and memory management.
-
+        Masking is delegated to ``nilearn.masking.apply_mask``.
     """
     from nilearn.image import resample_to_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
@@ -517,20 +544,19 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
 
 def extract_roi(bd, mask, method="mean", n_components=None):
-    """Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+    """Extract activity from a binary mask or a labeled ROI atlas.
 
-    This method now uses nilearn's NiftiLabelsMasker for efficient ROI extraction
-    when dealing with labeled atlases (multiple ROIs).
+    Labeled atlases (multiple ROIs) are handled with nilearn's
+    ``NiftiLabelsMasker``.
 
     Args:
-        bd: BrainData instance.
-        mask: BrainData, nibabel image, or file path. Can be:
-
-              - Binary mask (extracts from single ROI)
-              - Labeled atlas (extracts from multiple ROIs)
-        method: Extraction method ('mean', 'median', 'pca'). Default: 'mean'
-                Note: 'median' and 'pca' require additional computation after extraction
-        n_components: If method='pca', number of components to return
+        bd (BrainData): Data to extract from.
+        mask (BrainData | Nifti1Image | str): A binary mask (extracts from a
+            single ROI) or a labeled atlas (extracts from every ROI).
+        method (str): Extraction method: ``'mean'`` (default), ``'median'``, or
+            ``'pca'``.
+        n_components (int | None): Number of components to return when
+            ``method='pca'``.
 
     Returns:
         float | np.ndarray: For a binary mask, a scalar (single image) or 1D array
@@ -656,12 +682,11 @@ def detrend_data(bd, method="linear"):
     """Remove the linear trend from each voxel.
 
     Args:
-        bd: BrainData instance.
-        method: ('linear','constant', optional) type of detrending
+        bd (BrainData): Data to detrend (must hold more than one image).
+        method (str): ``'linear'`` (default) or ``'constant'``.
 
     Returns:
-        BrainData: Detrended BrainData instance.
-
+        BrainData: Detrended copy of ``bd``.
     """
     from scipy.signal import detrend
 
@@ -678,10 +703,10 @@ def r_to_z(bd):
     """Apply Fisher's r-to-z transformation to each data element.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Correlation values to transform.
 
     Returns:
-        BrainData: Transformed BrainData instance.
+        BrainData: Transformed copy of ``bd``.
     """
     from nltools.algorithms.similarity import fisher_r_to_z
 
@@ -692,13 +717,13 @@ def r_to_z(bd):
 
 
 def z_to_r(bd):
-    """Convert z score back into r value for each element of data object.
+    """Convert Fisher z scores back into r values for each data element.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): z-scored values to transform.
 
     Returns:
-        BrainData: Transformed BrainData instance.
+        BrainData: Transformed copy of ``bd``.
     """
     from nltools.algorithms.similarity import fisher_z_to_r
 
@@ -717,25 +742,23 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     implementation, but this can be overridden using kwargs.
 
     Args:
-        bd: BrainData instance.
-        sampling_freq: Sampling freq in hertz (i.e. 1 / TR). Default: None.
-        high_pass: High pass cutoff frequency. Default: None.
-        low_pass: Low pass cutoff frequency. Default: None.
-        **kwargs: Additional arguments passed to nilearn.signal.clean
-                  Common options:
-                  - confounds: Confound timeseries to remove
-                  - sample_mask: Volumes to exclude (scrubbing)
-                  - detrend: Enable detrending (default False)
-                  - standardize: ``'zscore_sample'``, ``'psc'``, or None (off,
-                    the default). ``True``/``False`` are accepted as aliases
-                    for ``'zscore_sample'``/None.
-                  - ensure_finite: Replace NaN/inf (default False)
+        bd (BrainData): Time series to filter.
+        sampling_freq (float | None): Sampling frequency in Hz (i.e. 1 / TR).
+        high_pass (float | None): High-pass cutoff frequency in Hz.
+        low_pass (float | None): Low-pass cutoff frequency in Hz.
+        **kwargs (dict): Forwarded to ``nilearn.signal.clean``. Common options:
+            ``confounds`` (confound time series to remove), ``sample_mask``
+            (volumes to exclude), ``detrend`` (default ``False``),
+            ``standardize`` (``'zscore_sample'``, ``'psc'``, or ``None`` — the
+            default; ``True``/``False`` are accepted as aliases for
+            ``'zscore_sample'``/``None``), and ``ensure_finite`` (replace
+            NaN/inf; default ``False``).
 
     Returns:
-        BrainData: Filtered BrainData instance
+        BrainData: Filtered copy of ``bd``.
 
     See Also:
-        nilearn.signal.clean documentation for all available options
+        ``nilearn.signal.clean`` for all available options.
     """
     from nilearn.signal import clean
 
@@ -776,13 +799,13 @@ def standardize(bd, *, axis=0, method="center"):
     (large offsets) stays exact. Constant voxels/observations z-score to 0.
 
     Args:
-        bd: BrainData instance.
-        axis: 0 for observations 1 for voxels (default: 0)
-        method: ['center','zscore'] (default: 'center')
+        bd (BrainData): Data to standardize.
+        axis (int): ``0`` to standardize each voxel across observations
+            (default), ``1`` to standardize each observation across voxels.
+        method (str): ``'center'`` (default) or ``'zscore'``.
 
     Returns:
-        BrainData: Standardized BrainData instance.
-
+        BrainData: Standardized copy of ``bd``.
     """
     if axis == 1 and len(bd.shape) == 1:
         raise IndexError(
@@ -822,16 +845,15 @@ def scale_data(bd, scale_val=100.0, axis=None):
     akin to (but not exactly) "percent signal change."
 
     Args:
-        bd: BrainData instance.
-        scale_val: (int/float) Target value for the mean after scaling.
-            Default 100.
-        axis: (int or None) Axis along which to compute the mean.
-            None for grand-mean scaling (default, FSL/SPM style).
-            0 for voxel-wise scaling (AFNI style, each voxel scaled
+        bd (BrainData): Data to scale.
+        scale_val (float): Target value for the mean after scaling. Default
+            ``100``.
+        axis (int | None): ``None`` for grand-mean scaling (default, FSL/SPM
+            style); ``0`` for voxel-wise scaling (AFNI style, each voxel scaled
             by its own temporal mean).
 
     Returns:
-        BrainData: New BrainData instance with scaled data.
+        BrainData: Scaled copy of ``bd``.
 
     Examples:
         ```python
@@ -890,31 +912,30 @@ def threshold_data(
     if provided, otherwise respecting every non-zero value.
 
     Args:
-        upper: (float or str) Upper cutoff for thresholding. A string like
-                `'98%'` resolves as a percentile over the finite **nonzero**
-                voxels (via `nltools.utils.resolve_threshold` — zeros on a
-                masked map are absence of data and would skew the
-                percentile); can be None for one-sided thresholding.
-        lower: (float or str) Lower cutoff for thresholding. Same percentile
-                semantics as `upper`; can be None for one-sided thresholding.
-        bd: BrainData instance.
-        binarize (bool): return binarized image respecting thresholds if
-                provided, otherwise binarize on every non-zero value;
-                default False
-        coerce_nan (bool): coerce nan values to 0s; default True
-        cluster_threshold (int): Minimum cluster size in voxels. If > 0, uses
-                nilearn.image.threshold_img with cluster filtering.
-                Band-pass filtering (both upper AND lower) not supported
-                with cluster thresholding. Default 0 (disabled).
+        bd (BrainData): Data to threshold.
+        upper (float | str | None): Upper cutoff. A string like ``'98%'``
+            resolves as a percentile over the finite **nonzero** voxels (via
+            `nltools.utils.resolve_threshold` — zeros on a masked map are
+            absence of data and would skew the percentile). ``None`` for
+            one-sided thresholding.
+        lower (float | str | None): Lower cutoff, with the same percentile
+            semantics as ``upper``. ``None`` for one-sided thresholding.
+        binarize (bool): Return a binary image respecting the thresholds if
+            provided, otherwise binarize every non-zero value. Default
+            ``False``.
+        coerce_nan (bool): Replace NaN values with 0 first. Default ``True``.
+        cluster_threshold (int): Minimum cluster size in voxels. If ``> 0``,
+            thresholds with ``nilearn.image.threshold_img`` and drops smaller
+            clusters; band-pass thresholding (both ``upper`` and ``lower``) is
+            not supported in that mode. Default ``0`` (disabled).
 
     Returns:
-        BrainData: Thresholded BrainData object.
+        BrainData: Thresholded copy of ``bd``.
 
     Note:
-        When cluster_threshold=0 (default), uses fast path for basic thresholding.
-        When cluster_threshold>0, uses nilearn for cluster filtering.
-        Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
-
+        With ``cluster_threshold=0`` (default) thresholding runs on the data
+        array directly and supports band-pass thresholds; with
+        ``cluster_threshold>0`` nilearn performs the cluster filtering.
     """
 
     if cluster_threshold > 0:
@@ -995,28 +1016,19 @@ def regions(
     """Extract brain connected regions into separate regions.
 
     Args:
-        bd: BrainData instance.
-        min_region_size (int): Minimum volume in mm3 for a region to be
-                            kept.
-        method (str): Type of extraction method
-                            ['connected_components', 'local_regions'].
-                            If 'connected_components', each component/region
-                            in the image is extracted automatically by
-                            labelling each region based upon the presence of
-                            unique features in their respective regions.
-                            If 'local_regions', each component/region is
-                            extracted based on their maximum peak value to
-                            define a seed marker and then using random
-                            walker segementation algorithm on these
-                            markers for region separation.
-        smoothing_fwhm (scalar): Smooth an image to extract more sparser
-                            regions. Only works for method='local_regions'.
-        is_mask (bool): Whether the BrainData instance should be treated
-                        as a boolean mask and if so, calls
-                        connected_label_regions instead. Default: False.
+        bd (BrainData): Image to segment.
+        min_region_size (int): Minimum volume in mm³ for a region to be kept.
+        method (str): ``'connected_components'`` labels each connected
+            component directly; ``'local_regions'`` (default) seeds a marker at
+            each component's peak and separates regions with a random-walker
+            segmentation.
+        smoothing_fwhm (float): Smooth the image first to extract sparser
+            regions. Only used for ``method='local_regions'``.
+        is_mask (bool): Treat ``bd`` as a boolean mask and use
+            ``connected_label_regions`` instead. Default ``False``.
 
     Returns:
-        BrainData: BrainData instance with extracted ROIs as data.
+        BrainData: One image per extracted region.
     """
     from nilearn.regions import connected_label_regions, connected_regions
 
@@ -1036,10 +1048,10 @@ def transform_pairwise_data(bd):
     """Transform BrainData into pairwise comparisons.
 
     Args:
-        bd: BrainData instance.
+        bd (BrainData): Data with a ``Y`` column to compare pairwise.
 
     Returns:
-        BrainData: BrainData instance transformed into pairwise comparisons.
+        BrainData: Pairwise-difference images with a recoded ``Y``.
     """
     from nltools.algorithms.similarity import transform_pairwise
 
@@ -1056,16 +1068,18 @@ def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklea
     """Decompose a BrainData object.
 
     Args:
-        bd: BrainData instance.
-        method: (str) Algorithm to perform decomposition
-                    types=['pca','ica','nnmf','fa','dictionary','kernelpca']
-        axis: dimension to decompose ['voxels','images']
-        n_components: (int) number of components. If None then retain
-                    as many as possible (default: None).
-        **kwargs: Additional keyword arguments passed to the decomposition algorithm.
+        bd (BrainData): Data to decompose.
+        method (str): Decomposition algorithm: ``'pca'`` (default), ``'ica'``,
+            ``'nnmf'``, ``'fa'``, ``'dictionary'``, or ``'kernelpca'``.
+        axis (str): Dimension to decompose: ``'voxels'`` (default) or
+            ``'images'``.
+        n_components (int | None): Number of components. ``None`` retains as
+            many as possible.
+        **kwargs (dict): Forwarded to the ``sklearn.decomposition`` estimator.
 
     Returns:
-        dict: A dictionary of decomposition parameters.
+        dict: ``'decomposition_object'`` (the fitted sklearn estimator),
+            ``'components'`` (`BrainData`), and ``'weights'`` (array).
     """
     import importlib
 
@@ -1109,18 +1123,20 @@ def align(bd, target, method="procrustes", axis=0):
     estimated common model stored as a numpy array. Transformed data can be back
     projected to original data using Transformation matrix.
 
-    See nltools.algorithms.align for aligning multiple BrainData instances
+    See `nltools.algorithms.align` for aligning multiple BrainData instances.
 
     Args:
-        bd: BrainData instance.
-        target: (BrainData) object to align to.
-        method: (str) alignment method to use
-            ['probabilistic_srm','deterministic_srm','procrustes']
-        axis: (int) axis to align on (default: 0)
+        bd (BrainData): Data to align.
+        target (BrainData | np.ndarray): Alignment target — another subject or
+            a fitted common model (array) for the SRM methods.
+        method (str): ``'procrustes'`` (default), ``'probabilistic_srm'``, or
+            ``'deterministic_srm'``.
+        axis (int): Axis to align on. Default ``0``.
 
     Returns:
-        dict: A dictionary containing the transformed object, transformation
-            matrix, and the shared response matrix.
+        dict: ``'transformed'``, ``'transformation_matrix'``, and
+            ``'common_model'`` (plus ``'disparity'`` and ``'scale'`` for
+            ``'procrustes'``).
 
     Examples:
         ```python
@@ -1205,11 +1221,11 @@ def smooth(bd, fwhm):
     """Apply spatial smoothing using nilearn's ``smooth_img``.
 
     Args:
-        bd: BrainData instance.
-        fwhm: (float) full width half maximum of gaussian spatial filter
+        bd (BrainData): Data to smooth.
+        fwhm (float): Full width at half maximum of the Gaussian kernel, in mm.
 
     Returns:
-        BrainData: Copy with smoothed data.
+        BrainData: Smoothed copy of ``bd``.
     """
     from nilearn.image import smooth_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
@@ -1261,14 +1277,15 @@ def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     This function can up- or down-sample data.
 
     Args:
-        bd: BrainData instance.
-        sampling_freq: (float) sampling frequency of data in hertz (default: None)
-        target: (float) upsampling target (default: None)
-        target_type: (str) type of target: `'samples'`, `'seconds'`, or `'hz'`
-            (default: 'hz')
+        bd (BrainData): Time series to resample.
+        sampling_freq (float | None): Sampling frequency of the data in Hz.
+        target (float | None): Resampling target, interpreted per
+            ``target_type``.
+        target_type (str): Units of ``target``: ``'hz'`` (default),
+            ``'samples'``, or ``'seconds'``.
 
     Returns:
-        BrainData: Resampled BrainData instance.
+        BrainData: Resampled copy of ``bd``.
 
     Note:
         This function can use quite a bit of RAM.

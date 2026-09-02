@@ -1,9 +1,15 @@
-"""Group-level reductions and cross-subject ops for BrainCollection.
+"""Group-level reductions and cross-subject analyses for `BrainCollection`.
 
-Module-level functions that the ``BrainCollection`` facade delegates to.
-Reductions stream from path-backed inputs (Welford-style) and produce
-in-memory ``BrainData`` (or dicts of them); they never path-back their
-own output.
+Voxelwise summaries (`mean`, `std`, `var`, `median`, `sum_`, `min_`,
+`max_`, `concat`), group tests (`ttest`, `ttest2`, `anova`,
+`permutation_test`, `permutation_test2`), inter-subject correlation (`isc`,
+`isc_test`), and functional alignment (`align`). The `BrainCollection`
+methods of the same names delegate here. Where the math allows (means,
+variances, t-tests, leave-one-out ISC) inputs are streamed one subject at a
+time, so peak memory stays near one subject's worth of data; `median`,
+`concat`, the permutation tests, pairwise ISC, and `align` load every
+subject. Every result is an in-memory `BrainData` (or a dict of them) and is
+never cached to disk.
 """
 
 from __future__ import annotations
@@ -122,10 +128,10 @@ def _welford(bc: BrainCollection) -> tuple[int, np.ndarray, np.ndarray]:
 
 
 def concat(bc: BrainCollection) -> BrainData:
-    """Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
+    """Stack every subject's rows into one `BrainData` of shape ``(n_total_obs, n_voxels)``.
 
-    Not streamable — the operation *is* materialization. 1D items are
-    promoted to ``(1, n_voxels)`` before concatenation.
+    Loads every item (the operation *is* materialization). Single-image items
+    are promoted to ``(1, n_voxels)`` before concatenation.
     """
     _check_nonempty(bc)
     arrays = []
@@ -135,9 +141,9 @@ def concat(bc: BrainCollection) -> BrainData:
 
 
 def mean(bc: BrainCollection) -> BrainData:
-    """Mean across subjects (leading axis).
+    """Voxelwise mean across subjects.
 
-    Streams from path-backed input.
+    Streams one subject at a time from path-backed input.
     """
     _check_nonempty(bc)
     n, m, _ = _welford(bc)
@@ -145,9 +151,9 @@ def mean(bc: BrainCollection) -> BrainData:
 
 
 def std(bc: BrainCollection) -> BrainData:
-    """Standard deviation across subjects (ddof=1).
+    """Voxelwise standard deviation across subjects (``ddof=1``).
 
-    Streams via Welford's algorithm.
+    Streams one subject at a time via Welford's algorithm.
     """
     _check_nonempty(bc)
     n, _, M2 = _welford(bc)
@@ -156,9 +162,9 @@ def std(bc: BrainCollection) -> BrainData:
 
 
 def var(bc: BrainCollection) -> BrainData:
-    """Variance across subjects (ddof=1).
+    """Voxelwise variance across subjects (``ddof=1``).
 
-    Streams via Welford's algorithm.
+    Streams one subject at a time via Welford's algorithm.
     """
     _check_nonempty(bc)
     n, _, M2 = _welford(bc)
@@ -166,9 +172,9 @@ def var(bc: BrainCollection) -> BrainData:
 
 
 def median(bc: BrainCollection) -> BrainData:
-    """Median across subjects.
+    """Voxelwise median across subjects.
 
-    Materializes every item in memory (not streaming-friendly).
+    Loads every item into memory (a median cannot be streamed).
     """
     _check_nonempty(bc)
     stack = np.stack(list(_iter_arrays(bc)), axis=0)
@@ -176,9 +182,9 @@ def median(bc: BrainCollection) -> BrainData:
 
 
 def sum_(bc: BrainCollection) -> BrainData:
-    """Sum across subjects.
+    """Voxelwise sum across subjects.
 
-    Streams from path-backed input.
+    Streams one subject at a time from path-backed input.
     """
     _check_nonempty(bc)
     total = None
@@ -189,9 +195,9 @@ def sum_(bc: BrainCollection) -> BrainData:
 
 
 def min_(bc: BrainCollection) -> BrainData:
-    """Per-voxel minimum across subjects.
+    """Voxelwise minimum across subjects.
 
-    Streams from path-backed input.
+    Streams one subject at a time from path-backed input.
     """
     _check_nonempty(bc)
     cur = None
@@ -201,9 +207,9 @@ def min_(bc: BrainCollection) -> BrainData:
 
 
 def max_(bc: BrainCollection) -> BrainData:
-    """Per-voxel maximum across subjects.
+    """Voxelwise maximum across subjects.
 
-    Streams from path-backed input.
+    Streams one subject at a time from path-backed input.
     """
     _check_nonempty(bc)
     cur = None
@@ -225,11 +231,19 @@ def ttest(
 ) -> dict[str, BrainData]:
     """One-sample t-test across subjects.
 
-    Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
-    ``BrainData.ttest``. Streams from path-backed input via Welford.
-    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
-    mean > popmean; negate the data for the other direction). The z map is
+    Streams one subject at a time via Welford's algorithm. The z map is
     derived from the reported p, so it matches the requested tail.
+
+    Args:
+        bc (BrainCollection): One map per subject.
+        popmean (float): Null-hypothesis population mean.
+        tail (int | str): ``2``/``'two'`` for two-tailed, or ``1``/``'one'``
+            for one-tailed (mean > ``popmean``; negate the data for the other
+            direction).
+
+    Returns:
+        dict[str, BrainData]: ``{'mean', 't', 'z', 'p'}`` maps — the same
+            contract as `BrainData.ttest`.
     """
     from scipy.stats import t as t_dist
 
@@ -274,8 +288,17 @@ def ttest2(
 ) -> dict[str, BrainData]:
     """Two-sample t-test between two collections (subject-level).
 
-    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
-    bc > other; swap the operands for the other direction).
+    Args:
+        bc (BrainCollection): First group, one map per subject.
+        other (BrainCollection): Second group.
+        equal_var (bool): If True, pooled-variance t-test; if False, Welch's.
+        tail (int | str): ``2``/``'two'`` for two-tailed, or ``1``/``'one'``
+            for one-tailed (``bc`` > ``other``; swap the operands for the other
+            direction).
+
+    Returns:
+        dict[str, BrainData]: ``{'mean', 't', 'z', 'p'}`` maps, where
+            ``'mean'`` is the group difference.
     """
     from scipy.stats import t as t_dist
 
@@ -325,8 +348,14 @@ def anova(
 ) -> dict[str, BrainData | int]:
     """One-way ANOVA across subjects.
 
-    ``groups`` is a metadata column name, a list, or an ndarray of length
-    ``n_subjects``. Returns ``{'F', 'p', 'df_between', 'df_within'}``.
+    Args:
+        bc (BrainCollection): One map per subject.
+        groups (str | list | np.ndarray): A metadata column name, or a list /
+            array of length ``n_subjects`` giving each subject's group label.
+
+    Returns:
+        dict[str, BrainData | int]: ``{'F', 'p'}`` maps plus the
+            ``'df_between'`` and ``'df_within'`` degrees of freedom.
     """
     from scipy.stats import f as f_dist
 
@@ -394,13 +423,25 @@ def permutation_test(
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
-    """Sign-flipping permutation test across subjects (one-sample).
+    """One-sample sign-flipping permutation test across subjects.
 
-    Per the streaming-algorithms table in
-    ``docs/development/execution-model.md``, sign-flipping needs all subjects
-    in memory by design. Delegates to the engine's
-    `one_sample_permutation_test` (as ``isc_test`` already does), so
-    ``device`` and ``n_jobs`` select the real execution backend.
+    Loads every subject (sign-flipping needs the full stack) and delegates to
+    `one_sample_permutation_test`, so ``device`` and ``n_jobs`` select the
+    execution backend.
+
+    Args:
+        bc (BrainCollection): One map per subject.
+        n_permute (int): Number of sign-flip permutations.
+        tail (int | str): ``1`` for one-tailed, ``2`` for two-tailed.
+        device (str): ``'cpu'`` (joblib parallel) or ``'gpu'`` (PyTorch).
+        return_null (bool): If True, include the null distribution.
+        n_jobs (int): CPU workers when ``device='cpu'`` (``-1`` = all cores).
+        random_state (int | None): Seed for the sign-flip RNG.
+        progress_bar (bool): If True, show a progress bar.
+
+    Returns:
+        dict: ``{'mean', 'p'}`` `BrainData` maps, plus ``'null_dist'`` when
+            ``return_null=True``.
     """
     from nltools.algorithms import one_sample_permutation_test
 
@@ -448,11 +489,25 @@ def permutation_test2(
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> dict:
-    """Two-sample permutation test by random label shuffling.
+    """Two-sample permutation test by random label shuffling of the pooled subjects.
 
-    Delegates to the engine's `two_sample_permutation_test`, so ``device``
-    and ``n_jobs`` select the real execution backend. The result's ``mean``
-    map is the engine's ``mean_diff`` (group difference).
+    Loads every subject and delegates to `two_sample_permutation_test`, so
+    ``device`` and ``n_jobs`` select the execution backend.
+
+    Args:
+        bc (BrainCollection): First group, one map per subject.
+        other (BrainCollection): Second group.
+        n_permute (int): Number of label-shuffle permutations.
+        tail (int | str): ``1`` for one-tailed, ``2`` for two-tailed.
+        device (str): ``'cpu'`` (joblib parallel) or ``'gpu'`` (PyTorch).
+        return_null (bool): If True, include the null distribution.
+        n_jobs (int): CPU workers when ``device='cpu'`` (``-1`` = all cores).
+        random_state (int | None): Seed for the shuffling RNG.
+        progress_bar (bool): If True, show a progress bar.
+
+    Returns:
+        dict: ``{'mean', 'p'}`` `BrainData` maps (``'mean'`` is the group
+            difference), plus ``'null_dist'`` when ``return_null=True``.
     """
     from nltools.algorithms import two_sample_permutation_test
 
@@ -527,18 +582,26 @@ def isc(
     roi_mask: nib.Nifti1Image | Path | str | None = None,
     summary: str = "median",
 ) -> dict:
-    """Inter-subject correlation across the time dimension.
+    """Inter-subject correlation (ISC) across the time dimension.
 
-    method='loo' uses the leave-one-out template approach (each subject
-    correlated with the average of the others). method='pairwise' computes
-    all subject pairs. Both materialize all subjects in v0.6.0; the
-    streaming rewrite is deferred to a later release.
+    ``method='loo'`` correlates each subject with the average of the others
+    and streams in two passes (peak memory about two subjects);
+    ``method='pairwise'`` correlates every subject pair and loads all
+    subjects at once.
 
-    Passing ``roi_mask`` restricts the computation to that ROI; the returned
-    maps carry the ROI mask rather than the collection's whole-brain mask.
+    Args:
+        bc (BrainCollection): One timeseries per subject, aligned in time.
+        method (str): ``'loo'`` or ``'pairwise'``.
+        roi_mask (Nifti1Image | Path | str | None): Optional ROI restricting
+            the computation; the returned maps then carry the ROI mask rather
+            than the collection's whole-brain mask.
+        summary (str): How to aggregate across subjects or pairs — ``'median'``
+            or ``'mean'`` (Fisher-z averaged).
 
-    Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
-    for ``pairwise``.
+    Returns:
+        dict: ``{'isc', 'per_subject'}`` for ``'loo'`` or ``{'isc', 'pairs'}``
+            for ``'pairwise'``, where ``'isc'`` is a `BrainData` map and the
+            other entry is the per-subject / per-pair correlation array.
     """
     _check_nonempty(bc)
     if method not in ("loo", "pairwise"):
@@ -615,14 +678,25 @@ def isc_test(
     tail: int | str = 2,
     random_state: int | None = None,
 ) -> dict:
-    """Bootstrap inference on ISC.
+    """Bootstrap inference on ISC (per-voxel p-values).
 
-    Resamples subjects with replacement, recomputes ISC each draw, and
+    Resamples subjects with replacement, recomputes ISC on each draw, and
     derives a per-voxel p-value from the null distribution centered at 0.
-    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0).
 
-    Passing ``roi_mask`` restricts the computation to that ROI; the returned
-    maps carry the ROI mask rather than the collection's whole-brain mask.
+    Args:
+        bc (BrainCollection): One timeseries per subject, aligned in time.
+        method (str): ``'loo'`` or ``'pairwise'`` (as in `isc`).
+        roi_mask (Nifti1Image | Path | str | None): Optional ROI restricting
+            the computation; the returned maps then carry the ROI mask.
+        n_samples (int): Number of bootstrap resamples.
+        summary (str): ``'median'`` or ``'mean'`` aggregation (as in `isc`).
+        tail (int | str): ``2``/``'two'`` for two-tailed, or ``1``/``'one'``
+            for one-tailed (ISC > 0).
+        random_state (int | None): Seed for the bootstrap RNG.
+
+    Returns:
+        dict: ``{'isc', 'p', 'null_dist'}`` — ``'isc'`` and ``'p'`` are
+            `BrainData` maps; ``'null_dist'`` is the bootstrap array.
     """
     from nltools.algorithms.inference.validation import validate_tail_parameter
 
@@ -688,11 +762,32 @@ def align(  # n_iter exemption: solver iterations, not a permutation count (see 
     progress_bar: bool = False,
     cache: Literal["auto", True, False] = "auto",
 ):
-    """Functional alignment via ``LocalAlignment``.
+    """Functionally align subjects into a common space via `LocalAlignment`.
 
-    Materializes all subjects (algorithm constraint in v0.6.0). Returns
-    a new ``BrainCollection`` of aligned data, or
-    ``(BrainCollection, LocalAlignment)`` when ``return_model=True``.
+    Loads every subject — the aligner needs all of them at once. Outputs are
+    cached under the collection's cache root by the same ``cache`` rule as
+    the per-subject methods.
+
+    Args:
+        bc (BrainCollection): The subjects to align.
+        method (str): Alignment solver (e.g. ``'procrustes'``).
+        spatial_scale (str): ``'searchlight'`` (overlapping spheres) or
+            ``'roi'`` (non-overlapping parcels).
+        radius_mm (float): Searchlight sphere radius in mm.
+        roi_mask (Nifti1Image | None): Parcellation used when
+            ``spatial_scale='roi'``.
+        n_features (int | None): Optional feature count for the common space.
+        n_iter (int): Solver iterations.
+        device (str): ``'cpu'`` or ``'gpu'``.
+        return_model (bool): If True, also return the fitted `LocalAlignment`.
+        n_jobs (int): Parallel worker count (``-1`` uses all cores).
+        progress_bar (bool): If True, show a progress bar.
+        cache (Literal['auto', True, False]): Cache policy for the result
+            (``'auto'`` follows source state).
+
+    Returns:
+        BrainCollection | tuple[BrainCollection, LocalAlignment]: The aligned
+            collection, or ``(collection, model)`` when ``return_model=True``.
     """
     from ..braindata import BrainData
     from ...algorithms.alignment.local import LocalAlignment

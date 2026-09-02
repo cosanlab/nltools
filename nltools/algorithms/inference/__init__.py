@@ -1,46 +1,39 @@
-"""GPU-accelerated statistical inference for neuroimaging.
+"""Permutation tests, bootstrap resampling, and intersubject statistics.
 
-This module provides fast permutation testing and bootstrap resampling using
-optional GPU acceleration via PyTorch. When GPU is unavailable, efficiently
-uses CPU parallelization.
-
-Inspired by BROCCOLI's GPU permutation testing (Eklund et al. 2014).
-
-Key Features:
-    - 10-100× speedup for permutation tests with GPU
-    - Efficient CPU parallelization when GPU unavailable
-    - Transparent CPU/GPU support via Backend abstraction
-    - Intersubject statistics (`isc`, `isc_group`, `isfc`, `isps`) built on the
-      same permutation/bootstrap engine
+Every test here runs on plain numpy arrays and returns a dict of results. The
+one-, two-sample, correlation, matrix, and timeseries permutation tests share
+one execution model: `device=None` runs single-threaded numpy, `device='cpu'`
+(the default) parallelizes permutation batches with joblib across `n_jobs`
+workers, and `device='gpu'` batches permutations through PyTorch (10-100×
+faster for voxel-wise problems with many permutations). The intersubject
+statistics (`isc`, `isc_group`, `isfc`, `isps` in `nltools.algorithms`) are
+built on the same engine.
 
 Examples:
-    >>> import numpy as np
-    >>> from nltools.algorithms.inference import one_sample_permutation_test
+    ```python
+    import numpy as np
+    from nltools.algorithms.inference import one_sample_permutation_test
 
-    >>> # Simple one-sample test
-    >>> data = np.random.randn(30)  # 30 subjects
-    >>> result = one_sample_permutation_test(data, n_permute=5000)
-    >>> print(f"p-value: {result['p']:.3f}")
+    data = np.random.randn(30)  # 30 subjects
+    result = one_sample_permutation_test(data, n_permute=5000)
+    result["p"]  # → two-sided p-value
 
-    >>> # Voxel-wise test with GPU acceleration
-    >>> data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
-    >>> result = one_sample_permutation_test(data, n_permute=10000, device='gpu')
-    >>> print(f"Significant voxels: {(result['p'] < 0.05).sum()}")
-
-Performance:
-    - CPU (NumPy): Good for small problems (< 5K permutations)
-    - GPU (PyTorch): Excellent for large problems (> 5K permutations)
-    - CPU Parallel (joblib): Efficient fallback when GPU unavailable
-    - Select with device='cpu' | 'gpu' | None (no 'auto' selector)
+    # Voxel-wise test on the GPU
+    data = np.random.randn(30, 50000)  # 30 subjects, 50K voxels
+    result = one_sample_permutation_test(data, n_permute=10000, device="gpu")
+    (result["p"] < 0.05).sum()  # → number of significant voxels
+    ```
 
 References:
     Eklund, A., Dufort, P., Villani, M., & LaConte, S. M. (2014).
     BROCCOLI: Software for fast fMRI analysis on many-core CPUs and GPUs.
     Frontiers in Neuroinformatics, 8, 24.
 
-Notes:
-    This module is part of the "functional core" of nltools. For integration
-    with BrainData objects, see nltools.data.brain_data.
+Note:
+    These are the functional core. The data classes wrap them —
+    `BrainData.ttest`, `BrainData.bootstrap`, `Adjacency.ttest`,
+    `BrainCollection.permutation_test`, `BrainCollection.isc` — and handle
+    masking and result reshaping for you.
 """
 
 # Import public API functions

@@ -520,7 +520,10 @@ class TestXrefEntries:
     """The xref index maps dotted symbol paths to page-scoped MyST labels.
 
     Built from each postprocessed page: the page itself (its frontmatter
-    label), each labelled member, and class-nested members as ``Class.member``.
+    label, in the ``page-`` namespace), each labelled member, and class-nested
+    members as ``Class.member``. Module pages derive member paths from the
+    page's ``module``; task pages composed from several modules pass ``roots``
+    (top-level heading name -> the dotted paths that heading documents).
     """
 
     def test_module_page_entries(self, postprocess_mod):
@@ -530,9 +533,9 @@ class TestXrefEntries:
             "(models-fit)=\n##### `fit`\n\nDoc.\n\n"
             "## Functions\n\n(models-helper)=\n### `helper`\n\nDoc.\n"
         )
-        entries = postprocess_mod.xref_entries("nltools.models", "models", page)
+        entries = postprocess_mod.xref_entries("models", page, module="nltools.models")
         assert entries == {
-            "nltools.models": "models",
+            "nltools.models": "page-models",
             "nltools.models.Glm": "models-glm",
             "nltools.models.Glm.fit": "models-fit",
             "nltools.models.helper": "models-helper",
@@ -541,20 +544,99 @@ class TestXrefEntries:
     def test_class_page_entries(self, postprocess_mod):
         page = "Doc.\n\n## Methods\n\n(data-brain-data-align)=\n### `align`\n\nDoc.\n"
         entries = postprocess_mod.xref_entries(
-            "nltools.data.braindata.BrainData", "data-brain-data", page
+            "data-brain-data", page, module="nltools.data.braindata.BrainData"
         )
         assert entries == {
-            "nltools.data.braindata.BrainData": "data-brain-data",
+            "nltools.data.braindata.BrainData": "page-data-brain-data",
             "nltools.data.braindata.BrainData.align": "data-brain-data-align",
         }
 
-
-class TestFrontmatterLabel:
-    def test_label_written_when_given(self, postprocess_mod):
-        out = postprocess_mod.with_frontmatter(
-            "Body.\n", "BrainData", "data-brain-data"
+    def test_task_page_entries_use_roots(self, postprocess_mod):
+        # A task page mixes objects from several modules; every path listed
+        # for a heading (public re-export and canonical definition) maps to
+        # that heading's label, and class members nest under each of them.
+        page = (
+            "Intro.\n\n## Classes\n\n"
+            "(tasks-alignment-srm)=\n### `SRM`\n\nDoc.\n\n#### Methods\n\n"
+            "(tasks-alignment-fit)=\n##### `fit`\n\nDoc.\n\n"
+            "## Functions\n\n(tasks-alignment-align)=\n### `align`\n\nDoc.\n"
         )
-        assert out == "---\ntitle: BrainData\nlabel: data-brain-data\n---\n\nBody.\n"
+        roots = {
+            "SRM": ["nltools.algorithms.SRM", "nltools.algorithms.alignment.srm.SRM"],
+            "align": ["nltools.algorithms.align"],
+        }
+        entries = postprocess_mod.xref_entries("tasks-alignment", page, roots=roots)
+        assert entries == {
+            "nltools.algorithms.SRM": "tasks-alignment-srm",
+            "nltools.algorithms.alignment.srm.SRM": "tasks-alignment-srm",
+            "nltools.algorithms.SRM.fit": "tasks-alignment-fit",
+            "nltools.algorithms.alignment.srm.SRM.fit": "tasks-alignment-fit",
+            "nltools.algorithms.align": "tasks-alignment-align",
+        }
+
+    def test_heading_without_a_root_or_module_is_skipped(self, postprocess_mod):
+        page = "(p-x)=\n### `x`\n\nDoc.\n"
+        assert postprocess_mod.xref_entries("p", page) == {}
+
+
+class TestPageLabel:
+    """Page labels live in their own ``page-`` namespace.
+
+    Regression: the label of ``api/data/design_matrix_append.md`` (its prefix,
+    ``data-design-matrix-append``) collided with the member label for
+    ``DesignMatrix.append`` on ``api/data/design_matrix.md`` (prefix
+    ``data-design-matrix`` + slug ``append``) — mystmd reported a duplicate
+    identifier. Prefixing page labels keeps the two namespaces apart.
+    """
+
+    def test_page_label_is_namespaced(self, postprocess_mod):
+        assert postprocess_mod.page_label("data-brain-data") == "page-data-brain-data"
+
+    def test_page_label_cannot_collide_with_member_label(self, postprocess_mod):
+        member = postprocess_mod._scope_anchors("### `append`\n", "data-design-matrix")
+        member_label = postprocess_mod.collect_labels(member)
+        assert member_label == ["data-design-matrix-append"]
+        assert (
+            postprocess_mod.page_label("data-design-matrix-append") not in member_label
+        )
+
+    def test_frontmatter_label_written_when_given(self, postprocess_mod):
+        out = postprocess_mod.with_frontmatter(
+            "Body.\n", "BrainData", "page-data-brain-data"
+        )
+        assert (
+            out == "---\ntitle: BrainData\nlabel: page-data-brain-data\n---\n\nBody.\n"
+        )
+
+
+class TestCollectLabels:
+    """Every explicit MyST label a page defines: frontmatter + ``(x)=`` targets."""
+
+    def test_frontmatter_and_targets(self, postprocess_mod):
+        page = (
+            "---\ntitle: T\nlabel: page-t\n---\n\n"
+            "(t-a)=\n### `a`\n\nDoc with (not-a-label)= in prose.\n\n"
+            "```python\n(fenced)=\n```\n\n(t-b)=\n### `b`\n"
+        )
+        assert postprocess_mod.collect_labels(page) == ["page-t", "t-a", "t-b"]
+
+
+class TestDocumentedNames:
+    """Names a page documents: code-span headings and summary-table rows."""
+
+    def test_headings_and_summary_rows(self, postprocess_mod):
+        page = (
+            "**Attributes:**\n\n"
+            "Name | Type | Description\n---- | ---- | -----------\n"
+            "`ATLASES` | <code>dict</code> | Registry.\n\n"
+            "**Functions:**\n\n"
+            "Name | Description\n---- | -----------\n"
+            "[`fdr`](#tasks-inference-fdr) | FDR.\n\n"
+            "## Classes\n\n(tasks-x-glm)=\n### `Glm`\n\n"
+            "```python\nGlm(*, t_r=None)\n```\n\n"
+            "`not_a_name` in prose | is ignored.\n"
+        )
+        assert postprocess_mod.documented_names(page) == {"ATLASES", "fdr", "Glm"}
 
 
 class TestRemoveEmptyCategoryHeadings:

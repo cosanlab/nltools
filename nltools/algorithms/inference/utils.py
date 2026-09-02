@@ -1,8 +1,4 @@
-"""Utility functions for permutation testing.
-
-This module contains shared helper functions used across different
-permutation test implementations.
-"""
+"""Shared helpers for the permutation tests: p-values, z-from-p, batch sizing."""
 
 import numpy as np
 from ...utils import _NullProgressBar, make_progress_bar, maybe_tqdm  # noqa: F401
@@ -68,9 +64,9 @@ def _signed_z_from_p(t_like_arr, p_arr, tail_internal: str = "two") -> np.ndarra
     poisons downstream percentiles and plotting.
 
     Args:
-        t_like_arr: Statistic supplying the sign (t map or similar).
-        p_arr: P-value map (two-tailed, or one-tailed upper).
-        tail_internal: ``'two'`` (default) or ``'upper'``.
+        t_like_arr (np.ndarray): Statistic supplying the sign (t map or similar).
+        p_arr (np.ndarray): P-value map (two-tailed, or one-tailed upper).
+        tail_internal (str): `'two'` (default) or `'upper'`.
 
     Returns:
         np.ndarray: Signed z map, finite everywhere.
@@ -95,45 +91,39 @@ def _compute_pvalue(
 ) -> np.ndarray:
     """Calculate p-values from observed statistic and null distribution.
 
-    Computes the proportion of null distribution values as extreme or more
-    extreme than the observed statistic, using the correction factor approach
-    the original nltools.algorithms._calc_pvalue.
+    Computes the proportion of null-distribution values at least as extreme as
+    the observed statistic, with the `(count + 1) / (n_permute + 1)` correction:
+    the observed value counts as one draw, so p is never 0 and its minimum is
+    `1 / (n_permute + 1)`. Two-tailed tests compare absolute values. The fixed
+    per-tail direction keeps multiple-comparison correction (FDR, Bonferroni)
+    valid across tests (GH #315).
 
     Args:
-        obs_stat (np.ndarray): Observed statistic(s)
-            - shape () for scalar
-            - shape (n_features,) for multi-feature
-        null_dist (np.ndarray): Null distribution from permutations
-            - shape (n_permute,) for single feature
-            - shape (n_permute, n_features) for multi-feature
-        tail (int | str): Test type
-            - 'two' or 2: Two-tailed test (|obs| > |null|)
-            - 'one' or 1 (or internal 'upper'): One-tailed upper (null >= obs,
-              for positive effects)
-            - internal 'lower' or -1: One-tailed lower (null <= obs) — reserved
-              for forced-tail call sites; not part of the public vocabulary
+        obs_stat (np.ndarray): Observed statistic(s), shape `()` for a scalar or
+            `(n_features,)` for multi-feature.
+        null_dist (np.ndarray): Null distribution from permutations, shape
+            `(n_permute,)` for a single feature or `(n_permute, n_features)`
+            for multi-feature.
+        tail (int | str): `2` or `'two'` for a two-tailed test (`|obs|` vs
+            `|null|`); `1`, `'one'`, or the internal `'upper'` for a one-tailed
+            upper test (`null >= obs`, positive effects); the internal `'lower'`
+            or `-1` for a one-tailed lower test (`null <= obs`), reserved for
+            forced-tail call sites and not part of the public vocabulary.
 
     Returns:
-        np.ndarray: P-value(s) with same shape as obs_stat
+        np.ndarray: P-value(s) with the same shape as `obs_stat`.
 
     Examples:
-        >>> obs_stat = np.array([2.5])
-        >>> null_dist = np.random.randn(1000, 1)
-        >>> p = _compute_pvalue(obs_stat, null_dist, tail='two')
-        >>> 0 < p <= 1
-        True
+        ```python
+        obs_stat = np.array([2.5])
+        null_dist = np.random.randn(1000, 1)
+        p = _compute_pvalue(obs_stat, null_dist, tail="two")
+        0 < p <= 1  # → True
 
-        # For multiple comparisons, use explicit direction:
-        >>> p_upper = _compute_pvalue(obs_stat, null_dist, tail='upper')
-        >>> p_lower = _compute_pvalue(obs_stat, null_dist, tail='lower')
-
-    Notes:
-        - Uses correction factor: (count + 1) / (n_permute + 1)
-        - This prevents p-value = 0 and accounts for observed value
-        - Minimum p-value is 1/(n_permute + 1)
-        - For two-tailed tests, uses absolute values
-        - The fixed per-tail direction keeps MCP correction (FDR, Bonferroni)
-          valid across tests. See GH #315.
+        # Explicit directions for forced-tail call sites
+        p_upper = _compute_pvalue(obs_stat, null_dist, tail="upper")
+        p_lower = _compute_pvalue(obs_stat, null_dist, tail="lower")
+        ```
     """
     tail_normalized = _normalize_tail_internal(tail)
 
@@ -182,35 +172,34 @@ def _auto_batch_size(
     """Determine the GPU permutation batch size for a memory budget.
 
     Thin adapter over the core layer in `nltools.algorithms.backends`:
-    supplies the permutation-test working-set estimate (the ``data_perm``
-    tensor, ``(batch_size, n_samples, n_features)`` float32) and the
+    supplies the permutation-test working-set estimate (the `data_perm`
+    tensor, `(batch_size, n_samples, n_features)` float32) and the
     100-permutation dispatch floor; the budget/clamp policy lives in
     `auto_batch_size`.
 
     Args:
-        n_permute (int): Total number of permutations to compute
-        n_samples (int): Number of samples in dataset
-        n_features (int): Number of features/voxels
-        max_memory_gb (float, optional): Explicit memory budget in GB. None
+        n_permute (int): Total number of permutations to compute.
+        n_samples (int): Number of samples in the dataset.
+        n_features (int): Number of features (voxels).
+        max_memory_gb (float | None): Explicit memory budget in GB. None
             (default) measures the device via `device_memory_budget`.
-        backend: Resolved `Backend` the work runs on (used only to measure
-            the budget when ``max_memory_gb`` is None).
+        backend (Backend | None): Resolved `Backend` the work runs on (used only
+            to measure the budget when `max_memory_gb` is None).
 
     Returns:
-        tuple[int, int]: (batch_size, n_batches)
-            - batch_size: Number of permutations per batch
-            - n_batches: Total number of batches needed
+        tuple[int, int]: `(batch_size, n_batches)` — permutations per batch and
+            the number of batches needed.
 
     Examples:
-        >>> # Small problem: All permutations fit in one batch
-        >>> batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0)
-        >>> n_batches
-        1
+        ```python
+        # Small problem: all permutations fit in one batch
+        batch_size, n_batches = _auto_batch_size(1000, 30, 1000, max_memory_gb=4.0)
+        n_batches  # → 1
 
-        >>> # Large problem: Need multiple batches
-        >>> batch_size, n_batches = _auto_batch_size(10000, 30, 50000, max_memory_gb=4.0)
-        >>> n_batches > 1
-        True
+        # Large problem: several batches
+        batch_size, n_batches = _auto_batch_size(10000, 30, 50000, max_memory_gb=4.0)
+        n_batches > 1  # → True
+        ```
     """
     from nltools.algorithms.backends import auto_batch_size, device_memory_budget
 

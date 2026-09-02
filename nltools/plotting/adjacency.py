@@ -93,10 +93,10 @@ def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
     consistently whether or not `normalize` is set.
 
     Args:
-        adjacency1: Adjacency instance shown in the upper triangle.
-        adjacency2: Adjacency instance shown in the lower triangle.
-        normalize: Normalize matrices before stacking. Default True.
-        **kwargs: Passed through to seaborn.heatmap.
+        adjacency1 (Adjacency): Adjacency instance shown in the upper triangle.
+        adjacency2 (Adjacency): Adjacency instance shown in the lower triangle.
+        normalize (bool): Normalize matrices before stacking. Default True.
+        **kwargs (dict): Forwarded to `seaborn.heatmap`.
 
     Returns:
         matplotlib.axes.Axes: Axes holding the stacked heatmap.
@@ -125,18 +125,21 @@ def plot_mean_label_distance(
     """Violin plot of within- vs between-label distances.
 
     Args:
-        distance: Square pairwise distance matrix (np.ndarray or polars DataFrame).
-        labels: Array-like of length N giving a group label for each row/column.
-        ax: Matplotlib axis to plot on (optional).
-        permutation_test: If True, run a two-sample permutation test per group.
-        n_permute: Number of permutations.
-        fontsize: Font size for plot labels.
-        **kwargs: Passed to seaborn.violinplot.
+        distance (np.ndarray | pl.DataFrame | pd.DataFrame): Square pairwise distance
+            matrix.
+        labels (array-like): Group label for each row/column (length N).
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        permutation_test (bool): If True, run a two-sample permutation test per group.
+            Default False.
+        n_permute (int): Number of permutations. Default 5000.
+        fontsize (int): Font size for the axis label and title. Default 18.
+        **kwargs (dict): Forwarded to `seaborn.violinplot`.
 
     Returns:
-        pl.DataFrame | tuple[pl.DataFrame, dict]: A polars DataFrame with columns
-            [Distance, Group, Type] in long format. If `permutation_test=True`, a
-            tuple `(long_df, stats)` where `stats` is a dict of per-group stats.
+        pl.DataFrame | tuple[pl.DataFrame, dict]: A long-format frame with columns
+            `Distance`, `Type`, `Group`. If `permutation_test=True`, a tuple
+            `(long_df, stats)` where `stats` maps each group label to its
+            permutation-test result.
     """
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)
@@ -204,20 +207,22 @@ def plot_between_label_distance(
     """Heatmap of average pairwise distance between every label pair.
 
     Args:
-        distance: Square pairwise distance matrix (np.ndarray or polars DataFrame).
-        labels: Array-like of length N giving a group label for each row/column.
-        ax: Matplotlib axis to plot on (optional).
-        permutation_test: If True, also compute mean-difference and p-value matrices.
-        n_permute: Number of permutations.
-        **kwargs: Passed to seaborn.heatmap.
+        distance (np.ndarray | pl.DataFrame | pd.DataFrame): Square pairwise distance
+            matrix.
+        labels (array-like): Group label for each row/column (length N).
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        permutation_test (bool): If True, also compute mean-difference and p-value
+            matrices. Default True.
+        n_permute (int): Number of permutations. Default 5000.
+        **kwargs (dict): Forwarded to `seaborn.heatmap`.
 
     Returns:
         tuple[pl.DataFrame, ...]: `(long_df, within_mean_df)` without
             `permutation_test`, or `(long_df, within_mean_df, mean_diff_df, p_df)`
             with it. All frames are polars DataFrames. `long_df` has columns
-            [Distance, Group, Comparison]. The three square-matrix-like frames are
-            long format with columns [label1, label2, value] so they can be
-            pivoted to a matrix if needed.
+            `Distance`, `Group`, `Comparison`. The three square-matrix-like frames are
+            long format with columns `label1`, `label2`, and a value column so they
+            can be pivoted to a matrix if needed.
     """
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)
@@ -339,17 +344,19 @@ def plot_silhouette(
     (between - within) / max(between, within).
 
     Args:
-        distance: Square pairwise distance matrix (np.ndarray or polars DataFrame).
-        labels: Array-like of length N giving a cluster label per row/column.
-        ax: Matplotlib axis to plot on (optional).
-        permutation_test: If True, run a one-sample permutation test per cluster
-            on positive-mean silhouette scores.
-        n_permute: Number of permutations.
-        colors: Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette).
-        figsize: Figure size tuple. Default (6, 4).
+        distance (np.ndarray | pl.DataFrame | pd.DataFrame): Square pairwise distance
+            matrix.
+        labels (array-like): Cluster label for each row/column (length N).
+        ax (matplotlib.axes.Axes, optional): Axis to draw on.
+        permutation_test (bool): If True, run a one-sample permutation test per cluster
+            on positive-mean silhouette scores. Default True.
+        n_permute (int): Number of permutations. Default 5000.
+        colors (list, optional): RGB triplets, one per cluster. Default: seaborn
+            `'hls'` palette.
+        figsize (tuple): Figure size. Default (6, 4).
 
     Returns:
-        pl.DataFrame: Frame with columns [label, mean_silhouette]. If
+        pl.DataFrame: Frame with columns `label` and `mean_silhouette`. If
             `permutation_test` is True, adds a `p` column (1.0 for clusters with
             non-positive mean).
     """

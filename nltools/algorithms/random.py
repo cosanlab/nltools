@@ -1,12 +1,9 @@
-"""Shared random-state utilities for deterministic parallel execution.
+"""Random-state utilities for deterministic parallel resampling.
 
-Key features:
-    - Deterministic parallelization: Pre-generates seeds for reproducible parallel execution
-    - Consistent RNG patterns: Matches stats.py patterns for backward compatibility
-    - Thread-safe design: Each parallel worker gets independent RandomState
-
-These utilities are used in bootstrap and permutation tests to ensure
-deterministic behavior when using parallel processing.
+The bootstrap and permutation tests pre-generate one seed per iteration from a
+single `random_state`, then give each parallel worker its own `RandomState`
+built from its seed. Results are therefore identical for any `n_jobs` and
+across CPU and GPU execution.
 
 Examples:
     ```python
@@ -22,17 +19,14 @@ from sklearn.utils import check_random_state
 
 
 def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarray:
-    """Generate random seeds for deterministic parallelization.
-
-    Pre-generates unique seeds for each permutation/bootstrap iteration
-    to ensure deterministic behavior across parallel workers.
+    """Generate one random seed per permutation or bootstrap iteration.
 
     Args:
-        n_permute: Number of permutations/bootstrap iterations
-        random_state: Random seed for reproducibility
+        n_permute (int): Number of iterations to seed.
+        random_state (int | None): Seed for the seed generator. Defaults to None.
 
     Returns:
-        Array of seeds with shape (n_permute,)
+        np.ndarray: Integer seeds, shape (n_permute,).
 
     Examples:
         ```python
@@ -52,37 +46,28 @@ def generate_sign_flips(
     n_samples: int,
     random_state: int | None = None,
 ) -> np.ndarray:
-    """Generate random sign-flip matrix for one-sample permutation tests.
+    """Generate the random sign-flip matrix for one-sample permutation tests.
 
-    Creates a matrix of random +1/-1 values for sign-flipping permutation tests.
-    Each row represents one permutation, where each sample is randomly multiplied
-    by +1 or -1 to create the null distribution.
-
-    This implementation matches the RNG pattern from the original nltools.algorithms one_sample_permutation
-    for exact backward compatibility: each permutation gets an independent RandomState
-    derived from a unique seed.
+    Each row is one permutation: every sample is multiplied by +1 or -1 to build
+    the null distribution. Each permutation draws from an independent
+    `RandomState` seeded by `generate_seeds`, so the matrix is reproducible for
+    any degree of parallelism.
 
     Args:
-        n_permute: Number of permutations to generate
-        n_samples: Number of samples in the dataset
-        random_state: Random seed for reproducibility
+        n_permute (int): Number of permutations.
+        n_samples (int): Number of samples in the dataset.
+        random_state (int | None): Seed for reproducibility. Defaults to None.
 
     Returns:
-        Sign-flip matrix of shape (n_permute, n_samples)
-            containing only +1 and -1 values
+        np.ndarray: Matrix of +1 and -1 values, shape (n_permute, n_samples). A
+            NumPy array; callers move it to the GPU when needed.
 
     Examples:
         ```python
         sign_flips = generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
-        sign_flips.shape  # (100, 30)
-        np.all(np.isin(sign_flips, [-1, 1]))  # True
+        sign_flips.shape  # → (100, 30)
+        np.all(np.isin(sign_flips, [-1, 1]))  # → True
         ```
-
-    Notes:
-        - Each permutation uses independent RandomState for stats.py compatibility
-        - Values are uniformly sampled from {+1, -1} (matching stats.py order)
-        - Returns NumPy array (device transfer handled by caller)
-        - Memory cost: n_permute × n_samples × 1 byte (negligible for typical use)
     """
     seeds = generate_seeds(n_permute, random_state=random_state)
 
@@ -103,32 +88,26 @@ def generate_bootstrap_indices(
     n_bootstrap: int,
     random_state: int | None = None,
 ) -> np.ndarray:
-    """Generate bootstrap indices deterministically for resampling.
+    """Generate bootstrap resampling indices deterministically.
 
-    Uses the same pattern as permutation tests: pre-generate seeds for
-    reproducible parallelization.
+    Each bootstrap draw uses an independent `RandomState` seeded by
+    `generate_seeds`, the same scheme as the permutation tests.
 
     Args:
-        n_samples: Number of samples in original dataset.
-        n_bootstrap: Number of bootstrap iterations.
-        random_state: Random seed for reproducibility. Defaults to None.
+        n_samples (int): Number of samples in the original dataset.
+        n_bootstrap (int): Number of bootstrap iterations.
+        random_state (int | None): Seed for reproducibility. Defaults to None.
 
     Returns:
-        Bootstrap indices with shape (n_bootstrap, n_samples).
-            Each row contains indices sampled with replacement from [0, n_samples).
+        np.ndarray: Indices sampled with replacement from `[0, n_samples)`,
+            shape (n_bootstrap, n_samples); repeats within a row are expected.
 
     Examples:
         ```python
         indices = generate_bootstrap_indices(100, 1000, random_state=42)
-        indices.shape  # (1000, 100)
-        indices[0]  # first bootstrap sample, e.g. array([23, 45, 23, 67, ...]);
-        # repeats are expected because sampling is with replacement
+        indices.shape  # → (1000, 100)
+        indices[0]  # → array([23, 45, 23, 67, ...])  one bootstrap sample
         ```
-
-    Notes:
-        - Uses same seed generation pattern as permutation tests for consistency
-        - Each bootstrap iteration gets independent RandomState for reproducibility
-        - Sampling is with replacement (some indices may repeat)
     """
     seeds = generate_seeds(n_bootstrap, random_state=random_state)
 

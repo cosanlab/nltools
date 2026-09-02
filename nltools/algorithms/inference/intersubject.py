@@ -49,60 +49,64 @@ def isc(
     random_state=None,
     progress_bar=False,
 ):
-    """Compute pairwise intersubject correlation from observations by subjects array.
+    """Compute pairwise intersubject correlation from an observations-by-subjects array.
 
-    This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
-    et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
-    the fisher r-to-z transformation and then convert back to correlations to minimize artificially
-    inflating the correlation values.
+    Pairwise ISC is summarized with the median, as Chen et al. (2016) recommend;
+    `summary='mean'` instead averages after the Fisher r-to-z transform and
+    converts back, which avoids inflating the estimate.
 
-    There are currently three different methods to compute p-values. These include the classic methods for
-    computing permuted time-series by either circle-shifting the data or phase-randomizing the data
-    (see Lancaster et al., 2018). These methods create random surrogate data while preserving the temporal
-    autocorrelation inherent to the signal. By default, we use the subject-wise bootstrap method from
-    Chen et al., 2016. Instead of recomputing the pairwise ISC using circle_shift or phase_randomization methods,
-    this approach uses the computationally more efficient method of bootstrapping the subjects
-    and computing a new pairwise similarity matrix with randomly selected subjects with replacement.
-    If the same subject is selected multiple times, we set the perfect correlation to a nan with
-    (exclude_self_corr=True). We compute the p-values using the percentile method using the same
-    method in Brainiak.
+    Three null distributions are available. The default subject-wise bootstrap
+    (Chen et al., 2016) resamples subjects with replacement and recomputes the
+    pairwise similarity matrix; a subject drawn twice correlates perfectly with
+    itself, so those entries are set to NaN when `exclude_self_corr=True`.
+    P-values use the percentile method, as in Brainiak. The classic surrogate
+    methods instead circle-shift or phase-randomize each time series (Lancaster
+    et al., 2018), preserving its temporal autocorrelation, and recompute ISC.
 
-    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
-    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the group level.
-    NeuroImage, 142, 248-259.
-
-    Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
-    Biometrics, 757-762.
-
-    Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska, A. (2018).
-    Surrogate data for hypothesis testing of physical systems. Physics Reports, 748, 1-60.
-
-    This function is a wrapper around `isc_permutation_test` from the inference module,
-    which provides optimized implementations with CPU-parallel and GPU acceleration support.
+    Runs on plain arrays; `BrainCollection.isc` wraps it for brain data.
+    `isc_permutation_test` exposes the same engine with `device='gpu'` and
+    leave-one-out ISC.
 
     Args:
-        data (pd.DataFrame | np.ndarray): Observations by subjects; ISC is computed across subjects.
-        n_samples (int): Number of random samples/bootstraps.
-        summary (str): ISC summary statistic, one of 'mean' or 'median' (default: 'median').
-        method (str): Method to compute p-values, one of 'bootstrap', 'circle_shift', or
-            'phase_randomize' (default: 'bootstrap').
-        ci_percentile (int): Confidence-interval width in percent for the bootstrap CI (default: 95).
-        exclude_self_corr (bool): Set self-correlations (same subject bootstrapped twice) to nan
-            (default: True).
-        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive
-            direction).
-        metric (str): Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs
-            (default: 'correlation').
-        return_null (bool): Return the permutation distribution along with the p-value (default: False).
-        n_jobs (int): Number of CPUs to use; -1 means all CPUs.
-        random_state (int | np.random.RandomState | None): Seed or generator for the resampling
-            (default: None).
-        progress_bar (bool): If True, display a progress bar (default: False).
+        data (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
+            subjects; ISC is computed across the columns.
+        n_samples (int): Number of bootstrap draws or surrogate permutations.
+            Defaults to 5000.
+        summary (str): `'median'` (default) or `'mean'`.
+        method (str): `'bootstrap'` (default), `'circle_shift'`, or
+            `'phase_randomize'`.
+        ci_percentile (int): Confidence-interval width in percent. Defaults to 95.
+        exclude_self_corr (bool): Set self-correlations (the same subject
+            bootstrapped twice) to NaN. Defaults to True.
+        tail (int | str): `2` or `'two'` (two-tailed, default) or `1` or `'one'`
+            (one-tailed, ISC > 0).
+        metric (str): Pairwise similarity metric; any metric accepted by
+            sklearn's `pairwise_distances`. Defaults to `'correlation'`.
+        return_null (bool): Include the null distribution in the result.
+            Defaults to False.
+        n_jobs (int): CPU workers for the resamples; -1 (default) picks the
+            count from available memory.
+        random_state (int | np.random.RandomState | None): Seed or generator for
+            the resampling.
+        progress_bar (bool): Display a progress bar. Defaults to False.
 
     Returns:
-        dict: Permutation results with keys 'isc', 'p', 'ci', and 'null_dist'.
+        dict: Keys `'isc'` (float, observed ISC), `'p'` (float), `'ci'` (tuple
+            `(lower, upper)`), `'device'`, and — when `return_null=True` —
+            `'null_dist'` (np.ndarray).
 
+    References:
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
+        Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among
+        correlations, part I: nonparametric approaches to inter-subject
+        correlation analysis at the group level. NeuroImage, 142, 248-259.
+
+        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap
+        hypothesis testing. Biometrics, 757-762.
+
+        Lancaster, G., Iatsenko, D., Pidde, A., Ticcinelli, V., & Stefanovska,
+        A. (2018). Surrogate data for hypothesis testing of physical systems.
+        Physics Reports, 748, 1-60.
     """
     data = _as_ndarray(data)
 
@@ -145,56 +149,61 @@ def isc_group(
     random_state=None,
     progress_bar=False,
 ):
-    """Compute difference in intersubject correlation between groups.
+    """Test the difference in pairwise intersubject correlation between two groups.
 
-    This function computes pairwise intersubject correlations (ISC) using the median as recommended by Chen
-    et al., 2016). However, if the mean is preferred, we compute the mean correlation after performing
-    the fisher r-to-z transformation and then convert back to correlations to minimize artificially
-    inflating the correlation values.
+    ISC within each group is summarized with the median, as Chen et al. (2016)
+    recommend (`summary='mean'` averages after the Fisher r-to-z transform), and
+    the observed statistic is `group1 - group2`.
 
-    There are currently two different methods to compute p-values. By default, we use the subject-wise permutation
-    method recommended Chen et al., 2016. This method combines the two groups and computes pairwise similarity both
-    within and between the groups. Then the group labels are permuted and the mean difference between the two groups
-    are recomputed to generate a null distribution. The second method uses subject-wise bootstrapping, where a new
-    pairwise similarity matrix with randomly selected subjects with replacement is created separately for each group
-    and the ISC difference between these groups is used to generate a null distribution. If the same subject is
-    selected multiple times, we set the perfect correlation to a nan with (exclude_self_corr=True). We compute the
-    p-values using the percentile method (Hall & Wilson, 1991).
+    Two null distributions are available. The default subject-wise permutation
+    (Chen et al., 2016) pools the subjects, computes pairwise similarity within
+    and between groups, then reshuffles the group labels and recomputes the
+    difference. The subject-wise bootstrap instead resamples subjects with
+    replacement within each group; a subject drawn twice correlates perfectly
+    with itself, so those entries are set to NaN when `exclude_self_corr=True`.
+    P-values use the percentile method (Hall & Wilson, 1991).
 
-    Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C., Israel, R. B.,
-    & Cox, R. W. (2016). Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the group level.
-    NeuroImage, 142, 248-259.
-
-    Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap hypothesis testing.
-    Biometrics, 757-762.
-
-    This function is a thin wrapper around `isc_group_permutation_test` from the inference
-    module (which provides optimized CPU parallelization and optional GPU acceleration),
-    pinning the classic pairwise behavior and the `n_samples` vocabulary.
+    Runs on plain arrays; `isc_group_permutation_test` exposes the same engine
+    with `device='gpu'` and leave-one-out ISC.
 
     Args:
-        group1 (pd.DataFrame | np.ndarray): Observations by subjects for the first group.
-        group2 (pd.DataFrame | np.ndarray): Observations by subjects for the second group.
-        n_samples (int): Number of samples for permutation or bootstrapping.
-        summary (str): ISC summary statistic, one of 'mean' or 'median' (default: 'median').
-        method (str): Method to compute p-values, one of 'permute' or 'bootstrap' (default: 'permute').
-        ci_percentile (float): Confidence interval percentile (default: 95).
-        exclude_self_corr (bool): Exclude self-correlations in bootstrap (default: True).
-        return_null (bool): Return the permutation distribution along with the p-value (default: False).
-        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive
-            direction).
-        metric (str): Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs
-            (default: 'correlation').
-        n_jobs (int): Number of CPUs to use; -1 means all CPUs.
-        random_state (int | np.random.RandomState | None): Random seed for reproducibility.
-        progress_bar (bool): If True, display a progress bar (default: False).
+        group1 (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
+            subjects for the first group.
+        group2 (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
+            subjects for the second group (same number of observations).
+        n_samples (int): Number of permutations or bootstrap draws. Defaults to
+            5000.
+        summary (str): `'median'` (default) or `'mean'`.
+        method (str): `'permute'` (default) or `'bootstrap'`.
+        ci_percentile (float): Confidence-interval width in percent. Defaults to
+            95.
+        exclude_self_corr (bool): In the bootstrap, set self-correlations to NaN.
+            Defaults to True.
+        return_null (bool): Include the null distribution in the result.
+            Defaults to False.
+        tail (int | str): `2` or `'two'` (two-tailed, default) or `1` or `'one'`
+            (one-tailed, group1 > group2).
+        metric (str): Pairwise similarity metric; any metric accepted by
+            sklearn's `pairwise_distances`. Defaults to `'correlation'`.
+        n_jobs (int): CPU workers for the resamples; -1 (default) picks the
+            count from available memory.
+        random_state (int | np.random.RandomState | None): Random seed for
+            reproducibility.
+        progress_bar (bool): Display a progress bar. Defaults to False.
 
     Returns:
-        dict: Permutation results with keys 'isc_group_difference' (observed ISC difference,
-            float or array), 'p' (p-value, float or array), 'ci' (confidence interval tuple
-            `(lower, upper)`), and 'null_dist' (null distribution, only if `return_null=True`).
+        dict: Keys `'isc_group_difference'` (float, observed difference), `'p'`
+            (float), `'ci'` (tuple `(lower, upper)`), `'device'`, and — when
+            `return_null=True` — `'null_dist'` (np.ndarray).
 
+    References:
+        Chen, G., Shin, Y. W., Taylor, P. A., Glen, D. R., Reynolds, R. C.,
+        Israel, R. B., & Cox, R. W. (2016). Untangling the relatedness among
+        correlations, part I: nonparametric approaches to inter-subject
+        correlation analysis at the group level. NeuroImage, 142, 248-259.
+
+        Hall, P., & Wilson, S. R. (1991). Two guidelines for bootstrap
+        hypothesis testing. Biometrics, 757-762.
     """
     from .isc import isc_group_permutation_test
 
@@ -231,32 +240,29 @@ def isc_group(
 
 
 def isfc(data, method="average", n_jobs=-1):
-    """Compute intersubject functional connectivity (ISFC) from a list of observation x feature matrices.
+    """Compute intersubject functional connectivity (ISFC) from per-subject matrices.
 
-    This function uses the leave one out approach to compute ISFC (Simony et al., 2016).
-    For each subject, compute the cross-correlation between each voxel/roi
-    with the average of the rest of the subjects data. In other words,
-    compute the mean voxel/ROI response for all participants except the
-    target subject. Then compute the correlation between each ROI within
-    the target subject with the mean ROI response in the group average.
-
-    Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel, A., & Hasson, U. (2016).
-    Dynamic reconfiguration of the default mode network during narrative comprehension.
-    Nature communications, 7, 12141.
-
-    This function now uses the optimized implementation from the inference module,
-    which provides efficient cross-correlation computation between matrix columns.
-    CPU parallelization is available via joblib when n_jobs > 1 or n_jobs=-1.
-    Each subject's ISFC computation is independent and can be parallelized efficiently.
+    Uses the leave-one-out approach of Simony et al. (2016): for each subject,
+    average the other subjects' data and correlate every voxel/ROI time series
+    of the target subject with every voxel/ROI time series of that average.
+    Subjects are independent, so they are processed in parallel with joblib
+    unless `n_jobs=1`.
 
     Args:
-        data (list[np.ndarray]): Subject matrices (observations x voxels/rois).
-        method (str): Approach to computing ISFC; 'average' uses leave-one-out.
-        n_jobs (int): Number of parallel jobs; -1 means all available cores (default: -1).
+        data (list[np.ndarray]): One matrix per subject, each
+            `(n_observations, n_features)` with identical shapes.
+        method (str): Only `'average'` (leave-one-out) is implemented.
+        n_jobs (int): Parallel workers; -1 (default) uses all cores, 1 runs
+            serially.
 
     Returns:
-        list: One ISFC matrix (`np.ndarray`) per subject.
+        list[np.ndarray]: One `(n_features, n_features)` ISFC matrix per
+            subject.
 
+    References:
+        Simony, E., Honey, C. J., Chen, J., Lositsky, O., Yeshurun, Y., Wiesel,
+        A., & Hasson, U. (2016). Dynamic reconfiguration of the default mode
+        network during narrative comprehension. Nature Communications, 7, 12141.
     """
     if method != "average":
         raise NotImplementedError(
@@ -312,44 +318,53 @@ def isps(
 ):
     """Compute dynamic intersubject phase synchrony (ISPS) from an observations-by-subjects array.
 
-    This function computes the instantaneous intersubject phase synchrony for a single voxel/roi
-    timeseries. Requires multiple subjects. This method is largely based on that described by Glerean
-    et al., 2012 and performs a hilbert transform on narrow bandpass filtered timeseries (butterworth)
-    data to get the instantaneous phase angle. The function returns a dictionary containing the
-    average phase angle, the average vector length, and parametric p-values computed using the rayleigh test using circular
-    statistics (Fisher, 1993). If pairwise=True, then it will compute these on the pairwise phase angle differences,
-    if pairwise=False, it will compute these on the actual phase angles. This is called inter-site phase coupling
-    or inter-trial phase coupling respectively in the EEG literatures.
+    Instantaneous phase synchrony across subjects for a single voxel/ROI time
+    series, after Glerean et al. (2012): the data are narrow-band filtered
+    (Butterworth) and Hilbert-transformed to get each subject's instantaneous
+    phase angle at every time point. Across subjects, the result gives the
+    mean phase angle, the mean resultant vector length, and a parametric
+    p-value from the Rayleigh test for circular uniformity (Fisher, 1995).
+    With `pairwise=True` these are computed on pairwise phase-angle differences
+    (inter-site phase coupling in the EEG literature) rather than on the raw
+    angles (inter-trial phase coupling).
 
-    This function requires narrow band filtering your data. As a default we use the recommendations
-    by (Glerean et al., 2012) of .04-.07Hz. This is similar to the "slow-4" band (0.025–0.067 Hz)
-    described by (Zuo et al., 2010; Penttonen & Buzsáki, 2003), but excludes the .03 band, which has been
-    demonstrated to contain aliased respiration signals (Birn, 2006).
-
-    Birn RM, Smith MA, Bandettini PA, Diamond JB. 2006. Separating respiratory-variation-related
-    fluctuations from neuronal-activity- related fluctuations in fMRI. Neuroimage 31:1536–1548.
-
-    Buzsáki, G., & Draguhn, A. (2004). Neuronal oscillations in cortical networks. Science,
-    304(5679), 1926-1929.
-
-    Fisher, N. I. (1995). Statistical analysis of circular data. cambridge university press.
-
-    Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams, M. (2012).
-    Functional magnetic resonance imaging phase synchronization as a measure of dynamic
-    functional connectivity. Brain connectivity, 2(2), 91-101.
+    The default band, 0.04-0.07 Hz, follows Glerean et al. (2012). It is close
+    to the "slow-4" band (0.025-0.067 Hz; Zuo et al., 2010; Penttonen &
+    Buzsáki, 2003) but excludes ~0.03 Hz, which carries aliased respiration
+    (Birn et al., 2006).
 
     Args:
-        data (pd.DataFrame | np.ndarray): Observations x subjects data.
-        sampling_freq (float): Sampling frequency of the data in Hz.
-        low_cut (float): Lower cutoff for the bandpass filter.
-        high_cut (float): Upper cutoff for the bandpass filter.
-        order (int): Butterworth bandpass filter order.
-        pairwise (bool): If True, compute phase-angle coherence on pairwise phase-angle
-            differences instead of on the raw phase angles.
+        data (np.ndarray | pl.DataFrame | pd.DataFrame): Observations by
+            subjects.
+        sampling_freq (float): Sampling frequency in Hz. Defaults to 0.5.
+        low_cut (float): Lower band-pass cutoff in Hz. Defaults to 0.04.
+        high_cut (float): Upper band-pass cutoff in Hz. Defaults to 0.07.
+        order (int): Butterworth filter order. Defaults to 5.
+        pairwise (bool): Compute on pairwise phase-angle differences instead of
+            the raw phase angles. Defaults to False.
 
     Returns:
-        dict: Mean phase angle, vector length, and Rayleigh statistic.
+        dict: Keys `'average_angle'` (np.ndarray, mean phase angle per time
+            point), `'vector_length'` (np.ndarray, mean resultant length per
+            time point), and `'p'` (np.ndarray, Rayleigh-test p-value per time
+            point).
 
+    References:
+        Birn, R. M., Smith, M. A., Bandettini, P. A., & Diamond, J. B. (2006).
+        Separating respiratory-variation-related fluctuations from
+        neuronal-activity-related fluctuations in fMRI. NeuroImage, 31,
+        1536-1548.
+
+        Buzsáki, G., & Draguhn, A. (2004). Neuronal oscillations in cortical
+        networks. Science, 304(5679), 1926-1929.
+
+        Fisher, N. I. (1995). Statistical analysis of circular data. Cambridge
+        University Press.
+
+        Glerean, E., Salmi, J., Lahnakoski, J. M., Jääskeläinen, I. P., & Sams,
+        M. (2012). Functional magnetic resonance imaging phase synchronization
+        as a measure of dynamic functional connectivity. Brain Connectivity,
+        2(2), 91-101.
     """
     data_array = _as_ndarray(data)
     phase = np.angle(

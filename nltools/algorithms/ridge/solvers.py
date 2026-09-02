@@ -1,14 +1,13 @@
 """Ridge regression solvers with cross-validation.
 
-Implements banded ridge regression (multiple feature spaces) and regular ridge
-regression (single feature space) with cross-validation for hyperparameter selection.
-
-Follows himalaya's implementation patterns:
-- Generator-based batching for memory efficiency
-- Y_in_cpu strategy for large target datasets
-- Backend abstraction (NumPy, PyTorch, PyTorch+CUDA)
-- Per-target or global alpha selection
-- Random search over feature space weights (Dirichlet sampling)
+`solve_ridge_cv` selects alphas for a single feature space, `solve_banded_ridge_cv`
+adds a random search over feature-space weights for several feature spaces, and
+`cross_val_predict_ridge` returns held-out predictions once alphas are chosen.
+All three batch over alphas and targets to bound memory, can keep a large `Y` on
+the CPU and stream batches to the device (`Y_in_cpu`), select alphas per target
+or globally, and run on NumPy or PyTorch (CPU, CUDA, MPS) through `parallel=`.
+The design follows the himalaya library; `docs/development/ridge-internals.md`
+explains the tricks.
 """
 
 from __future__ import annotations
@@ -57,134 +56,104 @@ def solve_banded_ridge_cv(
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:
-    """Solve banded ridge regression with cross-validation using random search.
+    """Solve banded (group) ridge regression with cross-validated random search.
 
-    This function implements true banded/group ridge regression (as in Himalaya).
-    It searches over feature space weights (gamma) sampled from a Dirichlet
-    distribution, combined with alpha grid search.
+    Banded ridge gives each feature space its own scale: `Z_i = sqrt(gamma_i) * X_i`,
+    then ordinary ridge is solved on the concatenated `Z`, so the relative
+    importance of the feature spaces is learned. The weights `gamma` are drawn
+    from a Dirichlet distribution (`n_iter` draws; the first is equal weights);
+    for each draw every alpha is scored by k-fold cross-validation, and each
+    target keeps the `(gamma, alpha)` pair with the best score (himalaya's
+    `solve_group_ridge_random_search`). For a single feature space use
+    `solve_ridge_cv`.
 
-    Banded ridge (also called group ridge) applies different scaling weights
-    per feature space: Z_i = sqrt(gamma_i) * X_i, then solves standard ridge
-    regression on the scaled concatenated features. This allows optimizing
-    the relative importance of different feature spaces.
-
-    The feature spaces are scaled by sqrt(gamma) for each gamma sample, then
-    standard ridge regression is applied with alpha grid search.
+    **Memory.** Alphas are processed in batches of `n_alphas_batch` from one SVD
+    per fold, targets in batches of `n_targets_batch`, and with `Y_in_cpu=True`
+    only the current target batch is moved to the device. Time scales as
+    `O(n_iter × n_splits × (n_alphas_batch × n_features² + n_targets_batch ×
+    n_samples))`, memory as `O(n_features × n_targets_batch)` per batch; a GPU
+    is roughly 10-100× faster once `n_features` exceeds ~10K.
 
     Args:
-        Xs: Feature matrices for different feature spaces. Each array has shape
-            (n_samples, n_features_i). All must have the same n_samples.
-        Y: Target data of shape (n_samples, n_targets).
-        n_iter: Number of feature-space weights combination to search, or array
-            of shape (n_iter, n_spaces). If an array is given, the solver uses
-            it as the list of weights to try, instead of sampling from a Dirichlet
-            distribution. Defaults to 100.
-        concentration: Concentration parameters of the Dirichlet distribution.
-            - A value of 1 corresponds to uniform sampling over the simplex.
-            - A value of infinity corresponds to equal weights.
-            - If a list, iteratively cycle through the list.
-            Not used if n_iter is an array. Defaults to [0.1, 1.0].
-        alphas: Range of ridge regularization parameters to try. Can be float
-            or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0].
-        cv: Cross-validation strategy. If int, uses KFold with that many splits.
-            Defaults to 5.
-        local_alpha: If True, select best alpha independently for each target.
-            If False, select single best alpha for all targets. Defaults to True.
-        n_targets_batch: Batch size for targets during CV (for memory efficiency).
-            If None, processes all targets at once. Defaults to None.
-        n_targets_batch_refit: Batch size for targets during refit.
-            If None, uses n_targets_batch value. Defaults to None.
-        n_alphas_batch: Batch size for alphas (for memory efficiency).
-            If None, processes all alphas at once. Defaults to None.
-        Y_in_cpu: If True, keep Y on CPU and transfer batches to GPU as needed.
-            This prevents OOM when Y is large (e.g., 300k voxels).
-            Defaults to True (recommended for neuroimaging).
-        score_func: Scoring function (y_true, y_pred) -> scores.
-            If None, uses R² score. Defaults to None.
-        fit_intercept: Whether to fit an intercept. If False, X and Y should be centered.
-            Defaults to False.
-        progress_bar: Whether to display progress bar (requires tqdm).
-            Defaults to False.
-        conservative: If True, select largest alpha within 1 std of best score.
-            Defaults to False.
-        jitter_alphas: If True, alphas range is slightly jittered for each gamma.
-            Defaults to False.
-        return_weights: Whether to refit on the entire dataset and return the weights.
-            Defaults to True.
-        diagonalize_method: Method used to diagonalize the features. Currently only "svd"
-            is supported. Defaults to "svd".
-        warn: If True, warn if the number of samples is smaller than the number of
-            features. Defaults to True.
-        parallel: Backend to use: "cpu", "gpu", or None.
-            Defaults to "cpu".
-        max_gpu_memory_gb: GPU memory budget in GB (only used if parallel="gpu").
-            Defaults to 4.0.
-        random_state: Random generator seed. Use an int for deterministic search.
+        Xs (list[np.ndarray]): One feature matrix per feature space, each of
+            shape (n_samples, n_features_i) with the same `n_samples`.
+        Y (np.ndarray): Targets of shape (n_samples, n_targets).
+        n_iter (int | np.ndarray): Number of feature-space weight combinations
+            to sample, or an explicit array of weights with shape
+            (n_iter, n_spaces) to try instead of sampling. Defaults to 100.
+        concentration (float | list[float]): Dirichlet concentration
+            parameter(s). A value of 1 samples uniformly over the simplex;
+            `np.inf` gives equal weights; a list alternates between its values.
+            Ignored when `n_iter` is an array. Defaults to `[0.1, 1.0]`.
+        alphas (float | np.ndarray | list[float]): Ridge regularization
+            parameters to try. Defaults to `[0.1, 1.0, 10.0]`.
+        cv (int | BaseCrossValidator): Number of folds for unshuffled `KFold`, or
+            an sklearn cross-validator. Defaults to 5.
+        local_alpha (bool): If True, pick the best alpha independently per
+            target; if False, one alpha for all targets. Defaults to True.
+        n_targets_batch (int | None): Targets per batch during CV. None processes
+            all targets at once on the CPU; with `parallel="gpu"` None derives a
+            batch size from `max_gpu_memory_gb`. Defaults to None.
+        n_targets_batch_refit (int | None): Targets per batch during the refit.
+            None reuses `n_targets_batch`. Defaults to None.
+        n_alphas_batch (int | None): Alphas per batch. None processes all alphas
+            at once. Defaults to None.
+        Y_in_cpu (bool): If True, keep `Y` on the CPU and move one target batch
+            at a time to the device, which avoids running out of GPU memory on
+            large `Y` (e.g. 300k voxels). Defaults to True.
+        score_func (Callable | None): Scoring function `(y_true, y_pred) ->
+            per-target scores`. None uses R². Defaults to None.
+        fit_intercept (bool): If True, center `X` and `Y` per training fold and
+            return the intercept. If False, `X` and `Y` should already be
+            centered. Defaults to False.
+        progress_bar (bool): Show a progress bar over the gamma draws (requires
+            tqdm). Defaults to False.
+        conservative (bool): If True, pick the largest alpha within one standard
+            deviation of the best score (more regularization at similar
+            performance). Defaults to False.
+        jitter_alphas (bool): If True, multiply the alpha grid by a random factor
+            in `[10^-0.5, 10^0.5]` for each gamma draw. Defaults to False.
+        return_weights (bool): If True, refit on the full data with the selected
+            hyperparameters and return the coefficients. Defaults to True.
+        diagonalize_method (str): Feature decomposition; only `"svd"` is
+            supported. Defaults to `"svd"`.
+        warn (bool): If True, warn when `n_samples < n_features`, where banded
+            ridge is slower than kernel ridge. Defaults to True.
+        parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
+            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
+            device when no GPU is present); `"auto"` uses torch when installed
+            and NumPy otherwise. Defaults to `"cpu"`.
+        max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
+            `n_targets_batch` when `parallel="gpu"`. None measures the device.
             Defaults to None.
+        random_state (int | None): Random generator seed; use an int for a
+            deterministic search. Defaults to None.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'deltas': Best log feature-space weights for each target,
-                shape (n_spaces, n_targets). deltas = log(gamma / alpha), where
-                gamma are the feature space weights.
-            - 'cv_scores': Cross-validation scores per iteration, averaged over splits,
-                for the best alpha, shape (n_iter, n_targets). Always returned on CPU
-                (numpy array).
-            - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,
-                shape (n_features_total, n_targets), or None if return_weights=False.
-                Always returned on CPU (numpy array).
-            - 'intercept': Intercept of shape (n_targets,), or None if
-                fit_intercept=False or return_weights=False.
-            - 'backend': Backend used (for transparency).
+        dict: Keys `'deltas'` (np.ndarray, `log(gamma / alpha)` per feature space
+            and target, shape (n_spaces, n_targets)), `'cv_scores'` (np.ndarray,
+            split-averaged score at the selected alpha for each gamma draw,
+            shape (n_iter, n_targets)), `'backend'` (str, backend name), and —
+            only when `return_weights=True` — `'coefs'` (np.ndarray, refit
+            coefficients on the unscaled features, shape (n_features_total,
+            n_targets)) plus, when `fit_intercept=True` as well, `'intercept'`
+            (np.ndarray, shape (n_targets,)). Arrays are always NumPy on the CPU.
+
+    Raises:
+        ValueError: If `Xs` is empty, the feature spaces or `Y` disagree on
+            `n_samples`, or `n_iter` is neither an integer nor a 2D array with
+            `n_spaces` columns.
 
     Examples:
-        >>> # Multiple feature spaces (banded ridge with random search)
-        >>> X1 = np.random.randn(100, 30)  # First feature space
-        >>> X2 = np.random.randn(100, 20)  # Second feature space
-        >>> Y = np.random.randn(100, 10)
-        >>> result = solve_banded_ridge_cv(
-        ...     [X1, X2], Y, n_iter=50, alphas=[0.1, 1.0, 10.0]
-        ... )
-        >>> deltas = result['deltas']
-        >>> coefs = result['coefs']
-        >>> scores = result['cv_scores']
-
-    Notes:
-        This implements true banded/group ridge regression (as in Himalaya's
-        solve_group_ridge_random_search) with:
-        - Dirichlet sampling for feature space weights (gamma)
-        - Scaling each feature space by sqrt(gamma) for each gamma sample
-        - Cross-validation with alpha grid search
-        - Per-target selection of best gamma and alpha combination
-
-        This is the correct implementation of banded/group ridge regression, which
-        allows different scaling weights per feature space. For single feature space
-        ridge regression, use solve_ridge_cv instead.
-
-        Algorithm details:
-
-        - Random search: Samples gamma weights from Dirichlet distribution
-        - Banded ridge: Scales each feature space by sqrt(gamma_i), then solves standard ridge
-        - Cross-validation: Evaluates each (gamma, alpha) combination via k-fold CV
-        - Best selection: Chooses (gamma, alpha) that maximizes CV score per target
-
-        Memory efficiency strategies (Principle 2: automatic memory efficiency):
-
-        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
-          in batches to avoid storing all resolution matrices simultaneously
-        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-        - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
-          for computation
-        - Immediate cleanup with del statements: Explicitly frees memory after each batch
-
-        Performance:
-
-        - Time complexity: O(n_iter × n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
-        - Memory complexity: O(n_features × n_targets_batch) per batch
-        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
-
-        See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
-        See ``docs/development/ridge-internals.md`` for detailed algorithm explanation.
+        ```python
+        X1 = np.random.randn(100, 30)  # first feature space
+        X2 = np.random.randn(100, 20)  # second feature space
+        Y = np.random.randn(100, 10)
+        result = solve_banded_ridge_cv([X1, X2], Y, n_iter=50, alphas=[0.1, 1.0, 10.0])
+        result["deltas"].shape  # → (2, 10)
+        result["coefs"].shape  # → (50, 10)
+        result["cv_scores"].shape  # → (50, 10)
+        ```
     """
     from .utils import (
         _decompose_ridge,
@@ -544,19 +513,23 @@ def _refit_banded_ridge(
     Y_in_cpu: bool,
     backend: Any,
 ) -> np.ndarray:
-    """Refit ridge regression on full dataset with selected alphas.
+    """Refit ridge on the full data with a (possibly different) alpha per target.
+
+    Targets sharing an alpha share one resolution matrix, so the cost scales
+    with the number of unique alphas rather than the number of targets.
 
     Args:
-        X: Full feature matrix of shape (n_samples, n_features).
-        Y: Full target matrix of shape (n_samples, n_targets).
-        best_alphas: Selected best alpha for each target, shape (n_targets,).
-        n_targets_batch: Batch size for targets.
-        n_alphas_batch: Batch size for alphas.
-        Y_in_cpu: Whether Y is stored on CPU.
-        backend: Backend module.
+        X (np.ndarray): Feature matrix of shape (n_samples, n_features).
+        Y (np.ndarray): Target matrix of shape (n_samples, n_targets).
+        best_alphas (np.ndarray): Selected alpha per target, shape (n_targets,).
+        n_targets_batch (int): Targets per batch.
+        n_alphas_batch (int): Alphas per batch.
+        Y_in_cpu (bool): Whether `Y` lives on the CPU and batches must be moved
+            to the device.
+        backend (Backend): Resolved backend.
 
     Returns:
-        np.ndarray: Ridge coefficients for each target, shape (n_features, n_targets).
+        np.ndarray: Coefficients on the CPU, shape (n_features, n_targets).
     """
     from .utils import _decompose_ridge
 
@@ -651,92 +624,83 @@ def solve_ridge_cv(
     # Random state (last)
     random_state: int | None = None,
 ) -> dict[str, Any]:
-    """Solve ridge regression with cross-validation.
+    """Solve ridge regression for one feature space with cross-validated alphas.
 
-    This function solves ridge regression for a single feature space with
-    cross-validation for hyperparameter selection.
+    Every alpha is scored by k-fold cross-validation, the best alpha is chosen
+    per target (or once for all targets with `local_alpha=False`), and the model
+    is refit on the full data with the chosen alphas. For several feature spaces
+    use `solve_banded_ridge_cv`; for held-out predictions at already-selected
+    alphas use `cross_val_predict_ridge`.
+
+    **Memory.** Alphas are processed in batches of `n_alphas_batch` from one SVD
+    per fold, targets in batches of `n_targets_batch`, and with `Y_in_cpu=True`
+    only the current target batch is moved to the device. Time scales as
+    `O(n_splits × (n_alphas_batch × n_features² + n_targets_batch × n_samples))`,
+    memory as `O(n_features × n_targets_batch)` per batch; a GPU is roughly
+    10-100× faster once `n_features` exceeds ~10K.
 
     Args:
-        X: Feature matrix of shape (n_samples, n_features).
-        Y: Target data of shape (n_samples, n_targets).
-        alphas: Ridge regularization parameters to try.
-            Defaults to [0.1, 1.0, 10.0].
-        cv: Cross-validation strategy. If int, uses KFold with that many splits.
-            Defaults to 5.
-        local_alpha: If True, select best alpha independently for each target.
-            If False, select single best alpha for all targets. Defaults to True.
-        n_targets_batch: Batch size for targets during CV (for memory efficiency).
-            If None, processes all targets at once. Defaults to None.
-        n_targets_batch_refit: Batch size for targets during refit.
-            If None, uses n_targets_batch value. Defaults to None.
-        n_alphas_batch: Batch size for alphas (for memory efficiency).
-            If None, processes all alphas at once. Defaults to None.
-        Y_in_cpu: If True, keep Y on CPU and transfer batches to GPU as needed.
-            This prevents OOM when Y is large (e.g., 300k voxels).
-            Defaults to True (recommended for neuroimaging).
-        score_func: Scoring function (y_true, y_pred) -> scores.
-            If None, uses R² score. Defaults to None.
-        fit_intercept: Whether to fit an intercept. If False, X and Y should be centered.
+        X (np.ndarray): Feature matrix of shape (n_samples, n_features).
+        Y (np.ndarray): Targets of shape (n_samples, n_targets).
+        alphas (float | np.ndarray | list[float]): Ridge regularization
+            parameters to try. Defaults to `[0.1, 1.0, 10.0]`.
+        cv (int | BaseCrossValidator): Number of folds for unshuffled `KFold`, or
+            an sklearn cross-validator. Defaults to 5.
+        local_alpha (bool): If True, pick the best alpha independently per
+            target; if False, one alpha for all targets. Defaults to True.
+        n_targets_batch (int | None): Targets per batch during CV. None processes
+            all targets at once on the CPU; with `parallel="gpu"` None derives a
+            batch size from `max_gpu_memory_gb`. Defaults to None.
+        n_targets_batch_refit (int | None): Targets per batch during the refit.
+            None reuses `n_targets_batch`. Defaults to None.
+        n_alphas_batch (int | None): Alphas per batch. None processes all alphas
+            at once. Defaults to None.
+        Y_in_cpu (bool): If True, keep `Y` on the CPU and move one target batch
+            at a time to the device, which avoids running out of GPU memory on
+            large `Y` (e.g. 300k voxels). Defaults to True.
+        score_func (Callable | None): Scoring function `(y_true, y_pred) ->
+            per-target scores`. None uses R². Defaults to None.
+        fit_intercept (bool): If True, center `X` and `Y` per training fold and
+            return the intercept. If False, `X` and `Y` should already be
+            centered. Defaults to False.
+        progress_bar (bool): Accepted for API symmetry with
+            `solve_banded_ridge_cv`; this solver shows no progress bar.
             Defaults to False.
-        progress_bar: Whether to display progress bar (requires tqdm).
-            Defaults to False.
-        conservative: If True, select largest alpha within 1 std of best score.
-            Defaults to False.
-        parallel: Backend to use: "cpu", "gpu", or None.
-            Defaults to "cpu".
-        max_gpu_memory_gb: GPU memory budget in GB (only used if parallel="gpu").
-            Defaults to 4.0.
-        random_state: Random generator seed. Use an int for deterministic search.
+        conservative (bool): If True, pick the largest alpha within one standard
+            deviation of the best score (more regularization at similar
+            performance). Defaults to False.
+        parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
+            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
+            device when no GPU is present); `"auto"` uses torch when installed
+            and NumPy otherwise. Defaults to `"cpu"`.
+        max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
+            `n_targets_batch` when `parallel="gpu"`. None measures the device.
             Defaults to None.
+        random_state (int | None): Unused by this solver (the search is
+            deterministic); accepted for signature consistency. Defaults to None.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'best_alphas': Selected best alpha for each target (or same alpha repeated
-                if local_alpha=False), shape (n_targets,).
-            - 'coefs': Ridge coefficients refit on entire dataset using best alphas,
-                shape (n_features, n_targets). Always returned on CPU (numpy array).
-            - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).
-                Always returned on CPU (numpy array).
-            - 'intercept': Per-target intercept of shape (n_targets,). Only present
-                when ``fit_intercept=True``.
-            - 'backend': Backend used (for transparency).
+        dict: Keys `'best_alphas'` (np.ndarray, selected alpha per target — the
+            same value repeated when `local_alpha=False` — shape (n_targets,)),
+            `'coefs'` (np.ndarray, coefficients refit on the full data, shape
+            (n_features, n_targets)), `'cv_scores'` (np.ndarray, per-fold score
+            of every alpha, shape (n_splits, n_alphas, n_targets)), `'backend'`
+            (str, backend name), and — only when `fit_intercept=True` —
+            `'intercept'` (np.ndarray, shape (n_targets,)). Arrays are always
+            NumPy on the CPU.
+
+    Raises:
+        ValueError: If `X` and `Y` disagree on `n_samples`.
 
     Examples:
-        >>> X = np.random.randn(100, 50)
-        >>> Y = np.random.randn(100, 10)
-        >>> result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
-        >>> alphas = result['best_alphas']
-        >>> coefs = result['coefs']
-        >>> scores = result['cv_scores']
-
-    Notes:
-        This is the efficient implementation for single feature space ridge regression
-        with cross-validation. For multiple feature spaces (banded/group ridge),
-        use solve_banded_ridge_cv instead.
-
-        Algorithm details:
-
-        - Cross-validation: k-fold CV evaluates each alpha value
-        - Alpha selection: Chooses best alpha per target (or globally if local_alpha=False)
-        - Refit: Fits final model on full dataset using best alpha(s)
-
-        Memory efficiency strategies (Principle 2: automatic memory efficiency):
-
-        - Generator pattern for alpha batching (via _decompose_ridge): Processes alphas
-          in batches to avoid storing all resolution matrices simultaneously
-        - Target batching (n_targets_batch): Processes targets in chunks to fit GPU memory
-        - Y_in_cpu strategy: Keeps large Y on CPU, transfers only batches needed
-          for computation
-        - Immediate cleanup with del statements: Explicitly frees memory after each batch
-
-        Performance:
-
-        - Time complexity: O(n_splits × (n_alphas_batch × n_features^2 + n_targets_batch × n_samples))
-        - Memory complexity: O(n_features × n_targets_batch) per batch
-        - GPU acceleration: ~10-100× speedup for large problems (n_features > 10K)
-
-        See ``nltools.algorithms.ridge.utils._decompose_ridge()`` for generator pattern details.
-        See ``docs/development/ridge-internals.md`` for detailed algorithm explanation.
+        ```python
+        X = np.random.randn(100, 50)
+        Y = np.random.randn(100, 10)
+        result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
+        result["best_alphas"].shape  # → (10,)
+        result["coefs"].shape  # → (50, 10)
+        result["cv_scores"].shape  # → (5, 3, 10)
+        ```
     """
     from .utils import _decompose_ridge, _select_best_alphas, _r2_score
 
@@ -928,58 +892,60 @@ def cross_val_predict_ridge(
     parallel: str | None = "cpu",
     max_gpu_memory_gb: float | None = None,
 ) -> dict[str, Any]:
-    """Held-out ridge predictions per CV fold under a (per-target) alpha.
+    """Held-out ridge predictions per CV fold at a fixed (per-target) alpha.
 
-    For each fold, refits ridge with the supplied alpha (per-target or
-    scalar) on the training fold and predicts the held-out fold. Targets
-    sharing the same alpha share an SVD of the training fold via
-    `_refit_banded_ridge`, so the cost scales with the number of
-    *unique* alphas, not the number of targets.
+    For each fold, ridge is refit on the training fold with the supplied alpha
+    (scalar or per target) and the held-out fold is predicted. Targets sharing
+    an alpha share one SVD of the training fold, so the cost scales with the
+    number of *unique* alphas, not the number of targets.
 
-    Designed to be the BrainData CV layer's source of held-out predictions
-    when alpha selection has already been done by ``solve_ridge_cv``: pass
-    the selected per-voxel alphas back through here to get the fold-by-fold
-    predictions and per-fold R² needed for ``cv_results_``.
+    This is how `BrainData` obtains held-out predictions once `solve_ridge_cv`
+    has selected alphas: pass the selected per-voxel alphas back through here to
+    get the fold-by-fold predictions and per-fold R² for `cv_results_`.
 
     Args:
-        X: Feature matrix of shape (n_samples, n_features).
-        Y: Target data of shape (n_samples, n_targets). 1D ``Y`` is
+        X (np.ndarray): Feature matrix of shape (n_samples, n_features).
+        Y (np.ndarray): Targets of shape (n_samples, n_targets); a 1D `Y` is
             promoted to (n_samples, 1).
-        alphas: Per-target alpha array of shape (n_targets,) or a scalar
-            (broadcast to every target).
-        cv: Cross-validation strategy. If int, uses KFold with that many
-            splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``)
-            are rejected — pass the splitter object instead.
-        fit_intercept: If True, center X and Y on the *training fold's*
-            mean per fold (sklearn convention) and add the intercept back
-            so predictions live on the original Y scale.
-        n_targets_batch: Batch size for targets during refit (for memory
-            efficiency). If None, processes all targets at once.
-        n_alphas_batch: Batch size for alphas. If None, processes all
-            unique alphas at once.
-        Y_in_cpu: If True, keep Y on CPU and transfer batches to backend
-            device as needed (recommended for large neuroimaging Y).
-        score_func: Per-fold scoring function ``(y_true, y_pred) -> per-target
-            scores``. If None, uses R² in NumPy on CPU (cheap at one fold's
-            size and decoupled from backend ops to avoid stray transfers).
-        parallel: Backend to use: "cpu", "gpu", or None.
-        max_gpu_memory_gb: GPU memory budget in GB (only used if
-            parallel="gpu").
+        alphas (float | np.ndarray): Per-target alphas of shape (n_targets,), or
+            a scalar broadcast to every target.
+        cv (int | BaseCrossValidator): Number of folds for unshuffled `KFold`, or
+            an sklearn cross-validator. Generators (e.g. `KFold(5).split(X)`)
+            are rejected; pass the splitter object. Defaults to 5.
+        fit_intercept (bool): If True, center `X` and `Y` on the training fold's
+            means (sklearn convention) and add the intercept back so predictions
+            are on the original `Y` scale. Defaults to False.
+        n_targets_batch (int | None): Targets per batch during the refit. None
+            processes all targets at once on the CPU; with `parallel="gpu"` None
+            derives a batch size from `max_gpu_memory_gb`. Defaults to None.
+        n_alphas_batch (int | None): Alphas per batch. None processes all unique
+            alphas at once. Defaults to None.
+        Y_in_cpu (bool): If True, keep `Y` on the CPU and move one fold's
+            training targets at a time to the device (recommended for large
+            neuroimaging `Y`). Defaults to True.
+        score_func (Callable | None): Per-fold scoring function `(y_true, y_pred)
+            -> per-target scores`, evaluated on NumPy arrays. None uses R²,
+            computed in NumPy on the CPU. Defaults to None.
+        parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
+            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
+            device when no GPU is present); `"auto"` uses torch when installed
+            and NumPy otherwise. Defaults to `"cpu"`.
+        max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
+            `n_targets_batch` when `parallel="gpu"`. None measures the device.
+            Defaults to None.
 
     Returns:
-        dict: Dictionary with keys:
-            - 'predictions': (n_samples, n_targets) held-out per-target
-              predictions on the original Y scale (CPU numpy).
-            - 'folds': (n_samples,) int fold index per row (CPU numpy).
-            - 'scores': (n_splits, n_targets) per-fold R² (or
-              ``score_func``) at the supplied alpha (CPU numpy).
-            - 'backend': Backend used (for transparency).
+        dict: Keys `'predictions'` (np.ndarray, held-out predictions on the
+            original `Y` scale, shape (n_samples, n_targets)), `'folds'`
+            (np.ndarray, fold index per row, shape (n_samples,)), `'scores'`
+            (np.ndarray, per-fold R² or `score_func` output, shape (n_splits,
+            n_targets)), and `'backend'` (str, backend name). Arrays are NumPy on
+            the CPU.
 
     Raises:
-        TypeError: If ``cv`` is a single-use generator. Pass the splitter
-            object instead.
-        ValueError: If ``alphas`` does not broadcast to ``(n_targets,)``,
-            or ``n_samples`` of X and Y disagree.
+        TypeError: If `cv` is a single-use generator rather than a splitter.
+        ValueError: If `alphas` does not broadcast to `(n_targets,)`, or `X` and
+            `Y` disagree on `n_samples`.
     """
     # Reject single-use generators — same reason ridge_cv rejects them:
     # the splitter must be re-iterable across folds.

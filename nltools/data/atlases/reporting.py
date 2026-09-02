@@ -31,17 +31,16 @@ class ClusterReport:
     """Result of `BrainData.cluster_report`.
 
     Attributes:
-        peaks: Polars DataFrame, one row per peak (incl. sub-peaks). Columns
-            ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``,
-            ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas.
-            ``cluster_id`` shares the integer id space of ``clusters`` (they are
-            joinable); sub-peaks carry their parent cluster's id.
-        clusters: Polars DataFrame, one row per cluster. Columns
-            ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``,
-            ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8
-            column per atlas (mass-weighted top regions).
-        stat_img: BrainData with the thresholded stat map (sub-cluster
-            voxels and clusters smaller than ``cluster_threshold`` zeroed).
+        peaks (pl.DataFrame): One row per peak (incl. sub-peaks). Columns
+            `cluster_id`, `x`, `y`, `z` (mm), `peak_stat`, `volume_mm3`,
+            `n_voxels`, then one Utf8 column per atlas. `cluster_id` shares the
+            integer id space of `clusters` (they are joinable); sub-peaks carry
+            their parent cluster's id.
+        clusters (pl.DataFrame): One row per cluster. Columns `cluster_id`,
+            `peak_x`, `peak_y`, `peak_z`, `mean_stat`, `volume_mm3`, `n_voxels`,
+            then one Utf8 column per atlas (mass-weighted top regions).
+        stat_img (BrainData): The thresholded stat map (sub-threshold voxels and
+            clusters smaller than `cluster_threshold` zeroed).
     """
 
     peaks: pl.DataFrame
@@ -49,7 +48,11 @@ class ClusterReport:
     stat_img: "BrainData"
 
     def to_csv(self, output_dir: str | Path) -> None:
-        """Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``."""
+        """Write `peaks.csv` and `clusters.csv` into `output_dir`.
+
+        Args:
+            output_dir (str | Path): Directory to write into (created if missing).
+        """
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         self.peaks.write_csv(output_dir / "peaks.csv")
@@ -63,15 +66,13 @@ class ClusterReport:
         """Render an overview glass brain + one slice figure per cluster.
 
         Args:
-            output_dir: If given, save ``overview.png`` and
-                ``cluster_NN.png`` files into the directory and return
-                ``None``. If omitted, return a list of
-                ``(label, matplotlib.figure.Figure)`` tuples without
-                writing to disk.
+            output_dir (str | Path, optional): If given, save `overview.png` and
+                `cluster_NN.png` files into the directory and return None. If
+                omitted, return the figures without writing to disk.
 
         Returns:
-            ``None`` when ``output_dir`` is set, else a list of
-                ``(label, figure)`` tuples.
+            list[tuple[str, matplotlib.figure.Figure]] | None: `(label, figure)`
+                tuples, or None when `output_dir` is set.
         """
         from matplotlib import pyplot as plt
         from nilearn.plotting import plot_glass_brain, plot_stat_map
@@ -387,19 +388,23 @@ def cluster_report_data(
     wraps the result in a `ClusterReport`.
 
     Args:
-        bd: BrainData with a 3D stat map (single sample).
-        stat_threshold: Voxel-level threshold. ``None`` means treat ``bd``
-            as already thresholded (skip voxel filtering, keep all
-            non-zero voxels).
-        cluster_threshold: Minimum cluster size in voxels.
-        two_sided: Report negative clusters as separate clusters.
-        min_distance: Minimum distance (mm) between sub-peaks. Passed to
-            `get_clusters_table`.
-        atlas: Atlas name or list of names from `list_atlases`.
-        prob_threshold: Drop probabilistic-atlas regions below this %.
+        bd (BrainData): A single 3-D stat map.
+        stat_threshold (float, optional): Voxel-level threshold. None means treat
+            `bd` as already thresholded (skip voxel filtering, keep all non-zero
+            voxels). Default 3.0.
+        cluster_threshold (int): Minimum cluster size in voxels. Default 10.
+        two_sided (bool): Report negative clusters as separate clusters. Default
+            True.
+        min_distance (float): Minimum distance (mm) between sub-peaks. Passed to
+            `get_clusters_table`. Default 8.0.
+        atlas (str | Sequence[str]): Atlas name or list of names from
+            `list_atlases`. Default `DEFAULT_ATLASES`.
+        prob_threshold (float): Drop probabilistic-atlas regions below this
+            percentage. Default 5.0.
 
     Returns:
-        Tuple ``(peaks, clusters, thresholded_bd)``.
+        tuple[pl.DataFrame, pl.DataFrame, BrainData]: `(peaks, clusters,
+            thresholded_bd)` — see `ClusterReport` for the frame layouts.
     """
     from nltools.data import BrainData
 
