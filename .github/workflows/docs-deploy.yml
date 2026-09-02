@@ -8,7 +8,9 @@ name: Docs
 # also a test layer: a notebook that fails to run fails the build before deploy.
 #
 # nltools.org is a custom domain served from the site root, so BASE_URL stays
-# unset here. BASE_URL=/<repo> exists for subpath deploys (a fork's project page).
+# unset here and the docs-site task's SITE_URL default (https://nltools.org) is the
+# sitemap/robots host. A fork deploying to a project page sets BASE_URL=/<repo>
+# and SITE_URL=https://<user>.github.io/<repo>.
 on:
   push:
     branches:

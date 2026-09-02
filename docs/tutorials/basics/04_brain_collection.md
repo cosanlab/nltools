@@ -233,7 +233,7 @@ group["t"].plot(title="High-pain one-sample t (n=28)")
 ```
 
 ```{code-cell} python3
-# Threshold the t-map for display (|z| > 2)
+# Threshold the z-map for display (|z| > 2)
 group["z"].threshold(lower=-2, upper=2, binarize=False).plot(
     title="High-pain z, thresholded |z| > 2"
 )
@@ -242,14 +242,16 @@ group["z"].threshold(lower=-2, upper=2, binarize=False).plot(
 ## Where to go next
 
 This tour covered the data structure itself — construction, indexing, per-subject
-parallel ops, the path-backed cache, and group reductions. The full analysis
-workflows that `BrainCollection` powers live in the **Workflows** tutorials:
+parallel ops, the path-backed cache, and group reductions. The **Workflows**
+tutorials walk through the analyses themselves with explicit per-subject loops;
+each maps onto a `BrainCollection` call:
 
-- **GLM Analysis** — `from_bids` → per-subject `fit(model="glm")` →
-  `compute_contrasts(...)` → `ttest()`.
-- **Multivariate Pattern Analysis** — cross-subject decoding via
-  `bc.predict_group(y, ...)` (group MVPA, subjects as samples).
-- **Inter-Subject Correlation** — `bc.isc(...)` / `bc.isc_test(...)`.
+- [GLM Analysis](../workflows/01_glm.md) — `from_bids` → `bc.fit(model="glm")` →
+  `bc.compute_contrasts(...)` → `bc.ttest()`.
+- [Multivariate Pattern Analysis](../workflows/03_mvpa.md) — cross-subject
+  decoding via `bc.predict_group(y, ...)` (subjects as samples).
+- [Inter-Subject Correlation](../workflows/04_isc.md) — `bc.isc(...)` /
+  `bc.isc_test(...)`.
 
 When you're done with a real (disk-backed) collection, call `bc.cleanup()` to
 remove its cache root.

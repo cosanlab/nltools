@@ -169,7 +169,7 @@ def _(contrasts):
 def _(mo):
     mo.md(
         r"""
-    Even at one subject the left-lateralized fronto-temporal language network is visible (`|t| > 3.09`, two-tailed p ≈ 0.001).
+    Even at one subject the left-lateralized fronto-temporal language network is visible (`|t| > 3.09`, uncorrected p ≈ 0.002 two-tailed).
 
     ### Second level (group)
 
@@ -216,7 +216,7 @@ def _(mo):
         r"""
     ### Multiple-comparisons correction
 
-    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: on a ten-subject demo, far fewer voxels survive than at the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
+    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though hundreds pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
     """
     )
     return
@@ -255,7 +255,7 @@ def _(mo):
     | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
     | Correction | FDR threshold | `nltools.algorithms.fdr`, `nltools.algorithms.threshold` |
 
-    The per-subject loop is the explicit path; `BrainCollection` will wrap multi-subject fitting into a single call once it lands on this branch.
+    The per-subject loop is the explicit path; [`BrainCollection`](../basics/04_brain_collection.md) wraps the same per-subject fit → contrast → group test into parallel, cached calls (`bc.fit(...)`, `bc.compute_contrasts(...)`, `bc.ttest()`).
 
     **Next steps**
 

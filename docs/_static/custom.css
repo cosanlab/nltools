@@ -11,8 +11,10 @@
   vertical-align: middle;
 }
 
-.badge-feature { background-color: var(--color-tip); }
-.badge-fix { background-color: var(--color-warning); }
-.badge-improvement { background-color: var(--color-primary); }
+/* Fixed colors: the book theme exposes no --color-* tokens, so a var() here
+   resolves to nothing and the badge disappears against a light page. */
+.badge-feature { background-color: #059669; }
+.badge-fix { background-color: #d97706; }
+.badge-improvement { background-color: #2563eb; }
 .badge-docs { background-color: #8b5cf6; }
-.badge-release { background-color: var(--color-hover); }
+.badge-release { background-color: #4b5563; }

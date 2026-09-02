@@ -53,7 +53,7 @@ def _fmt_sec(x: float | None) -> str:
 
 def _provenance(env: dict) -> str:
     bits = [
-        f"**Host:** {env.get('host', '?')}",
+        f"**Host:** `{env.get('host', '?')}`",
         f"**Platform:** {env.get('platform', '?')}",
         f"**Python:** {env.get('python', '?')}",
         f"**NumPy:** {env.get('numpy', '?')}",
@@ -79,7 +79,7 @@ def _domain_table(df: pl.DataFrame, domain: str) -> str:
     for r in sub.iter_rows(named=True):
         gpu = f"{r['peak_device_mb']:.0f} MB" if r.get("peak_device_mb") else "-"
         lines.append(
-            f"| {r['name']} | {r['device']} | {_fmt_sec(r['seconds'])} "
+            f"| `{r['name']}` | {r['device']} | {_fmt_sec(r['seconds'])} "
             f"| {r['peak_rss_mb']:.1f} MB | {gpu} |"
         )
     return "\n".join(lines)
@@ -110,7 +110,7 @@ def _speedup_table(df: pl.DataFrame, domain: str) -> str:
         if r["cpu"] is None or r[gpu_col] is None:
             continue
         lines.append(
-            f"| {r['name']} | {_fmt_sec(r['cpu'])} | {_fmt_sec(r[gpu_col])} "
+            f"| `{r['name']}` | {_fmt_sec(r['cpu'])} | {_fmt_sec(r[gpu_col])} "
             f"| **{r['speedup']:.2f}×** |"
         )
     return "\n".join(lines)
@@ -142,7 +142,7 @@ def _collection_memory_table(df: pl.DataFrame) -> str:
 def _host_section(df_host: pl.DataFrame, host: str, env: dict) -> list[str]:
     """One host's provenance + speedup + memory + full-results tables."""
     title = env.get("host", host)
-    parts = [f"### {title}", "", _provenance(env), ""]
+    parts = [f"### `{title}`", "", _provenance(env), ""]
     speedups = [t for d in ("ridge", "inference") if (t := _speedup_table(df_host, d))]
     if speedups:
         parts += ["**GPU speedup**", "", *_join(speedups)]

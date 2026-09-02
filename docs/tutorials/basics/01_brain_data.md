@@ -97,7 +97,7 @@ print(f"Selected: {selected.shape}")
 Boolean indexing filters images by computed properties:
 
 ```{code-cell} python3
-# Filter images whose global mean exceeds twice their own global mean
+# Keep the images whose global mean is above the average across images
 # (illustrative boolean-mask indexing)
 _global_mean = brains.mean(axis=1)
 _keep = _global_mean > _global_mean.mean()
@@ -218,13 +218,13 @@ masked_data.plot(title="Mean Activation")
 ### Slices
 
 ```{code-cell} python3
-# Default: all views
+# Default: axial (z) slices only
 masked_data.plot(method="slices")
 ```
 
 ```{code-cell} python3
-# Only the Z view
-masked_data.plot(method="slices", view="z")
+# Any combination of x/y/z views, one row per axis
+masked_data.plot(method="slices", view="xyz")
 ```
 
 ### Surface & flat-map
@@ -266,6 +266,7 @@ Pass `controls=False` to hide the slider (right-drag windowing still works), and
 
 ```{code-cell} python3
 # Interactive niivue viewer with a threshold slider (an anywidget driving
-# @niivue/niivue directly, so it renders in any live kernel).
+# @niivue/niivue directly). It needs a live kernel, so on this static page
+# only a placeholder appears; run the notebook to explore the volume.
 masked_data.iplot()
 ```

@@ -6,7 +6,7 @@ Learn how to use nltools through hands-on examples. Start with the **Basics** to
 
 Each tutorial runs end-to-end and shows its outputs inline. Every page is rendered from a [marimo](https://marimo.io) notebook under [`docs/tutorials/`](https://github.com/cosanlab/nltools/tree/master/docs/tutorials) — download the `.py` and open it with `uvx marimo edit --sandbox <notebook>.py` to run and edit every cell yourself.
 
-### Basics
+## Basics
 
 These tutorials introduce the four core data classes in nltools. Each one covers creation, manipulation, and common operations.
 
@@ -34,7 +34,7 @@ A parallel, memory-efficient iterator of BrainData: per-subject operations in pa
 
 ::::
 
-### Workflows
+## Workflows
 
 End-to-end analysis workflows that demonstrate how nltools classes and functions work together for real neuroimaging analyses.
 
@@ -64,15 +64,7 @@ Shared, time-locked responses to naturalistic movies, measured across subjects.
 
 ## Learning Resources
 
-## [Dartbrains](https://dartbrains.org)
-
-A fundamentals of neuroimaging undergraduate level course
-
-## [Naturalistic Data](https://naturalistic-data.org)
-
-A more advanced neuroimaging course for working with *naturalistic* datasets (e.g. watching movies, playing games, etc).
-
-## [Discourse Community](https://www.askpbs.org/c/nltools/13)
-
-A Stack Overflow like forum where you can view, contribute, and vote on FAQs regarding `nltools`. Please ask questions here *first* so that other users can benefit from the answers!
+- [Dartbrains](https://dartbrains.org) — an undergraduate-level course on the fundamentals of neuroimaging.
+- [Naturalistic Data](https://naturalistic-data.org) — a more advanced course on working with *naturalistic* datasets (watching movies, playing games, etc.).
+- [Discourse Community](https://www.askpbs.org/c/nltools/13) — a Stack Overflow-like forum where you can view, contribute, and vote on FAQs about `nltools`. Ask questions here *first* so other users can benefit from the answers.
 

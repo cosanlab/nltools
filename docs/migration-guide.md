@@ -2069,6 +2069,7 @@ best_alpha = brain_data.cv_results_['best_alpha']
 alpha_scores = brain_data.cv_results_['alpha_scores']
 ```
 
+(braincollection)=
 ### BrainCollection
 
 `BrainCollection` replaces v0.5.1's `Brain_Collection`: a lazy, parallel,

@@ -10,6 +10,9 @@ project:
   # text output when their last expression isn't silenced.
   settings:
     output_matplotlib_strings: remove
+  plugins:
+    # Undo linkify's dead links on dotted identifiers (`BrainData.fit` -> http://BrainData.fit).
+    - plugins/unlinkify.mjs
   toc:
     - file: index.md
     - file: migration-guide.md
@@ -132,6 +135,10 @@ project:
             - file: development/inference-internals.md
         - file: changelog.md
 site:
+  # No `domains:` entry — mystmd rejects apex domains (it requires >= 3 dot-parts,
+  # e.g. `docs.example.org`). The static build stamps its localhost dev-server host
+  # into sitemap.xml/robots.txt/page metadata instead; the docs-site task rewrites
+  # it to SITE_URL (default https://nltools.org).
   options:
     logo: ''
     logo_text: nltools

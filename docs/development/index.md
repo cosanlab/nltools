@@ -9,7 +9,7 @@ This section is the design reference for **contributors and maintainers** (and f
 coding assistants working in the repo). It documents *how* nltools is built and *why*
 — the invariants that keep the codebase coherent. For *what the public API does*, see
 the [API reference](../api/data/brain_data.md); for a visual, interactive walkthrough,
-see the [Design Tour](../design-tour.md).
+see the [Design Tour](/design-tour.html).
 
 ## Functional core, imperative shell
 
@@ -63,6 +63,7 @@ The four facades and their submodules:
   user-controlled names — no underscore counts, no substring tests. Users may then name
   their regressors anything without colliding with the machinery.
 
+(canonical-api-vocabulary)=
 ### Canonical API vocabulary
 
 The four facades share one kwarg vocabulary (v0.6.0). The machine-readable source of

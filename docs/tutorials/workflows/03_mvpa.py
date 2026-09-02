@@ -60,6 +60,8 @@ def _():
     from nltools.templates import fetch_resource
 
     memory = Memory(".cache/tutorials", verbose=0)
+    # joblib can't inspect the source of functions defined in notebook cells,
+    # so `@memory.cache` warns that it can't detect name collisions. Benign here.
     warnings.filterwarnings("ignore", message="Cannot detect name collisions")
     return Adjacency, BrainData, Memory, fetch_resource, memory, np, pd
 

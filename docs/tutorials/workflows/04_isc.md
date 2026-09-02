@@ -33,6 +33,8 @@ from nltools.mask import roi_to_brain_from_atlas
 from nltools.templates import fetch_resource
 
 memory = Memory(".cache/tutorials", verbose=0)
+# joblib can't inspect the source of functions defined in notebook cells,
+# so `@memory.cache` warns that it can't detect name collisions. Benign here.
 warnings.filterwarnings("ignore", message="Cannot detect name collisions")
 ```
 
@@ -124,8 +126,7 @@ ax.plot(lims, lims, "k--", linewidth=1, label="y = x")
 ax.set_xlabel("pairwise ISC")
 ax.set_ylabel("leave-one-out ISC")
 ax.set_title("Pairwise vs. leave-one-out (per region)")
-ax.legend()
-fig
+_ = ax.legend()
 ```
 
 ## Recap

@@ -109,17 +109,19 @@ def _(mo):
 
 
 @app.cell
-def _(stim):
+def _(np, stim):
     import matplotlib.pyplot as plt
 
+    # Each stimulus is held on screen for several TRs, so show the first TR of
+    # four *different* stimuli rather than four copies of the same one.
     on_frames = (stim.sum(axis=1) > 0).nonzero()[0]
+    first_seen = sorted(np.unique(stim[on_frames], axis=0, return_index=True)[1])
     stim_fig, stim_axes = plt.subplots(1, 4, figsize=(9, 2.6))
-    for stim_ax, frame in zip(stim_axes, on_frames[:4]):
+    for stim_ax, frame in zip(stim_axes, on_frames[first_seen[:4]]):
         stim_ax.imshow(stim[frame].reshape(10, 10), cmap="gray", vmin=0, vmax=1)
         stim_ax.set_title(f"TR {frame}")
         stim_ax.axis("off")
-    stim_fig.suptitle("Stimulus frames (10×10 binary contrast)", y=1.05)
-    stim_fig
+    _ = stim_fig.suptitle("Stimulus frames (10×10 binary contrast)", y=1.05)
     return (plt,)
 
 
@@ -228,12 +230,15 @@ def _(mo):
 @app.cell
 def _(ALPHAS, bold, np, plt):
     best_alpha = np.asarray(bold.cv_results_["best_alpha"]).ravel()
+    # One bin per grid value, edges at the midpoints between neighbouring alphas.
+    log_grid = np.log10(ALPHAS)
+    step = log_grid[1] - log_grid[0]
+    edges = np.concatenate([log_grid - step / 2, [log_grid[-1] + step / 2]])
     alpha_fig, alpha_ax = plt.subplots(figsize=(7, 3))
-    alpha_ax.hist(np.log10(best_alpha), bins=len(ALPHAS), color="steelblue")
+    alpha_ax.hist(np.log10(best_alpha), bins=edges, color="steelblue")
     alpha_ax.set_xlabel(r"$\log_{10}(\alpha)$ selected per voxel")
     alpha_ax.set_ylabel("voxel count")
-    alpha_ax.set_title("Per-voxel ridge α — voxels disagree on regularization")
-    alpha_fig
+    _ = alpha_ax.set_title("Per-voxel ridge α — voxels disagree on regularization")
     return
 
 

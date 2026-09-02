@@ -321,7 +321,17 @@
 .tour-root .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
 .tour-root .reveal.in { opacity: 1; transform: translateY(0); }
 .tour-root .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+/* Grid items default to min-width:auto, so a wide <pre> or table inside a card
+   would stretch its track past the viewport instead of scrolling within it. */
+.tour-root .two-col > *, .tour-root .arch-row > *, .tour-root .lifecycle-stage > * { min-width: 0; }
 @media (max-width: 720px) { .tour-root .two-col { grid-template-columns: 1fr; } }
+
+/* ---- NARROW SCREENS: fixed-width grid columns stack; wide tables scroll instead of clipping ---- */
+@media (max-width: 720px) {
+  .tour-root .arch-row, .tour-root .lifecycle-stage { grid-template-columns: 1fr; gap: 8px; }
+  .tour-root .arch-row:hover { transform: none; }
+  .tour-root table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
 .tour-root .two-col h4 { margin-top: 0; }
 .tour-root .two-col pre { font-size: 12px; }
 .tour-root .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-family: var(--tour-mono); font-size: 12px; }

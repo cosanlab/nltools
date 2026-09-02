@@ -179,7 +179,7 @@ def _(mo):
 
 @app.cell
 def _(brains):
-    # Filter images whose global mean exceeds twice their own global mean
+    # Keep the images whose global mean is above the average across images
     # (illustrative boolean-mask indexing)
     _global_mean = brains.mean(axis=1)
     _keep = _global_mean > _global_mean.mean()
@@ -378,15 +378,15 @@ def _(mo):
 
 @app.cell
 def _(masked_data):
-    # Default: all views
+    # Default: axial (z) slices only
     masked_data.plot(method="slices")
     return
 
 
 @app.cell
 def _(masked_data):
-    # Only the Z view
-    masked_data.plot(method="slices", view="z")
+    # Any combination of x/y/z views, one row per axis
+    masked_data.plot(method="slices", view="xyz")
     return
 
 
@@ -458,7 +458,8 @@ def _(mo):
 @app.cell
 def _(masked_data):
     # Interactive niivue viewer with a threshold slider (an anywidget driving
-    # @niivue/niivue directly, so it renders in any live kernel).
+    # @niivue/niivue directly). It needs a live kernel, so on this static page
+    # only a placeholder appears; run the notebook to explore the volume.
     masked_data.iplot()
     return
 

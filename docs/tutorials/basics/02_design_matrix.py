@@ -168,8 +168,7 @@ def _(dm):
 
     _fig, _ax = plt.subplots(figsize=(8, 4))
     dm.plot(method="timeseries", columns=["face_A"], ax=_ax)
-    dm.convolve().plot(method="timeseries", columns=["face_A_c0"], ax=_ax)
-    _fig
+    _ = dm.convolve().plot(method="timeseries", columns=["face_A_c0"], ax=_ax)
     return (plt,)
 
 

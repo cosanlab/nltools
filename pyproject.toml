@@ -242,7 +242,7 @@ python scripts/marimo_to_myst.py --all
 # (local, and the nltools.org deploy); set it (e.g. /nltools) only for a subpath
 # deploy such as a fork's GitHub Pages project page.
 [tool.poe.tasks.docs-site]
-help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (BASE_URL=/<repo> only for a subpath deploy)"
+help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
 shell = """
 set -eu
 # MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
@@ -250,6 +250,11 @@ set -eu
 # new clone) can execute — idempotent, and a no-op harm if already present.
 python -m ipykernel install --sys-prefix --name python3 --display-name 'Python 3' >/dev/null 2>&1 || true
 cd docs
+# The kernel must not inherit a developer's ~/.ipython profile (e.g.
+# ast_node_interactivity='all' prints every bare expression and duplicates
+# figures); an empty IPYTHONDIR keeps executed outputs identical to CI.
+mkdir -p _build/ipython
+export IPYTHONDIR="$PWD/_build/ipython"
 myst build --site --html --execute
 # Standalone interactive Design Tour page (not a MyST page; copied verbatim).
 cp public/design-tour.html _build/html/design-tour.html
@@ -258,6 +263,11 @@ cp public/design-tour.html _build/html/design-tour.html
 if [ -n "${BASE_URL:-}" ]; then
   find _build/html -type f \\( -name '*.html' -o -name '*.json' \\) -exec perl -pi -e 's{(?<![\\w-])/design-tour\\.html}{$ENV{BASE_URL}/design-tour.html}g' {} +
 fi
+# The static build stamps its localhost dev-server host into sitemap.xml, robots.txt
+# and each page's site metadata (myst.yml `domains:` can't hold an apex domain).
+# Rewrite it to the public origin so search engines index the deployed URLs.
+export SITE_URL="${SITE_URL:-https://nltools.org}"
+find _build/html -type f \\( -name '*.html' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' \\) -exec perl -pi -e 's{http://localhost:3000}{$ENV{SITE_URL}}g' {} +
 """
 
 [tool.poe.tasks.docs-build]
@@ -269,7 +279,7 @@ sequence = [
 
 [tool.poe.tasks.docs-preview]
 help = "Live preview the MyST site with executed tutorial outputs (reuses the execute cache; only changed cells re-run)"
-shell = """cd docs && myst start --execute"""
+shell = """cd docs && mkdir -p _build/ipython && IPYTHONDIR="$PWD/_build/ipython" myst start --execute"""
 
 [tool.poe.tasks.tutorials-check]
 help = "Lint tutorial marimo notebooks (static checks, no execution)"
