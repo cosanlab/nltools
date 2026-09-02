@@ -94,9 +94,8 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
         **kwargs: Additional arguments passed to scipy.spatial.distance.cdist.
 
     Returns:
-        dist: (Adjacency) Whole-brain pairwise distance matrix, or a stacked
-            Adjacency (one per parcel/searchlight) with ``spatial_scale``
-            provenance set.
+        Adjacency: Whole-brain pairwise distance matrix, or a stacked Adjacency
+            (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
     """
     valid = {"whole_brain", "roi", "searchlight"}
@@ -431,9 +430,8 @@ def multivariate_similarity(bd, images, method="ols", tail=2):
         method (str): Regression method. Default: 'ols'.
 
     Returns:
-        out: dictionary of raw regression statistics (numpy arrays/scalars,
-            not BrainData) with keys
-            {'beta','t','p','df','sigma','residual'}
+        dict: Raw regression statistics (numpy arrays/scalars, not BrainData)
+            with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
 
     """
     # Notes:  Should add ridge, and lasso, elastic net options options
@@ -467,7 +465,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
         resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
 
     Returns:
-        masked: (BrainData) masked BrainData object
+        BrainData: Masked BrainData object.
 
     Note:
         Uses nilearn.masking.apply_mask for efficient, validated masking.
@@ -535,24 +533,22 @@ def extract_roi(bd, mask, method="mean", n_components=None):
         n_components: If method='pca', number of components to return
 
     Returns:
-        For binary mask:
-
-            - Single image: scalar value
-            - Multiple images: 1D array of values
-
-        For labeled atlas:
-
-            - Single image: 1D array (one value per ROI)
-            - Multiple images: 2D array (images x ROIs)
-            - If method='pca': returns components array
+        float | np.ndarray: For a binary mask, a scalar (single image) or 1D array
+            of values (multiple images). For a labeled atlas, a 1D array with one
+            value per ROI (single image), a 2D array of images x ROIs (multiple
+            images), or the components array when `method='pca'`.
 
     Examples:
-        >>> # Extract mean from binary mask
-        >>> roi_values = brain.extract_roi(binary_mask)
-        >>> # Extract from atlas
-        >>> atlas_values = brain.extract_roi(atlas_mask)
-        >>> # PCA extraction
-        >>> components = brain.extract_roi(mask, method='pca', n_components=5)
+        ```python
+        # Extract mean from binary mask
+        roi_values = brain.extract_roi(binary_mask)
+
+        # Extract from atlas
+        atlas_values = brain.extract_roi(atlas_mask)
+
+        # PCA extraction
+        components = brain.extract_roi(mask, method='pca', n_components=5)
+        ```
     """
     from nilearn.maskers import NiftiLabelsMasker
 
@@ -664,7 +660,7 @@ def detrend_data(bd, method="linear"):
         method: ('linear','constant', optional) type of detrending
 
     Returns:
-        out: (BrainData) detrended BrainData instance
+        BrainData: Detrended BrainData instance.
 
     """
     from scipy.signal import detrend
@@ -765,46 +761,38 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
     return out
 
 
-def standardize(bd, *, axis=0, method="center", suppress_warnings=False):
+def standardize(bd, *, axis=0, method="center"):
     """Standardize BrainData() instance.
+
+    Computed in float64 and cast back to the input dtype, so raw float32 BOLD
+    (large offsets) stays exact. Constant voxels/observations z-score to 0.
 
     Args:
         bd: BrainData instance.
         axis: 0 for observations 1 for voxels (default: 0)
         method: ['center','zscore'] (default: 'center')
-        suppress_warnings: If True, suppress sklearn numerical warnings that
-            occur when voxels have near-zero variance. (default: False)
 
     Returns:
         BrainData: Standardized BrainData instance.
 
     """
-    import warnings
-
-    from sklearn.preprocessing import scale
-
     if axis == 1 and len(bd.shape) == 1:
         raise IndexError(
             "BrainData is only 3d but standardization was requested over observations"
         )
+    if method not in ("center", "zscore"):
+        raise ValueError('method must be ["center","zscore"')
+
+    data = np.asarray(bd.data, dtype=np.float64)
+    centered = data - data.mean(axis=axis, keepdims=True)
+    if method == "zscore":
+        std = centered.std(axis=axis, keepdims=True)
+        std[std == 0] = 1.0  # constant along `axis` -> 0, not nan
+        centered /= std
 
     # Optimized: Use shallow copy instead of deepcopy
     out = shallow_copy(bd)
-    if method == "zscore":
-        with_std = True
-    elif method == "center":
-        with_std = False
-    else:
-        raise ValueError('method must be ["center","zscore"')
-
-    if suppress_warnings:
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", message="Numerical issues", category=UserWarning
-            )
-            out.data = scale(bd.data, axis=axis, with_std=with_std)
-    else:
-        out.data = scale(bd.data, axis=axis, with_std=with_std)
+    out.data = centered.astype(bd.data.dtype, copy=False)
     return out
 
 
@@ -838,12 +826,13 @@ def scale_data(bd, scale_val=100.0, axis=None):
         BrainData: New BrainData instance with scaled data.
 
     Examples:
-        >>> # Grand-mean scaling (default)
-        >>> scaled = brain.scale(100.0)
-        >>>
-        >>> # Voxel-wise scaling (AFNI style)
-        >>> scaled = brain.scale(100.0, axis=0)
+        ```python
+        # Grand-mean scaling (default)
+        scaled = brain.scale(100.0)
 
+        # Voxel-wise scaling (AFNI style)
+        scaled = brain.scale(100.0, axis=0)
+        ```
     """
     out = shallow_copy(bd)
     out.data = bd.data.copy()
@@ -911,7 +900,7 @@ def threshold_data(
                 with cluster thresholding. Default 0 (disabled).
 
     Returns:
-        Thresholded BrainData object.
+        BrainData: Thresholded BrainData object.
 
     Note:
         When cluster_threshold=0 (default), uses fast path for basic thresholding.
@@ -1068,7 +1057,7 @@ def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklea
         **kwargs: Additional keyword arguments passed to the decomposition algorithm.
 
     Returns:
-        output: a dictionary of decomposition parameters
+        dict: A dictionary of decomposition parameters.
     """
     import importlib
 
@@ -1122,16 +1111,20 @@ def align(bd, target, method="procrustes", axis=0):
         axis: (int) axis to align on (default: 0)
 
     Returns:
-        out: (dict) a dictionary containing transformed object,
-            transformation matrix, and the shared response matrix
+        dict: A dictionary containing the transformed object, transformation
+            matrix, and the shared response matrix.
 
     Examples:
-        - Hyperalign using procrustes transform:
-            >>> out = data.align(target, method='procrustes')
-        - Align using shared response model:
-            >>> out = data.align(target, method='probabilistic_srm', n_features=None)
-        - Project aligned data into original data:
-            >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+        ```python
+        # Hyperalign using procrustes transform
+        out = data.align(target, method='procrustes')
+
+        # Align using shared response model
+        out = data.align(target, method='probabilistic_srm')
+
+        # Project aligned data back into original data space
+        original_data = np.dot(out['transformed'].data, out['transformation_matrix'].T)
+        ```
     """
     from nltools.algorithms.alignment import procrustes
     from .utils import check_brain_data
@@ -1208,7 +1201,7 @@ def smooth(bd, fwhm):
         fwhm: (float) full width half maximum of gaussian spatial filter
 
     Returns:
-        BrainData instance (copy with smoothed data)
+        BrainData: Copy with smoothed data.
     """
     from nilearn.image import smooth_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
@@ -1259,16 +1252,18 @@ def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
     This function can up- or down-sample data.
 
-    Note: this function can use quite a bit of RAM.
-
     Args:
         bd: BrainData instance.
         sampling_freq: (float) sampling frequency of data in hertz (default: None)
         target: (float) upsampling target (default: None)
-        target_type: (str) type of target can be [samples,seconds,hz] (default: 'hz')
+        target_type: (str) type of target: `'samples'`, `'seconds'`, or `'hz'`
+            (default: 'hz')
 
     Returns:
-        upsampled BrainData instance
+        BrainData: Resampled BrainData instance.
+
+    Note:
+        This function can use quite a bit of RAM.
     """
     from scipy.interpolate import pchip
 

@@ -1676,31 +1676,29 @@ class BrainData:
             fwhm: (float) full width half maximum of gaussian spatial filter
 
         Returns:
-            BrainData instance (copy with smoothed data)
+            BrainData: Copy with smoothed data.
         """
         from .analysis import smooth
 
         return smooth(self, fwhm)
 
-    def standardize(self, *, axis=0, method="center", suppress_warnings=False):
+    def standardize(self, *, axis=0, method="center"):
         """Standardize BrainData() instance.
+
+        Constant voxels (or observations) z-score to 0 rather than NaN.
 
         Args:
             axis (int): 0 standardizes each voxel across observations (default).
                 1 standardizes each observation across voxels.
             method (str): 'center' subtracts the mean (default).
                 'zscore' subtracts the mean and divides by standard deviation.
-            suppress_warnings (bool): If True, suppress sklearn numerical warnings
-                that occur when voxels have near-zero variance. Default: False.
 
         Returns:
             BrainData: Standardized BrainData instance.
         """
         from .analysis import standardize
 
-        return standardize(
-            self, axis=axis, method=method, suppress_warnings=suppress_warnings
-        )
+        return standardize(self, axis=axis, method=method)
 
     def std(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
         """Get standard deviation of each voxel or image.

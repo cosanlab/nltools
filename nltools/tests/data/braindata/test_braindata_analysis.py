@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import nibabel as nb
 import pytest
@@ -146,7 +148,6 @@ class TestBrainDataAnalysis:
         detrend = minimal_brain_data.detrend()
         assert detrend.shape == minimal_brain_data.shape
 
-    @pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
     def test_standardize(self, minimal_brain_data):
         """Test standardization with different methods."""
         s = minimal_brain_data.standardize()
@@ -155,6 +156,30 @@ class TestBrainDataAnalysis:
         s = minimal_brain_data.standardize(method="zscore")
         assert s.shape == minimal_brain_data.shape
         assert np.isclose(np.sum(s.mean().data), 0, atol=0.5)
+
+    def test_standardize_zscore_is_exact_and_silent_on_raw_bold(
+        self, minimal_brain_data
+    ):
+        """Large-offset float32 data with constant voxels: no warnings, exact z-scores.
+
+        Raw BOLD (values ~1e4, float32) tripped sklearn's precision warnings and
+        constant voxels its near-zero-std warning; z-scoring must instead be
+        computed in float64 and map constant voxels to 0.
+        """
+        bd = minimal_brain_data.copy()
+        rng = np.random.default_rng(0)
+        data = (12_000 + 50 * rng.standard_normal(bd.shape)).astype(np.float32)
+        data[:, 0] = 12_345.0  # constant voxel
+        bd.data = data
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            z = bd.standardize(method="zscore")
+
+        assert z.data.dtype == np.float32
+        np.testing.assert_allclose(z.data[:, 0], 0.0)
+        np.testing.assert_allclose(z.data[:, 1:].mean(axis=0), 0.0, atol=1e-5)
+        np.testing.assert_allclose(z.data[:, 1:].std(axis=0), 1.0, atol=1e-5)
 
     def test_filter_high_pass(self, minimal_brain_data):
         """Test high-pass filtering returns BrainData with correct shape."""
