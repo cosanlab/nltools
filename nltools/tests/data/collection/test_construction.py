@@ -314,7 +314,18 @@ class TestProperties:
         assert bc_inmem.n_subjects == 3
         assert bc_inmem.n_voxels == 27  # 3*3*3 mask
         n_sub, n_obs, n_vox = bc_inmem.shape
-        assert n_sub == 3 and n_vox == 27
+        assert n_sub == 3 and n_vox == 27 and n_obs == 8
+
+    def test_shape_single_image_items_report_one_obs(
+        self, tiny_mask, tiny_brain_factory
+    ):
+        """A 1-D (single-image) BrainData counts as one observation, not n_voxels."""
+        from nltools.data import BrainCollection
+
+        brains = [tiny_brain_factory(n_obs=8, seed=i)[0] for i in range(3)]
+        assert brains[0].data.ndim == 1
+        bc = BrainCollection(brains, mask=tiny_mask, lazy=False, cache_dir=None)
+        assert bc.shape == (3, 1, 27)
 
     def test_is_loaded_inmem(self, bc_inmem):
         assert all(bc_inmem.is_loaded)

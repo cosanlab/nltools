@@ -281,14 +281,20 @@ class BrainCollection:
 
     @property
     def n_voxels(self) -> int:
-        """Voxel count from the mask. Raises if mask is unset."""
+        """Voxel count from the mask.
+
+        Raises `ValueError` if the mask is unset.
+        """
         if self._mask is None:
             raise ValueError("mask not set")
         return int(np.asarray(self._mask.dataobj).astype(bool).sum())
 
     @property
     def mask(self) -> nib.Nifti1Image:
-        """Shared mask image for the collection. Raises if the mask is unset."""
+        """Shared mask image for the collection.
+
+        Raises `ValueError` if the mask is unset.
+        """
         if self._mask is None:
             raise ValueError("mask not set")
         return self._mask
@@ -323,13 +329,17 @@ class BrainCollection:
         n_vox = self.n_voxels
         if not self._items or not all(self.is_loaded):
             return (n_sub, None, n_vox)
-        n_obs_set = {bd.shape[0] for bd in self._items}
+        # A single-image BrainData is 1-D (n_voxels,): one observation, not n_voxels.
+        n_obs_set = {1 if bd.data.ndim == 1 else bd.shape[0] for bd in self._items}
         n_obs = next(iter(n_obs_set)) if len(n_obs_set) == 1 else None
         return (n_sub, n_obs, n_vox)
 
     @property
     def cache_root(self) -> Path:
-        """Run-scoped cache directory shared by clones. Raises if unset."""
+        """Run-scoped cache directory shared by clones.
+
+        Raises `ValueError` if unset.
+        """
         if self._cache_root is None:
             raise ValueError("cache_root not set (constructed with cache_dir=None?)")
         return self._cache_root
@@ -339,8 +349,8 @@ class BrainCollection:
 
         Returns:
             A string reporting ``n_subjects``, the per-item shape (or "unknown"
-            for path-backed items not yet loaded), and an estimated float32
-            total in MB/GB.
+                for path-backed items not yet loaded), and an estimated float32
+                total in MB/GB.
         """
         return io.memory_estimate(self)
 
@@ -726,11 +736,13 @@ class BrainCollection:
         """Compute per-subject contrast maps from fit-bundle items.
 
         Returns:
-          single contrast + single ``statistic`` → ``BrainCollection``
-          multiple contrasts (single type)            → ``dict[str, BrainCollection]``
-          ``statistic='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
-          multiple contrasts + ``statistic='all'`` → nested
-                                                         ``dict[name, dict[stat, BrainCollection]]``
+            A ``BrainCollection`` for a single contrast with a single ``statistic``;
+                a ``dict[str, BrainCollection]`` keyed by contrast name for multiple
+                contrasts with a single statistic; a ``dict[str, BrainCollection]``
+                keyed by statistic (one of 'beta', 't', 'z', 'p', 'se') for a single
+                contrast with ``statistic='all'``; and a nested
+                ``dict[name, dict[stat, BrainCollection]]`` for multiple contrasts
+                with ``statistic='all'``.
 
         Each per-subject NIfTI gets a JSON sidecar with lineage attrs
         (``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
@@ -874,7 +886,7 @@ class BrainCollection:
                 single-column ``.Y``), a ``.Y`` column name, one shared
                 array, or a list of per-subject arrays.
             X_new: New design matrix for predict-after-fit (mode 2).
-            spatial_scale: ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``.
+            spatial_scale: One of ``'whole_brain'``, ``'roi'``, or ``'searchlight'``.
             model: Model name or sklearn estimator (see ``BrainData.predict``).
             cv: Within-subject CV — an int fold count (default 5, honoring
                 ``groups`` via the Group variants), ``'loo'``, ``'logo'``
@@ -890,14 +902,15 @@ class BrainCollection:
                 ``n_jobs=1`` to avoid nested parallelism).
             random_state: Seed for shuffled int-``cv`` folds.
             progress_bar: Whether to display a progress bar.
-            cache: ``'auto'`` (cache when the source is path-backed) |
-                ``True`` | ``False``. Caching writes one predict bundle
+            cache: ``'auto'`` (cache when the source is path-backed), ``True``,
+                or ``False``. Caching writes one predict bundle
                 (``.h5``) per subject holding the result's ingredients —
                 never a pickled estimator, so cached results have
                 ``estimator=None``.
 
         Returns:
-            `PredictCollection` (mode 1) or ``BrainCollection`` (mode 2).
+            PredictCollection | BrainCollection: `PredictCollection` (mode 1) or
+                `BrainCollection` (mode 2).
         """
         if X_new is not None:
             if y is not None:
@@ -956,7 +969,7 @@ class BrainCollection:
         Args:
             y: Labels/targets, one per subject — an array/list, or the name
                 of a metadata column.
-            spatial_scale: ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``.
+            spatial_scale: One of ``'whole_brain'``, ``'roi'``, or ``'searchlight'``.
             model: Model name (see ``BrainData.predict``).
             cv: ``'logo'`` (leave-one-group-out, default — with the default
                 ``groups`` this is leave-one-subject-out), ``'loo'``
@@ -987,8 +1000,8 @@ class BrainCollection:
             progress_bar: Whether to display a progress bar.
 
         Returns:
-            `Predict` with CV attributes; plus the permutation-null fields
-            when ``n_permute > 0``.
+            Predict: Result with CV attributes, plus the permutation-null fields
+                when ``n_permute > 0``.
         """
         from ..braindata import BrainData
         from . import execution
@@ -1337,7 +1350,7 @@ class BrainCollection:
 
         Args:
             popmean: Null-hypothesis population mean to test against.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
                 mean > popmean; negate the data for the other direction).
 
         Returns:
@@ -1357,12 +1370,12 @@ class BrainCollection:
         Args:
             other: The second collection to compare against.
             equal_var: If True, pooled-variance t-test; if False, Welch's test.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
                 self > other; swap the operands for the other direction).
 
         Returns:
             Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps (``mean`` is the
-            group difference).
+                group difference).
         """
         return inference.ttest2(self, other, equal_var=equal_var, tail=tail)
 
@@ -1378,7 +1391,7 @@ class BrainCollection:
 
         Returns:
             Dict with ``{'F', 'p'}`` `BrainData` maps plus ``df_between`` and
-            ``df_within`` degrees of freedom.
+                ``df_within`` degrees of freedom.
         """
         return inference.anova(self, groups)
 
@@ -1410,7 +1423,7 @@ class BrainCollection:
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
-            ``'null_dist'`` when ``return_null=True``.
+                ``'null_dist'`` when ``return_null=True``.
         """
         return inference.permutation_test(
             self,
@@ -1453,7 +1466,7 @@ class BrainCollection:
 
         Returns:
             Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
-            difference), plus ``'null_dist'`` when ``return_null=True``.
+                difference), plus ``'null_dist'`` when ``return_null=True``.
         """
         return inference.permutation_test2(
             self,
@@ -1490,8 +1503,8 @@ class BrainCollection:
 
         Returns:
             Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or
-            ``{'isc', 'pairs'}`` for ``method='pairwise'`` (``'isc'`` is a
-            `BrainData` map).
+                ``{'isc', 'pairs'}`` for ``method='pairwise'`` (``'isc'`` is a
+                `BrainData` map).
         """
         return inference.isc(
             self,
@@ -1522,12 +1535,12 @@ class BrainCollection:
                 ISC is computed across the collection's whole-brain mask.
             n_samples: Number of bootstrap resamples.
             summary: Aggregation across subjects/pairs (e.g. ``'median'``).
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0).
             random_state: Seed for the bootstrap RNG.
 
         Returns:
             Dict ``{'isc', 'p', 'null_dist'}`` (``'isc'`` and ``'p'`` are
-            `BrainData` maps).
+                `BrainData` maps).
         """
         return inference.isc_test(
             self,
@@ -1574,9 +1587,9 @@ class BrainCollection:
             cache: Cache policy for the result (``'auto'`` follows source state).
 
         Returns:
-            A new `BrainCollection` of aligned data, or a
-            ``(BrainCollection, LocalAlignment)`` tuple when
-            ``return_model=True``.
+            BrainCollection | tuple[BrainCollection, LocalAlignment]: A new
+                collection of aligned data, or a ``(collection, model)`` tuple
+                when ``return_model=True``.
         """
         return inference.align(
             self,
@@ -1684,11 +1697,17 @@ class BrainCollection:
     # ------------------------------------------------------------------
 
     def load(self, indices: list[int] | None = None) -> BrainCollection:
-        """Materialize path-backed items in place. Returns ``self`` for chaining."""
+        """Materialize path-backed items in place.
+
+        Returns ``self`` for chaining.
+        """
         return io.load(self, indices)
 
     def unload(self, indices: list[int] | None = None) -> BrainCollection:
-        """Drop in-memory data for items with backing paths. Returns ``self``."""
+        """Drop in-memory data for items with backing paths.
+
+        Returns ``self`` for chaining.
+        """
         return io.unload(self, indices)
 
     def steps(self) -> list[Path]:
