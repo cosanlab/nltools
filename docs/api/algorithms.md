@@ -1239,7 +1239,7 @@ Type | Description
 ### `glover_dispersion_derivative`
 
 ```python
-glover_dispersion_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_dispersion_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the dispersion derivative of the Glover hemodynamic response function.
@@ -1265,7 +1265,7 @@ Type | Description
 ### `glover_hrf`
 
 ```python
-glover_hrf(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_hrf(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the Glover hemodynamic response function.
@@ -1291,7 +1291,7 @@ Type | Description
 ### `glover_time_derivative`
 
 ```python
-glover_time_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_time_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the time derivative of the Glover hemodynamic response function.
@@ -2201,7 +2201,7 @@ Type | Description
 ### `spm_dispersion_derivative`
 
 ```python
-spm_dispersion_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_dispersion_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the dispersion derivative of the SPM canonical hemodynamic response function.
@@ -2227,7 +2227,7 @@ Type | Description
 ### `spm_hrf`
 
 ```python
-spm_hrf(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_hrf(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the SPM canonical hemodynamic response function.
@@ -2253,7 +2253,7 @@ Type | Description
 ### `spm_time_derivative`
 
 ```python
-spm_time_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_time_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the time derivative of the SPM canonical hemodynamic response function.

@@ -5,9 +5,10 @@ title: algorithms.hrf
 Hemodynamic response functions — thin wrappers over nilearn.
 
 nilearn ships canonical SPM and Glover HRFs (and their derivatives) under
-``nilearn.glm.first_level``. This module wraps them with identical
-signatures so ``nltools.algorithms.hrf`` imports keep working and the API
-reference renders Markdown docstrings.
+``nilearn.glm.first_level``. This module wraps them (same
+parameters, keyword-only after ``t_r`` per the nltools convention) so
+``nltools.algorithms.hrf`` imports keep working and the API reference renders
+Markdown docstrings.
 
 Every function returns a 1D array sampled every ``t_r / oversampling``
 seconds for ``time_length`` seconds, and is scaled so the canonical HRF
@@ -32,7 +33,7 @@ Name | Description
 ### `glover_dispersion_derivative`
 
 ```python
-glover_dispersion_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_dispersion_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the dispersion derivative of the Glover hemodynamic response function.
@@ -58,7 +59,7 @@ Type | Description
 ### `glover_hrf`
 
 ```python
-glover_hrf(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_hrf(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the Glover hemodynamic response function.
@@ -84,7 +85,7 @@ Type | Description
 ### `glover_time_derivative`
 
 ```python
-glover_time_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+glover_time_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the time derivative of the Glover hemodynamic response function.
@@ -110,7 +111,7 @@ Type | Description
 ### `spm_dispersion_derivative`
 
 ```python
-spm_dispersion_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_dispersion_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the dispersion derivative of the SPM canonical hemodynamic response function.
@@ -136,7 +137,7 @@ Type | Description
 ### `spm_hrf`
 
 ```python
-spm_hrf(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_hrf(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the SPM canonical hemodynamic response function.
@@ -162,7 +163,7 @@ Type | Description
 ### `spm_time_derivative`
 
 ```python
-spm_time_derivative(t_r, oversampling = 50, time_length = 32.0, onset = 0.0)
+spm_time_derivative(t_r, *, oversampling = 50, time_length = 32.0, onset = 0.0)
 ```
 
 Sample the time derivative of the SPM canonical hemodynamic response function.
