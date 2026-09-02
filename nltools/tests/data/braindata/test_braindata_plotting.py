@@ -26,6 +26,19 @@ class TestBrainDataPlotting:
         result = minimal_brain_data.plot()
         assert result is not None
 
+    @pytest.mark.parametrize("method", ["glass", "slices"])
+    def test_plot_non_finite_voxels_is_silent(self, minimal_brain_data, method):
+        """NaN/inf voxels (ROI maps, tSNR with zero std) plot without nilearn's warning."""
+        import warnings
+
+        bd = minimal_brain_data[0].copy()
+        bd.data[: bd.data.size // 3] = np.nan
+        bd.data[-1] = np.inf
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", message="Non-finite values detected")
+            result = bd.plot(method=method)
+        assert result is not None
+
     @pytest.mark.slow
     def test_plot_glass_brain(self, minimal_brain_data):
         """Test glass brain visualization"""

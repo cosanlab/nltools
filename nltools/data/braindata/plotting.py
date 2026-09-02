@@ -85,7 +85,7 @@ def plot_brain(
             (nltools semantics).
         threshold (float, optional): Absolute-value transparency cutoff
             forwarded to the underlying nilearn plot function. Voxels with
-            ``|value| < threshold`` are rendered transparent. Must be >= 0.
+            ``abs(value) < threshold`` are rendered transparent. Must be >= 0.
             Use ``upper``/``lower`` for one-sided data thresholding.
         view (str): For ``method="slices"``, any non-empty combination of
             ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
@@ -114,12 +114,12 @@ def plot_brain(
         **kwargs: Additional arguments passed to nilearn plot functions.
 
     Returns:
-        matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
-        single-image data, the figure object (last one created if
-        ``method="slices"`` produced multiple per-axis figures). For
-        multi-image data with ``method`` in ``{"glass", "slices"}``, a list
-        of figures (one per image for glass; one per image-and-view pair for
-        slices). All figures auto-display in notebooks.
+        matplotlib.figure.Figure | list[matplotlib.figure.Figure]: For
+            single-image data, the figure object (last one created if
+            `method="slices"` produced multiple per-axis figures). For
+            multi-image data with `method` in `{"glass", "slices"}`, a list of
+            figures (one per image for glass; one per image-and-view pair for
+            slices). All figures auto-display in notebooks.
     """
     import matplotlib.pyplot as plt
     from nilearn.plotting import plot_glass_brain, plot_stat_map
@@ -259,6 +259,14 @@ def plot_brain(
         cmap_use = cmap if cmap is not None else auto_select_colormap(obj.data)
         save_paths = prepare_save_paths(save, idx if multi else None) if save else None
 
+        # A plot cannot show NaN/inf; nilearn zero-fills them itself but warns
+        # every time, which is noise for ROI maps and tSNR (NaN outside parcels
+        # or where std == 0). Zero-fill up front so the result is identical
+        # and silent.
+        if not np.all(np.isfinite(obj.data)):
+            obj = obj.copy()
+            obj.data = np.nan_to_num(obj.data, nan=0.0, posinf=0.0, neginf=0.0)
+
         try:
             nifti_img = obj.to_nifti()
         except Exception as e:
@@ -384,7 +392,7 @@ def plot_flatmap_brain(
         save (str, optional): File path to save figure.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     from nltools.plotting import plot_flatmap
 
@@ -440,7 +448,7 @@ def _plot_matplotlib(
         save (str, optional): Path to save figure.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     import matplotlib.pyplot as plt
 
