@@ -2,7 +2,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "marimo",
-#     "nltools",
+#     "nltools>=0.6.0",
 # ]
 # ///
 # BrainCollection basics — marimo notebook. Source of truth for the docs page; rendered to MyST by scripts/marimo_to_myst.py.

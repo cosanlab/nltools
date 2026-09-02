@@ -15,9 +15,11 @@ Transforms:
 
 * the marimo frontmatter (``title``/``marimo-version``/``header``…) is replaced
   with a ``kernelspec`` block so MyST executes the page through the ``python3``
-  kernel;
-* a "Run this tutorial locally" note linking to the source notebook on GitHub is
-  inserted after the title heading;
+  kernel, plus ``edit_url``/``source_url``/``downloads`` that point the theme's
+  edit, source, and download links at the ``.py`` notebook (and at molab)
+  rather than at this generated ``.md``;
+* an "Open in molab" badge and a "Run this tutorial" tip (cloud via molab, or
+  locally via ``uvx marimo edit --sandbox``) are inserted after the title heading;
 * ```` ```python {.marimo} ```` fences become ```` ```{code-cell} python3 ````;
 * ``hide_code="true"`` code cells (marimo's "hide the source, show the output")
   map to ``:tags: [remove-input]``;
@@ -50,8 +52,17 @@ TUTORIAL_GLOBS = [
     "docs/tutorials/workflows/[0-9]*.py",
 ]
 
-# Where the source notebooks live on GitHub (for the "run locally" banner).
-GITHUB_BLOB = "https://github.com/cosanlab/nltools/blob/master"
+# Where the source notebooks live on GitHub. The docs site deploys from `master`,
+# so links (and molab, which fetches the notebook from GitHub) target that branch.
+GITHUB_OWNER_REPO = "cosanlab/nltools"
+GITHUB_BRANCH = "master"
+GITHUB_REPO = f"https://github.com/{GITHUB_OWNER_REPO}"
+
+# molab (https://docs.marimo.io/guides/molab/) opens a GitHub-hosted notebook at
+# `https://molab.marimo.io/github/{owner}/{repo}/blob/{branch}/{path}` and shows
+# a static preview without login; the shield is marimo's official badge image.
+MOLAB_GITHUB = "https://molab.marimo.io/github"
+MOLAB_SHIELD = "https://marimo.io/molab-shield.svg"
 
 FRONTMATTER = """\
 ---
@@ -60,6 +71,13 @@ FRONTMATTER = """\
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: {edit_url}
+source_url: {source_url}
+downloads:
+  - url: {molab_url}
+    title: Open in molab
+  - url: {source_url}
+    title: Source notebook ({name})
 ---
 """
 
@@ -99,6 +117,37 @@ def rel_to_repo(path: Path) -> Path:
         return path.resolve().relative_to(REPO_ROOT)
     except ValueError:
         return Path(path.name)
+
+
+def github_url(rel: str) -> str:
+    """GitHub blob URL of a repo-relative posix path on the deploy branch."""
+    return f"{GITHUB_REPO}/blob/{GITHUB_BRANCH}/{rel}"
+
+
+def github_edit_url(rel: str) -> str:
+    """GitHub edit URL of a repo-relative posix path on the deploy branch."""
+    return f"{GITHUB_REPO}/edit/{GITHUB_BRANCH}/{rel}"
+
+
+def molab_url(rel: str) -> str:
+    """molab URL that opens the GitHub-hosted notebook at ``rel``."""
+    return f"{MOLAB_GITHUB}/{GITHUB_OWNER_REPO}/blob/{GITHUB_BRANCH}/{rel}"
+
+
+def molab_badge(rel: str) -> str:
+    """marimo's official "Open in molab" badge, linked to the notebook at ``rel``."""
+    return f"[![Open in molab]({MOLAB_SHIELD})]({molab_url(rel)})"
+
+
+def frontmatter(rel: str) -> str:
+    """MyST page frontmatter for the page rendered from the notebook at ``rel``."""
+    return FRONTMATTER.format(
+        source=rel,
+        name=Path(rel).name,
+        edit_url=github_edit_url(rel),
+        source_url=github_url(rel),
+        molab_url=molab_url(rel),
+    )
 
 
 def strip_frontmatter(text: str) -> str:
@@ -154,15 +203,17 @@ def transform_cell(attrs: str, body: str) -> str | None:
     return f"{header}\n{code}\n```"
 
 
-def source_banner(notebook: Path) -> str:
-    """A MyST admonition pointing at the marimo notebook this page is rendered from."""
-    rel = rel_to_repo(notebook).as_posix()
+def source_banner(rel: str) -> str:
+    """The molab badge plus a tip on running the notebook at ``rel`` yourself."""
+    name = Path(rel).name
     return (
-        ":::{tip} Run this tutorial locally\n"
-        "The outputs below were baked in at build time. This page is rendered from a "
-        f"[marimo]({'https://marimo.io'}) notebook — "
-        f"[`{rel}`]({GITHUB_BLOB}/{rel}) — that you can open and edit locally with "
-        f"`uvx marimo edit --sandbox {Path(rel).name}`.\n"
+        f"{molab_badge(rel)}\n"
+        "\n"
+        ":::{tip} Run this tutorial\n"
+        "This page is rendered from the [marimo](https://marimo.io) notebook "
+        f"[`{rel}`]({github_url(rel)}). Click the badge to run it in the cloud (free, "
+        f"no install), or locally: download `{name}` and run "
+        f"`uvx marimo edit --sandbox {name}`. Outputs below were baked in at build time.\n"
         ":::\n"
     )
 
@@ -189,10 +240,11 @@ def insert_banner(body: str, banner: str) -> str:
 
 def convert(notebook: Path) -> Path:
     """Convert one marimo notebook to a sibling ``.md`` and return its path."""
+    rel = rel_to_repo(notebook).as_posix()
     raw = export_marimo_md(notebook)
     body = strip_frontmatter(raw).lstrip("\n")
     body = convert_admonitions(body)
-    body = insert_banner(body, source_banner(notebook))
+    body = insert_banner(body, source_banner(rel))
 
     def _replace(match: re.Match) -> str:
         out = transform_cell(match.group("attrs"), match.group("body"))
@@ -203,8 +255,7 @@ def convert(notebook: Path) -> Path:
     body = re.sub(r"\n*\x00DROP\x00\n*", "\n\n", body)
     body = re.sub(r"\n{3,}", "\n\n", body).strip("\n")
 
-    rel = rel_to_repo(notebook)
-    out_text = FRONTMATTER.format(source=rel.name) + "\n" + body + "\n"
+    out_text = frontmatter(rel) + "\n" + body + "\n"
     out_path = notebook.with_suffix(".md")
     out_path.write_text(out_text)
     return out_path

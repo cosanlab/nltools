@@ -74,8 +74,10 @@ Config: `docs/myst.yml`, `[tool.griffe2md]` in `pyproject.toml`, `cliff.toml`.
 
 **Tutorials** — plain marimo `.py` notebooks under `docs/tutorials/{basics,workflows}/` are the single
 source of truth (edit locally with `uv run marimo edit <nb>.py`; the PEP 723 header lists only
-`marimo` + `nltools` so `uvx marimo edit --sandbox` and molab can run them). `marimo_to_myst.py`
-(in `docs-generate`) renders each to a committed sibling `.md` that `docs-site`/`docs-preview` execute
+`marimo` + `nltools>=0.6.0` so `uvx marimo edit --sandbox` and molab can run them — the pin fails
+loudly until 0.6.0 is on PyPI rather than silently importing 0.5.1). `marimo_to_myst.py`
+(in `docs-generate`) renders each to a committed sibling `.md` — with an "Open in molab" badge and
+`edit_url`/`source_url`/`downloads` frontmatter pointing at the `.py` — that `docs-site`/`docs-preview` execute
 through a `python3` ipykernel; outputs are cached in `docs/_build/execute`, so `myst` **must** be given
 `--execute` or the pages render with no outputs. A cell that raises halts execution of every cell after
 it in that notebook (the build still exits 0) — grep the build log for `⛔️`. In-browser support (marimo
