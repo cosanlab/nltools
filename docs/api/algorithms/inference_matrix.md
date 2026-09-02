@@ -1,19 +1,12 @@
-(algorithms-inference-matrix-matrix)=
-## `matrix`
+---
+title: algorithms.inference.matrix
+---
 
 Matrix permutation test implementations (Mantel test).
 
 This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`MAX_INT` |  | 
-
-
 
 **Methods:**
 
@@ -22,12 +15,14 @@ Name | Description
 [`distance_correlation`](#algorithms-inference-matrix-distance-correlation) | Compute the distance correlation between 2 arrays to test for multivariate dependence (linear or non-linear).
 [`double_center`](#algorithms-inference-matrix-double-center) | Double center a 2d array.
 [`matrix_permutation_test`](#algorithms-inference-matrix-matrix-permutation-test) | Matrix permutation test (Mantel test) for correlating two square matrices.
-[`u_center`](#algorithms-inference-matrix-u-center) | U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+[`u_center`](#algorithms-inference-matrix-u-center) | U-center a 2d array.
 
-### Methods
+
+
+## Methods
 
 (algorithms-inference-matrix-distance-correlation)=
-#### `distance_correlation`
+### `distance_correlation`
 
 ```python
 distance_correlation(x: np.ndarray, y: np.ndarray, bias_corrected: bool = True, ttest: bool = False) -> dict
@@ -63,9 +58,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`results` | <code>[dict](#dict)</code> | dictionary of results (correlation, t, p, and df.) Optionally, covariance, x variance, and y variance
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary of results (correlation, t, p, and df); optionally also     covariance, x variance, and y variance.
 
 **Examples:**
 
@@ -81,7 +76,7 @@ True
 ```
 
 (algorithms-inference-matrix-double-center)=
-#### `double_center`
+### `double_center`
 
 ```python
 double_center(mat: np.ndarray) -> np.ndarray
@@ -100,9 +95,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`mat` | <code>[ndarray](#ndarray)</code> | double-centered version of input
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Double-centered version of the input.
 
 **Examples:**
 
@@ -116,7 +111,7 @@ True
 ```
 
 (algorithms-inference-matrix-matrix-permutation-test)=
-#### `matrix_permutation_test`
+### `matrix_permutation_test`
 
 ```python
 matrix_permutation_test(data1: np.ndarray, data2: np.ndarray, *, n_permute: int = 5000, metric: str = 'pearson', how: str = 'upper', include_diag: bool = False, tail: int | str = 2, return_null: bool = False, device: str | None = 'cpu', n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
@@ -145,10 +140,10 @@ Name | Type | Description | Default
 `data1` | <code>[ndarray](#numpy.ndarray)</code> | First square matrix (n×n) | *required*
 `data2` | <code>[ndarray](#numpy.ndarray)</code> | Second square matrix (n×n) | *required*
 `n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Correlation metric ['pearson'|'spearman'|'kendall'] (default: 'pearson') | <code>'pearson'</code>
-`how` | <code>[str](#str)</code> | Which elements to compare ['upper'|'lower'|'full'] (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
+`metric` | <code>[str](#str)</code> | Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson') | <code>'pearson'</code>
+`how` | <code>[str](#str)</code> | Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
 `include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) - 2 | 'two': Two-tailed test (r != 0) - 1 | 'one': One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
 `device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
@@ -157,9 +152,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` | <code>[dict](#dict)</code> | Dictionary with keys: - 'correlation' (float): Observed correlation coefficient - 'p' (float): P-value using Phipson-Smyth correction - 'device' (str): Parallelization method used ('cpu' or None) - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with keys:     - 'correlation' (float): Observed correlation coefficient     - 'p' (float): P-value using Phipson-Smyth correction     - 'device' (str): Parallelization method used ('cpu' or None)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -192,16 +187,17 @@ regression approach. Cancer Research, 27(2), 209-220.
 ```
 
 (algorithms-inference-matrix-u-center)=
-#### `u_center`
+### `u_center`
 
 ```python
 u_center(mat: np.ndarray) -> np.ndarray
 ```
 
-U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+U-center a 2d array.
 
-U-centering corrects for bias that occurs with double-centering as the number
-of dimensions increases. The diagonal is explicitly set to zero.
+U-centering is a bias-corrected form of double-centering: it corrects for the
+bias that grows with the number of dimensions under plain double-centering.
+The diagonal is explicitly set to zero.
 
 **Parameters:**
 
@@ -211,9 +207,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`mat` | <code>[ndarray](#ndarray)</code> | u-centered version of input
+Type | Description
+---- | -----------
+<code>[ndarray](#ndarray)</code> | U-centered version of the input.
 
 **Examples:**
 
@@ -223,4 +219,3 @@ Name | Type | Description
 >>> np.allclose(np.diag(result), 0)
 True
 ```
-

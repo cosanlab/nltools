@@ -52,11 +52,12 @@ def _strip_rst_roles(text: str) -> str:
     return re.sub(r":(func|meth|class|attr|obj|mod|data|exc|ref):`([^`]+)`", repl, text)
 
 
-# RST block directive (``.. name:: args`` + optional deeper-indented body). These
-# leak from re-exported third-party docstrings (e.g. nilearn's ``glover_hrf`` /
-# ``spm_hrf`` carry ``.. nilearn_deprecated:: 0.11.0``), which we can't rewrite at
-# the source. The body is every following line that is blank or indented deeper
-# than the marker, per RST; consume the marker and its whole block.
+# RST block directive (``.. name:: args`` + optional deeper-indented body). A
+# safety net: nltools no longer re-exports third-party callables (the hrf module
+# wraps nilearn's HRFs behind its own Markdown docstrings), but a future re-export
+# would leak RST like ``.. nilearn_deprecated:: 0.11.0`` into the page. The body
+# is every following line that is blank or indented deeper than the marker, per
+# RST; consume the marker and its whole block.
 _RST_DIRECTIVE_RE = re.compile(
     r"^(?P<indent>[ \t]*)\.\. [\w-]+::[^\n]*\n"  # ``.. name:: args`` marker line
     r"(?:[ \t]*\n|(?P=indent)[ \t]+[^\n]*\n)*",  # blank or deeper-indented body
@@ -67,9 +68,9 @@ _RST_DIRECTIVE_RE = re.compile(
 def _strip_rst_directives(text: str) -> str:
     """Drop residual RST block directives leaked from third-party docstrings.
 
-    nltools' own docstrings are Markdown-only, but re-exports (e.g.
-    ``nltools.algorithms.hrf`` re-exporting nilearn HRFs) carry RST directives
-    like ``.. nilearn_deprecated:: 0.11.0`` that otherwise render as literal RST.
+    nltools' own docstrings are Markdown-only, so this only matters if a
+    third-party callable is ever re-exported directly (its RST directives, e.g.
+    ``.. nilearn_deprecated:: 0.11.0``, would render as literal text).
     Removes the ``.. name::`` marker and any deeper-indented directive body.
     """
 
@@ -148,6 +149,22 @@ def _reorder_summary_blocks(text: str) -> str:
     return "\n".join(out)
 
 
+def _remove_modules_summary(text: str) -> str:
+    """Drop the ``**Modules:**`` summary table from package pages.
+
+    Submodules aren't rendered on the package page (``show_submodules`` is off;
+    each has its own page), so the table's same-page links either dangle or hit
+    a class whose slug matches the module name (``srm`` -> ``SRM``). The block
+    spans its marker line to the next summary marker, heading, or EOF.
+    """
+    block = re.compile(
+        r"^\*\*Modules:\*\*\s*\n(?:(?!\*\*\w[\w ]*?:\*\*\s*$|#{2,6} ).*\n?)*",
+        flags=re.MULTILINE,
+    )
+    text = block.sub("", text)
+    return re.sub(r"\n{2,}\Z", "\n", text)
+
+
 def _remove_attributes_sections(text: str) -> str:
     """Drop every ``Attributes`` detail section, keeping the summary table.
 
@@ -188,6 +205,68 @@ def _remove_attributes_sections(text: str) -> str:
         out.append(line)
         i += 1
     return "\n".join(out)
+
+
+_CATEGORY_HEADINGS = {"Attributes", "Classes", "Methods", "Functions", "Modules"}
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*:?-{3,}:?(\s*\|\s*:?-{3,}:?)+\s*\|?\s*$")
+
+
+def _remove_empty_category_headings(text: str) -> str:
+    """Drop member-category headings (``### Classes`` ...) with nothing under them.
+
+    griffe2md emits one category heading per member kind even when every member
+    of that kind was filtered out (private, deprecated, hidden), leaving a bare
+    heading followed directly by a heading of the same-or-shallower level or by
+    the end of the page.
+    """
+    lines = text.split("\n")
+    out: list[str] = []
+    just_removed = False
+    for i, line in enumerate(lines):
+        m = _HEADING_RE.match(line)
+        if m and line[len(m.group(1)) + 1 :].strip() in _CATEGORY_HEADINGS:
+            level = len(m.group(1))
+            following = [ln for ln in lines[i + 1 :] if ln.strip()]
+            nxt = _HEADING_RE.match(following[0]) if following else None
+            if not following or (nxt and len(nxt.group(1)) <= level):
+                # Drop the heading; the blank lines around it collapse to one.
+                while out and out[-1] == "":
+                    out.pop()
+                out.append("")
+                just_removed = True
+                continue
+        if just_removed and line == "":
+            continue
+        just_removed = False
+        out.append(line)
+    if len(out) > 1 and out[-1] == "" and out[-2] == "":
+        out.pop()
+    return "\n".join(out)
+
+
+def _fix_leading_empty_table_cells(text: str) -> str:
+    """Keep column alignment for table rows whose first cell is empty.
+
+    griffe2md writes rows without a leading pipe, so a Returns row with no type
+    (``" | None"``) reads to Markdown as a single cell — the leading pipe is the
+    optional row delimiter — and the description shifts into the Type column.
+    Prepending a pipe turns it back into an explicit empty first cell.
+    """
+    lines = text.split("\n")
+    in_table = in_fence = False
+    for i, line in enumerate(lines):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if not line.strip():
+            in_table = False
+        elif _TABLE_SEPARATOR_RE.match(line):
+            in_table = True
+        elif in_table and line.lstrip().startswith("|"):
+            lines[i] = "|" + line
+    return "\n".join(lines)
 
 
 def _remove_deprecated_members(text: str) -> str:
@@ -334,9 +413,12 @@ def postprocess(text: str, prefix: str) -> str:
     text = re.sub(r"^(#{2,6}) Functions$", r"\1 Methods", text, flags=re.MULTILINE)
     text = re.sub(r"^\*\*Functions:\*\*$", "**Methods:**", text, flags=re.MULTILINE)
 
-    # Reorder member summary tables to a natural reading order (griffe emits
-    # Functions before Attributes, Modules before Classes). Runs after the
-    # Functions->Methods rename so blocks carry canonical labels.
+    # Submodules have their own pages, so the Modules summary table only offers
+    # links that dangle (or hit a same-slug class); drop it, then reorder the
+    # remaining summary tables to a natural reading order (griffe emits
+    # Functions before Attributes). Runs after the Functions->Methods rename so
+    # blocks carry canonical labels.
+    text = _remove_modules_summary(text)
     text = _reorder_summary_blocks(text)
 
     # Remove "Bases: object" (noise for classes that only inherit from object)
@@ -353,6 +435,12 @@ def postprocess(text: str, prefix: str) -> str:
     text = _remove_deprecated_members(text)
     text = _strip_rst_roles(text)
     text = _strip_rst_directives(text)
+
+    # Category headings left empty by the removals above (or by griffe2md's own
+    # member filtering) are dropped; rows whose first cell is empty get an
+    # explicit leading pipe so their columns stay aligned.
+    text = _remove_empty_category_headings(text)
+    text = _fix_leading_empty_table_cells(text)
 
     # Final pass: drop summary links whose target heading was removed above.
     text = _delink_dangling_anchors(text)
@@ -373,6 +461,25 @@ def page_prefix(output: Path, docs_api: Path = DOCS_API) -> str:
     """
     rel = output.resolve().relative_to(docs_api.resolve()).with_suffix("")
     return _myst_slug(rel.as_posix())
+
+
+def page_title(module: str) -> str:
+    """Frontmatter title for the page documenting ``module`` (an import path).
+
+    griffe2md's root heading is disabled (it repeated the page title), so the
+    title comes from here. A class page is titled by the class name; a module
+    page by its dotted path minus the ``nltools.`` prefix, because bare module
+    names repeat across facades (``io`` alone would title four pages).
+    """
+    parts = module.split(".")
+    if parts[-1][:1].isupper():
+        return parts[-1]
+    return ".".join(parts[1:]) if parts[0] == "nltools" else module
+
+
+def with_frontmatter(text: str, title: str) -> str:
+    """Prepend a MyST frontmatter block carrying ``title``."""
+    return f"---\ntitle: {title}\n---\n\n{text}"
 
 
 def main() -> None:

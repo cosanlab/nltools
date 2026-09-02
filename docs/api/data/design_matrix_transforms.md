@@ -1,5 +1,6 @@
-(data-design-matrix-transforms-transforms)=
-## `transforms`
+---
+title: data.designmatrix.transforms
+---
 
 Standalone transform functions for DesignMatrix.
 
@@ -15,14 +16,10 @@ Name | Description
 [`upsample`](#data-design-matrix-transforms-upsample) | Increase temporal resolution using Polars-native interpolation.
 [`zscore`](#data-design-matrix-transforms-zscore) | Z-score standardize columns to mean zero and unit variance.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-design-matrix-transforms-downsample)=
-#### `downsample`
+### `downsample`
 
 ```python
 downsample(dm: DesignMatrix, target: float, method: str = 'mean') -> DesignMatrix
@@ -40,9 +37,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq.
 
 **Examples:**
 
@@ -52,7 +49,7 @@ Name | Type | Description
 ```
 
 (data-design-matrix-transforms-standardize)=
-#### `standardize`
+### `standardize`
 
 ```python
 standardize(dm: DesignMatrix, columns: list[str] | None = None, method: str = 'zscore') -> DesignMatrix
@@ -73,9 +70,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
 
 **Examples:**
 
@@ -86,7 +83,7 @@ Name | Type | Description
 ```
 
 (data-design-matrix-transforms-upsample)=
-#### `upsample`
+### `upsample`
 
 ```python
 upsample(dm: DesignMatrix, target: float, method: str = 'linear') -> DesignMatrix
@@ -104,9 +101,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq.
 
 **Examples:**
 
@@ -116,7 +113,7 @@ Name | Type | Description
 ```
 
 (data-design-matrix-transforms-zscore)=
-#### `zscore`
+### `zscore`
 
 ```python
 zscore(dm: DesignMatrix, columns: list[str] | None = None) -> DesignMatrix
@@ -133,7 +130,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
-
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns

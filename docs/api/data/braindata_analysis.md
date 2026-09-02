@@ -1,5 +1,6 @@
-(data-braindata-analysis-analysis)=
-## `analysis`
+---
+title: data.braindata.analysis
+---
 
 BrainData analysis functions.
 
@@ -36,10 +37,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-braindata-analysis-align)=
-#### `align`
+### `align`
 
 ```python
 align(bd, target, method = 'procrustes', axis = 0)
@@ -66,21 +67,25 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (dict) a dictionary containing transformed object, transformation matrix, and the shared response matrix
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
 
 **Examples:**
 
-- Hyperalign using procrustes transform:
-    >>> out = data.align(target, method='procrustes')
-- Align using shared response model:
-    >>> out = data.align(target, method='probabilistic_srm', n_features=None)
-- Project aligned data into original data:
-    >>> original_data = np.dot(out['transformed'].data,out['transformation_matrix'].T)
+```python
+# Hyperalign using procrustes transform
+out = data.align(target, method='procrustes')
+
+# Align using shared response model
+out = data.align(target, method='probabilistic_srm')
+
+# Project aligned data back into original data space
+original_data = np.dot(out['transformed'].data, out['transformation_matrix'].T)
+```
 
 (data-braindata-analysis-align-per-roi)=
-#### `align_per_roi`
+### `align_per_roi`
 
 ```python
 align_per_roi(bd, target, *, method, axis, roi_mask)
@@ -98,7 +103,7 @@ objects are kept as dicts keyed by atlas label, since matrices over
 different voxel subsets can't be painted into one image.
 
 (data-braindata-analysis-apply-mask)=
-#### `apply_mask`
+### `apply_mask`
 
 ```python
 apply_mask(bd, mask, resample_mask_to_brain = False)
@@ -119,9 +124,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`masked` |  | (BrainData) masked BrainData object
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Masked BrainData object.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -133,7 +138,7 @@ Cython-optimized code with better validation and memory management.
 </details>
 
 (data-braindata-analysis-check-masks)=
-#### `check_masks`
+### `check_masks`
 
 ```python
 check_masks(bd, image)
@@ -150,12 +155,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (data2, image2) arrays with compatible masks
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | (data2, image2) arrays with compatible masks
 
 (data-braindata-analysis-decompose)=
-#### `decompose`
+### `decompose`
 
 ```python
 decompose(bd, *, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
@@ -175,12 +180,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`output` |  | a dictionary of decomposition parameters
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | A dictionary of decomposition parameters.
 
 (data-braindata-analysis-detrend-data)=
-#### `detrend_data`
+### `detrend_data`
 
 ```python
 detrend_data(bd, method = 'linear')
@@ -197,12 +202,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (BrainData) detrended BrainData instance
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Detrended BrainData instance.
 
 (data-braindata-analysis-distance)=
-#### `distance`
+### `distance`
 
 ```python
 distance(bd, metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
@@ -223,12 +228,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dist` |  | (Adjacency) Whole-brain pairwise distance matrix, or a stacked Adjacency (one per parcel/searchlight) with ``spatial_scale`` provenance set.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
 (data-braindata-analysis-extract-roi)=
-#### `extract_roi`
+### `extract_roi`
 
 ```python
 extract_roi(bd, mask, method = 'mean', n_components = None)
@@ -252,22 +257,23 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | For binary mask:<br>- Single image: scalar value - Multiple images: 1D array of values
- | For labeled atlas:<br>- Single image: 1D array (one value per ROI) - Multiple images: 2D array (images x ROIs) - If method='pca': returns components array
+<code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | For a binary mask, a scalar (single image) or 1D array     of values (multiple images). For a labeled atlas, a 1D array with one     value per ROI (single image), a 2D array of images x ROIs (multiple     images), or the components array when `method='pca'`.
 
 **Examples:**
 
-```pycon
->>> # Extract mean from binary mask
->>> roi_values = brain.extract_roi(binary_mask)
->>> # Extract from atlas
->>> atlas_values = brain.extract_roi(atlas_mask)
->>> # PCA extraction
->>> components = brain.extract_roi(mask, method='pca', n_components=5)
+```python
+# Extract mean from binary mask
+roi_values = brain.extract_roi(binary_mask)
+
+# Extract from atlas
+atlas_values = brain.extract_roi(atlas_mask)
+
+# PCA extraction
+components = brain.extract_roi(mask, method='pca', n_components=5)
 ```
 
 (data-braindata-analysis-filter-data)=
-#### `filter_data`
+### `filter_data`
 
 ```python
 filter_data(bd, *, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
@@ -290,9 +296,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Filtered BrainData instance
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Filtered BrainData instance
 
 <details class="see-also" open markdown="1">
 <summary>See Also</summary>
@@ -302,7 +308,7 @@ nilearn.signal.clean documentation for all available options
 </details>
 
 (data-braindata-analysis-find-spikes-data)=
-#### `find_spikes_data`
+### `find_spikes_data`
 
 ```python
 find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = None, sampling_freq = None)
@@ -311,7 +317,7 @@ find_spikes_data(bd, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR = Non
 Identify spikes from time-series data; see `find_spikes`.
 
 (data-braindata-analysis-multivariate-similarity)=
-#### `multivariate_similarity`
+### `multivariate_similarity`
 
 ```python
 multivariate_similarity(bd, images, method = 'ols', tail = 2)
@@ -331,12 +337,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | dictionary of raw regression statistics (numpy arrays/scalars, not BrainData) with keys {'beta','t','p','df','sigma','residual'}
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Raw regression statistics (numpy arrays/scalars, not BrainData)     with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
 
 (data-braindata-analysis-r-to-z)=
-#### `r_to_z`
+### `r_to_z`
 
 ```python
 r_to_z(bd)
@@ -352,12 +358,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Transformed BrainData instance.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Transformed BrainData instance.
 
 (data-braindata-analysis-reduce-per-roi)=
-#### `reduce_per_roi`
+### `reduce_per_roi`
 
 ```python
 reduce_per_roi(bd, reducer, *, roi_mask)
@@ -376,7 +382,7 @@ NaN. Output is a `BrainData` of the same shape as the input.
 Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
 (data-braindata-analysis-regions)=
-#### `regions`
+### `regions`
 
 ```python
 regions(bd, *, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
@@ -396,12 +402,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance with extracted ROIs as data.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance with extracted ROIs as data.
 
 (data-braindata-analysis-scale-data)=
-#### `scale_data`
+### `scale_data`
 
 ```python
 scale_data(bd, scale_val = 100.0, axis = None)
@@ -433,22 +439,22 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New BrainData instance with scaled data.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with scaled data.
 
 **Examples:**
 
-```pycon
->>> # Grand-mean scaling (default)
->>> scaled = brain.scale(100.0)
->>>
->>> # Voxel-wise scaling (AFNI style)
->>> scaled = brain.scale(100.0, axis=0)
+```python
+# Grand-mean scaling (default)
+scaled = brain.scale(100.0)
+
+# Voxel-wise scaling (AFNI style)
+scaled = brain.scale(100.0, axis=0)
 ```
 
 (data-braindata-analysis-similarity)=
-#### `similarity`
+### `similarity`
 
 ```python
 similarity(bd, image, metric = 'correlation')
@@ -468,10 +474,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | np.ndarray: Similarity values.
+<code>[ndarray](#numpy.ndarray)</code> | Similarity values.
 
 (data-braindata-analysis-smooth)=
-#### `smooth`
+### `smooth`
 
 ```python
 smooth(bd, fwhm)
@@ -490,16 +496,19 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData instance (copy with smoothed data)
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Copy with smoothed data.
 
 (data-braindata-analysis-standardize)=
-#### `standardize`
+### `standardize`
 
 ```python
-standardize(bd, *, axis = 0, method = 'center', suppress_warnings = False)
+standardize(bd, *, axis = 0, method = 'center')
 ```
 
 Standardize BrainData() instance.
+
+Computed in float64 and cast back to the input dtype, so raw float32 BOLD
+(large offsets) stays exact. Constant voxels/observations z-score to 0.
 
 **Parameters:**
 
@@ -508,16 +517,15 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
 `method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
-`suppress_warnings` |  | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. (default: False) | <code>False</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Standardized BrainData instance.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standardized BrainData instance.
 
 (data-braindata-analysis-temporal-resample)=
-#### `temporal_resample`
+### `temporal_resample`
 
 ```python
 temporal_resample(bd, *, sampling_freq = None, target = None, target_type = 'hz')
@@ -529,8 +537,6 @@ Resample BrainData timeseries to a new target frequency or number of samples
 using Piecewise Cubic Hermite Interpolating Polynomial (PCHIP) interpolation.
 This function can up- or down-sample data.
 
-Note: this function can use quite a bit of RAM.
-
 **Parameters:**
 
 Name | Type | Description | Default
@@ -538,16 +544,23 @@ Name | Type | Description | Default
 `bd` |  | BrainData instance. | *required*
 `sampling_freq` |  | (float) sampling frequency of data in hertz (default: None) | <code>None</code>
 `target` |  | (float) upsampling target (default: None) | <code>None</code>
-`target_type` |  | (str) type of target can be [samples,seconds,hz] (default: 'hz') | <code>'hz'</code>
+`target_type` |  | (str) type of target: `'samples'`, `'seconds'`, or `'hz'` (default: 'hz') | <code>'hz'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | upsampled BrainData instance
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Resampled BrainData instance.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+This function can use quite a bit of RAM.
+
+</details>
 
 (data-braindata-analysis-threshold-data)=
-#### `threshold_data`
+### `threshold_data`
 
 ```python
 threshold_data(bd, *, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
@@ -574,7 +587,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Thresholded BrainData object.
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Thresholded BrainData object.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -586,7 +599,7 @@ Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
 </details>
 
 (data-braindata-analysis-transform-pairwise-data)=
-#### `transform_pairwise_data`
+### `transform_pairwise_data`
 
 ```python
 transform_pairwise_data(bd)
@@ -602,12 +615,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance transformed into pairwise comparisons.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance transformed into pairwise comparisons.
 
 (data-braindata-analysis-z-to-r)=
-#### `z_to_r`
+### `z_to_r`
 
 ```python
 z_to_r(bd)
@@ -623,7 +636,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Transformed BrainData instance.
-
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Transformed BrainData instance.

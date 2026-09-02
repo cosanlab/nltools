@@ -1,9 +1,6 @@
-(data-design-matrix-designmatrix)=
-## `DesignMatrix`
-
-```python
-DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover', n_rows: int | None = None)
-```
+---
+title: DesignMatrix
+---
 
 Represent experimental designs for neuroimaging with Polars.
 
@@ -105,10 +102,10 @@ is anything other than an events file.
 >>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates .nl_r0_poly_0, .nl_r1_poly_0
 ```
 
-### Methods
+## Methods
 
 (data-design-matrix-add-dct-basis)=
-#### `add_dct_basis`
+### `add_dct_basis`
 
 ```python
 add_dct_basis(duration: float = 180, drop: int = 0, *, include_constant: bool = True) -> DesignMatrix
@@ -126,12 +123,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended.
 
 (data-design-matrix-add-poly)=
-#### `add_poly`
+### `add_poly`
 
 ```python
 add_poly(order: int = 0, include_lower: bool = True) -> DesignMatrix
@@ -148,12 +145,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended.
 
 (data-design-matrix-append)=
-#### `append`
+### `append`
 
 ```python
 append(dm: DesignMatrix | list[DesignMatrix], *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
@@ -175,12 +172,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
 (data-design-matrix-clean)=
-#### `clean`
+### `clean`
 
 ```python
 clean(*, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, progress_bar: bool = False) -> DesignMatrix
@@ -199,12 +196,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
 (data-design-matrix-convolve)=
-#### `convolve`
+### `convolve`
 
 ```python
 convolve(conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
@@ -226,12 +223,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns renamed.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns renamed.
 
 (data-design-matrix-copy)=
-#### `copy`
+### `copy`
 
 ```python
 copy() -> DesignMatrix
@@ -241,12 +238,12 @@ Create a deep copy of the DesignMatrix.
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Copy of the current DesignMatrix
 
 (data-design-matrix-corr)=
-#### `corr`
+### `corr`
 
 ```python
 corr(*, metric: str = 'pearson', columns: list[str] | None = None)
@@ -263,12 +260,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | Similarity matrix whose ``labels`` are the column names. The unit diagonal is dropped (self-correlation isn't an edge); use ``.plot(method='corr')`` for a heatmap with the diagonal restored.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Similarity matrix whose ``labels`` are the column names.     The unit diagonal is dropped (self-correlation isn't an edge);     use ``.plot(method='corr')`` for a heatmap with the diagonal     restored.
 
 (data-design-matrix-downsample)=
-#### `downsample`
+### `downsample`
 
 ```python
 downsample(target: float, method: str = 'mean') -> DesignMatrix
@@ -285,12 +282,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq
 
 (data-design-matrix-drop)=
-#### `drop`
+### `drop`
 
 ```python
 drop(columns: list[str]) -> DesignMatrix
@@ -306,12 +303,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix without the specified columns.
 
 (data-design-matrix-fillna)=
-#### `fillna`
+### `fillna`
 
 ```python
 fillna(value: int | float) -> DesignMatrix
@@ -327,12 +324,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with NaN/null values replaced.
 
 (data-design-matrix-plot)=
-#### `plot`
+### `plot`
 
 ```python
 plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: str = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None) -> Figure
@@ -353,7 +350,7 @@ Dispatches over ``method`` (mirroring ``BrainData.plot``):
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`method` | <code>[str](#str)</code> | ``'matrix'`` | ``'timeseries'`` | ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
+`method` | <code>[str](#str)</code> | One of ``'matrix'``, ``'timeseries'``, or ``'corr'``. Default: ``'matrix'``. | <code>'matrix'</code>
 `columns` | <code>list of str</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
 `rescale` | <code>[bool](#bool)</code> | ``'matrix'`` only. Rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
 `metric` | <code>[str](#str)</code> | ``'corr'`` only. ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
@@ -368,10 +365,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | matplotlib.figure.Figure: The figure containing the plot.
+<code>[Figure](#matplotlib.figure.Figure)</code> | The figure containing the plot.
 
 (data-design-matrix-replace-data)=
-#### `replace_data`
+### `replace_data`
 
 ```python
 replace_data(data: np.ndarray, column_names: list[str] | None = None) -> DesignMatrix
@@ -388,12 +385,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
 
 (data-design-matrix-standardize)=
-#### `standardize`
+### `standardize`
 
 ```python
 standardize(method: str = 'zscore', columns: list[str] | None = None) -> DesignMatrix
@@ -410,12 +407,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
 
 (data-design-matrix-sum)=
-#### `sum`
+### `sum`
 
 ```python
 sum(axis: int = 0) -> pl.Series
@@ -433,10 +430,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Series](#polars.Series)</code> | pl.Series: Sums along specified axis.
+<code>[Series](#polars.Series)</code> | Sums along specified axis.
 
 (data-design-matrix-to-numpy)=
-#### `to_numpy`
+### `to_numpy`
 
 ```python
 to_numpy() -> np.ndarray
@@ -448,10 +445,10 @@ Convert a DesignMatrix to a NumPy array.
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | np.ndarray: 2D array with shape (n_samples, n_columns)
+<code>[ndarray](#numpy.ndarray)</code> | 2D array with shape (n_samples, n_columns)
 
 (data-design-matrix-to-pandas)=
-#### `to_pandas`
+### `to_pandas`
 
 ```python
 to_pandas() -> pd.DataFrame
@@ -463,10 +460,10 @@ Convert DesignMatrix to pandas DataFrame.
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#pandas.DataFrame)</code> | pd.DataFrame: Pandas DataFrame with same data and column names.
+<code>[DataFrame](#pandas.DataFrame)</code> | Pandas DataFrame with same data and column names.
 
 (data-design-matrix-upsample)=
-#### `upsample`
+### `upsample`
 
 ```python
 upsample(target: float, method: str = 'linear') -> DesignMatrix
@@ -483,12 +480,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq
 
 (data-design-matrix-vif)=
-#### `vif`
+### `vif`
 
 ```python
 vif(exclude_confounds: bool = True) -> np.ndarray | None
@@ -506,10 +503,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular.
+<code>[ndarray](#numpy.ndarray)</code> | VIF values for each included column. Returns None if the     correlation matrix is singular.
 
 (data-design-matrix-with-columns)=
-#### `with_columns`
+### `with_columns`
 
 ```python
 with_columns(*exprs, **named_exprs) -> DesignMatrix
@@ -540,7 +537,7 @@ For convenience, named-kwarg values that aren't ``pl.Expr`` /
 ```
 
 (data-design-matrix-write)=
-#### `write`
+### `write`
 
 ```python
 write(file_name: str, sep: str | None = None) -> None
@@ -561,7 +558,7 @@ Name | Type | Description | Default
 `sep` | <code>[str](#str) \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise); pass a value to override. | <code>None</code>
 
 (data-design-matrix-zscore)=
-#### `zscore`
+### `zscore`
 
 ```python
 zscore(columns: list[str] | None = None) -> DesignMatrix
@@ -577,7 +574,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
-
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns

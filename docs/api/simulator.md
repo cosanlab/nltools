@@ -1,5 +1,6 @@
-(simulator-simulator)=
-## `simulator`
+---
+title: data.simulator
+---
 
 Tools to simulate multivariate brain and grid data for testing analysis pipelines.
 
@@ -12,10 +13,10 @@ Name | Description
 
 
 
-### Classes
+## Classes
 
 (simulator-simulategrid)=
-#### `SimulateGrid`
+### `SimulateGrid`
 
 ```python
 SimulateGrid(*, grid_width = 100, signal_width = 20, n_subjects = 20, sigma = 1, signal_amplitude = None, random_state = None)
@@ -64,17 +65,18 @@ Name | Description
 
 **Examples:**
 
-```pycon
->>> from nltools.data.simulator import SimulateGrid
->>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
->>> sim.fit()
->>> sim.plot()
+```python
+from nltools.data.simulator import SimulateGrid
+
+sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+sim.fit()
+sim.plot()
 ```
 
-##### Methods
+#### Methods
 
 (simulator-add-signal)=
-###### `add_signal`
+##### `add_signal`
 
 ```python
 add_signal(signal_width = 20, signal_amplitude = 1)
@@ -90,7 +92,7 @@ Name | Type | Description | Default
 `signal_amplitude` | <code>[int](#int)</code> | intensity of signal | <code>1</code>
 
 (simulator-create-mask)=
-###### `create_mask`
+##### `create_mask`
 
 ```python
 create_mask(signal_width)
@@ -99,7 +101,7 @@ create_mask(signal_width)
 Create a mask for where the signal is located in grid.
 
 (simulator-fit)=
-###### `fit`
+##### `fit`
 
 ```python
 fit()
@@ -108,7 +110,7 @@ fit()
 Run a one-sample t-test on self.data.
 
 (simulator-plot-grid-simulation)=
-###### `plot_grid_simulation`
+##### `plot_grid_simulation`
 
 ```python
 plot_grid_simulation(threshold, threshold_type, n_simulations = 100, correction = None)
@@ -117,7 +119,7 @@ plot_grid_simulation(threshold, threshold_type, n_simulations = 100, correction 
 Create a plot of the simulations.
 
 (simulator-run-multiple-simulations)=
-###### `run_multiple_simulations`
+##### `run_multiple_simulations`
 
 ```python
 run_multiple_simulations(threshold, threshold_type, n_simulations = 100, correction = None)
@@ -126,7 +128,7 @@ run_multiple_simulations(threshold, threshold_type, n_simulations = 100, correct
 Run multiple simulations to calculate the overall false positive rate.
 
 (simulator-threshold-simulation)=
-###### `threshold_simulation`
+##### `threshold_simulation`
 
 ```python
 threshold_simulation(threshold, threshold_type, correction = None)
@@ -141,7 +143,8 @@ Name | Type | Description | Default
 `threshold` | <code>[float](#float)</code> | threshold to apply to simulation | *required*
 `threshold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
 
-#### `Simulator`
+(simulator-simulator)=
+### `Simulator`
 
 ```python
 Simulator(*, brain_mask = None, output_dir = None, random_state = None)
@@ -187,17 +190,18 @@ Name | Description
 
 **Examples:**
 
-```pycon
->>> from nltools.data.simulator import Simulator
->>> sim = Simulator(random_state=42)
->>> # Create a dataset with signal in specific regions
->>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+```python
+from nltools.data.simulator import Simulator
+
+sim = Simulator(random_state=42)
+# Create a dataset with signal in specific regions
+data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
 ```
 
-##### Methods
+#### Methods
 
 (simulator-create-cov-data)=
-###### `create_cov_data`
+##### `create_cov_data`
 
 ```python
 create_cov_data(cor, cov, sigma, *, mask = None, reps = 1, n_sub = 1, output_dir = None)
@@ -218,7 +222,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 
 (simulator-create-data)=
-###### `create_data`
+##### `create_data`
 
 ```python
 create_data(levels, sigma, *, radius = 5, center = None, reps = 1, output_dir = None)
@@ -238,7 +242,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 
 (simulator-create-ncov-data)=
-###### `create_ncov_data`
+##### `create_ncov_data`
 
 ```python
 create_ncov_data(cor, cov, sigma, *, masks = None, reps = 1, n_sub = 1, output_dir = None)
@@ -259,7 +263,7 @@ Name | Type | Description | Default
 `output_dir` |  | string path of directory to output data.  If None, no data will be written | <code>None</code>
 
 (simulator-gaussian)=
-###### `gaussian`
+##### `gaussian`
 
 ```python
 gaussian(mu, sigma, i_tot)
@@ -276,7 +280,7 @@ Name | Type | Description | Default
 `i_tot` |  | sum total of activation (numerical integral over the gaussian returns this value) | *required*
 
 (simulator-n-spheres)=
-###### `n_spheres`
+##### `n_spheres`
 
 ```python
 n_spheres(radius, center)
@@ -292,7 +296,7 @@ Name | Type | Description | Default
 `center` |  | a vector of sphere centers of the form [px, py, pz] or [[px1, py1, pz1], ..., [pxn, pyn, pzn]] | *required*
 
 (simulator-normal-noise)=
-###### `normal_noise`
+##### `normal_noise`
 
 ```python
 normal_noise(mu, sigma)
@@ -308,7 +312,7 @@ Name | Type | Description | Default
 `sigma` |  | standard deviation | *required*
 
 (simulator-sphere)=
-###### `sphere`
+##### `sphere`
 
 ```python
 sphere(r, p)
@@ -324,7 +328,7 @@ Name | Type | Description | Default
 `p` |  | point (in coordinates of the brain mask) of the center of the sphere | *required*
 
 (simulator-to-nifti)=
-###### `to_nifti`
+##### `to_nifti`
 
 ```python
 to_nifti(m)
@@ -337,7 +341,3 @@ Convert a numpy matrix to the nifti format and assign it the brain_mask's affine
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `m` |  | the 3D numpy matrix we wish to convert to .nii | *required*
-
-
-
-### Methods

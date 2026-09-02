@@ -1,5 +1,6 @@
-(data-atlases-reporting-reporting)=
-## `reporting`
+---
+title: data.atlases.reporting
+---
 
 Cluster reports — peak/cluster geometry plus atlas labels.
 
@@ -19,10 +20,12 @@ Name | Description
 ---- | -----------
 [`cluster_report_data`](#data-atlases-reporting-cluster-report-data) | Compute cluster report DataFrames + thresholded BrainData.
 
-### Classes
+
+
+## Classes
 
 (data-atlases-reporting-clusterreport)=
-#### `ClusterReport`
+### `ClusterReport`
 
 ```python
 ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
@@ -45,10 +48,12 @@ Name | Description
 [`plot`](#data-atlases-reporting-plot) | Render an overview glass brain + one slice figure per cluster.
 [`to_csv`](#data-atlases-reporting-to-csv) | Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
-##### Methods
+
+
+#### Methods
 
 (data-atlases-reporting-plot)=
-###### `plot`
+##### `plot`
 
 ```python
 plot(*, output_dir: str | Path | None = None) -> list[tuple[str, Figure]] | None
@@ -66,11 +71,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``(label, figure)`` tuples.
+<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of     ``(label, figure)`` tuples.
 
 (data-atlases-reporting-to-csv)=
-###### `to_csv`
+##### `to_csv`
 
 ```python
 to_csv(output_dir: str | Path) -> None
@@ -80,10 +84,10 @@ Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 
 
-### Methods
+## Methods
 
 (data-atlases-reporting-cluster-report-data)=
-#### `cluster_report_data`
+### `cluster_report_data`
 
 ```python
 cluster_report_data(bd: BrainData, *, stat_threshold: float | None = 3.0, cluster_threshold: int = 10, two_sided: bool = True, min_distance: float = 8.0, atlas: str | Sequence[str] = DEFAULT_ATLASES, prob_threshold: float = 5.0) -> tuple[pl.DataFrame, pl.DataFrame, BrainData]
@@ -111,4 +115,3 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [DataFrame](#polars.DataFrame), [BrainData](#nltools.data.BrainData)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
-

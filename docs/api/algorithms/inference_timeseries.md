@@ -1,5 +1,6 @@
-(algorithms-inference-timeseries-timeseries)=
-## `timeseries`
+---
+title: algorithms.inference.timeseries
+---
 
 Time-series permutation test implementations.
 
@@ -30,14 +31,10 @@ Name | Description
 [`phase_randomize`](#algorithms-inference-timeseries-phase-randomize) | FFT-based phase randomization for time-series data.
 [`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (algorithms-inference-timeseries-circle-shift)=
-#### `circle_shift`
+### `circle_shift`
 
 ```python
 circle_shift(data: np.ndarray, shift_amount: int | np.ndarray | None = None, random_state: int | np.random.RandomState | None = None) -> np.ndarray
@@ -82,7 +79,7 @@ array([[ 4, 30],
 ```
 
 (algorithms-inference-timeseries-phase-randomize)=
-#### `phase_randomize`
+### `phase_randomize`
 
 ```python
 phase_randomize(data: np.ndarray, *, device: str | None = 'cpu', random_state: int | np.random.RandomState | None = None) -> np.ndarray
@@ -146,7 +143,7 @@ True
 ```
 
 (algorithms-inference-timeseries-timeseries-correlation-permutation-test)=
-#### `timeseries_correlation_permutation_test`
+### `timeseries_correlation_permutation_test`
 
 ```python
 timeseries_correlation_permutation_test(data1: np.ndarray, data2: np.ndarray, *, method: Literal['circle_shift', 'phase_randomize'] = 'circle_shift', n_permute: int = 5000, metric: Literal['pearson', 'spearman', 'kendall'] = 'pearson', tail: int | str = 2, device: str | None = 'cpu', n_jobs: int = -1, max_gpu_memory_gb: float | None = None, return_null: bool = False, random_state: int | np.random.RandomState | None = None, progress_bar: bool = False) -> dict
@@ -182,7 +179,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys: - 'correlation': Observed correlation coefficient - 'p': P-value - 'null_dist': (if return_null=True) Null distribution - 'device': Parallelization method used
+<code>Dictionary with keys</code> | - 'correlation': Observed correlation coefficient     - 'p': P-value     - 'null_dist': (if return_null=True) Null distribution     - 'device': Parallelization method used
 
 **Examples:**
 
@@ -218,4 +215,3 @@ True
 - phase_randomize benefits most from GPU (FFT acceleration)
 
 </details>
-

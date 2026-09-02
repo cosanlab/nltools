@@ -1,5 +1,6 @@
-(data-braindata-bootstrap-bootstrap)=
-## `bootstrap`
+---
+title: data.braindata.bootstrap
+---
 
 Bootstrap functions extracted from BrainData methods.
 
@@ -12,9 +13,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
-#### `bootstrap`
+(data-braindata-bootstrap-bootstrap)=
+### `bootstrap`
 
 ```python
 bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = None, tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
@@ -39,7 +41,7 @@ Name | Type | Description | Default
 `X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
 `device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
 `max_gpu_memory_gb` |  | (float, optional) Explicit GPU memory budget in GB when device is 'gpu' or 'auto'. None (default) measures the device. | <code>None</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `progress_bar` |  | (bool) If True, show a progress bar. Default: False | <code>False</code>
@@ -48,68 +50,51 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or dict: - For simple stats (with ``save_boots=False``): Returns BrainData   with bootstrap mean - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',   'ci_lower', 'ci_upper' (all BrainData objects) - If ``save_boots=True``: Returns a dict (even for simple stats)   with an added 'samples' key holding all samples as a raw ndarray
+<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | - For simple stats (with ``save_boots=False``): Returns BrainData       with bootstrap mean     - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',       'ci_lower', 'ci_upper' (all BrainData objects)     - If ``save_boots=True``: Returns a dict (even for simple stats)       with an added 'samples' key holding all samples as a raw ndarray
 
 **Examples:**
 
-```pycon
->>> # Simple aggregation
->>> boot = brain.bootstrap(stat='mean', n_samples=1000)
->>> assert isinstance(boot, BrainData)
-```
+```python
+# Simple aggregation: returns a BrainData holding the bootstrap mean
+boot = brain.bootstrap(stat='mean', n_samples=1000)
+assert isinstance(boot, BrainData)
 
-```pycon
->>> # Ridge weights bootstrap (CPU)
->>> brain.fit(X=dm, model='ridge', alpha=1.0)
->>> boot = brain.bootstrap(stat='weights', n_samples=1000)
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], BrainData)
-```
+# Ridge weights bootstrap (CPU): returns a dict of BrainData
+brain.fit(X=dm, model='ridge', alpha=1.0)
+boot = brain.bootstrap(stat='weights', n_samples=1000)
+assert isinstance(boot['mean'], BrainData)
 
-```pycon
->>> # Ridge weights bootstrap (GPU accelerated)
->>> brain.fit(X=dm, model='ridge', alpha=1.0)
->>> boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], BrainData)
-```
+# Ridge weights bootstrap (GPU accelerated)
+boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
 
-```pycon
->>> # Ridge predict bootstrap
->>> brain.fit(X=dm, model='ridge', alpha=1.0)
->>> boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], BrainData)
+# Ridge predict bootstrap
+boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
+
+# Summarize pre-existing bootstrap samples (a BrainData with one image per
+# sample) with OnlineBootstrapStats instead
+from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
+
+stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
+for sample in bootstrap_samples:
+    stats.update(sample.data)
+result = stats.get_results()  # keys: mean, std, Z, p, ci_lower, ci_upper
+mean_brain = shallow_copy(brain)
+mean_brain.data = result['mean']
 ```
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-This method replaces the removed `summarize_bootstrap()` function.
-
-**New API:**
->>> # Option 1: Use BrainData.bootstrap() for generating bootstrap samples
->>> boot = brain.bootstrap(stat='mean', n_samples=1000, save_boots=False)
->>> # Returns BrainData with bootstrap mean
->>> # To get Z and p, use stat='weights' or 'predict' which returns dict
-
->>> # Option 2: For existing bootstrap samples (BrainData with multiple images),
->>> # use OnlineBootstrapStats directly:
->>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
->>> stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
->>> for sample in bootstrap_samples:  # Iterate over samples
-...     stats.update(sample.data)
->>> result = stats.get_results()
->>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
->>> #           'ci_lower': array, 'ci_upper': array}
->>> # Convert to BrainData if needed:
->>> mean_brain = shallow_copy(brain)
->>> mean_brain.data = result['mean']
+This method replaces the removed `summarize_bootstrap()` function. Use
+`stat='mean'` to generate bootstrap samples of an aggregate; use
+`stat='weights'` or `stat='predict'` to also get Z and p maps. To summarize
+bootstrap samples you already have, feed them to `OnlineBootstrapStats`
+directly (see Examples).
 
 </details>
 
 (data-braindata-bootstrap-convert-bootstrap-results-to-brain-data)=
-#### `convert_bootstrap_results_to_brain_data`
+### `convert_bootstrap_results_to_brain_data`
 
 ```python
 convert_bootstrap_results_to_brain_data(bd, result, save_boots = False, return_dict = False)
@@ -133,5 +118,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or dict: - If return_dict=False and save_boots=False: Returns BrainData with mean - Otherwise: Returns dict with BrainData objects for each statistic.   The optional 'samples' entry (when save_boots=True) is a raw   ndarray, not a BrainData.
-
+<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | - If return_dict=False and save_boots=False: Returns BrainData with mean     - Otherwise: Returns dict with BrainData objects for each statistic.       The optional 'samples' entry (when save_boots=True) is a raw       ndarray, not a BrainData.

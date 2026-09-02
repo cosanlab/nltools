@@ -1,5 +1,6 @@
-(dataset-datasets)=
-## `datasets`
+---
+title: datasets
+---
 
 Dataset download and example-data utilities.
 
@@ -19,14 +20,10 @@ Name | Description
 [`fetch_pain`](#dataset-fetch-pain) | Download and load the pain dataset from the nltools HF dataset.
 [`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (dataset-download-nifti)=
-#### `download_nifti`
+### `download_nifti`
 
 ```python
 download_nifti(url, data_dir = None)
@@ -43,12 +40,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Path to the downloaded file
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Path to the downloaded file
 
 (dataset-fetch-emotion-ratings)=
-#### `fetch_emotion_ratings`
+### `fetch_emotion_ratings`
 
 ```python
 fetch_emotion_ratings(verbose = 0)
@@ -72,9 +69,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | `BrainData` with the 679 images; `X` holds the metadata table.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | `BrainData` with the 679 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -86,7 +83,7 @@ PLoS biology, 13(6), e1002180.
 </details>
 
 (dataset-fetch-neurovault-collection)=
-#### `fetch_neurovault_collection`
+### `fetch_neurovault_collection`
 
 ```python
 fetch_neurovault_collection(collection_id, data_dir = None, verbose = 1)
@@ -106,12 +103,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (metadata polars.DataFrame, list of image file paths)
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | (metadata polars.DataFrame, list of image file paths)
 
 (dataset-fetch-pain)=
-#### `fetch_pain`
+### `fetch_pain`
 
 ```python
 fetch_pain(verbose = 0)
@@ -135,9 +132,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | `BrainData` with the 84 images; `X` holds the metadata table.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | `BrainData` with the 84 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -149,7 +146,7 @@ PLoS biology, 13(6), e1002180.
 </details>
 
 (dataset-load-haxby-example)=
-#### `load_haxby_example`
+### `load_haxby_example`
 
 ```python
 load_haxby_example(n_runs = 1, random_state = 42)
@@ -178,9 +175,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | `(list[BrainData], list[DesignMatrix])`, each of length n_runs. The DesignMatrix columns are the eight condition names suffixed with ``_c0`` (HRF-convolved boxcars).
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | `(list[BrainData], list[DesignMatrix])`, each of length n_runs.     The DesignMatrix columns are the eight condition names suffixed     with ``_c0`` (HRF-convolved boxcars).
 
 **Examples:**
 
@@ -193,4 +190,3 @@ Name | Type | Description
 >>> "face_c0" in dm.columns
 True
 ```
-

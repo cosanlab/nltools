@@ -1,5 +1,6 @@
-(data-atlases-labeling-labeling)=
-## `labeling`
+---
+title: data.atlases.labeling
+---
 
 Coordinate-level atlas labeling.
 
@@ -8,26 +9,16 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`CoordsLike` |  | 
-
-
-
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`label_coords`](#data-atlases-labeling-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
-### Classes
-
-### Methods
+## Methods
 
 (data-atlases-labeling-label-coords)=
-#### `label_coords`
+### `label_coords`
 
 ```python
 label_coords(coords: CoordsLike, *, atlas: str | Sequence[str] = 'harvard_oxford', prob_threshold: float = 5.0) -> pl.DataFrame
@@ -52,6 +43,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame with columns ``x``, ``y``, ``z`` plus one
-<code>[DataFrame](#polars.DataFrame)</code> | column per atlas. All atlas columns are ``Utf8``.
-
+<code>[DataFrame](#polars.DataFrame)</code> | Frame with columns `x`, `y`, `z` plus one column per atlas.     All atlas columns are `Utf8`.

@@ -1,5 +1,6 @@
-(data-design-matrix-regressors-regressors)=
-## `regressors`
+---
+title: data.designmatrix.regressors
+---
 
 Provide standalone regressor functions for DesignMatrix.
 
@@ -14,14 +15,10 @@ Name | Description
 [`add_poly`](#data-design-matrix-regressors-add-poly) | Add Legendre polynomial drift terms.
 [`convolve`](#data-design-matrix-regressors-convolve) | Convolve columns with an HRF or custom kernel.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-design-matrix-regressors-add-dct-basis)=
-#### `add_dct_basis`
+### `add_dct_basis`
 
 ```python
 add_dct_basis(dm: DesignMatrix, *, duration: float = 180, drop: int = 0, include_constant: bool = True) -> DesignMatrix
@@ -40,13 +37,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended, named
- | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended, named     ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 (data-design-matrix-regressors-add-poly)=
-#### `add_poly`
+### `add_poly`
 
 ```python
 add_poly(dm: DesignMatrix, order: int = 0, include_lower: bool = True) -> DesignMatrix
@@ -64,13 +60,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended, named
- | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended, named     ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 (data-design-matrix-regressors-convolve)=
-#### `convolve`
+### `convolve`
 
 ```python
 convolve(dm: DesignMatrix, conv_func: str | np.ndarray = 'hrf', columns: list[str] | None = None) -> DesignMatrix
@@ -88,9 +83,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
 
 **Examples:**
 
@@ -121,4 +116,3 @@ downstream metadata propagation through ``.append()`` stays in
 sync with the dataframe.
 
 </details>
-

@@ -1,5 +1,6 @@
-(neighborhoods-neighborhoods)=
-## `neighborhoods`
+---
+title: data.braindata.neighborhoods
+---
 
 Spatial neighborhood computation for neuroimaging analyses.
 
@@ -9,23 +10,6 @@ ISC, and other operations that require iterating over local brain regions.
 
 The key insight is that for a given mask and radius, the neighborhood structure
 is deterministic and can be cached for reuse across analyses.
-
-<details class="example" open markdown="1">
-<summary>Example</summary>
-
->>> import nibabel as nib
->>> from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
->>>
->>> mask = nib.load("mask.nii.gz")
->>> neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
->>>
->>> # Iterate over all voxels and their neighborhoods
->>> for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
-...     # Extract data for these voxels
-...     local_data = data[:, neighbor_indices]
-...     result[center_idx] = analyze(local_data)
-
-</details>
 
 **Classes:**
 
@@ -41,10 +25,25 @@ Name | Description
 
 
 
-### Classes
+**Examples:**
+
+```python
+import nibabel as nib
+from nltools.data.braindata.neighborhoods import compute_searchlight_neighborhoods
+
+mask = nib.load("mask.nii.gz")
+neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+
+# Iterate over all voxels and their neighborhoods
+for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
+    local_data = data[:, neighbor_indices]  # data for the voxels in this sphere
+    result[center_idx] = analyze(local_data)
+```
+
+## Classes
 
 (neighborhoods-sphereneighborhoods)=
-#### `SphereNeighborhoods`
+### `SphereNeighborhoods`
 
 ```python
 SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius_mm: float, n_voxels: int) -> None
@@ -65,18 +64,6 @@ Name | Type | Description
 `radius_mm` | <code>[float](#float)</code> | Radius in millimeters
 `n_voxels` | <code>[int](#int)</code> | Number of voxels in the mask
 
-<details class="example" open markdown="1">
-<summary>Example</summary>
-
->>> neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
->>> print(f"Mean neighborhood size: {neighborhoods.mean_size:.1f} voxels")
->>>
->>> # Get neighbors of a specific voxel
->>> neighbor_idx = neighborhoods.get_neighbors(100)
->>> print(f"Voxel 100 has {len(neighbor_idx)} neighbors")
-
-</details>
-
 **Methods:**
 
 Name | Description
@@ -85,10 +72,23 @@ Name | Description
 [`get_neighbors`](#neighborhoods-get-neighbors) | Get indices of all voxels in the neighborhood of a given voxel.
 [`iter_neighborhoods`](#neighborhoods-iter-neighborhoods) | Iterate over all neighborhoods.
 
-##### Methods
+
+
+**Examples:**
+
+```python
+neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=10.0)
+print(f"Mean neighborhood size: {neighborhoods.mean_size:.1f} voxels")
+
+# Get neighbors of a specific voxel
+neighbor_idx = neighborhoods.get_neighbors(100)
+print(f"Voxel 100 has {len(neighbor_idx)} neighbors")
+```
+
+#### Methods
 
 (neighborhoods-get-neighborhood-size)=
-###### `get_neighborhood_size`
+##### `get_neighborhood_size`
 
 ```python
 get_neighborhood_size(voxel_idx: int) -> int
@@ -109,7 +109,7 @@ Type | Description
 <code>[int](#int)</code> | Number of voxels in the neighborhood
 
 (neighborhoods-get-neighbors)=
-###### `get_neighbors`
+##### `get_neighbors`
 
 ```python
 get_neighbors(voxel_idx: int) -> np.ndarray
@@ -130,7 +130,7 @@ Type | Description
 <code>[ndarray](#numpy.ndarray)</code> | Array of voxel indices within radius of the center voxel
 
 (neighborhoods-iter-neighborhoods)=
-###### `iter_neighborhoods`
+##### `iter_neighborhoods`
 
 ```python
 iter_neighborhoods(*, progress_bar: bool = False) -> Iterator[tuple[int, np.ndarray]]
@@ -152,10 +152,10 @@ Type | Description
 ---- | -----------
 <code>[tuple](#tuple)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
 
-### Methods
+## Methods
 
 (neighborhoods-compute-searchlight-neighborhoods)=
-#### `compute_searchlight_neighborhoods`
+### `compute_searchlight_neighborhoods`
 
 ```python
 compute_searchlight_neighborhoods(mask_img: Nifti1Image, radius_mm: float = 10.0, use_cache: bool = True) -> SphereNeighborhoods
@@ -185,22 +185,22 @@ Type | Description
 ---- | -----------
 <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
 
-<details class="example" open markdown="1">
-<summary>Example</summary>
+**Examples:**
 
->>> import nibabel as nib
->>> mask = nib.load("brain_mask.nii.gz")
->>>
->>> # First call computes and caches (may take a few seconds)
->>> neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
->>>
->>> # Subsequent calls load from cache (~50ms)
->>> neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
->>>
->>> print(neighborhoods)
-SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
+```python
+import nibabel as nib
 
-</details>
+mask = nib.load("brain_mask.nii.gz")
+
+# First call computes and caches (may take a few seconds)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+
+# Subsequent calls load from cache (~50ms)
+neighborhoods = compute_searchlight_neighborhoods(mask, radius_mm=8.0)
+
+print(neighborhoods)
+# SphereNeighborhoods(n_voxels=50000, radius=8.0mm, mean_size=33.2)
+```
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -212,4 +212,3 @@ For a typical 2mm MNI mask (~50k voxels) with 10mm radius:
 - Cached load: ~50ms
 
 </details>
-

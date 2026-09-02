@@ -303,6 +303,19 @@ args = [
 
 [tool.griffe2md]
 docstring_style = "google"
+# One page per module (scripts/build_api_docs.py lists them): recursing into
+# submodules duplicated every member on the package page and pushed headings
+# past h6. The build script supplies each page's title, so the root heading
+# would only repeat it.
+show_submodules = false
+show_root_heading = false
+# Undocumented members (dataclass fields, module constants) rendered as empty
+# table rows; document a member to publish it.
+show_if_no_docstring = false
+# A Returns block is one `type: description` value (Google style) whose
+# description may span several lines — not one named item per line, which split
+# multi-line descriptions into separate rows and put the type in a Name column.
+docstring_options = { ignore_init_summary = true, returns_multiple_items = false, returns_named_value = false }
 show_docstring_examples = true
 show_signature_annotations = true
 separate_signature = true

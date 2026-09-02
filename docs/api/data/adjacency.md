@@ -1,9 +1,6 @@
-(data-adjacency-adjacency)=
-## `Adjacency`
-
-```python
-Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
-```
+---
+title: Adjacency
+---
 
 Represent adjacency matrices in vectorized form.
 
@@ -26,15 +23,9 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `Y` | <code>[DataFrame](#polars.DataFrame)</code> | Training labels as a polars DataFrame (possibly empty).
-`data` |  | 
 `is_empty` | <code>[bool](#bool)</code> | Check if Adjacency object is empty.
-`is_single_matrix` |  | 
-`issymmetric` |  | 
-`labels` |  | 
-`matrix_type` |  | 
 `n_nodes` |  | Return the number of nodes in the adjacency matrix.
 `shape` |  | Return the logical shape of the adjacency matrix.
-`spatial_scale` | <code>[SpatialScale](#nltools.data.adjacency.spatial.SpatialScale) \| None</code> | 
 `vector_shape` |  | Return shape of internal vectorized representation.
 
 
@@ -72,10 +63,10 @@ Name | Description
 [`write`](#data-adjacency-write) | Write out Adjacency object to csv file.
 [`z_to_r`](#data-adjacency-z-to-r) | Convert each z score back into an r value.
 
-### Methods
+## Methods
 
 (data-adjacency-append)=
-#### `append`
+### `append`
 
 ```python
 append(data)
@@ -91,12 +82,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (Adjacency) new appended Adjacency instance
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | New appended Adjacency instance.
 
 (data-adjacency-bootstrap)=
-#### `bootstrap`
+### `bootstrap`
 
 ```python
 bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar: bool = False)
@@ -121,9 +112,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'   (all Adjacency objects). If save_boots=True, also includes 'samples'.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
 
 **Examples:**
 
@@ -135,7 +126,7 @@ Name | Type | Description
 ```
 
 (data-adjacency-cluster-summary)=
-#### `cluster_summary`
+### `cluster_summary`
 
 ```python
 cluster_summary(*, clusters = None, summary = 'mean', scope = 'within')
@@ -156,12 +147,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | per-cluster summaries
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | per-cluster summaries
 
 (data-adjacency-copy)=
-#### `copy`
+### `copy`
 
 ```python
 copy()
@@ -170,7 +161,7 @@ copy()
 Create a copy of Adjacency object.
 
 (data-adjacency-distance)=
-#### `distance`
+### `distance`
 
 ```python
 distance(metric = 'correlation', include_diag = False, **kwargs)
@@ -187,12 +178,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dist` |  | (Adjacency) Outputs a 2D distance matrix.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | A 2D distance matrix.
 
 (data-adjacency-distance-to-similarity)=
-#### `distance_to_similarity`
+### `distance_to_similarity`
 
 ```python
 distance_to_similarity(metric = 'correlation', beta = 1)
@@ -200,23 +191,23 @@ distance_to_similarity(metric = 'correlation', beta = 1)
 
 Convert distance matrix to similarity matrix.
 
-Note: currently only implemented for correlation and euclidean.
+Currently only implemented for the 'correlation' and 'euclidean' metrics.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`metric` |  | (str) Can only be correlation or euclidean | <code>'correlation'</code>
-`beta` |  | (float) parameter to scale exponential function (default: 1) for euclidean | <code>1</code>
+`metric` | <code>[str](#str)</code> | Either 'correlation' or 'euclidean'. | <code>'correlation'</code>
+`beta` | <code>[float](#float)</code> | Scale parameter of the exponential used for 'euclidean' (default: 1). | <code>1</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (Adjacency) Adjacency object
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | The converted similarity matrix.
 
 (data-adjacency-generate-permutations)=
-#### `generate_permutations`
+### `generate_permutations`
 
 ```python
 generate_permutations(n_permute, random_state = None)
@@ -241,12 +232,12 @@ Name | Type | Description | Default
 
 **Yields:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | permuted version of self
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | permuted version of self
 
 (data-adjacency-mean)=
-#### `mean`
+### `mean`
 
 ```python
 mean(axis = 0)
@@ -264,10 +255,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+<code>[float](#float) \| [Adjacency](#nltools.data.adjacency.Adjacency) \| [ndarray](#numpy.ndarray)</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-median)=
-#### `median`
+### `median`
 
 ```python
 median(axis = 0)
@@ -285,10 +276,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+<code>[float](#float) \| [Adjacency](#nltools.data.adjacency.Adjacency) \| [ndarray](#numpy.ndarray)</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-plot)=
-#### `plot`
+### `plot`
 
 ```python
 plot(limit = 3, axes = None, *args, **kwargs)
@@ -306,7 +297,7 @@ Name | Type | Description | Default
 `axes` |  | matplotlib axis handle | <code>None</code>
 
 (data-adjacency-plot-label-distance)=
-#### `plot_label_distance`
+### `plot_label_distance`
 
 ```python
 plot_label_distance(labels = None, ax = None)
@@ -320,14 +311,8 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | None
-
 (data-adjacency-plot-mds)=
-#### `plot_mds`
+### `plot_mds`
 
 ```python
 plot_mds(*, n_components = 2, metric_mds = True, labels = None, labels_color = None, cmap = None, view = (30, 20), figsize = None, ax = None, n_jobs = -1, **kwargs)
@@ -350,7 +335,7 @@ Name | Type | Description | Default
 `n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
 
 (data-adjacency-plot-silhouette)=
-#### `plot_silhouette`
+### `plot_silhouette`
 
 ```python
 plot_silhouette(*, labels = None, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
@@ -370,7 +355,7 @@ Name | Type | Description | Default
 `figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
 
 (data-adjacency-r-to-z)=
-#### `r_to_z`
+### `r_to_z`
 
 ```python
 r_to_z()
@@ -379,7 +364,7 @@ r_to_z()
 Apply Fisher's r-to-z transformation to each data element.
 
 (data-adjacency-regress)=
-#### `regress`
+### `regress`
 
 ```python
 regress(X, method = 'ols', tail = 2)
@@ -395,16 +380,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
 `method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
+`tail` |  | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`stats` |  | (dict) dictionary of stats outputs.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary of stats outputs.
 
 (data-adjacency-similarity)=
-#### `similarity`
+### `similarity`
 
 ```python
 similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False, project: bool = False)
@@ -436,10 +421,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict or list or BrainData: A correlation result dict with keys 'correlation', 'p', and 'device' for a single matrix, a list of such dicts when this Adjacency holds multiple matrices, or a `BrainData` when `project=True` (per-matrix correlations projected via spatial_scale).
+<code>[dict](#dict) \| [list](#list)[[dict](#dict)] \| [BrainData](#nltools.data.braindata.BrainData)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' for a single matrix, a list of     such dicts when this Adjacency holds multiple matrices, or a     `BrainData` when `project=True` (per-matrix correlations     projected via spatial_scale).
 
 (data-adjacency-social-relations-model)=
-#### `social_relations_model`
+### `social_relations_model`
 
 ```python
 social_relations_model(summarize_results = True, nan_replace = True)
@@ -477,18 +462,17 @@ Bond and Lashley, 1996
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`self` |  | (adjacency) can be a single matrix or many matrices for each group | *required*
-`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
-`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
+`summarize_results` | <code>[bool](#bool)</code> | If True, provide a formatted summary of model results. | <code>True</code>
+`nan_replace` | <code>[bool](#bool)</code> | If True, replace NaN values with row and column means. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+<code>[Series](#pd.Series) \| [DataFrame](#pd.DataFrame)</code> | All of the effects estimated using SRM, as a     Series (single matrix) or DataFrame (one row per matrix).
 
 (data-adjacency-squareform)=
-#### `squareform`
+### `squareform`
 
 ```python
 squareform()
@@ -497,7 +481,7 @@ squareform()
 Convert adjacency data back to square form.
 
 (data-adjacency-stats-label-distance)=
-#### `stats_label_distance`
+### `stats_label_distance`
 
 ```python
 stats_label_distance(*, labels = None, n_permute = 5000, n_jobs = -1)
@@ -514,12 +498,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | dictionary of within and between group differences     and p-values
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | dictionary of within and between group differences         and p-values
 
 (data-adjacency-std)=
-#### `std`
+### `std`
 
 ```python
 std(axis = 0)
@@ -537,10 +521,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+<code>[float](#float) \| [Adjacency](#nltools.data.adjacency.Adjacency) \| [ndarray](#numpy.ndarray)</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-sum)=
-#### `sum`
+### `sum`
 
 ```python
 sum(axis = 0)
@@ -558,10 +542,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float if single matrix, Adjacency if axis=0, np.array if axis=1.
+<code>[float](#float) \| [Adjacency](#nltools.data.adjacency.Adjacency) \| [ndarray](#numpy.ndarray)</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-threshold)=
-#### `threshold`
+### `threshold`
 
 ```python
 threshold(*, upper = None, lower = None, binarize = False)
@@ -583,12 +567,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | thresholded Adjacency instance
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | thresholded Adjacency instance
 
 (data-adjacency-to-brain)=
-#### `to_brain`
+### `to_brain`
 
 ```python
 to_brain(values, *, fill: float = np.nan)
@@ -612,9 +596,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Single image masked to ``spatial_scale.source_mask``.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Single image masked to ``spatial_scale.source_mask``.
 
 **Examples:**
 
@@ -626,7 +610,7 @@ Name | Type | Description
 ```
 
 (data-adjacency-to-graph)=
-#### `to_graph`
+### `to_graph`
 
 ```python
 to_graph()
@@ -637,7 +621,7 @@ Convert a single Adjacency matrix into a NetworkX graph.
 This currently works only for ``single_matrix``.
 
 (data-adjacency-to-square)=
-#### `to_square`
+### `to_square`
 
 ```python
 to_square()
@@ -651,11 +635,10 @@ This is an alias for `squareform`.
 
 Type | Description
 ---- | -----------
- | np.ndarray or list: Square matrix representation. Returns a list
- | of matrices if this object contains multiple adjacency matrices.
+<code>[ndarray](#numpy.ndarray) \| [list](#list)[[ndarray](#numpy.ndarray)]</code> | Square matrix representation, or a list     of them if this object contains multiple adjacency matrices.
 
 (data-adjacency-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False)
@@ -669,7 +652,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: mean > 0; negate the data for the other direction). Applies to both the parametric and permutation paths. | <code>2</code>
+`tail` |  | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: mean > 0; negate the data for the other direction). Applies to both the parametric and permutation paths. | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -677,12 +660,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Contains Adjacency instances of t values (or mean if running     permutation) and Adjacency instance of p values.
 
 (data-adjacency-write)=
-#### `write`
+### `write`
 
 ```python
 write(file_name, method = 'long')
@@ -698,11 +681,10 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
 
 (data-adjacency-z-to-r)=
-#### `z_to_r`
+### `z_to_r`
 
 ```python
 z_to_r()
 ```
 
 Convert each z score back into an r value.
-

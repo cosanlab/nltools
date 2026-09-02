@@ -1,5 +1,6 @@
-(crossval-cross-validation)=
-## `cross_validation`
+---
+title: cross_validation
+---
 
 Scikit-learn-compatible cross-validation data classes.
 
@@ -17,10 +18,10 @@ Name | Description
 
 
 
-### Classes
+## Classes
 
 (crossval-kfoldstratified)=
-#### `KFoldStratified`
+### `KFoldStratified`
 
 ```python
 KFoldStratified(n_splits = 3, *, shuffle = False, random_state = None)
@@ -53,10 +54,10 @@ Name | Description
 
 
 
-##### Methods
+#### Methods
 
 (crossval-split)=
-###### `split`
+##### `split`
 
 ```python
 split(X, y = None, groups = None)
@@ -72,19 +73,18 @@ Name | Type | Description | Default
 `y` |  | The target variable of shape `(n_samples,)` for supervised learning problems. Stratification is done based on the y labels. | <code>None</code>
 `groups` |  | Always ignored, exists for compatibility. | <code>None</code>
 
-**Returns:**
+**Yields:**
 
-Name | Type | Description
----- | ---- | -----------
-`train` |  | The training set indices for that split (ndarray).
-`test` |  | The testing set indices for that split (ndarray).
-
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)]</code> | `(train, test)` — the training set indices     and the testing set indices for that split.
 
 
-### Methods
+
+## Methods
 
 (crossval-resolve-cv)=
-#### `resolve_cv`
+### `resolve_cv`
 
 ```python
 resolve_cv(cv, *, groups = None, classifier: bool = False, shuffle: bool = False, random_state: int | None = None)
@@ -113,5 +113,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | An sklearn splitter instance.
-
+<code>[BaseCrossValidator](#BaseCrossValidator)</code> | An sklearn splitter instance.

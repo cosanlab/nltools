@@ -1,5 +1,6 @@
-(data-adjacency-modeling-modeling)=
-## `modeling`
+---
+title: data.adjacency.modeling
+---
 
 Provide standalone modeling and inference functions for Adjacency matrices.
 
@@ -17,10 +18,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-adjacency-modeling-bootstrap)=
-#### `bootstrap`
+### `bootstrap`
 
 ```python
 bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
@@ -40,28 +41,27 @@ Name | Type | Description | Default
 `n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
 `save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
 `percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
 `n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
 `random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
 `progress_bar` |  | (bool) If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'   (all Adjacency objects). If save_boots=True, also includes 'samples'.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
 
 **Examples:**
 
-```pycon
->>> # Simple aggregation
->>> boot = bootstrap(adj, stat='mean', n_samples=1000)
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], Adjacency)
+```python
+# Simple aggregation
+boot = bootstrap(adj, stat='mean', n_samples=1000)
+assert isinstance(boot['mean'], Adjacency)
 ```
 
 (data-adjacency-modeling-convert-bootstrap-results-to-adjacency)=
-#### `convert_bootstrap_results_to_adjacency`
+### `convert_bootstrap_results_to_adjacency`
 
 ```python
 convert_bootstrap_results_to_adjacency(adj, result, save_boots = False)
@@ -82,12 +82,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with Adjacency objects for each statistic
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with Adjacency objects for each statistic
 
 (data-adjacency-modeling-generate-permutations)=
-#### `generate_permutations`
+### `generate_permutations`
 
 ```python
 generate_permutations(adj, n_permute, random_state = None)
@@ -105,22 +105,21 @@ Name | Type | Description | Default
 `n_permute` | <code>[int](#int)</code> | number of permutations | *required*
 `random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
 
-**Examples:**
-
-```pycon
->>> for perm in generate_permutations(adj, 1000):
->>>     out = neural_distance_mat.similarity(perm)
->>>     ...
-```
-
 **Yields:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | permuted version of adj
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | permuted version of adj
+
+**Examples:**
+
+```python
+for perm in generate_permutations(adj, 1000):
+    out = neural_distance_mat.similarity(perm)
+```
 
 (data-adjacency-modeling-regress)=
-#### `regress`
+### `regress`
 
 ```python
 regress(adj, X, method = 'ols', tail = 2)
@@ -137,16 +136,16 @@ Name | Type | Description | Default
 `adj` |  | (Adjacency) Adjacency instance | *required*
 `X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
 `method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (beta > 0; negate a regressor for the other direction). | <code>2</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`stats` |  | (dict) dictionary of stats outputs.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary of stats outputs.
 
 (data-adjacency-modeling-social-relations-model)=
-#### `social_relations_model`
+### `social_relations_model`
 
 ```python
 social_relations_model(adj, summarize_results = True, nan_replace = True)
@@ -192,5 +191,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
-
+<code>[Series](#pd.Series) \| [DataFrame](#pd.DataFrame)</code> | All of the effects estimated using SRM (a Series     for a single matrix, a DataFrame with one row per matrix otherwise).

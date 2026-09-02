@@ -98,7 +98,10 @@ project:
         - file: api/algorithms/signal.md
         - file: api/algorithms/similarity.md
         - file: api/algorithms/regression.md
+        - file: api/algorithms/alignment.md
         - file: api/algorithms/alignment_procrustes.md
+        - file: api/algorithms/hrf.md
+        - file: api/algorithms/ridge.md
         - file: api/backends.md
     - title: API Inference
       children:

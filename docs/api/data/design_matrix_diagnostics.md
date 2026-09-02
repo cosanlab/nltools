@@ -1,5 +1,6 @@
-(data-design-matrix-diagnostics-diagnostics)=
-## `diagnostics`
+---
+title: data.designmatrix.diagnostics
+---
 
 Diagnostic and utility functions for DesignMatrix.
 
@@ -11,14 +12,10 @@ Name | Description
 [`corr`](#data-design-matrix-diagnostics-corr) | Correlation between DesignMatrix columns as an Adjacency.
 [`vif`](#data-design-matrix-diagnostics-vif) | Compute the variance inflation factor for each column.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-design-matrix-diagnostics-clean)=
-#### `clean`
+### `clean`
 
 ```python
 clean(dm: DesignMatrix, *, fill_na: int | float | None = 0, exclude_confounds: bool = False, thresh: float = 0.95, progress_bar: bool = False) -> DesignMatrix
@@ -41,12 +38,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
 
 (data-design-matrix-diagnostics-corr)=
-#### `corr`
+### `corr`
 
 ```python
 corr(dm: DesignMatrix, *, metric: str = 'pearson', columns: list[str] | None = None) -> Adjacency
@@ -71,9 +68,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` | <code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column names.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column     names.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -84,7 +81,7 @@ yield NaN correlations.
 </details>
 
 (data-design-matrix-diagnostics-vif)=
-#### `vif`
+### `vif`
 
 ```python
 vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None
@@ -106,5 +103,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| None</code> | np.ndarray: VIF values for each included column. Returns None if the correlation matrix is singular (perfect collinearity detected).
-
+<code>[ndarray](#numpy.ndarray) \| None</code> | VIF values for each included column, or None if the correlation matrix     is singular (perfect collinearity detected).

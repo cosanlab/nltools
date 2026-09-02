@@ -1,16 +1,8 @@
-(algorithms-inference-bootstrap-bootstrap)=
-## `bootstrap`
+---
+title: algorithms.inference.bootstrap
+---
 
 Bootstrap inference utilities with CPU/GPU support.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`FITTED_METHODS` |  | 
-`SIMPLE_METHODS` |  | 
-
-
 
 **Classes:**
 
@@ -18,10 +10,12 @@ Name | Description
 ---- | -----------
 [`OnlineBootstrapStats`](#algorithms-inference-bootstrap-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
 
-### Classes
+
+
+## Classes
 
 (algorithms-inference-bootstrap-onlinebootstrapstats)=
-#### `OnlineBootstrapStats`
+### `OnlineBootstrapStats`
 
 ```python
 OnlineBootstrapStats(shape: tuple[int, ...], save_samples: bool = False, percentiles: tuple[float, float] = (2.5, 97.5))
@@ -40,26 +34,14 @@ Name | Type | Description | Default
 `save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
 `percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`M2` |  | 
-`mean` |  | 
-`n` |  | 
-`percentiles` |  | 
-`samples` |  | 
-`save_samples` |  | 
-`shape` |  | 
-
-
-
 **Methods:**
 
 Name | Description
 ---- | -----------
 [`get_results`](#algorithms-inference-bootstrap-get-results) | Compute final bootstrap statistics.
 [`update`](#algorithms-inference-bootstrap-update) | Update statistics with a new bootstrap sample.
+
+
 
 **Examples:**
 
@@ -73,10 +55,10 @@ Name | Description
 dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
 ```
 
-##### Methods
+#### Methods
 
 (algorithms-inference-bootstrap-get-results)=
-###### `get_results`
+##### `get_results`
 
 ```python
 get_results(tail: int | str = 2) -> dict[str, np.ndarray]
@@ -88,20 +70,13 @@ Compute final bootstrap statistics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary containing:
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'mean': Bootstrap mean
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'std': Bootstrap standard deviation
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'Z': Z-scores (mean/std)
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'p': P-values (per ``tail``)
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_lower': Lower confidence bound
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'ci_upper': Upper confidence bound
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | - 'samples': All samples (only if save_samples=True)
+<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary with keys 'mean' (bootstrap mean), 'std' (bootstrap standard     deviation), 'Z' (z-scores, mean/std), 'p' (p-values per ``tail``),     'ci_lower' and 'ci_upper' (confidence bounds), and 'samples' (all     samples, only if ``save_samples=True``).
 
 **Examples:**
 
@@ -114,7 +89,7 @@ results = stats.get_results()
 ```
 
 (algorithms-inference-bootstrap-update)=
-###### `update`
+##### `update`
 
 ```python
 update(sample: np.ndarray) -> None
@@ -129,7 +104,3 @@ Uses Welford's algorithm for numerical stability.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `sample` | <code>[ndarray](#numpy.ndarray)</code> | New bootstrap sample with shape matching self.shape. | *required*
-
-
-
-### Methods

@@ -1,5 +1,6 @@
-(algorithms-outliers-outliers)=
-## `outliers`
+---
+title: algorithms.outliers
+---
 
 Outlier detection, robust statistics, and data normalization.
 
@@ -14,10 +15,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (algorithms-outliers-find-spikes)=
-#### `find_spikes`
+### `find_spikes`
 
 ```python
 find_spikes(data, global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
@@ -37,23 +38,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` |  | one indicator column per detected spike TR, named
- |  | ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved
- |  | namespace for generated columns (see `RESERVED_PREFIX`), with all
- |  | spike columns pre-marked as confounds. The two detectors run
- |  | independently, so a single bad volume is routinely caught by both;
- |  | those detections are bitwise-identical one-hot columns, and only one
- |  | is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —
- |  | the column values are the same either way). Row position is the time
- |  | axis (no separate `TR` index column — that was a pandas-era
- |  | artifact). When `TR` / `sampling_freq` aren't provided the DM has
- |  | `sampling_freq=None`; you can still `.append()` it onto a DM that
- |  | does have one.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.DesignMatrix)</code> | One indicator column per detected spike TR, named     ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved     namespace for generated columns (see `RESERVED_PREFIX`), with all     spike columns pre-marked as confounds. The two detectors run     independently, so a single bad volume is routinely caught by both;     those detections are bitwise-identical one-hot columns, and only one     is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —     the column values are the same either way). Row position is the time     axis (no separate `TR` index column — that was a pandas-era     artifact). When `TR` / `sampling_freq` aren't provided the DM has     `sampling_freq=None`; you can still `.append()` it onto a DM that     does have one.
 
 (algorithms-outliers-trim)=
-#### `trim`
+### `trim`
 
 ```python
 trim(data, cutoff = None)
@@ -65,14 +55,17 @@ Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series) data to trim | *required*
-`cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
+`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to trim. | *required*
+`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
 
-Returns:
-    out: (pl.DataFrame, pl.Series) trimmed data (same type as input)
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Trimmed data (outliers replaced with NaN), the     same type as the input.
 
 (algorithms-outliers-winsorize)=
-#### `winsorize`
+### `winsorize`
 
 ```python
 winsorize(data, cutoff = None, replace_with_cutoff = True)
@@ -84,15 +77,18 @@ Winsorize a Polars DataFrame/Series with the largest/lowest value not considered
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (pl.DataFrame, pl.Series) data to winsorize | *required*
-`cutoff` |  | (dict) a dictionary with keys {'std':[low,high]} or     {'quantile':[low,high]} | <code>None</code>
-`replace_with_cutoff` |  | (bool) If True, replace outliers with cutoff.                  If False, replaces outliers with closest                  existing values; (default: True) | <code>True</code>
+`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to winsorize. | *required*
+`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
+`replace_with_cutoff` | <code>[bool](#bool)</code> | If True, replace outliers with the cutoff value; if False, replace them with the closest existing values (default: True). | <code>True</code>
 
-Returns:
-    out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Winsorized data, the same type as the input.
 
 (algorithms-outliers-zscore)=
-#### `zscore`
+### `zscore`
 
 ```python
 zscore(data)
@@ -114,6 +110,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | pl.DataFrame or pl.Series with each column z-scored using sample
- | standard deviation (ddof=1), matching the input shape.
-
+<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Same type and shape as the input, each column     z-scored using the sample standard deviation (ddof=1).

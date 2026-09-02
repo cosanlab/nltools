@@ -1,32 +1,12 @@
-(cache-cache)=
-## `cache`
+---
+title: data.braindata.cache
+---
 
 Disk-based caching infrastructure for expensive computations.
 
 This module provides a general-purpose caching system for nltools, designed to
 be reused across various computationally expensive operations like searchlight
 neighborhoods, ISC, and SRM.
-
-<details class="example" open markdown="1">
-<summary>Example</summary>
-
->>> from nltools.data.braindata.cache import CacheManager, hash_mask
->>> import nibabel as nib
->>>
->>> # Hash a mask for cache key generation
->>> mask = nib.load("mask.nii.gz")
->>> mask_hash = hash_mask(mask)
->>>
->>> # Use cache manager for searchlight neighborhoods
->>> cache = CacheManager("searchlight")
->>> if not cache.exists(f"{mask_hash}_10mm"):
-...     # Compute expensive operation
-...     result = compute_something()
-...     cache.save(f"{mask_hash}_10mm", data=result)
->>> else:
-...     result = cache.load(f"{mask_hash}_10mm")["data"]
-
-</details>
 
 **Classes:**
 
@@ -44,10 +24,29 @@ Name | Description
 
 
 
-### Classes
+**Examples:**
+
+```python
+import nibabel as nib
+from nltools.data.braindata.cache import CacheManager, hash_mask
+
+# Hash a mask for cache key generation
+mask = nib.load("mask.nii.gz")
+mask_hash = hash_mask(mask)
+
+# Use cache manager for searchlight neighborhoods
+cache = CacheManager("searchlight")
+if not cache.exists(f"{mask_hash}_10mm"):
+    result = compute_something()  # expensive operation
+    cache.save(f"{mask_hash}_10mm", data=result)
+else:
+    result = cache.load(f"{mask_hash}_10mm")["data"]
+```
+
+## Classes
 
 (cache-cachemanager)=
-#### `CacheManager`
+### `CacheManager`
 
 ```python
 CacheManager(category: str = 'general')
@@ -65,30 +64,6 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `category` | <code>[str](#str)</code> | Category name for organizing cached files (e.g., "searchlight") | <code>'general'</code>
 
-<details class="example" open markdown="1">
-<summary>Example</summary>
-
->>> cache = CacheManager("searchlight")
->>>
->>> # Check if something is cached
->>> if cache.exists("mykey"):
-...     data = cache.load("mykey")
-... else:
-...     result = expensive_computation()
-...     cache.save("mykey", adjacency=result, metadata=metadata)
-...     data = {"adjacency": result, "metadata": metadata}
-
-</details>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`cache_dir` |  | 
-`category` |  | 
-
-
-
 **Methods:**
 
 Name | Description
@@ -101,10 +76,26 @@ Name | Description
 [`load`](#cache-load) | Load cached data.
 [`save`](#cache-save) | Save arrays to cache.
 
-##### Methods
+
+
+**Examples:**
+
+```python
+cache = CacheManager("searchlight")
+
+# Load from cache if present, otherwise compute and store
+if cache.exists("mykey"):
+    data = cache.load("mykey")
+else:
+    result = expensive_computation()
+    cache.save("mykey", adjacency=result, metadata=metadata)
+    data = {"adjacency": result, "metadata": metadata}
+```
+
+#### Methods
 
 (cache-clear)=
-###### `clear`
+##### `clear`
 
 ```python
 clear() -> int
@@ -119,7 +110,7 @@ Type | Description
 <code>[int](#int)</code> | Number of files deleted
 
 (cache-delete)=
-###### `delete`
+##### `delete`
 
 ```python
 delete(key: str, ext: str = '.npz') -> bool
@@ -141,7 +132,7 @@ Type | Description
 <code>[bool](#bool)</code> | True if file was deleted, False if it didn't exist
 
 (cache-exists)=
-###### `exists`
+##### `exists`
 
 ```python
 exists(key: str, ext: str = '.npz') -> bool
@@ -163,7 +154,7 @@ Type | Description
 <code>[bool](#bool)</code> | True if cached file exists
 
 (cache-get-path)=
-###### `get_path`
+##### `get_path`
 
 ```python
 get_path(key: str, ext: str = '.npz') -> Path
@@ -185,7 +176,7 @@ Type | Description
 <code>[Path](#pathlib.Path)</code> | Path to the cache file
 
 (cache-list-keys)=
-###### `list_keys`
+##### `list_keys`
 
 ```python
 list_keys(ext: str = '.npz') -> list[str]
@@ -206,7 +197,7 @@ Type | Description
 <code>[list](#list)[[str](#str)]</code> | List of cache keys (without extension)
 
 (cache-load)=
-###### `load`
+##### `load`
 
 ```python
 load(key: str) -> dict | None
@@ -227,7 +218,7 @@ Type | Description
 <code>[dict](#dict) \| None</code> | Dictionary of cached arrays, or None if not cached
 
 (cache-save)=
-###### `save`
+##### `save`
 
 ```python
 save(key: str, compressed: bool = True, **arrays: bool) -> Path
@@ -251,10 +242,10 @@ Type | Description
 
 
 
-### Methods
+## Methods
 
 (cache-clear-cache)=
-#### `clear_cache`
+### `clear_cache`
 
 ```python
 clear_cache(category: str | None = None) -> int
@@ -275,7 +266,7 @@ Type | Description
 <code>[int](#int)</code> | Number of files deleted
 
 (cache-get-cache-dir)=
-#### `get_cache_dir`
+### `get_cache_dir`
 
 ```python
 get_cache_dir() -> Path
@@ -292,7 +283,7 @@ Type | Description
 <code>[Path](#pathlib.Path)</code> | Path to cache directory
 
 (cache-hash-mask)=
-#### `hash_mask`
+### `hash_mask`
 
 ```python
 hash_mask(mask_img: Nifti1Image) -> str
@@ -316,13 +307,11 @@ Type | Description
 ---- | -----------
 <code>[str](#str)</code> | 16-character hexadecimal hash string
 
-<details class="example" open markdown="1">
-<summary>Example</summary>
+**Examples:**
 
->>> import nibabel as nib
->>> mask = nib.load("mask.nii.gz")
->>> hash_mask(mask)
-'a1b2c3d4e5f60789'
+```python
+import nibabel as nib
 
-</details>
-
+mask = nib.load("mask.nii.gz")
+hash_mask(mask)  # 'a1b2c3d4e5f60789'
+```

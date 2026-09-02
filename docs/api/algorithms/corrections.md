@@ -1,5 +1,6 @@
-(algorithms-corrections-corrections)=
-## `corrections`
+---
+title: algorithms.corrections
+---
 
 Multiple comparison corrections and thresholding.
 
@@ -14,10 +15,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (algorithms-corrections-fdr)=
-#### `fdr`
+### `fdr`
 
 ```python
 fdr(p, q = 0.05)
@@ -36,12 +37,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`fdr_p` |  | (float) p-value threshold based on independence or positive     dependence
+Type | Description
+---- | -----------
+<code>[float](#float)</code> | p-value threshold based on independence or positive dependence.
 
 (algorithms-corrections-holm-bonf)=
-#### `holm_bonf`
+### `holm_bonf`
 
 ```python
 holm_bonf(p, alpha = 0.05)
@@ -62,12 +63,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`bonf_p` |  | (float) p-value threshold based on bonferroni     step-down procedure
+Type | Description
+---- | -----------
+<code>[float](#float)</code> | p-value threshold based on the Bonferroni step-down procedure.
 
 (algorithms-corrections-multi-threshold)=
-#### `multi_threshold`
+### `multi_threshold`
 
 ```python
 multi_threshold(t_map, p_map, thresh)
@@ -85,9 +86,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | Thresholded BrainData instance with cumulative map - Positive values indicate how many thresholds were passed for positive stats - Negative values indicate how many thresholds were passed for negative stats
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | Thresholded BrainData instance with cumulative map. Positive     values indicate how many thresholds were passed for positive stats;     negative values indicate how many thresholds were passed for negative     stats.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -101,7 +102,7 @@ This function provides unique cumulative threshold map functionality:
 </details>
 
 (algorithms-corrections-threshold)=
-#### `threshold`
+### `threshold`
 
 ```python
 threshold(stat, p, thr = 0.05, return_mask = False)
@@ -120,10 +121,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | Thresholded BrainData instance
-`mask` |  | (optional) BrainData instance of thresholding mask if return_mask=True
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData) \| [tuple](#tuple)[[BrainData](#nltools.data.BrainData), [BrainData](#nltools.data.BrainData)]</code> | The thresholded BrainData instance;     if `return_mask=True`, a tuple `(out, mask)` where `mask` is the     BrainData instance of the thresholding mask.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -135,4 +135,3 @@ This function provides unique functionality not available in nilearn:
 - nilearn.threshold_img() thresholds based on image intensity values
 
 </details>
-

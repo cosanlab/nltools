@@ -1,5 +1,6 @@
-(algorithms-similarity-similarity)=
-## `similarity`
+---
+title: algorithms.similarity
+---
 
 Similarity metrics and correlation.
 
@@ -15,10 +16,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (algorithms-similarity-compute-multivariate-similarity)=
-#### `compute_multivariate_similarity`
+### `compute_multivariate_similarity`
 
 ```python
 compute_multivariate_similarity(y, X, method = 'ols', tail = 2)
@@ -43,9 +44,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with keys: - 'beta': Regression coefficients including intercept, shape (n_predictors+1,) - 't': t-statistics, shape (n_predictors+1,) - 'p': p-values, shape (n_predictors+1,) - 'df': Degrees of freedom (int) - 'sigma': Residual standard deviation (float) - 'residual': Residuals, shape (n_features,)
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with keys:     - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)     - 't': t-statistics, shape (n_predictors+1,)     - 'p': p-values, shape (n_predictors+1,)     - 'df': Degrees of freedom (int)     - 'sigma': Residual standard deviation (float)     - 'residual': Residuals, shape (n_features,)
 
 **Examples:**
 
@@ -60,7 +61,7 @@ True
 ```
 
 (algorithms-similarity-compute-similarity)=
-#### `compute_similarity`
+### `compute_similarity`
 
 ```python
 compute_similarity(data1, data2, metric = 'correlation')
@@ -83,7 +84,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | np.ndarray: Similarity matrix or vector - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array - Otherwise: 2D array shape (n_samples1, n_samples2)
+<code>[ndarray](#numpy.ndarray)</code> | Similarity matrix or vector     - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar     - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array     - Otherwise: 2D array shape (n_samples1, n_samples2)
 
 **Examples:**
 
@@ -96,7 +97,7 @@ Type | Description
 ```
 
 (algorithms-similarity-fisher-r-to-z)=
-#### `fisher_r_to_z`
+### `fisher_r_to_z`
 
 ```python
 fisher_r_to_z(r)
@@ -112,12 +113,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`z` |  | Fisher z-transformed correlation(s)
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Fisher z-transformed correlation(s).
 
 (algorithms-similarity-fisher-z-to-r)=
-#### `fisher_z_to_r`
+### `fisher_z_to_r`
 
 ```python
 fisher_z_to_r(z)
@@ -133,12 +134,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`r` |  | correlation coefficient(s)
+Type | Description
+---- | -----------
+<code>[ndarray](#numpy.ndarray)</code> | Correlation coefficient(s).
 
 (algorithms-similarity-transform-pairwise)=
-#### `transform_pairwise`
+### `transform_pairwise`
 
 ```python
 transform_pairwise(X, y)
@@ -166,8 +167,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`X_trans` |  | (np.array), shape (k, n_features) Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping values were not passed. If grouping variables exist, then returns values computed for each group.
-`y_trans` |  | (np.array), shape (k,) Output class labels, where classes have values {-1, +1} If y was shape (n_samples, 2), then returns (k, 2) with groups on the second dimension.
-
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)]</code> | `(X_trans, y_trans)` — `X_trans` has shape     (k, n_features) and holds the data as pairs, where     k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;     if grouping variables exist, values are computed within each group.     `y_trans` has shape (k,) and holds the output class labels with values     {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the     second dimension.

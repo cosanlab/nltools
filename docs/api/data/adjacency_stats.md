@@ -1,5 +1,6 @@
-(data-adjacency-stats-stats)=
-## `stats`
+---
+title: data.adjacency.stats
+---
 
 Provide standalone statistical functions for Adjacency matrices.
 
@@ -21,10 +22,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-adjacency-stats-cluster-summary)=
-#### `cluster_summary`
+### `cluster_summary`
 
 ```python
 cluster_summary(adj, *, clusters = None, summary = 'mean', scope = 'within')
@@ -46,12 +47,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | (dict) per-cluster summaries
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | (dict) per-cluster summaries
 
 (data-adjacency-stats-plot-label-distance)=
-#### `plot_label_distance`
+### `plot_label_distance`
 
 ```python
 plot_label_distance(adj, labels = None, ax = None)
@@ -66,14 +67,8 @@ Name | Type | Description | Default
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix) | *required*
 `labels` | <code>[array](#numpy.array)</code> | numpy array of labels to plot | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | None
-
 (data-adjacency-stats-plot-silhouette)=
-#### `plot_silhouette`
+### `plot_silhouette`
 
 ```python
 plot_silhouette(adj, *, labels = None, ax = None, permutation_test = True, n_permute = 5000, colors = None, figsize = (6, 4))
@@ -95,12 +90,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Silhouette plot results including scores and optional permutation p-value.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Silhouette plot results including scores and optional permutation p-value.
 
 (data-adjacency-stats-r-to-z)=
-#### `r_to_z`
+### `r_to_z`
 
 ```python
 r_to_z(adj)
@@ -116,12 +111,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | New Adjacency with z-transformed values.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | New Adjacency with z-transformed values.
 
 (data-adjacency-stats-similarity)=
-#### `similarity`
+### `similarity`
 
 ```python
 similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False, progress_bar: bool = False)
@@ -143,7 +138,7 @@ Name | Type | Description | Default
 `metric` | <code>[str](#str)</code> | 'spearman', 'pearson', or 'kendall'. | <code>'spearman'</code>
 `include_diag` | <code>[bool](#bool)</code> | Only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
 `nan_policy` | <code>[str](#str)</code> | How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
 `return_null` | <code>[bool](#bool)</code> | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` | <code>[int](#int)</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>[int](#int)</code> | Random seed for reproducibility. | <code>None</code>
@@ -154,10 +149,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict | list | BrainData: A correlation result dict with keys 'correlation', 'p', and 'device' (or a list of such dicts when adj contains multiple matrices); a `BrainData` when `project=True`, holding the per-matrix correlations projected back into brain space via the spatial_scale.
+<code>[dict](#dict) \| [list](#list)[[dict](#dict)] \| [BrainData](#nltools.data.braindata.BrainData)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' (or a list of such dicts when adj     contains multiple matrices); a `BrainData` when `project=True`,     holding the per-matrix correlations projected back into brain space     via the spatial_scale.
 
 (data-adjacency-stats-stats-label-distance)=
-#### `stats_label_distance`
+### `stats_label_distance`
 
 ```python
 stats_label_distance(adj, *, labels = None, n_permute = 5000, n_jobs = -1, progress_bar = False)
@@ -175,12 +170,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | dictionary of within and between group differences     and p-values
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | dictionary of within and between group differences         and p-values
 
 (data-adjacency-stats-threshold)=
-#### `threshold`
+### `threshold`
 
 ```python
 threshold(adj, *, upper = None, lower = None, binarize = False)
@@ -203,12 +198,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | thresholded Adjacency instance
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | thresholded Adjacency instance
 
 (data-adjacency-stats-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar = False)
@@ -223,7 +218,7 @@ Name | Type | Description | Default
 `adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must contain multiple matrices) | *required*
 `permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
+`tail` |  | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -231,12 +226,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (dict) contains Adjacency instances of t values (or mean if  running permutation) and Adjacency instance of p values.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Contains Adjacency instances of t values (or mean if running     permutation) and Adjacency instance of p values.
 
 (data-adjacency-stats-z-to-r)=
-#### `z_to_r`
+### `z_to_r`
 
 ```python
 z_to_r(adj)
@@ -252,7 +247,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | New Adjacency with r values.
-
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | New Adjacency with r values.

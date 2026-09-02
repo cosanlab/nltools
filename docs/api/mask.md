@@ -1,5 +1,6 @@
-(mask-mask)=
-## `mask`
+---
+title: mask
+---
 
 Utilities for creating and manipulating brain masks.
 
@@ -15,10 +16,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (mask-collapse-mask)=
-#### `collapse_mask`
+### `collapse_mask`
 
 ```python
 collapse_mask(mask, auto_label = True, custom_mask = None)
@@ -38,12 +39,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | BrainData instance of a mask with different integers indicating different masks.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | BrainData instance of a mask with different integers indicating     different masks.
 
 (mask-create-sphere)=
-#### `create_sphere`
+### `create_sphere`
 
 ```python
 create_sphere(coordinates, radius = 5, mask = None)
@@ -61,12 +62,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Nifti1Image` |  | A binary image with the requested spheres in mask space.
+Type | Description
+---- | -----------
+<code>[Nifti1Image](#Nifti1Image)</code> | A binary image with the requested spheres in mask space.
 
 (mask-expand-mask)=
-#### `expand_mask`
+### `expand_mask`
 
 ```python
 expand_mask(mask, custom_mask = None)
@@ -83,12 +84,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | BrainData instance of multiple binary masks
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | BrainData instance of multiple binary masks.
 
 (mask-roi-to-brain)=
-#### `roi_to_brain`
+### `roi_to_brain`
 
 ```python
 roi_to_brain(data, mask_x)
@@ -111,13 +112,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | A BrainData instance with each ROI populated by the
- |  | provided value(s).
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | A BrainData instance with each ROI populated by the     provided value(s).
 
 (mask-roi-to-brain-from-atlas)=
-#### `roi_to_brain_from_atlas`
+### `roi_to_brain_from_atlas`
 
 ```python
 roi_to_brain_from_atlas(values, atlas, source_mask, *, roi_labels = None, fill: float = np.nan)
@@ -143,11 +143,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Masked to `source_mask`, with each in-atlas voxel set to its
- |  | parcel's scalar from `values`. Holds a single image when `values` is
- |  | 1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.BrainData)</code> | Masked to `source_mask`, with each in-atlas voxel set to its     parcel's scalar from `values`. Holds a single image when `values` is     1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
 **Examples:**
 
@@ -160,4 +158,3 @@ Name | Type | Description
 ...     roi_labels=[1, 2, 3],
 ... )
 ```
-

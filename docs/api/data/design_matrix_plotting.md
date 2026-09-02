@@ -1,19 +1,12 @@
-(data-design-matrix-plotting-plotting)=
-## `plotting`
+---
+title: data.designmatrix.plotting
+---
 
 DesignMatrix visualization functions.
 
 Standalone functions extracted from ``DesignMatrix`` methods. Each takes a
 ``DesignMatrix`` instance (``dm``) as its first argument. ``DesignMatrix.plot``
 dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`VALID_PLOT_METHODS` |  | 
-
-
 
 **Methods:**
 
@@ -24,12 +17,10 @@ Name | Description
 [`plot_matrix`](#data-design-matrix-plotting-plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 [`plot_timeseries`](#data-design-matrix-plotting-plot-timeseries) | Plot regressor time courses as overlaid lines.
 
-### Classes
-
-### Methods
+## Methods
 
 (data-design-matrix-plotting-plot-corr)=
-#### `plot_corr`
+### `plot_corr`
 
 ```python
 plot_corr(dm: DesignMatrix, *, columns: list[str] | None = None, metric: str = 'pearson', figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, ax: plt.Axes | None = None, save: str | None = None, **kwargs: str | None)
@@ -59,10 +50,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
 
 (data-design-matrix-plotting-plot-designmatrix)=
-#### `plot_designmatrix`
+### `plot_designmatrix`
 
 ```python
 plot_designmatrix(dm: DesignMatrix, method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool = True, metric: str = 'pearson', ax: plt.Axes | None = None, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, save: str | None = None, **kwargs: str | None)
@@ -76,10 +67,10 @@ See `DesignMatrix.plot` for the full argument documentation.
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure: The figure containing the plot.
+<code>[Figure](#matplotlib.figure.Figure)</code> | The figure containing the plot.
 
 (data-design-matrix-plotting-plot-matrix)=
-#### `plot_matrix`
+### `plot_matrix`
 
 ```python
 plot_matrix(dm: DesignMatrix, *, columns: list[str] | None = None, rescale: bool = True, figsize: tuple | None = None, title: str | None = None, cmap: str | None = None, ax: plt.Axes | None = None, save: str | None = None, **kwargs: str | None)
@@ -105,10 +96,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
 
 (data-design-matrix-plotting-plot-timeseries)=
-#### `plot_timeseries`
+### `plot_timeseries`
 
 ```python
 plot_timeseries(dm: DesignMatrix, *, columns: list[str] | None = None, figsize: tuple | None = None, title: str | None = None, ax: plt.Axes | None = None, save: str | None = None, **kwargs: str | None)
@@ -135,5 +126,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
-
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.

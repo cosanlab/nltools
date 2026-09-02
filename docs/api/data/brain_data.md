@@ -1,9 +1,6 @@
-(data-brain-data-braindata)=
-## `BrainData`
-
-```python
-BrainData(data = None, *, Y = None, X = None, mask = None, masker = None, h5_compression = 'gzip', verbose = False, resample = True, interpolation = 'auto')
-```
+---
+title: BrainData
+---
 
 Represent neuroimaging data as vectors instead of three-dimensional matrices.
 
@@ -29,14 +26,10 @@ Name | Type | Description
 ---- | ---- | -----------
 `X` |  | Design matrix / per-image covariates as a polars DataFrame.
 `Y` |  | Per-image targets as a polars DataFrame.
-`data` |  | 
-`design_matrix` |  | 
 `dtype` |  | Get data type of BrainData.data.
 `is_empty` | <code>[bool](#bool)</code> | Check if BrainData.data is empty.
-`masker` |  | 
 `shape` |  | Get images by voxels shape.
 `size` |  | Total number of elements in BrainData.data (numpy convention).
-`verbose` |  | 
 
 
 
@@ -88,10 +81,10 @@ Name | Description
 [`write`](#data-brain-data-write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#data-brain-data-z-to-r) | Convert z score back into r value for each element of data object.
 
-### Methods
+## Methods
 
 (data-brain-data-align)=
-#### `align`
+### `align`
 
 ```python
 align(target, method = 'procrustes', axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0)
@@ -112,19 +105,22 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (dict) a dictionary containing transformed object, transformation matrix, and the shared response matrix
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
 
 **Examples:**
 
-```pycon
->>> out = data.align(target, method='procrustes')
->>> out = data.align(target, method='probabilistic_srm')
+```python
+# Hyperalign using procrustes transform
+out = data.align(target, method='procrustes')
+
+# Align using shared response model
+out = data.align(target, method='probabilistic_srm')
 ```
 
 (data-brain-data-append)=
-#### `append`
+### `append`
 
 ```python
 append(data, ignore_attrs = False, **kwargs)
@@ -142,12 +138,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New appended BrainData instance.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New appended BrainData instance.
 
 (data-brain-data-apply-mask)=
-#### `apply_mask`
+### `apply_mask`
 
 ```python
 apply_mask(mask, resample_mask_to_brain = False)
@@ -167,12 +163,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`masked` |  | (BrainData) masked BrainData object
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Masked BrainData object.
 
 (data-brain-data-astype)=
-#### `astype`
+### `astype`
 
 ```python
 astype(dtype)
@@ -188,12 +184,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance with new datatype
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance with new datatype
 
 (data-brain-data-bootstrap)=
-#### `bootstrap`
+### `bootstrap`
 
 ```python
 bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = None, tail = 2, n_jobs = -1, random_state = None, progress_bar: bool = False)
@@ -223,7 +219,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or dict: - For simple stats: Returns BrainData with bootstrap mean - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',   'ci_lower', 'ci_upper' (all BrainData objects) - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
+<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | - For simple stats: Returns BrainData with bootstrap mean     - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',       'ci_lower', 'ci_upper' (all BrainData objects)     - If ``save_boots=True``: Returns dict with 'samples' key containing all samples
 
 **Examples:**
 
@@ -234,7 +230,7 @@ Type | Description
 ```
 
 (data-brain-data-cluster-report)=
-#### `cluster_report`
+### `cluster_report`
 
 ```python
 cluster_report(*, stat_threshold: float | None = 3.0, cluster_threshold: int = 10, two_sided: bool = True, min_distance: float = 8.0, atlas: str | Sequence[str] | None = None, prob_threshold: float = 5.0) -> ClusterReport
@@ -261,11 +257,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | `ClusterReport` with ``peaks``,
-<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
+<code>[ClusterReport](#nltools.data.atlases.ClusterReport)</code> | Report with `peaks` and `clusters` (polars DataFrames)     and `stat_img` (BrainData).
 
 (data-brain-data-compute-contrasts)=
-#### `compute_contrasts`
+### `compute_contrasts`
 
 ```python
 compute_contrasts(contrasts, statistic = 't')
@@ -287,7 +282,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or dict: A single contrast with a scalar `statistic` returns a `BrainData` map; with `statistic="all"` it returns a flat dict keyed by `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed by contrast name (nested under the five keys when `statistic="all"`).
+<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | A single contrast with a scalar `statistic` returns a     `BrainData` map; with `statistic="all"` it returns a flat dict keyed by     `"beta"`/`"t"`/`"z"`/`"p"`/`"se"`. A dict of contrasts returns a dict keyed     by contrast name (nested under the five keys when `statistic="all"`).
 
 **Examples:**
 
@@ -311,7 +306,7 @@ Type | Description
 </details>
 
 (data-brain-data-copy)=
-#### `copy`
+### `copy`
 
 ```python
 copy()
@@ -328,12 +323,12 @@ original; refit the copy if you need independent fit results.
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | A copy with independent data but shared fitted state.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | A copy with independent data but shared fitted state.
 
 (data-brain-data-create-empty)=
-#### `create_empty`
+### `create_empty`
 
 ```python
 create_empty()
@@ -343,12 +338,12 @@ Create a copy of BrainData with empty data array.
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | A copy of this object with an empty data array.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | A copy of this object with an empty data array.
 
 (data-brain-data-decompose)=
-#### `decompose`
+### `decompose`
 
 ```python
 decompose(*, method = 'pca', axis = 'voxels', n_components = None, **kwargs)
@@ -367,12 +362,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`output` |  | a dictionary of decomposition parameters
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | A dictionary of decomposition parameters.
 
 (data-brain-data-detrend)=
-#### `detrend`
+### `detrend`
 
 ```python
 detrend(method = 'linear')
@@ -388,12 +383,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | (BrainData) detrended BrainData instance
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Detrended BrainData instance.
 
 (data-brain-data-distance)=
-#### `distance`
+### `distance`
 
 ```python
 distance(metric = 'euclidean', *, spatial_scale: str = 'whole_brain', roi_mask: str = None, radius_mm: float = 10.0, **kwargs: float)
@@ -413,12 +408,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Adjacency` |  | Single pairwise distance matrix for ``'whole_brain'``; stacked Adjacency (one matrix per parcel/searchlight) with ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
+Type | Description
+---- | -----------
+<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Single pairwise distance matrix for ``'whole_brain'``;     stacked Adjacency (one matrix per parcel/searchlight) with     ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
 
 (data-brain-data-extract-roi)=
-#### `extract_roi`
+### `extract_roi`
 
 ```python
 extract_roi(mask, method = 'mean', n_components = None)
@@ -438,8 +433,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | For binary mask: scalar or 1D array.
- | For labeled atlas: 1D or 2D array, or PCA components.
+<code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | For a binary mask, a scalar (single image) or 1D     array (multiple images). For a labeled atlas, a 1D array (single     image), a 2D array of images x ROIs (multiple images), or the PCA     components array when `method='pca'`.
 
 **Examples:**
 
@@ -450,7 +444,7 @@ Type | Description
 ```
 
 (data-brain-data-filter)=
-#### `filter`
+### `filter`
 
 ```python
 filter(*, sampling_freq = None, high_pass = None, low_pass = None, **kwargs)
@@ -477,12 +471,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Filtered BrainData instance
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Filtered BrainData instance
 
 (data-brain-data-find-spikes)=
-#### `find_spikes`
+### `find_spikes`
 
 ```python
 find_spikes(global_spike_cutoff = 3, diff_spike_cutoff = 3, *, TR: float | None = None, sampling_freq: float | None = None)
@@ -503,14 +497,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | DesignMatrix with one indicator column per detected spike TR, with
- | all spike columns pre-marked as confounds. A TR flagged by both
- | detectors yields a single column (named `global_spike*`); the
- | colliding detections are bitwise identical, so only the retained
- | name differs.
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | One indicator column per detected spike TR, with all     spike columns pre-marked as confounds. A TR flagged by both     detectors yields a single column (named `global_spike*`); the     colliding detections are bitwise identical, so only the retained     name differs.
 
 (data-brain-data-fit)=
-#### `fit`
+### `fit`
 
 ```python
 fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = False, **kwargs)
@@ -542,7 +532,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData or Fit: If ``inplace=True``, returns self (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
+<code>[BrainData](#nltools.data.braindata.BrainData) or [Fit](#nltools.data.fitresults.Fit)</code> | If ``inplace=True``, returns self (fitted BrainData).     If ``inplace=False``, returns Fit dataclass with results.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -575,7 +565,7 @@ one contrast in a single call.
 ```
 
 (data-brain-data-iplot)=
-#### `iplot`
+### `iplot`
 
 ```python
 iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool | tuple[float, float] = True, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
@@ -626,11 +616,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | A `NiivueViewer` widget (an `anywidget.AnyWidget`). Its threshold
- | window is reactive via the ``cal_min`` / ``cal_max`` traits.
+<code>[NiivueViewer](#NiivueViewer)</code> | An `anywidget.AnyWidget` whose threshold window is     reactive via the `cal_min` and `cal_max` traits.
 
 (data-brain-data-mean)=
-#### `mean`
+### `mean`
 
 ```python
 mean(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
@@ -650,10 +639,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float/np.array/BrainData: Mean values.
+<code>[float](#float) / [array](#numpy.array) / [BrainData](#nltools.data.braindata.BrainData)</code> | Mean values.
 
 (data-brain-data-median)=
-#### `median`
+### `median`
 
 ```python
 median(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
@@ -673,10 +662,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float/np.array/BrainData: Median values.
+<code>[float](#float) / [array](#numpy.array) / [BrainData](#nltools.data.braindata.BrainData)</code> | Median values.
 
 (data-brain-data-multivariate-similarity)=
-#### `multivariate_similarity`
+### `multivariate_similarity`
 
 ```python
 multivariate_similarity(images, method = 'ols', tail = 2)
@@ -692,16 +681,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `images` |  | BrainData instance of weight map | *required*
 `method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction) for the regression p-values. | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction) regression p-values. | <code>2</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`out` |  | dictionary of regression statistics in BrainData instances {'beta','t','p','df','residual'}
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Regression statistics as BrainData instances, keyed     `'beta'`, `'t'`, `'p'`, `'df'`, `'residual'`.
 
 (data-brain-data-plot)=
-#### `plot`
+### `plot`
 
 ```python
 plot(*, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
@@ -734,14 +723,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: A
- | single figure for single-image data; a list of figures for
- | multi-image data with ``method`` in ``{"glass", "slices"}``
- | (one per image for glass; one per image-and-view pair for
- | slices).
+<code>[Figure](#matplotlib.figure.Figure) \| [list](#list)[[Figure](#matplotlib.figure.Figure)]</code> | A single     figure for single-image data; a list of figures for multi-image     data with `method` in `{"glass", "slices"}` (one per image for     glass; one per image-and-view pair for slices).
 
 (data-brain-data-plot-flatmap)=
-#### `plot_flatmap`
+### `plot_flatmap`
 
 ```python
 plot_flatmap(*, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
@@ -775,10 +760,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
 
 (data-brain-data-plot-surf)=
-#### `plot_surf`
+### `plot_surf`
 
 ```python
 plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
@@ -795,10 +780,10 @@ this instance's ``.mask``).
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
 
 (data-brain-data-predict)=
-#### `predict`
+### `predict`
 
 ```python
 predict(*, y: np.ndarray | str | None = None, X: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, standardize: bool = True, reduce: str | None = None, n_components: int | None = None, scoring: str = 'auto', groups: np.ndarray | str | None = None, roi_mask: np.ndarray | str | None = None, radius_mm: float = 10.0, inplace: bool = False, n_jobs: int = 1, random_state: int | None = None, progress_bar: bool = False)
@@ -882,7 +867,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Predict | BrainData: ``Predict`` dataclass when ``inplace=False``; ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
+<code>[Predict](#Predict) \| [BrainData](#nltools.data.braindata.BrainData)</code> | ``Predict`` dataclass when ``inplace=False``;     ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
 **Examples:**
 
@@ -919,7 +904,7 @@ result = brain.predict(y=labels, model=pipe)
 ```
 
 (data-brain-data-r-to-z)=
-#### `r_to_z`
+### `r_to_z`
 
 ```python
 r_to_z()
@@ -928,7 +913,7 @@ r_to_z()
 Apply Fisher's r-to-z transformation to each data element.
 
 (data-brain-data-regions)=
-#### `regions`
+### `regions`
 
 ```python
 regions(*, min_region_size = 1350, method = 'local_regions', smoothing_fwhm = 6, is_mask = False)
@@ -947,12 +932,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance with extracted ROIs as data.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance with extracted ROIs as data.
 
 (data-brain-data-report)=
-#### `report`
+### `report`
 
 ```python
 report(contrasts = None, **kwargs)
@@ -973,9 +958,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`HTMLReport` |  | nilearn report; call ``.save_as_html(path)`` or display it in a notebook.
+Type | Description
+---- | -----------
+<code>[HTMLReport](#HTMLReport)</code> | nilearn report; call ``.save_as_html(path)`` or display     it in a notebook.
 
 **Examples:**
 
@@ -985,7 +970,7 @@ Name | Type | Description
 ```
 
 (data-brain-data-resample-to)=
-#### `resample_to`
+### `resample_to`
 
 ```python
 resample_to(*, img = None, resolution = None, interpolation = None)
@@ -1003,12 +988,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New BrainData instance with resampled data
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with resampled data
 
 (data-brain-data-scale)=
-#### `scale`
+### `scale`
 
 ```python
 scale(scale_val = 100.0, axis = None)
@@ -1033,12 +1018,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New BrainData instance with scaled data.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with scaled data.
 
 (data-brain-data-similarity)=
-#### `similarity`
+### `similarity`
 
 ```python
 similarity(image, metric = 'correlation')
@@ -1057,10 +1042,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float or np.ndarray: Similarity value(s).
+<code>[float](#float) or [ndarray](#numpy.ndarray)</code> | Similarity value(s).
 
 (data-brain-data-smooth)=
-#### `smooth`
+### `smooth`
 
 ```python
 smooth(fwhm)
@@ -1078,16 +1063,18 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | BrainData instance (copy with smoothed data)
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Copy with smoothed data.
 
 (data-brain-data-standardize)=
-#### `standardize`
+### `standardize`
 
 ```python
-standardize(*, axis = 0, method = 'center', suppress_warnings = False)
+standardize(*, axis = 0, method = 'center')
 ```
 
 Standardize BrainData() instance.
+
+Constant voxels (or observations) z-score to 0 rather than NaN.
 
 **Parameters:**
 
@@ -1095,16 +1082,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `axis` | <code>[int](#int)</code> | 0 standardizes each voxel across observations (default). 1 standardizes each observation across voxels. | <code>0</code>
 `method` | <code>[str](#str)</code> | 'center' subtracts the mean (default). 'zscore' subtracts the mean and divides by standard deviation. | <code>'center'</code>
-`suppress_warnings` | <code>[bool](#bool)</code> | If True, suppress sklearn numerical warnings that occur when voxels have near-zero variance. Default: False. | <code>False</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | Standardized BrainData instance.
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standardized BrainData instance.
 
 (data-brain-data-std)=
-#### `std`
+### `std`
 
 ```python
 std(axis = 0, *, spatial_scale: str = 'whole_brain', roi_mask: str = None)
@@ -1124,10 +1110,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float/np.array/BrainData: Standard deviation values.
+<code>[float](#float) / [array](#numpy.array) / [BrainData](#nltools.data.braindata.BrainData)</code> | Standard deviation values.
 
 (data-brain-data-sum)=
-#### `sum`
+### `sum`
 
 ```python
 sum(axis = 0)
@@ -1145,10 +1131,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | float/np.array/BrainData: Sum values.
+<code>[float](#float) / [array](#numpy.array) / [BrainData](#nltools.data.braindata.BrainData)</code> | Sum values.
 
 (data-brain-data-temporal-resample)=
-#### `temporal_resample`
+### `temporal_resample`
 
 ```python
 temporal_resample(*, sampling_freq = None, target = None, target_type = 'hz')
@@ -1168,10 +1154,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | upsampled BrainData instance
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Resampled BrainData instance.
 
 (data-brain-data-threshold)=
-#### `threshold`
+### `threshold`
 
 ```python
 threshold(*, upper = None, lower = None, binarize = False, coerce_nan = True, cluster_threshold = 0)
@@ -1193,10 +1179,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Thresholded BrainData object.
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Thresholded BrainData object.
 
 (data-brain-data-to-nifti)=
-#### `to_nifti`
+### `to_nifti`
 
 ```python
 to_nifti()
@@ -1208,10 +1194,10 @@ Convert BrainData Instance into Nifti Object.
 
 Type | Description
 ---- | -----------
- | nibabel.Nifti1Image: Brain data as a NIfTI image.
+<code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Brain data as a NIfTI image.
 
 (data-brain-data-transform-pairwise)=
-#### `transform_pairwise`
+### `transform_pairwise`
 
 ```python
 transform_pairwise()
@@ -1221,12 +1207,12 @@ Transform data into pairwise comparisons.
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | BrainData instance transformed into pairwise comparisons
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance transformed into pairwise comparisons
 
 (data-brain-data-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(*, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
@@ -1245,7 +1231,7 @@ Name | Type | Description | Default
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
 `permutation` |  | If True, use sign-flip permutation test via `one_sample_permutation_test`. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). | <code>2</code>
 `return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -1254,9 +1240,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images (effect size). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)`` —   matches nilearn's ``output_type='z_score'``. - ``"p"``: parametric p-value, or empirical p when   ``permutation=True``.
- | The effect size is always returned alongside the inferential maps
- | so group-level code never has to recompute the mean.
+<code>[dict](#dict)[[str](#str), [BrainData](#nltools.data.braindata.BrainData)]</code> | Four keys. `"mean"` is the voxelwise mean across     images (effect size); `"t"` the parametric one-sample t-statistic;     `"z"` the signed z-score, `sign(t) * norm.isf(p/2)`, matching     nilearn's `output_type='z_score'`; `"p"` the parametric p-value,     or empirical p when `permutation=True`. The effect size is always     returned alongside the inferential maps so group-level code never     has to recompute the mean.
 
 **Examples:**
 
@@ -1274,7 +1258,7 @@ Type | Description
 ```
 
 (data-brain-data-ttest2)=
-#### `ttest2`
+### `ttest2`
 
 ```python
 ttest2(other, equal_var = True, tail = 2)
@@ -1288,16 +1272,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `other` |  | BrainData to compare against. Must have the same number of voxels. | *required*
 `equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (self > other; swap the operands for the other direction). | <code>2</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | ``{"t": BrainData, "p": BrainData}``.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | ``{"t": BrainData, "p": BrainData}``.
 
 (data-brain-data-upload-neurovault)=
-#### `upload_neurovault`
+### `upload_neurovault`
 
 ```python
 upload_neurovault(*, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
@@ -1320,12 +1304,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`collection` |  | (pd.DataFrame) neurovault collection information
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | NeuroVault collection information.
 
 (data-brain-data-write)=
-#### `write`
+### `write`
 
 ```python
 write(file_name)
@@ -1340,11 +1324,10 @@ Name | Type | Description | Default
 `file_name` | <code>[str](#str) or [Path](#Path)</code> | Output file path (.nii/.nii.gz for NIfTI, .h5/.hdf5 for HDF5). | *required*
 
 (data-brain-data-z-to-r)=
-#### `z_to_r`
+### `z_to_r`
 
 ```python
 z_to_r()
 ```
 
 Convert z score back into r value for each element of data object.
-

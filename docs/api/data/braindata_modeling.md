@@ -1,19 +1,11 @@
-(data-braindata-modeling-modeling)=
-## `modeling`
+---
+title: data.braindata.modeling
+---
 
 BrainData modeling functions.
 
 Standalone functions extracted from BrainData class methods for model
 fitting, GLM estimation, Ridge regression, and contrast computation.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`NEAR_COLLINEAR_CONDITION_THRESHOLD` |  | 
-`NEAR_COLLINEAR_CORR_THRESHOLD` |  | 
-
-
 
 **Classes:**
 
@@ -37,10 +29,12 @@ Name | Description
 [`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
-### Classes
+
+
+## Classes
 
 (data-braindata-modeling-nearcollineardesignwarning)=
-#### `NearCollinearDesignWarning`
+### `NearCollinearDesignWarning`
 
 Bases: <code>[UserWarning](#UserWarning)</code>
 
@@ -51,7 +45,7 @@ remaining individually silenceable:
 ``warnings.filterwarnings("ignore", category=NearCollinearDesignWarning)``.
 
 (data-braindata-modeling-rankdeficientdesignwarning)=
-#### `RankDeficientDesignWarning`
+### `RankDeficientDesignWarning`
 
 Bases: <code>[UserWarning](#UserWarning)</code>
 
@@ -63,10 +57,10 @@ remaining individually silenceable:
 
 
 
-### Methods
+## Methods
 
 (data-braindata-modeling-compute-contrasts)=
-#### `compute_contrasts`
+### `compute_contrasts`
 
 ```python
 compute_contrasts(bd, contrasts, statistic = 't')
@@ -95,24 +89,23 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Depends on inputs:<br>- single contrast (str or array) + scalar ``statistic``:   a single BrainData. - single contrast + ``statistic="all"``: a flat dict of five   BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``. - dict of contrasts + scalar ``statistic``: a dict   ``{name: BrainData}``. - dict of contrasts + ``statistic="all"``: a nested dict   ``{name: {"beta", "t", "z", "p", "se"}}``.
+<code>Depends on inputs</code> | <br>    - single contrast (str or array) + scalar ``statistic``:       a single BrainData.     - single contrast + ``statistic="all"``: a flat dict of five       BrainData keyed by ``"beta"``/``"t"``/``"z"``/``"p"``/``"se"``.     - dict of contrasts + scalar ``statistic``: a dict       ``{name: BrainData}``.     - dict of contrasts + ``statistic="all"``: a nested dict       ``{name: {"beta", "t", "z", "p", "se"}}``.
 
 **Examples:**
 
-```pycon
->>> data.fit(model="glm", X=dm)
->>> # Single-subject t-map, ready to threshold
->>> tmap = data.compute_contrasts("conditionA - conditionB")
->>> # Effect-size map for use as input to a group-level analysis
->>> beta = data.compute_contrasts(
-...     "conditionA - conditionB", statistic="beta"
-... )
->>> # Everything at once: threshold on res["t"], feed group on res["beta"]
->>> res = data.compute_contrasts(
-...     "conditionA - conditionB", statistic="all"
-... )
->>> res["t"].plot(threshold=3.09)
->>> group_effects.append(res["beta"])
+```python
+data.fit(model="glm", X=dm)
+
+# Single-subject t-map, ready to threshold
+tmap = data.compute_contrasts("conditionA - conditionB")
+
+# Effect-size map for use as input to a group-level analysis
+beta = data.compute_contrasts("conditionA - conditionB", statistic="beta")
+
+# Everything at once: threshold on res["t"], feed the group on res["beta"]
+res = data.compute_contrasts("conditionA - conditionB", statistic="all")
+res["t"].plot(threshold=3.09)
+group_effects.append(res["beta"])
 ```
 
 <details class="note" open markdown="1">
@@ -128,7 +121,7 @@ Type | Description
 </details>
 
 (data-braindata-modeling-compute-ridge-cv)=
-#### `compute_ridge_cv`
+### `compute_ridge_cv`
 
 ```python
 compute_ridge_cv(bd, X, cv, alpha = None, device = 'cpu')
@@ -152,12 +145,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | ``{"scores", "mean_score", "predictions", "folds"}``.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | ``{"scores", "mean_score", "predictions", "folds"}``.
 
 (data-braindata-modeling-fit)=
-#### `fit`
+### `fit`
 
 ```python
 fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = False, scale = 'auto', standardize = 'auto', **kwargs)
@@ -217,32 +210,32 @@ Name | Type | Description
 
 Type | Description
 ---- | -----------
- | BrainData or Fit: If ``inplace=True``, returns bd (fitted BrainData). If ``inplace=False``, returns Fit dataclass with results.
+<code>[BrainData](#nltools.data.braindata.BrainData) or [Fit](#nltools.data.fitresults.Fit)</code> | If ``inplace=True``, returns bd (fitted BrainData).     If ``inplace=False``, returns Fit dataclass with results.
 
 **Examples:**
 
-```pycon
->>> # Old behavior (backward compatible): mutate self
->>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
->>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
->>> weights = brain_data.ridge_weights  # Access as attribute
->>>
->>> # New behavior: return Fit dataclass (result attrs / data unchanged)
->>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
->>> assert isinstance(fit, Fit)
->>> assert 'weights' in fit.available()
->>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
->>> # (model_/X_ ARE updated on brain_data so predict() works)
->>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
->>>
->>> # GLM with Fit dataclass
->>> fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
->>> assert 'betas' in fit_glm.available()
->>> assert 't_stats' in fit_glm.available()
+```python
+# inplace=True (default): results are stored as attributes on brain_data
+brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
+weights = brain_data.ridge_weights
+
+# inplace=False: return a Fit dataclass; result attributes are not set on
+# brain_data (model_ and X_ are still updated so predict() works)
+fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
+assert isinstance(fit, Fit)
+assert 'weights' in fit.available()
+assert not hasattr(brain_data, 'ridge_weights')
+print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
+
+# GLM with Fit dataclass
+fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+assert 'betas' in fit_glm.available()
+assert 't_stats' in fit_glm.available()
 ```
 
 (data-braindata-modeling-fit-glm)=
-#### `fit_glm`
+### `fit_glm`
 
 ```python
 fit_glm(bd, X)
@@ -266,7 +259,7 @@ glm_r2, and design_matrix on bd.
 </details>
 
 (data-braindata-modeling-fit-ridge)=
-#### `fit_ridge`
+### `fit_ridge`
 
 ```python
 fit_ridge(bd, X, cv = None, device = 'cpu', **kwargs)
@@ -293,7 +286,7 @@ cv_results_ (if cv provided) on bd.
 </details>
 
 (data-braindata-modeling-parse-contrast-string)=
-#### `parse_contrast_string`
+### `parse_contrast_string`
 
 ```python
 parse_contrast_string(bd, contrast_str)
@@ -312,10 +305,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | np.array: Numeric contrast vector
+<code>[array](#numpy.array)</code> | Numeric contrast vector
 
 (data-braindata-modeling-resolve-preprocessing-defaults)=
-#### `resolve_preprocessing_defaults`
+### `resolve_preprocessing_defaults`
 
 ```python
 resolve_preprocessing_defaults(model, scale, standardize)
@@ -339,12 +332,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | ``(scale, standardize)`` with any ``'auto'`` resolved.
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | ``(scale, standardize)`` with any ``'auto'`` resolved.
 
 (data-braindata-modeling-to-fit-dataclass)=
-#### `to_fit_dataclass`
+### `to_fit_dataclass`
 
 ```python
 to_fit_dataclass(bd, model)
@@ -361,12 +354,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Fit` |  | Dataclass containing fit results
+Type | Description
+---- | -----------
+<code>[Fit](#nltools.data.fitresults.Fit)</code> | Dataclass containing fit results
 
 (data-braindata-modeling-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(bd, *, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
@@ -386,7 +379,7 @@ Name | Type | Description | Default
 `popmean` |  | Population mean to test against. Default 0.0. | <code>0.0</code>
 `permutation` |  | If True, use a sign-flip permutation test on ``images - popmean`` via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. | <code>False</code>
 `n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). | <code>2</code>
 `return_null` |  | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
 `n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` |  | Random seed for reproducibility. | <code>None</code>
@@ -395,12 +388,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | dict with four BrainData keys:<br>- ``"mean"``: voxelwise mean across images minus ``popmean``   (i.e. ``mean(images) - popmean``, an effect-size estimate;   equals the raw voxelwise mean only when ``popmean=0``). - ``"t"``: parametric one-sample t-statistic. - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching   nilearn's ``output_type='z_score'``. Useful for thresholding   on z at small df where t tails are heavier than normal. - ``"p"``: p-value (parametric, or permutation-based when   ``permutation=True``).
- | The effect size is always returned alongside the inferential maps so
- | group-level code never has to compute the mean separately.
+<code>[dict](#dict)[[str](#str), [BrainData](#nltools.data.braindata.BrainData)]</code> | Four keys. `"mean"` is the voxelwise mean across     images minus `popmean` (i.e. `mean(images) - popmean`, an effect-size     estimate; equals the raw voxelwise mean only when `popmean=0`); `"t"`     the parametric one-sample t-statistic; `"z"` the signed z-score,     `sign(t) * norm.isf(p/2)`, matching nilearn's `output_type='z_score'`     (useful for thresholding on z at small df where t tails are heavier     than normal); `"p"` the p-value (parametric, or permutation-based     when `permutation=True`). The effect size is always returned     alongside the inferential maps so group-level code never has to     compute the mean separately.
 
 (data-braindata-modeling-ttest2)=
-#### `ttest2`
+### `ttest2`
 
 ```python
 ttest2(bd, other, equal_var = True, tail = 2)
@@ -415,11 +406,10 @@ Name | Type | Description | Default
 `bd` |  | First BrainData (shape ``(n1, n_voxels)``). | *required*
 `other` |  | Second BrainData (shape ``(n2, n_voxels)``). | *required*
 `equal_var` |  | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: bd > other; swap the arguments for the other direction). | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (bd > other; swap the arguments for the other direction). | <code>2</code>
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | ``{"t": BrainData, "p": BrainData}``.
-
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | ``{"t": BrainData, "p": BrainData}``.

@@ -1,5 +1,6 @@
-(data-braindata-io-io)=
-## `io`
+---
+title: data.braindata.io
+---
 
 BrainData I/O and loading functions.
 
@@ -30,10 +31,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-braindata-io-check-space-match)=
-#### `check_space_match`
+### `check_space_match`
 
 ```python
 check_space_match(data_img, mask_img)
@@ -50,12 +51,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | True if spaces match (no resampling needed), False otherwise
+Type | Description
+---- | -----------
+<code>[bool](#bool)</code> | True if spaces match (no resampling needed), False otherwise
 
 (data-braindata-io-detect-and-update-mask)=
-#### `detect_and_update_mask`
+### `detect_and_update_mask`
 
 ```python
 detect_and_update_mask(bd, data_img)
@@ -80,10 +81,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | nibabel.Nifti1Image: The data_img, possibly resampled to match the mask
+<code>[Nifti1Image](#nibabel.Nifti1Image)</code> | The data_img, possibly resampled to match the mask
 
 (data-braindata-io-detect-space)=
-#### `detect_space`
+### `detect_space`
 
 ```python
 detect_space(mask)
@@ -99,12 +100,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` |  | 'mni' if mask is MNI template, 'native' otherwise
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | 'mni' if mask is MNI template, 'native' otherwise
 
 (data-braindata-io-get-interpolation)=
-#### `get_interpolation`
+### `get_interpolation`
 
 ```python
 get_interpolation(bd, img)
@@ -123,12 +124,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Interpolation method. When 'auto', resolves to 'nearest' or 'continuous' based on data type. Otherwise returns the instance's configured interpolation setting.
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Interpolation method. When 'auto', resolves to 'nearest' or     'continuous' based on data type. Otherwise returns the instance's     configured interpolation setting.
 
 (data-braindata-io-initialize-mask)=
-#### `initialize_mask`
+### `initialize_mask`
 
 ```python
 initialize_mask(bd, mask)
@@ -144,7 +145,7 @@ Name | Type | Description | Default
 `mask` |  | Brain mask as nibabel object, file path, template name string, or None. Template name strings supported: '{res}mm-MNI152-2009{version}' (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl') | *required*
 
 (data-braindata-io-load-from-brain-data)=
-#### `load_from_brain_data`
+### `load_from_brain_data`
 
 ```python
 load_from_brain_data(bd, brain_data, mask = None)
@@ -161,7 +162,7 @@ Name | Type | Description | Default
 `mask` |  | Optional mask to use. If None, uses mask from brain_data. | <code>None</code>
 
 (data-braindata-io-load-from-file)=
-#### `load_from_file`
+### `load_from_file`
 
 ```python
 load_from_file(bd, data)
@@ -177,7 +178,7 @@ Name | Type | Description | Default
 `data` |  | File path or nibabel object. | *required*
 
 (data-braindata-io-load-from-h5)=
-#### `load_from_h5`
+### `load_from_h5`
 
 ```python
 load_from_h5(bd, file_path, mask)
@@ -194,7 +195,7 @@ Name | Type | Description | Default
 `mask` |  | User-specified mask (to determine if we should load mask from file). | *required*
 
 (data-braindata-io-load-from-list)=
-#### `load_from_list`
+### `load_from_list`
 
 ```python
 load_from_list(bd, data_list)
@@ -210,7 +211,7 @@ Name | Type | Description | Default
 `data_list` |  | List of BrainData objects or file paths. | *required*
 
 (data-braindata-io-load-from-url)=
-#### `load_from_url`
+### `load_from_url`
 
 ```python
 load_from_url(bd, url)
@@ -226,7 +227,7 @@ Name | Type | Description | Default
 `url` |  | URL to download data from. | *required*
 
 (data-braindata-io-mask-images)=
-#### `mask_images`
+### `mask_images`
 
 ```python
 mask_images(mask, imgs)
@@ -262,10 +263,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
+<code>[ndarray](#numpy.ndarray)</code> | Masked data of shape ``(len(imgs), n_voxels)``.
 
 (data-braindata-io-resample-to)=
-#### `resample_to`
+### `resample_to`
 
 ```python
 resample_to(bd, *, img = None, resolution = None, interpolation = None)
@@ -284,12 +285,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`BrainData` |  | New BrainData instance with resampled data
+Type | Description
+---- | -----------
+<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with resampled data
 
 (data-braindata-io-to-nifti)=
-#### `to_nifti`
+### `to_nifti`
 
 ```python
 to_nifti(bd)
@@ -307,10 +308,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | nibabel.Nifti1Image: Brain data in volumetric NIfTI format.
+<code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Brain data in volumetric NIfTI format.
 
 (data-braindata-io-upload-neurovault)=
-#### `upload_neurovault`
+### `upload_neurovault`
 
 ```python
 upload_neurovault(bd, *, access_token = None, collection_name = None, collection_id = None, img_type = None, img_modality = None, **kwargs)
@@ -334,12 +335,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | NeuroVault collection information.
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | NeuroVault collection information.
 
 (data-braindata-io-warn-if-resampling)=
-#### `warn_if_resampling`
+### `warn_if_resampling`
 
 ```python
 warn_if_resampling(bd, context = '')
@@ -355,7 +356,7 @@ Name | Type | Description | Default
 `context` | <code>[str](#str)</code> | Context string to include in warning. Default: empty string. | <code>''</code>
 
 (data-braindata-io-write-brain-data)=
-#### `write_brain_data`
+### `write_brain_data`
 
 ```python
 write_brain_data(bd, file_name)
@@ -369,4 +370,3 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `file_name` | <code>[str](#str) or [Path](#pathlib.Path)</code> | Output file path. Supports .nii/.nii.gz (NIfTI) and .h5/.hdf5 (HDF5) formats. | *required*
-

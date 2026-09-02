@@ -1,19 +1,12 @@
-(backends-backends)=
-## `backends`
+---
+title: algorithms.backends
+---
 
 Backend abstraction for CPU/GPU operations.
 
 Supports NumPy (CPU-only) and PyTorch (CPU/CUDA/MPS) backends for
 linear algebra operations. Enables transparent acceleration while
 maintaining NumPy-first development.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`BATCH_WORKING_SET_CEILING_GB` |  | 
-
-
 
 **Classes:**
 
@@ -32,15 +25,17 @@ Name | Description
 [`check_gpu_available`](#backends-check-gpu-available) | Check if GPU acceleration is available.
 [`compute_oom_safe`](#backends-compute-oom-safe) | Run `fn(*arrays)` with reactive out-of-memory recovery.
 [`device_memory_budget`](#backends-device-memory-budget) | Usable memory budget in GB for a backend's device.
-[`empty_device_cache`](#backends-empty-device-cache) | Release cached device memory. No-op without torch or a GPU.
+[`empty_device_cache`](#backends-empty-device-cache) | Release cached device memory.
 [`gb_to_bytes`](#backends-gb-to-bytes) | Convert a GB budget to bytes — the package's one GB↔bytes conversion.
 [`is_oom_error`](#backends-is-oom-error) | True if `exc` is a device out-of-memory error (CUDA or MPS).
 [`resolve_backend`](#backends-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
 
-### Classes
+
+
+## Classes
 
 (backends-backend)=
-#### `Backend`
+### `Backend`
 
 ```python
 Backend(backend: str = 'numpy')
@@ -83,16 +78,16 @@ Name | Description
 [`ones_like`](#backends-ones-like) | Create ones array, optionally with a different shape.
 [`sort`](#backends-sort) | Sort along an axis, returning values only.
 [`svd`](#backends-svd) | Compute Singular Value Decomposition.
-[`to_cpu`](#backends-to-cpu) | Transfer array to CPU. No-op for numpy.
+[`to_cpu`](#backends-to-cpu) | Transfer an array to the CPU.
 [`to_device`](#backends-to-device) | Transfer array to backend device.
-[`to_gpu`](#backends-to-gpu) | Transfer array to GPU. No-op for numpy.
+[`to_gpu`](#backends-to-gpu) | Transfer an array to the GPU.
 [`to_numpy`](#backends-to-numpy) | Convert array back to NumPy.
 [`zeros_like`](#backends-zeros-like) | Create zeros array, optionally with a different shape.
 
-##### Methods
+#### Methods
 
 (backends-asarray)=
-###### `asarray`
+##### `asarray`
 
 ```python
 asarray(x, dtype = None, device = None)
@@ -115,10 +110,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Backend array (numpy ndarray or torch Tensor).
+<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Backend array.
 
 (backends-asarray-like)=
-###### `asarray_like`
+##### `asarray_like`
 
 ```python
 asarray_like(x, ref)
@@ -137,10 +132,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Backend array with same dtype/device as ref.
+<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Backend array with the same dtype/device as ref.
 
 (backends-check-arrays)=
-###### `check_arrays`
+##### `check_arrays`
 
 ```python
 check_arrays(*inputs)
@@ -159,12 +154,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`list` |  | Converted arrays in the same order as inputs.
+Type | Description
+---- | -----------
+<code>[list](#list)</code> | Converted arrays in the same order as inputs.
 
 (backends-concatenate)=
-###### `concatenate`
+##### `concatenate`
 
 ```python
 concatenate(arrays, axis = 0)
@@ -180,7 +175,7 @@ Name | Type | Description | Default
 `axis` |  | Axis to concatenate along (default 0). | <code>0</code>
 
 (backends-copy)=
-###### `copy`
+##### `copy`
 
 ```python
 copy(array)
@@ -195,7 +190,7 @@ Name | Type | Description | Default
 `array` |  | Input array. | *required*
 
 (backends-dtype-to-str)=
-###### `dtype_to_str`
+##### `dtype_to_str`
 
 ```python
 dtype_to_str(dtype)
@@ -213,10 +208,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | str or None: e.g. "float32", "float64", or None if input was None.
+<code>[str](#str) \| None</code> | The dtype name (e.g. "float32", "float64"), or None if the     input was None.
 
 (backends-expand-dims)=
-###### `expand_dims`
+##### `expand_dims`
 
 ```python
 expand_dims(array, axis)
@@ -232,7 +227,7 @@ Name | Type | Description | Default
 `axis` |  | Position of the new axis. | *required*
 
 (backends-flatnonzero)=
-###### `flatnonzero`
+##### `flatnonzero`
 
 ```python
 flatnonzero(array)
@@ -247,7 +242,7 @@ Name | Type | Description | Default
 `array` |  | Input array. | *required*
 
 (backends-full)=
-###### `full`
+##### `full`
 
 ```python
 full(shape, fill_value, dtype = None)
@@ -264,7 +259,7 @@ Name | Type | Description | Default
 `dtype` |  | Output dtype. If None, inferred by the backend. | <code>None</code>
 
 (backends-full-like)=
-###### `full_like`
+##### `full_like`
 
 ```python
 full_like(array, fill_value, shape = None, dtype = None, device = None)
@@ -283,7 +278,7 @@ Name | Type | Description | Default
 `device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
 (backends-matmul)=
-###### `matmul`
+##### `matmul`
 
 ```python
 matmul(A, B)
@@ -300,12 +295,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`array` |  | Result of A @ B
+Type | Description
+---- | -----------
+<code>[array](#array)</code> | Result of A @ B
 
 (backends-ones-like)=
-###### `ones_like`
+##### `ones_like`
 
 ```python
 ones_like(array, shape = None, dtype = None, device = None)
@@ -323,7 +318,7 @@ Name | Type | Description | Default
 `device` |  | Target device (torch only). If None, uses array's device. | <code>None</code>
 
 (backends-sort)=
-###### `sort`
+##### `sort`
 
 ```python
 sort(array, axis = -1)
@@ -339,7 +334,7 @@ Name | Type | Description | Default
 `axis` |  | Axis to sort along (default -1). | <code>-1</code>
 
 (backends-svd)=
-###### `svd`
+##### `svd`
 
 ```python
 svd(X, full_matrices = False)
@@ -356,18 +351,20 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` |  | (U, s, Vt) where: - U (array): Left singular vectors - s (array): Singular values - Vt (array): Right singular vectors (transposed)
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | (U, s, Vt) where:     - U (array): Left singular vectors     - s (array): Singular values     - Vt (array): Right singular vectors (transposed)
 
 (backends-to-cpu)=
-###### `to_cpu`
+##### `to_cpu`
 
 ```python
 to_cpu(array)
 ```
 
-Transfer array to CPU. No-op for numpy.
+Transfer an array to the CPU.
+
+No-op for the numpy backend.
 
 **Parameters:**
 
@@ -379,10 +376,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Array on CPU.
+<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Array on CPU.
 
 (backends-to-device)=
-###### `to_device`
+##### `to_device`
 
 ```python
 to_device(arr: np.ndarray)
@@ -398,18 +395,20 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`array` |  | Array on device (numpy array or torch tensor)
+Type | Description
+---- | -----------
+<code>[array](#array)</code> | Array on device (numpy array or torch tensor)
 
 (backends-to-gpu)=
-###### `to_gpu`
+##### `to_gpu`
 
 ```python
 to_gpu(array, device = None)
 ```
 
-Transfer array to GPU. No-op for numpy.
+Transfer an array to the GPU.
+
+No-op for the numpy backend.
 
 **Parameters:**
 
@@ -422,10 +421,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | Array on GPU device.
+<code>[Tensor](#torch.Tensor)</code> | Array on the GPU device.
 
 (backends-to-numpy)=
-###### `to_numpy`
+##### `to_numpy`
 
 ```python
 to_numpy(arr)
@@ -443,10 +442,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | np.ndarray: NumPy array
+<code>[ndarray](#ndarray)</code> | The input as a NumPy array.
 
 (backends-zeros-like)=
-###### `zeros_like`
+##### `zeros_like`
 
 ```python
 zeros_like(array, shape = None, dtype = None, device = None)
@@ -465,10 +464,10 @@ Name | Type | Description | Default
 
 
 
-### Methods
+## Methods
 
 (backends-assert-array-almost-equal)=
-#### `assert_array_almost_equal`
+### `assert_array_almost_equal`
 
 ```python
 assert_array_almost_equal(x, y, decimal = 6, err_msg = '', verbose = True, backend = None)
@@ -491,14 +490,8 @@ Name | Type | Description | Default
 `verbose` |  | Whether to print detailed error messages | <code>True</code>
 `backend` |  | Backend instance (optional). If None, attempts to detect from x/y. | <code>None</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
- | None (raises AssertionError if arrays don't match)
-
 (backends-auto-batch-size)=
-#### `auto_batch_size`
+### `auto_batch_size`
 
 ```python
 auto_batch_size(n_items: int, bytes_per_item: float, *, budget_gb: float, overhead: float = 1.0, min_batch: int = 1) -> tuple[int, int]
@@ -524,11 +517,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[int](#int)</code> | tuple[int, int]: `(batch_size, n_batches)` with
-<code>[int](#int)</code> | `batch_size * n_batches >= n_items`.
+<code>[tuple](#tuple)[[int](#int), [int](#int)]</code> | `(batch_size, n_batches)` with `batch_size * n_batches >= n_items`.
 
 (backends-auto-n-jobs-for-arrays)=
-#### `auto_n_jobs_for_arrays`
+### `auto_n_jobs_for_arrays`
 
 ```python
 auto_n_jobs_for_arrays(arrays, *, max_memory_gb: float | None = None, min_jobs: int = 1) -> int
@@ -550,12 +542,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`int` | <code>[int](#int)</code> | Worker count for ``joblib.Parallel(n_jobs=...)``.
+Type | Description
+---- | -----------
+<code>[int](#int)</code> | Worker count for ``joblib.Parallel(n_jobs=...)``.
 
 (backends-auto-select-backend)=
-#### `auto_select_backend`
+### `auto_select_backend`
 
 ```python
 auto_select_backend(n_samples: int, n_features: int, cv: int = 1) -> Backend
@@ -578,9 +570,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Backend` | <code>[Backend](#nltools.algorithms.backends.Backend)</code> | Selected backend instance
+Type | Description
+---- | -----------
+<code>[Backend](#nltools.algorithms.backends.Backend)</code> | Selected backend instance
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
@@ -593,7 +585,7 @@ Selection criteria:
 </details>
 
 (backends-check-gpu-available)=
-#### `check_gpu_available`
+### `check_gpu_available`
 
 ```python
 check_gpu_available() -> tuple[bool, dict[str, Any]]
@@ -603,12 +595,12 @@ Check if GPU acceleration is available.
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`tuple` | <code>[tuple](#tuple)[[bool](#bool), [dict](#dict)[[str](#str), [Any](#typing.Any)]]</code> | (available, info) where: - available (bool): True if GPU (CUDA or MPS) is available - info (dict): Dictionary with keys:     - 'backend': 'torch' or 'numpy'     - 'device': 'cpu', 'cuda', or 'mps'     - 'device_name': Human-readable device name
+Type | Description
+---- | -----------
+<code>[tuple](#tuple)</code> | (available, info) where:     - available (bool): True if GPU (CUDA or MPS) is available     - info (dict): Dictionary with keys:         - 'backend': 'torch' or 'numpy'         - 'device': 'cpu', 'cuda', or 'mps'         - 'device_name': Human-readable device name
 
 (backends-compute-oom-safe)=
-#### `compute_oom_safe`
+### `compute_oom_safe`
 
 ```python
 compute_oom_safe(fn, *arrays, min_chunk: int = 1)
@@ -642,10 +634,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | np.ndarray: `fn`'s result, possibly assembled from retried chunks.
+<code>[ndarray](#ndarray)</code> | `fn`'s result, possibly assembled from retried chunks.
 
 (backends-device-memory-budget)=
-#### `device_memory_budget`
+### `device_memory_budget`
 
 ```python
 device_memory_budget(backend: Backend | None = None, max_gpu_memory_gb: float | None = None, *, cap_for_batching: bool = False) -> float
@@ -669,21 +661,23 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`float` | <code>[float](#float)</code> | Budget in GB.
+Type | Description
+---- | -----------
+<code>[float](#float)</code> | Budget in GB.
 
 (backends-empty-device-cache)=
-#### `empty_device_cache`
+### `empty_device_cache`
 
 ```python
 empty_device_cache() -> None
 ```
 
-Release cached device memory. No-op without torch or a GPU.
+Release cached device memory.
+
+No-op without torch or a GPU.
 
 (backends-gb-to-bytes)=
-#### `gb_to_bytes`
+### `gb_to_bytes`
 
 ```python
 gb_to_bytes(gb: float) -> int
@@ -692,7 +686,7 @@ gb_to_bytes(gb: float) -> int
 Convert a GB budget to bytes — the package's one GB↔bytes conversion.
 
 (backends-is-oom-error)=
-#### `is_oom_error`
+### `is_oom_error`
 
 ```python
 is_oom_error(exc: BaseException) -> bool
@@ -701,7 +695,7 @@ is_oom_error(exc: BaseException) -> bool
 True if `exc` is a device out-of-memory error (CUDA or MPS).
 
 (backends-resolve-backend)=
-#### `resolve_backend`
+### `resolve_backend`
 
 ```python
 resolve_backend(parallel)
@@ -725,7 +719,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`Backend` |  | Resolved backend instance.
-
+Type | Description
+---- | -----------
+<code>[Backend](#nltools.algorithms.backends.Backend)</code> | Resolved backend instance.

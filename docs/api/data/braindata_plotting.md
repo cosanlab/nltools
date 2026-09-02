@@ -1,15 +1,8 @@
-(data-braindata-plotting-plotting)=
-## `plotting`
+---
+title: data.braindata.plotting
+---
 
 BrainData plotting functions.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`DEFAULT_SLICE_CUT_COORDS` |  | 
-
-
 
 **Methods:**
 
@@ -20,10 +13,12 @@ Name | Description
 [`plot_flatmap_brain`](#data-braindata-plotting-plot-flatmap-brain) | Plot brain data on cortical flatmap.
 [`prepare_save_paths`](#data-braindata-plotting-prepare-save-paths) | Prepare save paths for multiple plot outputs.
 
-### Methods
+
+
+## Methods
 
 (data-braindata-plotting-auto-select-colormap)=
-#### `auto_select_colormap`
+### `auto_select_colormap`
 
 ```python
 auto_select_colormap(data)
@@ -39,12 +34,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` |  | Colormap name
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | Colormap name
 
 (data-braindata-plotting-plot-brain)=
-#### `plot_brain`
+### `plot_brain`
 
 ```python
 plot_brain(bd, *, method = 'glass', upper = None, lower = None, threshold = None, view = 'z', cut_coords = None, cmap = None, bg_img = None, ax = None, figsize = (8, 6), title = None, colorbar = True, save = None, stat = 'mean', limit = 3, **kwargs)
@@ -60,7 +55,7 @@ Name | Type | Description | Default
 `method` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
 `upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
 `lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
-`threshold` | <code>[float](#float)</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``|value| < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
+`threshold` | <code>[float](#float)</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``abs(value) < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
 `view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
 `cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. If provided, takes precedence over ``view``-based defaults. Either a list of per-axis coordinate sequences whose length matches ``view``, or a dict keyed by axis letter (``{"x": [...], "z": [...]}``) from which entries for each axis in ``view`` are looked up. | <code>None</code>
 `cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
@@ -78,15 +73,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure or list[matplotlib.figure.Figure]: For
- | single-image data, the figure object (last one created if
- | ``method="slices"`` produced multiple per-axis figures). For
- | multi-image data with ``method`` in ``{"glass", "slices"}``, a list
- | of figures (one per image for glass; one per image-and-view pair for
- | slices). All figures auto-display in notebooks.
+<code>[Figure](#matplotlib.figure.Figure) \| [list](#list)[[Figure](#matplotlib.figure.Figure)]</code> | For     single-image data, the figure object (last one created if     `method="slices"` produced multiple per-axis figures). For     multi-image data with `method` in `{"glass", "slices"}`, a list of     figures (one per image for glass; one per image-and-view pair for     slices). All figures auto-display in notebooks.
 
 (data-braindata-plotting-plot-flatmap-brain)=
-#### `plot_flatmap_brain`
+### `plot_flatmap_brain`
 
 ```python
 plot_flatmap_brain(bd, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
@@ -121,10 +111,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | matplotlib.figure.Figure
+<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
 
 (data-braindata-plotting-prepare-save-paths)=
-#### `prepare_save_paths`
+### `prepare_save_paths`
 
 ```python
 prepare_save_paths(save, idx = None)
@@ -141,7 +131,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`dict` |  | Dictionary with 'glass' and 'slices' keys containing save paths
-
+Type | Description
+---- | -----------
+<code>[dict](#dict)</code> | Dictionary with 'glass' and 'slices' keys containing save paths

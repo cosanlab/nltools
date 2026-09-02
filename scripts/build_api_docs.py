@@ -21,7 +21,12 @@ from pathlib import Path
 # Make the sibling postprocess module importable whether run as a script
 # (sys.path[0] already covers it) or imported some other way.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from postprocess_api_docs import page_prefix, postprocess  # noqa: E402
+from postprocess_api_docs import (  # noqa: E402
+    page_prefix,
+    page_title,
+    postprocess,
+    with_frontmatter,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCS_API = PROJECT_ROOT / "docs" / "api"
@@ -63,7 +68,6 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.models", "models.md"),
     ("nltools.algorithms.backends", "backends.md"),
     # --- data classes ---
-    ("nltools.data", "data.md"),
     ("nltools.data.braindata.BrainData", "data/brain_data.md"),
     ("nltools.data.braindata.io", "data/braindata_io.md"),
     ("nltools.data.braindata.analysis", "data/braindata_analysis.md"),
@@ -101,7 +105,10 @@ MODULES: list[tuple[str, str]] = [
     ("nltools.algorithms.signal", "algorithms/signal.md"),
     ("nltools.algorithms.similarity", "algorithms/similarity.md"),
     ("nltools.algorithms.regression", "algorithms/regression.md"),
+    ("nltools.algorithms.alignment", "algorithms/alignment.md"),
     ("nltools.algorithms.alignment.procrustes", "algorithms/alignment_procrustes.md"),
+    ("nltools.algorithms.hrf", "algorithms/hrf.md"),
+    ("nltools.algorithms.ridge", "algorithms/ridge.md"),
     ("nltools.algorithms.inference", "algorithms/inference.md"),
     ("nltools.algorithms.inference.one_sample", "algorithms/inference_one_sample.md"),
     ("nltools.algorithms.inference.two_sample", "algorithms/inference_two_sample.md"),
@@ -144,10 +151,11 @@ def generate(module: str, output: Path) -> bool:
             return False
     # Apply post-processing. The page-scoped label prefix is the output path
     # relative to docs/api/ (minus extension), slugified — unique per page.
+    # The frontmatter title stands in for griffe2md's (disabled) root heading.
     if output.exists():
         text = output.read_text()
         text = postprocess(text, page_prefix(output, DOCS_API))
-        output.write_text(text)
+        output.write_text(with_frontmatter(text, page_title(module)))
     return True
 
 
@@ -172,7 +180,7 @@ def main() -> None:
         print("Cleaned docs/api/")
 
     # Ensure subdirectories exist
-    for subdir in ["data", "algorithms", "pipelines"]:
+    for subdir in ["data", "algorithms"]:
         (DOCS_API / subdir).mkdir(parents=True, exist_ok=True)
 
     ok = 0

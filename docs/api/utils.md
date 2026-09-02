@@ -1,5 +1,6 @@
-(utils-utils)=
-## `utils`
+---
+title: utils
+---
 
 Cross-cutting utilities used across the nltools package.
 
@@ -26,10 +27,10 @@ Name | Description
 [`reserved_name`](#utils-reserved-name) | Build a generated column name inside the reserved namespace.
 [`run_separated_name`](#utils-run-separated-name) | Build the run-separated variant of a column name.
 
-### Methods
+## Methods
 
 (utils-all-same)=
-#### `all_same`
+### `all_same`
 
 ```python
 all_same(items)
@@ -45,9 +46,9 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`bool` |  | True if all items equal the first item, False otherwise.
+Type | Description
+---- | -----------
+<code>[bool](#bool)</code> | True if all items equal the first item, False otherwise.
 
 **Examples:**
 
@@ -59,7 +60,7 @@ False
 ```
 
 (utils-attempt-to-import)=
-#### `attempt_to_import`
+### `attempt_to_import`
 
 ```python
 attempt_to_import(dependency, name = None, fromlist = None)
@@ -83,7 +84,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | The imported module, or None if the import failed.
+<code>[ModuleType](#ModuleType) \| None</code> | The imported module, or None if the import failed.
 
 **Examples:**
 
@@ -95,7 +96,7 @@ Type | Description
 ```
 
 (utils-coalesced-gc)=
-#### `coalesced_gc`
+### `coalesced_gc`
 
 ```python
 coalesced_gc()
@@ -128,7 +129,7 @@ loky (process) worker backend — each worker has its own ``gc``. Under a
 the no-op collect; ``NLTOOLS_NO_GC_COALESCE=1`` is the escape hatch there.
 
 (utils-concatenate)=
-#### `concatenate`
+### `concatenate`
 
 ```python
 concatenate(data)
@@ -137,7 +138,7 @@ concatenate(data)
 Concatenate a list of BrainData() or Adjacency() objects.
 
 (utils-get-resource-path)=
-#### `get_resource_path`
+### `get_resource_path`
 
 ```python
 get_resource_path()
@@ -146,7 +147,7 @@ get_resource_path()
 Get path to nltools resource directory.
 
 (utils-is-reserved-name)=
-#### `is_reserved_name`
+### `is_reserved_name`
 
 ```python
 is_reserved_name(name: str) -> bool
@@ -155,7 +156,7 @@ is_reserved_name(name: str) -> bool
 Return True if ``name`` is in the nltools-generated column namespace.
 
 (utils-make-progress-bar)=
-#### `make_progress_bar`
+### `make_progress_bar`
 
 ```python
 make_progress_bar(*, progress_bar: bool, **tqdm_kwargs: bool)
@@ -178,12 +179,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | A `tqdm` instance, or a `_NullProgressBar` exposing the same subset of
- | its interface (`update`, `close`, `set_postfix`, `set_description`, and
- | the context-manager protocol).
+<code>[tqdm](#tqdm) \| [_NullProgressBar](#nltools.utils._NullProgressBar)</code> | A `tqdm` instance, or a `_NullProgressBar` exposing     the same subset of its interface (`update`, `close`, `set_postfix`,     `set_description`, and the context-manager protocol).
 
 (utils-maybe-tqdm)=
-#### `maybe_tqdm`
+### `maybe_tqdm`
 
 ```python
 maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs: bool)
@@ -208,7 +207,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | The original iterable, or a `tqdm`-wrapped version of it.
+<code>[Iterable](#Iterable)</code> | The original iterable, or a `tqdm`-wrapped version of it.
 
 **Examples:**
 
@@ -219,7 +218,7 @@ for i in maybe_tqdm(range(n_permute), progress_bar=progress_bar,
 ```
 
 (utils-reserved-name)=
-#### `reserved_name`
+### `reserved_name`
 
 ```python
 reserved_name(base: str) -> str
@@ -235,13 +234,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` | <code>[str](#str)</code> | ``base`` prefixed with `RESERVED_PREFIX`, idempotently — a name
- | <code>[str](#str)</code> | that already carries the prefix is returned unchanged.
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | `base` prefixed with `RESERVED_PREFIX`, idempotently — a name     that already carries the prefix is returned unchanged.
 
 (utils-run-separated-name)=
-#### `run_separated_name`
+### `run_separated_name`
 
 ```python
 run_separated_name(run_idx: int, name: str) -> str
@@ -263,7 +261,6 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`str` | <code>[str](#str)</code> | ``.nl_r{run_idx}_{base}``.
-
+Type | Description
+---- | -----------
+<code>[str](#str)</code> | ``.nl_r{run_idx}_{base}``.

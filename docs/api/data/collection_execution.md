@@ -1,5 +1,6 @@
-(data-collection-execution-execution)=
-## `execution`
+---
+title: data.collection.execution
+---
 
 Parallel execution machinery for BrainCollection.
 
@@ -7,14 +8,6 @@ Holds the worker-side dataclasses (``_ItemTask``, ``_DesignContext``), the
 single parallel primitive (``_apply``), the worker-error type, and the
 HDF5 fit-bundle IO. Every per-subject method on ``BrainCollection`` routes
 through ``_apply`` here.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`BUNDLE_SCHEMA_VERSION` |  | 
-
-
 
 **Classes:**
 
@@ -28,17 +21,19 @@ Name | Description
 Name | Description
 ---- | -----------
 [`detect_bundle_kind`](#data-collection-execution-detect-bundle-kind) | Classify an HDF5 file as a bundle kind, or ``None`` for plain data.
-[`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read a GLM bundle. Validates ``bundle_schema_version``.
+[`read_glm_bundle`](#data-collection-execution-read-glm-bundle) | Read a GLM bundle, validating ``bundle_schema_version``.
 [`read_predict_bundle`](#data-collection-execution-read-predict-bundle) | Read a predict bundle back into a `Predict` (``estimator`` is ``None``).
-[`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
+[`read_ridge_bundle`](#data-collection-execution-read-ridge-bundle) | Read a ridge bundle.
 [`write_glm_bundle`](#data-collection-execution-write-glm-bundle) | Write a GLM fit bundle to ``out_path`` (atomic tmp+rename).
 [`write_predict_bundle`](#data-collection-execution-write-predict-bundle) | Write a per-subject decoding bundle to ``out_path`` (atomic tmp+rename).
 [`write_ridge_bundle`](#data-collection-execution-write-ridge-bundle) | Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
-### Classes
+
+
+## Classes
 
 (data-collection-execution-braincollectionworkererror)=
-#### `BrainCollectionWorkerError`
+### `BrainCollectionWorkerError`
 
 Bases: <code>[RuntimeError](#RuntimeError)</code>
 
@@ -49,7 +44,7 @@ traceback is preserved. The message embeds subject/run context from
 ``_ItemTask.metadata_row`` so users can locate the offending item.
 
 (data-collection-execution-tqdm-joblib)=
-#### `tqdm_joblib`
+### `tqdm_joblib`
 
 ```python
 tqdm_joblib(total: int, desc: str = '', disable: bool = False) -> None
@@ -61,18 +56,12 @@ Replaces today's submit-time wrapper, which advances on dispatch rather
 than completion. Monkey-patches ``BatchCompletionCallBack.__call__`` for
 the duration of the ``with`` block.
 
-**Attributes:**
 
-Name | Type | Description
----- | ---- | -----------
-`desc` |  | 
-`disable` |  | 
-`total` |  | 
 
-### Methods
+## Methods
 
 (data-collection-execution-detect-bundle-kind)=
-#### `detect_bundle_kind`
+### `detect_bundle_kind`
 
 ```python
 detect_bundle_kind(path: Path | str) -> str | None
@@ -93,20 +82,20 @@ user-saved ``BrainData`` ``.h5`` images as fit bundles. Detection order:
 Non-``.h5``/``.hdf5`` paths and unreadable files return ``None``.
 
 (data-collection-execution-read-glm-bundle)=
-#### `read_glm_bundle`
+### `read_glm_bundle`
 
 ```python
 read_glm_bundle(path: Path) -> dict[str, Any]
 ```
 
-Read a GLM bundle. Validates ``bundle_schema_version``.
+Read a GLM bundle, validating ``bundle_schema_version``.
 
 Schema-version mismatch raises with a migration message; nltools-version
 mismatch logs a warning but does not refuse — bundles are usually
 forward-compatible within a minor version.
 
 (data-collection-execution-read-predict-bundle)=
-#### `read_predict_bundle`
+### `read_predict_bundle`
 
 ```python
 read_predict_bundle(path: Path)
@@ -119,16 +108,18 @@ schema/version handling as the fit-bundle readers; refuses non-predict
 bundles with a pointer to the right reader.
 
 (data-collection-execution-read-ridge-bundle)=
-#### `read_ridge_bundle`
+### `read_ridge_bundle`
 
 ```python
 read_ridge_bundle(path: Path) -> dict[str, Any]
 ```
 
-Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``.
+Read a ridge bundle.
+
+Same schema/version handling as ``read_glm_bundle``.
 
 (data-collection-execution-write-glm-bundle)=
-#### `write_glm_bundle`
+### `write_glm_bundle`
 
 ```python
 write_glm_bundle(out_path: Path, *, betas: np.ndarray, residuals: np.ndarray, sigma2: np.ndarray, r2: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], scale: bool, standardize: str | None, model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
@@ -146,7 +137,7 @@ Mask is embedded as a dataset (raw NIfTI bytes) so the bundle is
 portable across machines. Uses ``h5py.File(..., locking=False)``.
 
 (data-collection-execution-write-predict-bundle)=
-#### `write_predict_bundle`
+### `write_predict_bundle`
 
 ```python
 write_predict_bundle(out_path: Path, *, result: Any, mask_bytes: bytes, affine: np.ndarray, model_spec: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
@@ -171,7 +162,7 @@ The fitted ``estimator`` is deliberately not persisted; rebuild one via
 refittable.
 
 (data-collection-execution-write-ridge-bundle)=
-#### `write_ridge_bundle`
+### `write_ridge_bundle`
 
 ```python
 write_ridge_bundle(out_path: Path, *, weights: np.ndarray, intercept: np.ndarray, cv_scores: np.ndarray, predictions: np.ndarray, scores: np.ndarray, X: np.ndarray, mask_bytes: bytes, affine: np.ndarray, regressor_names: list[str], model_kwargs: dict, step_id: str, parent_step_id: str | None, op: str, op_kwargs: dict, nltools_version: str) -> Path
@@ -181,7 +172,3 @@ Write a ridge fit bundle to ``out_path`` (atomic tmp+rename).
 
 Parallel layout to ``write_glm_bundle`` with ridge-specific datasets
 (``weights``, ``intercept``, ``cv_scores``, ``predictions``, ``scores``).
-
-
-
-### Modules

@@ -1,5 +1,6 @@
-(data-collection-inference-inference)=
-## `inference`
+---
+title: data.collection.inference
+---
 
 Group-level reductions and cross-subject ops for BrainCollection.
 
@@ -17,26 +18,22 @@ Name | Description
 [`concat`](#data-collection-inference-concat) | Stack along axis 0 → ``BrainData`` of shape ``(n_total_obs, n_voxels)``.
 [`isc`](#data-collection-inference-isc) | Inter-subject correlation across the time dimension.
 [`isc_test`](#data-collection-inference-isc-test) | Bootstrap inference on ISC.
-`max_` | Per-voxel max across subjects. Streams.
-[`mean`](#data-collection-inference-mean) | Mean across subjects (leading axis). Streams from path-backed input.
-[`median`](#data-collection-inference-median) | Median across subjects. Materializes (not streaming-friendly).
-`min_` | Per-voxel min across subjects. Streams.
+`max_` | Per-voxel maximum across subjects.
+[`mean`](#data-collection-inference-mean) | Mean across subjects (leading axis).
+[`median`](#data-collection-inference-median) | Median across subjects.
+`min_` | Per-voxel minimum across subjects.
 [`permutation_test`](#data-collection-inference-permutation-test) | Sign-flipping permutation test across subjects (one-sample).
 [`permutation_test2`](#data-collection-inference-permutation-test2) | Two-sample permutation test by random label shuffling.
-[`std`](#data-collection-inference-std) | Std across subjects. Streams via Welford; ddof=1.
-`sum_` | Sum across subjects. Streams.
+[`std`](#data-collection-inference-std) | Standard deviation across subjects (ddof=1).
+`sum_` | Sum across subjects.
 [`ttest`](#data-collection-inference-ttest) | One-sample t-test across subjects.
 [`ttest2`](#data-collection-inference-ttest2) | Two-sample t-test between two collections (subject-level).
-[`var`](#data-collection-inference-var) | Variance across subjects. Streams via Welford; ddof=1.
+[`var`](#data-collection-inference-var) | Variance across subjects (ddof=1).
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-collection-inference-align)=
-#### `align`
+### `align`
 
 ```python
 align(bc: BrainCollection, *, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
@@ -49,7 +46,7 @@ a new ``BrainCollection`` of aligned data, or
 ``(BrainCollection, LocalAlignment)`` when ``return_model=True``.
 
 (data-collection-inference-anova)=
-#### `anova`
+### `anova`
 
 ```python
 anova(bc: BrainCollection, groups: str | list | np.ndarray) -> dict[str, BrainData | int]
@@ -61,7 +58,7 @@ One-way ANOVA across subjects.
 ``n_subjects``. Returns ``{'F', 'p', 'df_between', 'df_within'}``.
 
 (data-collection-inference-concat)=
-#### `concat`
+### `concat`
 
 ```python
 concat(bc: BrainCollection) -> BrainData
@@ -73,7 +70,7 @@ Not streamable — the operation *is* materialization. 1D items are
 promoted to ``(1, n_voxels)`` before concatenation.
 
 (data-collection-inference-isc)=
-#### `isc`
+### `isc`
 
 ```python
 isc(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
@@ -93,7 +90,7 @@ Returns ``{'isc', 'per_subject'}`` for ``loo`` or ``{'isc', 'pairs'}``
 for ``pairwise``.
 
 (data-collection-inference-isc-test)=
-#### `isc_test`
+### `isc_test`
 
 ```python
 isc_test(bc: BrainCollection, *, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
@@ -103,49 +100,57 @@ Bootstrap inference on ISC.
 
 Resamples subjects with replacement, recomputes ISC each draw, and
 derives a per-voxel p-value from the null distribution centered at 0.
-``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
+``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0).
 
 Passing ``roi_mask`` restricts the computation to that ROI; the returned
 maps carry the ROI mask rather than the collection's whole-brain mask.
 
 (data-collection-inference-max)=
-#### `max_`
+### `max_`
 
 ```python
 max_(bc: BrainCollection) -> BrainData
 ```
 
-Per-voxel max across subjects. Streams.
+Per-voxel maximum across subjects.
+
+Streams from path-backed input.
 
 (data-collection-inference-mean)=
-#### `mean`
+### `mean`
 
 ```python
 mean(bc: BrainCollection) -> BrainData
 ```
 
-Mean across subjects (leading axis). Streams from path-backed input.
+Mean across subjects (leading axis).
+
+Streams from path-backed input.
 
 (data-collection-inference-median)=
-#### `median`
+### `median`
 
 ```python
 median(bc: BrainCollection) -> BrainData
 ```
 
-Median across subjects. Materializes (not streaming-friendly).
+Median across subjects.
+
+Materializes every item in memory (not streaming-friendly).
 
 (data-collection-inference-min)=
-#### `min_`
+### `min_`
 
 ```python
 min_(bc: BrainCollection) -> BrainData
 ```
 
-Per-voxel min across subjects. Streams.
+Per-voxel minimum across subjects.
+
+Streams from path-backed input.
 
 (data-collection-inference-permutation-test)=
-#### `permutation_test`
+### `permutation_test`
 
 ```python
 permutation_test(bc: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
@@ -160,7 +165,7 @@ in memory by design. Delegates to the engine's
 ``device`` and ``n_jobs`` select the real execution backend.
 
 (data-collection-inference-permutation-test2)=
-#### `permutation_test2`
+### `permutation_test2`
 
 ```python
 permutation_test2(bc: BrainCollection, other: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
@@ -173,25 +178,29 @@ and ``n_jobs`` select the real execution backend. The result's ``mean``
 map is the engine's ``mean_diff`` (group difference).
 
 (data-collection-inference-std)=
-#### `std`
+### `std`
 
 ```python
 std(bc: BrainCollection) -> BrainData
 ```
 
-Std across subjects. Streams via Welford; ddof=1.
+Standard deviation across subjects (ddof=1).
+
+Streams via Welford's algorithm.
 
 (data-collection-inference-sum)=
-#### `sum_`
+### `sum_`
 
 ```python
 sum_(bc: BrainCollection) -> BrainData
 ```
 
-Sum across subjects. Streams.
+Sum across subjects.
+
+Streams from path-backed input.
 
 (data-collection-inference-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(bc: BrainCollection, *, popmean: float = 0.0, tail: int | str = 2) -> dict[str, BrainData]
@@ -201,12 +210,12 @@ One-sample t-test across subjects.
 
 Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
 ``BrainData.ttest``. Streams from path-backed input via Welford.
-``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
 mean > popmean; negate the data for the other direction). The z map is
 derived from the reported p, so it matches the requested tail.
 
 (data-collection-inference-ttest2)=
-#### `ttest2`
+### `ttest2`
 
 ```python
 ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True, tail: int | str = 2) -> dict[str, BrainData]
@@ -214,15 +223,16 @@ ttest2(bc: BrainCollection, other: BrainCollection, *, equal_var: bool = True, t
 
 Two-sample t-test between two collections (subject-level).
 
-``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
 bc > other; swap the operands for the other direction).
 
 (data-collection-inference-var)=
-#### `var`
+### `var`
 
 ```python
 var(bc: BrainCollection) -> BrainData
 ```
 
-Variance across subjects. Streams via Welford; ddof=1.
+Variance across subjects (ddof=1).
 
+Streams via Welford's algorithm.

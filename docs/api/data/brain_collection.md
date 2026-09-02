@@ -1,9 +1,6 @@
-(data-brain-collection-braincollection)=
-## `BrainCollection`
-
-```python
-BrainCollection(brains: list, *, mask: nib.Nifti1Image | Path | str, designs: list | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, lazy: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> None
-```
+---
+title: BrainCollection
+---
 
 Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
 
@@ -37,13 +34,13 @@ Internal state (mutable list at top level; per-item slots are parallel):
 
 Name | Type | Description
 ---- | ---- | -----------
-`cache_root` | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones. Raises if unset.
+`cache_root` | <code>[Path](#pathlib.Path)</code> | Run-scoped cache directory shared by clones.
 `designs` | <code>[list](#list)</code> | Per-subject paired designs (a copy of the list; ``None`` where unpaired).
 `is_loaded` | <code>[list](#list)[[bool](#bool)]</code> | Per-item flag — True iff the slot holds a ``BrainData`` (not a path).
-`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection. Raises if the mask is unset.
+`mask` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Shared mask image for the collection.
 `metadata` | <code>[DataFrame](#polars.DataFrame)</code> | Per-subject metadata as a polars DataFrame (one row per item).
 `n_subjects` | <code>[int](#int)</code> | Number of subjects (items) in the collection.
-`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask. Raises if mask is unset.
+`n_voxels` | <code>[int](#int)</code> | Voxel count from the mask.
 `shape` | <code>[tuple](#tuple)[[int](#int), [int](#int) \| None, [int](#int)]</code> | Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
 ``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
@@ -72,7 +69,7 @@ Name | Description
 [`isc`](#data-brain-collection-isc) | Inter-subject correlation (ISC) across the time dimension.
 [`isc_test`](#data-brain-collection-isc-test) | Bootstrap inference on ISC (per-voxel p-values).
 [`iter_pairs`](#data-brain-collection-iter-pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
-[`load`](#data-brain-collection-load) | Materialize path-backed items in place. Returns ``self`` for chaining.
+[`load`](#data-brain-collection-load) | Materialize path-backed items in place.
 [`map`](#data-brain-collection-map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 [`max`](#data-brain-collection-max) | Voxelwise maximum across subjects as a single `BrainData`.
 [`mean`](#data-brain-collection-mean) | Voxelwise mean across subjects as a single `BrainData`.
@@ -94,14 +91,14 @@ Name | Description
 [`transform_designs`](#data-brain-collection-transform-designs) | Map ``fn(dm) -> DesignMatrix`` over each paired design.
 [`ttest`](#data-brain-collection-ttest) | One-sample t-test across subjects (delegates to `inference.ttest`).
 [`ttest2`](#data-brain-collection-ttest2) | Two-sample t-test between this collection and ``other`` (subject-level).
-[`unload`](#data-brain-collection-unload) | Drop in-memory data for items with backing paths. Returns ``self``.
+[`unload`](#data-brain-collection-unload) | Drop in-memory data for items with backing paths.
 [`var`](#data-brain-collection-var) | Voxelwise variance across subjects as a single `BrainData`.
 [`write`](#data-brain-collection-write) | Write a clean, portable copy of the collection outside the cache root.
 
-### Methods
+## Methods
 
 (data-brain-collection-align)=
-#### `align`
+### `align`
 
 ```python
 align(*, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, device: str = 'cpu', return_model: bool = False, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
@@ -131,12 +128,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | A new `BrainCollection` of aligned data, or a
- | ``(BrainCollection, LocalAlignment)`` tuple when
- | ``return_model=True``.
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [tuple](#tuple)[[BrainCollection](#nltools.data.collection.BrainCollection), [LocalAlignment](#LocalAlignment)]</code> | A new     collection of aligned data, or a ``(collection, model)`` tuple     when ``return_model=True``.
 
 (data-brain-collection-anova)=
-#### `anova`
+### `anova`
 
 ```python
 anova(groups: str | list | np.ndarray) -> dict
@@ -154,11 +149,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict with ``{'F', 'p'}`` `BrainData` maps plus ``df_between`` and
-<code>[dict](#dict)</code> | ``df_within`` degrees of freedom.
+<code>[dict](#dict)</code> | Dict with ``{'F', 'p'}`` `BrainData` maps plus ``df_between`` and     ``df_within`` degrees of freedom.
 
 (data-brain-collection-apply)=
-#### `apply`
+### `apply`
 
 ```python
 apply(op: str, *args: str, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **kwargs: Literal['auto', True, False]) -> BrainCollection
@@ -173,7 +167,7 @@ this. Centralizes the ``_apply`` plumbing and the cache-knob handling.
 (``standardize``, ``detrend``, ...).
 
 (data-brain-collection-cleanup)=
-#### `cleanup`
+### `cleanup`
 
 ```python
 cleanup() -> None
@@ -186,7 +180,7 @@ clone become unloadable after this; use ``bc.write(...)`` first to
 materialize a portable copy if needed.
 
 (data-brain-collection-cleanup-all)=
-#### `cleanup_all`
+### `cleanup_all`
 
 ```python
 cleanup_all(directory: Path | str = '.') -> None
@@ -198,7 +192,7 @@ Wide brush — can kill sibling sessions in the same cwd. Prefer
 ``bc.cleanup()`` for surgical removal.
 
 (data-brain-collection-compute-contrasts)=
-#### `compute_contrasts`
+### `compute_contrasts`
 
 ```python
 compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, statistic: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
@@ -210,17 +204,14 @@ Compute per-subject contrast maps from fit-bundle items.
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | single contrast + single ``statistic`` → ``BrainCollection``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts (single type)            → ``dict[str, BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | ``statistic='all'`` (single contrast)   → ``dict['beta'|'t'|'z'|'p'|'se', BrainCollection]``
-<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | multiple contrasts + ``statistic='all'`` → nested                                              ``dict[name, dict[stat, BrainCollection]]``
+<code>[BrainCollection](#nltools.data.collection.BrainCollection) \| [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)] \| [dict](#dict)[[str](#str), [dict](#dict)[[str](#str), [BrainCollection](#nltools.data.collection.BrainCollection)]]</code> | A ``BrainCollection`` for a single contrast with a single ``statistic``;     a ``dict[str, BrainCollection]`` keyed by contrast name for multiple     contrasts with a single statistic; a ``dict[str, BrainCollection]``     keyed by statistic (one of 'beta', 't', 'z', 'p', 'se') for a single     contrast with ``statistic='all'``; and a nested     ``dict[name, dict[stat, BrainCollection]]`` for multiple contrasts     with ``statistic='all'``.
 
 Each per-subject NIfTI gets a JSON sidecar with lineage attrs
 (``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
 ``nltools_version``).
 
 (data-brain-collection-concat)=
-#### `concat`
+### `concat`
 
 ```python
 concat() -> BrainData
@@ -229,7 +220,7 @@ concat() -> BrainData
 Stack all subject maps into a single `BrainData` (subjects as rows).
 
 (data-brain-collection-detrend)=
-#### `detrend`
+### `detrend`
 
 ```python
 detrend(*, method: str = 'linear', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -238,7 +229,7 @@ detrend(*, method: str = 'linear', n_jobs: int = -1, progress_bar: bool = False,
 Detrend every subject's image in parallel (delegates to `BrainData.detrend`).
 
 (data-brain-collection-filter)=
-#### `filter`
+### `filter`
 
 ```python
 filter(predicate: Callable[[Any], Any] | list | np.ndarray | pl.Series | pd.Series) -> BrainCollection
@@ -247,7 +238,7 @@ filter(predicate: Callable[[Any], Any] | list | np.ndarray | pl.Series | pd.Seri
 Filter to a subset by predicate, polars expression, or boolean array.
 
 (data-brain-collection-fit)=
-#### `fit`
+### `fit`
 
 ```python
 fit(model: str = 'glm', X: DesignMatrix | list | Callable | None = None, *, scale: bool | str = 'auto', standardize: str | None = 'auto', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **model_kwargs: Literal['auto', True, False]) -> BrainCollection
@@ -262,7 +253,7 @@ Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
   - ``callable``     → ``fn(ctx: _DesignContext) -> DesignMatrix``
 
 (data-brain-collection-from-bids)=
-#### `from_bids`
+### `from_bids`
 
 ```python
 from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: str | None = None, space: str | None = None, sub_labels: list[str] | None = None, img_filters: list[tuple[str, str]] | None = None, derivatives_folder: str = 'derivatives', pair_events: bool = True, confounds_strategy: str | tuple[str, ...] | None = None, confounds_kwargs: dict | None = None, TR: float | str = 'infer', cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -273,7 +264,7 @@ Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
 Full design and edge cases: see ``docs/development/execution-model.md``.
 
 (data-brain-collection-from-glob)=
-#### `from_glob`
+### `from_glob`
 
 ```python
 from_glob(pattern: str, *, mask: nib.Nifti1Image | Path | str, design_pattern: str | None = None, pattern_groups: dict[str, int] | str | None = None, sort: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -299,7 +290,7 @@ Type | Description
 <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | A lazy, path-backed `BrainCollection`.
 
 (data-brain-collection-from-paths)=
-#### `from_paths`
+### `from_paths`
 
 ```python
 from_paths(brain_paths: list, *, mask: nib.Nifti1Image | Path | str, design_paths: list | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -324,7 +315,7 @@ Type | Description
 <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | A lazy, path-backed `BrainCollection`.
 
 (data-brain-collection-isc)=
-#### `isc`
+### `isc`
 
 ```python
 isc(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, summary: str = 'median') -> dict
@@ -344,12 +335,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or
-<code>[dict](#dict)</code> | ``{'isc', 'pairs'}`` for ``method='pairwise'`` (``'isc'`` is a
-<code>[dict](#dict)</code> | `BrainData` map).
+<code>[dict](#dict)</code> | Dict ``{'isc', 'per_subject'}`` for ``method='loo'`` or     ``{'isc', 'pairs'}`` for ``method='pairwise'`` (``'isc'`` is a     `BrainData` map).
 
 (data-brain-collection-isc-test)=
-#### `isc_test`
+### `isc_test`
 
 ```python
 isc_test(*, method: str = 'loo', roi_mask: nib.Nifti1Image | Path | str | None = None, n_samples: int = 5000, summary: str = 'median', tail: int | str = 2, random_state: int | None = None) -> dict
@@ -368,18 +357,17 @@ Name | Type | Description | Default
 `roi_mask` | <code>[Nifti1Image](#nibabel.Nifti1Image) \| [Path](#pathlib.Path) \| [str](#str) \| None</code> | Optional ROI/atlas mask restricting the computation to those voxels. The returned maps carry the ROI mask. If None, ISC is computed across the collection's whole-brain mask. | <code>None</code>
 `n_samples` | <code>[int](#int)</code> | Number of bootstrap resamples. | <code>5000</code>
 `summary` | <code>[str](#str)</code> | Aggregation across subjects/pairs (e.g. ``'median'``). | <code>'median'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0). | <code>2</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for the bootstrap RNG. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'isc', 'p', 'null_dist'}`` (``'isc'`` and ``'p'`` are
-<code>[dict](#dict)</code> | `BrainData` maps).
+<code>[dict](#dict)</code> | Dict ``{'isc', 'p', 'null_dist'}`` (``'isc'`` and ``'p'`` are     `BrainData` maps).
 
 (data-brain-collection-iter-pairs)=
-#### `iter_pairs`
+### `iter_pairs`
 
 ```python
 iter_pairs() -> Iterator[tuple]
@@ -388,16 +376,18 @@ iter_pairs() -> Iterator[tuple]
 Yield ``(BrainData, DesignMatrix | None)`` pairs.
 
 (data-brain-collection-load)=
-#### `load`
+### `load`
 
 ```python
 load(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Materialize path-backed items in place. Returns ``self`` for chaining.
+Materialize path-backed items in place.
+
+Returns ``self`` for chaining.
 
 (data-brain-collection-map)=
-#### `map`
+### `map`
 
 ```python
 map(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -406,7 +396,7 @@ map(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Litera
 Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 
 (data-brain-collection-max)=
-#### `max`
+### `max`
 
 ```python
 max() -> BrainData
@@ -415,7 +405,7 @@ max() -> BrainData
 Voxelwise maximum across subjects as a single `BrainData`.
 
 (data-brain-collection-mean)=
-#### `mean`
+### `mean`
 
 ```python
 mean() -> BrainData
@@ -424,7 +414,7 @@ mean() -> BrainData
 Voxelwise mean across subjects as a single `BrainData`.
 
 (data-brain-collection-median)=
-#### `median`
+### `median`
 
 ```python
 median() -> BrainData
@@ -433,7 +423,7 @@ median() -> BrainData
 Voxelwise median across subjects as a single `BrainData`.
 
 (data-brain-collection-memory-estimate)=
-#### `memory_estimate`
+### `memory_estimate`
 
 ```python
 memory_estimate() -> str
@@ -445,12 +435,10 @@ Human-readable RAM estimate if every item were loaded into memory.
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | A string reporting ``n_subjects``, the per-item shape (or "unknown"
-<code>[str](#str)</code> | for path-backed items not yet loaded), and an estimated float32
-<code>[str](#str)</code> | total in MB/GB.
+<code>[str](#str)</code> | A string reporting ``n_subjects``, the per-item shape (or "unknown"     for path-backed items not yet loaded), and an estimated float32     total in MB/GB.
 
 (data-brain-collection-min)=
-#### `min`
+### `min`
 
 ```python
 min() -> BrainData
@@ -459,7 +447,7 @@ min() -> BrainData
 Voxelwise minimum across subjects as a single `BrainData`.
 
 (data-brain-collection-permutation-test)=
-#### `permutation_test`
+### `permutation_test`
 
 ```python
 permutation_test(*, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
@@ -486,11 +474,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps, plus
-<code>[dict](#dict)</code> | ``'null_dist'`` when ``return_null=True``.
+<code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps, plus     ``'null_dist'`` when ``return_null=True``.
 
 (data-brain-collection-permutation-test2)=
-#### `permutation_test2`
+### `permutation_test2`
 
 ```python
 permutation_test2(other: BrainCollection, *, n_permute: int = 5000, tail: int | str = 2, device: str = 'cpu', return_null: bool = False, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False) -> dict
@@ -518,11 +505,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group
-<code>[dict](#dict)</code> | difference), plus ``'null_dist'`` when ``return_null=True``.
+<code>[dict](#dict)</code> | Dict ``{'mean', 'p'}`` of `BrainData` maps (``mean`` is the group     difference), plus ``'null_dist'`` when ``return_null=True``.
 
 (data-brain-collection-predict)=
-#### `predict`
+### `predict`
 
 ```python
 predict(y: str | list | np.ndarray | None = None, *, X_new: np.ndarray | None = None, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 5, groups: str | list | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto')
@@ -559,7 +545,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Per-subject decoding targets — ``None`` (each subject's single-column ``.Y``), a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
 `X_new` | <code>[ndarray](#numpy.ndarray) \| None</code> | New design matrix for predict-after-fit (mode 2). | <code>None</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
+`spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'``, ``'roi'``, or ``'searchlight'``. | <code>'whole_brain'</code>
 `model` | <code>[str](#str)</code> | Model name or sklearn estimator (see ``BrainData.predict``). | <code>'svm'</code>
 `cv` | <code>[int](#int) \| [str](#str)</code> | Within-subject CV — an int fold count (default 5, honoring ``groups`` via the Group variants), ``'loo'``, ``'logo'`` (with ``groups``, e.g. leave-one-run-out), or an sklearn splitter. | <code>5</code>
 `groups` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray) \| None</code> | Within-subject grouping variable — a ``.Y`` column name, one shared array, or a list of per-subject arrays. | <code>None</code>
@@ -570,16 +556,16 @@ Name | Type | Description | Default
 `n_jobs` | <code>[int](#int)</code> | CPU workers (subject-level; each subject decodes with ``n_jobs=1`` to avoid nested parallelism). | <code>-1</code>
 `random_state` | <code>[int](#int) \| None</code> | Seed for shuffled int-``cv`` folds. | <code>None</code>
 `progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | <code>False</code>
-`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | ``'auto'`` (cache when the source is path-backed) | ``True`` | ``False``. Caching writes one predict bundle (``.h5``) per subject holding the result's ingredients — never a pickled estimator, so cached results have ``estimator=None``. | <code>'auto'</code>
+`cache` | <code>[Literal](#typing.Literal)['auto', True, False]</code> | ``'auto'`` (cache when the source is path-backed), ``True``, or ``False``. Caching writes one predict bundle (``.h5``) per subject holding the result's ingredients — never a pickled estimator, so cached results have ``estimator=None``. | <code>'auto'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
- | `PredictCollection` (mode 1) or ``BrainCollection`` (mode 2).
+<code>[PredictCollection](#PredictCollection) \| [BrainCollection](#nltools.data.collection.BrainCollection)</code> | `PredictCollection` (mode 1) or     `BrainCollection` (mode 2).
 
 (data-brain-collection-predict-group)=
-#### `predict_group`
+### `predict_group`
 
 ```python
 predict_group(y: str | list | np.ndarray, *, spatial_scale: str = 'whole_brain', model: str = 'svm', cv: int | str = 'logo', groups: str | np.ndarray | None = None, roi_mask: nib.Nifti1Image | Path | str | None = None, radius_mm: float = 10.0, scoring: str = 'auto', standardize: bool = True, n_permute: int = 0, n_jobs: int = -1, random_state: int | None = None, progress_bar: bool = False)
@@ -598,7 +584,7 @@ Requires single-map-per-subject items — run
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `y` | <code>[str](#str) \| [list](#list) \| [ndarray](#numpy.ndarray)</code> | Labels/targets, one per subject — an array/list, or the name of a metadata column. | *required*
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` | ``'roi'`` | ``'searchlight'``. | <code>'whole_brain'</code>
+`spatial_scale` | <code>[str](#str)</code> | One of ``'whole_brain'``, ``'roi'``, or ``'searchlight'``. | <code>'whole_brain'</code>
 `model` | <code>[str](#str)</code> | Model name (see ``BrainData.predict``). | <code>'svm'</code>
 `cv` | <code>[int](#int) \| [str](#str)</code> | ``'logo'`` (leave-one-group-out, default — with the default ``groups`` this is leave-one-subject-out), ``'loo'`` (leave-one-out), an int fold count, or an sklearn splitter. An int spec **honors** ``groups``: it resolves to `StratifiedGroupKFold` (classifiers) / `GroupKFold` (regressors) so a group never straddles a train/test boundary. | <code>'logo'</code>
 `groups` | <code>[str](#str) \| [ndarray](#numpy.ndarray) \| None</code> | Group labels, or a metadata column name. Defaults to one group per subject; pass ``groups='run'`` (or any metadata column) for e.g. leave-one-run-out under ``cv='logo'``. | <code>None</code>
@@ -615,11 +601,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | `Predict` with CV attributes; plus the permutation-null fields
- | when ``n_permute > 0``.
+<code>[Predict](#Predict)</code> | Result with CV attributes, plus the permutation-null fields     when ``n_permute > 0``.
 
 (data-brain-collection-read)=
-#### `read`
+### `read`
 
 ```python
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -635,7 +620,7 @@ Does not recover from cache subdirs in v0.6.0.
 </details>
 
 (data-brain-collection-resample)=
-#### `resample`
+### `resample`
 
 ```python
 resample(target, *, interpolation: str = 'continuous', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -662,7 +647,7 @@ Type | Description
 <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | A new `BrainCollection` of resampled items.
 
 (data-brain-collection-smooth)=
-#### `smooth`
+### `smooth`
 
 ```python
 smooth(fwhm: float, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -671,7 +656,7 @@ smooth(fwhm: float, *, n_jobs: int = -1, progress_bar: bool = False, cache: Lite
 Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
 
 (data-brain-collection-standardize)=
-#### `standardize`
+### `standardize`
 
 ```python
 standardize(*, axis: int = 0, method: str = 'center', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -696,7 +681,7 @@ Type | Description
 <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | A new `BrainCollection` of standardized items.
 
 (data-brain-collection-std)=
-#### `std`
+### `std`
 
 ```python
 std() -> BrainData
@@ -705,7 +690,7 @@ std() -> BrainData
 Voxelwise standard deviation across subjects as a single `BrainData`.
 
 (data-brain-collection-steps)=
-#### `steps`
+### `steps`
 
 ```python
 steps() -> list[Path]
@@ -718,7 +703,7 @@ cached op). Empty when the collection was constructed directly or
 no ancestor wrote to disk.
 
 (data-brain-collection-sum)=
-#### `sum`
+### `sum`
 
 ```python
 sum() -> BrainData
@@ -727,7 +712,7 @@ sum() -> BrainData
 Voxelwise sum across subjects as a single `BrainData`.
 
 (data-brain-collection-threshold)=
-#### `threshold`
+### `threshold`
 
 ```python
 threshold(*, lower: float | None = None, upper: float | None = None, binarize: bool = False, coerce_nan: bool = True, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -754,7 +739,7 @@ Type | Description
 <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | A new `BrainCollection` of thresholded items.
 
 (data-brain-collection-transform-designs)=
-#### `transform_designs`
+### `transform_designs`
 
 ```python
 transform_designs(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection
@@ -767,7 +752,7 @@ the parent process — designs are small. ``n_jobs``/``progress_bar``/
 ``cache`` are accepted for surface consistency but ignored.
 
 (data-brain-collection-ttest)=
-#### `ttest`
+### `ttest`
 
 ```python
 ttest(*, popmean: float = 0.0, tail: int | str = 2) -> dict
@@ -780,7 +765,7 @@ One-sample t-test across subjects (delegates to `inference.ttest`).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `popmean` | <code>[float](#float)</code> | Null-hypothesis population mean to test against. | <code>0.0</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: mean > popmean; negate the data for the other direction). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: mean > popmean; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
@@ -789,7 +774,7 @@ Type | Description
 <code>[dict](#dict)</code> | Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps.
 
 (data-brain-collection-ttest2)=
-#### `ttest2`
+### `ttest2`
 
 ```python
 ttest2(other: BrainCollection, *, equal_var: bool = True, tail: int | str = 2) -> dict
@@ -803,26 +788,27 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `other` | <code>[BrainCollection](#nltools.data.collection.BrainCollection)</code> | The second collection to compare against. | *required*
 `equal_var` | <code>[bool](#bool)</code> | If True, pooled-variance t-test; if False, Welch's test. | <code>True</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | 2|'two' (two-tailed, default) or 1|'one' (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
+`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps (``mean`` is the
-<code>[dict](#dict)</code> | group difference).
+<code>[dict](#dict)</code> | Dict ``{'mean', 't', 'z', 'p'}`` of `BrainData` maps (``mean`` is the     group difference).
 
 (data-brain-collection-unload)=
-#### `unload`
+### `unload`
 
 ```python
 unload(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Drop in-memory data for items with backing paths. Returns ``self``.
+Drop in-memory data for items with backing paths.
+
+Returns ``self`` for chaining.
 
 (data-brain-collection-var)=
-#### `var`
+### `var`
 
 ```python
 var() -> BrainData
@@ -831,7 +817,7 @@ var() -> BrainData
 Voxelwise variance across subjects as a single `BrainData`.
 
 (data-brain-collection-write)=
-#### `write`
+### `write`
 
 ```python
 write(directory: Path | str, *, pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list[Path]
@@ -856,4 +842,3 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[list](#list)[[Path](#pathlib.Path)]</code> | List of written NIfTI paths, in item order.
-

@@ -1,5 +1,6 @@
-(analysis-roc)=
-## `roc`
+---
+title: data.roc
+---
 
 ROC (Receiver Operating Characteristic) analysis for single-interval classification.
 
@@ -14,9 +15,10 @@ Name | Description
 
 
 
-### Classes
+## Classes
 
-#### `Roc`
+(analysis-roc)=
+### `Roc`
 
 ```python
 Roc(*, input_values = None, binary_outcome = None, method = 'optimal_overall', forced_choice = None)
@@ -38,17 +40,6 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject (default=None) | <code>None</code>
 
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`binary_outcome` |  | 
-`forced_choice` |  | 
-`input_values` |  | 
-`method` |  | 
-
-
-
 **Methods:**
 
 Name | Description
@@ -57,10 +48,12 @@ Name | Description
 [`plot`](#analysis-plot) | Create a ROC plot.
 [`summary`](#analysis-summary) | Display a formatted summary of ROC analysis.
 
-##### Methods
+
+
+#### Methods
 
 (analysis-calculate)=
-###### `calculate`
+##### `calculate`
 
 ```python
 calculate(*, input_values = None, binary_outcome = None, criterion_values = None, method = 'optimal_overall', forced_choice = None, balanced_acc = False, tail = 2)
@@ -78,10 +71,10 @@ Name | Type | Description | Default
 `method` |  | threshold-selection variant, one of `'optimal_overall'`,             `'optimal_balanced'`, `'minimum_sdt_bias'` | <code>'optimal_overall'</code>
 `forced_choice` |  | index indicating position for each unique subject             (default=None) | <code>None</code>
 `balanced_acc` |  | balanced accuracy for single-interval classification             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC | <code>False</code>
-`tail` |  | 2|'two' (two-tailed, default) or 1|'one' (one-tailed:             accuracy > chance) for the binomial ``accuracy_p`` | <code>2</code>
+`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed             (accuracy > chance) for the binomial ``accuracy_p`` | <code>2</code>
 
 (analysis-plot)=
-###### `plot`
+##### `plot`
 
 ```python
 plot(*, method = 'gaussian', balanced_acc = False)
@@ -103,17 +96,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | fig
+<code>[Figure](#matplotlib.figure.Figure)</code> | The ROC figure.
 
 (analysis-summary)=
-###### `summary`
+##### `summary`
 
 ```python
 summary()
 ```
 
 Display a formatted summary of ROC analysis.
-
-
-
-### Methods

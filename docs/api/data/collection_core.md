@@ -1,5 +1,6 @@
-(data-collection-core-core)=
-## `core`
+---
+title: data.collection.core
+---
 
 Module-level helpers for BrainCollection.
 
@@ -18,10 +19,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-collection-core-coerce-metadata)=
-#### `coerce_metadata`
+### `coerce_metadata`
 
 ```python
 coerce_metadata(metadata: pl.DataFrame | pd.DataFrame | dict | None, n_subjects: int) -> pl.DataFrame
@@ -36,7 +37,7 @@ Polars ``metadata`` cannot hold DataFrames or arrays — those belong in
 the parallel slots (``designs``, ``_confounds``, ``_sample_masks``).
 
 (data-collection-core-make-run-id)=
-#### `make_run_id`
+### `make_run_id`
 
 ```python
 make_run_id(now: datetime | None = None) -> str
@@ -48,7 +49,7 @@ Timestamp is UTC ``YYYYMMDDTHHMMSS``; the uuid tail is 8 hex chars from
 ``secrets.token_hex(4)``. Lex-sortable, collision-free across processes.
 
 (data-collection-core-make-step-dirname)=
-#### `make_step_dirname`
+### `make_step_dirname`
 
 ```python
 make_step_dirname(op: str, kwargs: dict[str, Any] | None = None, *, now: datetime | None = None) -> str
@@ -63,7 +64,7 @@ so lexicographic order tracks creation order even for calls that share a
 second (the timestamp stays the primary, cross-process ordering key).
 
 (data-collection-core-resolve-cache-dir)=
-#### `resolve_cache_dir`
+### `resolve_cache_dir`
 
 ```python
 resolve_cache_dir(cache_dir: Path | str | None) -> Path | None
@@ -77,7 +78,7 @@ The returned path is *not* yet decorated with a ``run_id`` subdir; that
 happens at construction time on the instance.
 
 (data-collection-core-resolve-mask)=
-#### `resolve_mask`
+### `resolve_mask`
 
 ```python
 resolve_mask(mask: nib.Nifti1Image | Path | str) -> nib.Nifti1Image
@@ -88,4 +89,3 @@ Resolve a mask spec into a Nifti1Image.
 Accepts a Nifti1Image, a path, or a known nltools template string
 (e.g. ``"3mm-MNI152-2009c"``). String templates dispatch to the same
 resolver used by ``BrainData``.
-

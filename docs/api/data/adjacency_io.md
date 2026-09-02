@@ -1,5 +1,6 @@
-(data-adjacency-io-io)=
-## `io`
+---
+title: data.adjacency.io
+---
 
 I/O functions for Adjacency objects.
 
@@ -12,10 +13,10 @@ Name | Description
 
 
 
-### Methods
+## Methods
 
 (data-adjacency-io-to-graph)=
-#### `to_graph`
+### `to_graph`
 
 ```python
 to_graph(adj)
@@ -35,10 +36,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | networkx.Graph or networkx.DiGraph: Graph representation of the adjacency matrix. Uses DiGraph for directed matrices.
+<code>[Graph](#networkx.Graph) or [DiGraph](#networkx.DiGraph)</code> | Graph representation of the     adjacency matrix. Uses DiGraph for directed matrices.
 
 (data-adjacency-io-write)=
-#### `write`
+### `write`
 
 ```python
 write(adj, file_name, method = 'long')
@@ -53,4 +54,3 @@ Name | Type | Description | Default
 `adj` |  | Adjacency object to write | *required*
 `file_name` | <code>[str](#str)</code> | name of file name to write | *required*
 `method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
-

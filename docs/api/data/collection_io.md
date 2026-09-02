@@ -1,5 +1,6 @@
-(data-collection-io-io)=
-## `io`
+---
+title: data.collection.io
+---
 
 IO and constructors for BrainCollection.
 
@@ -21,14 +22,10 @@ Name | Description
 [`unload`](#data-collection-io-unload) | Drop in-memory data for items that have backing paths.
 [`write`](#data-collection-io-write) | Write a clean, portable copy of ``bc`` outside the cache root.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-collection-io-discover-bids)=
-#### `discover_bids`
+### `discover_bids`
 
 ```python
 discover_bids(root: Path | str | Any, *, task: str | None, space: str | None, sub_labels: list[str] | None, img_filters: list[tuple[str, str]] | None, derivatives_folder: str, confounds_strategy: str | tuple[str, ...] | None, confounds_kwargs: dict | None, TR: float | str) -> dict[str, list]
@@ -47,7 +44,7 @@ Errors (see ``docs/development/execution-model.md``):
   - pybids not installed: raise ``ImportError``.
 
 (data-collection-io-from-bids)=
-#### `from_bids`
+### `from_bids`
 
 ```python
 from_bids(cls: type[BrainCollection], root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: str | None = None, space: str | None = None, sub_labels: list[str] | None = None, img_filters: list[tuple[str, str]] | None = None, derivatives_folder: str = 'derivatives', pair_events: bool = True, confounds_strategy: str | tuple[str, ...] | None = None, confounds_kwargs: dict | None = None, TR: float | str = 'infer', cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -64,7 +61,7 @@ here — that's the user's ``transform_designs`` step.
 See ``docs/development/execution-model.md`` for edge cases.
 
 (data-collection-io-from-glob)=
-#### `from_glob`
+### `from_glob`
 
 ```python
 from_glob(cls: type[BrainCollection], pattern: str, *, mask: nib.Nifti1Image | Path | str, design_pattern: str | None = None, pattern_groups: dict[str, int] | str | None = None, sort: bool = True, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -77,7 +74,7 @@ Build a collection by globbing for BOLD images (and optionally designs).
 ``pattern`` into a metadata column.
 
 (data-collection-io-from-paths)=
-#### `from_paths`
+### `from_paths`
 
 ```python
 from_paths(cls: type[BrainCollection], brain_paths: list[Path | str], *, mask: nib.Nifti1Image | Path | str, design_paths: list[Path | str | None] | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -88,7 +85,7 @@ Build a collection from explicit lists of brain (and design) paths.
 Always lazy — items are stored as ``Path`` and loaded on demand.
 
 (data-collection-io-load)=
-#### `load`
+### `load`
 
 ```python
 load(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection
@@ -101,7 +98,7 @@ Mutates ``bc`` in place. This is the only mutation method besides
 subdir, does not write to disk, does not produce a new identity.
 
 (data-collection-io-memory-estimate)=
-#### `memory_estimate`
+### `memory_estimate`
 
 ```python
 memory_estimate(bc: BrainCollection) -> str
@@ -113,7 +110,7 @@ Reports ``n_subjects``, the per-item shape (or "unknown" if path-backed
 and not yet loaded), and an estimated total in MB/GB based on float32.
 
 (data-collection-io-read)=
-#### `read`
+### `read`
 
 ```python
 read(cls: type[BrainCollection], directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
@@ -126,7 +123,7 @@ default pattern) and pairs them with rows from ``metadata.csv`` if it
 exists. Does **not** recover from cache subdirs in v0.6.0.
 
 (data-collection-io-unload)=
-#### `unload`
+### `unload`
 
 ```python
 unload(bc: BrainCollection, indices: list[int] | None = None) -> BrainCollection
@@ -138,7 +135,7 @@ Mutates in place. This is a no-op for items that don't have a backing path
 because dropping them would lose data.
 
 (data-collection-io-write)=
-#### `write`
+### `write`
 
 ```python
 write(bc: BrainCollection, directory: Path | str, *, pattern: str = 'image_{i:04d}.nii.gz', metadata_file: str | None = 'metadata.csv') -> list[Path]
@@ -149,4 +146,3 @@ Write a clean, portable copy of ``bc`` outside the cache root.
 Inverse of ``BrainCollection.read()``. Writes one NIfTI per item under
 ``directory`` plus a metadata CSV. Skips the cache layout entirely so
 the result is shareable / archival.
-

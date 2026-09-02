@@ -1,5 +1,6 @@
-(data-atlases-loading-loading)=
-## `loading`
+---
+title: data.atlases.loading
+---
 
 Lazy loading of atlas NIfTI + label CSV files from the HF dataset.
 
@@ -15,10 +16,12 @@ Name | Description
 ---- | -----------
 [`load_atlas`](#data-atlases-loading-load-atlas) | Lazy-load an atlas by registry name.
 
-### Classes
+
+
+## Classes
 
 (data-atlases-loading-atlas)=
-#### `Atlas`
+### `Atlas`
 
 ```python
 Atlas(name: str, image: nb.Nifti1Image, labels: pl.DataFrame, kind: AtlasKind, citation: str) -> None
@@ -39,10 +42,12 @@ Name | Type | Description
 `kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
 `citation` | <code>[str](#str)</code> | Short citation for the original atlas.
 
-### Methods
+
+
+## Methods
 
 (data-atlases-loading-load-atlas)=
-#### `load_atlas`
+### `load_atlas`
 
 ```python
 load_atlas(name: str) -> Atlas
@@ -65,4 +70,3 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
-

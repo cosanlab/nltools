@@ -1,8 +1,8 @@
 """Tests for the API-doc postprocess helpers in scripts/postprocess_api_docs.py.
 
 The script isn't a package member, so it's loaded by file path via importlib.
-Focus: the postprocess safety nets that scrub third-party RST leakage from
-griffe2md output (nltools' own docstrings are Markdown-only by policy).
+Focus: the postprocess passes that turn griffe2md output into mystmd-clean
+pages (RST safety nets, summary-table ordering, heading/table cleanup, titles).
 """
 
 import importlib.util
@@ -24,13 +24,13 @@ def postprocess_mod():
 class TestStripRstDirectives:
     """`.. directive::` blocks (e.g. nilearn_deprecated) must not leak in.
 
-    These come from re-exported third-party functions (nltools.algorithms.hrf
-    re-exports nilearn's glover_hrf/spm_hrf/etc), whose docstrings are RST. We
-    can't rewrite them at the source, so postprocess strips the block.
+    A safety net for directly re-exported third-party functions, whose RST
+    docstrings can't be rewritten at the source (nltools currently has none;
+    the hrf module wraps nilearn's HRFs behind its own docstrings).
     """
 
     def test_strips_nilearn_deprecated_block(self, postprocess_mod):
-        # Mirrors the real leak in docs/api/algorithms.md: an indented directive
+        # Mirrors the leak the old hrf re-exports produced: an indented directive
         # marker plus a further-indented body, inside a param description.
         text = (
             "tr:\n"
@@ -175,3 +175,121 @@ class TestRemoveAttributesSections:
         # ...but Methods and its members stay.
         assert "##### Methods" in out
         assert "###### `split`" in out
+
+
+class TestFixLeadingEmptyTableCells:
+    """A table row whose first cell is empty must keep its column alignment.
+
+    griffe2md renders rows without a leading pipe, so a row like
+    `` | None`` (empty Type, description "None") loses its first cell — Markdown
+    treats the leading pipe as the optional row delimiter and shifts "None" into
+    the Type column. Prepending a pipe restores the empty cell.
+    """
+
+    def test_empty_first_cell_gets_leading_pipe(self, postprocess_mod):
+        page = (
+            "**Returns:**\n\n"
+            "Type | Description\n"
+            "---- | -----------\n"
+            " | None (renders inline)\n"
+        )
+        out = postprocess_mod._fix_leading_empty_table_cells(page)
+        assert "\n| | None (renders inline)\n" in out
+
+    def test_populated_rows_and_headers_untouched(self, postprocess_mod):
+        page = (
+            "Name | Type | Description | Default\n"
+            "---- | ---- | ----------- | -------\n"
+            "`x` | <code>int</code> | The x. | *required*\n"
+        )
+        assert postprocess_mod._fix_leading_empty_table_cells(page) == page
+
+    def test_pipes_outside_tables_untouched(self, postprocess_mod):
+        page = "```python\n| a |\n```\n\nProse with | a pipe.\n"
+        assert postprocess_mod._fix_leading_empty_table_cells(page) == page
+
+
+class TestRemoveModulesSummary:
+    """The ``**Modules:**`` summary table goes away.
+
+    Submodules are not rendered on the package page (``show_submodules`` is off;
+    each has its own page), so the table's same-page links dangle — or worse,
+    land on a class whose slug matches the module name (`srm` -> `SRM`).
+    """
+
+    def test_modules_block_removed_other_blocks_kept(self, postprocess_mod):
+        page = (
+            "Doc.\n\n"
+            "**Methods:**\n\n"
+            "Name | Description\n---- | -----------\n"
+            "[`align`](#align) | Align.\n\n"
+            "**Modules:**\n\n"
+            "Name | Description\n---- | -----------\n"
+            "[`srm`](#srm) | Shared Response Model.\n"
+            "`local` | Local alignment.\n\n"
+            "## Classes\n"
+        )
+        out = postprocess_mod._remove_modules_summary(page)
+        assert "**Modules:**" not in out
+        assert "`srm`" not in out and "`local`" not in out
+        assert "[`align`](#align) | Align.\n\n## Classes\n" in out
+
+    def test_trailing_modules_block_removed(self, postprocess_mod):
+        page = (
+            "Doc.\n\n**Modules:**\n\nName | Description\n---- | -----------\n`m` | M.\n"
+        )
+        assert postprocess_mod._remove_modules_summary(page) == "Doc.\n"
+
+
+class TestPageTitle:
+    """Each page's frontmatter title is derived from its import path.
+
+    griffe2md's root heading is off (it duplicated the page title), so the title
+    must come from the build script. Bare module names collide across facades
+    (`io` appears four times), so modules use their dotted path; classes use
+    their name.
+    """
+
+    def test_class_uses_bare_name(self, postprocess_mod):
+        assert (
+            postprocess_mod.page_title("nltools.data.braindata.BrainData")
+            == "BrainData"
+        )
+
+    def test_module_uses_dotted_path_without_package(self, postprocess_mod):
+        assert (
+            postprocess_mod.page_title("nltools.data.braindata.io")
+            == "data.braindata.io"
+        )
+
+    def test_top_level_module(self, postprocess_mod):
+        assert postprocess_mod.page_title("nltools.plotting") == "plotting"
+
+    def test_frontmatter_prepended(self, postprocess_mod):
+        out = postprocess_mod.with_frontmatter("Body.\n", "data.braindata.io")
+        assert out == "---\ntitle: data.braindata.io\n---\n\nBody.\n"
+
+
+class TestRemoveEmptyCategoryHeadings:
+    """`### Classes` / `#### Methods` with nothing under them are dropped.
+
+    griffe2md emits a category heading per member kind even when every member
+    of that kind was filtered out, leaving a bare heading followed directly by
+    its sibling (or the end of the page).
+    """
+
+    def test_empty_heading_before_sibling_removed(self, postprocess_mod):
+        page = "## `m`\n\n### Classes\n\n### Methods\n\n#### `f`\n\nDoc.\n"
+        out = postprocess_mod._remove_empty_category_headings(page)
+        assert "### Classes" not in out
+        assert "### Methods\n\n#### `f`" in out
+
+    def test_empty_trailing_heading_removed(self, postprocess_mod):
+        page = "## `m`\n\n### Methods\n\n#### `f`\n\nDoc.\n\n### Modules\n"
+        out = postprocess_mod._remove_empty_category_headings(page)
+        assert "### Modules" not in out
+        assert out.endswith("Doc.\n")
+
+    def test_populated_heading_kept(self, postprocess_mod):
+        page = "## `m`\n\n### Classes\n\n#### `C`\n\nDoc.\n\n### Methods\n\n#### `f`\n"
+        assert postprocess_mod._remove_empty_category_headings(page) == page

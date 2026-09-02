@@ -1,5 +1,6 @@
-(data-design-matrix-append-append)=
-## `append`
+---
+title: data.designmatrix.append
+---
 
 Provide standalone DesignMatrix concatenation functions.
 
@@ -18,11 +19,10 @@ Name | Description
 [`identify_columns_to_separate`](#data-design-matrix-append-identify-columns-to-separate) | Identify columns that need run-specific separation.
 [`match_column_pattern`](#data-design-matrix-append-match-column-pattern) | Match columns against a pattern with wildcard support.
 
-### Classes
+## Methods
 
-### Methods
-
-#### `append`
+(data-design-matrix-append-append)=
+### `append`
 
 ```python
 append(dm: DesignMatrix, other: DesignMatrix, *, axis: int = 0, keep_separate: bool = True, unique_cols: list[str] | None = None, fill_na: int | float | None = 0, as_confounds: bool = False, progress_bar: bool = False) -> DesignMatrix
@@ -45,12 +45,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated design matrix.
 
 (data-design-matrix-append-append-horizontal)=
-#### `append_horizontal`
+### `append_horizontal`
 
 ```python
 append_horizontal(dm: DesignMatrix, to_append: list[DesignMatrix], fill_na: int | float | None, as_confounds: bool = False) -> DesignMatrix
@@ -69,12 +69,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with columns from all matrices.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with columns from all matrices.
 
 (data-design-matrix-append-append-vertical)=
-#### `append_vertical`
+### `append_vertical`
 
 ```python
 append_vertical(dm: DesignMatrix, to_append: list[DesignMatrix], keep_separate: bool, unique_cols: list[str] | None, fill_na: int | float | None, *, progress_bar: bool) -> DesignMatrix
@@ -95,12 +95,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with rows from all matrices.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with rows from all matrices.
 
 (data-design-matrix-append-append-vertical-with-separation)=
-#### `append_vertical_with_separation`
+### `append_vertical_with_separation`
 
 ```python
 append_vertical_with_separation(dm: DesignMatrix, to_append: list[DesignMatrix], unique_cols: list[str] | None, fill_na: int | float | None, *, progress_bar: bool) -> DesignMatrix
@@ -123,12 +123,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`DesignMatrix` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated DesignMatrix with run-separated confound columns and multi=True.
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Concatenated DesignMatrix with run-separated confound columns     and multi=True.
 
 (data-design-matrix-append-get-starting-run-idx)=
-#### `get_starting_run_idx`
+### `get_starting_run_idx`
 
 ```python
 get_starting_run_idx(dm: DesignMatrix) -> int
@@ -144,12 +144,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`int` | <code>[int](#int)</code> | Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
+Type | Description
+---- | -----------
+<code>[int](#int)</code> | Next run index (0 if not multi-run, max_existing_idx + 1 otherwise).
 
 (data-design-matrix-append-identify-columns-to-separate)=
-#### `identify_columns_to_separate`
+### `identify_columns_to_separate`
 
 ```python
 identify_columns_to_separate(dm: DesignMatrix, all_dms: list[DesignMatrix], unique_cols: list[str] | None) -> set
@@ -167,12 +167,12 @@ Name | Type | Description | Default
 
 **Returns:**
 
-Name | Type | Description
----- | ---- | -----------
-`set` | <code>[set](#set)</code> | Column names that should be separated with run prefixes.
+Type | Description
+---- | -----------
+<code>[set](#set)</code> | Column names that should be separated with run prefixes.
 
 (data-design-matrix-append-match-column-pattern)=
-#### `match_column_pattern`
+### `match_column_pattern`
 
 ```python
 match_column_pattern(columns: list[str], pattern: str) -> list[str]
@@ -191,5 +191,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | list of str: Column names matching the pattern.
-
+<code>[list](#list)[[str](#str)]</code> | Column names matching the pattern.

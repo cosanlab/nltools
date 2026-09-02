@@ -1,5 +1,6 @@
-(data-design-matrix-io-io)=
-## `io`
+---
+title: data.designmatrix.io
+---
 
 Provide DesignMatrix I/O and visualization functions.
 
@@ -19,14 +20,10 @@ Name | Description
 [`write`](#data-design-matrix-io-write) | Write DesignMatrix to file.
 [`write_h5`](#data-design-matrix-io-write-h5) | Write DesignMatrix to HDF5 file with metadata.
 
-
-
-### Classes
-
-### Methods
+## Methods
 
 (data-design-matrix-io-events-to-dm)=
-#### `events_to_dm`
+### `events_to_dm`
 
 ```python
 events_to_dm(events: pl.DataFrame | pd.DataFrame, *, run_length: int, sampling_freq: float) -> pl.DataFrame
@@ -52,11 +49,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | pl.DataFrame with one column per unique `trial_type`, values in
-<code>[DataFrame](#polars.DataFrame)</code> | {0, modulation} indicating where each condition is active.
+<code>[DataFrame](#polars.DataFrame)</code> | One column per unique `trial_type`, values in     {0, modulation} indicating where each condition is active.
 
 (data-design-matrix-io-load-from-file)=
-#### `load_from_file`
+### `load_from_file`
 
 ```python
 load_from_file(path: str | Path, *, run_length: int | str, sampling_freq: float) -> tuple[pl.DataFrame, bool]
@@ -86,12 +82,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Tuple of (data frame, is_events) — `is_events` signals to the
-<code>[bool](#bool)</code> | caller that the columns are experimental regressors rather than
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | nuisance.
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | `(frame, is_events)` — `is_events` signals to     the caller that the columns are experimental regressors rather than     nuisance.
 
 (data-design-matrix-io-read-h5)=
-#### `read_h5`
+### `read_h5`
 
 ```python
 read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]
@@ -116,12 +110,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Tuple of (frame, metadata), where metadata holds ``sampling_freq``,
-<code>[dict](#dict)</code> | ``convolved``, ``confounds``, ``multi``, and ``n_rows`` — absent keys
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [dict](#dict)]</code> | meaning the file didn't record them.
+<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [dict](#dict)]</code> | `(frame, metadata)`, where metadata holds     ``sampling_freq``, ``convolved``, ``confounds``, ``multi``, and     ``n_rows`` — absent keys meaning the file didn't record them.
 
 (data-design-matrix-io-separator-for-path)=
-#### `separator_for_path`
+### `separator_for_path`
 
 ```python
 separator_for_path(path: str | Path) -> str
@@ -135,7 +127,7 @@ comma; every other extension means tab, matching the BIDS convention for
 ``.tsv`` and keeping the historical default for ``.txt`` and friends.
 
 (data-design-matrix-io-to-numpy)=
-#### `to_numpy`
+### `to_numpy`
 
 ```python
 to_numpy(dm: DesignMatrix) -> np.ndarray
@@ -156,7 +148,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | np.ndarray: 2D array with shape (n_samples, n_columns)
+<code>[ndarray](#numpy.ndarray)</code> | 2D array with shape (n_samples, n_columns)
 
 **Examples:**
 
@@ -168,7 +160,7 @@ Type | Description
 ```
 
 (data-design-matrix-io-to-pandas)=
-#### `to_pandas`
+### `to_pandas`
 
 ```python
 to_pandas(dm: DesignMatrix)
@@ -189,7 +181,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
- | pd.DataFrame: Pandas DataFrame with same data and column names.
+<code>[DataFrame](#pandas.DataFrame)</code> | Pandas DataFrame with same data and column names.
 
 **Examples:**
 
@@ -201,7 +193,7 @@ Type | Description
 ```
 
 (data-design-matrix-io-write)=
-#### `write`
+### `write`
 
 ```python
 write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None
@@ -219,12 +211,6 @@ Name | Type | Description | Default
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 `file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
 `sep` | <code>[str](#str) \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>None</code> | None
 
 **Examples:**
 
@@ -246,7 +232,7 @@ column-less matrix, so ``DesignMatrix(path)`` restores the object.
 </details>
 
 (data-design-matrix-io-write-h5)=
-#### `write_h5`
+### `write_h5`
 
 ```python
 write_h5(dm: DesignMatrix, file_name: str) -> None
@@ -265,10 +251,3 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
 `file_name` | <code>[str](#str)</code> | Output HDF5 file path. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>None</code> | None
-
