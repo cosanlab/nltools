@@ -1,6 +1,6 @@
 ---
 title: data.braindata.neighborhoods
-label: neighborhoods
+label: page-neighborhoods
 ---
 
 Spatial neighborhood computation for neuroimaging analyses.
@@ -60,10 +60,13 @@ iteration over neighborhoods for searchlight-style analyses.
 
 Name | Type | Description
 ---- | ---- | -----------
-`adjacency` | <code>csr_matrix</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
-`mask_hash` | <code>str</code> | Hash of the source mask for validation
-`radius_mm` | <code>float</code> | Radius in millimeters
-`n_voxels` | <code>int</code> | Number of voxels in the mask
+`adjacency` | <code>csr_matrix</code> | ``(n_voxels, n_voxels)`` matrix where ``adjacency[i, j]`` is nonzero if voxel ``j`` is within the radius of voxel ``i``.
+`mask_hash` | <code>str</code> | Hash of the source mask, for cache validation.
+`radius_mm` | <code>float</code> | Radius in millimeters.
+`n_voxels` | <code>int</code> | Number of voxels in the mask.
+`mean_size` | <code>float</code> | Mean neighborhood size in voxels.
+`min_size` | <code>int</code> | Smallest neighborhood size in voxels.
+`max_size` | <code>int</code> | Largest neighborhood size in voxels.
 
 **Methods:**
 
@@ -143,15 +146,15 @@ Iterate over all neighborhoods.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`progress_bar` | <code>bool</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
-
-
+`progress_bar` | <code>bool</code> | If True, wrap the iterator with a tqdm progress bar. | <code>False</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>tuple[int, ndarray]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
+<code>tuple[int, ndarray]</code> | ``(center_voxel_idx, neighbor_indices)`` for     each voxel.
+
+
 
 ## Functions
 
@@ -212,10 +215,8 @@ print(neighborhoods)
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Cache location: ~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz
-
-For a typical 2mm MNI mask (~50k voxels) with 10mm radius:
-- First run: ~1-2 seconds
-- Cached load: ~50ms
+Cache location: ``~/.nltools/cache/searchlight/{mask_hash}_{radius}mm.npz``.
+For a typical 2mm MNI mask (~50k voxels) with a 10mm radius the first
+run takes ~1-2 seconds; a cached load takes ~50ms.
 
 </details>

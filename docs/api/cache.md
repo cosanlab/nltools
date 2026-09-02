@@ -1,6 +1,6 @@
 ---
 title: data.braindata.cache
-label: cache
+label: page-cache
 ---
 
 Disk-based caching infrastructure for expensive computations.
@@ -233,7 +233,7 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `key` | <code>str</code> | Cache key | *required*
 `compressed` | <code>bool</code> | If True, use compressed npz format (smaller but slower) | <code>True</code>
-`**arrays` |  | Named arrays to cache | <code>{}</code>
+`**arrays` | <code>ndarray</code> | Named arrays to cache, forwarded to ``np.savez`` / ``np.savez_compressed`` | <code>{}</code>
 
 **Returns:**
 

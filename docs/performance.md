@@ -472,7 +472,9 @@ y = np.random.randn(n_samples).astype(np.float32)
 
 - [Backends](api/backends.md) - CPU/GPU backend documentation
 - [Ridge Regression](api/algorithms/ridge.md) - Algorithm details
-- [Algorithms](api/algorithms.md) - Complete algorithm reference
+- [Prediction & cross-validation](api/tasks/prediction.md) - `ridge_cv`/`ridge_svd` and the CV schemes
+- [Statistics & inference](api/tasks/inference.md) - GPU-capable permutation tests
+- [nltools.algorithms (A–Z index)](api/algorithms.md) - Complete algorithm reference
 
 ---
 

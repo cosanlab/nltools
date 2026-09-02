@@ -1,13 +1,14 @@
 ---
 title: data.braindata.analysis
-label: data-braindata-analysis
+label: page-data-braindata-analysis
 ---
 
-BrainData analysis functions.
+Analysis operations on `BrainData`.
 
-Standalone functions extracted from BrainData class methods for similarity,
-distance, masking, ROI extraction, filtering, thresholding, decomposition,
-alignment, smoothing, and other analytical operations.
+Functions for similarity, distance, masking, ROI extraction, filtering,
+thresholding, decomposition, alignment, smoothing, and related operations.
+Each takes a `BrainData` as its first argument; the corresponding
+`BrainData` methods delegate here.
 
 **Functions:**
 
@@ -20,7 +21,7 @@ Name | Description
 [`decompose`](#data-braindata-analysis-decompose) | Decompose a BrainData object.
 [`detrend_data`](#data-braindata-analysis-detrend-data) | Remove the linear trend from each voxel.
 [`distance`](#data-braindata-analysis-distance) | Calculate distance between images within a BrainData() instance.
-[`extract_roi`](#data-braindata-analysis-extract-roi) | Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+[`extract_roi`](#data-braindata-analysis-extract-roi) | Extract activity from a binary mask or a labeled ROI atlas.
 [`filter_data`](#data-braindata-analysis-filter-data) | Apply a Butterworth filter to data (wraps `nilearn.signal.clean`).
 [`find_spikes_data`](#data-braindata-analysis-find-spikes-data) | Identify spikes from time-series data; see `find_spikes`.
 [`multivariate_similarity`](#data-braindata-analysis-multivariate-similarity) | Predict a BrainData spatial distribution from a linear combination.
@@ -34,7 +35,7 @@ Name | Description
 [`temporal_resample`](#data-braindata-analysis-temporal-resample) | Resample a BrainData time series to a target frequency or sample count.
 [`threshold_data`](#data-braindata-analysis-threshold-data) | Threshold BrainData instance with optional cluster filtering.
 [`transform_pairwise_data`](#data-braindata-analysis-transform-pairwise-data) | Transform BrainData into pairwise comparisons.
-[`z_to_r`](#data-braindata-analysis-z-to-r) | Convert z score back into r value for each element of data object.
+[`z_to_r`](#data-braindata-analysis-z-to-r) | Convert Fisher z scores back into r values for each data element.
 
 
 
@@ -55,22 +56,22 @@ already estimated common model. When using SRM, `target` must be a previously
 estimated common model stored as a numpy array. Transformed data can be back
 projected to original data using Transformation matrix.
 
-See nltools.algorithms.align for aligning multiple BrainData instances
+See `nltools.algorithms.align` for aligning multiple BrainData instances.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`target` |  | (BrainData) object to align to. | *required*
-`method` |  | (str) alignment method to use ['probabilistic_srm','deterministic_srm','procrustes'] | <code>'procrustes'</code>
-`axis` |  | (int) axis to align on (default: 0) | <code>0</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to align. | *required*
+`target` | <code>[BrainData](#page-data-brain-data) \| ndarray</code> | Alignment target — another subject or a fitted common model (array) for the SRM methods. | *required*
+`method` | <code>str</code> | ``'procrustes'`` (default), ``'probabilistic_srm'``, or ``'deterministic_srm'``. | <code>'procrustes'</code>
+`axis` | <code>int</code> | Axis to align on. Default ``0``. | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
+<code>dict</code> | ``'transformed'``, ``'transformation_matrix'``, and     ``'common_model'`` (plus ``'disparity'`` and ``'scale'`` for     ``'procrustes'``).
 
 **Examples:**
 
@@ -103,6 +104,22 @@ parcel = NaN). Per-parcel transform matrices and common-model
 objects are kept as dicts keyed by atlas label, since matrices over
 different voxel subsets can't be painted into one image.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Source data to align. | *required*
+`target` | <code>[BrainData](#page-data-brain-data) \| ndarray</code> | Alignment target (a `BrainData` for ``'procrustes'``; a common-model array for the SRM methods). | *required*
+`method` | <code>str</code> | ``'procrustes'``, ``'probabilistic_srm'``, or ``'deterministic_srm'``. | *required*
+`axis` | <code>int</code> | Axis to align over; see `align`. | *required*
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str</code> | Integer-labeled atlas defining the parcels. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>dict</code> | ``'transformed'`` (`BrainData`), ``'transformation_matrix'`` and     ``'common_model'`` (dicts keyed by atlas label), ``'disparity'`` and     ``'scale'`` (arrays, one entry per parcel), and ``'roi_labels'``.
+
 (data-braindata-analysis-apply-mask)=
 ### `apply_mask`
 
@@ -119,22 +136,20 @@ resampled into the BrainData space, then set resample_mask_to_brain=True.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`mask` |  | (BrainData or nifti object) mask to apply to BrainData object. | *required*
-`resample_mask_to_brain` |  | (bool) Will resample mask to brain space before applying mask (default=False). | <code>False</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to mask. | *required*
+`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image</code> | Mask to apply. | *required*
+`resample_mask_to_brain` | <code>bool</code> | Resample the mask into the brain's space before applying it. Default: ``False``. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Masked BrainData object.
+<code>[BrainData](#page-data-brain-data)</code> | Masked copy of ``bd``.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Uses nilearn.masking.apply_mask for efficient, validated masking.
-Simplified from 47-line manual implementation to leverage nilearn's
-Cython-optimized code with better validation and memory management.
+Masking is delegated to ``nilearn.masking.apply_mask``.
 
 </details>
 
@@ -151,14 +166,14 @@ Ensure two datasets use compatible masks, creating a union mask if needed.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance | *required*
-`image` |  | BrainData instance to compare masks with | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Reference dataset. | *required*
+`image` | <code>[BrainData](#page-data-brain-data)</code> | Dataset whose mask is compared with ``bd``'s. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>tuple</code> | (data2, image2) arrays with compatible masks
+<code>tuple[ndarray, ndarray]</code> | ``(data, image_data)`` arrays sampled on     a shared mask.
 
 (data-braindata-analysis-decompose)=
 ### `decompose`
@@ -173,17 +188,17 @@ Decompose a BrainData object.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`method` |  | (str) Algorithm to perform decomposition         types=['pca','ica','nnmf','fa','dictionary','kernelpca'] | <code>'pca'</code>
-`axis` |  | dimension to decompose ['voxels','images'] | <code>'voxels'</code>
-`n_components` |  | (int) number of components. If None then retain         as many as possible (default: None). | <code>None</code>
-`**kwargs` |  | Additional keyword arguments passed to the decomposition algorithm. | <code>{}</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to decompose. | *required*
+`method` | <code>str</code> | Decomposition algorithm: ``'pca'`` (default), ``'ica'``, ``'nnmf'``, ``'fa'``, ``'dictionary'``, or ``'kernelpca'``. | <code>'pca'</code>
+`axis` | <code>str</code> | Dimension to decompose: ``'voxels'`` (default) or ``'images'``. | <code>'voxels'</code>
+`n_components` | <code>int \| None</code> | Number of components. ``None`` retains as many as possible. | <code>None</code>
+`**kwargs` | <code>dict</code> | Forwarded to the ``sklearn.decomposition`` estimator. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | A dictionary of decomposition parameters.
+<code>dict</code> | ``'decomposition_object'`` (the fitted sklearn estimator),     ``'components'`` (`BrainData`), and ``'weights'`` (array).
 
 (data-braindata-analysis-detrend-data)=
 ### `detrend_data`
@@ -198,14 +213,14 @@ Remove the linear trend from each voxel.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`method` |  | ('linear','constant', optional) type of detrending | <code>'linear'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to detrend (must hold more than one image). | *required*
+`method` | <code>str</code> | ``'linear'`` (default) or ``'constant'``. | <code>'linear'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Detrended BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Detrended copy of ``bd``.
 
 (data-braindata-analysis-distance)=
 ### `distance`
@@ -220,18 +235,18 @@ Calculate distance between images within a BrainData() instance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Dataset whose images are compared. | *required*
+`metric` | <code>str</code> | Any distance metric supported by ``scipy.spatial.distance.cdist`` (e.g. ``'euclidean'``, ``'cityblock'``, ``'cosine'``, ``'correlation'``, ``'hamming'``, ``'jaccard'``). | <code>'euclidean'</code>
 `spatial_scale` | <code>str</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
-`roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| None</code> | Atlas for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>float</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
-`**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
+`**kwargs` | <code>dict</code> | Forwarded to ``scipy.spatial.distance.cdist``. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
+<code>[Adjacency](#page-data-adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
 (data-braindata-analysis-extract-roi)=
 ### `extract_roi`
@@ -240,19 +255,19 @@ Type | Description
 extract_roi(bd, mask, method = 'mean', n_components = None)
 ```
 
-Extract activity from mask or ROI atlas using NiftiLabelsMasker.
+Extract activity from a binary mask or a labeled ROI atlas.
 
-This method now uses nilearn's NiftiLabelsMasker for efficient ROI extraction
-when dealing with labeled atlases (multiple ROIs).
+Labeled atlases (multiple ROIs) are handled with nilearn's
+``NiftiLabelsMasker``.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`mask` |  | BrainData, nibabel image, or file path. Can be:<br>  - Binary mask (extracts from single ROI)   - Labeled atlas (extracts from multiple ROIs) | *required*
-`method` |  | Extraction method ('mean', 'median', 'pca'). Default: 'mean'     Note: 'median' and 'pca' require additional computation after extraction | <code>'mean'</code>
-`n_components` |  | If method='pca', number of components to return | <code>None</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to extract from. | *required*
+`mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str</code> | A binary mask (extracts from a single ROI) or a labeled atlas (extracts from every ROI). | *required*
+`method` | <code>str</code> | Extraction method: ``'mean'`` (default), ``'median'``, or ``'pca'``. | <code>'mean'</code>
+`n_components` | <code>int \| None</code> | Number of components to return when ``method='pca'``. | <code>None</code>
 
 **Returns:**
 
@@ -289,22 +304,22 @@ implementation, but this can be overridden using kwargs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR). Default: None. | <code>None</code>
-`high_pass` |  | High pass cutoff frequency. Default: None. | <code>None</code>
-`low_pass` |  | Low pass cutoff frequency. Default: None. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to nilearn.signal.clean       Common options:       - confounds: Confound timeseries to remove       - sample_mask: Volumes to exclude (scrubbing)       - detrend: Enable detrending (default False)       - standardize: ``'zscore_sample'``, ``'psc'``, or None (off,         the default). ``True``/``False`` are accepted as aliases         for ``'zscore_sample'``/None.       - ensure_finite: Replace NaN/inf (default False) | <code>{}</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Time series to filter. | *required*
+`sampling_freq` | <code>float \| None</code> | Sampling frequency in Hz (i.e. 1 / TR). | <code>None</code>
+`high_pass` | <code>float \| None</code> | High-pass cutoff frequency in Hz. | <code>None</code>
+`low_pass` | <code>float \| None</code> | Low-pass cutoff frequency in Hz. | <code>None</code>
+`**kwargs` | <code>dict</code> | Forwarded to ``nilearn.signal.clean``. Common options: ``confounds`` (confound time series to remove), ``sample_mask`` (volumes to exclude), ``detrend`` (default ``False``), ``standardize`` (``'zscore_sample'``, ``'psc'``, or ``None`` — the default; ``True``/``False`` are accepted as aliases for ``'zscore_sample'``/``None``), and ``ensure_finite`` (replace NaN/inf; default ``False``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Filtered BrainData instance
+<code>[BrainData](#page-data-brain-data)</code> | Filtered copy of ``bd``.
 
 <details class="see-also" open markdown="1">
 <summary>See Also</summary>
 
-nilearn.signal.clean documentation for all available options
+``nilearn.signal.clean`` for all available options.
 
 </details>
 
@@ -332,15 +347,16 @@ The predictors may be other BrainData instances or nibabel images.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance of data to be applied | *required*
-`images` |  | BrainData instance of weight map | *required*
-`method` | <code>str</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Single image to be explained. | *required*
+`images` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image</code> | Predictor images (weight maps). | *required*
+`method` | <code>str</code> | Regression method. Default: ``'ols'``. | <code>'ols'</code>
+`tail` | <code>int</code> | ``1`` or ``2`` for one- or two-tailed p-values. | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Raw regression statistics (numpy arrays/scalars, not BrainData)     with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
+<code>dict</code> | Raw regression statistics (numpy arrays/scalars, not BrainData)     with keys ``'beta'``, ``'t'``, ``'p'``, ``'df'``, ``'sigma'``,     ``'residual'``.
 
 (data-braindata-analysis-r-to-z)=
 ### `r_to_z`
@@ -355,13 +371,13 @@ Apply Fisher's r-to-z transformation to each data element.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Correlation values to transform. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Transformed BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Transformed copy of ``bd``.
 
 (data-braindata-analysis-reduce-per-roi)=
 ### `reduce_per_roi`
@@ -382,6 +398,20 @@ NaN. Output is a `BrainData` of the same shape as the input.
 
 Used by ``BrainData.{mean,std,median}(spatial_scale='roi')``.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to reduce. | *required*
+`reducer` | <code>Callable</code> | NumPy-style reducer accepting ``axis=``, e.g. ``np.mean``. | *required*
+`roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str</code> | Integer-labeled atlas defining the parcels. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainData](#page-data-brain-data)</code> | Parcel-wise reduced values painted back to voxel space.
+
 (data-braindata-analysis-regions)=
 ### `regions`
 
@@ -395,17 +425,17 @@ Extract brain connected regions into separate regions.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`min_region_size` | <code>int</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
-`method` | <code>str</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>scalar</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
-`is_mask` | <code>bool</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Image to segment. | *required*
+`min_region_size` | <code>int</code> | Minimum volume in mm³ for a region to be kept. | <code>1350</code>
+`method` | <code>str</code> | ``'connected_components'`` labels each connected component directly; ``'local_regions'`` (default) seeds a marker at each component's peak and separates regions with a random-walker segmentation. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>float</code> | Smooth the image first to extract sparser regions. Only used for ``method='local_regions'``. | <code>6</code>
+`is_mask` | <code>bool</code> | Treat ``bd`` as a boolean mask and use ``connected_label_regions`` instead. Default ``False``. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | BrainData instance with extracted ROIs as data.
+<code>[BrainData](#page-data-brain-data)</code> | One image per extracted region.
 
 (data-braindata-analysis-scale-data)=
 ### `scale_data`
@@ -434,15 +464,15 @@ akin to (but not exactly) "percent signal change."
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`scale_val` |  | (int/float) Target value for the mean after scaling. Default 100. | <code>100.0</code>
-`axis` |  | (int or None) Axis along which to compute the mean. None for grand-mean scaling (default, FSL/SPM style). 0 for voxel-wise scaling (AFNI style, each voxel scaled by its own temporal mean). | <code>None</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to scale. | *required*
+`scale_val` | <code>float</code> | Target value for the mean after scaling. Default ``100``. | <code>100.0</code>
+`axis` | <code>int \| None</code> | ``None`` for grand-mean scaling (default, FSL/SPM style); ``0`` for voxel-wise scaling (AFNI style, each voxel scaled by its own temporal mean). | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | New BrainData instance with scaled data.
+<code>[BrainData](#page-data-brain-data)</code> | Scaled copy of ``bd``.
 
 **Examples:**
 
@@ -467,9 +497,9 @@ Calculate similarity to a single BrainData or nibabel image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`image` |  | (BrainData, nifti)  image to evaluate similarity | *required*
-`metric` |  | (str) Type of similarity     ['correlation', 'pearson', 'rank_correlation', 'spearman', 'dot_product', 'cosine'] | <code>'correlation'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Dataset to compare. | *required*
+`image` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image</code> | Image to evaluate similarity against. | *required*
+`metric` | <code>str</code> | Similarity metric, one of ``'correlation'``, ``'pearson'``, ``'rank_correlation'``, ``'spearman'``, ``'dot_product'``, or ``'cosine'``. | <code>'correlation'</code>
 
 **Returns:**
 
@@ -490,14 +520,14 @@ Apply spatial smoothing using nilearn's ``smooth_img``.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`fwhm` |  | (float) full width half maximum of gaussian spatial filter | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to smooth. | *required*
+`fwhm` | <code>float</code> | Full width at half maximum of the Gaussian kernel, in mm. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Copy with smoothed data.
+<code>[BrainData](#page-data-brain-data)</code> | Smoothed copy of ``bd``.
 
 (data-braindata-analysis-standardize)=
 ### `standardize`
@@ -515,15 +545,15 @@ Computed in float64 and cast back to the input dtype, so raw float32 BOLD
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`axis` |  | 0 for observations 1 for voxels (default: 0) | <code>0</code>
-`method` |  | ['center','zscore'] (default: 'center') | <code>'center'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to standardize. | *required*
+`axis` | <code>int</code> | ``0`` to standardize each voxel across observations (default), ``1`` to standardize each observation across voxels. | <code>0</code>
+`method` | <code>str</code> | ``'center'`` (default) or ``'zscore'``. | <code>'center'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Standardized BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Standardized copy of ``bd``.
 
 (data-braindata-analysis-temporal-resample)=
 ### `temporal_resample`
@@ -542,16 +572,16 @@ This function can up- or down-sample data.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`sampling_freq` |  | (float) sampling frequency of data in hertz (default: None) | <code>None</code>
-`target` |  | (float) upsampling target (default: None) | <code>None</code>
-`target_type` |  | (str) type of target: `'samples'`, `'seconds'`, or `'hz'` (default: 'hz') | <code>'hz'</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Time series to resample. | *required*
+`sampling_freq` | <code>float \| None</code> | Sampling frequency of the data in Hz. | <code>None</code>
+`target` | <code>float \| None</code> | Resampling target, interpreted per ``target_type``. | <code>None</code>
+`target_type` | <code>str</code> | Units of ``target``: ``'hz'`` (default), ``'samples'``, or ``'seconds'``. | <code>'hz'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Resampled BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Resampled copy of ``bd``.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -577,25 +607,25 @@ if provided, otherwise respecting every non-zero value.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. A string like     `'98%'` resolves as a percentile over the finite **nonzero**     voxels (via `nltools.utils.resolve_threshold` — zeros on a     masked map are absence of data and would skew the     percentile); can be None for one-sided thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. Same percentile     semantics as `upper`; can be None for one-sided thresholding. | <code>None</code>
-`bd` |  | BrainData instance. | *required*
-`binarize` | <code>bool</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
-`coerce_nan` | <code>bool</code> | coerce nan values to 0s; default True | <code>True</code>
-`cluster_threshold` | <code>int</code> | Minimum cluster size in voxels. If > 0, uses     nilearn.image.threshold_img with cluster filtering.     Band-pass filtering (both upper AND lower) not supported     with cluster thresholding. Default 0 (disabled). | <code>0</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to threshold. | *required*
+`upper` | <code>float \| str \| None</code> | Upper cutoff. A string like ``'98%'`` resolves as a percentile over the finite **nonzero** voxels (via `nltools.utils.resolve_threshold` — zeros on a masked map are absence of data and would skew the percentile). ``None`` for one-sided thresholding. | <code>None</code>
+`lower` | <code>float \| str \| None</code> | Lower cutoff, with the same percentile semantics as ``upper``. ``None`` for one-sided thresholding. | <code>None</code>
+`binarize` | <code>bool</code> | Return a binary image respecting the thresholds if provided, otherwise binarize every non-zero value. Default ``False``. | <code>False</code>
+`coerce_nan` | <code>bool</code> | Replace NaN values with 0 first. Default ``True``. | <code>True</code>
+`cluster_threshold` | <code>int</code> | Minimum cluster size in voxels. If ``> 0``, thresholds with ``nilearn.image.threshold_img`` and drops smaller clusters; band-pass thresholding (both ``upper`` and ``lower``) is not supported in that mode. Default ``0`` (disabled). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Thresholded BrainData object.
+<code>[BrainData](#page-data-brain-data)</code> | Thresholded copy of ``bd``.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-When cluster_threshold=0 (default), uses fast path for basic thresholding.
-When cluster_threshold>0, uses nilearn for cluster filtering.
-Band-pass filtering (unique nltools feature) preserved when cluster_threshold=0.
+With ``cluster_threshold=0`` (default) thresholding runs on the data
+array directly and supports band-pass thresholds; with
+``cluster_threshold>0`` nilearn performs the cluster filtering.
 
 </details>
 
@@ -612,13 +642,13 @@ Transform BrainData into pairwise comparisons.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data with a ``Y`` column to compare pairwise. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | BrainData instance transformed into pairwise comparisons.
+<code>[BrainData](#page-data-brain-data)</code> | Pairwise-difference images with a recoded ``Y``.
 
 (data-braindata-analysis-z-to-r)=
 ### `z_to_r`
@@ -627,16 +657,16 @@ Type | Description
 z_to_r(bd)
 ```
 
-Convert z score back into r value for each element of data object.
+Convert Fisher z scores back into r values for each data element.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | z-scored values to transform. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Transformed BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Transformed copy of ``bd``.

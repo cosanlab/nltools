@@ -1,6 +1,6 @@
 ---
 title: data.braindata.prediction
-label: data-braindata-prediction
+label: page-data-braindata-prediction
 ---
 
 BrainData prediction — timeseries (encoding) and MVPA (decoding).

@@ -1,12 +1,14 @@
 ---
 title: data.designmatrix.regressors
-label: data-design-matrix-regressors
+label: page-data-design-matrix-regressors
 ---
 
-Provide standalone regressor functions for DesignMatrix.
+Build regressors for a DesignMatrix: HRF convolution and drift terms.
 
-Each function takes a DesignMatrix as its first argument (`dm`) and returns
-a new DesignMatrix with the requested transformation applied.
+`convolve` applies the canonical Glover HRF or a custom kernel; `add_poly` and
+`add_dct_basis` add Legendre polynomial and discrete-cosine drift regressors in
+the reserved ``.nl_`` namespace. Each function returns a new `DesignMatrix`
+with metadata updated.
 
 **Functions:**
 
@@ -31,7 +33,7 @@ Add discrete cosine transform basis functions for high-pass filtering.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to add DCT basis to. | *required*
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix to add the DCT basis to. | *required*
 `duration` | <code>float</code> | Filter duration in seconds. Default: 180. | <code>180</code>
 `drop` | <code>int</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
 `include_constant` | <code>bool</code> | If True, also add a constant/intercept column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
@@ -40,7 +42,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with DCT basis columns appended, named     ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with DCT basis columns appended, named     ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 **Raises:**
 
@@ -61,7 +63,7 @@ Add Legendre polynomial drift terms.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to add polynomials to. | *required*
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix to add polynomials to. | *required*
 `order` | <code>int</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
 `include_lower` | <code>bool</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
 
@@ -69,7 +71,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with polynomial columns appended, named     ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with polynomial columns appended, named     ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
 **Raises:**
 
@@ -90,33 +92,29 @@ Convolve columns with an HRF or custom kernel.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to convolve. | *required*
-`conv_func` | <code>str or ndarray</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
-`columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns) | <code>None</code>
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix to convolve. | *required*
+`conv_func` | <code>str \| ndarray</code> | ``'hrf'`` for the canonical Glover HRF, or custom kernel(s) as a 1D array (single kernel) or 2D array (samples x kernels). | <code>'hrf'</code>
+`columns` | <code>list[str] \| None</code> | Columns to convolve. Default: all non-confound columns that are not already convolved. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with convolved columns
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with convolved columns.
 
 **Examples:**
 
-```pycon
->>> # Default HRF convolution → produces 'stim_c0'
->>> dm_conv = convolve(dm)
-```
+```python
+# Default HRF convolution → produces 'stim_c0'
+dm_conv = convolve(dm)
 
-```pycon
->>> # Custom 1-D kernel → produces 'stim_c0'
->>> kernel = np.array([0.5, 1.0, 0.5])
->>> dm_conv = convolve(dm, conv_func=kernel)
-```
+# Custom 1-D kernel → produces 'stim_c0'
+kernel = np.array([0.5, 1.0, 0.5])
+dm_conv = convolve(dm, conv_func=kernel)
 
-```pycon
->>> # Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
->>> kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
->>> dm_conv = convolve(dm, conv_func=kernels)
+# Multiple kernels (FIR model) → produces 'stim_c0', 'stim_c1'
+kernels = np.array([[1.0, 0.5], [0.5, 1.0]]).T  # 2 kernels
+dm_conv = convolve(dm, conv_func=kernels)
 ```
 
 <details class="note" open markdown="1">

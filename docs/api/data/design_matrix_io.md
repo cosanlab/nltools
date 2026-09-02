@@ -1,12 +1,13 @@
 ---
 title: data.designmatrix.io
-label: data-design-matrix-io
+label: page-data-design-matrix-io
 ---
 
-Provide DesignMatrix I/O and visualization functions.
+Read and write DesignMatrix objects.
 
-Standalone functions extracted from DesignMatrix methods.
-Each takes a DesignMatrix instance (`dm`) as its first argument.
+Loads BIDS events and tabular confound files into the frame a `DesignMatrix`
+wraps, converts to pandas/NumPy, and round-trips through TSV/CSV or HDF5
+(which also preserves the metadata).
 
 **Functions:**
 
@@ -42,7 +43,7 @@ explicitly when convolution is desired. Drops nilearn's auto-added
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`events` | <code>DataFrame \| DataFrame</code> | pandas or polars DataFrame with BIDS columns `onset`, `duration`, `trial_type` (required); `modulation` is passed through if present. | *required*
+`events` | <code>DataFrame \| DataFrame</code> | Events table with BIDS columns `onset`, `duration`, `trial_type` (required); `modulation` is passed through if present. | *required*
 `run_length` | <code>int</code> | Number of TRs the run contains. | *required*
 `sampling_freq` | <code>float</code> | Sampling frequency in Hz (= 1/TR). | *required*
 
@@ -61,13 +62,12 @@ load_from_file(path: str | Path, *, run_length: int | str, sampling_freq: float)
 
 Read a TSV/CSV into the frame a DesignMatrix wraps.
 
-Dispatches on column inspection:
+Dispatches on column inspection: when `onset` and `duration` are both
+present the file is a BIDS events table and becomes a boxcar design via
+`events_to_dm` (unconvolved; the caller convolves later); otherwise it is
+a tabular file (confounds / nuisance regressors) read as-is.
 
-- `onset` and `duration` both present → BIDS events → boxcar DM via
-  `events_to_dm` (unconvolved; caller convolves later).
-- otherwise → tabular file (confounds / nuisance regressors) read as-is.
-
-`run_length='infer'` is accepted only for the tabular path; events
+``run_length='infer'`` is accepted only for the tabular path; events
 files must provide an explicit integer (they have a variable row count
 per run, unlike confounds which are 1 row per TR).
 
@@ -76,7 +76,7 @@ per run, unlike confounds which are 1 row per TR).
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `path` | <code>str \| Path</code> | Path to a `.tsv` or `.csv` file. | *required*
-`run_length` | <code>int \| str</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
+`run_length` | <code>int \| str</code> | Number of TRs, or ``'infer'`` for tabular inputs. | *required*
 `sampling_freq` | <code>float</code> | Sampling frequency in Hz (= 1/TR). | *required*
 
 **Returns:**
@@ -127,6 +127,18 @@ file nltools writes is always a file nltools can read back. ``.csv`` means
 comma; every other extension means tab, matching the BIDS convention for
 ``.tsv`` and keeping the historical default for ``.txt`` and friends.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`path` | <code>str \| Path</code> | File path whose extension decides the delimiter. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>str</code> | ``','`` for `.csv`, ``'\t'`` otherwise.
+
 (data-design-matrix-io-to-numpy)=
 ### `to_numpy`
 
@@ -136,28 +148,27 @@ to_numpy(dm: DesignMatrix) -> np.ndarray
 
 Convert a DesignMatrix to a NumPy array.
 
-Returns data columns as 2D numpy array (rows x columns).
-Column order is preserved from DataFrame.
+Returns the data columns as a 2D array (rows x columns), preserving the
+DataFrame's column order.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>ndarray</code> | 2D array with shape (n_samples, n_columns)
+<code>ndarray</code> | 2D array with shape ``(n_samples, n_columns)``.
 
 **Examples:**
 
-```pycon
->>> dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
->>> arr = to_numpy(dm)
->>> arr.shape
-(3, 2)
+```python
+dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
+arr = to_numpy(dm)
+arr.shape  # → (3, 2)
 ```
 
 (data-design-matrix-io-to-pandas)=
@@ -176,21 +187,20 @@ slower (~10-20%) than pyarrow-based conversion but removes the dependency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>DataFrame</code> | Pandas DataFrame with same data and column names.
+<code>DataFrame</code> | pandas DataFrame with the same data and column names.
 
 **Examples:**
 
-```pycon
->>> dm = DesignMatrix(np.random.randn(100, 3))
->>> pd_df = to_pandas(dm)
->>> type(pd_df)
-<class 'pandas.core.frame.DataFrame'>
+```python
+dm = DesignMatrix(np.random.randn(100, 3))
+pd_df = to_pandas(dm)
+type(pd_df)  # → <class 'pandas.core.frame.DataFrame'>
 ```
 
 (data-design-matrix-io-write)=
@@ -209,17 +219,17 @@ determined by file extension.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
-`file_name` | <code>str</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>str \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix instance. | *required*
+`file_name` | <code>str</code> | Output file path with a `.tsv`, `.csv`, `.h5`, or `.hdf5` extension. | *required*
+`sep` | <code>str \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for `.csv`, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
 
 **Examples:**
 
-```pycon
->>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
->>> write(dm, "design_matrix.tsv")  # tab separated (BIDS compatible)
->>> write(dm, "design_matrix.csv")  # comma separated
->>> write(dm, "design_matrix.h5")  # HDF5, metadata preserved
+```python
+dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
+write(dm, "design_matrix.tsv")  # tab separated (BIDS compatible)
+write(dm, "design_matrix.csv")  # comma separated
+write(dm, "design_matrix.h5")   # HDF5, metadata preserved
 ```
 
 <details class="note" open markdown="1">
@@ -250,5 +260,5 @@ detour through a homogeneous numpy array.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix instance. | *required*
 `file_name` | <code>str</code> | Output HDF5 file path. | *required*

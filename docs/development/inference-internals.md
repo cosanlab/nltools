@@ -7,7 +7,9 @@ description: Permutation and bootstrap testing in nltools — algorithms, determ
 
 Non-parametric permutation and bootstrap testing, with optional CPU-parallel and GPU
 backends. This is design reference for the `nltools/algorithms/inference/` module; for
-the public functions see the [Inference API](../api/algorithms/inference.md).
+the public functions see [Statistics & inference](../api/tasks/inference.md) and
+[Intersubject correlation](../api/tasks/intersubject.md), or the
+[`nltools.algorithms.inference` module page](../api/algorithms/inference.md).
 
 ## Backend selection
 

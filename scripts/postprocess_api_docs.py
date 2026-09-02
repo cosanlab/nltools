@@ -3,7 +3,7 @@
 
 Extracted from `build_api_docs.py` so the postprocess logic — a pipeline of
 pure ``str -> str`` (and line-based ``list[str]``) passes — lives in one
-testable place. `build_api_docs.generate` calls `postprocess` on each freshly
+testable place. `build_api_docs.build` calls `postprocess` on each freshly
 generated page; this module can also be run standalone on already-generated
 files (e.g. to re-apply a postprocess tweak without a full griffe2md regen):
 
@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import re
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 # Repo ``docs/api`` root, used to derive per-page label prefixes. Kept in sync
@@ -478,17 +479,45 @@ def _clean_bases(text: str, xref: dict[str, str] | None) -> str:
     return re.sub(r"^Bases: (.+)(\n+)", repl, text, flags=re.MULTILINE)
 
 
-def xref_entries(module: str, prefix: str, text: str) -> dict[str, str]:
+def page_label(prefix: str) -> str:
+    """The frontmatter label of the page with label ``prefix``.
+
+    Page labels get their own ``page-`` namespace because a page prefix can
+    spell the same slug as another page's member label: ``data-design-matrix``
+    + member ``append`` and the page ``data/design_matrix_append.md`` both
+    slugified to ``data-design-matrix-append``, which mystmd rejected as a
+    duplicate identifier.
+    """
+    return f"page-{prefix}"
+
+
+def xref_entries(
+    prefix: str,
+    text: str,
+    *,
+    module: str | None = None,
+    roots: Mapping[str, Sequence[str]] | None = None,
+) -> dict[str, str]:
     """Index the symbols documented on one postprocessed page.
 
-    Maps dotted paths to the page-scoped labels `_scope_anchors` produced: the
-    page itself (``module`` -> ``prefix``, its frontmatter label), each labelled
-    member (``module.name``), and members nested under a class section on a
-    module page (``module.Class.name``). `build_api_docs` merges every page's
-    entries into the ``xref`` index consumed by `_resolve_type_links`.
+    Maps dotted paths to the page-scoped labels `_scope_anchors` produced, so
+    `build_api_docs` can merge every page's entries into the ``xref`` index
+    consumed by `_resolve_type_links`:
+
+    - ``module`` (module and class pages): the page itself maps to its
+      `page_label`; each labelled top-level member to ``module.name``.
+    - ``roots`` (task pages composed from several modules): a top-level heading
+      ``name`` maps every dotted path in ``roots[name]`` — typically the public
+      re-export and the canonical definition — to its label.
+
+    Members nested under a class section extend the class's path(s):
+    ``module.Class.name``. A top-level heading with neither source is skipped.
     """
-    entries = {module: prefix}
-    class_stack: list[tuple[int, str]] = []
+    entries: dict[str, str] = {}
+    if module:
+        entries[module] = page_label(prefix)
+    # (heading level, dotted paths) of the enclosing class sections.
+    class_stack: list[tuple[int, list[str]]] = []
     pending_label: str | None = None
     for line in text.split("\n"):
         lm = re.match(rf"^\(({re.escape(prefix)}-[\w-]+)\)=$", line)
@@ -507,13 +536,75 @@ def xref_entries(module: str, prefix: str, text: str) -> dict[str, str]:
         level, name = len(m.group(1)), m.group(2)
         while class_stack and class_stack[-1][0] >= level:
             class_stack.pop()
-        path = ".".join([module, *(c for _, c in class_stack), name])
+        if class_stack:
+            paths = [f"{base}.{name}" for base in class_stack[-1][1]]
+        elif roots and name in roots:
+            paths = list(roots[name])
+        elif module:
+            paths = [f"{module}.{name}"]
+        else:
+            paths = []
         if pending_label:
-            entries[path] = pending_label
+            for path in paths:
+                entries.setdefault(path, pending_label)
         if _is_class_name(name):
-            class_stack.append((level, name))
+            class_stack.append((level, paths))
         pending_label = None
     return entries
+
+
+_LABEL_LINE_RE = re.compile(r"^\(([\w-]+)\)=$")
+_FRONTMATTER_LABEL_RE = re.compile(r"^label: (\S+)$")
+
+
+def collect_labels(text: str) -> list[str]:
+    """Every explicit MyST label a generated page defines, in page order.
+
+    The frontmatter ``label:`` (the page's own label) plus each ``(label)=``
+    target line outside fenced code. mystmd requires these to be unique
+    project-wide; the build test checks that across every generated page.
+    """
+    labels: list[str] = []
+    in_fence = in_frontmatter = False
+    for i, line in enumerate(text.split("\n")):
+        if line == "---" and (i == 0 or in_frontmatter):
+            in_frontmatter = not in_frontmatter
+            continue
+        if in_frontmatter:
+            if fm := _FRONTMATTER_LABEL_RE.match(line):
+                labels.append(fm.group(1))
+            continue
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence and (m := _LABEL_LINE_RE.match(line)):
+            labels.append(m.group(1))
+    return labels
+
+
+_SUMMARY_ROW_RE = re.compile(r"^(?:\[`(\w+)`\]\(#[\w.-]+\)|`(\w+)`) \|")
+
+
+def documented_names(text: str) -> set[str]:
+    """Names a generated page documents: code-span headings and summary rows.
+
+    A member is documented when it has a heading (``### `name```) or a row in
+    a member summary table (``[`name`](#label) | ...`` or, for attributes that
+    have no detail section, `` `name` | ...``). Fenced code is skipped.
+    """
+    names: set[str] = set()
+    in_fence = False
+    for line in text.split("\n"):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if hm := _CODE_HEADING_RE.match(line):
+            names.add(hm.group(2))
+        elif rm := _SUMMARY_ROW_RE.match(line):
+            names.add(rm.group(1) or rm.group(2))
+    return names
 
 
 def _myst_slug(heading_text: str) -> str:
@@ -702,7 +793,7 @@ def page_title(module: str) -> str:
 def with_frontmatter(text: str, title: str, label: str | None = None) -> str:
     """Prepend a MyST frontmatter block carrying ``title`` and an optional page ``label``.
 
-    The label (the page's `page_prefix`) is what cross-page links to the page
+    The label (the page's `page_label`) is what cross-page links to the page
     itself — a class page for a type annotation — resolve to via ``[X](#label)``.
     """
     fields = f"title: {title}\n" + (f"label: {label}\n" if label else "")

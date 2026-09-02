@@ -1,6 +1,6 @@
 ---
 title: data.adjacency.modeling
-label: data-adjacency-modeling
+label: page-data-adjacency-modeling
 ---
 
 Provide standalone modeling and inference functions for Adjacency matrices.
@@ -37,28 +37,27 @@ Supports simple aggregation statistics (mean, std, median, sum, min, max).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance containing multiple matrices | *required*
-`stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
-`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
-`save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
-`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`progress_bar` |  | (bool) If True, show a progress bar. Default False. | <code>False</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance containing multiple matrices. | *required*
+`stat` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'`. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap iterations. Default 5000. | <code>5000</code>
+`save_boots` | <code>bool</code> | If True, store all bootstrap samples (memory intensive). Default False. | <code>False</code>
+`percentiles` | <code>tuple</code> | Percentiles for confidence intervals. Default (2.5, 97.5). | <code>(2.5, 97.5)</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
+<code>dict</code> | Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,     `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also includes     `'samples'`.
 
 **Examples:**
 
 ```python
-# Simple aggregation
-boot = bootstrap(adj, stat='mean', n_samples=1000)
-assert isinstance(boot['mean'], Adjacency)
+boot = bootstrap(adj, stat="mean", n_samples=1000)
+boot["mean"]  # → Adjacency
 ```
 
 (data-adjacency-modeling-convert-bootstrap-results-to-adjacency)=
@@ -77,15 +76,15 @@ Adjacency objects.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance (used for matrix_type metadata) | *required*
-`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
-`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance (used for `matrix_type` metadata). | *required*
+`result` | <code>dict</code> | Result dictionary from a bootstrap function with keys `'mean'`, `'std'`, `'Z'`, `'p'`, `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`. | *required*
+`save_boots` | <code>bool</code> | If True, include the `'samples'` key in the output. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with Adjacency objects for each statistic
+<code>dict</code> | Adjacency objects for each statistic.
 
 (data-adjacency-modeling-generate-permutations)=
 ### `generate_permutations`
@@ -102,15 +101,15 @@ This is useful for iterative comparisons.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance | *required*
-`n_permute` | <code>int</code> | number of permutations | *required*
-`random_state` | <code>int or RandomState</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance. | *required*
+`n_permute` | <code>int</code> | Number of permutations. | *required*
+`random_state` | <code>int \| RandomState</code> | Random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | permuted version of adj
+<code>[Adjacency](#page-data-adjacency)</code> | Permuted version of `adj`.
 
 **Examples:**
 
@@ -127,23 +126,24 @@ regress(adj, X, method = 'ols', tail = 2)
 ```
 
 Run a regression on an adjacency instance.
-You can decompose an adjacency instance with another adjacency instance.
-You can also decompose each pixel by passing a design_matrix instance.
+
+Pass an `Adjacency` as `X` to decompose `adj` with other matrices, or a
+`DesignMatrix` to regress each cell across a stack of matrices.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | (Adjacency) Adjacency instance | *required*
-`X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
-`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (beta > 0; negate a regressor for the other direction). | <code>2</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance. | *required*
+`X` | <code>[Adjacency](#page-data-adjacency) \| [DesignMatrix](#page-data-design-matrix)</code> | Design matrix. | *required*
+`method` | <code>str</code> | Type of regression; only `'ols'` is currently supported. | <code>'ols'</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (beta > 0; negate a regressor for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary of stats outputs.
+<code>dict</code> | Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,     `'residual'`.
 
 (data-adjacency-modeling-social-relations-model)=
 ### `social_relations_model`
@@ -160,36 +160,34 @@ where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
 $\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
 is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
-This model is primarily concerned with partioning the variance of the various effects.
+This model is primarily concerned with partitioning the variance of the various
+effects. The implementation follows Chapter 8 of Kenny, Kashy, & Cook (2006) and
+the tests replicate the book's examples. Actor scores are rows (lower triangle)
+and partner scores are columns (upper triangle). The minimal sample size to
+estimate these effects is 4.
 
-Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
-Tests replicate examples  presented in the book. Note, that this method assumes that
-actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
-The minimal sample size to estimate these effects is 4.
-
-<details class="model-assumptions" open markdown="1">
-<summary>Model Assumptions</summary>
-
-- Social interactions are exclusively dyadic
-- People are randomly sampled from population
-- No order effects
-- The effects combine additively and relationships are linear
-
-</details>
-
-In the future we might update the formulas and standard errors based on
-Bond and Lashley, 1996
+**Model assumptions:** social interactions are exclusively dyadic; people are
+randomly sampled from the population; there are no order effects; the effects
+combine additively and relationships are linear.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | (Adjacency) can be a single matrix or many matrices for each group | *required*
-`summarize_results` |  | (bool) will provide a formatted summary of model results | <code>True</code>
-`nan_replace` |  | (bool) will replace nan values with row and column means | <code>True</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | A single matrix, or one matrix per group. | *required*
+`summarize_results` | <code>bool</code> | If True, print a formatted summary of model results. | <code>True</code>
+`nan_replace` | <code>bool</code> | If True, replace NaN values with row and column means. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
 <code>Series \| DataFrame</code> | All of the effects estimated using SRM (a Series     for a single matrix, a DataFrame with one row per matrix otherwise).
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
+Guilford Press.
+
+</details>

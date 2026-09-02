@@ -1,40 +1,61 @@
 ---
 title: DesignMatrix
-label: data-design-matrix
+label: page-data-design-matrix
 ---
 
 ```python
 DesignMatrix(data: DesignMatrix | pl.DataFrame | pd.DataFrame | np.ndarray | dict | str | Path | None = None, *, sampling_freq: float | None = None, TR: float | None = None, run_length: int | str | None = None, columns: list[str] | None = None, convolved: list[str] | None = None, confounds: list[str] | None = None, hrf_model: str | None = 'glover', n_rows: int | None = None)
 ```
 
-Represent experimental designs for neuroimaging with Polars.
+Represent an experimental design for neuroimaging as a Polars-backed matrix.
 
-This is a Polars-based design matrix for experimental designs in
-neuroimaging.
+Wraps a Polars DataFrame (one row per timepoint, one column per regressor)
+together with the metadata a GLM needs: the sampling frequency, which
+columns have been HRF-convolved, and which columns are nuisance/confound
+regressors. Transformations return new instances with that metadata
+preserved; `DesignMatrix` is composed over the DataFrame rather than
+subclassing it. Unknown attributes are forwarded to the underlying
+DataFrame, so the Polars API is available directly (``dm.select(...)``,
+``dm.filter(...)``, ``dm.slice(...)`` return a `DesignMatrix`; anything
+else returns the raw Polars result).
 
-Wraps a Polars DataFrame with neuroimaging-specific metadata and methods.
-Uses composition pattern (not subclassing) for clean metadata preservation.
+`data` accepts a Polars DataFrame (zero-copy), a pandas DataFrame
+(converted), a NumPy array (named via `columns`), a dict of columns,
+another `DesignMatrix` (copied), ``None`` (empty), or a file path.
+A `.tsv`/`.csv` path is read as a BIDS events file when it has `onset`
+and `duration` columns — each `trial_type` becomes a boxcar regressor,
+HRF-convolved unless ``hrf_model=None`` — and as a plain table otherwise
+(typically confounds). A `.h5`/`.hdf5` path written by `write` restores
+the data and the metadata (`sampling_freq`, `convolved`, `confounds`,
+`multi`), so neither `run_length` nor `sampling_freq` is required;
+passing either overrides what the file recorded.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>DataFrame, ndarray, dict, str/Path, or None</code> | Input data. Accepts: - Polars DataFrame (zero-copy) - pandas DataFrame (converted to Polars) - numpy ndarray - dict (keys=columns, values=data) - str or Path to a `.tsv`/`.csv` file. BIDS events files   (containing `onset` and `duration` columns) are converted to   boxcar regressors — call ``convolve()`` afterwards if you want   HRF convolution. Any other tabular file is read as-is and is   typically used for confounds. - str or Path to a `.h5`/`.hdf5` file written by ``.write()``,   which restores the data *and* the metadata (``sampling_freq``,   ``.convolved``, ``.confounds``, ``.multi``). Neither   ``run_length`` nor ``sampling_freq`` is needed; passing either   overrides what the file recorded. - None (empty initialization) | <code>None</code>
-`sampling_freq` | <code>float</code> | Sampling frequency in Hz (1/TR for fMRI data). Mutually exclusive with ``TR``. | <code>None</code>
-`TR` | <code>float</code> | Repetition time in seconds. Convenience for ``sampling_freq = 1/TR``. Mutually exclusive with ``sampling_freq``. | <code>None</code>
-`run_length` | <code>int or 'infer'</code> | Required when ``data`` is a path to a text file. Number of TRs in the run. Pass ``'infer'`` for tabular/confounds files to accept whatever row count the file has (not valid for events files). Not used for ``.h5`` inputs, which carry their own length. | <code>None</code>
-`columns` | <code>list of str</code> | Column names (used with ndarray input) | <code>None</code>
-`convolved` | <code>list of str</code> | Names of convolved columns (tracked internally) | <code>None</code>
-`confounds` | <code>list of str</code> | Names of nuisance/confound columns (intercept, polynomial drift, DCT cosines, motion, …) tracked internally | <code>None</code>
+`data` | <code>[DesignMatrix](#page-data-design-matrix) \| DataFrame \| DataFrame \| ndarray \| dict \| str \| Path \| None</code> | Input data; see above for how each type is interpreted. | <code>None</code>
+`sampling_freq` | <code>float \| None</code> | Sampling frequency in Hz (1/TR for fMRI data). Mutually exclusive with `TR`. | <code>None</code>
+`TR` | <code>float \| None</code> | Repetition time in seconds, a convenience for ``sampling_freq = 1/TR``. Mutually exclusive with `sampling_freq`. | <code>None</code>
+`run_length` | <code>int \| str \| None</code> | Number of TRs in the run. Required when `data` is a path to a text file. Pass ``'infer'`` for tabular (confounds) files to accept whatever row count the file has; not valid for events files. Not used for `.h5` inputs, which carry their own length. | <code>None</code>
+`columns` | <code>list[str] \| None</code> | Column names, used with NumPy input. | <code>None</code>
+`convolved` | <code>list[str] \| None</code> | Names of columns that are already HRF-convolved. | <code>None</code>
+`confounds` | <code>list[str] \| None</code> | Names of nuisance/confound columns (intercept, polynomial drift, DCT cosines, motion, …). | <code>None</code>
+`hrf_model` | <code>str \| None</code> | HRF used to convolve regressors loaded from a BIDS events file. ``'glover'`` (the default, matching nilearn's ``make_first_level_design_matrix``) or ``None`` to keep raw boxcar regressors. Ignored for every other kind of `data`. | <code>'glover'</code>
+`n_rows` | <code>int \| None</code> | Number of timepoints for a matrix with no columns (Polars cannot represent "n rows, 0 columns"). Rarely needed directly; set by `find_spikes` and by `append`. | <code>None</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`sampling_freq` | <code>float or None</code> | Sampling frequency in Hz
-`convolved` | <code>list of str</code> | Columns that have been convolved
-`confounds` | <code>list of str</code> | Nuisance/confound columns (intercept, polynomial trends, DCT bases, motion, physio, …) — these are skipped by ``.convolve()`` and kept separate per run on multi-run vertical append.
-`multi` | <code>bool</code> | True if created from multi-run concatenation
+`data` | <code>DataFrame</code> | The underlying Polars DataFrame.
+`sampling_freq` | <code>float \| None</code> | Sampling frequency in Hz.
+`convolved` | <code>list[str]</code> | Names of HRF-convolved columns (read-only; managed by `convolve` and `append`).
+`confounds` | <code>list[str]</code> | Names of nuisance/confound columns (read-only; managed by `add_poly`, `add_dct_basis`, `append`, and the constructor). Skipped by `convolve` and kept separate per run on multi-run vertical `append`.
+`multi` | <code>bool</code> | True if the matrix was created by a multi-run vertical `append`.
+`columns` | <code>list[str]</code> | Column names.
+`shape` | <code>tuple[int, int]</code> | ``(n_rows, n_cols)``.
+`is_empty` | <code>bool</code> | True if the matrix holds no data.
 
 **Methods:**
 
@@ -62,49 +83,38 @@ Name | Description
 [`write`](#data-design-matrix-write) | Write DesignMatrix to file.
 [`zscore`](#data-design-matrix-zscore) | Z-score standardize columns to mean zero and unit variance.
 
-Passing another ``DesignMatrix`` returns a copy: ``data``,
-``sampling_freq``, ``convolved``, ``confounds``, and ``multi`` are
-carried over. Any explicit kwarg overrides the inherited value.
+Passing another `DesignMatrix` returns a copy: `data`, `sampling_freq`,
+`convolved`, `confounds`, and `multi` are carried over, and any explicit
+kwarg overrides the inherited value.
 
-When ``data`` is a path to a BIDS events file, the constructor
-HRF-convolves the regressors by default (``hrf_model='glover'``,
-matching nilearn's ``make_first_level_design_matrix``). The output
-columns are suffixed ``_c0`` and ``.convolved`` is populated. Pass
-``hrf_model=None`` to load raw boxcar regressors instead — useful
-for FIR designs, PPI flows that build interaction terms before
-convolution, or pedagogical material that introduces convolution
-as a separate step. ``hrf_model`` is silently ignored when ``data``
-is anything other than an events file.
+When `data` is a path to a BIDS events file, the regressors are
+HRF-convolved by default (``hrf_model='glover'``): output columns are
+suffixed ``_c0`` and `convolved` is populated. Pass ``hrf_model=None``
+to load raw boxcar regressors instead — useful for FIR designs, PPI
+flows that build interaction terms before convolution, or teaching
+material that introduces convolution as a separate step.
 
 
 
 **Examples:**
 
-```pycon
->>> # Create from numpy array
->>> dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=['a', 'b'])
-```
+```python
+# Create from a NumPy array
+dm = DesignMatrix(np.zeros((100, 2)), sampling_freq=0.5, columns=["a", "b"])
 
-```pycon
->>> # Add columns
->>> dm['stim'] = [0, 1, 1, 0] * 25
-```
+# Add a column
+dm["stim"] = [0, 1, 1, 0] * 25
 
-```pycon
->>> # Convolve with HRF — convolved columns get a `_c0` suffix
->>> dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
-```
+# Convolve with the HRF — convolved columns get a `_c0` suffix
+dm_conv = dm.convolve()  # 'stim' → 'stim_c0'
 
-```pycon
->>> # Add polynomial drift terms
->>> dm_conv = dm_conv.add_poly(order=2)
-```
+# Add polynomial drift terms
+dm_conv = dm_conv.add_poly(order=2)
 
-```pycon
->>> # Multi-run concatenation (auto-separates polynomials)
->>> dm_run1 = DesignMatrix(...).add_poly(0)
->>> dm_run2 = DesignMatrix(...).add_poly(0)
->>> dm_multi = dm_run1.append(dm_run2, axis=0)  # Creates .nl_r0_poly_0, .nl_r1_poly_0
+# Multi-run concatenation separates drift terms per run
+dm_run1 = DesignMatrix(run1_events, sampling_freq=0.5, run_length=100).add_poly(0)
+dm_run2 = DesignMatrix(run2_events, sampling_freq=0.5, run_length=100).add_poly(0)
+dm_multi = dm_run1.append(dm_run2, axis=0)  # → .nl_r0_poly_0, .nl_r1_poly_0
 ```
 
 ## Methods
@@ -130,7 +140,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with DCT basis columns appended.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with DCT basis columns appended.
 
 (data-design-matrix-add-poly)=
 ### `add_poly`
@@ -152,7 +162,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with polynomial columns appended.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with polynomial columns appended.
 
 (data-design-matrix-append)=
 ### `append`
@@ -179,7 +189,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | Concatenated design matrix.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | Concatenated design matrix.
 
 (data-design-matrix-clean)=
 ### `clean`
@@ -203,7 +213,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | Cleaned matrix with highly correlated columns removed
+<code>[DesignMatrix](#page-data-design-matrix)</code> | Cleaned matrix with highly correlated columns removed
 
 (data-design-matrix-convolve)=
 ### `convolve`
@@ -230,7 +240,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with convolved columns renamed.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with convolved columns renamed.
 
 (data-design-matrix-copy)=
 ### `copy`
@@ -245,7 +255,7 @@ Create a deep copy of the DesignMatrix.
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | Copy of the current DesignMatrix
+<code>[DesignMatrix](#page-data-design-matrix)</code> | Copy of the current DesignMatrix
 
 (data-design-matrix-corr)=
 ### `corr`
@@ -267,7 +277,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | Similarity matrix whose ``labels`` are the column names.     The unit diagonal is dropped (self-correlation isn't an edge);     use ``.plot(method='corr')`` for a heatmap with the diagonal     restored.
+<code>[Adjacency](#page-data-adjacency)</code> | Similarity matrix whose ``labels`` are the column names.     The unit diagonal is dropped (self-correlation isn't an edge);     use ``.plot(method='corr')`` for a heatmap with the diagonal     restored.
 
 (data-design-matrix-downsample)=
 ### `downsample`
@@ -289,7 +299,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | Downsampled DesignMatrix with updated sampling_freq
+<code>[DesignMatrix](#page-data-design-matrix)</code> | Downsampled DesignMatrix with updated sampling_freq
 
 (data-design-matrix-drop)=
 ### `drop`
@@ -310,7 +320,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix without the specified columns.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix without the specified columns.
 
 (data-design-matrix-fillna)=
 ### `fillna`
@@ -331,7 +341,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with NaN/null values replaced.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with NaN/null values replaced.
 
 (data-design-matrix-plot)=
 ### `plot`
@@ -342,11 +352,11 @@ plot(method: str = 'matrix', *, columns: list[str] | None = None, rescale: bool 
 
 Visualize the design matrix.
 
-Dispatches over ``method`` (mirroring ``BrainData.plot``):
+Dispatches over `method` (mirroring `BrainData.plot`):
 
-- ``'matrix'`` (default): SPM-style heatmap (rows=TRs, cols=regressors).
+- ``'matrix'`` (default): SPM-style heatmap (rows = TRs, columns = regressors).
 - ``'timeseries'``: overlaid line plot of regressor time courses. Pass
-  the same ``ax`` across calls to overlay multiple DesignMatrices
+  the same `ax` across calls to overlay multiple DesignMatrices
   (e.g. original vs. convolved).
 - ``'corr'``: labeled correlation heatmap of the columns (reuses
   `corr`; diagonal restored to 1.0 for display).
@@ -364,7 +374,7 @@ Name | Type | Description | Default
 `title` | <code>str</code> | Axis title. | <code>None</code>
 `cmap` | <code>str</code> | Colormap (``'matrix'`` / ``'corr'``). | <code>None</code>
 `save` | <code>str</code> | Path to save the figure. | <code>None</code>
-`**kwargs` |  | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``Axes.plot`` for ``'timeseries'``). | <code>{}</code>
+`**kwargs` | <code>dict</code> | Forwarded to the underlying plotter (``seaborn.heatmap`` for ``'matrix'`` / ``'corr'``; ``matplotlib.axes.Axes.plot`` for ``'timeseries'``). | <code>{}</code>
 
 **Returns:**
 
@@ -392,7 +402,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with replaced data columns, preserved confounds
 
 **Raises:**
 
@@ -413,14 +423,14 @@ Standardize columns using the specified method.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`method` | <code>str</code> | Standardization method ('zscore' or 'center'). Default: 'zscore'. | <code>'zscore'</code>
+`method` | <code>str</code> | ``'zscore'`` (mean 0, std 1) or ``'center'`` (mean 0 only). Default: ``'zscore'``. | <code>'zscore'</code>
 `columns` | <code>list[str] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with standardized columns.
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with standardized columns.
 
 (data-design-matrix-sum)=
 ### `sum`
@@ -435,13 +445,13 @@ Compute the sum along an axis.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` | <code>int, default=0</code> | 0: sum down columns, 1: sum across rows. | <code>0</code>
+`axis` | <code>int</code> | 0 to sum down each column, 1 to sum across each row. Default: 0. | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>Series</code> | Sums along specified axis.
+<code>Series</code> | Sums along the specified axis.
 
 (data-design-matrix-to-numpy)=
 ### `to_numpy`
@@ -493,7 +503,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | Upsampled DesignMatrix with updated sampling_freq
+<code>[DesignMatrix](#page-data-design-matrix)</code> | Upsampled DesignMatrix with updated sampling_freq
 
 (data-design-matrix-vif)=
 ### `vif`
@@ -525,26 +535,38 @@ with_columns(*exprs, **named_exprs) -> DesignMatrix
 
 Add or replace columns via Polars expressions.
 
-Mirrors `DataFrame.with_columns`. Named kwargs become
-named columns; positional ``pl.Expr`` arguments are accepted as-is
-(including ``pl.Expr.alias("name")``). Returns a new ``DesignMatrix``
+Mirrors ``pl.DataFrame.with_columns``. Named kwargs become named
+columns; positional ``pl.Expr`` arguments are accepted as-is
+(including ``pl.Expr.alias("name")``). Returns a new `DesignMatrix`
 with metadata preserved; new columns are *not* auto-tagged as
 convolved or confounds.
 
 For convenience, named-kwarg values that aren't ``pl.Expr`` /
-``pl.Series`` are coerced:
+``pl.Series`` are coerced: an ``int``/``float`` is broadcast as a
+scalar via ``pl.lit``, and a ``list`` / ``np.ndarray`` is wrapped as a
+``pl.Series``.
 
-- ``int``/``float`` → broadcast scalar via ``pl.lit``
-- ``list`` / ``np.ndarray`` → wrapped as ``pl.Series``
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`*exprs` | <code>Expr</code> | Positional Polars expressions, passed through. | <code>()</code>
+`**named_exprs` | <code>Expr \| Series \| ndarray \| list \| int \| float</code> | New columns keyed by name. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with the columns added or replaced.
 
 **Examples:**
 
-```pycon
->>> dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
->>> dm = dm.with_columns(
-...     vmpfc=seed_signal,
-...     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
-... )
+```python
+dm = dm.with_columns(motor=pl.sum_horizontal(motor_cols)).drop(motor_cols)
+dm = dm.with_columns(
+    vmpfc=seed_signal,
+    vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
+)
 ```
 
 (data-design-matrix-write)=
@@ -565,8 +587,8 @@ preserves ``sampling_freq``, ``.convolved``, ``.confounds``, and
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`file_name` | <code>str</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>str \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise); pass a value to override. | <code>None</code>
+`file_name` | <code>str</code> | Output file path with a `.tsv`, `.csv`, `.h5`, or `.hdf5` extension. | *required*
+`sep` | <code>str \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for `.csv`, tab otherwise); pass a value to override. | <code>None</code>
 
 (data-design-matrix-zscore)=
 ### `zscore`
@@ -587,4 +609,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with standardized columns
+<code>[DesignMatrix](#page-data-design-matrix)</code> | New DesignMatrix with standardized columns

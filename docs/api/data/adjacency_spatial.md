@@ -1,6 +1,6 @@
 ---
 title: data.adjacency.spatial
-label: data-adjacency-spatial
+label: page-data-adjacency-spatial
 ---
 
 Spatial-scale provenance for stacked Adjacency matrices.
@@ -41,7 +41,7 @@ The stack comes from a per-parcel or per-searchlight operation on a
 
 Name | Type | Description
 ---- | ---- | -----------
-`atlas` | <code>[BrainData](#data-brain-data)</code> | Labeled volume indicating parcel membership (or searchlight centers). One matrix in the stack per unique label.
+`atlas` | <code>[BrainData](#page-data-brain-data)</code> | Labeled volume indicating parcel membership (or searchlight centers). One matrix in the stack per unique label.
 `roi_labels` | <code>ndarray</code> | Integer atlas IDs in stack order. ``len(roi_labels)`` must equal the number of matrices in the stack.
 `source_mask` | <code>Nifti1Image</code> | The brain mask the atlas/values live in. Used as the target space for back-projection in ``Adjacency.to_brain()``.
 `kind` | <code>Literal['roi', 'searchlight']</code> | Which spatial scale produced this stack — ``'roi'`` or ``'searchlight'``.

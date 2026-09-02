@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
-"""Generate API documentation from Python source using griffe2md.
+"""Generate API documentation from Python source with griffe2md.
 
-Runs griffe2md on each module listed in MODULES, postprocesses the Markdown
-(see `postprocess_api_docs`) and writes one page per module under docs/api/.
+Loads nltools once with griffe and renders every page in PAGES in-process
+(`griffe2md.render_object_docs`), postprocesses the Markdown (see
+`postprocess_api_docs`) and writes it under docs/api/. Three kinds of page:
+
+- **module pages** — one module or class rendered with griffe2md's own template
+  (the four data classes, `models`, `fitresults`, and the internal-module
+  reference);
+- **task pages** (docs/api/tasks/) — a hand-written intro over an explicit list
+  of objects drawn from several modules, grouped by what a user wants to do;
+- **the namespace page** — every public name of ``nltools.algorithms``, A-Z.
+
 The output filenames match the TOC entries in docs/myst.yml (a test keeps the
-two lists in sync).
+two in sync, and checks that every public name is documented on a page a user
+will browse).
 
 griffe warnings (missing annotations, unresolved references, ...) are always
-surfaced — deduplicated, grouped by source file, with a count — because
-griffe2md exits 0 even when it emits them.
+surfaced — deduplicated, grouped by source file, with a count — because griffe
+only logs them.
 
 Usage:
     python scripts/build_api_docs.py                     # generate all
@@ -21,19 +31,28 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
+import logging
 import re
-import shutil
-import subprocess
 import sys
 import tempfile
+import tomllib
 from collections import defaultdict
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
+import griffe2md
+from griffe import GriffeLoader, Object, Parser
 
 # Make the sibling postprocess module importable whether run as a script
 # (sys.path[0] already covers it) or imported some other way.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from postprocess_api_docs import (  # noqa: E402
+    _myst_slug,
+    page_label,
     page_prefix,
     page_title,
     postprocess,
@@ -44,99 +63,409 @@ from postprocess_api_docs import (  # noqa: E402
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCS_API = PROJECT_ROOT / "docs" / "api"
 
+# Heading depth of a member (``### `name```) on a task or namespace page; the
+# ``## Classes`` / ``## Functions`` category headings sit one level above, so
+# the layout matches a module page once its ``#`` root heading is stripped.
+MEMBER_HEADING_LEVEL = 3
 
-def _griffe2md_argv() -> list[str]:
-    """Build the argv prefix for invoking griffe2md, robust to PATH and shebangs.
+# Longest attribute value shown in a summary table's Type column when the
+# attribute has no annotation (a ``Literal[...]`` alias fits; a registry
+# dict does not).
+MAX_INLINE_VALUE = 80
 
-    poe's shell tasks don't reliably propagate the uv venv's bin dir onto PATH,
-    and a relocated venv (e.g. synced across machines) can leave the console
-    script with a stale shebang so exec-ing it directly fails. Running the console
-    script *through* the current interpreter sidesteps both: the shebang line is
-    ignored and no PATH lookup is needed. Fall back to a bare name if not found.
+
+@dataclass(frozen=True)
+class Page:
+    """One generated page under docs/api.
+
+    Exactly one of ``module`` (render that module/class with griffe2md's
+    template), ``namespace`` (render every public name of that package, A-Z)
+    or ``objects`` (render these public dotpaths in order) is set. ``intro`` is
+    hand-written Markdown placed under the title (the page's H1 comes from the
+    frontmatter ``title``). ``internal`` pages sit under "Internal modules" in
+    the TOC and don't count as documentation a user is expected to browse.
     """
-    candidate = Path(sys.executable).parent / "griffe2md"
-    if candidate.exists():
-        return [sys.executable, str(candidate)]
-    resolved = shutil.which("griffe2md")
-    return [resolved] if resolved else ["griffe2md"]
+
+    output: str
+    title: str
+    module: str | None = None
+    namespace: str | None = None
+    objects: tuple[str, ...] = ()
+    intro: str = ""
+    internal: bool = False
 
 
-GRIFFE2MD = _griffe2md_argv()
+def _module_page(
+    module: str, output: str, *, title: str | None = None, internal: bool = False
+) -> Page:
+    return Page(output, title or page_title(module), module=module, internal=internal)
 
-# (import_path, output_path relative to docs/api/)
-# Matches the myst.yml TOC structure (tests/support/test_build_api_docs.py).
-MODULES: list[tuple[str, str]] = [
-    # --- top-level API ---
-    ("nltools.plotting", "plotting.md"),
-    ("nltools.mask", "mask.md"),
-    ("nltools.io", "io.md"),
-    ("nltools.datasets", "dataset.md"),
-    ("nltools.cross_validation", "crossval.md"),
-    ("nltools.data.roc", "analysis.md"),
-    ("nltools.utils", "utils.md"),
-    ("nltools.templates", "templates.md"),
-    ("nltools.data.simulator", "simulator.md"),
-    ("nltools.data.braindata.neighborhoods", "neighborhoods.md"),
-    ("nltools.data.braindata.cache", "cache.md"),
-    ("nltools.models", "models.md"),
-    ("nltools.algorithms.backends", "backends.md"),
-    # --- data classes ---
-    ("nltools.data.braindata.BrainData", "data/brain_data.md"),
-    ("nltools.data.braindata.io", "data/braindata_io.md"),
-    ("nltools.data.braindata.analysis", "data/braindata_analysis.md"),
-    ("nltools.data.braindata.modeling", "data/braindata_modeling.md"),
-    ("nltools.data.braindata.prediction", "data/braindata_prediction.md"),
-    ("nltools.data.braindata.bootstrap", "data/braindata_bootstrap.md"),
-    ("nltools.data.braindata.plotting", "data/braindata_plotting.md"),
-    ("nltools.data.adjacency.Adjacency", "data/adjacency.md"),
-    ("nltools.data.adjacency.stats", "data/adjacency_stats.md"),
-    ("nltools.data.adjacency.modeling", "data/adjacency_modeling.md"),
-    ("nltools.data.adjacency.plotting", "data/adjacency_plotting.md"),
-    ("nltools.data.adjacency.io", "data/adjacency_io.md"),
-    ("nltools.data.adjacency.spatial", "data/adjacency_spatial.md"),
-    ("nltools.data.designmatrix.DesignMatrix", "data/design_matrix.md"),
-    ("nltools.data.designmatrix.transforms", "data/design_matrix_transforms.md"),
-    ("nltools.data.designmatrix.regressors", "data/design_matrix_regressors.md"),
-    ("nltools.data.designmatrix.append", "data/design_matrix_append.md"),
-    ("nltools.data.designmatrix.diagnostics", "data/design_matrix_diagnostics.md"),
-    ("nltools.data.designmatrix.plotting", "data/design_matrix_plotting.md"),
-    ("nltools.data.designmatrix.io", "data/design_matrix_io.md"),
-    ("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
-    ("nltools.data.collection.core", "data/collection_core.md"),
-    ("nltools.data.collection.execution", "data/collection_execution.md"),
-    ("nltools.data.collection.inference", "data/collection_inference.md"),
-    ("nltools.data.collection.io", "data/collection_io.md"),
-    ("nltools.data.fitresults", "data/fitresults.md"),
-    # --- atlases ---
-    ("nltools.data.atlases", "data/atlases.md"),
-    ("nltools.data.atlases.registry", "data/atlases_registry.md"),
-    ("nltools.data.atlases.loading", "data/atlases_loading.md"),
-    ("nltools.data.atlases.labeling", "data/atlases_labeling.md"),
-    ("nltools.data.atlases.reporting", "data/atlases_reporting.md"),
-    # --- algorithms ---
-    ("nltools.algorithms", "algorithms.md"),
-    ("nltools.algorithms.corrections", "algorithms/corrections.md"),
-    ("nltools.algorithms.outliers", "algorithms/outliers.md"),
-    ("nltools.algorithms.signal", "algorithms/signal.md"),
-    ("nltools.algorithms.similarity", "algorithms/similarity.md"),
-    ("nltools.algorithms.regression", "algorithms/regression.md"),
-    ("nltools.algorithms.alignment", "algorithms/alignment.md"),
-    ("nltools.algorithms.alignment.procrustes", "algorithms/alignment_procrustes.md"),
-    ("nltools.algorithms.hrf", "algorithms/hrf.md"),
-    ("nltools.algorithms.ridge", "algorithms/ridge.md"),
-    ("nltools.algorithms.inference", "algorithms/inference.md"),
-    ("nltools.algorithms.inference.one_sample", "algorithms/inference_one_sample.md"),
-    ("nltools.algorithms.inference.two_sample", "algorithms/inference_two_sample.md"),
-    ("nltools.algorithms.inference.correlation", "algorithms/inference_correlation.md"),
-    ("nltools.algorithms.inference.timeseries", "algorithms/inference_timeseries.md"),
-    ("nltools.algorithms.inference.matrix", "algorithms/inference_matrix.md"),
-    ("nltools.algorithms.inference.isc", "algorithms/inference_isc.md"),
-    (
-        "nltools.algorithms.inference.intersubject",
-        "algorithms/inference_intersubject.md",
+
+def _task_page(stem: str, title: str, intro: str, objects: Sequence[str]) -> Page:
+    return Page(f"tasks/{stem}.md", title, objects=tuple(objects), intro=intro)
+
+
+def _algorithms(*names: str) -> list[str]:
+    return [f"nltools.algorithms.{n}" for n in names]
+
+
+def _plotting(*names: str) -> list[str]:
+    return [f"nltools.plotting.{n}" for n in names]
+
+
+# Order matters twice: it is the order objects appear on a task page, and pages
+# earlier in the registry win when several document the same symbol — type
+# annotations then link to the task page rather than the A-Z index or an
+# internal module page (see `build`).
+PAGES: tuple[Page, ...] = (
+    # --- data classes -------------------------------------------------------
+    _module_page("nltools.data.braindata.BrainData", "data/brain_data.md"),
+    _module_page("nltools.data.adjacency.Adjacency", "data/adjacency.md"),
+    _module_page("nltools.data.designmatrix.DesignMatrix", "data/design_matrix.md"),
+    _module_page("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
+    _module_page("nltools.data.fitresults", "data/fitresults.md"),
+    _module_page("nltools.models", "models.md"),
+    # --- functions by task --------------------------------------------------
+    _task_page(
+        "loading",
+        "Loading, masks & datasets",
+        "Get data into nltools. [BrainData](../data/brain_data.md) and the other "
+        "data classes load NIfTI files and HDF5 bundles themselves. The functions "
+        "here cover the rest: example datasets and Neurovault collections, sphere "
+        "and ROI masks, `concatenate`, and the MNI template every object falls back "
+        "on when it gets no mask (`set_brainspace`).",
+        [
+            "nltools.io.load_brain_data_h5",
+            "nltools.io.to_h5",
+            "nltools.io.is_h5_path",
+            "nltools.datasets.fetch_pain",
+            "nltools.datasets.fetch_emotion_ratings",
+            "nltools.datasets.fetch_neurovault_collection",
+            "nltools.datasets.load_haxby_example",
+            "nltools.datasets.download_nifti",
+            "nltools.mask.create_sphere",
+            "nltools.mask.expand_mask",
+            "nltools.mask.collapse_mask",
+            "nltools.mask.roi_to_brain",
+            "nltools.mask.roi_to_brain_from_atlas",
+            "nltools.utils.concatenate",
+            "nltools.templates.BrainSpaceConfig",
+            "nltools.templates.get_brainspace",
+            "nltools.templates.set_brainspace",
+            "nltools.templates.reset_brainspace",
+            "nltools.templates.with_brainspace",
+            "nltools.templates.fetch_resource",
+            "nltools.templates.list_resources",
+            "nltools.templates.get_bg_image",
+            "nltools.templates.is_standard_space",
+            "nltools.templates.detect_resolution",
+        ],
     ),
-    ("nltools.algorithms.inference.bootstrap", "algorithms/inference_bootstrap.md"),
-]
+    _task_page(
+        "preprocessing",
+        "Preprocessing & signal",
+        "Clean timeseries before modelling. Standardize or trim outliers, flag "
+        "motion spikes, resample to another sampling rate, build cosine drift "
+        "regressors. Every function takes and returns numpy arrays or DataFrames. "
+        "The [BrainData](../data/brain_data.md) and "
+        "[DesignMatrix](../data/design_matrix.md) methods of the same name call "
+        "them.",
+        _algorithms(
+            "zscore",
+            "trim",
+            "winsorize",
+            "find_spikes",
+            "downsample",
+            "upsample",
+            "make_cosine_basis",
+            "calc_bpm",
+        ),
+    ),
+    _task_page(
+        "design-and-glm",
+        "Design matrices, HRF & GLM",
+        "Build a first-level model. `events_to_dm` turns an events table into a "
+        "[DesignMatrix](../data/design_matrix.md); the HRF functions sample the SPM "
+        "and Glover responses and their derivatives for convolution. `regress` is "
+        "the standalone numpy GLM. For 4D data use `BrainData.fit(model='glm')`, "
+        "which raises the warning classes listed here when a design is "
+        "rank-deficient or nearly collinear.",
+        [
+            "nltools.data.designmatrix.io.events_to_dm",
+            *_algorithms(
+                "spm_hrf",
+                "spm_time_derivative",
+                "spm_dispersion_derivative",
+                "glover_hrf",
+                "glover_time_derivative",
+                "glover_dispersion_derivative",
+                "regress",
+            ),
+            "nltools.data.braindata.modeling.RankDeficientDesignWarning",
+            "nltools.data.braindata.modeling.NearCollinearDesignWarning",
+            "nltools.utils.DesignMatrixWarning",
+            "nltools.utils.ResamplingWarning",
+        ],
+    ),
+    _task_page(
+        "prediction",
+        "Prediction & cross-validation",
+        "Decode or predict from brain data. `BrainData.predict` and "
+        "`BrainCollection.predict_group` run the workflow. Listed here are the "
+        "pieces they accept or return: the cross-validation schemes (`resolve_cv` "
+        "turns an int, a name, or an sklearn splitter into one), the ridge solvers "
+        "behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and "
+        "the plots of weights, margins, and predictions.",
+        [
+            "nltools.cross_validation.KFoldStratified",
+            "nltools.cross_validation.resolve_cv",
+            *_algorithms("ridge_cv", "ridge_svd"),
+            "nltools.data.roc.Roc",
+            *_plotting(
+                "plot_roc",
+                "plot_dist_from_hyperplane",
+                "plot_probability",
+                "plot_scatter",
+            ),
+        ],
+    ),
+    _task_page(
+        "similarity",
+        "Similarity & RSA",
+        "Compare patterns and matrices. `compute_similarity` scores two arrays "
+        "under a `metric=`; the Fisher transforms make correlations averageable. "
+        "`matrix_permutation_test` (Mantel), `correlation_permutation_test`, and "
+        "`distance_correlation` compare whole matrices. The plots summarize stacks "
+        "of [Adjacency](../data/adjacency.md) matrices, and `SpatialScale` records "
+        "which ROI or searchlight each matrix in a stack came from so a reduction "
+        "can be painted back onto the brain.",
+        [
+            *_algorithms(
+                "compute_similarity",
+                "compute_multivariate_similarity",
+                "transform_pairwise",
+                "fisher_r_to_z",
+                "fisher_z_to_r",
+                "matrix_permutation_test",
+                "correlation_permutation_test",
+                "distance_correlation",
+                "double_center",
+                "u_center",
+            ),
+            *_plotting(
+                "plot_stacked_adjacency",
+                "plot_mean_label_distance",
+                "plot_between_label_distance",
+                "plot_silhouette",
+            ),
+            "nltools.data.adjacency.spatial.SpatialScale",
+        ],
+    ),
+    _task_page(
+        "alignment",
+        "Functional alignment",
+        "Put subjects into a shared functional space. `align` is the whole-brain "
+        "entry point, with `method='procrustes'` or an SRM variant. `SRM`, `DetSRM`, "
+        "`HyperAlignment`, and `LocalAlignment` are the sklearn-style estimators; "
+        "`LocalAlignment` fits one transform per ROI or searchlight. `align_states` "
+        "matches state maps across groups. `BrainData.align` calls `align`.",
+        _algorithms(
+            "align",
+            "align_states",
+            "procrustes",
+            "procrustes_distance",
+            "SRM",
+            "DetSRM",
+            "HyperAlignment",
+            "LocalAlignment",
+        ),
+    ),
+    _task_page(
+        "inference",
+        "Statistics & inference",
+        "Non-parametric group statistics. The one-sample, two-sample, and "
+        "timeseries permutation tests run on CPU or GPU (`device=`); "
+        "`phase_randomize` and `circle_shift` are the timeseries null models. "
+        "`OnlineBootstrapStats` keeps running mean and variance over bootstrap "
+        "draws instead of storing them. `fdr`, `holm_bonf`, `threshold`, and "
+        "`multi_threshold` correct or threshold the resulting p-maps. "
+        "`BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call "
+        "these.",
+        [
+            *_algorithms(
+                "one_sample_permutation_test",
+                "two_sample_permutation_test",
+                "timeseries_correlation_permutation_test",
+                "phase_randomize",
+                "circle_shift",
+            ),
+            "nltools.algorithms.inference.OnlineBootstrapStats",
+            *_algorithms("fdr", "holm_bonf", "threshold", "multi_threshold"),
+        ],
+    ),
+    _task_page(
+        "intersubject",
+        "Intersubject correlation",
+        "Measure time-locked responses shared across subjects. `isc` correlates "
+        "each subject's timeseries with the rest of the group and bootstraps a "
+        "confidence interval. `isfc` does the same across regions, `isps` measures "
+        "phase synchrony, and `isc_group` compares two groups by permutation. The "
+        "two `*_permutation_test` functions are the CPU/GPU engines (`device=`) "
+        "underneath, shared with the [permutation tests](inference.md).",
+        _algorithms(
+            "isc",
+            "isfc",
+            "isps",
+            "isc_group",
+            "isc_permutation_test",
+            "isc_group_permutation_test",
+        ),
+    ),
+    _task_page(
+        "plotting",
+        "Brain plotting",
+        "Render a volume on the cortical surface, as a flatmap, or in an "
+        "interactive viewer, and browse ICA/PCA components. `BrainData.plot` and "
+        "`BrainData.iplot` call these. Plots of model output sit with their "
+        "workflow. ROC and prediction plots are under "
+        "[Prediction & cross-validation](prediction.md); adjacency-matrix plots "
+        "are under [Similarity & RSA](similarity.md).",
+        _plotting(
+            "plot_surf", "plot_flatmap", "plot_interactive_brain", "component_viewer"
+        ),
+    ),
+    _task_page(
+        "atlases",
+        "Atlases & cluster reports",
+        "Put anatomical names on a result. `list_atlases` and `load_atlas` fetch "
+        "parcellations from the nltools Hugging Face dataset on first use, and "
+        "`label_coords` looks MNI coordinates up in them. `BrainData.cluster_report` "
+        "(`cluster_report_data` underneath) thresholds a statistical map and labels "
+        "each cluster's peak. `roi_to_brain_from_atlas` paints per-parcel values "
+        "back into a volume.",
+        [
+            "nltools.data.atlases.list_atlases",
+            "nltools.data.atlases.load_atlas",
+            "nltools.data.atlases.Atlas",
+            "nltools.data.atlases.AtlasMetadata",
+            "nltools.data.atlases.AtlasKind",
+            "nltools.data.atlases.ATLASES",
+            "nltools.data.atlases.DEFAULT_ATLASES",
+            "nltools.data.atlases.label_coords",
+            "nltools.data.atlases.ClusterReport",
+            "nltools.data.atlases.cluster_report_data",
+            "nltools.mask.roi_to_brain_from_atlas",
+        ],
+    ),
+    _task_page(
+        "simulation",
+        "Simulation",
+        "Synthetic data with a known signal, for testing a pipeline end to end. "
+        "`Simulator` builds [BrainData](../data/brain_data.md) with Gaussian-blob "
+        "signal, several subjects, and noise. `SimulateGrid` builds 2D grids, "
+        "which is enough to exercise thresholding and multiple-comparison "
+        "correction without a mask.",
+        ["nltools.data.simulator.Simulator", "nltools.data.simulator.SimulateGrid"],
+    ),
+    # --- the flat namespace, A-Z --------------------------------------------
+    Page(
+        "algorithms.md",
+        "nltools.algorithms (A–Z index)",
+        namespace="nltools.algorithms",
+        intro=(
+            "Every public function and class of `nltools.algorithms`, alphabetically. "
+            "Use this page when you know the name; the *Functions by task* pages "
+            "group the same objects by what they are for."
+        ),
+    ),
+    # --- internal modules ---------------------------------------------------
+    _module_page("nltools.algorithms.backends", "backends.md", internal=True),
+    _module_page("nltools.data.braindata.cache", "cache.md", internal=True),
+    _module_page(
+        "nltools.data.braindata.neighborhoods", "neighborhoods.md", internal=True
+    ),
+    _module_page("nltools.utils", "utils.md", internal=True),
+    _module_page("nltools.templates", "templates.md", internal=True),
+    _module_page("nltools.algorithms.ridge", "algorithms/ridge.md", internal=True),
+    _module_page(
+        "nltools.algorithms.inference", "algorithms/inference.md", internal=True
+    ),
+    _module_page("nltools.data.braindata.io", "data/braindata_io.md", internal=True),
+    _module_page(
+        "nltools.data.braindata.analysis", "data/braindata_analysis.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.braindata.modeling", "data/braindata_modeling.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.braindata.prediction",
+        "data/braindata_prediction.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.braindata.bootstrap",
+        "data/braindata_bootstrap.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.braindata.plotting", "data/braindata_plotting.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.adjacency.stats", "data/adjacency_stats.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.adjacency.modeling", "data/adjacency_modeling.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.adjacency.plotting", "data/adjacency_plotting.md", internal=True
+    ),
+    _module_page("nltools.data.adjacency.io", "data/adjacency_io.md", internal=True),
+    _module_page(
+        "nltools.data.adjacency.spatial", "data/adjacency_spatial.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.designmatrix.transforms",
+        "data/design_matrix_transforms.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.designmatrix.regressors",
+        "data/design_matrix_regressors.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.designmatrix.append",
+        "data/design_matrix_append.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.designmatrix.diagnostics",
+        "data/design_matrix_diagnostics.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.designmatrix.plotting",
+        "data/design_matrix_plotting.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.designmatrix.io", "data/design_matrix_io.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.collection.core", "data/collection_core.md", internal=True
+    ),
+    _module_page(
+        "nltools.data.collection.execution",
+        "data/collection_execution.md",
+        internal=True,
+    ),
+    _module_page(
+        "nltools.data.collection.inference",
+        "data/collection_inference.md",
+        internal=True,
+    ),
+    _module_page("nltools.data.collection.io", "data/collection_io.md", internal=True),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -148,11 +477,36 @@ _WARNING_RE = re.compile(r"^(?P<file>[^\s:]+):(?P<line>\d+): (?P<msg>.+)$")
 
 
 def parse_warnings(stderr: str) -> list[str]:
-    """Return griffe2md's stderr as a list of warning lines (blank lines dropped).
+    """Return griffe's captured log output as a list of warning lines (blanks dropped).
 
     Nothing is filtered: "No type or annotation" lines are real docstring bugs.
     """
     return [ln.rstrip() for ln in stderr.splitlines() if ln.strip()]
+
+
+@contextmanager
+def capture_griffe_warnings() -> Iterator[io.StringIO]:
+    """Collect everything the ``griffe`` logger emits at WARNING or above.
+
+    griffe reports docstring problems (``file:line: message``) through logging
+    while loading and, lazily, while docstrings are first parsed during
+    rendering. The CLI printed them to stderr; in-process we attach a handler
+    for the duration of a build and read the stream afterwards.
+    """
+    logger = logging.getLogger("griffe")
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setLevel(logging.WARNING)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    previous_level = logger.level
+    if logger.getEffectiveLevel() > logging.WARNING:
+        logger.setLevel(logging.WARNING)
+    logger.addHandler(handler)
+    try:
+        yield stream
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous_level)
 
 
 def warning_report(warnings: set[str] | list[str]) -> str:
@@ -191,38 +545,202 @@ def warning_report(warnings: set[str] | list[str]) -> str:
 
 @dataclass
 class BuildReport:
-    """What one build produced: page counts and every griffe warning seen."""
+    """What one build produced: the pages, failures, and every griffe warning seen."""
 
     ok: int = 0
     failed: list[str] = field(default_factory=list)
     warnings: set[str] = field(default_factory=set)
+    pages: dict[str, str] = field(default_factory=dict)  # output path -> final text
 
 
-def render_module(module: str) -> tuple[str | None, list[str]]:
-    """Run griffe2md for one module; return (raw markdown or None on failure, warnings).
+def load_griffe2md_config() -> dict[str, Any]:
+    """The ``[tool.griffe2md]`` table from pyproject.toml (path-independent)."""
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as f:
+        return tomllib.load(f)["tool"]["griffe2md"]
 
-    Runs from the project root so griffe2md finds ``[tool.griffe2md]`` in
-    pyproject.toml and warning paths are repo-relative.
+
+class ApiIndex:
+    """griffe's view of nltools, loaded once, addressed by public dotted path.
+
+    Mirrors what the griffe2md CLI did per invocation (same parser, docstring
+    options and search path) so in-process rendering is byte-identical, and
+    resolves the aliases a facade re-export creates (``nltools.algorithms.fdr``
+    -> the function defined in ``nltools.algorithms.corrections``).
     """
-    result = subprocess.run(
-        [*GRIFFE2MD, module],
-        capture_output=True,
-        text=True,
-        cwd=PROJECT_ROOT,
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        loader = GriffeLoader(
+            docstring_parser=Parser(config["docstring_style"]),
+            docstring_options=config["docstring_options"],
+            search_paths=[str(PROJECT_ROOT), *sys.path],
+        )
+        self.package = loader.load("nltools")
+        loader.resolve_aliases(external=True)
+
+    def resolve(self, dotpath: str) -> Object:
+        """The object a public dotted path names, aliases followed to their target."""
+        rel = dotpath.removeprefix("nltools.")
+        obj = self.package if rel in ("", "nltools") else self.package[rel]
+        target = obj.final_target if obj.is_alias else obj
+        # A function shadowed by its same-named submodule: to griffe,
+        # ``nltools.algorithms.procrustes`` *is* the module
+        # ``algorithms.alignment.procrustes`` (the submodule wins over the
+        # ``from .procrustes import procrustes`` alias). The caller meant the
+        # function inside it — the module isn't a documentable page member.
+        if target.is_module and target.name in target.members:
+            inner = target.members[target.name]
+            if not inner.is_module:
+                target = inner.final_target if inner.is_alias else inner
+        return target
+
+    def public_names(self, namespace: str) -> list[str]:
+        """The namespace's ``__all__``, sorted, minus submodules it re-exports."""
+        module = self.resolve(namespace)
+        return sorted(
+            (
+                name
+                for name in module.exports or ()
+                if not self.resolve(f"{namespace}.{name}").is_module
+            ),
+            key=str.lower,
+        )
+
+
+@dataclass(frozen=True)
+class Member:
+    """One object rendered onto a task or namespace page.
+
+    ``body`` is griffe2md's Markdown for the object at `MEMBER_HEADING_LEVEL`
+    (empty for attributes, which appear in the summary table only, like the
+    postprocess treats attributes on module pages). ``paths`` are the dotted
+    paths the member documents — the public one it was listed under and, when
+    different, griffe's canonical definition — so type annotations written
+    either way link here.
+    """
+
+    name: str
+    kind: str  # "class" | "function" | "attribute"
+    description: str
+    body: str
+    annotation: str | None = None
+    paths: tuple[str, ...] = ()
+
+
+def render_member(obj: Object, public_path: str, config: dict[str, Any]) -> Member:
+    """Render one griffe object as a task-page member."""
+    description = obj.docstring.value.split("\n", 1)[0] if obj.docstring else ""
+    is_attribute = obj.kind.value == "attribute"
+    body = (
+        ""
+        if is_attribute
+        else griffe2md.render_object_docs(
+            obj, {**config, "heading_level": MEMBER_HEADING_LEVEL}
+        )
     )
-    warnings = parse_warnings(result.stderr)
-    if result.returncode != 0:
-        return None, warnings
-    return result.stdout, warnings
+    annotation = None
+    if is_attribute:
+        # Type column: the annotation, or for an unannotated alias such as
+        # ``AtlasKind = Literal[...]`` the (short) value, which *is* its type.
+        if obj.annotation:
+            annotation = str(obj.annotation)
+        elif obj.value is not None and len(str(obj.value)) <= MAX_INLINE_VALUE:
+            annotation = str(obj.value)
+    return Member(
+        name=obj.name,
+        kind=obj.kind.value,
+        description=description,
+        body=body,
+        annotation=annotation,
+        paths=tuple(dict.fromkeys([public_path, obj.path])),
+    )
+
+
+_SECTION_TITLES = {
+    "attribute": "Attributes",
+    "class": "Classes",
+    "function": "Functions",
+}
+
+
+def _summary_table(kind: str, members: Sequence[Member]) -> str:
+    title = _SECTION_TITLES[kind]
+    if kind == "attribute":
+        rows = [
+            f"`{m.name}` | "
+            f"{f'<code>{m.annotation}</code>' if m.annotation else ''} | "
+            f"{m.description}"
+            for m in members
+        ]
+        header = "Name | Type | Description\n---- | ---- | -----------"
+    else:
+        rows = [
+            f"[`{m.name}`](#{_myst_slug(m.name)}) | {m.description}" for m in members
+        ]
+        header = "Name | Description\n---- | -----------"
+    return f"**{title}:**\n\n{header}\n" + "\n".join(rows)
+
+
+def compose_objects_page(intro: str, members: Sequence[Member]) -> str:
+    """Assemble a task page: intro, per-kind summary tables, then the members.
+
+    Summary tables follow the postprocess's canonical order (Attributes,
+    Classes, Functions); detail sections are ``## Classes`` then
+    ``## Functions``, members in registry order. Attributes have no detail
+    section. The result goes through `postprocess` like any griffe2md page.
+    """
+    by_kind = {kind: [m for m in members if m.kind == kind] for kind in _SECTION_TITLES}
+    parts = [intro.strip()]
+    parts.extend(
+        _summary_table(kind, group) for kind, group in by_kind.items() if group
+    )
+    for kind in ("class", "function"):
+        if by_kind[kind]:
+            parts.append(f"## {_SECTION_TITLES[kind]}")
+            parts.extend(m.body.strip() for m in by_kind[kind])
+    return "\n\n".join(parts) + "\n"
+
+
+@dataclass(frozen=True)
+class RenderedPage:
+    """A page's raw (pre-postprocess) Markdown plus what `xref_entries` needs."""
+
+    page: Page
+    text: str
+    roots: dict[str, tuple[str, ...]] | None  # task pages: heading -> dotted paths
+
+
+def render_page(page: Page, index: ApiIndex, config: dict[str, Any]) -> RenderedPage:
+    """Render one registry entry to raw Markdown (griffe2md output, unprocessed)."""
+    if page.module:
+        text = griffe2md.render_object_docs(index.resolve(page.module), config)
+        return RenderedPage(page, text, None)
+
+    if page.namespace:
+        paths = [f"{page.namespace}.{n}" for n in index.public_names(page.namespace)]
+        # The package docstring opens the page, under the hand-written intro.
+        docstring = griffe2md.render_object_docs(
+            index.resolve(page.namespace),
+            {**config, "members": False, "show_root_heading": False},
+        )
+        intro = f"{page.intro}\n\n{docstring.strip()}"
+    else:
+        paths = list(page.objects)
+        intro = page.intro
+
+    members = [render_member(index.resolve(p), p, config) for p in paths]
+    roots = {m.name: m.paths for m in members}
+    return RenderedPage(page, compose_objects_page(intro, members), roots)
 
 
 def build(out_dir: Path, *, clean: bool = False, verbose: bool = True) -> BuildReport:
-    """Generate every page in MODULES into ``out_dir`` (normally docs/api).
+    """Generate every page in PAGES into ``out_dir`` (normally docs/api).
 
-    Two passes over the raw griffe2md output: the first postprocesses each page
-    without cross-page links and indexes the labels it produced (`xref_entries`);
-    the second postprocesses again with that index so type annotations and
-    ``Bases:`` entries link to the page documenting them.
+    Two passes over the raw Markdown: the first postprocesses each page without
+    cross-page links and indexes the labels it produced (`xref_entries`); the
+    second postprocesses again with that index so type annotations and
+    ``Bases:`` entries link to the page documenting them. When several pages
+    document one symbol, the first in PAGES wins (task pages precede the A-Z
+    index and the internal modules).
     """
     report = BuildReport()
     if clean:
@@ -231,31 +749,43 @@ def build(out_dir: Path, *, clean: bool = False, verbose: bool = True) -> BuildR
         if verbose:
             print(f"Cleaned {out_dir}")
 
-    raw: dict[str, tuple[str, str]] = {}  # out_path -> (module, raw markdown)
-    for module, out_path in MODULES:
-        if verbose:
-            print(f"  {module} → {out_path}")
-        text, warnings = render_module(module)
-        report.warnings.update(warnings)
-        if text is None:
-            print(f"  FAILED: {module} → {out_path}", file=sys.stderr)
-            report.failed.append(module)
-            continue
-        raw[out_path] = (module, text)
+    config = load_griffe2md_config()
+    rendered: list[RenderedPage] = []
+    with capture_griffe_warnings() as stream:
+        index = ApiIndex(config)
+        for page in PAGES:
+            source = page.module or page.namespace or f"{len(page.objects)} objects"
+            if verbose:
+                print(f"  {page.output} ← {source}")
+            try:
+                rendered.append(render_page(page, index, config))
+            except Exception as exc:  # a bad dotpath in PAGES, a template error
+                print(f"  FAILED: {page.output}: {exc!r}", file=sys.stderr)
+                report.failed.append(page.output)
+    report.warnings.update(parse_warnings(stream.getvalue()))
 
     xref: dict[str, str] = {}
     prefixes: dict[str, str] = {}
-    for out_path, (module, text) in raw.items():
-        prefix = page_prefix(out_dir / out_path, out_dir)
-        prefixes[out_path] = prefix
-        xref.update(xref_entries(module, prefix, postprocess(text, prefix)))
+    for item in rendered:
+        prefix = page_prefix(out_dir / item.page.output, out_dir)
+        prefixes[item.page.output] = prefix
+        entries = xref_entries(
+            prefix,
+            postprocess(item.text, prefix),
+            module=item.page.module,
+            roots=item.roots,
+        )
+        for path, label in entries.items():
+            xref.setdefault(path, label)
 
-    for out_path, (module, text) in raw.items():
-        output = out_dir / out_path
+    for item in rendered:
+        output = out_dir / item.page.output
         output.parent.mkdir(parents=True, exist_ok=True)
-        prefix = prefixes[out_path]
-        page = postprocess(text, prefix, xref)
-        output.write_text(with_frontmatter(page, page_title(module), prefix))
+        prefix = prefixes[item.page.output]
+        body = postprocess(item.text, prefix, xref)
+        text = with_frontmatter(body, item.page.title, page_label(prefix))
+        output.write_text(text)
+        report.pages[item.page.output] = text
         report.ok += 1
     return report
 

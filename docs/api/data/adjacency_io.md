@@ -1,6 +1,6 @@
 ---
 title: data.adjacency.io
-label: data-adjacency-io
+label: page-data-adjacency-io
 ---
 
 I/O functions for Adjacency objects.
@@ -10,7 +10,7 @@ I/O functions for Adjacency objects.
 Name | Description
 ---- | -----------
 [`to_graph`](#data-adjacency-io-to-graph) | Convert Adjacency into networkx graph.
-[`write`](#data-adjacency-io-write) | Write out Adjacency object to csv file.
+[`write`](#data-adjacency-io-write) | Write an Adjacency to a `.csv` or `.h5` file.
 
 
 
@@ -31,7 +31,7 @@ Only works on single matrices for now.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#data-adjacency)</code> | Adjacency instance (must be a single matrix). | *required*
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance (must be a single matrix). | *required*
 
 **Returns:**
 
@@ -46,12 +46,12 @@ Type | Description
 write(adj, file_name, method = 'long')
 ```
 
-Write out Adjacency object to csv file.
+Write an Adjacency to a `.csv` or `.h5` file.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` |  | Adjacency object to write | *required*
-`file_name` | <code>str</code> | name of file name to write | *required*
-`method` | <code>str</code> | method to write out data ['long','square'] | <code>'long'</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency object to write. | *required*
+`file_name` | <code>str \| Path</code> | Output path; an `.h5`/`.hdf5` suffix writes HDF5. | *required*
+`method` | <code>str</code> | Layout for CSV output, `'long'` (vectorized rows) or `'square'` (single matrix only). | <code>'long'</code>

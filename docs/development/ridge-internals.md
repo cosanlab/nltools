@@ -11,8 +11,10 @@ implementation achieves large speedups on big problems through a handful of math
 tricks and memory-efficient batching.
 
 This is design reference. For the public solver API (`solve_ridge_cv`,
-`solve_banded_ridge_cv`, `cross_val_predict_ridge`, and the legacy `ridge_svd`/`ridge_cv`),
-see the [Ridge API](../api/algorithms.md). Code lives in `nltools/algorithms/ridge/`
+`solve_banded_ridge_cv`, `cross_val_predict_ridge`) see the
+[`nltools.algorithms.ridge` module page](../api/algorithms/ridge.md); the legacy
+`ridge_svd`/`ridge_cv` are documented under
+[Prediction & cross-validation](../api/tasks/prediction.md). Code lives in `nltools/algorithms/ridge/`
 (`core.py`, `solvers.py`, `utils.py`) with the backend in `nltools/algorithms/backends.py`.
 
 ## The six mathematical tricks

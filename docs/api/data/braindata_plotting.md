@@ -1,9 +1,9 @@
 ---
 title: data.braindata.plotting
-label: data-braindata-plotting
+label: page-data-braindata-plotting
 ---
 
-BrainData plotting functions.
+Glass-brain, slice, flatmap, timeseries, and histogram plots for `BrainData`.
 
 **Functions:**
 
@@ -31,13 +31,13 @@ Auto-select colormap based on data characteristics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>ndarray</code> | numpy array of brain data | *required*
+`data` | <code>ndarray</code> | Brain data values. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>str</code> | Colormap name
+<code>str</code> | Colormap name — 'hot' if >90% of values are positive, 'cool' if     >90% are negative, otherwise the bipolar 'RdBu_r'.
 
 (data-braindata-plotting-plot-brain)=
 ### `plot_brain`
@@ -52,10 +52,10 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to plot. | *required*
 `method` | <code>str</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
-`upper` | <code>str / float</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
-`lower` | <code>str / float</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
+`upper` | <code>str \| float \| None</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
+`lower` | <code>str \| float \| None</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
 `threshold` | <code>float</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``abs(value) < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
 `view` | <code>str</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
 `cut_coords` | <code>list or dict</code> | Cut coordinates for multi-slice views. If provided, takes precedence over ``view``-based defaults. Either a list of per-axis coordinate sequences whose length matches ``view``, or a dict keyed by axis letter (``{"x": [...], "z": [...]}``) from which entries for each axis in ``view`` are looked up. | <code>None</code>
@@ -68,7 +68,7 @@ Name | Type | Description | Default
 `save` | <code>str</code> | Path to save figure(s). | <code>None</code>
 `stat` | <code>str</code> | Statistic for timeseries plots. Valid options: 'mean', 'median', 'std'. | <code>'mean'</code>
 `limit` | <code>int</code> | Maximum number of images to render when ``bd`` contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. A warning is emitted if the data has more images than ``limit``. Ignored for single-image data and for matplotlib-based methods (``"timeseries"``, ``"histogram"``), which already aggregate across images. | <code>3</code>
-`**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
+`**kwargs` | <code>dict</code> | Additional arguments forwarded to `nilearn.plotting.plot_glass_brain` / `plot_stat_map`. | <code>{}</code>
 
 **Returns:**
 
@@ -89,7 +89,7 @@ Plot brain data on cortical flatmap.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to plot (must be in standard MNI space). | *required*
 `threshold` | <code>float</code> | Values below this absolute threshold are masked. | <code>None</code>
 `cmap` | <code>str</code> | Matplotlib colormap for data. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
 `vmax` | <code>float</code> | Maximum value for colormap. | <code>None</code>
@@ -127,11 +127,11 @@ Prepare save paths for multiple plot outputs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`save` |  | Base save path (str or Path) | *required*
-`idx` | <code>int</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
+`save` | <code>str \| Path</code> | Base save path; its extension is reused (default `png`). | *required*
+`idx` | <code>int \| None</code> | Image index appended as ``_img{idx}`` to the base filename, to disambiguate saves across multiple images. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with 'glass' and 'slices' keys containing save paths
+<code>dict</code> | `'glass'` maps to one path; `'slices'` maps to a dict of per-axis     (`'x'`, `'y'`, `'z'`) paths.

@@ -1,23 +1,7 @@
 ---
 title: data.braindata.bootstrap
-label: data-braindata-bootstrap
+label: page-data-braindata-bootstrap
 ---
-
-Bootstrap functions extracted from BrainData methods.
-
-**Functions:**
-
-Name | Description
----- | -----------
-[`bootstrap`](#data-braindata-bootstrap-bootstrap) | Bootstrap statistics with CPU parallelization or GPU acceleration.
-[`convert_bootstrap_results_to_brain_data`](#data-braindata-bootstrap-convert-bootstrap-results-to-brain-data) | Convert bootstrap results dictionary to BrainData format.
-
-
-
-## Functions
-
-(data-braindata-bootstrap-bootstrap)=
-### `bootstrap`
 
 ```python
 bootstrap(bd, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), X_test = None, device = 'cpu', max_gpu_memory_gb = None, tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
@@ -34,24 +18,24 @@ streaming/online accumulator).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`stat` |  | (str) Statistic to bootstrap. Options: Simple stats ('mean', 'median', 'std', 'sum', 'min', 'max') or Model stats ('weights' requires fitted Ridge model, 'predict' requires fitted Ridge model + X_test). | *required*
-`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
-`save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
-`X_test` |  | (np.ndarray, optional) Test features for 'predict' bootstrap.    Required if stat='predict' | <code>None</code>
-`device` |  | (str) Compute device for Ridge bootstrap: 'cpu' (default), 'gpu' (PyTorch on CUDA/MPS if available), or 'auto' (use a GPU if present, else CPU). Ignored for simple stats. Default: 'cpu' | <code>'cpu'</code>
-`max_gpu_memory_gb` |  | (float, optional) Explicit GPU memory budget in GB when device is 'gpu' or 'auto'. None (default) measures the device. | <code>None</code>
-`tail` |  | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. Default: -1 (all CPUs). | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`progress_bar` |  | (bool) If True, show a progress bar. Default: False | <code>False</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data to resample. | *required*
+`stat` | <code>str</code> | Statistic to bootstrap. Simple aggregates: ``'mean'``, ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model statistics (require a fitted Ridge model): ``'weights'``, or ``'predict'`` (also requires ``X_test``). | *required*
+`n_samples` | <code>int</code> | Number of bootstrap iterations. Default ``5000``. | <code>5000</code>
+`save_boots` | <code>bool</code> | Keep every bootstrap sample (memory intensive). Default ``False``. | <code>False</code>
+`percentiles` | <code>tuple[float, float]</code> | Percentiles for the confidence interval. Default ``(2.5, 97.5)``. | <code>(2.5, 97.5)</code>
+`X_test` | <code>ndarray \| None</code> | Test features for ``stat='predict'``. | <code>None</code>
+`device` | <code>str</code> | Compute device for Ridge bootstraps: ``'cpu'`` (default), ``'gpu'`` (PyTorch on CUDA/MPS; raises if none is available), or ``'auto'`` (a GPU if present, else CPU). Ignored for simple stats. | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | Explicit GPU memory budget in GB when ``device`` is ``'gpu'`` or ``'auto'``. ``None`` (default) measures the device. | <code>None</code>
+`tail` | <code>int \| str</code> | ``2``/``'two'`` for two-tailed (default); ``1``/``'one'`` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
+`n_jobs` | <code>int</code> | CPU workers for parallelization. Default ``-1`` (all CPUs). | <code>-1</code>
+`random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar. Default ``False``. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data) or dict</code> | - For simple stats (with ``save_boots=False``): Returns BrainData       with bootstrap mean     - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',       'ci_lower', 'ci_upper' (all BrainData objects)     - If ``save_boots=True``: Returns a dict (even for simple stats)       with an added 'samples' key holding all samples as a raw ndarray
+<code>[BrainData](#page-data-brain-data) \| dict</code> | For simple stats with ``save_boots=False``, a     `BrainData` holding the bootstrap mean. For model stats, a dict with     keys ``'mean'``, ``'std'``, ``'Z'``, ``'p'``, ``'ci_lower'``,     ``'ci_upper'`` (all `BrainData`). With ``save_boots=True``, a dict     (even for simple stats) with an added ``'samples'`` key holding the     raw sample array.
 
 **Examples:**
 
@@ -86,37 +70,9 @@ mean_brain.data = result['mean']
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-This method replaces the removed `summarize_bootstrap()` function. Use
-`stat='mean'` to generate bootstrap samples of an aggregate; use
-`stat='weights'` or `stat='predict'` to also get Z and p maps. To summarize
-bootstrap samples you already have, feed them to `OnlineBootstrapStats`
-directly (see Examples).
+Use ``stat='mean'`` to bootstrap an aggregate; use ``stat='weights'`` or
+``stat='predict'`` to also get Z and p maps. To summarize bootstrap
+samples you already have, feed them to `OnlineBootstrapStats` directly
+(see Examples).
 
 </details>
-
-(data-braindata-bootstrap-convert-bootstrap-results-to-brain-data)=
-### `convert_bootstrap_results_to_brain_data`
-
-```python
-convert_bootstrap_results_to_brain_data(bd, result, save_boots = False, return_dict = False)
-```
-
-Convert bootstrap results dictionary to BrainData format.
-
-Helper method to convert numpy arrays from bootstrap functions into
-BrainData objects or dicts of BrainData objects.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`result` |  | (dict) Result dictionary from bootstrap function with keys:     'mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper', and optionally 'samples' | *required*
-`save_boots` |  | (bool) If True, include 'samples' key in output | <code>False</code>
-`return_dict` |  | (bool) If True, always return dict even for simple stats.         If False, return BrainData for simple stats (when save_boots=False) | <code>False</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[BrainData](#data-brain-data) or dict</code> | - If return_dict=False and save_boots=False: Returns BrainData with mean     - Otherwise: Returns dict with BrainData objects for each statistic.       The optional 'samples' entry (when save_boots=True) is a raw       ndarray, not a BrainData.

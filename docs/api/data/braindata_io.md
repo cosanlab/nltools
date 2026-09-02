@@ -1,13 +1,13 @@
 ---
 title: data.braindata.io
-label: data-braindata-io
+label: page-data-braindata-io
 ---
 
-BrainData I/O and loading functions.
+Loading, resampling, writing, and uploading for `BrainData`.
 
-Standalone functions extracted from BrainData class methods for mask initialization,
-data loading (from files, lists, URLs, HDF5, other BrainData objects), resampling,
-writing, and uploading.
+Functions that resolve a mask, load data (from files, lists, URLs, HDF5, or other
+`BrainData` objects), resample to a target grid, write NIfTI/HDF5, and upload to
+NeuroVault. `BrainData` methods delegate here.
 
 **Functions:**
 
@@ -45,14 +45,14 @@ Check if data and mask are in same space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data_img` |  | nibabel Nifti1Image object | *required*
-`mask_img` |  | nibabel Nifti1Image object (mask) | *required*
+`data_img` | <code>Nifti1Image</code> | Data image. | *required*
+`mask_img` | <code>Nifti1Image</code> | Mask image. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>bool</code> | True if spaces match (no resampling needed), False otherwise
+<code>bool</code> | True if affines and spatial shapes match (no resampling needed).
 
 (data-braindata-io-detect-and-update-mask)=
 ### `detect_and_update_mask`
@@ -73,14 +73,14 @@ and resamples the data_img accordingly.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`data_img` |  | nibabel Nifti1Image object from which to detect template | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance whose mask may be updated. | *required*
+`data_img` | <code>Nifti1Image</code> | Image from which to detect the template. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>Nifti1Image</code> | The data_img, possibly resampled to match the mask
+<code>Nifti1Image</code> | The input image, resampled to the mask grid if needed.
 
 (data-braindata-io-detect-space)=
 ### `detect_space`
@@ -95,13 +95,13 @@ Detect if mask is in MNI space or native space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask` |  | nibabel Nifti1Image object | *required*
+`mask` | <code>Nifti1Image</code> | Mask image to classify. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>str</code> | 'mni' if mask is MNI template, 'native' otherwise
+<code>str</code> | 'mni' if the mask matches the MNI template, 'native' otherwise.
 
 (data-braindata-io-get-interpolation)=
 ### `get_interpolation`
@@ -118,14 +118,14 @@ Resolves 'auto' to either 'nearest' or 'continuous' based on data type.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`img` |  | nibabel image to check (used when interpolation='auto') | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance whose interpolation setting is consulted. | *required*
+`img` | <code>Nifti1Image</code> | Image to inspect when the setting is 'auto'. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>str</code> | Interpolation method. When 'auto', resolves to 'nearest' or     'continuous' based on data type. Otherwise returns the instance's     configured interpolation setting.
+<code>str</code> | Interpolation method. When the instance setting is 'auto', resolves     to 'nearest' or 'continuous' based on data type; otherwise the     instance's configured interpolation setting.
 
 (data-braindata-io-initialize-mask)=
 ### `initialize_mask`
@@ -140,8 +140,8 @@ Initialize the mask image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`mask` |  | Brain mask as nibabel object, file path, template name string, or None. Template name strings supported: '{res}mm-MNI152-2009{version}' (e.g., '2mm-MNI152-2009c', '3mm-MNI152-2009a', '2mm-MNI152-2009fsl') | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance whose mask is being set. | *required*
+`mask` | <code>Nifti1Image \| str \| Path \| None</code> | Brain mask as a nibabel image, file path, template name string, or None. Template name strings follow `'{res}mm-MNI152-2009{version}'` (e.g. `'2mm-MNI152-2009c'`, `'3mm-MNI152-2009a'`, `'2mm-MNI152-2009fsl'`). | *required*
 
 (data-braindata-io-load-from-brain-data)=
 ### `load_from_brain_data`
@@ -156,9 +156,9 @@ Load data from another BrainData object.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`brain_data` |  | BrainData object to copy from. | *required*
-`mask` |  | Optional mask to use. If None, uses mask from brain_data. | <code>None</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to populate. | *required*
+`brain_data` | <code>[BrainData](#page-data-brain-data)</code> | Object to copy from. | *required*
+`mask` | <code>Nifti1Image \| str \| Path \| None</code> | Mask to use. If None, uses the mask from `brain_data`. | <code>None</code>
 
 (data-braindata-io-load-from-file)=
 ### `load_from_file`
@@ -173,8 +173,8 @@ Load data from file path or nibabel object.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`data` |  | File path or nibabel object. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to populate. | *required*
+`data` | <code>str \| Path \| Nifti1Image</code> | File path or nibabel image. | *required*
 
 (data-braindata-io-load-from-h5)=
 ### `load_from_h5`
@@ -189,9 +189,9 @@ Load data from HDF5 file.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`file_path` |  | Path to HDF5 file. | *required*
-`mask` |  | User-specified mask (to determine if we should load mask from file). | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to populate. | *required*
+`file_path` | <code>str \| Path</code> | Path to the HDF5 file. | *required*
+`mask` | <code>Nifti1Image \| str \| Path \| None</code> | User-specified mask; when None the mask stored in the file is used. | *required*
 
 (data-braindata-io-load-from-list)=
 ### `load_from_list`
@@ -206,8 +206,8 @@ Load data from a list of BrainData objects or file paths.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`data_list` |  | List of BrainData objects or file paths. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to populate. | *required*
+`data_list` | <code>list[[BrainData](#page-data-brain-data)] \| list[str \| Path \| Nifti1Image]</code> | Items to load and stack. | *required*
 
 (data-braindata-io-load-from-url)=
 ### `load_from_url`
@@ -222,8 +222,8 @@ Load data from URL.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`url` |  | URL to download data from. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to populate. | *required*
+`url` | <code>str</code> | URL of a NIfTI file to download. | *required*
 
 (data-braindata-io-mask-images)=
 ### `mask_images`
@@ -255,8 +255,8 @@ resampling is done here. Falls back to the per-image functional
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask` |  | A ``nibabel.Nifti1Image`` boolean/binary mask. | *required*
-`imgs` |  | List of space-aligned ``nibabel`` images to mask. | *required*
+`mask` | <code>Nifti1Image</code> | Boolean/binary mask image. | *required*
+`imgs` | <code>list[Nifti1Image]</code> | Space-aligned images to mask. | *required*
 
 **Returns:**
 
@@ -273,27 +273,29 @@ resample_to(bd, *, img = None, resolution = None, interpolation = None)
 
 Resample BrainData to match target image or resolution.
 
+Exactly one of `img` or `resolution` must be given.
+
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`img` |  | Target image for resampling. Can be: - nibabel Nifti1Image object - str/Path to .nii/.nii.gz file - None (if using resolution parameter) | <code>None</code>
-`resolution` |  | Target voxel size in mm. Can be: - float/int: Isotropic resolution (e.g., 2.0 = 2mm^3) - None (if using img parameter) | <code>None</code>
-`interpolation` |  | Interpolation method for resampling. Can be: - None (default): Uses instance's interpolation setting - 'nearest': Nearest-neighbor (for atlases, masks, labels) - 'linear': Linear interpolation - 'continuous': Higher-order spline (for stat maps) | <code>None</code>
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to resample. | *required*
+`img` | <code>Nifti1Image \| str \| Path \| None</code> | Target image whose grid to match, as a nibabel image or a path to a `.nii`/`.nii.gz` file. | <code>None</code>
+`resolution` | <code>float \| int \| None</code> | Target isotropic voxel size in mm (e.g. `2.0` for 2 mm³ voxels). | <code>None</code>
+`interpolation` | <code>str \| None</code> | Interpolation method: `'nearest'` (atlases, masks, labels), `'linear'`, or `'continuous'` (higher-order spline, for stat maps). None uses the instance's interpolation setting. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | New BrainData instance with resampled data
+<code>[BrainData](#page-data-brain-data)</code> | New instance with resampled data and mask.
 
 **Raises:**
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If both img and resolution are None, or both are provided
-<code>TypeError</code> | If img is not a valid image type
+<code>ValueError</code> | If both `img` and `resolution` are None, or both are provided.
+<code>TypeError</code> | If `img` is not a valid image type.
 
 (data-braindata-io-to-nifti)=
 ### `to_nifti`
@@ -308,7 +310,7 @@ Convert BrainData instance to a nibabel NIfTI image.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to convert. | *required*
 
 **Returns:**
 
@@ -325,19 +327,19 @@ upload_neurovault(bd, *, access_token = None, collection_name = None, collection
 
 Upload data to NeuroVault.
 
-Adds any columns in bd.X to image metadata. Index will be used as image name.
+Adds any columns in `bd.X` to image metadata. Index will be used as image name.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Images to upload. | *required*
 `access_token` | <code>str</code> | NeuroVault API access token. Required. | <code>None</code>
-`collection_name` | <code>str</code> | Name of new collection to create. | <code>None</code>
-`collection_id` | <code>int</code> | NeuroVault collection ID if adding images to an existing collection. | <code>None</code>
-`img_type` | <code>str</code> | NeuroVault map type. Required. | <code>None</code>
-`img_modality` | <code>str</code> | NeuroVault image modality. Required. | <code>None</code>
-`**kwargs` |  | Additional keyword arguments passed to the NeuroVault API. | <code>{}</code>
+`collection_name` | <code>str \| None</code> | Name of a new collection to create. | <code>None</code>
+`collection_id` | <code>int \| None</code> | NeuroVault collection ID when adding images to an existing collection. | <code>None</code>
+`img_type` | <code>str</code> | NeuroVault map type (e.g. `'Z'`, `'T'`). Required. | <code>None</code>
+`img_modality` | <code>str</code> | NeuroVault image modality (e.g. `'fMRI-BOLD'`). Required. | <code>None</code>
+`**kwargs` | <code>dict</code> | Additional image metadata forwarded to `pynv.Client.add_image`. | <code>{}</code>
 
 **Returns:**
 
@@ -362,7 +364,7 @@ fires when the data is actually resampled to the mask's grid.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance whose `verbose` and resample settings apply. | *required*
 `context` | <code>str</code> | Why the spaces differ, appended to the message. Default: empty string. | <code>''</code>
 
 (data-braindata-io-write-brain-data)=
@@ -378,5 +380,5 @@ Write out BrainData object to Nifti or HDF5 File.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` |  | BrainData instance. | *required*
-`file_name` | <code>str or Path</code> | Output file path. Supports .nii/.nii.gz (NIfTI) and .h5/.hdf5 (HDF5) formats. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Instance to write. | *required*
+`file_name` | <code>str \| Path</code> | Output file path. Supports `.nii`/`.nii.gz` (NIfTI) and `.h5`/`.hdf5` (HDF5) formats. | *required*

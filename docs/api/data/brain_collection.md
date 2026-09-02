@@ -1,39 +1,50 @@
 ---
 title: BrainCollection
-label: data-brain-collection
+label: page-data-brain-collection
 ---
 
 ```python
 BrainCollection(brains: list, *, mask: nib.Nifti1Image | Path | str, designs: list | None = None, metadata: pl.DataFrame | pd.DataFrame | dict | None = None, lazy: bool = True, cache_dir: Path | str | None = './.nltools_cache')
 ```
 
-Parallel, lazy iterator of ``BrainData`` whose API mirrors ``BrainData``.
+A lazy, parallel collection of `BrainData` — one item per subject — whose API mirrors `BrainData`.
 
-Constructed via ``__init__`` (explicit lists) or one of the classmethod
-factories (``from_bids``, ``from_glob``, ``from_paths``, ``read``).
+Every item shares one mask and lines up with an optional paired
+`DesignMatrix` (`designs`) and one row of `metadata` (a polars
+DataFrame). Build one from explicit lists (`BrainCollection(...)`) or
+from disk with `from_bids`, `from_glob`, `from_paths`, or `read`.
 
-See ``docs/development/execution-model.md`` for the full contract; key invariants:
-  - Per-subject ops route through ``execution._apply`` and return a
-    lightweight clone via ``self._clone(...)`` over the same cache root.
-  - Path-backed by default after parallel ops; ``cache='auto'`` follows
-    source state. ``cache=`` is only accepted on collection-returning ops.
-  - ``load`` / ``unload`` are the only methods that mutate ``self``.
+Items are **lazy** by default: each is held as a file path and loaded
+into a `BrainData` only when accessed (`bc[i]`, iteration) or inside a
+worker. `load` / `unload` switch items between the two states in place
+and are the only methods that mutate a collection.
 
-Internal state (mutable list at top level; per-item slots are parallel):
+Per-subject methods (`smooth`, `fit`, `predict`, `map`, `apply`, ...)
+run over every item in parallel and return a **new** collection. With
+``cache='auto'`` (the default) their outputs are written to the
+collection's `cache_root` when the inputs were path-backed and kept in
+memory otherwise; ``cache=True``/``False`` force either behavior. Every
+cached step lands in its own subdirectory and the chain of steps that
+produced a collection is available from `steps`; `cleanup` removes the
+whole cache root. Group reductions (`mean`, `ttest`, `isc`, ...)
+return in-memory `BrainData` (or dicts of them) and never cache.
 
-  _items          list[BrainData | Path]        per-item brain data
-  _mask           nib.Nifti1Image               shared mask (by reference)
-  _designs        list[DesignMatrix | Path | None]
-  _confounds      list[pd.DataFrame | None]
-  _sample_masks   list[np.ndarray | None]
-  _metadata       pl.DataFrame                  simple-typed columns only
-  _cache_root     Path | None                   shared by clones
-  _step_id        str | None                    this collection's step id
-  _parent_step_id str | None                    upstream step id (lineage)
-  _step_dirs      list[Path]                    lineage of step subdirs
-                                                that produced these items
-  _source_paths   list[Path | None]             per-item backing path
-                                                (None for in-memory only)
+Indexing: ``bc[i]`` → `BrainData`; ``bc[i:j]``, ``bc[list]``,
+``bc[bool_mask]``, ``bc[polars_expr]`` → `BrainCollection`;
+``bc['sub-01']`` → `BrainData` looked up in ``metadata['subject']``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`brains` | <code>list[[BrainData](#page-data-brain-data) \| Path \| str]</code> | One brain image per subject — in-memory `BrainData` objects or paths to NIfTI/HDF5 files. | *required*
+`mask` | <code>Nifti1Image \| Path \| str</code> | Mask shared by every item — an image, a path, or an nltools template name (e.g. ``'3mm-MNI152-2009c'``). | *required*
+`designs` | <code>list[[DesignMatrix](#page-data-design-matrix) \| Path \| str \| None] \| None</code> | Optional per-subject designs, aligned positionally with ``brains`` (``None`` entries allowed; length must match). | <code>None</code>
+`metadata` | <code>DataFrame \| DataFrame \| dict \| None</code> | Per-subject table (one row per item). ``None`` creates a default ``subject`` column (``sub-0001``, ...). | <code>None</code>
+`lazy` | <code>bool</code> | If True, path items stay as paths until accessed; if False, they are loaded into `BrainData` up front. | <code>True</code>
+`cache_dir` | <code>Path \| str \| None</code> | Where cached outputs go. Precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env var → ``./.nltools_cache``. ``None`` uses a temp dir that is removed at process exit. Resolved once, at construction. | <code>'./.nltools_cache'</code>
+
+
 
 **Attributes:**
 
@@ -48,12 +59,6 @@ Name | Type | Description
 `n_voxels` | <code>int</code> | Voxel count from the mask.
 `shape` | <code>tuple[int, int \| None, int]</code> | Collection shape as ``(n_subjects, n_obs_or_None_if_ragged, n_voxels)``.
 
-``cache_dir`` precedence: explicit arg → ``NLTOOLS_CACHE_DIR`` env →
-``./.nltools_cache``. Pass ``None`` for an auto-cleaned tempdir.
-Resolved at construction and frozen on the instance.
-
-
-
 **Methods:**
 
 Name | Description
@@ -63,18 +68,18 @@ Name | Description
 [`apply`](#data-brain-collection-apply) | Call ``BrainData.<op>(*args, **kwargs)`` on every item in parallel.
 [`cleanup`](#data-brain-collection-cleanup) | Remove ``cache_root`` and invalidate every clone derived from ``self``.
 [`cleanup_all`](#data-brain-collection-cleanup-all) | Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
-[`compute_contrasts`](#data-brain-collection-compute-contrasts) | Compute per-subject contrast maps from fit-bundle items.
+[`compute_contrasts`](#data-brain-collection-compute-contrasts) | Compute per-subject contrast maps from fit-bundle items (the output of `fit`).
 [`concat`](#data-brain-collection-concat) | Stack all subject maps into a single `BrainData` (subjects as rows).
 [`detrend`](#data-brain-collection-detrend) | Detrend every subject's image in parallel (delegates to `BrainData.detrend`).
 [`filter`](#data-brain-collection-filter) | Filter to a subset by predicate, polars expression, or boolean array.
-[`fit`](#data-brain-collection-fit) | Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
-[`from_bids`](#data-brain-collection-from-bids) | Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+[`fit`](#data-brain-collection-fit) | Fit a GLM or ridge model to every subject in parallel (delegates to `BrainData.fit`).
+[`from_bids`](#data-brain-collection-from-bids) | Build a collection from a BIDS dataset, pairing each BOLD run with its events and confounds.
 [`from_glob`](#data-brain-collection-from-glob) | Build a collection by glob-matching brain images (and optional designs).
 [`from_paths`](#data-brain-collection-from-paths) | Build a collection from explicit lists of brain (and design) paths.
 [`isc`](#data-brain-collection-isc) | Inter-subject correlation (ISC) across the time dimension.
 [`isc_test`](#data-brain-collection-isc-test) | Bootstrap inference on ISC (per-voxel p-values).
 [`iter_pairs`](#data-brain-collection-iter-pairs) | Yield ``(BrainData, DesignMatrix | None)`` pairs.
-[`load`](#data-brain-collection-load) | Materialize path-backed items in place.
+[`load`](#data-brain-collection-load) | Load path-backed items into memory, in place.
 [`map`](#data-brain-collection-map) | Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
 [`max`](#data-brain-collection-max) | Voxelwise maximum across subjects as a single `BrainData`.
 [`mean`](#data-brain-collection-mean) | Voxelwise mean across subjects as a single `BrainData`.
@@ -85,18 +90,18 @@ Name | Description
 [`permutation_test2`](#data-brain-collection-permutation-test2) | Two-sample permutation test between this collection and ``other``.
 [`predict`](#data-brain-collection-predict) | Per-subject decoding (``y``) or predict-after-fit (``X_new``).
 [`predict_group`](#data-brain-collection-predict-group) | Group MVPA: subjects as samples → one model → ``Predict``.
-[`read`](#data-brain-collection-read) | Read a collection previously saved by ``write()``.
+[`read`](#data-brain-collection-read) | Read a collection previously saved by `write`.
 [`resample`](#data-brain-collection-resample) | Resample every subject's image to a target space in parallel.
 [`smooth`](#data-brain-collection-smooth) | Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
 [`standardize`](#data-brain-collection-standardize) | Standardize every subject's image in parallel (delegates to `BrainData.standardize`).
 [`std`](#data-brain-collection-std) | Voxelwise standard deviation across subjects as a single `BrainData`.
-[`steps`](#data-brain-collection-steps) | Step subdirs that produced this collection's items, oldest to newest.
+[`steps`](#data-brain-collection-steps) | Cache subdirectories of the steps that produced this collection's items, oldest to newest.
 [`sum`](#data-brain-collection-sum) | Voxelwise sum across subjects as a single `BrainData`.
 [`threshold`](#data-brain-collection-threshold) | Threshold every subject's image in parallel (delegates to `BrainData.threshold`).
 [`transform_designs`](#data-brain-collection-transform-designs) | Map ``fn(dm) -> DesignMatrix`` over each paired design.
 [`ttest`](#data-brain-collection-ttest) | One-sample t-test across subjects (delegates to `inference.ttest`).
 [`ttest2`](#data-brain-collection-ttest2) | Two-sample t-test between this collection and ``other`` (subject-level).
-[`unload`](#data-brain-collection-unload) | Drop in-memory data for items with backing paths.
+[`unload`](#data-brain-collection-unload) | Drop in-memory data for items that have a backing path, in place.
 [`var`](#data-brain-collection-var) | Voxelwise variance across subjects as a single `BrainData`.
 [`write`](#data-brain-collection-write) | Write a clean, portable copy of the collection outside the cache root.
 
@@ -111,7 +116,8 @@ align(*, method: str = 'procrustes', spatial_scale: str = 'searchlight', radius_
 
 Functionally align subjects into a common space via `LocalAlignment`.
 
-Materializes all subjects (algorithm constraint in v0.6.0).
+Loads every subject into memory — the aligner needs all of them at
+once.
 
 **Parameters:**
 
@@ -133,7 +139,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection) \| tuple[[BrainCollection](#data-brain-collection), [LocalAlignment](#algorithms-alignment-localalignment)]</code> | A new     collection of aligned data, or a ``(collection, model)`` tuple     when ``return_model=True``.
+<code>[BrainCollection](#page-data-brain-collection) \| tuple[[BrainCollection](#page-data-brain-collection), [LocalAlignment](#tasks-alignment-localalignment)]</code> | A new     collection of aligned data, or a ``(collection, model)`` tuple     when ``return_model=True``.
 
 (data-brain-collection-anova)=
 ### `anova`
@@ -165,11 +171,28 @@ apply(op: str, *args: str, n_jobs: int = -1, progress_bar: bool = False, cache: 
 
 Call ``BrainData.<op>(*args, **kwargs)`` on every item in parallel.
 
-All per-subject methods (``smooth``, ``standardize``, ...) reduce to
-this. Centralizes the ``_apply`` plumbing and the cache-knob handling.
-``op`` is named ``op`` (not ``method``) to avoid colliding with
-``BrainData`` methods that themselves take a ``method=`` kwarg
-(``standardize``, ``detrend``, ...).
+The generic form of the per-subject methods (`smooth`, `standardize`,
+...) — use it for any `BrainData` method that returns a `BrainData`
+and has no dedicated wrapper here. The method name is passed as ``op``
+rather than ``method`` because several `BrainData` methods take a
+``method=`` keyword of their own (`standardize`, `detrend`, ...).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`op` | <code>str</code> | Name of the `BrainData` method to call. | *required*
+`*args` | <code>tuple</code> | Positional arguments forwarded to the method. | <code>()</code>
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+`**kwargs` | <code>dict</code> | Keyword arguments forwarded to the method. | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection of the returned items.
 
 (data-brain-collection-cleanup)=
 ### `cleanup`
@@ -193,8 +216,15 @@ cleanup_all(directory: Path | str = '.') -> None
 
 Remove every ``.nltools_cache/{run_id}/`` under ``directory``.
 
-Wide brush — can kill sibling sessions in the same cwd. Prefer
-``bc.cleanup()`` for surgical removal.
+A wide brush — this also removes caches belonging to other live
+collections created in the same directory. Prefer `cleanup` on the
+collection you are done with.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`directory` | <code>Path \| str</code> | Directory whose ``.nltools_cache`` to clear. | <code>'.'</code>
 
 (data-brain-collection-compute-contrasts)=
 ### `compute_contrasts`
@@ -203,17 +233,27 @@ Wide brush — can kill sibling sessions in the same cwd. Prefer
 compute_contrasts(contrasts: str | list[str] | dict[str, np.ndarray], *, statistic: str = 'beta', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto') -> BrainCollection | dict[str, BrainCollection] | dict[str, dict[str, BrainCollection]]
 ```
 
-Compute per-subject contrast maps from fit-bundle items.
+Compute per-subject contrast maps from fit-bundle items (the output of `fit`).
+
+Each per-subject NIfTI gets a JSON sidecar recording its lineage
+(``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
+``nltools_version``).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`contrasts` | <code>str \| list[str] \| dict[str, ndarray]</code> | A contrast expression over regressor names (``'A - B'``, ``'2*A - B'``), a list of them, or a dict mapping contrast names to expressions or weight vectors. | *required*
+`statistic` | <code>str</code> | Which map to return — ``'beta'``, ``'t'``, ``'z'``, ``'p'``, ``'se'``, or ``'all'`` for every one. | <code>'beta'</code>
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection) \| dict[str, [BrainCollection](#data-brain-collection)] \| dict[str, dict[str, [BrainCollection](#data-brain-collection)]]</code> | A ``BrainCollection`` for a single contrast with a single ``statistic``;     a ``dict[str, BrainCollection]`` keyed by contrast name for multiple     contrasts with a single statistic; a ``dict[str, BrainCollection]``     keyed by statistic (one of 'beta', 't', 'z', 'p', 'se') for a single     contrast with ``statistic='all'``; and a nested     ``dict[name, dict[stat, BrainCollection]]`` for multiple contrasts     with ``statistic='all'``.
-
-Each per-subject NIfTI gets a JSON sidecar with lineage attrs
-(``step_id``, ``parent_step_id``, ``op``, ``kwargs``,
-``nltools_version``).
+<code>[BrainCollection](#page-data-brain-collection) \| dict[str, [BrainCollection](#page-data-brain-collection)] \| dict[str, dict[str, [BrainCollection](#page-data-brain-collection)]]</code> | A `BrainCollection` for one contrast and one statistic; a dict     keyed by contrast name for several contrasts and one statistic;     a dict keyed by statistic for one contrast with     ``statistic='all'``; and a nested ``{name: {stat: collection}}``     dict for several contrasts with ``statistic='all'``.
 
 (data-brain-collection-concat)=
 ### `concat`
@@ -233,6 +273,21 @@ detrend(*, method: str = 'linear', n_jobs: int = -1, progress_bar: bool = False,
 
 Detrend every subject's image in parallel (delegates to `BrainData.detrend`).
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`method` | <code>str</code> | Detrending method (``'linear'`` or ``'constant'``). | <code>'linear'</code>
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection of detrended items.
+
 (data-brain-collection-filter)=
 ### `filter`
 
@@ -242,6 +297,18 @@ filter(predicate: Callable[[Any], Any] | list | np.ndarray | pl.Series | pd.Seri
 
 Filter to a subset by predicate, polars expression, or boolean array.
 
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`predicate` | <code>Callable \| Expr \| list \| ndarray \| Series \| Series</code> | A callable ``fn(BrainData) -> bool`` evaluated per item (loads each item), a polars expression over ``metadata``, or a boolean array-like of length ``n_subjects``. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | The matching items, sharing this collection's     cache root.
+
 (data-brain-collection-fit)=
 ### `fit`
 
@@ -249,13 +316,37 @@ Filter to a subset by predicate, polars expression, or boolean array.
 fit(model: str = 'glm', X: DesignMatrix | list | Callable | None = None, *, scale: bool | str = 'auto', standardize: str | None = 'auto', n_jobs: int = -1, progress_bar: bool = False, cache: Literal['auto', True, False] = 'auto', **model_kwargs: Literal['auto', True, False]) -> BrainCollection
 ```
 
-Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
+Fit a GLM or ridge model to every subject in parallel (delegates to `BrainData.fit`).
 
-``X`` resolution priority:
-  - ``None``         → use ``self.designs`` (must be set per subject)
-  - ``DesignMatrix`` → shared across all subjects
-  - ``list``         → per-subject (len == n_subjects)
-  - ``callable``     → ``fn(ctx: _DesignContext) -> DesignMatrix``
+Each item becomes an HDF5 *fit bundle* holding the fitted arrays, the
+design, and lineage attributes. Feed the result to `compute_contrasts`
+(GLM or ridge) or `predict(X_new=...)` (ridge).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`model` | <code>str</code> | ``'glm'`` or ``'ridge'``. | <code>'glm'</code>
+`X` | <code>[DesignMatrix](#page-data-design-matrix) \| list \| Callable \| None</code> | The design. ``None`` uses each subject's paired design from `designs` (all must be set); a single `DesignMatrix` is shared across subjects; a list gives one design per subject (length ``n_subjects``); a callable is invoked per subject as ``fn(ctx) -> DesignMatrix``, where ``ctx`` exposes ``bd`` (the loaded `BrainData`), ``dm`` (the paired design or ``None``), ``confounds``, ``sample_mask``, ``metadata`` (that subject's row), and the BIDS entities ``subject``, ``session``, ``run``, ``task``, ``TR``, ``bold_path``, ``events_path``, ``confounds_path``. | <code>None</code>
+`scale` | <code>bool \| str</code> | Percent-signal-change scaling before fitting; ``'auto'`` resolves to ``False`` for both models. | <code>'auto'</code>
+`standardize` | <code>str \| None</code> | Per-voxel standardization before fitting; ``'auto'`` resolves to ``'zscore'`` for ridge and ``None`` for GLM. | <code>'auto'</code>
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+`**model_kwargs` | <code>dict</code> | Forwarded to `BrainData.fit` (e.g. ``alpha``, ``cv`` for ridge). | <code>{}</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection whose items are per-subject fit     bundles.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If ``model`` is unknown, or ``X`` is ``None`` while some items have no paired design.
+<code>NotImplementedError</code> | For ``model='glm'`` with a ``noise_model`` other than ``'ols'`` — AR models are available per subject via `BrainData.fit`.
 
 (data-brain-collection-from-bids)=
 ### `from_bids`
@@ -264,9 +355,43 @@ Per-subject fit; returns a path-backed collection of HDF5 fit bundles.
 from_bids(root: Path | str | Any, *, mask: nib.Nifti1Image | Path | str, task: str | None = None, space: str | None = None, sub_labels: list[str] | None = None, img_filters: list[tuple[str, str]] | None = None, derivatives_folder: str = 'derivatives', pair_events: bool = True, confounds_strategy: str | tuple[str, ...] | None = None, confounds_kwargs: dict | None = None, TR: float | str = 'infer', cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Auto-pair BOLD with events.tsv (→ ``DesignMatrix``) and confounds.tsv.
+Build a collection from a BIDS dataset, pairing each BOLD run with its events and confounds.
 
-Full design and edge cases: see ``docs/development/execution-model.md``.
+Discovery goes through nilearn's ``first_level_from_bids``; each run's
+``events.tsv`` becomes an unconvolved `DesignMatrix` (add HRF
+convolution, drift, and confound columns yourself with
+`transform_designs`). Metadata gets one row per run with ``subject``,
+``session``, ``run``, ``task``, ``space``, ``bold_path``, and ``TR``.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`root` | <code>Path \| str</code> | BIDS dataset root. | *required*
+`mask` | <code>Nifti1Image \| Path \| str</code> | Mask shared by every item. | *required*
+`task` | <code>str \| None</code> | BIDS task label. ``None`` discovers BOLD files without pairing events (designs are all ``None``). | <code>None</code>
+`space` | <code>str \| None</code> | Only keep images in this ``space-`` entity. | <code>None</code>
+`sub_labels` | <code>list[str] \| None</code> | Restrict to these subject labels. | <code>None</code>
+`img_filters` | <code>list[tuple[str, str]] \| None</code> | Extra BIDS ``(entity, value)`` filters on image filenames. | <code>None</code>
+`derivatives_folder` | <code>str</code> | Preprocessed-derivatives folder name under ``root``. | <code>'derivatives'</code>
+`pair_events` | <code>bool</code> | If True (and ``task`` is set), build a `DesignMatrix` from each run's ``events.tsv``. Runs without one get ``None`` and a warning. | <code>True</code>
+`confounds_strategy` | <code>str \| tuple[str, ...] \| None</code> | fMRIPrep confounds strategy forwarded to nilearn's ``load_confounds``; requires fMRIPrep-style derivatives. | <code>None</code>
+`confounds_kwargs` | <code>dict \| None</code> | Extra keyword arguments for ``load_confounds``. | <code>None</code>
+`TR` | <code>float \| str</code> | Repetition time in seconds, or ``'infer'`` to read it from the BIDS sidecars. | <code>'infer'</code>
+`cache_dir` | <code>Path \| str \| None</code> | Cache location; see the class constructor. | <code>'./.nltools_cache'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A lazy, path-backed collection.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If no BOLD files match, or ``TR='infer'`` finds no repetition time for a run.
+<code>ImportError</code> | If nilearn/pybids are unavailable, or ``confounds_strategy`` is set without fMRIPrep support.
 
 (data-brain-collection-from-glob)=
 ### `from_glob`
@@ -292,7 +417,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection)</code> | A lazy, path-backed `BrainCollection`.
+<code>[BrainCollection](#page-data-brain-collection)</code> | A lazy, path-backed `BrainCollection`.
 
 (data-brain-collection-from-paths)=
 ### `from_paths`
@@ -317,7 +442,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection)</code> | A lazy, path-backed `BrainCollection`.
+<code>[BrainCollection](#page-data-brain-collection)</code> | A lazy, path-backed `BrainCollection`.
 
 (data-brain-collection-isc)=
 ### `isc`
@@ -387,9 +512,19 @@ Yield ``(BrainData, DesignMatrix | None)`` pairs.
 load(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Materialize path-backed items in place.
+Load path-backed items into memory, in place.
 
-Returns ``self`` for chaining.
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`indices` | <code>list[int] \| None</code> | Items to load; ``None`` loads all. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | ``self``, for chaining.
 
 (data-brain-collection-map)=
 ### `map`
@@ -399,6 +534,21 @@ map(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False, cache: Litera
 ```
 
 Apply an arbitrary ``fn(BrainData) -> BrainData`` to each item in parallel.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fn` | <code>Callable</code> | Function taking one loaded `BrainData` and returning a `BrainData`. | *required*
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection of the returned items.
 
 (data-brain-collection-max)=
 ### `max`
@@ -436,11 +586,14 @@ memory_estimate() -> str
 
 Human-readable RAM estimate if every item were loaded into memory.
 
+The per-item shape is read from the first in-memory item, or from the
+first item loaded on demand when none is in memory.
+
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>str</code> | A string reporting ``n_subjects``, the per-item shape (or "unknown"     for path-backed items not yet loaded), and an estimated float32     total in MB/GB.
+<code>str</code> | ``n_subjects``, the per-item shape, and the estimated float32     total in human-readable units.
 
 (data-brain-collection-min)=
 ### `min`
@@ -497,7 +650,7 @@ inference engine's `two_sample_permutation_test`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`other` | <code>[BrainCollection](#data-brain-collection)</code> | The second collection to compare against. | *required*
+`other` | <code>[BrainCollection](#page-data-brain-collection)</code> | The second collection to compare against. | *required*
 `n_permute` | <code>int</code> | Number of label-shuffle permutations. | <code>5000</code>
 `tail` | <code>int \| str</code> | 1 for one-tailed, 2 for two-tailed. | <code>2</code>
 `device` | <code>str</code> | Execution backend — ``None`` (single-threaded numpy), ``'cpu'`` (joblib parallel), or ``'gpu'`` (PyTorch). | <code>'cpu'</code>
@@ -567,7 +720,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[PredictCollection](#data-fitresults-predictcollection) \| [BrainCollection](#data-brain-collection)</code> | `PredictCollection` (mode 1) or     `BrainCollection` (mode 2).
+<code>[PredictCollection](#data-fitresults-predictcollection) \| [BrainCollection](#page-data-brain-collection)</code> | `PredictCollection` (mode 1) or     `BrainCollection` (mode 2).
 
 (data-brain-collection-predict-group)=
 ### `predict_group`
@@ -615,14 +768,25 @@ Type | Description
 read(directory: Path | str, *, mask: nib.Nifti1Image | Path | str, cache_dir: Path | str | None = './.nltools_cache') -> BrainCollection
 ```
 
-Read a collection previously saved by ``write()``.
+Read a collection previously saved by `write`.
 
-<details class="note" open markdown="1">
-<summary>Note</summary>
+Discovers ``image_*.nii*`` files in ``directory`` and pairs them with
+the rows of ``metadata.csv`` when present. Only the portable layout
+written by `write` is readable this way — not the cache directories.
 
-Does not recover from cache subdirs in v0.6.0.
+**Parameters:**
 
-</details>
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`directory` | <code>Path \| str</code> | Directory produced by `write`. | *required*
+`mask` | <code>Nifti1Image \| Path \| str</code> | Mask shared by every item. | *required*
+`cache_dir` | <code>Path \| str \| None</code> | Cache location; see the class constructor. | <code>'./.nltools_cache'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A lazy, path-backed collection.
 
 (data-brain-collection-resample)=
 ### `resample`
@@ -633,13 +797,11 @@ resample(target, *, interpolation: str = 'continuous', n_jobs: int = -1, progres
 
 Resample every subject's image to a target space in parallel.
 
-Delegates to `BrainData.resample`.
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`target` |  | Resampling target (image, affine/shape spec, or template) passed through to `BrainData.resample`. | *required*
+`target` | <code>Nifti1Image \| Path \| str</code> | Target image whose grid and affine every item is resampled onto. | *required*
 `interpolation` | <code>str</code> | Interpolation method (``'continuous'``, ``'linear'``, ``'nearest'``). | <code>'continuous'</code>
 `n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
@@ -649,7 +811,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection)</code> | A new `BrainCollection` of resampled items.
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection of resampled items.
 
 (data-brain-collection-smooth)=
 ### `smooth`
@@ -659,6 +821,21 @@ smooth(fwhm: float, *, n_jobs: int = -1, progress_bar: bool = False, cache: Lite
 ```
 
 Spatially smooth every subject's image in parallel (delegates to `BrainData.smooth`).
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fwhm` | <code>float</code> | Gaussian kernel full-width at half-maximum, in mm. | *required*
+`n_jobs` | <code>int</code> | Parallel worker count (``-1`` uses all cores). | <code>-1</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Cache policy for the result (``'auto'`` follows source state). | <code>'auto'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection of smoothed items.
 
 (data-brain-collection-standardize)=
 ### `standardize`
@@ -683,7 +860,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection)</code> | A new `BrainCollection` of standardized items.
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new `BrainCollection` of standardized items.
 
 (data-brain-collection-std)=
 ### `std`
@@ -701,11 +878,16 @@ Voxelwise standard deviation across subjects as a single `BrainData`.
 steps() -> list[Path]
 ```
 
-Step subdirs that produced this collection's items, oldest to newest.
+Cache subdirectories of the steps that produced this collection's items, oldest to newest.
 
-Lineage chain accumulated through clones (one entry per upstream
-cached op). Empty when the collection was constructed directly or
-no ancestor wrote to disk.
+One entry per upstream cached operation. Empty when the collection was
+constructed directly or no ancestor wrote to disk.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>list[Path]</code> | Step directories under `cache_root`.
 
 (data-brain-collection-sum)=
 ### `sum`
@@ -741,7 +923,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainCollection](#data-brain-collection)</code> | A new `BrainCollection` of thresholded items.
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new `BrainCollection` of thresholded items.
 
 (data-brain-collection-transform-designs)=
 ### `transform_designs`
@@ -753,8 +935,24 @@ transform_designs(fn: Callable, *, n_jobs: int = -1, progress_bar: bool = False,
 Map ``fn(dm) -> DesignMatrix`` over each paired design.
 
 Items with no paired design are skipped (kept as ``None``). Runs in
-the parent process — designs are small. ``n_jobs``/``progress_bar``/
-``cache`` are accepted for surface consistency but ignored.
+the parent process — designs are small — so ``n_jobs``,
+``progress_bar``, and ``cache`` are accepted for consistency with the
+other per-subject methods but ignored.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`fn` | <code>Callable</code> | Function taking one `DesignMatrix` and returning the transformed `DesignMatrix`. | *required*
+`n_jobs` | <code>int</code> | Ignored. | <code>-1</code>
+`progress_bar` | <code>bool</code> | Ignored. | <code>False</code>
+`cache` | <code>Literal['auto', True, False]</code> | Ignored. | <code>'auto'</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | A new collection with the same items and the     transformed designs.
 
 (data-brain-collection-ttest)=
 ### `ttest`
@@ -791,7 +989,7 @@ Two-sample t-test between this collection and ``other`` (subject-level).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`other` | <code>[BrainCollection](#data-brain-collection)</code> | The second collection to compare against. | *required*
+`other` | <code>[BrainCollection](#page-data-brain-collection)</code> | The second collection to compare against. | *required*
 `equal_var` | <code>bool</code> | If True, pooled-variance t-test; if False, Welch's test. | <code>True</code>
 `tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: self > other; swap the operands for the other direction). | <code>2</code>
 
@@ -808,9 +1006,23 @@ Type | Description
 unload(indices: list[int] | None = None) -> BrainCollection
 ```
 
-Drop in-memory data for items with backing paths.
+Drop in-memory data for items that have a backing path, in place.
 
-Returns ``self`` for chaining.
+Items without a backing path (constructed from in-memory `BrainData`
+or produced with ``cache=False``) are left untouched, since dropping
+them would lose the data.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`indices` | <code>list[int] \| None</code> | Items to unload; ``None`` unloads all. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[BrainCollection](#page-data-brain-collection)</code> | ``self``, for chaining.
 
 (data-brain-collection-var)=
 ### `var`

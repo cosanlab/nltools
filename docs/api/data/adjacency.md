@@ -1,6 +1,6 @@
 ---
 title: Adjacency
-label: data-adjacency
+label: page-data-adjacency
 ---
 
 ```python
@@ -17,23 +17,27 @@ manipulation and analyses.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | pandas data instance or list of files | <code>None</code>
-`matrix_type` |  | (str) type of matrix.  Possible values include:         ['distance','similarity','directed','distance_flat',         'similarity_flat','directed_flat'] | <code>None</code>
-`Y` |  | Pandas DataFrame of training labels | <code>None</code>
-`labels` |  | (list) optional node labels | <code>None</code>
-`spatial_scale` | <code>[SpatialScale](#data-adjacency-spatial-spatialscale) \| None</code> | (SpatialScale, optional) spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space | <code>None</code>
+`data` | <code>ndarray \| DataFrame \| DataFrame \| str \| Path \| list</code> | A square matrix, a flattened vector, a `.csv`/`.h5` path, or a list of matrices/`Adjacency` instances/`.csv` paths to stack. | <code>None</code>
+`Y` | <code>DataFrame \| DataFrame</code> | Training labels, one row per matrix. | <code>None</code>
+`matrix_type` | <code>str</code> | Type of matrix. One of `'distance'`, `'similarity'`, `'directed'`, `'distance_flat'`, `'similarity_flat'`, `'directed_flat'`. | <code>None</code>
+`labels` | <code>list</code> | Node labels, one per row/column. | <code>None</code>
+`spatial_scale` | <code>[SpatialScale](#tasks-similarity-spatialscale)</code> | Spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space. | <code>None</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
+`data` | <code>ndarray</code> | Vectorized matrix values. Shape `(vector_length,)` for a single matrix or `(n_matrices, vector_length)` for a stack; symmetric matrices store only the upper triangle without the diagonal.
+`matrix_type` | <code>str</code> | One of `'distance'`, `'similarity'`, `'directed'`, or `'empty'` (the `'_flat'` input variants are normalized to their base type).
+`is_single_matrix` | <code>bool</code> | True when the instance holds exactly one matrix.
+`issymmetric` | <code>bool</code> | True for distance/similarity matrices, False for directed.
+`labels` | <code>list</code> | Node labels (empty list when none were given).
+`spatial_scale` | <code>[SpatialScale](#tasks-similarity-spatialscale) \| None</code> | Parcellation provenance for a stack produced by `BrainData.distance`; None otherwise.
 `Y` | <code>DataFrame</code> | Training labels as a polars DataFrame (possibly empty).
-`is_empty` | <code>bool</code> | Check if Adjacency object is empty.
-`n_nodes` |  | Return the number of nodes in the adjacency matrix.
-`shape` |  | Return the logical shape of the adjacency matrix.
-`vector_shape` |  | Return shape of internal vectorized representation.
-
-
+`is_empty` | <code>bool</code> | True if the instance holds no data.
+`n_nodes` | <code>int</code> | Number of nodes `n` for an `(n, n)` matrix.
+`shape` | <code>tuple</code> | Logical shape — `(n_nodes, n_nodes)` for a single matrix, `(n_matrices, n_nodes, n_nodes)` for a stack, `(0, 0)` when empty.
+`vector_shape` | <code>tuple</code> | Shape of the internal vectorized storage (`data.shape`).
 
 **Methods:**
 
@@ -64,8 +68,8 @@ Name | Description
 [`to_brain`](#data-adjacency-to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
 [`to_graph`](#data-adjacency-to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
 [`to_square`](#data-adjacency-to-square) | Convert adjacency back to square matrix format.
-[`ttest`](#data-adjacency-ttest) | Calculate ttest across samples.
-[`write`](#data-adjacency-write) | Write out Adjacency object to csv file.
+[`ttest`](#data-adjacency-ttest) | Calculate a one-sample t-test across stacked matrices.
+[`write`](#data-adjacency-write) | Write the Adjacency to a `.csv` or `.h5` file.
 [`z_to_r`](#data-adjacency-z-to-r) | Convert each z score back into an r value.
 
 ## Methods
@@ -83,13 +87,13 @@ Append data to an Adjacency instance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` |  | (Adjacency) Adjacency instance to append | *required*
+`data` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance to append. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | New appended Adjacency instance.
+<code>[Adjacency](#page-data-adjacency)</code> | New appended Adjacency instance.
 
 (data-adjacency-bootstrap)=
 ### `bootstrap`
@@ -107,27 +111,26 @@ Supports simple aggregation statistics (mean, std, median, sum, min, max).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stat` |  | (str) Statistic to bootstrap. Options: - Simple stats: 'mean', 'median', 'std', 'sum', 'min', 'max' | *required*
-`n_samples` |  | (int) Number of bootstrap iterations. Default: 5000 | <code>5000</code>
-`save_boots` |  | (bool) If True, store all bootstrap samples (memory intensive).        Default: False | <code>False</code>
-`percentiles` |  | (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5) | <code>(2.5, 97.5)</code>
-`n_jobs` |  | (int) Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>bool</code> | (bool) If True, show a progress bar. Default False. | <code>False</code>
+`stat` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'`. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap iterations. Default 5000. | <code>5000</code>
+`save_boots` | <code>bool</code> | If True, store all bootstrap samples (memory intensive). Default False. | <code>False</code>
+`percentiles` | <code>tuple</code> | Percentiles for confidence intervals. Default (2.5, 97.5). | <code>(2.5, 97.5)</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
+<code>dict</code> | Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,     `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also     includes `'samples'`.
 
 **Examples:**
 
-```pycon
->>> # Simple aggregation
->>> boot = adj.bootstrap(stat='mean', n_samples=1000)
->>> assert 'mean' in boot
->>> assert isinstance(boot['mean'], Adjacency)
+```python
+boot = adj.bootstrap(stat="mean", n_samples=1000)
+boot["mean"]  # → Adjacency
 ```
 
 (data-adjacency-cluster-summary)=
@@ -146,15 +149,15 @@ list of cluster ids indicating the row/column of each cluster.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`clusters` |  | (list) list of cluster labels | <code>None</code>
-`summary` |  | (str) central tendency, 'mean' or 'median'. If `None` then return all r values | <code>'mean'</code>
-`scope` |  | (str) summarize 'within' cluster or 'between' clusters | <code>'within'</code>
+`clusters` | <code>list</code> | Cluster label for each row/column. | <code>None</code>
+`summary` | <code>str \| None</code> | Central tendency, `'mean'` or `'median'`. If None, return all values instead of a summary. | <code>'mean'</code>
+`scope` | <code>str</code> | Summarize `'within'` cluster or `'between'` clusters. | <code>'within'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | per-cluster summaries
+<code>dict</code> | Per-cluster summaries keyed by cluster label.
 
 (data-adjacency-copy)=
 ### `copy`
@@ -178,14 +181,15 @@ Calculate distance between images within an Adjacency() instance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`metric` |  | (str) type of distance metric (can use any scikit learn or     scipy metric) | <code>'correlation'</code>
-`include_diag` |  | (bool) whether to include the main diagonal when     computing distances between adjacency matrices. Only applies     to symmetric matrices. Default False (consistent with how     symmetric matrices are stored without diagonal). | <code>False</code>
+`metric` | <code>str</code> | Distance metric; any metric accepted by `sklearn.metrics.pairwise_distances` (scikit-learn or scipy). | <code>'correlation'</code>
+`include_diag` | <code>bool</code> | Whether to include the main diagonal when computing distances between adjacency matrices. Only applies to symmetric matrices. Default False (consistent with how symmetric matrices are stored without the diagonal). | <code>False</code>
+`**kwargs` | <code>dict</code> | Forwarded to `sklearn.metrics.pairwise_distances`. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | A 2D distance matrix.
+<code>[Adjacency](#page-data-adjacency)</code> | A 2D distance matrix.
 
 (data-adjacency-distance-to-similarity)=
 ### `distance_to_similarity`
@@ -209,7 +213,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | The converted similarity matrix.
+<code>[Adjacency](#page-data-adjacency)</code> | The converted similarity matrix.
 
 (data-adjacency-generate-permutations)=
 ### `generate_permutations`
@@ -224,22 +228,21 @@ Generate permuted versions of an Adjacency instance lazily.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_permute` | <code>int</code> | number of permutations | *required*
-`random_state` | <code>(int, seed)</code> | random seed for reproducibility. | <code>None</code>
-
-**Examples:**
-
-```pycon
->>> for perm in adj.generate_permutations(1000):
->>>     out = neural_distance_mat.similarity(perm)
->>>     ...
-```
+`n_permute` | <code>int</code> | Number of permutations. | *required*
+`random_state` | <code>int \| RandomState</code> | Random seed for reproducibility. | <code>None</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | permuted version of self
+<code>[Adjacency](#page-data-adjacency)</code> | Permuted version of self.
+
+**Examples:**
+
+```python
+for perm in adj.generate_permutations(1000):
+    out = neural_distance_mat.similarity(perm)
+```
 
 (data-adjacency-mean)=
 ### `mean`
@@ -254,13 +257,13 @@ Calculate mean of Adjacency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | Calculate mean over matrices (0) or upper triangle (1). | <code>0</code>
+`axis` | <code>int</code> | Calculate mean over matrices (0) or upper triangle (1). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>float \| [Adjacency](#data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
+<code>float \| [Adjacency](#page-data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-median)=
 ### `median`
@@ -275,13 +278,13 @@ Calculate median of Adjacency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | Calculate median over matrices (0) or upper triangle (1). | <code>0</code>
+`axis` | <code>int</code> | Calculate median over matrices (0) or upper triangle (1). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>float \| [Adjacency](#data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
+<code>float \| [Adjacency](#page-data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-plot)=
 ### `plot`
@@ -292,14 +295,14 @@ plot(limit = 3, axes = None, *args, **kwargs)
 
 Create a heatmap of an Adjacency matrix.
 
-Can pass in any sns.heatmap argument
-
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`limit` |  | (int) number of heatmaps to plot if object contains multiple adjacencies (default: 3) | <code>3</code>
-`axes` |  | matplotlib axis handle | <code>None</code>
+`limit` | <code>int</code> | Number of heatmaps to plot if the object contains multiple matrices. Default 3. | <code>3</code>
+`axes` | <code>Axes</code> | Axis to draw on (single matrix only). | <code>None</code>
+`*args` | <code>tuple</code> | Forwarded positionally to `seaborn.heatmap`. | <code>()</code>
+`**kwargs` | <code>dict</code> | Forwarded to `seaborn.heatmap`. | <code>{}</code>
 
 (data-adjacency-plot-label-distance)=
 ### `plot_label_distance`
@@ -314,7 +317,8 @@ Create a violin plot of within- and between-label distances.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`labels` | <code>array</code> | numpy array of labels to plot | <code>None</code>
+`labels` | <code>ndarray</code> | Group label per node; defaults to the stored labels. | <code>None</code>
+`ax` | <code>Axes</code> | Axis to draw on. | <code>None</code>
 
 (data-adjacency-plot-mds)=
 ### `plot_mds`
@@ -329,15 +333,16 @@ Plot multidimensional scaling.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_components` |  | (int) Number of dimensions to project (can be 2 or 3) | <code>2</code>
-`metric_mds` |  | (bool) Perform metric (True) or non-metric (False) dimensional scaling; default True | <code>True</code>
-`labels` |  | (list) Can override labels stored in Adjacency Class | <code>None</code>
-`labels_color` |  | (str) list of colors for labels, if len(1) then make all same color | <code>None</code>
-`cmap` |  | colormap instance (default: plt.cm.hot_r) | <code>None</code>
-`view` |  | (tuple) view for 3-Dimensional plot; default (30,20) | <code>(30, 20)</code>
-`figsize` |  | (list) figure size; default [12, 8] | <code>None</code>
-`ax` |  | matplotlib axis handle | <code>None</code>
-`n_jobs` |  | (int) Number of parallel jobs | <code>-1</code>
+`n_components` | <code>int</code> | Number of dimensions to project (2 or 3). | <code>2</code>
+`metric_mds` | <code>bool</code> | Perform metric (True) or non-metric (False) scaling. Default True. | <code>True</code>
+`labels` | <code>list</code> | Overrides the labels stored on the instance. | <code>None</code>
+`labels_color` | <code>list</code> | One color per label. | <code>None</code>
+`cmap` | <code>Colormap</code> | Colormap. Default `plt.cm.hot_r`. | <code>None</code>
+`view` | <code>tuple</code> | Elevation/azimuth for a 3-D plot. Default (30, 20). | <code>(30, 20)</code>
+`figsize` | <code>list</code> | Figure size. Default [12, 8]. | <code>None</code>
+`ax` | <code>Axes</code> | Axis to draw on. | <code>None</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs. | <code>-1</code>
+`**kwargs` | <code>dict</code> | Forwarded to `sklearn.manifold.MDS`. | <code>{}</code>
 
 (data-adjacency-plot-silhouette)=
 ### `plot_silhouette`
@@ -352,12 +357,18 @@ Create a silhouette plot.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`labels` |  | Numpy array of cluster/group labels (overrides stored labels). | <code>None</code>
-`ax` |  | Matplotlib axis handle. | <code>None</code>
-`permutation_test` |  | (bool) Whether to run a permutation test. Default True. | <code>True</code>
-`n_permute` |  | (int) Number of permutations for the test. Default 5000. | <code>5000</code>
-`colors` |  | Optional list of RGB triplets, one per cluster (default: seaborn 'hls' palette). | <code>None</code>
-`figsize` |  | Figure size tuple. Default (6, 4). | <code>(6, 4)</code>
+`labels` | <code>ndarray</code> | Cluster/group label per node (overrides stored labels). | <code>None</code>
+`ax` | <code>Axes</code> | Axis to draw on. | <code>None</code>
+`permutation_test` | <code>bool</code> | Whether to run a permutation test. Default True. | <code>True</code>
+`n_permute` | <code>int</code> | Number of permutations for the test. Default 5000. | <code>5000</code>
+`colors` | <code>list</code> | RGB triplets, one per cluster. Default: seaborn `'hls'` palette. | <code>None</code>
+`figsize` | <code>tuple</code> | Figure size. Default (6, 4). | <code>(6, 4)</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>DataFrame</code> | Columns `label` and `mean_silhouette`, plus `p` when     `permutation_test=True`.
 
 (data-adjacency-r-to-z)=
 ### `r_to_z`
@@ -376,22 +387,23 @@ regress(X, method = 'ols', tail = 2)
 ```
 
 Run a regression on an adjacency instance.
-You can decompose an adjacency instance with another adjacency instance.
-You can also decompose each pixel by passing a design_matrix instance.
+
+Pass an `Adjacency` as `X` to decompose this matrix with other matrices, or a
+`DesignMatrix` to regress each cell across a stack of matrices.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` |  | Design matrix can be an Adjacency or DesignMatrix instance | *required*
-`method` |  | type of regression (default: ols) - only 'ols' is currently supported | <code>'ols'</code>
-`tail` |  | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0; negate a regressor for the other direction) | <code>2</code>
+`X` | <code>[Adjacency](#page-data-adjacency) \| [DesignMatrix](#page-data-design-matrix)</code> | Design matrix. | *required*
+`method` | <code>str</code> | Type of regression; only `'ols'` is currently supported. | <code>'ols'</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0; negate a regressor for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary of stats outputs.
+<code>dict</code> | Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,     `'residual'`.
 
 (data-adjacency-similarity)=
 ### `similarity`
@@ -408,25 +420,25 @@ The default uses Spearman correlation and a permutation test.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[Adjacency](#data-adjacency) or array</code> | Adjacency data, or 1-d array same size as self.data | *required*
-`plot` |  | (bool) plot the two stacked adjacency matrices being compared. Default False | <code>False</code>
-`method` |  | (str) permutation scheme '1d', '2d', or None | <code>'2d'</code>
-`n_permute` |  | (int) number of permutations for the p-value. Default 5000 | <code>5000</code>
-`metric` |  | (str) 'spearman','pearson','kendall' | <code>'spearman'</code>
-`include_diag` |  | (bool) only applies to 'directed' Adjacency types using method=None or method='1d'. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
-`nan_policy` |  | (str) How to handle NaN values. Options: - 'omit': Remove NaN values pairwise before computing correlation (default) - 'propagate': Allow NaN to propagate through calculations - 'raise': Raise an error if NaN values are present | <code>'omit'</code>
-`tail` |  | (int) Tail of the test (1 or 2). Default 2. | <code>2</code>
-`return_null` |  | (bool) If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | (int) Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | (int, optional) Random seed for reproducibility. | <code>None</code>
-`progress_bar` | <code>bool</code> | (bool) If True, show a progress bar. Default False. | <code>False</code>
-`project` | <code>bool</code> | (bool) If True and this Adjacency has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
+`data` | <code>[Adjacency](#page-data-adjacency) \| ndarray</code> | Adjacency to compare against, or a 1-D array the same size as `self.data`. | *required*
+`plot` | <code>bool</code> | Plot the two stacked adjacency matrices being compared. Default False. | <code>False</code>
+`method` | <code>str \| None</code> | Permutation scheme, `'1d'`, `'2d'`, or None (no permutation test). | <code>'2d'</code>
+`n_permute` | <code>int</code> | Number of permutations for the p-value. Default 5000. | <code>5000</code>
+`metric` | <code>str</code> | `'spearman'`, `'pearson'`, or `'kendall'`. | <code>'spearman'</code>
+`include_diag` | <code>bool</code> | Only applies to `'directed'` matrices with `method=None` or `method='1d'`. Default False (self-similarity is uninformative). Symmetric matrices never store the diagonal, so this flag is a no-op for them. | <code>False</code>
+`nan_policy` | <code>str</code> | How to handle NaN values: `'omit'` removes NaN pairwise before computing the correlation (default), `'propagate'` lets NaN flow through, `'raise'` errors if any NaN is present. | <code>'omit'</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
+`return_null` | <code>bool</code> | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
+`project` | <code>bool</code> | If True and this Adjacency has a `spatial_scale`, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict \| list[dict] \| [BrainData](#data-brain-data)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' for a single matrix, a list of     such dicts when this Adjacency holds multiple matrices, or a     `BrainData` when `project=True` (per-matrix correlations     projected via spatial_scale).
+<code>dict \| list[dict] \| [BrainData](#page-data-brain-data)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' for a single matrix, a list of     such dicts when this Adjacency holds multiple matrices, or a     `BrainData` when `project=True` (per-matrix correlations     projected via spatial_scale).
 
 (data-adjacency-social-relations-model)=
 ### `social_relations_model`
@@ -443,31 +455,21 @@ where $X_{ij}$ is the score for person i rating person j, $m$ is the group mean,
 $\alpha_i$ is person i's actor effect, $\beta_j$ is person j's partner effect, $g_{ij}$
 is the relationship effect and $\epsilon_{ijl}$ is the error in measure l for actor i and partner j.
 
-This model is primarily concerned with partioning the variance of the various effects.
+This model is primarily concerned with partitioning the variance of the various
+effects. The implementation follows Chapter 8 of Kenny, Kashy, & Cook (2006) and
+the tests replicate the book's examples. Actor scores are rows (lower triangle)
+and partner scores are columns (upper triangle). The minimal sample size to
+estimate these effects is 4.
 
-Code is based on implementation presented in Chapter 8 of Kenny, Kashy, & Cook (2006).
-Tests replicate examples  presented in the book. Note, that this method assumes that
-actor scores are rows (lower triangle), while partner scores are columnns (upper triangle).
-The minimal sample size to estimate these effects is 4.
-
-<details class="model-assumptions" open markdown="1">
-<summary>Model Assumptions</summary>
-
-- Social interactions are exclusively dyadic
-- People are randomly sampled from population
-- No order effects
-- The effects combine additively and relationships are linear
-
-</details>
-
-In the future we might update the formulas and standard errors based on
-Bond and Lashley, 1996
+**Model assumptions:** social interactions are exclusively dyadic; people are
+randomly sampled from the population; there are no order effects; the effects
+combine additively and relationships are linear.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`summarize_results` | <code>bool</code> | If True, provide a formatted summary of model results. | <code>True</code>
+`summarize_results` | <code>bool</code> | If True, print a formatted summary of model results. | <code>True</code>
 `nan_replace` | <code>bool</code> | If True, replace NaN values with row and column means. | <code>True</code>
 
 **Returns:**
@@ -475,6 +477,14 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>Series \| DataFrame</code> | All of the effects estimated using SRM, as a     Series (single matrix) or DataFrame (one row per matrix).
+
+<details class="references" open markdown="1">
+<summary>References</summary>
+
+Kenny, D. A., Kashy, D. A., & Cook, W. L. (2006). *Dyadic data analysis*.
+Guilford Press.
+
+</details>
 
 (data-adjacency-squareform)=
 ### `squareform`
@@ -484,6 +494,12 @@ squareform()
 ```
 
 Convert adjacency data back to square form.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>ndarray \| list[ndarray]</code> | A square matrix, or a list of them for a     stack.
 
 (data-adjacency-stats-label-distance)=
 ### `stats_label_distance`
@@ -498,14 +514,15 @@ Calculate permutation tests on within and between label distance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`labels` | <code>array</code> | numpy array of labels to plot | <code>None</code>
-`n_permute` | <code>int</code> | number of permutations to run (default=5000) | <code>5000</code>
+`labels` | <code>ndarray</code> | Group label per node; defaults to the stored labels. | <code>None</code>
+`n_permute` | <code>int</code> | Number of permutations to run. Default 5000. | <code>5000</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | dictionary of within and between group differences         and p-values
+<code>dict</code> | Per-group within-vs-between distance differences and p-values, keyed     by group label.
 
 (data-adjacency-std)=
 ### `std`
@@ -520,13 +537,13 @@ Calculate standard deviation of Adjacency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | Calculate std over matrices (0) or upper triangle (1). | <code>0</code>
+`axis` | <code>int</code> | Calculate std over matrices (0) or upper triangle (1). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>float \| [Adjacency](#data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
+<code>float \| [Adjacency](#page-data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-sum)=
 ### `sum`
@@ -541,13 +558,13 @@ Calculate sum of Adjacency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`axis` |  | Calculate sum over matrices (0) or upper triangle (1). | <code>0</code>
+`axis` | <code>int</code> | Calculate sum over matrices (0) or upper triangle (1). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>float \| [Adjacency](#data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
+<code>float \| [Adjacency](#page-data-adjacency) \| ndarray</code> | A float for a single matrix; an     Adjacency when `axis=0`; an array when `axis=1`.
 
 (data-adjacency-threshold)=
 ### `threshold`
@@ -566,15 +583,15 @@ if provided, otherwise respecting every non-zero value.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`upper` |  | (float or str) Upper cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`lower` |  | (float or str) Lower cutoff for thresholding. If string     will interpret as percentile; can be None for one-sided     thresholding. | <code>None</code>
-`binarize` | <code>bool</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+`upper` | <code>float \| str</code> | Upper cutoff. A string such as `'95%'` is interpreted as a percentile; None for one-sided thresholding. | <code>None</code>
+`lower` | <code>float \| str</code> | Lower cutoff. A string such as `'5%'` is interpreted as a percentile; None for one-sided thresholding. | <code>None</code>
+`binarize` | <code>bool</code> | Return a binarized matrix respecting the thresholds if provided, otherwise binarize on every non-zero value. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#data-adjacency)</code> | thresholded Adjacency instance
+<code>[Adjacency](#page-data-adjacency)</code> | Thresholded Adjacency instance.
 
 (data-adjacency-to-brain)=
 ### `to_brain`
@@ -587,37 +604,36 @@ Project per-matrix scalars back to voxel-space `BrainData`.
 
 Requires `spatial_scale` to be set (i.e. this stack came from
 `BrainData.distance` or another spatial-scale-aware producer).
-Each entry of ``values`` is painted onto the voxels assigned to its
-corresponding parcel by ``spatial_scale.atlas`` /
-``spatial_scale.roi_labels``. Voxels outside the atlas receive
-``fill``.
+Each entry of `values` is painted onto the voxels assigned to its
+corresponding parcel by `spatial_scale.atlas` /
+`spatial_scale.roi_labels`. Voxels outside the atlas receive
+`fill`.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`values` |  | 1-D array of length ``len(self)`` — one scalar per matrix in the stack. | *required*
-`fill` | <code>float</code> | Value for voxels not covered by any provided ROI label. Default ``np.nan``. | <code>nan</code>
+`values` | <code>ndarray</code> | 1-D array of length `len(self)` — one scalar per matrix in the stack. | *required*
+`fill` | <code>float</code> | Value for voxels not covered by any provided ROI label. Default `np.nan`. | <code>nan</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#data-brain-data)</code> | Single image masked to ``spatial_scale.source_mask``.
+<code>[BrainData](#page-data-brain-data)</code> | Single image masked to `spatial_scale.source_mask`.
 
 **Raises:**
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If ``spatial_scale`` is None, or ``values`` has the wrong length.
+<code>ValueError</code> | If `spatial_scale` is None, or `values` has the wrong length.
 
 **Examples:**
 
-```pycon
->>> rdms = brain.distance(metric='correlation',
-...                       spatial_scale='roi', roi_mask=atlas)
->>> sims = rdms.similarity(model_rdm)
->>> brain_map = rdms.to_brain(sims)
+```python
+rdms = brain.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas)
+sims = [r["correlation"] for r in rdms.similarity(model_rdm)]
+brain_map = rdms.to_brain(sims)
 ```
 
 (data-adjacency-to-graph)=
@@ -629,7 +645,13 @@ to_graph()
 
 Convert a single Adjacency matrix into a NetworkX graph.
 
-This currently works only for ``single_matrix``.
+This currently works only when `is_single_matrix` is True.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>Graph \| DiGraph</code> | `DiGraph` for directed matrices,     `Graph` otherwise; nodes are relabeled with `labels` when set.
 
 (data-adjacency-to-square)=
 ### `to_square`
@@ -655,25 +677,25 @@ Type | Description
 ttest(*, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
-Calculate ttest across samples.
+Calculate a one-sample t-test across stacked matrices.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`permutation` |  | (bool) Run ttest as permutation. Note this can be very slow. | <code>False</code>
-`n_permute` |  | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` |  | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: mean > 0; negate the data for the other direction). Applies to both the parametric and permutation paths. | <code>2</code>
-`return_null` |  | If True, also return the null distribution. Default False. | <code>False</code>
-`n_jobs` |  | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
-`random_state` |  | Random seed for reproducibility. | <code>None</code>
+`permutation` | <code>bool</code> | Run the test as a permutation test. Note this can be very slow. | <code>False</code>
+`n_permute` | <code>int</code> | Number of permutations (used only when `permutation=True`). Default 5000. | <code>5000</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: mean > 0; negate the data for the other direction). Applies to both the parametric and permutation paths. | <code>2</code>
+`return_null` | <code>bool</code> | If True, also return the null distribution. Default False. | <code>False</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Contains Adjacency instances of t values (or mean if running     permutation) and Adjacency instance of p values.
+<code>dict</code> | `'t'` — Adjacency of t values (or means when `permutation=True`) —     and `'p'` — Adjacency of p values.
 
 (data-adjacency-write)=
 ### `write`
@@ -682,14 +704,14 @@ Type | Description
 write(file_name, method = 'long')
 ```
 
-Write out Adjacency object to csv file.
+Write the Adjacency to a `.csv` or `.h5` file.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`file_name` | <code>str</code> | name of file name to write | *required*
-`method` | <code>str</code> | method to write out data ['long','square'] | <code>'long'</code>
+`file_name` | <code>str \| Path</code> | Output path; an `.h5`/`.hdf5` suffix writes HDF5. | *required*
+`method` | <code>str</code> | Layout for CSV output, `'long'` (vectorized rows) or `'square'` (single matrix only). | <code>'long'</code>
 
 (data-adjacency-z-to-r)=
 ### `z_to_r`

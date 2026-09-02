@@ -172,7 +172,7 @@ shell = """ruff check nltools --fix && ruff format nltools && ty check nltools""
 
 [tool.poe.tasks.lint-api]
 help = "Enforce v0.6.0 canonical-kwarg API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check + docs/api drift check)"
-shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check && python scripts/build_api_docs.py --check"""
+shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check && python scripts/build_api_docs.py --check && python scripts/check_docstrings.py"""
 
 [tool.poe.tasks.test]
 help = "Run default fast test suite (parallel)"
