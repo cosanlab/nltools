@@ -105,7 +105,7 @@ def convolve(
             raise ValueError(
                 f"String conv_func must be 'hrf', got '{conv_func}'. "
                 "Use conv_func='hrf' or provide a numpy array. "
-                "Tip: Use nltools.utils.glover_hrf() to generate custom HRFs."
+                "Tip: Use nltools.algorithms.hrf.glover_hrf() to generate custom HRFs."
             )
         # Generate Glover HRF at this sampling frequency
         # TR = 1 / sampling_freq
@@ -115,7 +115,7 @@ def convolve(
             raise ValueError(
                 f"HRF function must be 1D (shape: (samples,)) or 2D (shape: (samples, n_kernels)). "
                 f"Got shape: {conv_func.shape}. "
-                "Tip: Use nltools.utils.glover_hrf() to generate HRFs."
+                "Tip: Use nltools.algorithms.hrf.glover_hrf() to generate HRFs."
             )
     else:
         raise TypeError(
@@ -167,7 +167,7 @@ def add_poly(
 
     Returns:
         DesignMatrix: New DesignMatrix with polynomial columns appended, named
-        ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
+            ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
         ValueError: If order < 0, or if the design already carries run-separated
@@ -262,7 +262,7 @@ def add_dct_basis(
 
     Returns:
         DesignMatrix: New DesignMatrix with DCT basis columns appended, named
-        ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
+            ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
 
     Raises:
         ValueError: If sampling_freq is not set, or if the design already
