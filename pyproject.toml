@@ -33,6 +33,9 @@ dependencies = [
     "numpy>=2.0.2",
     "polars>=1.18",
     "pynv>=0.3",
+    # Imported directly throughout (cross_validation, ridge, MDS, ...); >=1.8 for
+    # the current MDS kwargs (metric='precomputed', metric_mds, init).
+    "scikit-learn>=1.8",
     "seaborn>=0.13.2",
 ]
 

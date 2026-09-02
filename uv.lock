@@ -2073,6 +2073,7 @@ dependencies = [
     { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "polars" },
     { name = "pynv" },
+    { name = "scikit-learn" },
     { name = "seaborn" },
 ]
 
@@ -2133,6 +2134,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.0.2" },
     { name = "polars", specifier = ">=1.18" },
     { name = "pynv", specifier = ">=0.3" },
+    { name = "scikit-learn", specifier = ">=1.8" },
     { name = "seaborn", specifier = ">=0.13.2" },
 ]
 provides-extras = ["h5", "graph", "interactive-plots", "all"]

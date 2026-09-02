@@ -174,3 +174,18 @@ class TestPlotBetweenLabelDistanceFigureLeak:
         plot_between_label_distance(distance, labels, ax=ax, permutation_test=False)
         assert len(plt.get_fignums()) == n_before
         plt.close("all")
+
+
+class TestPlotMDS:
+    def test_plot_mds_uses_current_sklearn_api(self, well_separated_distance):
+        """`Adjacency.plot_mds` must not trip sklearn>=1.8's MDS deprecations."""
+        import warnings
+
+        from nltools.data import Adjacency
+
+        d, labels = well_separated_distance
+        adj = Adjacency(d, matrix_type="distance", labels=[str(x) for x in labels])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            adj.plot_mds(n_components=2, figsize=(4, 4))
+        plt.close("all")

@@ -12,9 +12,6 @@ def plot_adjacency(adj, limit=3, axes=None, *args, **kwargs):
         adj (Adjacency): Adjacency object to plot.
         limit (int): Number of heatmaps to plot if object contains multiple adjacencies (default: 3).
         axes: Matplotlib axis handle.
-
-    Returns:
-        None
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -82,9 +79,6 @@ def plot_mds(
         figsize (list): Figure size. Default [12, 8].
         ax: Matplotlib axis handle.
         n_jobs (int): Number of parallel jobs.
-
-    Returns:
-        None
     """
     import matplotlib.pyplot as plt
     from sklearn.manifold import MDS
@@ -113,12 +107,15 @@ def plot_mds(
         if len(labels) != len(labels_color):
             raise ValueError("Length of labels_color must match self.labels.")
 
-    # Run MDS
+    # Run MDS (sklearn >= 1.8 API). Classical-MDS init is deterministic, so a
+    # single run suffices; both become sklearn's defaults in 1.9/1.10.
     mds = MDS(
         n_components=n_components,
-        metric=metric_mds,
+        metric_mds=metric_mds,
         n_jobs=n_jobs,
-        dissimilarity="precomputed",
+        metric="precomputed",
+        init="classical_mds",
+        n_init=1,
         **kwargs,
     )
     proj = mds.fit_transform(adj.squareform())
