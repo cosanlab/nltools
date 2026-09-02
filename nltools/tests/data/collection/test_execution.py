@@ -256,6 +256,21 @@ class TestApplyDispatch:
         out = bc_pathbacked.smooth(fwhm=6.0)
         assert out.metadata is bc_pathbacked.metadata
 
+    def test_resample_dispatches_to_braindata_resample_to(self, bc_inmem, tiny_mask):
+        """`resample(target)` must reach `BrainData.resample_to(img=target)`."""
+        import nibabel as nib
+
+        coarse_affine = tiny_mask.affine.copy()
+        coarse_affine[:3, :3] *= 1.5  # 2 mm -> 3 mm grid, 2x2x2 voxels
+        target = nib.Nifti1Image(np.ones((2, 2, 2), dtype=np.uint8), coarse_affine)
+
+        out = bc_inmem.resample(target, interpolation="nearest")
+
+        assert isinstance(out, BrainCollection)
+        assert out.n_subjects == bc_inmem.n_subjects
+        assert out[0].mask.shape == target.shape
+        np.testing.assert_allclose(out[0].mask.affine, target.affine)
+
 
 class TestCacheKnob:
     """The cache= knob."""
