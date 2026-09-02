@@ -4,6 +4,8 @@ title: Tutorials
 
 Learn how to use nltools through hands-on examples. Start with the **Basics** to understand core data structures, then explore **Workflows** for complete analysis pipelines.
 
+Tutorials are worked analyses you read start to finish; when you already know what you want to do and just need the right call and its gotchas, go to the [User Guide](../guide/index.md) instead.
+
 Each tutorial runs end-to-end and shows its outputs inline. Every page is rendered from a [marimo](https://marimo.io) notebook under [`docs/tutorials/`](https://github.com/cosanlab/nltools/tree/master/docs/tutorials) — download the `.py` and open it with `uvx marimo edit --sandbox <notebook>.py` to run and edit every cell yourself. Each page also carries an **Open in molab** badge that runs the notebook in the cloud with nothing to install.
 
 ## Basics
