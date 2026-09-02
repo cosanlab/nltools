@@ -244,7 +244,7 @@ python scripts/marimo_to_myst.py --all
 # (local, and the nltools.org deploy); set it (e.g. /nltools) only for a subpath
 # deploy such as a fork's GitHub Pages project page.
 [tool.poe.tasks.docs-site]
-help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs (BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
+help = "Build the MyST site, executing tutorials (via the execute cache) to bake outputs; fails on a raising cell (--strict) or any cell stderr (BASE_URL=/<repo> only for a subpath deploy; SITE_URL overrides the https://nltools.org sitemap host)"
 shell = """
 set -eu
 # MyST executes tutorial code-cells through a Jupyter kernel named `python3` (see
@@ -257,7 +257,10 @@ cd docs
 # figures); an empty IPYTHONDIR keeps executed outputs identical to CI.
 mkdir -p _build/ipython
 export IPYTHONDIR="$PWD/_build/ipython"
-myst build --site --html --execute
+# --strict exits non-zero on build *errors* (warnings are only summarized): a
+# tutorial cell that raises is a file error, so it fails the build instead of
+# silently truncating the page.
+myst build --site --html --execute --strict
 # Standalone interactive Design Tour page (not a MyST page; copied verbatim).
 cp public/design-tour.html _build/html/design-tour.html
 # MyST does not apply BASE_URL to the literal `url:` Design Tour TOC link. On a
@@ -270,6 +273,10 @@ fi
 # Rewrite it to the public origin so search engines index the deployed URLs.
 export SITE_URL="${SITE_URL:-https://nltools.org}"
 find _build/html -type f \\( -name '*.html' -o -name '*.json' -o -name '*.xml' -o -name '*.txt' \\) -exec perl -pi -e 's{http://localhost:3000}{$ENV{SITE_URL}}g' {} +
+# stderr gate (issue #489): myst.yml's `output_stderr: remove-warn` strips stderr
+# from the rendered pages, so inspect the raw kernel outputs in the execute cache
+# and fail if any tutorial cell warned.
+python ../scripts/check_tutorial_stderr.py --docs-dir .
 """
 
 [tool.poe.tasks.docs-build]
@@ -277,6 +284,17 @@ help = "Full docs build: regenerate sources → build + execute the site (root b
 sequence = [
   { ref = "docs-generate" },
   { ref = "docs-site" },
+]
+
+# What CI runs (docs-deploy.yml). A fresh checkout has neither cache, so this is
+# a no-op there; locally it guarantees every tutorial cell really re-executes and
+# every joblib-cached fit really recomputes before the stderr gate judges them.
+[tool.poe.tasks.docs-build-fresh]
+help = "Cold docs build, as CI runs it: drop the tutorials' joblib caches and the MyST execute cache, then docs-build"
+sequence = [
+  { ref = "tutorials-clean-cache" },
+  { ref = "docs-clean-cache" },
+  { ref = "docs-build" },
 ]
 
 [tool.poe.tasks.docs-preview]
@@ -292,8 +310,8 @@ help = "Execute each tutorial marimo notebook as a script to verify it runs end-
 shell = """for nb in docs/tutorials/basics/[0-9]*.py docs/tutorials/workflows/[0-9]*.py; do echo "run  $nb"; python "$nb" || exit 1; done"""
 
 [tool.poe.tasks.tutorials-clean-cache]
-help = "Clear the joblib fit cache used by the tutorial notebooks (forces recompute)"
-shell = """rm -rf .cache/tutorials docs/.cache/tutorials"""
+help = "Clear the tutorials' joblib fit caches (forces recompute). Memory('.cache/tutorials') is cwd-relative: repo root for `poe tutorials-run`, and docs/tutorials/<section>/ for the MyST build, whose kernels run with cwd = the page's directory"
+shell = """rm -rf .cache/tutorials docs/.cache/tutorials docs/tutorials/*/.cache"""
 
 [tool.poe.tasks.tutorials]
 help = "Static-check tutorial notebooks, then verify they run end-to-end"

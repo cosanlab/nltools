@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 04_brain_collection.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/basics/04_brain_collection.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/basics/04_brain_collection.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py
+    title: Source notebook (04_brain_collection.py)
 ---
 
 # BrainCollection Basics
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/04_brain_collection.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py) — that you can open and edit locally with `uvx marimo edit --sandbox 04_brain_collection.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/04_brain_collection.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/04_brain_collection.py). Click the badge to run it in the cloud (free, no install), or locally: download `04_brain_collection.py` and run `uvx marimo edit --sandbox 04_brain_collection.py`. Outputs below were baked in at build time.
 :::
 
 A `BrainCollection` is a **parallel, memory-efficient iterator of `BrainData`** —

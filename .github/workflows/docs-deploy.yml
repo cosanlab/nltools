@@ -76,11 +76,14 @@ jobs:
             hf-cache-${{ runner.os }}-
 
       # Regenerate sources (API reference, tutorial .md), then build + EXECUTE the
-      # MyST site. Root deploy: BASE_URL intentionally unset.
+      # MyST site. A fresh checkout is already cold (no MyST execute cache, no
+      # tutorial joblib caches); docs-build-fresh makes that explicit so a local
+      # `uv run poe docs-build-fresh` reproduces exactly this build, including the
+      # tutorial stderr gate. Root deploy: BASE_URL intentionally unset.
       - name: Build + execute docs
         env:
           HF_HUB_ETAG_TIMEOUT: "30"
-        run: uv run poe docs-build
+        run: uv run poe docs-build-fresh
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0

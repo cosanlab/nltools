@@ -10,6 +10,15 @@ project:
   # text output when their last expression isn't silenced.
   settings:
     output_matplotlib_strings: remove
+    # stderr policy (issue #489): tutorial cells must not *trigger* warnings — fix
+    # the analysis, never filter the warning. `remove-warn` deletes every
+    # `stream/stderr` output from the rendered page and logs one build warning per
+    # removal with the text, so nothing leaks silently; raised exceptions are a
+    # separate output type and are untouched (they fail the build under
+    # `--strict`). scripts/check_tutorial_stderr.py reads the raw execute cache
+    # and fails `docs-site` on any stderr. Once the count stays at zero, switch
+    # this to `error` so MyST itself fails the build.
+    output_stderr: remove-warn
   plugins:
     # Undo linkify's dead links on dotted identifiers (`BrainData.fit` -> http://BrainData.fit).
     - plugins/unlinkify.mjs

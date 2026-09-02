@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 01_glm.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/workflows/01_glm.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/workflows/01_glm.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py
+    title: Source notebook (01_glm.py)
 ---
 
 # GLM Analysis
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/workflows/01_glm.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py) — that you can open and edit locally with `uvx marimo edit --sandbox 01_glm.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/01_glm.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/01_glm.py). Click the badge to run it in the cloud (free, no install), or locally: download `01_glm.py` and run `uvx marimo edit --sandbox 01_glm.py`. Outputs below were baked in at build time.
 :::
 
 **What it answers.** *Where* in the brain does activity track your task design? The general linear model (GLM) is the mass-univariate workhorse of task fMRI: fit one regression per voxel, then test contrasts between conditions. Use it when you have a known design and want a statistical map of effects.
@@ -26,6 +35,7 @@ Feed *effect sizes* (βs), not first-level t-maps, into the group test: a first-
 ```{code-cell} python3
 import numpy as np
 from joblib import Memory
+from scipy.signal import detrend
 
 from nltools.data import BrainData, DesignMatrix
 from nltools.algorithms import fdr, threshold
@@ -40,11 +50,18 @@ memory = Memory(".cache/tutorials", verbose=0)
 
 We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV.
 
+The BOLD is already MNI-normalized, but on a 4.5 mm grid rather than the bundled 1/2/3 mm template grids. Interpolating every subject up to 3 mm would add voxels without adding information, so we analyze on the data's own grid: one MNI152 brain mask resampled down to it, shared by every subject so their maps stack directly, and the MNI152 T1 as the plotting background (`bg_img=`).
+
 ```{code-cell} python3
 import json
 from pathlib import Path
 
-from nilearn.datasets import fetch_language_localizer_demo_dataset
+from nilearn.datasets import (
+    fetch_language_localizer_demo_dataset,
+    load_mni152_brain_mask,
+    load_mni152_template,
+)
+from nilearn.image import resample_to_img
 from nilearn.interfaces.bids import get_bids_files
 
 DATASET = fetch_language_localizer_demo_dataset(verbose=0)
@@ -68,11 +85,17 @@ def get_sub_files(sub: str) -> dict:
         )[0],
         "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
     }
+
+# All subjects share one 4.5 mm MNI grid; nearest-neighbour keeps the mask binary.
+MNI_MASK = resample_to_img(
+    load_mni152_brain_mask(), get_sub_files("01")["bold"], interpolation="nearest"
+)
+MNI_T1 = load_mni152_template(resolution=2)
 ```
 
 ### First level (single subject)
 
-The recipe for one subject: load the BOLD (`BrainData` resamples to standard MNI automatically), build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the motion confounds as nuisance columns and add polynomial drift. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
+The recipe for one subject: load the BOLD with the shared mask, build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the six motion parameters as nuisance columns and add polynomial drift terms. Motion estimates drift slowly themselves, so we detrend them first — otherwise the drift would be modeled twice, once by the polynomials and again by the motion columns, and the two sets of regressors would be nearly collinear. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
 
 ```{code-cell} python3
 @memory.cache
@@ -84,10 +107,14 @@ def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
     on-disk cache stays small.
     """
     f = get_sub_files(sub)
-    brain = BrainData(f["bold"])
+    brain = BrainData(f["bold"], mask=MNI_MASK)
     events = DesignMatrix(f["events"], run_length=brain.shape[0], TR=f["TR"])
-    confounds = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
-    brain.fit(X=events.append(confounds, axis=1, as_confounds=True).add_poly(2))
+    motion = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
+    motion = DesignMatrix(
+        detrend(motion.to_numpy(), axis=0), columns=motion.columns, TR=f["TR"]
+    )
+    design = events.append(motion, axis=1, as_confounds=True).add_poly(2)
+    brain.fit(X=design)
     return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
 ```
 
@@ -100,7 +127,10 @@ The helper returns the `language > string` contrast as a bundle — `beta`, `t`,
 
 ```{code-cell} python3
 contrasts["t"].plot(
-    method="slices", threshold=3.09, title="sub-01: language > string (t)"
+    method="slices",
+    threshold=3.09,
+    bg_img=MNI_T1,
+    title="sub-01: language > string (t)",
 )
 ```
 
@@ -125,13 +155,15 @@ group = concatenate(beta_maps)
 group_result = group.ttest()
 group_z = threshold(group_result["z"], group_result["p"], thr=0.001)
 group_z.plot(
-    method="slices", title="Group: language > string (voxelwise p < 0.001)"
+    method="slices",
+    bg_img=MNI_T1,
+    title="Group: language > string (voxelwise p < 0.001)",
 )
 ```
 
 ### Multiple-comparisons correction
 
-That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though hundreds pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
+That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though dozens pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
 
 ```{code-cell} python3
 p_values = np.asarray(group_result["p"].data)

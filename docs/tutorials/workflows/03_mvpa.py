@@ -50,8 +50,6 @@ def _(mo):
 
 @app.cell
 def _():
-    import warnings
-
     import numpy as np
     import pandas as pd
     from joblib import Memory
@@ -60,10 +58,7 @@ def _():
     from nltools.templates import fetch_resource
 
     memory = Memory(".cache/tutorials", verbose=0)
-    # joblib can't inspect the source of functions defined in notebook cells,
-    # so `@memory.cache` warns that it can't detect name collisions. Benign here.
-    warnings.filterwarnings("ignore", message="Cannot detect name collisions")
-    return Adjacency, BrainData, Memory, fetch_resource, memory, np, pd
+    return Adjacency, BrainData, fetch_resource, memory, np, pd
 
 
 @app.cell(hide_code=True)
@@ -72,26 +67,21 @@ def _(mo):
         r"""
     ## Decoding
 
-    Load Haxby (`BrainData` auto-resamples to MNI 3mm, so the bundled MNI atlas and searchlight line up), then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
+    Haxby ships in **subject space** (no MNI normalization, anisotropic 3.5 × 3.75 × 3.75 mm voxels), so we load it with the dataset's own brain mask to stay on its native grid, and plot on the subject's anatomical via `bg_img=`. Then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
     """
     )
     return
 
 
 @app.cell
-def _(BrainData, memory, np, pd):
+def _(BrainData, np, pd):
     from nilearn.datasets import fetch_haxby
 
     HAXBY = fetch_haxby(subjects=[2], verbose=0)
 
     LABELS = pd.read_csv(HAXBY.session_target[0], sep=r"\s+")["labels"].to_numpy()
 
-    @memory.cache
-    def load_haxby_mni():
-        """Load + MNI-resample the Haxby BOLD (slow; cached to disk)."""
-        return BrainData(HAXBY.func[0])
-
-    brain = load_haxby_mni()
+    brain = BrainData(HAXBY.func[0], mask=HAXBY.mask)
     keep = np.isin(LABELS, ["face", "house"])
     trials = brain[keep]
     y = (LABELS[keep] == "face").astype(int)
@@ -114,13 +104,14 @@ def _(mo):
 
 
 @app.cell
-def _(trials, y):
+def _(HAXBY, trials, y):
     decode_wb = trials.predict(y=y, spatial_scale="whole_brain", model="svm", cv=5)
     print(
         f"whole-brain accuracy: {decode_wb.mean_score:.3f} ± {decode_wb.std_score:.3f}  (chance 0.5)"
     )
     decode_wb.weight_map.plot(
         method="slices",
+        bg_img=HAXBY.anat[0],
         title="SVM weights: + favors face, − favors house",
         cmap="RdBu_r",
         colorbar=True,
@@ -136,14 +127,14 @@ def _(mo):
 
     ### ROI
 
-    `spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas (matches our 3mm MNI space).
+    `spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas. It is defined in MNI space, and `roi_mask=` resamples it onto this subject's grid by header affine alone — a grid change, not a spatial normalization — so its parcel boundaries are only approximate for this un-normalized subject.
     """
     )
     return
 
 
 @app.cell
-def _(fetch_resource, trials, y):
+def _(HAXBY, fetch_resource, trials, y):
     atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     decode_roi = trials.predict(
         y=y, spatial_scale="roi", roi_mask=atlas_path, model="svm", cv=5, n_jobs=4
@@ -153,6 +144,7 @@ def _(fetch_resource, trials, y):
     )
     decode_roi.accuracy_map.plot(
         method="slices",
+        bg_img=HAXBY.anat[0],
         title="ROI decoding accuracy (chance 0.5)",
         cmap="RdBu_r",
         vmin=0.3,
@@ -177,7 +169,7 @@ def _(mo):
 
 
 @app.cell
-def _(memory, trials, y):
+def _(HAXBY, memory, trials, y):
     @memory.cache
     def searchlight_decode(radius_mm):
         return trials.predict(
@@ -192,6 +184,7 @@ def _(memory, trials, y):
     decode_sl = searchlight_decode(8.0)
     decode_sl.accuracy_map.plot(
         method="slices",
+        bg_img=HAXBY.anat[0],
         title="Searchlight decoding accuracy (8 mm sphere)",
         cmap="hot",
         colorbar=True,
@@ -243,7 +236,6 @@ def _(mo):
 
 @app.cell
 def _(Adjacency, conditions, np, rdm):
-    # myst: remove-stderr
     animate = np.array([c in ("face", "cat") for c in conditions])
     model_rdm = Adjacency(
         (animate[:, None] != animate[None, :]).astype(float),
@@ -270,8 +262,7 @@ def _(mo):
 
 
 @app.cell
-def _(category_patterns, fetch_resource, model_rdm):
-    # myst: remove-stderr
+def _(HAXBY, category_patterns, fetch_resource, model_rdm):
     atlas_path_rsa = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
     roi_rdms = category_patterns.distance(
         metric="correlation", spatial_scale="roi", roi_mask=atlas_path_rsa
@@ -281,6 +272,7 @@ def _(category_patterns, fetch_resource, model_rdm):
     )
     rsa_map.plot(
         method="slices",
+        bg_img=HAXBY.anat[0],
         title="ROI RSA: where category geometry matches animacy",
         cmap="RdBu_r",
         colorbar=True,

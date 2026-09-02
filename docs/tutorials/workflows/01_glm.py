@@ -52,6 +52,7 @@ def _(mo):
 def _():
     import numpy as np
     from joblib import Memory
+    from scipy.signal import detrend
 
     from nltools.data import BrainData, DesignMatrix
     from nltools.algorithms import fdr, threshold
@@ -60,7 +61,7 @@ def _():
     # Memoize per-subject fits to disk (.cache/ is git-ignored) so re-running
     # the notebook reloads results instead of refitting every voxel.
     memory = Memory(".cache/tutorials", verbose=0)
-    return BrainData, DesignMatrix, concatenate, fdr, memory, np, threshold
+    return BrainData, DesignMatrix, concatenate, detrend, fdr, memory, np, threshold
 
 
 @app.cell(hide_code=True)
@@ -70,6 +71,8 @@ def _(mo):
     ## How to do it
 
     We use the **language localizer demo** from `nilearn` — 10 subjects viewing blocks of sentences (`language`) vs. consonant strings (`string`). Each subject's BIDS derivatives give us three files: the preprocessed BOLD, an events TSV, and a confounds TSV.
+
+    The BOLD is already MNI-normalized, but on a 4.5 mm grid rather than the bundled 1/2/3 mm template grids. Interpolating every subject up to 3 mm would add voxels without adding information, so we analyze on the data's own grid: one MNI152 brain mask resampled down to it, shared by every subject so their maps stack directly, and the MNI152 T1 as the plotting background (`bg_img=`).
     """
     )
     return
@@ -80,7 +83,12 @@ def _():
     import json
     from pathlib import Path
 
-    from nilearn.datasets import fetch_language_localizer_demo_dataset
+    from nilearn.datasets import (
+        fetch_language_localizer_demo_dataset,
+        load_mni152_brain_mask,
+        load_mni152_template,
+    )
+    from nilearn.image import resample_to_img
     from nilearn.interfaces.bids import get_bids_files
 
     DATASET = fetch_language_localizer_demo_dataset(verbose=0)
@@ -105,7 +113,12 @@ def _():
             "TR": json.loads(Path(sidecar).read_text())["RepetitionTime"],
         }
 
-    return (get_sub_files,)
+    # All subjects share one 4.5 mm MNI grid; nearest-neighbour keeps the mask binary.
+    MNI_MASK = resample_to_img(
+        load_mni152_brain_mask(), get_sub_files("01")["bold"], interpolation="nearest"
+    )
+    MNI_T1 = load_mni152_template(resolution=2)
+    return MNI_MASK, MNI_T1, get_sub_files
 
 
 @app.cell(hide_code=True)
@@ -114,14 +127,14 @@ def _(mo):
         r"""
     ### First level (single subject)
 
-    The recipe for one subject: load the BOLD (`BrainData` resamples to standard MNI automatically), build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the motion confounds as nuisance columns and add polynomial drift. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
+    The recipe for one subject: load the BOLD with the shared mask, build the design, and fit. Building a `DesignMatrix` from a BIDS events file creates boxcar regressors and **convolves them with the canonical (Glover) HRF for you** — columns come back as `language_c0` / `string_c0` (pass `hrf_model=None` for raw boxcars to `.convolve()` yourself). We append the six motion parameters as nuisance columns and add polynomial drift terms. Motion estimates drift slowly themselves, so we detrend them first — otherwise the drift would be modeled twice, once by the polynomials and again by the motion columns, and the two sets of regressors would be nearly collinear. Wrapping it in `memory.cache` means each subject is fit once, then reloaded from disk.
     """
     )
     return
 
 
 @app.cell
-def _(BrainData, DesignMatrix, get_sub_files, memory):
+def _(BrainData, DesignMatrix, MNI_MASK, detrend, get_sub_files, memory):
     @memory.cache
     def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
         """Fit one subject's GLM; return its design and the contrast bundle.
@@ -131,10 +144,14 @@ def _(BrainData, DesignMatrix, get_sub_files, memory):
         on-disk cache stays small.
         """
         f = get_sub_files(sub)
-        brain = BrainData(f["bold"])
+        brain = BrainData(f["bold"], mask=MNI_MASK)
         events = DesignMatrix(f["events"], run_length=brain.shape[0], TR=f["TR"])
-        confounds = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
-        brain.fit(X=events.append(confounds, axis=1, as_confounds=True).add_poly(2))
+        motion = DesignMatrix(f["confounds"], run_length="infer", TR=f["TR"])
+        motion = DesignMatrix(
+            detrend(motion.to_numpy(), axis=0), columns=motion.columns, TR=f["TR"]
+        )
+        design = events.append(motion, axis=1, as_confounds=True).add_poly(2)
+        brain.fit(X=design)
         return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
 
     return (first_level,)
@@ -158,9 +175,12 @@ def _(mo):
 
 
 @app.cell
-def _(contrasts):
+def _(MNI_T1, contrasts):
     contrasts["t"].plot(
-        method="slices", threshold=3.09, title="sub-01: language > string (t)"
+        method="slices",
+        threshold=3.09,
+        bg_img=MNI_T1,
+        title="sub-01: language > string (t)",
     )
     return
 
@@ -200,12 +220,14 @@ def _(mo):
 
 
 @app.cell
-def _(beta_maps, concatenate, threshold):
+def _(MNI_T1, beta_maps, concatenate, threshold):
     group = concatenate(beta_maps)
     group_result = group.ttest()
     group_z = threshold(group_result["z"], group_result["p"], thr=0.001)
     group_z.plot(
-        method="slices", title="Group: language > string (voxelwise p < 0.001)"
+        method="slices",
+        bg_img=MNI_T1,
+        title="Group: language > string (voxelwise p < 0.001)",
     )
     return (group_result,)
 
@@ -216,7 +238,7 @@ def _(mo):
         r"""
     ### Multiple-comparisons correction
 
-    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though hundreds pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
+    That `p < 0.001` map is *uncorrected* — it ignores that we ran tens of thousands of tests. `nltools.algorithms.fdr` returns the p-threshold controlling the false-discovery rate. Whole-brain correction is stringent: with eight subjects, few or no voxels survive FDR or Bonferroni even though dozens pass the uncorrected threshold — exactly the inflation that correction guards against. Restricting the search to an ROI (see the [MVPA tutorial](03_mvpa.md)) recovers power.
     """
     )
     return

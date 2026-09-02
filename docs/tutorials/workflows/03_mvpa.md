@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 03_mvpa.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/workflows/03_mvpa.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/workflows/03_mvpa.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py
+    title: Source notebook (03_mvpa.py)
 ---
 
 # Multivariate Pattern Analysis
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/workflows/03_mvpa.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py) — that you can open and edit locally with `uvx marimo edit --sandbox 03_mvpa.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/03_mvpa.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/03_mvpa.py). Click the badge to run it in the cloud (free, no install), or locally: download `03_mvpa.py` and run `uvx marimo edit --sandbox 03_mvpa.py`. Outputs below were baked in at build time.
 :::
 
 **What it answers.** Does the *distributed pattern* of activity across many voxels carry information about the conditions — beyond what any single voxel shows? Two complementary approaches:
@@ -24,8 +33,6 @@ Both run at three spatial scales via `spatial_scale=` — `'whole_brain'`, `'roi
 We use the classic **Haxby** dataset — one subject viewing 8 object categories — for both.
 
 ```{code-cell} python3
-import warnings
-
 import numpy as np
 import pandas as pd
 from joblib import Memory
@@ -34,14 +41,11 @@ from nltools.data import Adjacency, BrainData
 from nltools.templates import fetch_resource
 
 memory = Memory(".cache/tutorials", verbose=0)
-# joblib can't inspect the source of functions defined in notebook cells,
-# so `@memory.cache` warns that it can't detect name collisions. Benign here.
-warnings.filterwarnings("ignore", message="Cannot detect name collisions")
 ```
 
 ## Decoding
 
-Load Haxby (`BrainData` auto-resamples to MNI 3mm, so the bundled MNI atlas and searchlight line up), then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
+Haxby ships in **subject space** (no MNI normalization, anisotropic 3.5 × 3.75 × 3.75 mm voxels), so we load it with the dataset's own brain mask to stay on its native grid, and plot on the subject's anatomical via `bg_img=`. Then restrict to **face vs. house** — the strongest, best-understood contrast. Boolean-indexing a `BrainData` slices its timeseries like a numpy array.
 
 ```{code-cell} python3
 from nilearn.datasets import fetch_haxby
@@ -50,12 +54,7 @@ HAXBY = fetch_haxby(subjects=[2], verbose=0)
 
 LABELS = pd.read_csv(HAXBY.session_target[0], sep=r"\s+")["labels"].to_numpy()
 
-@memory.cache
-def load_haxby_mni():
-    """Load + MNI-resample the Haxby BOLD (slow; cached to disk)."""
-    return BrainData(HAXBY.func[0])
-
-brain = load_haxby_mni()
+brain = BrainData(HAXBY.func[0], mask=HAXBY.mask)
 keep = np.isin(LABELS, ["face", "house"])
 trials = brain[keep]
 y = (LABELS[keep] == "face").astype(int)
@@ -75,6 +74,7 @@ print(
 )
 decode_wb.weight_map.plot(
     method="slices",
+    bg_img=HAXBY.anat[0],
     title="SVM weights: + favors face, − favors house",
     cmap="RdBu_r",
     colorbar=True,
@@ -85,7 +85,7 @@ decode_wb.weight_map.plot(
 
 ### ROI
 
-`spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas (matches our 3mm MNI space).
+`spatial_scale="roi"` with a parcellation trains one classifier per parcel and returns an `accuracy_map` — every voxel in parcel *i* filled with parcel *i*'s cross-validated accuracy. We use the bundled k50 atlas. It is defined in MNI space, and `roi_mask=` resamples it onto this subject's grid by header affine alone — a grid change, not a spatial normalization — so its parcel boundaries are only approximate for this un-normalized subject.
 
 ```{code-cell} python3
 atlas_path = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
@@ -97,6 +97,7 @@ print(
 )
 decode_roi.accuracy_map.plot(
     method="slices",
+    bg_img=HAXBY.anat[0],
     title="ROI decoding accuracy (chance 0.5)",
     cmap="RdBu_r",
     vmin=0.3,
@@ -126,6 +127,7 @@ def searchlight_decode(radius_mm):
 decode_sl = searchlight_decode(8.0)
 decode_sl.accuracy_map.plot(
     method="slices",
+    bg_img=HAXBY.anat[0],
     title="Searchlight decoding accuracy (8 mm sphere)",
     cmap="hot",
     colorbar=True,
@@ -155,7 +157,6 @@ rdm.plot(cmap="RdBu_r")
 The RDM is the full geometry — every pairwise dissimilarity at once. To test a hypothesis, build a model RDM (here: animate `face`/`cat` vs. the rest) and correlate the two with a Mantel permutation test.
 
 ```{code-cell} python3
-:tags: [remove-stderr]
 animate = np.array([c in ("face", "cat") for c in conditions])
 model_rdm = Adjacency(
     (animate[:, None] != animate[None, :]).astype(float),
@@ -173,7 +174,6 @@ print(
 Whole-brain, the animacy structure is weak — it's diluted across regions that don't represent categories. As with decoding, the signal is regional. `spatial_scale="roi"` computes one RDM per parcel, and `project=True` paints each parcel's correlation-with-the-model back into brain space:
 
 ```{code-cell} python3
-:tags: [remove-stderr]
 atlas_path_rsa = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
 roi_rdms = category_patterns.distance(
     metric="correlation", spatial_scale="roi", roi_mask=atlas_path_rsa
@@ -183,6 +183,7 @@ rsa_map = roi_rdms.similarity(
 )
 rsa_map.plot(
     method="slices",
+    bg_img=HAXBY.anat[0],
     title="ROI RSA: where category geometry matches animacy",
     cmap="RdBu_r",
     colorbar=True,

@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 02_design_matrix.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/basics/02_design_matrix.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/basics/02_design_matrix.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py
+    title: Source notebook (02_design_matrix.py)
 ---
 
 # DesignMatrix Basics
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/02_design_matrix.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py) — that you can open and edit locally with `uvx marimo edit --sandbox 02_design_matrix.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/02_design_matrix.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/02_design_matrix.py). Click the badge to run it in the cloud (free, no install), or locally: download `02_design_matrix.py` and run `uvx marimo edit --sandbox 02_design_matrix.py`. Outputs below were baked in at build time.
 :::
 
 The `DesignMatrix` class is the core data structure for working with

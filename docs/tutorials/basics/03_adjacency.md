@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 03_adjacency.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/basics/03_adjacency.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/basics/03_adjacency.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py
+    title: Source notebook (03_adjacency.py)
 ---
 
 # Adjacency Basics
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/03_adjacency.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py) — that you can open and edit locally with `uvx marimo edit --sandbox 03_adjacency.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/03_adjacency.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/03_adjacency.py). Click the badge to run it in the cloud (free, no install), or locally: download `03_adjacency.py` and run `uvx marimo edit --sandbox 03_adjacency.py`. Outputs below were baked in at build time.
 :::
 
 The `Adjacency` class represents connectivity or similarity matrices. It stores

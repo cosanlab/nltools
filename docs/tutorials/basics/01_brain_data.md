@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 01_brain_data.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/basics/01_brain_data.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/basics/01_brain_data.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py
+    title: Source notebook (01_brain_data.py)
 ---
 
 # BrainData Basics
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/basics/01_brain_data.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py) — that you can open and edit locally with `uvx marimo edit --sandbox 01_brain_data.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/basics/01_brain_data.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/basics/01_brain_data.py). Click the badge to run it in the cloud (free, no install), or locally: download `01_brain_data.py` and run `uvx marimo edit --sandbox 01_brain_data.py`. Outputs below were baked in at build time.
 :::
 
 The `BrainData` class is the core data structure in `nltools` for working with

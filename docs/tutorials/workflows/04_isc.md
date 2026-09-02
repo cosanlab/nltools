@@ -1,15 +1,24 @@
 ---
-# AUTO-GENERATED from 04_isc.py by scripts/marimo_to_myst.py — DO NOT EDIT.
+# AUTO-GENERATED from docs/tutorials/workflows/04_isc.py by scripts/marimo_to_myst.py — DO NOT EDIT.
 # Edit the marimo notebook, then run `uv run poe docs-generate`.
 kernelspec:
   name: python3
   display_name: Python 3
+edit_url: https://github.com/cosanlab/nltools/edit/master/docs/tutorials/workflows/04_isc.py
+source_url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py
+downloads:
+  - url: https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py
+    title: Open in molab
+  - url: https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py
+    title: Source notebook (04_isc.py)
 ---
 
 # Inter-Subject Correlation
 
-:::{tip} Run this tutorial locally
-The outputs below were baked in at build time. This page is rendered from a [marimo](https://marimo.io) notebook — [`docs/tutorials/workflows/04_isc.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py) — that you can open and edit locally with `uvx marimo edit --sandbox 04_isc.py`.
+[![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py)
+
+:::{tip} Run this tutorial
+This page is rendered from the [marimo](https://marimo.io) notebook [`docs/tutorials/workflows/04_isc.py`](https://github.com/cosanlab/nltools/blob/master/docs/tutorials/workflows/04_isc.py). Click the badge to run it in the cloud (free, no install), or locally: download `04_isc.py` and run `uvx marimo edit --sandbox 04_isc.py`. Outputs below were baked in at build time.
 :::
 
 **What it answers.** Which brain regions respond *consistently across people* to a shared naturalistic stimulus (a movie, a story)? There's no explicit design matrix to model — instead, ISC uses other subjects' responses as the model, asking where the stimulus drives a common, time-locked signal.
@@ -22,8 +31,6 @@ For the theory, see the ISC material in [naturalistic-data](https://naturalistic
 - **Group inference** on whether that similarity exceeds chance, via a permutation/bootstrap test that respects the temporal structure.
 
 ```{code-cell} python3
-import warnings
-
 import numpy as np
 from joblib import Memory
 
@@ -33,28 +40,33 @@ from nltools.mask import roi_to_brain_from_atlas
 from nltools.templates import fetch_resource
 
 memory = Memory(".cache/tutorials", verbose=0)
-# joblib can't inspect the source of functions defined in notebook cells,
-# so `@memory.cache` warns that it can't detect name collisions. Benign here.
-warnings.filterwarnings("ignore", message="Cannot detect name collisions")
 ```
 
 ## How to do it
 
-We use nilearn's **development_fmri** dataset — children and adults watching the same short Pixar movie. For each subject we extract a region-mean timeseries with the bundled k50 atlas, giving one `(timepoints, regions)` array per subject; stacking them is the `(timepoints, subjects, regions)` input ISC expects. (In a full analysis you'd regress the provided confounds first.)
+We use nilearn's **development_fmri** dataset — children and adults watching the same short Pixar movie. The data are MNI-normalized on a 4 mm grid, so we keep that grid and bring the MNI152 brain mask down to it rather than interpolating every subject up to a 3 mm template; `extract_roi` resamples the atlas to the data for us. For each subject we extract a region-mean timeseries with the bundled k50 atlas, giving one `(timepoints, regions)` array per subject; stacking them is the `(timepoints, subjects, regions)` input ISC expects. (In a full analysis you'd regress the provided confounds first.)
 
 ```{code-cell} python3
-from nilearn.datasets import fetch_development_fmri
+from nilearn.datasets import fetch_development_fmri, load_mni152_brain_mask
+from nilearn.image import resample_to_img
 
 N_SUBJECTS = 12
 DATA = fetch_development_fmri(n_subjects=N_SUBJECTS, verbose=0)
 
 ATLAS = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
+# All subjects share one 4 mm MNI grid; nearest-neighbour keeps the mask binary.
+MNI_MASK = resample_to_img(
+    load_mni152_brain_mask(), DATA.func[0], interpolation="nearest"
+)
 
 @memory.cache
 def region_timeseries(n_subjects):
-    """Region-mean timeseries per subject (slow load; cached to disk)."""
+    """Region-mean timeseries per subject (cached to disk)."""
     # extract_roi returns (n_regions, n_timepoints); transpose to (time, region).
-    return [BrainData(DATA.func[i]).extract_roi(ATLAS).T for i in range(n_subjects)]
+    return [
+        BrainData(DATA.func[i], mask=MNI_MASK).extract_roi(ATLAS).T
+        for i in range(n_subjects)
+    ]
 
 series = region_timeseries(N_SUBJECTS)
 isc_data = np.stack(series, axis=1)  # (timepoints, subjects, regions)
@@ -133,7 +145,7 @@ _ = ax.legend()
 
 | Stage | What it does | Key API |
 |---|---|---|
-| Region timeseries | Extract region means per subject, stack to `(time, subjects, regions)` | `BrainData(func).extract_roi(atlas).T` |
+| Region timeseries | Extract region means per subject, stack to `(time, subjects, regions)` | `BrainData(func, mask=).extract_roi(atlas).T` |
 | Compute + test | Per-region ISC + permutation p-value | `isc_permutation_test(data, summary_statistic="pairwise", n_permute=)` |
 | Leave-one-out | Each subject vs. the group mean | `summary_statistic="leave-one-out"` |
 | Project to brain | Paint per-region values onto voxels | `roi_to_brain_from_atlas(values, atlas=, source_mask=)` |
