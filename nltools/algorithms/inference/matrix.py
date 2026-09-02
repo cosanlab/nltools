@@ -36,7 +36,7 @@ def _extract_matrix_elements(
 
     Args:
         matrix: Square matrix (n×n)
-        how: Which elements to extract ['upper'|'lower'|'full']
+        how: Which elements to extract, one of 'upper', 'lower', or 'full'
         include_diag: Include diagonal (only for 'full')
 
     Returns:
@@ -62,7 +62,7 @@ def _compute_matrix_correlation(
         matrix2 (np.ndarray): Second square matrix (n×n)
         how (str): Element extraction mode (passed to _extract_matrix_elements)
         include_diag (bool): Include diagonal (passed to _extract_matrix_elements)
-        metric (str): Correlation type ['pearson'|'spearman'|'kendall']
+        metric (str): Correlation type, one of 'pearson', 'spearman', or 'kendall'
 
     Returns:
         float: Correlation coefficient
@@ -159,7 +159,7 @@ def _matrix_permutation_cpu_parallel(
         metric (str): Correlation metric
         how (str): Element extraction mode
         include_diag (bool): Include diagonal
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -265,15 +265,15 @@ def matrix_permutation_test(
         data1 (np.ndarray): First square matrix (n×n)
         data2 (np.ndarray): Second square matrix (n×n)
         n_permute (int): Number of permutations (default: 5000)
-        metric (str): Correlation metric ['pearson'|'spearman'|'kendall'] (default: 'pearson')
-        how (str): Which elements to compare ['upper'|'lower'|'full'] (default: 'upper')
+        metric (str): Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson')
+        how (str): Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper')
             - 'upper': Upper triangle only (assumes symmetric matrices)
             - 'lower': Lower triangle only
             - 'full': All elements (see include_diag)
         include_diag (bool): Include diagonal elements (only applies if how='full') (default: False)
-        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 2 | 'two': Two-tailed test (r != 0)
-            - 1 | 'one': One-tailed (r > 0; negate the data for the other direction)
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
+            - `2`/`'two'`: Two-tailed test (r != 0)
+            - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction)
         return_null (bool): Return null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')
             - None: Single-threaded NumPy (for debugging/small problems)
@@ -402,7 +402,7 @@ def double_center(mat: np.ndarray) -> np.ndarray:
         mat (ndarray): 2d numpy array
 
     Returns:
-        mat (ndarray): double-centered version of input
+        np.ndarray: Double-centered version of the input.
 
     Raises:
         ValueError: If input is not 2D
@@ -426,16 +426,17 @@ def double_center(mat: np.ndarray) -> np.ndarray:
 
 
 def u_center(mat: np.ndarray) -> np.ndarray:
-    """U-center a 2d array. U-centering is a bias-corrected form of double-centering.
+    """U-center a 2d array.
 
-    U-centering corrects for bias that occurs with double-centering as the number
-    of dimensions increases. The diagonal is explicitly set to zero.
+    U-centering is a bias-corrected form of double-centering: it corrects for the
+    bias that grows with the number of dimensions under plain double-centering.
+    The diagonal is explicitly set to zero.
 
     Args:
         mat (ndarray): 2d numpy array
 
     Returns:
-        mat (ndarray): u-centered version of input
+        ndarray: U-centered version of the input.
 
     Raises:
         ValueError: If input is not 2D
@@ -499,8 +500,8 @@ def distance_correlation(
         ttest (bool): perform a ttest using the bias_corrected distance correlation; default False
 
     Returns:
-        results (dict): dictionary of results (correlation, t, p, and df.) Optionally, covariance,
-            x variance, and y variance
+        dict: Dictionary of results (correlation, t, p, and df); optionally also
+            covariance, x variance, and y variance.
 
     Raises:
         ValueError: If arrays are not 1d or 2d, or if ttest=True and bias_corrected=False

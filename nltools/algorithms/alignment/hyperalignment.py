@@ -197,8 +197,8 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
         - Parallel processing is most beneficial when subjects have many voxels
           (>10K) and template refinement requires multiple iterations.
 
-    References:
-        Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
+    Note:
+        Reference: Haxby, J. V., Guntupalli, J. S., Connolly, A. C., Halchenko, Y. O.,
         Conroy, B. R., Gobbini, M. I., ... & Ramadge, P. J. (2011).
         A common, high-dimensional model of the representational space in
         human ventral temporal cortex. Neuron, 72(2), 404-416.
@@ -235,7 +235,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
 
         Returns:
-            self (HyperAlignment): Fitted model
+            HyperAlignment: Fitted model (`self`).
         """
         # Validate parallel parameter
         if parallel not in [None, "cpu"]:
@@ -387,8 +387,7 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
 
         Returns:
-            transformed (list of ndarray): List of transformed data matrices in
-                common space
+            list[np.ndarray]: List of transformed data matrices in common space.
         """
         # Validate parallel parameter
         if parallel not in [None, "cpu"]:
@@ -463,10 +462,10 @@ class HyperAlignment(BaseEstimator, TransformerMixin):
                 subject to align to the common template
 
         Returns:
-            transformed (ndarray): Aligned data in common space
-            R (ndarray): Transformation matrix used
-            disparity (float): Alignment quality (sum of squared differences)
-            scale (float): Scale factor used
+            tuple[np.ndarray, np.ndarray, float, float]: `(transformed, R, disparity,
+                scale)` — aligned data in common space, the transformation matrix
+                used, the alignment quality (sum of squared differences), and the
+                scale factor used.
         """
         if not hasattr(self, "s_"):
             raise ValueError("Model must be fit before transform_subject")

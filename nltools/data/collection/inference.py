@@ -135,14 +135,20 @@ def concat(bc: BrainCollection) -> BrainData:
 
 
 def mean(bc: BrainCollection) -> BrainData:
-    """Mean across subjects (leading axis). Streams from path-backed input."""
+    """Mean across subjects (leading axis).
+
+    Streams from path-backed input.
+    """
     _check_nonempty(bc)
     n, m, _ = _welford(bc)
     return _make_braindata(m, bc._mask)
 
 
 def std(bc: BrainCollection) -> BrainData:
-    """Std across subjects. Streams via Welford; ddof=1."""
+    """Standard deviation across subjects (ddof=1).
+
+    Streams via Welford's algorithm.
+    """
     _check_nonempty(bc)
     n, _, M2 = _welford(bc)
     var_arr = M2 / max(n - 1, 1)
@@ -150,21 +156,30 @@ def std(bc: BrainCollection) -> BrainData:
 
 
 def var(bc: BrainCollection) -> BrainData:
-    """Variance across subjects. Streams via Welford; ddof=1."""
+    """Variance across subjects (ddof=1).
+
+    Streams via Welford's algorithm.
+    """
     _check_nonempty(bc)
     n, _, M2 = _welford(bc)
     return _make_braindata(M2 / max(n - 1, 1), bc._mask)
 
 
 def median(bc: BrainCollection) -> BrainData:
-    """Median across subjects. Materializes (not streaming-friendly)."""
+    """Median across subjects.
+
+    Materializes every item in memory (not streaming-friendly).
+    """
     _check_nonempty(bc)
     stack = np.stack(list(_iter_arrays(bc)), axis=0)
     return _make_braindata(np.median(stack, axis=0), bc._mask)
 
 
 def sum_(bc: BrainCollection) -> BrainData:
-    """Sum across subjects. Streams."""
+    """Sum across subjects.
+
+    Streams from path-backed input.
+    """
     _check_nonempty(bc)
     total = None
     for x in _iter_arrays(bc):
@@ -174,7 +189,10 @@ def sum_(bc: BrainCollection) -> BrainData:
 
 
 def min_(bc: BrainCollection) -> BrainData:
-    """Per-voxel min across subjects. Streams."""
+    """Per-voxel minimum across subjects.
+
+    Streams from path-backed input.
+    """
     _check_nonempty(bc)
     cur = None
     for x in _iter_arrays(bc):
@@ -183,7 +201,10 @@ def min_(bc: BrainCollection) -> BrainData:
 
 
 def max_(bc: BrainCollection) -> BrainData:
-    """Per-voxel max across subjects. Streams."""
+    """Per-voxel maximum across subjects.
+
+    Streams from path-backed input.
+    """
     _check_nonempty(bc)
     cur = None
     for x in _iter_arrays(bc):
@@ -206,7 +227,7 @@ def ttest(
 
     Returns ``{'mean', 't', 'z', 'p'}`` — same shape contract as
     ``BrainData.ttest``. Streams from path-backed input via Welford.
-    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
     mean > popmean; negate the data for the other direction). The z map is
     derived from the reported p, so it matches the requested tail.
     """
@@ -253,7 +274,7 @@ def ttest2(
 ) -> dict[str, BrainData]:
     """Two-sample t-test between two collections (subject-level).
 
-    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
     bc > other; swap the operands for the other direction).
     """
     from scipy.stats import t as t_dist
@@ -598,7 +619,7 @@ def isc_test(
 
     Resamples subjects with replacement, recomputes ISC each draw, and
     derives a per-voxel p-value from the null distribution centered at 0.
-    ``tail``: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: ISC > 0).
+    ``tail``: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: ISC > 0).
 
     Passing ``roi_mask`` restricts the computation to that ROI; the returned
     maps carry the ROI mask rather than the collection's whole-brain mask.

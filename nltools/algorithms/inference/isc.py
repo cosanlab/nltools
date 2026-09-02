@@ -56,9 +56,8 @@ def _compute_loo_isc(data, backend="numpy"):
             voxel-wise data (10-30× speedup for large n_voxels). Defaults to 'numpy'.
 
     Returns:
-        Leave-one-out ISC values:
-        - Shape (n_subjects,) for single feature
-        - Shape (n_subjects, n_voxels) for voxel-wise
+        np.ndarray: Leave-one-out ISC values, shape (n_subjects,) for a single
+            feature or (n_subjects, n_voxels) for voxel-wise data.
 
     Examples:
         >>> data = np.random.randn(100, 10)  # 100 timepoints, 10 subjects
@@ -203,9 +202,9 @@ def _compute_pairwise_isc(data, backend="numpy", metric="correlation"):
             Defaults to 'correlation'.
 
     Returns:
-        Pairwise correlations in condensed form (upper triangle):
-        - Shape (n_pairs,) for single feature, where n_pairs = n*(n-1)/2
-        - Shape (n_pairs, n_voxels) for voxel-wise
+        np.ndarray: Pairwise correlations in condensed form (upper triangle), shape
+            (n_pairs,) for a single feature where n_pairs = n*(n-1)/2, or
+            (n_pairs, n_voxels) for voxel-wise data.
 
     Examples:
         >>> data = np.random.randn(100, 5)  # 5 subjects
@@ -485,9 +484,8 @@ def _compute_isc_group_difference(
         metric: Similarity metric for pairwise ISC. Defaults to 'correlation'.
 
     Returns:
-        ISC difference (group1 ISC - group2 ISC):
-        - Shape () for single feature (scalar)
-        - Shape (n_voxels,) for voxel-wise
+        np.ndarray: ISC difference (group1 ISC - group2 ISC), shape () (scalar) for
+            a single feature or (n_voxels,) for voxel-wise data.
 
     Examples:
         >>> group1 = np.random.randn(100, 5)  # 5 subjects
@@ -688,9 +686,8 @@ def _permute_isc_group_cpu_parallel(
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
     Returns:
-        Permuted ISC differences:
-        - Shape (n_permute,) for single feature
-        - Shape (n_permute, n_voxels) for voxel-wise
+        np.ndarray: Permuted ISC differences, shape (n_permute,) for a single
+            feature or (n_permute, n_voxels) for voxel-wise data.
     """
     from joblib import Parallel, delayed
     from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
@@ -876,9 +873,8 @@ def _bootstrap_isc_group_cpu_parallel(
         max_memory_gb: Maximum memory budget in GB (only used if n_jobs=-1).
 
     Returns:
-        Bootstrapped ISC differences (centered):
-        - Shape (n_permute,) for single feature
-        - Shape (n_permute, n_voxels) for voxel-wise
+        np.ndarray: Bootstrapped ISC differences (centered), shape (n_permute,) for
+            a single feature or (n_permute, n_voxels) for voxel-wise data.
     """
     from joblib import Parallel, delayed
     from nltools.algorithms.backends import _auto_n_jobs_cpu, _estimate_data_size_mb
@@ -989,12 +985,10 @@ def isc_group_permutation_test(
             when summary_statistic='pairwise'. Defaults to 'correlation'.
 
     Returns:
-        Dictionary with the following keys:
-        - 'isc_group_difference': Observed ISC difference (float or array per voxel)
-        - 'p': P-value (Phipson-Smyth corrected)
-        - 'ci': Confidence interval tuple (lower, upper)
-        - 'device': Parallelization method used
-        - 'null_dist': (optional) Bootstrap/permutation distribution
+        Dictionary with keys 'isc_group_difference' (observed ISC difference, float or
+            array per voxel), 'p' (Phipson-Smyth corrected p-value), 'ci' (confidence
+            interval tuple `(lower, upper)`), 'device' (parallelization method used),
+            and optionally 'null_dist' (bootstrap/permutation distribution).
 
     Examples:
         >>> # Single-feature ISC group comparison
@@ -1793,12 +1787,10 @@ def isc_permutation_test(
         random_state: Random seed for reproducibility.
 
     Returns:
-        Dictionary with the following keys:
-        - 'isc': Observed ISC value (float or array per voxel)
-        - 'p': P-value (Phipson-Smyth corrected)
-        - 'ci': Confidence interval tuple (lower, upper)
-        - 'device': Parallelization method used
-        - 'null_dist': (optional) Bootstrap/permutation distribution
+        Dictionary with keys 'isc' (observed ISC value, float or array per voxel),
+            'p' (Phipson-Smyth corrected p-value), 'ci' (confidence interval tuple
+            `(lower, upper)`), 'device' (parallelization method used), and
+            optionally 'null_dist' (bootstrap/permutation distribution).
 
     Examples:
         >>> # Single-feature ISC

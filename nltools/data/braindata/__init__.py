@@ -434,12 +434,17 @@ class BrainData:
             radius_mm: Reserved for ``spatial_scale='searchlight'``.
 
         Returns:
-            out: (dict) a dictionary containing transformed object,
-                transformation matrix, and the shared response matrix
+            dict: A dictionary containing the transformed object, transformation
+                matrix, and the shared response matrix.
 
         Examples:
-            >>> out = data.align(target, method='procrustes')
-            >>> out = data.align(target, method='probabilistic_srm')
+            ```python
+            # Hyperalign using procrustes transform
+            out = data.align(target, method='procrustes')
+
+            # Align using shared response model
+            out = data.align(target, method='probabilistic_srm')
+            ```
         """
         if spatial_scale == "searchlight":
             raise NotImplementedError(
@@ -528,7 +533,7 @@ class BrainData:
             resample_mask_to_brain: (bool) Will resample mask to brain space before applying mask (default=False).
 
         Returns:
-            masked: (BrainData) masked BrainData object
+            BrainData: Masked BrainData object.
         """
         from .analysis import apply_mask
 
@@ -737,7 +742,7 @@ class BrainData:
             **kwargs: forwarded to the underlying sklearn decomposition estimator.
 
         Returns:
-            output: a dictionary of decomposition parameters
+            dict: A dictionary of decomposition parameters.
         """
         from .analysis import decompose
 
@@ -756,7 +761,7 @@ class BrainData:
             method: ('linear','constant', optional) type of detrending
 
         Returns:
-            out: (BrainData) detrended BrainData instance
+            BrainData: Detrended BrainData instance.
         """
         from .analysis import detrend_data
 
@@ -820,8 +825,10 @@ class BrainData:
             n_components: If method='pca', number of components to return
 
         Returns:
-            For binary mask: scalar or 1D array.
-            For labeled atlas: 1D or 2D array, or PCA components.
+            float | np.ndarray: For a binary mask, a scalar (single image) or 1D
+                array (multiple images). For a labeled atlas, a 1D array (single
+                image), a 2D array of images x ROIs (multiple images), or the PCA
+                components array when `method='pca'`.
 
         Examples:
             >>> roi_values = brain.extract_roi(binary_mask)
@@ -881,11 +888,11 @@ class BrainData:
             sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
 
         Returns:
-            DesignMatrix with one indicator column per detected spike TR, with
-            all spike columns pre-marked as confounds. A TR flagged by both
-            detectors yields a single column (named `global_spike*`); the
-            colliding detections are bitwise identical, so only the retained
-            name differs.
+            DesignMatrix: One indicator column per detected spike TR, with all
+                spike columns pre-marked as confounds. A TR flagged by both
+                detectors yields a single column (named `global_spike*`); the
+                colliding detections are bitwise identical, so only the retained
+                name differs.
         """
         from .analysis import find_spikes_data
 
@@ -1053,12 +1060,12 @@ class BrainData:
         Args:
             images: BrainData instance of weight map
             method (str): Regression method. Default: 'ols'.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed,
-                positive direction) for the regression p-values.
+            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+                (positive direction) regression p-values.
 
         Returns:
-            out: dictionary of regression statistics in BrainData
-                instances {'beta','t','p','df','residual'}
+            dict: Regression statistics as BrainData instances, keyed
+                `'beta'`, `'t'`, `'p'`, `'df'`, `'residual'`.
         """
         from .analysis import multivariate_similarity
 
@@ -1113,11 +1120,10 @@ class BrainData:
             **kwargs: Additional arguments passed to nilearn plot functions.
 
         Returns:
-            matplotlib.figure.Figure or list[matplotlib.figure.Figure]: A
-            single figure for single-image data; a list of figures for
-            multi-image data with ``method`` in ``{"glass", "slices"}``
-            (one per image for glass; one per image-and-view pair for
-            slices).
+            matplotlib.figure.Figure | list[matplotlib.figure.Figure]: A single
+                figure for single-image data; a list of figures for multi-image
+                data with `method` in `{"glass", "slices"}` (one per image for
+                glass; one per image-and-view pair for slices).
         """
         from .plotting import plot_brain
 
@@ -1187,7 +1193,7 @@ class BrainData:
             save (str, optional): File path to save figure.
 
         Returns:
-            matplotlib.figure.Figure
+            matplotlib.figure.Figure: The rendered figure.
         """
         from .plotting import plot_flatmap_brain
 
@@ -1243,7 +1249,7 @@ class BrainData:
         this instance's ``.mask``).
 
         Returns:
-            matplotlib.figure.Figure
+            matplotlib.figure.Figure: The rendered figure.
         """
         from nltools.plotting import plot_surf
         from .plotting import _require_standard_space
@@ -1364,8 +1370,8 @@ class BrainData:
                 ``height``, ConfigOptions like ``is_colorbar``).
 
         Returns:
-            A `NiivueViewer` widget (an `anywidget.AnyWidget`). Its threshold
-            window is reactive via the ``cal_min`` / ``cal_max`` traits.
+            NiivueViewer: An `anywidget.AnyWidget` whose threshold window is
+                reactive via the `cal_min` and `cal_max` traits.
         """
         from .viewer import build_viewer, compute_display_window
 
@@ -1745,7 +1751,7 @@ class BrainData:
             target_type: (str) type of target can be [samples,seconds,hz]
 
         Returns:
-            upsampled BrainData instance
+            BrainData: Resampled BrainData instance.
         """
         from .analysis import temporal_resample
 
@@ -1773,7 +1779,7 @@ class BrainData:
             cluster_threshold (int): Minimum cluster size in voxels. Default 0.
 
         Returns:
-            Thresholded BrainData object.
+            BrainData: Thresholded BrainData object.
         """
         from .analysis import threshold_data
 
@@ -1823,8 +1829,8 @@ class BrainData:
             prob_threshold: Drop probabilistic-atlas regions below this %.
 
         Returns:
-            `ClusterReport` with ``peaks``,
-            ``clusters`` (polars DataFrames), and ``stat_img`` (BrainData).
+            ClusterReport: Report with `peaks` and `clusters` (polars DataFrames)
+                and `stat_img` (BrainData).
         """
         from nltools.data.atlases import (
             DEFAULT_ATLASES,
@@ -1876,24 +1882,21 @@ class BrainData:
                 `one_sample_permutation_test`.
             n_permute: Number of permutations (used only when
                 ``permutation=True``). Default 5000.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
+            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+                (positive direction).
             return_null: If True, also return the null distribution.
                 Default False.
             n_jobs: Number of parallel jobs. Default -1 (all cores).
             random_state: Random seed for reproducibility.
 
         Returns:
-            dict with four BrainData keys:
-
-                - ``"mean"``: voxelwise mean across images (effect size).
-                - ``"t"``: parametric one-sample t-statistic.
-                - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)`` —
-                  matches nilearn's ``output_type='z_score'``.
-                - ``"p"``: parametric p-value, or empirical p when
-                  ``permutation=True``.
-
-            The effect size is always returned alongside the inferential maps
-            so group-level code never has to recompute the mean.
+            dict[str, BrainData]: Four keys. `"mean"` is the voxelwise mean across
+                images (effect size); `"t"` the parametric one-sample t-statistic;
+                `"z"` the signed z-score, `sign(t) * norm.isf(p/2)`, matching
+                nilearn's `output_type='z_score'`; `"p"` the parametric p-value,
+                or empirical p when `permutation=True`. The effect size is always
+                returned alongside the inferential maps so group-level code never
+                has to recompute the mean.
 
         Raises:
             ValueError: If this BrainData contains fewer than 2 images.
@@ -1929,8 +1932,8 @@ class BrainData:
                 number of voxels.
             equal_var: If True (default), standard two-sample t-test.
                 If False, Welch's t-test.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
-                self > other; swap the operands for the other direction).
+            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+                (self > other; swap the operands for the other direction).
 
         Returns:
             dict: ``{"t": BrainData, "p": BrainData}``.
@@ -1967,7 +1970,7 @@ class BrainData:
             img_modality: (str, Required) Neurovault image modality
 
         Returns:
-            collection: (pd.DataFrame) neurovault collection information
+            dict: NeuroVault collection information.
         """
         from .io import upload_neurovault
 

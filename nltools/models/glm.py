@@ -232,7 +232,7 @@ class Glm(BaseModel):
                 matrix/matrices to convert
 
         Returns:
-            DataFrame or list of DataFrame: Pandas DataFrames for nilearn consumption
+            A pandas DataFrame (or list of them) for nilearn consumption.
         """
         # Import here to avoid circular dependency
         from nltools.data import DesignMatrix
@@ -270,8 +270,7 @@ class Glm(BaseModel):
                   `Ridge.predict`. Requires a single-run fit.
 
         Returns:
-            list of Nifti1Image or ndarray: Fitted values (X is None) or new-X
-                predictions (X given).
+            Fitted values (when X is None) or predictions for the new X.
 
         Raises:
             NotImplementedError: If X is given for a multi-run fit (a single new
@@ -406,8 +405,7 @@ class Glm(BaseModel):
                 - 'all': Dictionary with all output types
 
         Returns:
-            Nifti1Image or dict: Contrast map(s). If output_type='all', returns dict
-                with all maps.
+            The contrast map, or a dict of all maps when ``output_type='all'``.
 
         Examples:
             >>> # After fitting model
@@ -434,7 +432,7 @@ class Glm(BaseModel):
         """Residuals from fitted GLM.
 
         Returns:
-            list of Nifti1Image: Residual images for each run (observed - predicted)
+            Residual images for each run (observed - predicted).
 
         Raises:
             ValueError: If model has not been fitted yet
@@ -447,7 +445,7 @@ class Glm(BaseModel):
         """Design matrices used in fitting.
 
         Returns:
-            list of DataFrame: Design matrices for each run
+            Design matrices for each run.
 
         Raises:
             ValueError: If model has not been fitted yet

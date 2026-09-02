@@ -676,7 +676,7 @@ class DesignMatrix:
           `corr`; diagonal restored to 1.0 for display).
 
         Args:
-            method (str): ``'matrix'`` | ``'timeseries'`` | ``'corr'``.
+            method (str): One of ``'matrix'``, ``'timeseries'``, or ``'corr'``.
                 Default: ``'matrix'``.
             columns (list of str, optional): Subset of columns to plot.
                 Defaults to all columns.

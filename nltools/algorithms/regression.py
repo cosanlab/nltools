@@ -29,18 +29,14 @@ def regress(X, Y, *, method: str = "ols", stats: str = "full", tail: int | str =
             statsmodels or a dedicated package if you need them.
         stats: ``'full'`` returns the 6-tuple below; ``'betas'`` returns
             just ``b``; ``'tstats'`` returns ``(b, t)``.
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0;
             negate a regressor for the other direction).
 
     Returns:
-        tuple: ``(b, se, t, p, df, res)`` when ``stats='full'``:
-
-        - ``b``: coefficients
-        - ``se``: standard errors
-        - ``t``: t-statistics
-        - ``p``: p-values (per ``tail``)
-        - ``df``: residual degrees of freedom
-        - ``res``: residuals
+        tuple: ``(b, se, t, p, df, res)`` when ``stats='full'`` — coefficients,
+            standard errors, t-statistics, p-values (per ``tail``), residual
+            degrees of freedom, and residuals. ``stats='betas'`` returns just
+            ``b``; ``stats='tstats'`` returns ``(b, t)``.
     """
     from .inference.validation import validate_tail_parameter
 

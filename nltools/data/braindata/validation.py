@@ -27,7 +27,7 @@ def validate_frame(frame, data_shape=None, frame_type="DataFrame"):
 
     Returns:
         pl.DataFrame: Validated frame as polars. Empty ``pl.DataFrame()`` when
-        ``frame`` is ``None``.
+            ``frame`` is ``None``.
 
     Raises:
         TypeError: If frame is not a supported type.

@@ -18,7 +18,7 @@ def plot_dist_from_hyperplane(stats_output):
         stats_output: pandas DataFrame with prediction output
 
     Returns:
-        a seaborn FacetGrid of distance from hyperplane
+        seaborn.FacetGrid: Distance from the hyperplane per sample.
 
     """
 
@@ -51,7 +51,7 @@ def plot_scatter(stats_output):
         stats_output: pandas DataFrame with prediction output
 
     Returns:
-        a seaborn FacetGrid scatterplot
+        seaborn.FacetGrid: Scatterplot.
 
     """
 
@@ -72,7 +72,7 @@ def plot_probability(stats_output):
         stats_output: pandas DataFrame with prediction output
 
     Returns:
-        a seaborn FacetGrid scatterplot
+        seaborn.FacetGrid: Scatterplot.
 
     """
     if "Probability_xval" in stats_output.columns:
@@ -93,7 +93,7 @@ def plot_roc(fpr, tpr):
         tpr: true positive rate from Roc.calculate
 
     Returns:
-        a matplotlib Figure
+        matplotlib.figure.Figure: The ROC figure.
 
     """
 

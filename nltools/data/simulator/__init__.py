@@ -38,10 +38,13 @@ class Simulator:
         random_state: Random state for reproducible simulations.
 
     Examples:
-        >>> from nltools.data.simulator import Simulator
-        >>> sim = Simulator(random_state=42)
-        >>> # Create a dataset with signal in specific regions
-        >>> data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+        ```python
+        from nltools.data.simulator import Simulator
+
+        sim = Simulator(random_state=42)
+        # Create a dataset with signal in specific regions
+        data = sim.create_data(levels=[1, -1, 1, -1], sigma=1, reps=10)
+        ```
     """
 
     def __init__(
@@ -514,10 +517,13 @@ class SimulateGrid:
         isfit: Whether fit() has been called.
 
     Examples:
-        >>> from nltools.data.simulator import SimulateGrid
-        >>> sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
-        >>> sim.fit()
-        >>> sim.plot()
+        ```python
+        from nltools.data.simulator import SimulateGrid
+
+        sim = SimulateGrid(signal_amplitude=0.5, random_state=42)
+        sim.fit()
+        sim.plot()
+        ```
     """
 
     def __init__(
@@ -555,7 +561,7 @@ class SimulateGrid:
         """Generate simulated data using object parameters.
 
         Returns:
-            simulated_data (np.array): simulated noise using object parameters
+            np.ndarray: Simulated noise using object parameters.
         """
         return (
             self.random_state.randn(self.grid_width, self.grid_width, self.n_subjects)
@@ -617,7 +623,7 @@ class SimulateGrid:
             threshold_type (str): type of threshold to use can be a specific t-value, p-value, or FDR-corrected q-value ['t', 'p', 'q']
 
         Returns:
-            threshold_data (np.array): thresholded data
+            np.ndarray: Thresholded data.
         """
         if correction == "fdr":
             if threshold_type != "q":
@@ -669,7 +675,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            fp_percent (float): percentage of grid that contains false positives
+            float: Percentage of grid that contains false positives.
         """
 
         if self.signal_mask is None:
@@ -686,7 +692,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            tp_percent (float): percentage of grid that contains true positives
+            float: Percentage of grid that contains true positives.
         """
 
         if self.signal_mask is None:
@@ -702,7 +708,7 @@ class SimulateGrid:
         Args:
             thresholded (np.array): thresholded grid
         Returns:
-            fp_percent (float): percentage of activated voxels that are false positives
+            float: Percentage of activated voxels that are false positives.
         """
         if self.signal_mask is None:
             raise ValueError("No mask exists, run add_signal() first.")

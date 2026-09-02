@@ -31,8 +31,8 @@ def bootstrap(
         save_boots: (bool) If True, store all bootstrap samples (memory intensive).
                    Default: False
         percentiles: (tuple) Percentiles for confidence intervals. Default: (2.5, 97.5)
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
-            statistic > 0; negate the data for the other direction).
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+            (statistic > 0; negate the data for the other direction).
         n_jobs: (int) Number of CPU cores for parallelization. -1 means all CPUs.
         random_state: (int, optional) Random seed for reproducibility
         progress_bar: (bool) If True, show a progress bar. Default False.
@@ -42,10 +42,11 @@ def bootstrap(
               (all Adjacency objects). If save_boots=True, also includes 'samples'.
 
     Examples:
-        >>> # Simple aggregation
-        >>> boot = bootstrap(adj, stat='mean', n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], Adjacency)
+        ```python
+        # Simple aggregation
+        boot = bootstrap(adj, stat='mean', n_samples=1000)
+        assert isinstance(boot['mean'], Adjacency)
+        ```
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
@@ -131,11 +132,11 @@ def regress(adj, X, method="ols", tail=2):
         adj: (Adjacency) Adjacency instance
         X: Design matrix can be an Adjacency or DesignMatrix instance
         method: type of regression (default: ols) - only 'ols' is currently supported
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
-            negate a regressor for the other direction)
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+            (beta > 0; negate a regressor for the other direction).
 
     Returns:
-        stats: (dict) dictionary of stats outputs.
+        dict: Dictionary of stats outputs.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
@@ -321,7 +322,8 @@ def social_relations_model(adj, summarize_results=True, nan_replace=True):
         nan_replace: (bool) will replace nan values with row and column means
 
     Returns:
-        estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+        pd.Series | pd.DataFrame: All of the effects estimated using SRM (a Series
+            for a single matrix, a DataFrame with one row per matrix otherwise).
     """
     import pandas as pd
 
@@ -635,15 +637,17 @@ def generate_permutations(adj, n_permute, random_state=None):
     Args:
         adj: (Adjacency) Adjacency instance
         n_permute (int): number of permutations
-        random_state (int or np.random.RandomState, optional): random seed for reproducibility. Defaults to None.
-
-    Examples:
-        >>> for perm in generate_permutations(adj, 1000):
-        >>>     out = neural_distance_mat.similarity(perm)
-        >>>     ...
+        random_state (int or np.random.RandomState, optional): random seed for
+            reproducibility. Defaults to None.
 
     Yields:
         Adjacency: permuted version of adj
+
+    Examples:
+        ```python
+        for perm in generate_permutations(adj, 1000):
+            out = neural_distance_mat.similarity(perm)
+        ```
     """
     from nltools.data.adjacency import Adjacency
     from sklearn.utils import check_random_state

@@ -183,8 +183,8 @@ def slice_type_for(view: str) -> str:
             ``"sagittal"``, ``"render"``.
 
     Returns:
-        The matching ``SLICE_TYPE`` member name (e.g. ``"MULTIPLANAR"``),
-        which ``viewer.js`` resolves against niivue's enum.
+        str: The matching ``SLICE_TYPE`` member name (e.g. ``"MULTIPLANAR"``),
+            which ``viewer.js`` resolves against niivue's enum.
 
     Raises:
         ValueError: For ``view="surface"`` (dropped — niivue's 3D render is
@@ -253,8 +253,8 @@ def atlas_to_label_lut(atlas: Atlas) -> dict:
         atlas: A loaded deterministic `Atlas`.
 
     Returns:
-        ``{"R", "G", "B", "A", "labels"}`` dict suitable for niivue's
-        ``setColormapLabel``.
+        dict: Keys ``"R"``, ``"G"``, ``"B"``, ``"A"``, ``"labels"``, suitable for
+            niivue's ``setColormapLabel``.
 
     Raises:
         ValueError: If ``atlas`` is probabilistic (4D) — threshold it to a

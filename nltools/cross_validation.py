@@ -65,9 +65,9 @@ class KFoldStratified(_BaseKFold):
                 learning problems. Stratification is done based on the y labels.
             groups: Always ignored, exists for compatibility.
 
-        Returns:
-            train: The training set indices for that split (ndarray).
-            test: The testing set indices for that split (ndarray).
+        Yields:
+            tuple[np.ndarray, np.ndarray]: `(train, test)` — the training set indices
+                and the testing set indices for that split.
 
         """
         y = check_array(y, ensure_2d=False, dtype=None)
@@ -105,7 +105,7 @@ def resolve_cv(
         random_state: Seed for ``shuffle``.
 
     Returns:
-        An sklearn splitter instance.
+        BaseCrossValidator: An sklearn splitter instance.
 
     Raises:
         ValueError: On an unknown string spec, including the pre-v0.6.0

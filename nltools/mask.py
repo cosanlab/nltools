@@ -104,7 +104,7 @@ def expand_mask(mask, custom_mask=None):
         custom_mask: nibabel instance or string to file path; optional
 
     Returns:
-        out: BrainData instance of multiple binary masks
+        BrainData: BrainData instance of multiple binary masks.
 
     """
 
@@ -137,7 +137,7 @@ def collapse_mask(mask, auto_label=True, custom_mask=None):
         custom_mask: nibabel instance or string to file path; optional.
 
     Returns:
-        out: BrainData instance of a mask with different integers indicating
+        BrainData: BrainData instance of a mask with different integers indicating
             different masks.
 
     Raises:
@@ -207,7 +207,7 @@ def roi_to_brain(data, mask_x):
 
     Returns:
         BrainData: A BrainData instance with each ROI populated by the
-        provided value(s).
+            provided value(s).
     """
     import polars as pl
 
@@ -292,8 +292,8 @@ def roi_to_brain_from_atlas(
 
     Returns:
         BrainData: Masked to `source_mask`, with each in-atlas voxel set to its
-        parcel's scalar from `values`. Holds a single image when `values` is
-        1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
+            parcel's scalar from `values`. Holds a single image when `values` is
+            1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
     Examples:
         >>> from nltools.mask import roi_to_brain_from_atlas

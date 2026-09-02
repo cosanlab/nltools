@@ -22,7 +22,7 @@ def calc_bpm(beat_interval, sampling_freq):
         sampling_freq: (float) sampling frequency in Hz
 
     Returns:
-        bpm:  (float) beats per minute for time interval
+        float: Beats per minute for the time interval.
     """
     return 60 * sampling_freq * (1 / (beat_interval))
 
@@ -41,7 +41,7 @@ def downsample(
                 default: mean
 
     Returns:
-        out: (pl.DataFrame, pl.Series) downsampled data (same type as input)
+        pl.DataFrame | pl.Series: Downsampled data (same type as input).
     """
     if isinstance(data, pl.DataFrame):
         df = data.clone()
@@ -102,17 +102,18 @@ def upsample(
     """Upsample a Polars DataFrame/Series to a new target frequency or number of samples using interpolation.
 
     Args:
-        data: (pl.DataFrame, pl.Series) data to upsample
-              (Note: will drop non-numeric columns from DataFrame)
-        sampling_freq:  Sampling frequency of data in hertz
-        target: (float) upsampling target
-        target_type: (str) type of target can be [samples,seconds,hz]
-        method: (str) ['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic']
-                      where 'zero', 'slinear', 'quadratic' and 'cubic'
-                      refer to a spline interpolation of zeroth, first,
-                      second or third order  (default: linear)
+        data (pl.DataFrame | pl.Series): Data to upsample. Non-numeric columns
+            are dropped from a DataFrame.
+        sampling_freq (float): Sampling frequency of the data in Hz.
+        target (float): Upsampling target.
+        target_type (str): Unit of `target`, one of 'samples', 'seconds', or 'hz'.
+        method (str): Interpolation method, one of 'linear', 'nearest', 'zero',
+            'slinear', 'quadratic', or 'cubic'; 'zero', 'slinear', 'quadratic'
+            and 'cubic' refer to spline interpolation of zeroth, first, second
+            or third order (default: 'linear').
+
     Returns:
-        upsampled Polars DataFrame or Series (same type as input)
+        pl.DataFrame | pl.Series: Upsampled data, the same type as the input.
     """
     if isinstance(data, pl.DataFrame):
         df = data.clone()
@@ -180,7 +181,7 @@ def make_cosine_basis(nsamples, sampling_freq, filter_length, unit_scale=True, d
             up to and inclusive of index provided (e.g. 2, drops bases 1 and 2)
 
     Returns:
-        out (ndarray): nsamples x number of basis sets numpy array
+        np.ndarray: nsamples x number of basis sets numpy array.
 
     """
 
@@ -254,7 +255,7 @@ def _phase_mean_angle(phase_angles):
         phase_angles: (np.array) 1D or 2D array of phase angles
 
     Returns:
-        mean phase angle: (np.array)
+        np.ndarray: Mean phase angle (one value per feature for 2D input).
 
     """
 
@@ -278,7 +279,7 @@ def _phase_vector_length(phase_angles):
         phase_angles: (np.array) 1D or 2D array of phase angles
 
     Returns:
-         phase angle vector length: (np.array)
+        np.ndarray: Phase angle vector length (one value per feature for 2D input).
 
     """
 
@@ -304,7 +305,7 @@ def _phase_rayleigh_p(phase_angles):
         phase_angles: (np.array) 1D or 2D array of phase angles
 
     Returns:
-         p-values: (np.array)
+        np.ndarray: Rayleigh-test p-values (one value per feature for 2D input).
 
     """
 

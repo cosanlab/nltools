@@ -20,8 +20,8 @@ def zscore(data):
         data: pl.DataFrame, pl.Series, pd.DataFrame, or pd.Series.
 
     Returns:
-        pl.DataFrame or pl.Series with each column z-scored using sample
-        standard deviation (ddof=1), matching the input shape.
+        pl.DataFrame | pl.Series: Same type and shape as the input, each column
+            z-scored using the sample standard deviation (ddof=1).
     """
     import pandas as pd
 
@@ -55,14 +55,15 @@ def winsorize(data, cutoff=None, replace_with_cutoff=True):
     """Winsorize a Polars DataFrame/Series with the largest/lowest value not considered outlier.
 
     Args:
-        data: (pl.DataFrame, pl.Series) data to winsorize
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
-        replace_with_cutoff: (bool) If True, replace outliers with cutoff.
-                             If False, replaces outliers with closest
-                             existing values; (default: True)
+        data (pl.DataFrame | pl.Series): Data to winsorize.
+        cutoff (dict): A dictionary with keys `{'std': [low, high]}` or
+            `{'quantile': [low, high]}`.
+        replace_with_cutoff (bool): If True, replace outliers with the cutoff
+            value; if False, replace them with the closest existing values
+            (default: True).
+
     Returns:
-        out: (pl.DataFrame, pl.Series) winsorized data (same type as input)
+        pl.DataFrame | pl.Series: Winsorized data, the same type as the input.
     """
     return _transform_outliers(
         data, cutoff, replace_with_cutoff=replace_with_cutoff, method="winsorize"
@@ -73,11 +74,13 @@ def trim(data, cutoff=None):
     """Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
     Args:
-        data: (pl.DataFrame, pl.Series) data to trim
-        cutoff: (dict) a dictionary with keys {'std':[low,high]} or
-                {'quantile':[low,high]}
+        data (pl.DataFrame | pl.Series): Data to trim.
+        cutoff (dict): A dictionary with keys `{'std': [low, high]}` or
+            `{'quantile': [low, high]}`.
+
     Returns:
-        out: (pl.DataFrame, pl.Series) trimmed data (same type as input)
+        pl.DataFrame | pl.Series: Trimmed data (outliers replaced with NaN), the
+            same type as the input.
     """
     return _transform_outliers(data, cutoff, replace_with_cutoff=None, method="trim")
 
@@ -98,7 +101,7 @@ def _transform_outliers(data, cutoff, replace_with_cutoff, method):
         method: 'winsorize' or 'trim'
 
     Returns:
-        out: (pl.DataFrame, pl.Series) transformed data
+        pl.DataFrame | pl.Series: Transformed data (same type as input).
     """
     return_series = False
     if isinstance(data, pl.DataFrame):
@@ -207,18 +210,18 @@ def find_spikes(
         sampling_freq: Sampling frequency in Hz (= 1/TR). See `TR`.
 
     Returns:
-        DesignMatrix: one indicator column per detected spike TR, named
-        ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved
-        namespace for generated columns (see `RESERVED_PREFIX`), with all
-        spike columns pre-marked as confounds. The two detectors run
-        independently, so a single bad volume is routinely caught by both;
-        those detections are bitwise-identical one-hot columns, and only one
-        is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —
-        the column values are the same either way). Row position is the time
-        axis (no separate `TR` index column — that was a pandas-era
-        artifact). When `TR` / `sampling_freq` aren't provided the DM has
-        `sampling_freq=None`; you can still `.append()` it onto a DM that
-        does have one.
+        DesignMatrix: One indicator column per detected spike TR, named
+            ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved
+            namespace for generated columns (see `RESERVED_PREFIX`), with all
+            spike columns pre-marked as confounds. The two detectors run
+            independently, so a single bad volume is routinely caught by both;
+            those detections are bitwise-identical one-hot columns, and only one
+            is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —
+            the column values are the same either way). Row position is the time
+            axis (no separate `TR` index column — that was a pandas-era
+            artifact). When `TR` / `sampling_freq` aren't provided the DM has
+            `sampling_freq=None`; you can still `.append()` it onto a DM that
+            does have one.
     """
 
     from nltools.data import BrainData

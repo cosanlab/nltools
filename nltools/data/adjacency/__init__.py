@@ -47,7 +47,6 @@ class Adjacency:
         labels: (list) optional node labels
         spatial_scale: (SpatialScale, optional) spatial-scale metadata linking rows/
             columns to a brain parcellation, enabling projection back into brain space
-
     """
 
     def __init__(
@@ -387,8 +386,7 @@ class Adjacency:
             data:  (Adjacency) Adjacency instance to append
 
         Returns:
-            out: (Adjacency) new appended Adjacency instance
-
+            Adjacency: New appended Adjacency instance.
         """
         if not isinstance(data, Adjacency):
             raise ValueError("Make sure data is a Adjacency instance.")
@@ -472,7 +470,6 @@ class Adjacency:
 
         Returns:
             dict: per-cluster summaries
-
         """
         from .stats import cluster_summary
 
@@ -496,8 +493,7 @@ class Adjacency:
                     symmetric matrices are stored without diagonal).
 
         Returns:
-            dist: (Adjacency) Outputs a 2D distance matrix.
-
+            Adjacency: A 2D distance matrix.
         """
         if include_diag and self.issymmetric:
             # Get square form and extract upper triangle WITH diagonal
@@ -523,15 +519,14 @@ class Adjacency:
     def distance_to_similarity(self, metric="correlation", beta=1):
         """Convert distance matrix to similarity matrix.
 
-        Note: currently only implemented for correlation and euclidean.
+        Currently only implemented for the 'correlation' and 'euclidean' metrics.
 
         Args:
-            metric: (str) Can only be correlation or euclidean
-            beta: (float) parameter to scale exponential function (default: 1) for euclidean
+            metric (str): Either 'correlation' or 'euclidean'.
+            beta (float): Scale parameter of the exponential used for 'euclidean' (default: 1).
 
         Returns:
-            out: (Adjacency) Adjacency object
-
+            Adjacency: The converted similarity matrix.
         """
         if self.matrix_type == "distance":
             if metric == "correlation":
@@ -571,7 +566,8 @@ class Adjacency:
             axis: Calculate mean over matrices (0) or upper triangle (1).
 
         Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+            float | Adjacency | np.ndarray: A float for a single matrix; an
+                Adjacency when `axis=0`; an array when `axis=1`.
         """
         return apply_stat(self, np.nanmean, axis)
 
@@ -582,7 +578,8 @@ class Adjacency:
             axis: Calculate median over matrices (0) or upper triangle (1).
 
         Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+            float | Adjacency | np.ndarray: A float for a single matrix; an
+                Adjacency when `axis=0`; an array when `axis=1`.
         """
         return apply_stat(self, np.nanmedian, axis)
 
@@ -606,9 +603,6 @@ class Adjacency:
 
         Args:
             labels (np.array):  numpy array of labels to plot
-
-        Returns:
-            None
 
         """
         from .stats import plot_label_distance
@@ -641,7 +635,6 @@ class Adjacency:
             figsize: (list) figure size; default [12, 8]
             ax: matplotlib axis handle
             n_jobs: (int) Number of parallel jobs
-
         """
         from .plotting import plot_mds
 
@@ -705,11 +698,11 @@ class Adjacency:
         Args:
             X: Design matrix can be an Adjacency or DesignMatrix instance
             method: type of regression (default: ols) - only 'ols' is currently supported
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: beta > 0;
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0;
                 negate a regressor for the other direction)
 
         Returns:
-            stats: (dict) dictionary of stats outputs.
+            dict: Dictionary of stats outputs.
         """
         from .modeling import regress
 
@@ -759,12 +752,11 @@ class Adjacency:
                 the per-matrix correlations back into brain space. Default False.
 
         Returns:
-            dict or list or BrainData: A correlation result dict with keys
+            dict | list[dict] | BrainData: A correlation result dict with keys
                 'correlation', 'p', and 'device' for a single matrix, a list of
                 such dicts when this Adjacency holds multiple matrices, or a
-                `BrainData` when `project=True` (per-matrix correlations projected
-                via spatial_scale).
-
+                `BrainData` when `project=True` (per-matrix correlations
+                projected via spatial_scale).
         """
         from .stats import similarity
 
@@ -811,12 +803,12 @@ class Adjacency:
         Bond and Lashley, 1996
 
         Args:
-            self: (adjacency) can be a single matrix or many matrices for each group
-            summarize_results: (bool) will provide a formatted summary of model results
-            nan_replace: (bool) will replace nan values with row and column means
+            summarize_results (bool): If True, provide a formatted summary of model results.
+            nan_replace (bool): If True, replace NaN values with row and column means.
 
         Returns:
-            estimated effects: (pd.Series/pd.DataFrame) All of the effects estimated using SRM
+            pd.Series | pd.DataFrame: All of the effects estimated using SRM, as a
+                Series (single matrix) or DataFrame (one row per matrix).
         """
         from .modeling import social_relations_model
 
@@ -847,7 +839,6 @@ class Adjacency:
         Returns:
             dict:  dictionary of within and between group differences
                     and p-values
-
         """
         from .stats import stats_label_distance
 
@@ -862,7 +853,8 @@ class Adjacency:
             axis: Calculate std over matrices (0) or upper triangle (1).
 
         Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+            float | Adjacency | np.ndarray: A float for a single matrix; an
+                Adjacency when `axis=0`; an array when `axis=1`.
         """
         return apply_stat(self, np.nanstd, axis)
 
@@ -873,7 +865,8 @@ class Adjacency:
             axis: Calculate sum over matrices (0) or upper triangle (1).
 
         Returns:
-            float if single matrix, Adjacency if axis=0, np.array if axis=1.
+            float | Adjacency | np.ndarray: A float for a single matrix; an
+                Adjacency when `axis=0`; an array when `axis=1`.
         """
         return apply_stat(self, np.nansum, axis)
 
@@ -897,7 +890,6 @@ class Adjacency:
 
         Returns:
             Adjacency: thresholded Adjacency instance
-
         """
         from .stats import threshold
 
@@ -971,8 +963,8 @@ class Adjacency:
         This is an alias for `squareform`.
 
         Returns:
-            np.ndarray or list: Square matrix representation. Returns a list
-            of matrices if this object contains multiple adjacency matrices.
+            np.ndarray | list[np.ndarray]: Square matrix representation, or a list
+                of them if this object contains multiple adjacency matrices.
         """
         return self.squareform()
 
@@ -993,7 +985,7 @@ class Adjacency:
             permutation: (bool) Run ttest as permutation. Note this can be very slow.
             n_permute: Number of permutations (used only when
                 ``permutation=True``). Default 5000.
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
                 mean > 0; negate the data for the other direction). Applies to
                 both the parametric and permutation paths.
             return_null: If True, also return the null distribution. Default False.
@@ -1002,9 +994,8 @@ class Adjacency:
             progress_bar: If True, show a progress bar. Default False.
 
         Returns:
-            out: (dict) contains Adjacency instances of t values (or mean if
-                 running permutation) and Adjacency instance of p values.
-
+            dict: Contains Adjacency instances of t values (or mean if running
+                permutation) and Adjacency instance of p values.
         """
         from .stats import ttest
 
@@ -1025,7 +1016,6 @@ class Adjacency:
         Args:
             file_name (str):  name of file name to write
             method (str):     method to write out data ['long','square']
-
         """
         from .io import write
 

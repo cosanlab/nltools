@@ -29,7 +29,7 @@ _generate_sign_flips = _generate_sign_flips_from_random
 def _normalize_tail_internal(tail: int | str) -> str:
     """Normalize a tail value to the internal 'two'/'upper'/'lower' form.
 
-    Accepts BOTH the public v0.6.0 vocabulary (2|'two', 1|'one') and the
+    Accepts BOTH the public v0.6.0 vocabulary (2 or 'two', 1 or 'one') and the
     internal directional forms ('upper', 'lower', -1) that forced-tail call
     sites use directly. Public entry points must validate with the strict
     `validate_tail_parameter` first — this permissive form exists only so

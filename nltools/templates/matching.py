@@ -143,8 +143,8 @@ def is_standard_space(
 
     Returns:
         ``(True, None)`` if compatible; otherwise ``(False, reason)`` with
-        ``reason`` a one-line human-readable explanation suitable for
-        embedding in an error message.
+            ``reason`` a one-line human-readable explanation suitable for
+            embedding in an error message.
     """
     del config  # accepted for symmetry with get_bg_image; not needed today
     res, is_isotropic = detect_resolution(affine)

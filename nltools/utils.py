@@ -50,8 +50,8 @@ def reserved_name(base: str) -> str:
         base: Name without the reserved prefix, e.g. ``'poly_0'``.
 
     Returns:
-        str: ``base`` prefixed with `RESERVED_PREFIX`, idempotently — a name
-        that already carries the prefix is returned unchanged.
+        str: `base` prefixed with `RESERVED_PREFIX`, idempotently — a name
+            that already carries the prefix is returned unchanged.
     """
     return base if is_reserved_name(base) else f"{RESERVED_PREFIX}{base}"
 
@@ -91,8 +91,8 @@ def parse_run_separated(name: str) -> tuple[int, str] | None:
         name: Column name to parse.
 
     Returns:
-        tuple or None: ``(run_idx, base)`` for a run-separated name (e.g.
-        ``'.nl_r1_poly_0'`` → ``(1, 'poly_0')``), else None.
+        tuple[int, str] | None: `(run_idx, base)` for a run-separated name (e.g.
+            `'.nl_r1_poly_0'` → `(1, 'poly_0')`), else None.
     """
     match = _RUN_SEPARATED_RE.fullmatch(name)
     return (int(match.group(1)), match.group(2)) if match else None
@@ -166,7 +166,7 @@ def attempt_to_import(dependency, name=None, fromlist=None):
         fromlist: Optional list of names to import from the module.
 
     Returns:
-        The imported module, or None if the import failed.
+        ModuleType | None: The imported module, or None if the import failed.
 
     Examples:
         >>> torch = attempt_to_import('torch')
@@ -262,7 +262,7 @@ def maybe_tqdm(iterable, *, progress_bar: bool, **tqdm_kwargs):
         **tqdm_kwargs: Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`).
 
     Returns:
-        The original iterable, or a `tqdm`-wrapped version of it.
+        Iterable: The original iterable, or a `tqdm`-wrapped version of it.
 
     Examples:
         ```python
@@ -291,9 +291,9 @@ def make_progress_bar(*, progress_bar: bool, **tqdm_kwargs):
         **tqdm_kwargs: Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`).
 
     Returns:
-        A `tqdm` instance, or a `_NullProgressBar` exposing the same subset of
-        its interface (`update`, `close`, `set_postfix`, `set_description`, and
-        the context-manager protocol).
+        tqdm | _NullProgressBar: A `tqdm` instance, or a `_NullProgressBar` exposing
+            the same subset of its interface (`update`, `close`, `set_postfix`,
+            `set_description`, and the context-manager protocol).
     """
     if not progress_bar:
         return _NullProgressBar()

@@ -8,10 +8,15 @@ Features:
 - GPU acceleration (10-100x speedup on large datasets)
 - Banded ridge for multiple feature spaces
 
-Quick Start:
-    >>> X = np.random.randn(100, 50)
-    >>> Y = np.random.randn(100, 10)
-    >>> result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
+Examples:
+    ```python
+    import numpy as np
+    from nltools.algorithms.ridge import solve_ridge_cv
+
+    X = np.random.randn(100, 50)
+    Y = np.random.randn(100, 10)
+    result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
+    ```
 """
 
 # Core solvers (new GPU-enabled API)

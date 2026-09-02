@@ -131,8 +131,8 @@ def label_coords(
             with probability (in percent units) below this threshold.
 
     Returns:
-        Polars DataFrame with columns ``x``, ``y``, ``z`` plus one
-        column per atlas. All atlas columns are ``Utf8``.
+        pl.DataFrame: Frame with columns `x`, `y`, `z` plus one column per atlas.
+            All atlas columns are `Utf8`.
     """
     xyz = _as_xyz_array(coords)
     atlas_names = [atlas] if isinstance(atlas, str) else list(atlas)

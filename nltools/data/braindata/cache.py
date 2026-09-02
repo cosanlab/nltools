@@ -4,22 +4,23 @@ This module provides a general-purpose caching system for nltools, designed to
 be reused across various computationally expensive operations like searchlight
 neighborhoods, ISC, and SRM.
 
-Example:
-    >>> from nltools.data.braindata.cache import CacheManager, hash_mask
-    >>> import nibabel as nib
-    >>>
-    >>> # Hash a mask for cache key generation
-    >>> mask = nib.load("mask.nii.gz")
-    >>> mask_hash = hash_mask(mask)
-    >>>
-    >>> # Use cache manager for searchlight neighborhoods
-    >>> cache = CacheManager("searchlight")
-    >>> if not cache.exists(f"{mask_hash}_10mm"):
-    ...     # Compute expensive operation
-    ...     result = compute_something()
-    ...     cache.save(f"{mask_hash}_10mm", data=result)
-    >>> else:
-    ...     result = cache.load(f"{mask_hash}_10mm")["data"]
+Examples:
+    ```python
+    import nibabel as nib
+    from nltools.data.braindata.cache import CacheManager, hash_mask
+
+    # Hash a mask for cache key generation
+    mask = nib.load("mask.nii.gz")
+    mask_hash = hash_mask(mask)
+
+    # Use cache manager for searchlight neighborhoods
+    cache = CacheManager("searchlight")
+    if not cache.exists(f"{mask_hash}_10mm"):
+        result = compute_something()  # expensive operation
+        cache.save(f"{mask_hash}_10mm", data=result)
+    else:
+        result = cache.load(f"{mask_hash}_10mm")["data"]
+    ```
 """
 
 from __future__ import annotations
@@ -63,11 +64,13 @@ def hash_mask(mask_img: Nifti1Image) -> str:
     Returns:
         16-character hexadecimal hash string
 
-    Example:
-        >>> import nibabel as nib
-        >>> mask = nib.load("mask.nii.gz")
-        >>> hash_mask(mask)
-        'a1b2c3d4e5f60789'
+    Examples:
+        ```python
+        import nibabel as nib
+
+        mask = nib.load("mask.nii.gz")
+        hash_mask(mask)  # 'a1b2c3d4e5f60789'
+        ```
     """
     mask_data = mask_img.get_fdata().astype(bool)
     affine = mask_img.affine
@@ -92,16 +95,18 @@ class CacheManager:
     Args:
         category: Category name for organizing cached files (e.g., "searchlight")
 
-    Example:
-        >>> cache = CacheManager("searchlight")
-        >>>
-        >>> # Check if something is cached
-        >>> if cache.exists("mykey"):
-        ...     data = cache.load("mykey")
-        ... else:
-        ...     result = expensive_computation()
-        ...     cache.save("mykey", adjacency=result, metadata=metadata)
-        ...     data = {"adjacency": result, "metadata": metadata}
+    Examples:
+        ```python
+        cache = CacheManager("searchlight")
+
+        # Load from cache if present, otherwise compute and store
+        if cache.exists("mykey"):
+            data = cache.load("mykey")
+        else:
+            result = expensive_computation()
+            cache.save("mykey", adjacency=result, metadata=metadata)
+            data = {"adjacency": result, "metadata": metadata}
+        ```
     """
 
     def __init__(self, category: str = "general"):

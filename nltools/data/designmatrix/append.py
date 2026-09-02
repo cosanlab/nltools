@@ -65,7 +65,7 @@ def _coerce_horizontal_input(x, sampling_freq):
         sampling_freq: Base DM's sampling frequency (inherited by the wrapped DM).
 
     Returns:
-        DesignMatrix.
+        DesignMatrix: The coerced input.
 
     Raises:
         TypeError: If ``x`` is not a DesignMatrix or supported DataFrame.
@@ -372,7 +372,7 @@ def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
             - 'exact' matches only 'exact'
 
     Returns:
-        list of str: Column names matching the pattern.
+        list[str]: Column names matching the pattern.
     """
     if pattern.endswith("*"):
         prefix = pattern[:-1]

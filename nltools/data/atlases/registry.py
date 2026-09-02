@@ -87,7 +87,6 @@ def list_atlases() -> list[str]:
     """Return the sorted list of registered atlas names.
 
     Returns:
-        Sorted list of atlas names usable with
-        `load_atlas`.
+        list[str]: Sorted list of atlas names usable with `load_atlas`.
     """
     return sorted(ATLASES.keys())

@@ -99,7 +99,7 @@ def plot_stacked_adjacency(adjacency1, adjacency2, normalize=True, **kwargs):
         **kwargs: Passed through to seaborn.heatmap.
 
     Returns:
-        matplotlib axes with the stacked heatmap.
+        matplotlib.axes.Axes: Axes holding the stacked heatmap.
     """
     from nltools.data import Adjacency
 
@@ -134,8 +134,9 @@ def plot_mean_label_distance(
         **kwargs: Passed to seaborn.violinplot.
 
     Returns:
-        pl.DataFrame with columns [Distance, Group, Type] in long format.
-        If permutation_test=True, returns (pl.DataFrame, dict of per-group stats).
+        pl.DataFrame | tuple[pl.DataFrame, dict]: A polars DataFrame with columns
+            [Distance, Group, Type] in long format. If `permutation_test=True`, a
+            tuple `(long_df, stats)` where `stats` is a dict of per-group stats.
     """
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)
@@ -211,13 +212,12 @@ def plot_between_label_distance(
         **kwargs: Passed to seaborn.heatmap.
 
     Returns:
-        Without permutation_test: (long_df, within_mean_df)
-        With permutation_test: (long_df, within_mean_df, mean_diff_df, p_df)
-
-        All frames are polars DataFrames. `long_df` has columns
-        [Distance, Group, Comparison]. The three square-matrix-like frames
-        are long format with columns [label1, label2, <value>] so they can
-        be pivoted to a matrix if needed.
+        tuple[pl.DataFrame, ...]: `(long_df, within_mean_df)` without
+            `permutation_test`, or `(long_df, within_mean_df, mean_diff_df, p_df)`
+            with it. All frames are polars DataFrames. `long_df` has columns
+            [Distance, Group, Comparison]. The three square-matrix-like frames are
+            long format with columns [label1, label2, value] so they can be
+            pivoted to a matrix if needed.
     """
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)
@@ -349,8 +349,9 @@ def plot_silhouette(
         figsize: Figure size tuple. Default (6, 4).
 
     Returns:
-        pl.DataFrame with columns [label, mean_silhouette]. If permutation_test
-        is True, adds a `p` column (1.0 for clusters with non-positive mean).
+        pl.DataFrame: Frame with columns [label, mean_silhouette]. If
+            `permutation_test` is True, adds a `p` column (1.0 for clusters with
+            non-positive mean).
     """
     arr = _as_square_ndarray(distance)
     labels_arr = np.asarray(labels)

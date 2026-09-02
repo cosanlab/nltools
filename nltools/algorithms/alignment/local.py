@@ -248,8 +248,9 @@ def _fit_local_procrustes(
         backend: Backend instance for GPU acceleration (None for numpy/scipy).
 
     Returns:
-        transforms: List of orthogonal transforms, each (n_local_voxels, n_local_voxels).
-        template: Mean template in aligned space, shape (n_local_voxels, n_samples).
+        tuple[list[np.ndarray], np.ndarray]: `(transforms, template)` — the list of
+            orthogonal transforms, each (n_local_voxels, n_local_voxels), and the mean
+            template in aligned space, shape (n_local_voxels, n_samples).
     """
     n_subjects = len(data)
     n_voxels, n_samples = data[0].shape

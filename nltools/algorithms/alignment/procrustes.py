@@ -42,17 +42,24 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
         axis: (int) axis to align on
 
     Returns:
-        out: (dict) a dictionary containing a list of transformed subject
-            matrices, a list of transformation matrices, the shared
-            response matrix, and the intersubject correlation of the shared responses
+        dict: A dictionary containing a list of transformed subject matrices, a
+            list of transformation matrices, the shared response matrix, and the
+            intersubject correlation of the shared responses.
 
     Examples:
-        - Hyperalign using procrustes transform:
-            >>> out = align(data, method='procrustes')
-        - Align using shared response model:
-            >>> out = align(data, method='probabilistic_srm', n_features=None)
-        - Project aligned data into original data:
-            >>> original_data = [np.dot(t.data,tm.T) for t,tm in zip(out['transformed'], out['transformation_matrix'])]
+        ```python
+        # Hyperalign using procrustes transform
+        out = align(data, method='procrustes')
+
+        # Align using shared response model
+        out = align(data, method='probabilistic_srm', n_features=None)
+
+        # Project aligned data back into original data space
+        original_data = [
+            np.dot(t.data, tm.T)
+            for t, tm in zip(out['transformed'], out['transformation_matrix'])
+        ]
+        ```
     """
 
     from nltools.data import BrainData, Adjacency
@@ -251,14 +258,14 @@ def procrustes(data1, data2):
             shape `(numrows, numcols)` as `data1` (must have >1 unique points).
 
     Returns:
-        mtx1: A standardized version of `data1`.
-        mtx2: The orientation of `data2` that best fits `data1`. Centered, but
-            not necessarily $tr(AA^{T}) = 1$.
-        disparity: $M^{2}$ as defined above.
-        R: The `(N, N)` matrix solution of the orthogonal Procrustes problem.
-            Minimizes the Frobenius norm of `dot(data1, R) - data2`, subject to
-            `dot(R.T, R) == I`.
-        scale: Sum of the singular values of `dot(data1.T, data2)`.
+        tuple[np.ndarray, np.ndarray, float, np.ndarray, float]: `(mtx1, mtx2,
+            disparity, R, scale)` — `mtx1` is a standardized version of `data1`;
+            `mtx2` is the orientation of `data2` that best fits `data1` (centered,
+            but not necessarily $tr(AA^{T}) = 1$); `disparity` is $M^{2}$ as defined
+            above; `R` is the `(N, N)` matrix solution of the orthogonal Procrustes
+            problem, minimizing the Frobenius norm of `dot(data1, R) - data2` subject
+            to `dot(R.T, R) == I`; `scale` is the sum of the singular values of
+            `dot(data1.T, data2)`.
     """
 
     mtx1 = np.array(data1, dtype=np.double, copy=True)
@@ -321,7 +328,8 @@ def procrustes_distance(
         mat1 (ndarray): 2d numpy array; must have same number of rows as mat2
         mat2 (ndarray): 1d or 2d numpy array; must have same number of rows as mat1
         n_permute (int): number of permutation iterations to perform
-        tail (int | str): 2|'two' (two-tailed, default) or 1|'one' (one-tailed: similarity > chance)
+        tail (int or str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for
+            one-tailed (similarity > chance)
         n_jobs (int): The number of CPUs to use to do permutation; default -1 (all)
         random_state (int, np.random.RandomState, or None): seed or generator for
             the permutation shuffling; default None
@@ -393,15 +401,15 @@ def align_states(
         target: (np.array) target pattern x state matrix to align to reference
         metric: (str) distance metric to use
         return_index: (bool) return index if True, return remapped data if False
-        replace_zero_variance: (bool) transform a vector with zero variance to random numbers from a uniform distribution.
-                                Useful for when using correlation as a distance metric to avoid NaNs.
-    Returns:
-        If ``return_index=False`` (default): ``target[:, remapping]``, a single
-        ndarray of the target's columns reordered to match the reference,
-        oriented pattern x state (same shape as ``target``).
-        If ``return_index=True``: the remapping index array (ndarray) that
-        reorders the target's state columns.
+        replace_zero_variance: (bool) transform a vector with zero variance to random
+            numbers from a uniform distribution. Useful when using correlation as a
+            distance metric to avoid NaNs.
 
+    Returns:
+        np.ndarray: If `return_index=False` (default), `target[:, remapping]` — the
+            target's columns reordered to match the reference, oriented pattern x
+            state (same shape as `target`). If `return_index=True`, the remapping
+            index array that reorders the target's state columns.
     """
     if reference.shape != target.shape:
         raise ValueError("reference and target must be the same size")

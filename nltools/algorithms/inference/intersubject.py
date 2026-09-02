@@ -82,21 +82,26 @@ def isc(
     which provides optimized implementations with CPU-parallel and GPU acceleration support.
 
     Args:
-        data: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        n_samples: (int) number of random samples/bootstraps
-        summary: (str) type of isc summary statistic ['mean','median'] (default: median)
-        method: (str) method to compute p-values ['bootstrap', 'circle_shift','phase_randomize'] (default: bootstrap)
-        ci_percentile: (int) confidence-interval width in percent for the bootstrap CI (default: 95)
-        exclude_self_corr: (bool) set self-correlations (same subject bootstrapped twice) to nan (default: True)
-        tail: (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-        metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
-        return_null: (bool) Return the permutation distribution along with the p-value; default False
-        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
-        random_state: (int, np.random.RandomState, or None) seed or generator for the resampling; default None
-        progress_bar: (bool) If True, display a progress bar. Default False.
+        data (pd.DataFrame | np.ndarray): Observations by subjects; ISC is computed across subjects.
+        n_samples (int): Number of random samples/bootstraps.
+        summary (str): ISC summary statistic, one of 'mean' or 'median' (default: 'median').
+        method (str): Method to compute p-values, one of 'bootstrap', 'circle_shift', or
+            'phase_randomize' (default: 'bootstrap').
+        ci_percentile (int): Confidence-interval width in percent for the bootstrap CI (default: 95).
+        exclude_self_corr (bool): Set self-correlations (same subject bootstrapped twice) to nan
+            (default: True).
+        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive
+            direction).
+        metric (str): Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs
+            (default: 'correlation').
+        return_null (bool): Return the permutation distribution along with the p-value (default: False).
+        n_jobs (int): Number of CPUs to use; -1 means all CPUs.
+        random_state (int | np.random.RandomState | None): Seed or generator for the resampling
+            (default: None).
+        progress_bar (bool): If True, display a progress bar (default: False).
 
     Returns:
-        stats: (dict) dictionary of permutation results ['isc', 'p', 'ci', 'null_dist']
+        dict: Permutation results with keys 'isc', 'p', 'ci', and 'null_dist'.
 
     """
     data = _as_ndarray(data)
@@ -169,26 +174,26 @@ def isc_group(
     pinning the classic pairwise behavior and the `n_samples` vocabulary.
 
     Args:
-        group1: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        group2: (pd.DataFrame, np.array) observations by subjects where isc is computed across subjects
-        n_samples: (int) number of samples for permutation or bootstrapping
-        summary: (str) type of isc summary statistic ['mean','median'] (default: median)
-        method: (str) method to compute p-values ['permute', 'bootstrap'] (default: permute)
-        ci_percentile: (float) confidence interval percentile (default: 95)
-        exclude_self_corr: (bool) exclude self-correlations in bootstrap (default: True)
-        return_null: (bool) Return the permutation distribution along with the p-value; default False
-        tail: (int | str) 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-        metric: (str) pairwise distance metric. See sklearn's pairwise_distances for valid inputs (default: correlation)
-        n_jobs: (int) The number of CPUs to use to do the computation. -1 means all CPUs.
-        random_state: (int or RandomState) Random seed for reproducibility
-        progress_bar: (bool) If True, display a progress bar. Default False.
+        group1 (pd.DataFrame | np.ndarray): Observations by subjects for the first group.
+        group2 (pd.DataFrame | np.ndarray): Observations by subjects for the second group.
+        n_samples (int): Number of samples for permutation or bootstrapping.
+        summary (str): ISC summary statistic, one of 'mean' or 'median' (default: 'median').
+        method (str): Method to compute p-values, one of 'permute' or 'bootstrap' (default: 'permute').
+        ci_percentile (float): Confidence interval percentile (default: 95).
+        exclude_self_corr (bool): Exclude self-correlations in bootstrap (default: True).
+        return_null (bool): Return the permutation distribution along with the p-value (default: False).
+        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive
+            direction).
+        metric (str): Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs
+            (default: 'correlation').
+        n_jobs (int): Number of CPUs to use; -1 means all CPUs.
+        random_state (int | np.random.RandomState | None): Random seed for reproducibility.
+        progress_bar (bool): If True, display a progress bar (default: False).
 
     Returns:
-        stats: (dict) dictionary of permutation results with keys:
-            - 'isc_group_difference': Observed ISC difference (float or array)
-            - 'p': P-value (float or array)
-            - 'ci': Confidence interval tuple (lower, upper)
-            - 'null_dist': Null distribution (if return_null=True)
+        dict: Permutation results with keys 'isc_group_difference' (observed ISC difference,
+            float or array), 'p' (p-value, float or array), 'ci' (confidence interval tuple
+            `(lower, upper)`), and 'null_dist' (null distribution, only if `return_null=True`).
 
     """
     from .isc import isc_group_permutation_test
@@ -245,13 +250,12 @@ def isfc(data, method="average", n_jobs=-1):
     Each subject's ISFC computation is independent and can be parallelized efficiently.
 
     Args:
-        data: list of subject matrices (observations x voxels/rois)
-        method: approach to computing ISFC. 'average' uses leave one out
-        n_jobs: (int) Number of parallel jobs to use. -1 means all available cores.
-                Default is -1 (parallel execution by default, consistent with other stats functions).
+        data (list[np.ndarray]): Subject matrices (observations x voxels/rois).
+        method (str): Approach to computing ISFC; 'average' uses leave-one-out.
+        n_jobs (int): Number of parallel jobs; -1 means all available cores (default: -1).
 
     Returns:
-        list of subject ISFC matrices
+        list: One ISFC matrix (`np.ndarray`) per subject.
 
     """
     if method != "average":
@@ -335,16 +339,16 @@ def isps(
     functional connectivity. Brain connectivity, 2(2), 91-101.
 
     Args:
-        data: (pd.DataFrame, np.ndarray) observations x subjects data
-        sampling_freq: (float) sampling freqency of data in Hz
-        low_cut: (float) lower bound cutoff for high pass filter
-        high_cut: (float) upper bound cutoff for low pass filter
-        order: (int) filter order for butterworth bandpass
-        pairwise: (bool) compute phase angle coherence on pairwise phase angle differences
-                or on raw phase angle.
+        data (pd.DataFrame | np.ndarray): Observations x subjects data.
+        sampling_freq (float): Sampling frequency of the data in Hz.
+        low_cut (float): Lower cutoff for the bandpass filter.
+        high_cut (float): Upper cutoff for the bandpass filter.
+        order (int): Butterworth bandpass filter order.
+        pairwise (bool): If True, compute phase-angle coherence on pairwise phase-angle
+            differences instead of on the raw phase angles.
 
     Returns:
-        dictionary with mean phase angle, vector length, and rayleigh statistic
+        dict: Mean phase angle, vector length, and Rayleigh statistic.
 
     """
     data_array = _as_ndarray(data)

@@ -20,8 +20,7 @@ def fdr(p, q=0.05):
         q: (float) false discovery rate level
 
     Returns:
-        fdr_p: (float) p-value threshold based on independence or positive
-                dependence
+        float: p-value threshold based on independence or positive dependence.
 
     """
 
@@ -49,8 +48,7 @@ def holm_bonf(p, alpha=0.05):
         alpha: (float) alpha level
 
     Returns:
-        bonf_p: (float) p-value threshold based on bonferroni
-                step-down procedure
+        float: p-value threshold based on the Bonferroni step-down procedure.
 
     """
 
@@ -75,8 +73,9 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         return_mask: (bool) optionally return the thresholding mask; default False
 
     Returns:
-        out: Thresholded BrainData instance
-        mask: (optional) BrainData instance of thresholding mask if return_mask=True
+        BrainData | tuple[BrainData, BrainData]: The thresholded BrainData instance;
+            if `return_mask=True`, a tuple `(out, mask)` where `mask` is the
+            BrainData instance of the thresholding mask.
 
     Note:
         This function provides unique functionality not available in nilearn:
@@ -139,9 +138,10 @@ def multi_threshold(t_map, p_map, thresh):
         thresh: (list) list of p-values to threshold stat image
 
     Returns:
-        out: Thresholded BrainData instance with cumulative map
-            - Positive values indicate how many thresholds were passed for positive stats
-            - Negative values indicate how many thresholds were passed for negative stats
+        BrainData: Thresholded BrainData instance with cumulative map. Positive
+            values indicate how many thresholds were passed for positive stats;
+            negative values indicate how many thresholds were passed for negative
+            stats.
 
     Note:
         This function provides unique cumulative threshold map functionality:

@@ -479,7 +479,7 @@ def _timeseries_correlation_permutation_gpu_batched(
         method: Permutation method ('circle_shift' or 'phase_randomize')
         n_permute: Number of permutations
         metric: Correlation type ('pearson', 'spearman', 'kendall')
-        tail: Test type (2|'two' or 1|'one')
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null: Whether to return null distribution
         backend: Backend instance (must be PyTorch)
         max_gpu_memory_gb: Maximum GPU memory budget

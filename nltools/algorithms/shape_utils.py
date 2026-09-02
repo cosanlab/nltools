@@ -4,14 +4,17 @@ Key functions:
     - extract_triangle_elements: Extract upper/lower triangle from matrices
     - permute_matrix_symmetric: Apply symmetric permutation (key for matrix tests)
 
-Usage:
-    These utilities are used throughout the algorithms module for consistent
-    shape handling and matrix operations.
+These utilities are used throughout the algorithms module for consistent
+shape handling and matrix operations.
 
-    Example:
-        >>> from nltools.algorithms.shape_utils import extract_triangle_elements
-        >>> matrix = np.arange(16).reshape(4, 4)
-        >>> upper = extract_triangle_elements(matrix, triangle='upper')
+Examples:
+    ```python
+    import numpy as np
+    from nltools.algorithms.shape_utils import extract_triangle_elements
+
+    matrix = np.arange(16).reshape(4, 4)
+    upper = extract_triangle_elements(matrix, triangle='upper')
+    ```
 """
 
 import numpy as np
@@ -26,16 +29,18 @@ def extract_triangle_elements(
 
     Args:
         matrix: Square matrix (n×n)
-        triangle: Which triangle ['upper'|'lower'|'full']
+        triangle: Which triangle: `'upper'`, `'lower'`, or `'full'`
         include_diag: Include diagonal (only for 'full')
 
     Returns:
         Extracted elements as 1D array
 
     Examples:
-        >>> matrix = np.arange(16).reshape(4, 4)
-        >>> extract_triangle_elements(matrix, triangle='upper')
-        array([ 1,  2,  3,  6,  7, 11])
+        ```python
+        matrix = np.arange(16).reshape(4, 4)
+        extract_triangle_elements(matrix, triangle='upper')
+        # array([ 1,  2,  3,  6,  7, 11])
+        ```
     """
     if triangle == "upper":
         return matrix[np.triu_indices(matrix.shape[0], k=1)]
@@ -69,11 +74,13 @@ def permute_matrix_symmetric(
         Symmetrically permuted matrix (n×n)
 
     Examples:
-        >>> matrix = np.arange(9).reshape(3, 3)
-        >>> perm = np.array([2, 0, 1])  # Rotate indices
-        >>> permute_matrix_symmetric(matrix, perm)
-        array([[8, 6, 7],
-               [2, 0, 1],
-               [5, 3, 4]])
+        ```python
+        matrix = np.arange(9).reshape(3, 3)
+        perm = np.array([2, 0, 1])  # rotate indices
+        permute_matrix_symmetric(matrix, perm)
+        # array([[8, 6, 7],
+        #        [2, 0, 1],
+        #        [5, 3, 4]])
+        ```
     """
     return matrix[permutation][:, permutation]

@@ -89,8 +89,8 @@ class Roc:
                             (bool). THIS IS NOT COMPLETELY IMPLEMENTED BECAUSE
                             IT AFFECTS ACCURACY ESTIMATES, BUT NOT P-VALUES OR
                             THRESHOLD AT WHICH TO EVALUATE SENS/SPEC
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
-                            accuracy > chance) for the binomial ``accuracy_p``
+            tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+                            (accuracy > chance) for the binomial ``accuracy_p``
 
         """
         from nltools.algorithms.inference.validation import validate_tail_parameter
@@ -251,7 +251,7 @@ class Roc:
             balanced_acc: balanced accuracy for single-interval classification
 
         Returns:
-            fig
+            matplotlib.figure.Figure: The ROC figure.
 
         """
 

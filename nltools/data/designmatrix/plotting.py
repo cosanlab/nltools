@@ -106,7 +106,7 @@ def plot_matrix(
         **kwargs: Forwarded to ``seaborn.heatmap``.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     import pandas as pd
     import seaborn as sns
@@ -162,7 +162,7 @@ def plot_timeseries(
         **kwargs: Forwarded to ``matplotlib.axes.Axes.plot`` for each line.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     cols = list(columns) if columns is not None else list(dm.columns)
 
@@ -209,7 +209,7 @@ def plot_corr(
         **kwargs: Forwarded to ``seaborn.heatmap`` (e.g. ``annot=False``).
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The rendered figure.
     """
     import seaborn as sns
 

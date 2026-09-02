@@ -5,14 +5,16 @@ Key features:
     - Consistent RNG patterns: Matches stats.py patterns for backward compatibility
     - Thread-safe design: Each parallel worker gets independent RandomState
 
-Usage:
-    These utilities are used in bootstrap and permutation tests to ensure
-    deterministic behavior when using parallel processing.
+These utilities are used in bootstrap and permutation tests to ensure
+deterministic behavior when using parallel processing.
 
-    Example:
-        >>> from nltools.algorithms.random import generate_seeds
-        >>> seeds = generate_seeds(100, random_state=42)
-        >>> # Use seeds in parallel workers for deterministic results
+Examples:
+    ```python
+    from nltools.algorithms.random import generate_seeds
+
+    seeds = generate_seeds(100, random_state=42)
+    # Hand one seed to each parallel worker for deterministic results
+    ```
 """
 
 import numpy as np
@@ -33,11 +35,11 @@ def generate_seeds(n_permute: int, random_state: int | None = None) -> np.ndarra
         Array of seeds with shape (n_permute,)
 
     Examples:
-        >>> seeds = generate_seeds(100, random_state=42)
-        >>> seeds.shape
-        (100,)
-        >>> isinstance(seeds[0], (int, np.integer))
-        True
+        ```python
+        seeds = generate_seeds(100, random_state=42)
+        seeds.shape  # (100,)
+        isinstance(seeds[0], (int, np.integer))  # True
+        ```
     """
     rng = check_random_state(random_state)
     MAX_INT = 2**31 - 1
@@ -70,11 +72,11 @@ def generate_sign_flips(
             containing only +1 and -1 values
 
     Examples:
-        >>> sign_flips = generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
-        >>> sign_flips.shape
-        (100, 30)
-        >>> np.all(np.isin(sign_flips, [-1, 1]))
-        True
+        ```python
+        sign_flips = generate_sign_flips(n_permute=100, n_samples=30, random_state=42)
+        sign_flips.shape  # (100, 30)
+        np.all(np.isin(sign_flips, [-1, 1]))  # True
+        ```
 
     Notes:
         - Each permutation uses independent RandomState for stats.py compatibility
@@ -116,11 +118,12 @@ def generate_bootstrap_indices(
             Each row contains indices sampled with replacement from [0, n_samples).
 
     Examples:
-        >>> indices = generate_bootstrap_indices(100, 1000, random_state=42)
-        >>> indices.shape
-        (1000, 100)
-        >>> indices[0]  # First bootstrap sample indices
-        array([23, 45, 23, 67, ...])  # Some repeated (sampling with replacement)
+        ```python
+        indices = generate_bootstrap_indices(100, 1000, random_state=42)
+        indices.shape  # (1000, 100)
+        indices[0]  # first bootstrap sample, e.g. array([23, 45, 23, 67, ...]);
+        # repeats are expected because sampling is with replacement
+        ```
 
     Notes:
         - Uses same seed generation pattern as permutation tests for consistency

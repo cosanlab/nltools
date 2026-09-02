@@ -22,7 +22,7 @@ def fisher_r_to_z(r):
         r: correlation coefficient(s)
 
     Returns:
-        z: Fisher z-transformed correlation(s)
+        np.ndarray: Fisher z-transformed correlation(s).
     """
     with np.errstate(invalid="ignore"):
         return np.arctanh(r)
@@ -35,7 +35,7 @@ def fisher_z_to_r(z):
         z: Fisher z-transformed value(s)
 
     Returns:
-        r: correlation coefficient(s)
+        np.ndarray: Correlation coefficient(s).
     """
     return np.tanh(z)
 
@@ -63,14 +63,13 @@ def transform_pairwise(X, y):
             not be considered.
 
     Returns:
-        X_trans: (np.array), shape (k, n_features)
-            Data as pairs, where k = n_samples * (n_samples-1)) / 2 if grouping
-            values were not passed. If grouping variables exist, then returns
-            values computed for each group.
-        y_trans: (np.array), shape (k,)
-            Output class labels, where classes have values {-1, +1}
-            If y was shape (n_samples, 2), then returns (k, 2) with groups on
-            the second dimension.
+        tuple[np.ndarray, np.ndarray]: `(X_trans, y_trans)` — `X_trans` has shape
+            (k, n_features) and holds the data as pairs, where
+            k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;
+            if grouping variables exist, values are computed within each group.
+            `y_trans` has shape (k,) and holds the output class labels with values
+            {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the
+            second dimension.
     """
     X = np.asarray(X)
     y = np.asarray(y)

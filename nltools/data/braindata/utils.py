@@ -35,7 +35,7 @@ def check_brain_data_is_single(data):
         data: brain data
 
     Returns:
-        (bool)
+        bool: True if the data holds a single image.
     """
     data = check_brain_data(data)
     return len(data.shape) <= 1
@@ -144,7 +144,8 @@ def apply_func(bd, stat_func, axis=0):
         axis: 0 = across images, 1 = within images.
 
     Returns:
-        float | np.ndarray | BrainData
+        float | np.ndarray | BrainData: The reduced result; type depends on
+            whether the input is a single image and on `axis`.
     """
     if check_brain_data_is_single(bd):
         return stat_func(bd.data)

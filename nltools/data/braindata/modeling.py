@@ -373,23 +373,25 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         ridge_scores (BrainData, optional): R-squared scores (for model='ridge')
 
     Examples:
-        >>> # Old behavior (backward compatible): mutate self
-        >>> brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
-        >>> print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
-        >>> weights = brain_data.ridge_weights  # Access as attribute
-        >>>
-        >>> # New behavior: return Fit dataclass (result attrs / data unchanged)
-        >>> fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
-        >>> assert isinstance(fit, Fit)
-        >>> assert 'weights' in fit.available()
-        >>> assert not hasattr(brain_data, 'ridge_weights')  # result attrs not set
-        >>> # (model_/X_ ARE updated on brain_data so predict() works)
-        >>> print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
-        >>>
-        >>> # GLM with Fit dataclass
-        >>> fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
-        >>> assert 'betas' in fit_glm.available()
-        >>> assert 't_stats' in fit_glm.available()
+        ```python
+        # inplace=True (default): results are stored as attributes on brain_data
+        brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+        print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
+        weights = brain_data.ridge_weights
+
+        # inplace=False: return a Fit dataclass; result attributes are not set on
+        # brain_data (model_ and X_ are still updated so predict() works)
+        fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
+        assert isinstance(fit, Fit)
+        assert 'weights' in fit.available()
+        assert not hasattr(brain_data, 'ridge_weights')
+        print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
+
+        # GLM with Fit dataclass
+        fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+        assert 'betas' in fit_glm.available()
+        assert 't_stats' in fit_glm.available()
+        ```
     """
     from nltools.models import Ridge, Glm
 
@@ -972,7 +974,8 @@ def ttest(
             reported alongside for reference.
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+            (positive direction).
         return_null: Currently has no effect. The returned dict always
             contains exactly ``{"mean", "t", "z", "p"}`` and the null
             distribution is discarded even when this is True. Default False.
@@ -980,20 +983,16 @@ def ttest(
         random_state: Random seed for reproducibility.
 
     Returns:
-        dict with four BrainData keys:
-
-            - ``"mean"``: voxelwise mean across images minus ``popmean``
-              (i.e. ``mean(images) - popmean``, an effect-size estimate;
-              equals the raw voxelwise mean only when ``popmean=0``).
-            - ``"t"``: parametric one-sample t-statistic.
-            - ``"z"``: signed z-score, ``sign(t) * norm.isf(p/2)``, matching
-              nilearn's ``output_type='z_score'``. Useful for thresholding
-              on z at small df where t tails are heavier than normal.
-            - ``"p"``: p-value (parametric, or permutation-based when
-              ``permutation=True``).
-
-        The effect size is always returned alongside the inferential maps so
-        group-level code never has to compute the mean separately.
+        dict[str, BrainData]: Four keys. `"mean"` is the voxelwise mean across
+            images minus `popmean` (i.e. `mean(images) - popmean`, an effect-size
+            estimate; equals the raw voxelwise mean only when `popmean=0`); `"t"`
+            the parametric one-sample t-statistic; `"z"` the signed z-score,
+            `sign(t) * norm.isf(p/2)`, matching nilearn's `output_type='z_score'`
+            (useful for thresholding on z at small df where t tails are heavier
+            than normal); `"p"` the p-value (parametric, or permutation-based
+            when `permutation=True`). The effect size is always returned
+            alongside the inferential maps so group-level code never has to
+            compute the mean separately.
 
     Raises:
         ValueError: If ``bd`` contains fewer than 2 images.
@@ -1057,8 +1056,8 @@ def ttest2(bd, other, equal_var=True, tail=2):
         other: Second BrainData (shape ``(n2, n_voxels)``).
         equal_var: If True (default), standard two-sample t-test. If False,
             Welch's t-test.
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: bd > other;
-            swap the arguments for the other direction).
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+            (bd > other; swap the arguments for the other direction).
 
     Returns:
         dict: ``{"t": BrainData, "p": BrainData}``.
@@ -1185,19 +1184,20 @@ def compute_contrasts(bd, contrasts, statistic="t"):
             or if ``statistic`` is not one of the supported values.
 
     Examples:
-        >>> data.fit(model="glm", X=dm)
-        >>> # Single-subject t-map, ready to threshold
-        >>> tmap = data.compute_contrasts("conditionA - conditionB")
-        >>> # Effect-size map for use as input to a group-level analysis
-        >>> beta = data.compute_contrasts(
-        ...     "conditionA - conditionB", statistic="beta"
-        ... )
-        >>> # Everything at once: threshold on res["t"], feed group on res["beta"]
-        >>> res = data.compute_contrasts(
-        ...     "conditionA - conditionB", statistic="all"
-        ... )
-        >>> res["t"].plot(threshold=3.09)
-        >>> group_effects.append(res["beta"])
+        ```python
+        data.fit(model="glm", X=dm)
+
+        # Single-subject t-map, ready to threshold
+        tmap = data.compute_contrasts("conditionA - conditionB")
+
+        # Effect-size map for use as input to a group-level analysis
+        beta = data.compute_contrasts("conditionA - conditionB", statistic="beta")
+
+        # Everything at once: threshold on res["t"], feed the group on res["beta"]
+        res = data.compute_contrasts("conditionA - conditionB", statistic="all")
+        res["t"].plot(threshold=3.09)
+        group_effects.append(res["beta"])
+        ```
 
     Note:
         - String contrasts support coefficients: ``"2*A - B"`` or ``"0.5*A + 0.5*B"``.

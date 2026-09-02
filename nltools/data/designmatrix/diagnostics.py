@@ -89,8 +89,8 @@ def vif(dm: DesignMatrix, exclude_confounds: bool = True) -> np.ndarray | None:
         exclude_confounds (bool): Skip nuisance/confound columns. Default: True.
 
     Returns:
-        np.ndarray: VIF values for each included column. Returns None if the
-            correlation matrix is singular (perfect collinearity detected).
+        VIF values for each included column, or None if the correlation matrix
+            is singular (perfect collinearity detected).
 
     Raises:
         ValueError: If the DesignMatrix has only 1 column.

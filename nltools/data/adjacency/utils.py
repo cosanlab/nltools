@@ -185,8 +185,9 @@ def apply_stat(adj, func, axis=0):
               1 for across upper triangle elements.
 
     Returns:
-        float if single matrix, Adjacency if axis=0 with multiple matrices,
-        np.array if axis=1 with multiple matrices.
+        float | Adjacency | np.ndarray: A float for a single matrix; an Adjacency
+            when `axis=0` with multiple matrices; an array when `axis=1` with
+            multiple matrices.
     """
     if adj.is_single_matrix:
         return func(adj.data)

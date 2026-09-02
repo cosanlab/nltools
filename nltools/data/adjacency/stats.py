@@ -43,7 +43,7 @@ def similarity(
             - 'omit': Remove NaN values pairwise before computing correlation (default)
             - 'propagate': Allow NaN to propagate through calculations
             - 'raise': Raise an error if NaN values are present
-        tail (int | str): 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
+        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction).
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
         random_state (int, optional): Random seed for reproducibility.
@@ -52,11 +52,11 @@ def similarity(
         progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict | list | BrainData: A correlation result dict with keys 'correlation',
-            'p', and 'device' (or a list of such dicts when adj contains multiple
-            matrices); a `BrainData` when `project=True`, holding the per-matrix
-            correlations projected back into brain space via the spatial_scale.
-
+        dict | list[dict] | BrainData: A correlation result dict with keys
+            'correlation', 'p', and 'device' (or a list of such dicts when adj
+            contains multiple matrices); a `BrainData` when `project=True`,
+            holding the per-matrix correlations projected back into brain space
+            via the spatial_scale.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.algorithms.inference import (
@@ -260,7 +260,6 @@ def threshold(adj, *, upper=None, lower=None, binarize=False):
 
     Returns:
         Adjacency: thresholded Adjacency instance
-
     """
 
     b = adj.copy()
@@ -298,16 +297,15 @@ def ttest(
         permutation: (bool) Run ttest as permutation. Note this can be very slow.
         n_permute: Number of permutations (used only when
             ``permutation=True``). Default 5000.
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction).
         return_null: If True, also return the null distribution. Default False.
         n_jobs: Number of parallel jobs. Default -1 (all cores).
         random_state: Random seed for reproducibility.
         progress_bar: If True, show a progress bar. Default False.
 
     Returns:
-        out: (dict) contains Adjacency instances of t values (or mean if
-             running permutation) and Adjacency instance of p values.
-
+        dict: Contains Adjacency instances of t values (or mean if running
+            permutation) and Adjacency instance of p values.
     """
     from copy import deepcopy
 
@@ -354,8 +352,8 @@ def _label_distance_long(adj, labels):
     """Build long-format within/between distance arrays for a labelled adjacency.
 
     Returns:
-        dict with keys ``Distance`` (1-D float array), ``Type`` (1-D object
-        array of "Within"/"Between"), ``Group`` (1-D array of label values).
+        dict: Keys ``Distance`` (1-D float array), ``Type`` (1-D object array of
+            "Within"/"Between"), ``Group`` (1-D array of label values).
     """
     distance = np.asarray(adj.squareform())
     labels = np.asarray(labels)
@@ -390,9 +388,6 @@ def plot_label_distance(adj, labels=None, ax=None):
     Args:
         adj (Adjacency): Adjacency instance (must be a single matrix)
         labels (np.array):  numpy array of labels to plot
-
-    Returns:
-        None
 
     """
     from copy import deepcopy
@@ -437,7 +432,6 @@ def stats_label_distance(
     Returns:
         dict:  dictionary of within and between group differences
                 and p-values
-
     """
     from copy import deepcopy
 
@@ -529,7 +523,6 @@ def cluster_summary(adj, *, clusters=None, summary="mean", scope="within"):
 
     Returns:
         dict: (dict) per-cluster summaries
-
     """
     if summary not in ["mean", "median", None]:
         raise ValueError("summary must be ['mean','median', None]")

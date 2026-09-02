@@ -71,21 +71,23 @@ class Ridge(BaseModel):
             (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
 
     Examples:
-        >>> from nltools.models import Ridge
-        >>> import numpy as np
-        >>> X = np.random.randn(100, 50)
-        >>> y = np.random.randn(100)
-        >>> model = Ridge(alpha=1.0)
-        >>> model.fit(X, y)
-        Ridge(alpha=1.0, device='cpu')
-        >>> y_pred = model.predict(X)
-        >>>
-        >>> # Banded ridge with multiple feature spaces (automatic detection)
-        >>> X1 = np.random.randn(100, 30)
-        >>> X2 = np.random.randn(100, 20)
-        >>> model = Ridge(alpha='auto', cv=5, n_iter=50)
-        >>> model.fit([X1, X2], y)
-        >>> print(f"Feature space weights: {model.deltas_}")
+        ```python
+        import numpy as np
+        from nltools.models import Ridge
+
+        X = np.random.randn(100, 50)
+        y = np.random.randn(100)
+        model = Ridge(alpha=1.0)
+        model.fit(X, y)
+        y_pred = model.predict(X)
+
+        # Banded ridge with multiple feature spaces (automatic detection)
+        X1 = np.random.randn(100, 30)
+        X2 = np.random.randn(100, 20)
+        model = Ridge(alpha='auto', cv=5, n_iter=50)
+        model.fit([X1, X2], y)
+        print(f"Feature space weights: {model.deltas_}")
+        ```
     """
 
     def __init__(
@@ -297,7 +299,8 @@ class Ridge(BaseModel):
             X (ndarray of shape (n_samples, n_features)): Samples to predict
 
         Returns:
-            ndarray of shape (n_samples,) or (n_samples, n_targets): Predicted values
+            np.ndarray: Predicted values, shape ``(n_samples,)`` or
+                ``(n_samples, n_targets)``.
         """
         self._check_is_fitted()
         X = self._validate_X(X, reset=False)

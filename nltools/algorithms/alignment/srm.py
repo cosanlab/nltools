@@ -39,16 +39,6 @@ Y., & Norman, K. A. (2016, December). Enabling factor analysis on
 thousand-subject neuroimaging datasets. In Big Data (Big Data),
 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
 
-References:
-- **Chen2015:** Chen, P. H. C., Chen, J., Yeshurun, Y., Hasson, U., Haxby, J.,
-   & Ramadge, P. J. (2015). A reduced-dimension fMRI shared response model.
-   In Advances in Neural Information Processing Systems (pp. 460-468).
-
-- **Anderson2016:** Anderson, M. J., Capota, M., Turek, J. S., Zhu, X.,
-   Willke, T. L., Wang, Y., & Norman, K. A. (2016, December). Enabling
-   factor analysis on thousand-subject neuroimaging datasets. In Big Data
-   (Big Data), 2016 IEEE International Conference on (pp. 1151-1160). IEEE.
-
 Copyright 2016 Intel Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -112,11 +102,10 @@ def _init_w_transforms(
         random_states (list of `RandomState`s): One `RandomState` instance per subject.
 
     Returns:
-        w (list of array, element i has shape=[voxels_i, features]):
-            The initialized orthogonal transforms (mappings) $W_i$ for each
+        tuple[list[np.ndarray], list[int]]: `(w, voxels)` — the initialized
+            orthogonal transforms (mappings) $W_i$ for each subject (element i has
+            shape=[voxels_i, features]), and a list with the number of voxels per
             subject.
-        voxels (list of int):
-            A list with the number of voxels per subject.
 
     Note:
         This function assumes that the numpy random number generator was
@@ -246,7 +235,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 data with unequal numbers of time points across subjects.
 
         Returns:
-            self (SRM): Fitted model
+            SRM: Fitted model (`self`).
         """
         logger.info("Starting Probabilistic SRM")
 
@@ -329,8 +318,8 @@ class SRM(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
 
         Returns:
-            s (list of 2D arrays, element i has shape=[features_i, samples_i]):
-                Shared responses from input data (X)
+            list[np.ndarray]: Shared responses from input data (X); element i has
+                shape=[features_i, samples_i].
         """
 
         _validate_srm_parallel(parallel)
@@ -390,14 +379,12 @@ class SRM(BaseEstimator, TransformerMixin):
             subjects (int): The total number of subjects in `data`.
 
         Returns:
-            x (list of array, element i has shape=[voxels_i, samples]):
-                Demeaned data for each subject.
-            mu (list of array, element i has shape=[voxels_i]):
-                Voxel means over samples, per subject.
-            rho2 (array, shape=[subjects]):
-                Noise variance $\\rho^2$ per subject.
-            trace_xtx (array, shape=[subjects]):
-                The squared Frobenius norm of the demeaned data in `x`.
+            tuple[list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]: `(x, mu,
+                rho2, trace_xtx)` — the demeaned data for each subject (element i has
+                shape=[voxels_i, samples]); the voxel means over samples per subject
+                (element i has shape=[voxels_i]); the noise variance $\\rho^2$ per
+                subject (shape=[subjects]); and the squared Frobenius norm of the
+                demeaned data in `x` (shape=[subjects]).
         """
         x = []
         mu = []
@@ -454,7 +441,7 @@ class SRM(BaseEstimator, TransformerMixin):
             samples (int): The total number of samples in the data.
 
         Returns:
-            loglikehood (float): The log-likelihood value.
+            float: The log-likelihood value.
         """
         # Compute log-determinant using Cholesky factors (numerically stable)
         log_det = (
@@ -488,8 +475,8 @@ class SRM(BaseEstimator, TransformerMixin):
                 The shared response.
 
         Returns:
-            Wi (array, shape=[voxels, features]):
-                The orthogonal transform (mapping) $W_i$ for the subject.
+            np.ndarray: The orthogonal transform (mapping) $W_i$ for the subject,
+                shape=[voxels, features].
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -508,8 +495,8 @@ class SRM(BaseEstimator, TransformerMixin):
                 The fMRI data of the new subject.
 
         Returns:
-            w (2D array, shape=[voxels, features]):
-                Orthogonal mapping `W_{new}` for new subject
+            np.ndarray: Orthogonal mapping `W_{new}` for the new subject,
+                shape=[voxels, features].
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -535,17 +522,14 @@ class SRM(BaseEstimator, TransformerMixin):
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect).
 
         Returns:
-            sigma_s (array, shape=[features, features]):
-                The covariance $\\Sigma_s$ of the shared response Normal
-                distribution.
-            w (list of array, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) $W_i$ for each subject.
-            mu (list of array, element i has shape=[voxels_i]):
-                The voxel means $\\mu_i$ over the samples for each subject.
-            rho2 (array, shape=[subjects]):
-                The estimated noise variance $\\rho_i^2$ for each subject
-            s (array, shape=[features, samples]):
-                The shared response.
+            tuple[np.ndarray, list[np.ndarray], list[np.ndarray], np.ndarray, np.ndarray]:
+                `(sigma_s, w, mu, rho2, s)` — the covariance $\\Sigma_s$ of the
+                shared response Normal distribution (shape=[features, features]); the
+                orthogonal transforms (mappings) $W_i$ for each subject (element i has
+                shape=[voxels_i, features]); the voxel means $\\mu_i$ over the samples
+                for each subject (element i has shape=[voxels_i]); the estimated noise
+                variance $\\rho_i^2$ for each subject (shape=[subjects]); and the
+                shared response (shape=[features, samples]).
         """
 
         samples = min([d.shape[1] for d in data if d is not None], default=sys.maxsize)
@@ -782,7 +766,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
 
         Returns:
-            self (DetSRM): Fitted model
+            DetSRM: Fitted model (`self`).
         """
         logger.info("Starting Deterministic SRM")
 
@@ -840,8 +824,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 Only used when parallel="cpu". Defaults to -1.
 
         Returns:
-            s (list of 2D arrays, element i has shape=[features_i, samples_i]):
-                Shared responses from input data (X)
+            list[np.ndarray]: Shared responses from input data (X); element i has
+                shape=[features_i, samples_i].
         """
 
         _validate_srm_parallel(parallel)
@@ -894,7 +878,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 The shared response
 
         Returns:
-            objective (float): The objective function value.
+            float: The objective function value.
         """
         subjects = len(data)
         objective = 0.0
@@ -913,8 +897,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 The orthogonal transforms (mappings) $W_i$ for each subject.
 
         Returns:
-            s (array, shape=[features, samples]):
-                The shared response for the subjects data with the mappings in w.
+            np.ndarray: The shared response for the subjects data with the mappings
+                in w, shape=[features, samples].
         """
         s = np.zeros((w[0].shape[1], data[0].shape[1]))
         for m in range(len(w)):
@@ -940,8 +924,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 The shared response.
 
         Returns:
-            Wi (array, shape=[voxels, features]):
-                The orthogonal transform (mapping) $W_i$ for the subject.
+            np.ndarray: The orthogonal transform (mapping) $W_i$ for the subject,
+                shape=[voxels, features].
         """
         # Compute cross-covariance: X_i S^T
         A = Xi.dot(S.T)
@@ -960,8 +944,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 The fMRI data of the new subject.
 
         Returns:
-            w (2D array, shape=[voxels, features]):
-                Orthogonal mapping `W_{new}` for new subject
+            np.ndarray: Orthogonal mapping `W_{new}` for the new subject,
+                shape=[voxels, features].
         """
         # Check if the model exist
         if hasattr(self, "w_") is False:
@@ -987,10 +971,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
             n_jobs (int): Number of CPU cores for parallelization (-1 = auto-detect).
 
         Returns:
-            w (list of array, element i has shape=[voxels_i, features]):
-                The orthogonal transforms (mappings) $W_i$ for each subject.
-            s (array, shape=[features, samples]):
-                The shared response.
+            tuple[list[np.ndarray], np.ndarray]: `(w, s)` — the orthogonal transforms
+                (mappings) $W_i$ for each subject (element i has shape=[voxels_i,
+                features]), and the shared response (shape=[features, samples]).
         """
 
         subjects = len(data)

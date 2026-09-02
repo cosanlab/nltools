@@ -71,7 +71,7 @@ class ClusterReport:
 
         Returns:
             ``None`` when ``output_dir`` is set, else a list of
-            ``(label, figure)`` tuples.
+                ``(label, figure)`` tuples.
         """
         from matplotlib import pyplot as plt
         from nilearn.plotting import plot_glass_brain, plot_stat_map

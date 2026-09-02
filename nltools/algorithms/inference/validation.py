@@ -3,14 +3,16 @@
 This module provides common validation functions to reduce code duplication
 and ensure consistent error handling across the algorithms module.
 
-Usage:
-    These functions are used throughout the algorithms module to validate
-    input parameters. They provide consistent error messages and behavior.
+These functions are used throughout the algorithms module to validate input
+parameters. They provide consistent error messages and behavior.
 
-    Example:
-        >>> from nltools.algorithms.validation import validate_device_parameter
-        >>> validate_device_parameter("cpu")  # OK
-        >>> validate_device_parameter("invalid")  # Raises ValueError
+Examples:
+    ```python
+    from nltools.algorithms.inference.validation import validate_device_parameter
+
+    validate_device_parameter("cpu")  # OK
+    validate_device_parameter("invalid")  # raises ValueError
+    ```
 """
 
 import numpy as np

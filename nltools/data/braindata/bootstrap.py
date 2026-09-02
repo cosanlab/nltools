@@ -43,8 +43,8 @@ def bootstrap(
             present, else CPU). Ignored for simple stats. Default: 'cpu'
         max_gpu_memory_gb: (float, optional) Explicit GPU memory budget in GB
             when device is 'gpu' or 'auto'. None (default) measures the device.
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
-            statistic > 0; negate the data for the other direction).
+        tail: `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed
+            (statistic > 0; negate the data for the other direction).
         n_jobs: (int) Number of CPU cores for parallelization. Default: -1 (all CPUs).
         random_state: (int, optional) Random seed for reproducibility
         progress_bar: (bool) If True, show a progress bar. Default: False
@@ -59,49 +59,40 @@ def bootstrap(
               with an added 'samples' key holding all samples as a raw ndarray
 
     Examples:
-        >>> # Simple aggregation
-        >>> boot = brain.bootstrap(stat='mean', n_samples=1000)
-        >>> assert isinstance(boot, BrainData)
+        ```python
+        # Simple aggregation: returns a BrainData holding the bootstrap mean
+        boot = brain.bootstrap(stat='mean', n_samples=1000)
+        assert isinstance(boot, BrainData)
 
-        >>> # Ridge weights bootstrap (CPU)
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='weights', n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
+        # Ridge weights bootstrap (CPU): returns a dict of BrainData
+        brain.fit(X=dm, model='ridge', alpha=1.0)
+        boot = brain.bootstrap(stat='weights', n_samples=1000)
+        assert isinstance(boot['mean'], BrainData)
 
-        >>> # Ridge weights bootstrap (GPU accelerated)
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
+        # Ridge weights bootstrap (GPU accelerated)
+        boot = brain.bootstrap(stat='weights', n_samples=1000, device='gpu')
 
-        >>> # Ridge predict bootstrap
-        >>> brain.fit(X=dm, model='ridge', alpha=1.0)
-        >>> boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
-        >>> assert 'mean' in boot
-        >>> assert isinstance(boot['mean'], BrainData)
+        # Ridge predict bootstrap
+        boot = brain.bootstrap(stat='predict', X_test=X_new, n_samples=1000)
+
+        # Summarize pre-existing bootstrap samples (a BrainData with one image per
+        # sample) with OnlineBootstrapStats instead
+        from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
+
+        stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
+        for sample in bootstrap_samples:
+            stats.update(sample.data)
+        result = stats.get_results()  # keys: mean, std, Z, p, ci_lower, ci_upper
+        mean_brain = shallow_copy(brain)
+        mean_brain.data = result['mean']
+        ```
 
     Note:
-        This method replaces the removed `summarize_bootstrap()` function.
-
-        **New API:**
-        >>> # Option 1: Use BrainData.bootstrap() for generating bootstrap samples
-        >>> boot = brain.bootstrap(stat='mean', n_samples=1000, save_boots=False)
-        >>> # Returns BrainData with bootstrap mean
-        >>> # To get Z and p, use stat='weights' or 'predict' which returns dict
-
-        >>> # Option 2: For existing bootstrap samples (BrainData with multiple images),
-        >>> # use OnlineBootstrapStats directly:
-        >>> from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
-        >>> stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
-        >>> for sample in bootstrap_samples:  # Iterate over samples
-        ...     stats.update(sample.data)
-        >>> result = stats.get_results()
-        >>> # Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
-        >>> #           'ci_lower': array, 'ci_upper': array}
-        >>> # Convert to BrainData if needed:
-        >>> mean_brain = shallow_copy(brain)
-        >>> mean_brain.data = result['mean']
+        This method replaces the removed `summarize_bootstrap()` function. Use
+        `stat='mean'` to generate bootstrap samples of an aggregate; use
+        `stat='weights'` or `stat='predict'` to also get Z and p maps. To summarize
+        bootstrap samples you already have, feed them to `OnlineBootstrapStats`
+        directly (see Examples).
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,

@@ -24,9 +24,9 @@ def fetch_resource(relpath: str) -> str:
             to enumerate what's available.
 
     Returns:
-        Absolute path to the cached file on disk. The returned path drops
-        straight into anything that takes a NIfTI path — nilearn plotting
-        and masking helpers, ``nibabel.load``, and ``BrainData(path)``.
+        str: Absolute path to the cached file on disk. The returned path drops
+            straight into anything that takes a NIfTI path — nilearn plotting
+            and masking helpers, `nibabel.load`, and `BrainData(path)`.
 
     Note:
         Resolution is memoized per ``relpath`` for the session — repeated

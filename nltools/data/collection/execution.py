@@ -350,14 +350,14 @@ def _persist_or_keep(
         brains: The freshly computed output ``BrainData`` items, in order.
         op: Short op name for the step-subdir label (e.g. ``'align'``).
         op_kwargs: Scalar kwargs to stamp into the subdir name.
-        cache: ``'auto'`` | ``True`` | ``False``.
+        cache: One of ``'auto'``, ``True``, or ``False``.
         out_ext: File extension for the persisted items.
 
     Returns:
         ``(items, source_paths, step_dir)``. When caching, ``items`` are the
-        written ``Path``s, ``source_paths`` mirror them, and ``step_dir`` is
-        the new subdir. Otherwise ``items`` are the in-memory ``brains``,
-        ``source_paths`` are all ``None``, and ``step_dir`` is ``None``.
+            written ``Path``s, ``source_paths`` mirror them, and ``step_dir`` is
+            the new subdir. Otherwise ``items`` are the in-memory ``brains``,
+            ``source_paths`` are all ``None``, and ``step_dir`` is ``None``.
     """
     do_cache = _resolve_cache_mode(bc._items, cache)
     if not do_cache:
@@ -704,7 +704,7 @@ def write_glm_bundle(
 
 
 def read_glm_bundle(path: Path) -> dict[str, Any]:
-    """Read a GLM bundle. Validates ``bundle_schema_version``.
+    """Read a GLM bundle, validating ``bundle_schema_version``.
 
     Schema-version mismatch raises with a migration message; nltools-version
     mismatch logs a warning but does not refuse — bundles are usually
@@ -791,7 +791,10 @@ def write_ridge_bundle(
 
 
 def read_ridge_bundle(path: Path) -> dict[str, Any]:
-    """Read a ridge bundle. Same schema/version handling as ``read_glm_bundle``."""
+    """Read a ridge bundle.
+
+    Same schema/version handling as ``read_glm_bundle``.
+    """
     import json
 
     f, attrs = _read_bundle_attrs_and_validate(Path(path))

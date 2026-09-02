@@ -47,8 +47,8 @@ def plot_interactive_brain(
         percentile_threshold (bool): whether to interpret threshold values as percentiles
         kwargs: optional arguments to nilearn.view_img or nilearn.view_img_on_surf
 
-    Returns:
-        None (renders widgets inline)
+    Note:
+        Returns nothing; the widgets render inline.
     """
 
     if ipywidgets is None:
@@ -294,7 +294,7 @@ def plot_surf(
         save (str, optional): Path to save the figure.
 
     Returns:
-        matplotlib.figure.Figure
+        matplotlib.figure.Figure: The surface figure.
     """
     from nilearn import datasets
     from matplotlib.cm import ScalarMappable

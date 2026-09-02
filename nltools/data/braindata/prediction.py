@@ -260,7 +260,10 @@ def predict_mvpa(
     random_state: int | None = None,
     progress_bar: bool = False,
 ) -> Predict | Any:
-    """Cross-validated decoding. Returns Predict (or self if inplace=True)."""
+    """Run cross-validated decoding on a `BrainData`.
+
+    Returns a `Predict` result, or `bd` itself when ``inplace=True``.
+    """
     from sklearn.base import is_classifier
 
     from nltools.cross_validation import resolve_cv

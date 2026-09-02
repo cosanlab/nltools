@@ -181,18 +181,14 @@ class OnlineBootstrapStats:
         """Compute final bootstrap statistics.
 
         Args:
-            tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed:
+            tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed:
                 statistic > 0; negate the data for the other direction).
 
         Returns:
-            Dictionary containing:
-            - 'mean': Bootstrap mean
-            - 'std': Bootstrap standard deviation
-            - 'Z': Z-scores (mean/std)
-            - 'p': P-values (per ``tail``)
-            - 'ci_lower': Lower confidence bound
-            - 'ci_upper': Upper confidence bound
-            - 'samples': All samples (only if save_samples=True)
+            Dictionary with keys 'mean' (bootstrap mean), 'std' (bootstrap standard
+                deviation), 'Z' (z-scores, mean/std), 'p' (p-values per ``tail``),
+                'ci_lower' and 'ci_upper' (confidence bounds), and 'samples' (all
+                samples, only if ``save_samples=True``).
 
         Examples:
             ```python
@@ -312,18 +308,14 @@ def _bootstrap_simple_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': P-values (per ``tail``)
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used (e.g., 'cpu-parallel-8')
+        dict[str, np.ndarray]: Results keyed by `'mean'` (bootstrap mean), `'std'`
+            (bootstrap standard deviation), `'Z'` (z-scores, mean/std), `'p'`
+            (p-values, per `tail`), `'ci_lower'` and `'ci_upper'` (lower and upper
+            confidence bounds), `'samples'` (all samples; only if `save_boots=True`),
+            and `'backend'` (backend used, e.g. `'cpu-parallel-8'`).
 
     Examples:
         >>> data = np.random.randn(100, 50)  # 100 samples, 50 features
@@ -464,19 +456,15 @@ def _bootstrap_ridge_weights_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean weights
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': P-values (per ``tail``)
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used
+        dict[str, np.ndarray]: Results keyed by `'mean'` (bootstrap mean weights), `'std'`
+            (bootstrap standard deviation), `'Z'` (z-scores, mean/std), `'p'`
+            (p-values, per `tail`), `'ci_lower'` and `'ci_upper'` (lower and upper
+            confidence bounds), `'samples'` (all samples; only if `save_boots=True`),
+            and `'backend'` (backend used).
 
     Examples:
         >>> X = np.random.randn(100, 10)  # 100 samples, 10 features
@@ -623,19 +611,15 @@ def _bootstrap_ridge_predict_cpu_parallel(
         n_jobs: Number of CPU cores for parallelization. Defaults to -1.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
-        Dictionary containing:
-        - 'mean': Bootstrap mean predictions
-        - 'std': Bootstrap standard deviation
-        - 'Z': Z-scores (mean/std)
-        - 'p': P-values (per ``tail``)
-        - 'ci_lower': Lower confidence bound
-        - 'ci_upper': Upper confidence bound
-        - 'samples': All samples (only if save_boots=True)
-        - 'backend': Backend used
+        dict[str, np.ndarray]: Results keyed by `'mean'` (bootstrap mean predictions), `'std'`
+            (bootstrap standard deviation), `'Z'` (z-scores, mean/std), `'p'`
+            (p-values, per `tail`), `'ci_lower'` and `'ci_upper'` (lower and upper
+            confidence bounds), `'samples'` (all samples; only if `save_boots=True`),
+            and `'backend'` (backend used).
 
     Examples:
         >>> X = np.random.randn(100, 10)         # Training features
@@ -823,7 +807,7 @@ def _bootstrap_ridge_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
         progress_bar: If True, show a progress bar. Defaults to False.
 
     Returns:
@@ -972,7 +956,7 @@ def _bootstrap_ridge_weights_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:
@@ -1044,7 +1028,7 @@ def _bootstrap_ridge_predict_gpu_batched(
             measures the device's available memory.
         random_state: Random seed for reproducibility.
         percentiles: Percentiles for confidence intervals. Defaults to (2.5, 97.5).
-        tail: 2|'two' (two-tailed, default) or 1|'one' (one-tailed: statistic > 0).
+        tail: `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0).
         **ridge_kwargs: Additional parameters passed to ridge_svd().
 
     Returns:

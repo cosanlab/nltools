@@ -188,7 +188,7 @@ def _correlation_permutation_cpu_parallel(
         data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
         n_permute (int): Number of permutations
         metric (str): Correlation metric ('pearson', 'spearman', 'kendall')
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -375,7 +375,7 @@ def _correlation_permutation_gpu_batched(
         data2 (np.ndarray): Data to correlate with, shape (n_samples, n_features)
         n_permute (int): Number of permutations
         metric (str): Correlation metric ('pearson', 'spearman', or 'kendall')
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
         max_gpu_memory_gb (float): Maximum GPU memory budget
@@ -707,9 +707,9 @@ def correlation_permutation_test(
             - 'pearson': Pearson correlation (linear relationships)
             - 'spearman': Spearman rank correlation (monotonic relationships)
             - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties)
-        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 2 | 'two': Two-tailed test (r != 0)
-            - 1 | 'one': One-tailed (r > 0; negate one variable for the other
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
+            - `2`/`'two'`: Two-tailed test (r != 0)
+            - `1`/`'one'`: One-tailed (r > 0; negate one variable for the other
               direction). The fixed direction keeps MCP correction valid.
         return_null (bool): If True, return full null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')

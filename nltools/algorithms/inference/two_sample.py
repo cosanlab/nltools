@@ -43,7 +43,7 @@ def _two_sample_permutation_cpu_parallel(
         data1 (np.ndarray): Group 1 data, shape (n_samples1, n_features)
         data2 (np.ndarray): Group 2 data, shape (n_samples2, n_features)
         n_permute (int): Number of permutations
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -139,7 +139,7 @@ def _two_sample_permutation_gpu_batched(
         data1 (np.ndarray): Group 1 data, shape (n_samples1, n_features)
         data2 (np.ndarray): Group 2 data, shape (n_samples2, n_features)
         n_permute (int): Number of permutations
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
         max_gpu_memory_gb (float): Maximum GPU memory budget
@@ -296,9 +296,9 @@ def two_sample_permutation_test(
             - shape (n_samples2,) for single feature
             - shape (n_samples2, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
-        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 2 | 'two': Two-tailed test (mean1 != mean2)
-            - 1 | 'one': One-tailed (mean1 > mean2; swap the groups for the
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
+            - `2`/`'two'`: Two-tailed test (mean1 != mean2)
+            - `1`/`'one'`: One-tailed (mean1 > mean2; swap the groups for the
               other direction). The fixed direction keeps MCP correction valid.
         return_null (bool): If True, return full null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')

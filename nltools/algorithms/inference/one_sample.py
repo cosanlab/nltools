@@ -42,7 +42,7 @@ def _one_sample_permutation_cpu_parallel(
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
         n_permute (int): Number of permutations
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         n_jobs (int): Number of parallel jobs (-1 = all cores)
         random_state (int, optional): Random seed for reproducibility
@@ -131,7 +131,7 @@ def _one_sample_permutation_gpu_batched(
     Args:
         data (np.ndarray): Data to test, shape (n_samples, n_features)
         n_permute (int): Number of permutations
-        tail (int | str): Test type (2|'two' or 1|'one')
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed.
         return_null (bool): Whether to return null distribution
         backend (Backend): Backend instance (must be PyTorch)
         max_gpu_memory_gb (float): Maximum GPU memory budget
@@ -257,9 +257,9 @@ def one_sample_permutation_test(
             - shape (n_samples,) for single feature
             - shape (n_samples, n_features) for multi-feature (voxel-wise)
         n_permute (int): Number of permutations (default: 5000)
-        tail (int | str): Test type — 2|'two' (two-tailed, default) or 1|'one' (one-tailed, positive direction)
-            - 2 | 'two': Two-tailed test (mean != 0)
-            - 1 | 'one': One-tailed (mean > 0; negate the data for the other
+        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction).
+            - `2`/`'two'`: Two-tailed test (mean != 0)
+            - `1`/`'one'`: One-tailed (mean > 0; negate the data for the other
               direction). The fixed direction keeps MCP correction valid.
         return_null (bool): If True, return full null distribution (default: False)
         device (str, optional): Parallelization method (default: 'cpu')

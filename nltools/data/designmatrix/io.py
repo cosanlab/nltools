@@ -41,8 +41,8 @@ def events_to_dm(
         sampling_freq: Sampling frequency in Hz (= 1/TR).
 
     Returns:
-        pl.DataFrame with one column per unique `trial_type`, values in
-        {0, modulation} indicating where each condition is active.
+        pl.DataFrame: One column per unique `trial_type`, values in
+            {0, modulation} indicating where each condition is active.
     """
     import pandas as pd
     from nilearn.glm.first_level import make_first_level_design_matrix
@@ -149,9 +149,9 @@ def load_from_file(
         sampling_freq: Sampling frequency in Hz (= 1/TR).
 
     Returns:
-        Tuple of (data frame, is_events) — `is_events` signals to the
-        caller that the columns are experimental regressors rather than
-        nuisance.
+        tuple[pl.DataFrame, bool]: `(frame, is_events)` — `is_events` signals to
+            the caller that the columns are experimental regressors rather than
+            nuisance.
     """
     p = Path(path)
     raw = _read_delimited(p, separator_for_path(p))
@@ -243,8 +243,6 @@ def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
             extension implies (comma for ``.csv``, tab otherwise), so the file
             reads back correctly; pass a value to override. Ignored for HDF5.
 
-    Returns:
-        None
 
     Examples:
         >>> dm = DesignMatrix(np.random.randn(100, 3), sampling_freq=1)
@@ -286,9 +284,6 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
     Args:
         dm: DesignMatrix instance.
         file_name (str): Output HDF5 file path.
-
-    Returns:
-        None
     """
     import h5py
 
@@ -355,9 +350,9 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
         file_name: Path to the HDF5 file.
 
     Returns:
-        Tuple of (frame, metadata), where metadata holds ``sampling_freq``,
-        ``convolved``, ``confounds``, ``multi``, and ``n_rows`` — absent keys
-        meaning the file didn't record them.
+        tuple[pl.DataFrame, dict]: `(frame, metadata)`, where metadata holds
+            ``sampling_freq``, ``convolved``, ``confounds``, ``multi``, and
+            ``n_rows`` — absent keys meaning the file didn't record them.
     """
     import h5py
 

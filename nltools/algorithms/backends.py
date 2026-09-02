@@ -142,7 +142,7 @@ class Backend:
             arr (np.ndarray or torch.Tensor): Array to convert
 
         Returns:
-            np.ndarray: NumPy array
+            ndarray: The input as a NumPy array.
         """
         if self.name == "numpy":
             # NumPy backend: identity operation
@@ -224,7 +224,8 @@ class Backend:
             dtype: Data type to convert (str, numpy dtype, torch dtype, or None).
 
         Returns:
-            str or None: e.g. "float32", "float64", or None if input was None.
+            str | None: The dtype name (e.g. "float32", "float64"), or None if the
+                input was None.
         """
         if isinstance(dtype, str):
             return dtype
@@ -262,7 +263,7 @@ class Backend:
                 numpy backend. If None, uses the backend's default device.
 
         Returns:
-            Backend array (numpy ndarray or torch Tensor).
+            np.ndarray | torch.Tensor: Backend array.
         """
         if self.name == "numpy":
             if dtype is not None:
@@ -312,7 +313,7 @@ class Backend:
             ref: Reference array whose dtype/device to match.
 
         Returns:
-            Backend array with same dtype/device as ref.
+            np.ndarray | torch.Tensor: Backend array with the same dtype/device as ref.
         """
         if self.name == "numpy":
             return np.asarray(x, dtype=ref.dtype)
@@ -459,27 +460,31 @@ class Backend:
     # ------------------------------------------------------------------
 
     def to_cpu(self, array):
-        """Transfer array to CPU. No-op for numpy.
+        """Transfer an array to the CPU.
+
+        No-op for the numpy backend.
 
         Args:
             array: Input array or tensor.
 
         Returns:
-            Array on CPU.
+            np.ndarray | torch.Tensor: Array on CPU.
         """
         if self.name == "numpy":
             return array
         return array.cpu()
 
     def to_gpu(self, array, device=None):
-        """Transfer array to GPU. No-op for numpy.
+        """Transfer an array to the GPU.
+
+        No-op for the numpy backend.
 
         Args:
             array: Input array or tensor.
             device: Target device (defaults to backend's device).
 
         Returns:
-            Array on GPU device.
+            torch.Tensor: Array on the GPU device.
         """
         if self.name == "numpy":
             return array
@@ -610,8 +615,8 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
         verbose: Whether to print detailed error messages
         backend: Backend instance (optional). If None, attempts to detect from x/y.
 
-    Returns:
-        None (raises AssertionError if arrays don't match)
+    Raises:
+        AssertionError: If the arrays don't match.
     """
     # Auto-detect backend from x if possible
     if backend is None:
@@ -860,8 +865,7 @@ def auto_batch_size(
             transfer overhead). Never exceeds `n_items`.
 
     Returns:
-        tuple[int, int]: `(batch_size, n_batches)` with
-        `batch_size * n_batches >= n_items`.
+        `(batch_size, n_batches)` with `batch_size * n_batches >= n_items`.
     """
     if n_items <= 0:
         raise ValueError(f"n_items must be positive, got {n_items}")
@@ -890,7 +894,10 @@ def is_oom_error(exc: BaseException) -> bool:
 
 
 def empty_device_cache() -> None:
-    """Release cached device memory. No-op without torch or a GPU."""
+    """Release cached device memory.
+
+    No-op without torch or a GPU.
+    """
     try:
         import torch
     except ImportError:
@@ -928,7 +935,7 @@ def compute_oom_safe(fn, *arrays, min_chunk: int = 1):
         min_chunk: Chunk size below which an OOM is considered fatal.
 
     Returns:
-        np.ndarray: `fn`'s result, possibly assembled from retried chunks.
+        ndarray: `fn`'s result, possibly assembled from retried chunks.
 
     Raises:
         MemoryError: If the device OOMs even at `min_chunk` items.

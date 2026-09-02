@@ -6,51 +6,43 @@ BrainData or other nltools data structures, making it suitable for standalone
 use with inference algorithms.
 
 Examples:
-    Using with BrainData workflow:
+    ```python
+    import numpy as np
+    from nltools.data import BrainData
 
-    >>> from nltools.data import BrainData
-    >>> brain = BrainData(data="brain_data.nii.gz")
-    >>> fit = brain.fit(model="ridge", X=design_matrix, cv=5)
-    >>> print(fit.available())
-    ['fitted_values', 'weights', 'scores', 'cv_scores', 'cv_mean_score', 'cv_predictions', 'cv_folds']
+    # BrainData workflow
+    brain = BrainData(data="brain_data.nii.gz")
+    fit = brain.fit(model="ridge", X=design_matrix, cv=5)
+    print(fit.available())
+    # ['fitted_values', 'weights', 'scores', 'cv_scores', 'cv_mean_score',
+    #  'cv_predictions', 'cv_folds']
 
-    Using with inference algorithms directly:
+    # Inference algorithms directly
+    from nltools.algorithms import ridge_cv
 
-    >>> from nltools.algorithms import ridge_cv
-    >>> import numpy as np
-    >>> X = np.random.randn(100, 5)
-    >>> y = np.random.randn(100, 1000)
-    >>> result = ridge_cv(X, y, cv=5)
-    >>> result["cv_scores"].shape
-    (5, 20, 1000)
+    X = np.random.randn(100, 5)
+    y = np.random.randn(100, 1000)
+    result = ridge_cv(X, y, cv=5)
+    result["cv_scores"].shape  # (5, 20, 1000)
 
-    Serialization/deserialization:
+    # Save all non-None results, then load and reconstruct
+    np.savez("fit_results.npz", **fit.asdict())
+    loaded = np.load("fit_results.npz")
+    fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
 
-    >>> # Save all non-None results
-    >>> np.savez("fit_results.npz", **fit.asdict())
-    >>>
-    >>> # Load and reconstruct
-    >>> loaded = np.load("fit_results.npz")
-    >>> fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
+    # Export only specific fields
+    np.savez("weights_and_scores.npz", weights=fit.weights, scores=fit.scores)
 
-    Export to .npz:
+    # Introspection
+    if 'cv_scores' in fit.available():
+        print(f"CV R2 range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
 
-    >>> # Export only specific fields
-    >>> import numpy as np
-    >>> np.savez("weights_and_scores.npz",
-    ...          weights=fit.weights,
-    ...          scores=fit.scores)
+    # Convert scalar and 1D results to a polars DataFrame
+    import polars as pl
 
-    Introspection:
-
-    >>> # Check what's available
-    >>> if 'cv_scores' in fit.available():
-    ...     print(f"CV R² range: [{fit.cv_mean_score.min():.3f}, {fit.cv_mean_score.max():.3f}]")
-    >>>
-    >>> # Get as dict and convert to a polars DataFrame (for scalar and 1D arrays)
-    >>> import polars as pl
-    >>> results_dict = fit.asdict()
-    >>> df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
+    results_dict = fit.asdict()
+    df = pl.DataFrame({k: v for k, v in results_dict.items() if v.ndim <= 1})
+    ```
 """
 
 from collections.abc import Iterator
@@ -117,48 +109,41 @@ class Fit:
         optionally excluding None values.
 
     Examples:
-        Creating a Fit object (Ridge without CV):
+        ```python
+        import numpy as np
+        from nltools.data.fitresults import Fit
 
-        >>> import numpy as np
-        >>> from nltools.data.fitresults import Fit
-        >>> fit = Fit(
-        ...     fitted_values=np.random.randn(100, 1000),
-        ...     weights=np.random.randn(5, 1000),
-        ...     scores=np.random.randn(1000)
-        ... )
-        >>> fit.available()
-        ['fitted_values', 'weights', 'scores']
+        # Ridge without CV
+        fit = Fit(
+            fitted_values=np.random.randn(100, 1000),
+            weights=np.random.randn(5, 1000),
+            scores=np.random.randn(1000),
+        )
+        fit.available()  # ['fitted_values', 'weights', 'scores']
 
-        Creating a Fit object (Ridge with CV):
+        # Ridge with CV
+        fit_cv = Fit(
+            fitted_values=np.random.randn(100, 1000),
+            weights=np.random.randn(5, 1000),
+            scores=np.random.randn(1000),
+            cv_scores=np.random.randn(5, 1000),
+            cv_mean_score=np.random.randn(1000),
+            cv_predictions=np.random.randn(100, 1000),
+            cv_folds=np.arange(100) % 5,
+        )
+        'cv_scores' in fit_cv.available()  # True
 
-        >>> fit_cv = Fit(
-        ...     fitted_values=np.random.randn(100, 1000),
-        ...     weights=np.random.randn(5, 1000),
-        ...     scores=np.random.randn(1000),
-        ...     cv_scores=np.random.randn(5, 1000),
-        ...     cv_mean_score=np.random.randn(1000),
-        ...     cv_predictions=np.random.randn(100, 1000),
-        ...     cv_folds=np.arange(100) % 5
-        ... )
-        >>> 'cv_scores' in fit_cv.available()
-        True
+        # Immutability: assignment raises FrozenInstanceError (an AttributeError)
+        try:
+            fit.scores = np.zeros(1000)
+        except AttributeError:
+            print("Cannot modify frozen dataclass")
 
-        Immutability:
-
-        >>> try:
-        ...     fit.scores = np.zeros(1000)  # Will raise FrozenInstanceError
-        ... except AttributeError:
-        ...     print("Cannot modify frozen dataclass")
-        Cannot modify frozen dataclass
-
-        Export/serialization:
-
-        >>> # Save to .npz
-        >>> np.savez("results.npz", **fit.asdict())
-        >>>
-        >>> # Load and reconstruct
-        >>> loaded = np.load("results.npz")
-        >>> fit_reloaded = Fit(**{k: loaded[k] for k in loaded.files})
+        # Save to .npz, then load and reconstruct
+        np.savez("results.npz", **fit.asdict())
+        loaded = np.load("results.npz")
+        fit_reloaded = Fit(**{k: loaded[k] for k in loaded.files})
+        ```
 
     Note:
         - Frozen dataclass ensures results cannot be accidentally modified.
@@ -199,16 +184,17 @@ class Fit:
             Names of attributes that are not None.
 
         Examples:
-            >>> import numpy as np
-            >>> from nltools.data.fitresults import Fit
-            >>> fit = Fit(
-            ...     fitted_values=np.random.randn(100, 1000),
-            ...     weights=np.random.randn(5, 1000)
-            ... )
-            >>> fit.available()
-            ['fitted_values', 'weights']
-            >>> 'scores' in fit.available()
-            False
+            ```python
+            import numpy as np
+            from nltools.data.fitresults import Fit
+
+            fit = Fit(
+                fitted_values=np.random.randn(100, 1000),
+                weights=np.random.randn(5, 1000),
+            )
+            fit.available()  # ['fitted_values', 'weights']
+            'scores' in fit.available()  # False
+            ```
         """
         return [
             field_name
@@ -227,21 +213,22 @@ class Fit:
             Dictionary of attribute names to values.
 
         Examples:
-            >>> import numpy as np
-            >>> from nltools.data.fitresults import Fit
-            >>> fit = Fit(
-            ...     fitted_values=np.random.randn(100, 1000),
-            ...     weights=np.random.randn(5, 1000),
-            ...     scores=None
-            ... )
-            >>> d = fit.asdict(include_none=False)
-            >>> 'scores' in d
-            False
-            >>> d = fit.asdict(include_none=True)
-            >>> 'scores' in d
-            True
-            >>> d['scores'] is None
-            True
+            ```python
+            import numpy as np
+            from nltools.data.fitresults import Fit
+
+            fit = Fit(
+                fitted_values=np.random.randn(100, 1000),
+                weights=np.random.randn(5, 1000),
+                scores=None,
+            )
+            d = fit.asdict(include_none=False)
+            'scores' in d  # False
+
+            d = fit.asdict(include_none=True)
+            'scores' in d  # True
+            d['scores'] is None  # True
+            ```
         """
         # Get full dict from dataclass
         full_dict = dataclass_asdict(self)

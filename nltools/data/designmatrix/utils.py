@@ -136,7 +136,7 @@ def get_metadata(dm: DesignMatrix) -> dict:
 
     Returns:
         dict: Dictionary with keys 'sampling_freq', 'convolved', 'confounds',
-        'multi', 'n_rows'.
+            'multi', 'n_rows'.
     """
     return {
         "sampling_freq": dm.sampling_freq,
@@ -160,7 +160,7 @@ def get_data_columns(dm: DesignMatrix, exclude_confounds: bool = True) -> list[s
             columns tracked in ``dm.confounds`` from the result.
 
     Returns:
-        list of str: Column names (excluding confounds if requested).
+        list[str]: Column names (excluding confounds if requested).
     """
     if exclude_confounds and dm.confounds:
         return [col for col in dm.columns if col not in dm.confounds]

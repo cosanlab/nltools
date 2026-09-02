@@ -310,7 +310,7 @@ def mask_images(mask, imgs):
         imgs: List of space-aligned ``nibabel`` images to mask.
 
     Returns:
-        ``np.ndarray`` of shape ``(len(imgs), n_voxels)``.
+        np.ndarray: Masked data of shape ``(len(imgs), n_voxels)``.
     """
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
