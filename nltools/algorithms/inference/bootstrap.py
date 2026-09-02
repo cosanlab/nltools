@@ -15,6 +15,7 @@ from .validation import (
 )
 from ..random import generate_bootstrap_indices
 from .utils import maybe_tqdm, make_progress_bar
+from nltools.utils import find_stack_level
 
 
 # Constants for supported methods
@@ -65,6 +66,7 @@ def _validate_bootstrap_data(data: np.ndarray, method: str) -> None:
             f"Only {n_samples} samples available. Bootstrap works best with n >= 30. "
             f"Results may be unreliable with very small sample sizes.",
             UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 
@@ -93,6 +95,7 @@ def _validate_n_samples(n_samples: int) -> None:
             f"n_samples={n_samples} is low. For reliable confidence intervals, "
             f"use n_samples >= 1000. For hypothesis testing, use n_samples >= 5000.",
             UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 

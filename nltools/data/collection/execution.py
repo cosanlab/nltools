@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from nltools.utils import coalesced_gc, make_progress_bar
+from nltools.utils import coalesced_gc, find_stack_level, make_progress_bar
 
 from . import core
 
@@ -199,8 +199,6 @@ class _WorkerWarning:
     category_module: str
     category_qualname: str
     message: str
-    filename: str
-    lineno: int
     idx: int
     subject: str | None
 
@@ -243,8 +241,6 @@ def _wrap_worker(
             category_module=w.category.__module__,
             category_qualname=w.category.__qualname__,
             message=str(w.message),
-            filename=w.filename,
-            lineno=w.lineno,
             idx=task.idx,
             subject=str(subject) if subject is not None else None,
         )
@@ -277,10 +273,15 @@ def _relay_worker_warnings(
 
     Deduplicated by (category, message) across subjects — one relay per
     unique warning, annotated with which subjects raised it — and emitted
-    via ``warnings.warn_explicit`` with the real category, so parent-side
-    filters (``ignore``, ``error``, ``pytest.warns``) apply. A category that
-    can't be re-imported falls back to ``UserWarning`` with the original
-    class name kept in the text.
+    with the real category, so parent-side filters (``ignore``, ``error``,
+    ``pytest.warns``) apply. A category that can't be re-imported falls back
+    to ``UserWarning`` with the original class name kept in the text.
+
+    Attribution is the parent's: a worker's own stack bottoms out in
+    joblib/loky (parallel) or nltools (serial), never in user code, so the
+    location recorded in the worker is useless to the user. Re-emitting here
+    with ``find_stack_level()`` lands the warning on the ``BrainCollection``
+    call that ran the workers.
     """
     import warnings
 
@@ -305,12 +306,7 @@ def _relay_worker_warnings(
         else:
             note = f"[subject {who}]"
 
-        warnings.warn_explicit(
-            f"{message} {note}",
-            category,
-            first.filename,
-            first.lineno,
-        )
+        warnings.warn(f"{message} {note}", category, stacklevel=find_stack_level())
 
 
 def _resolve_cache_mode(
@@ -635,7 +631,8 @@ def _read_bundle_attrs_and_validate(path: Path) -> tuple[Any, dict[str, Any]]:
                 f"bundle was written by nltools v{file_nltools_version}, "
                 f"reading with v{current_version}. Usually fine within a "
                 f"minor version.",
-                stacklevel=3,
+                UserWarning,
+                stacklevel=find_stack_level(),
             )
         return f, dict(f.attrs)
     except Exception:

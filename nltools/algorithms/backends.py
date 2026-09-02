@@ -9,6 +9,8 @@ import warnings
 import numpy as np
 from typing import Any
 
+from nltools.utils import find_stack_level
+
 # Track if we've warned about MPS initialization to avoid spam
 _already_warned_mps_init = [False]
 # Track if we've warned about float64 conversion to avoid spam
@@ -80,7 +82,7 @@ class Backend:
                     "This may result in reduced numerical precision compared to float64 backends. "
                     "For high-precision requirements, consider using 'torch' (CPU) or 'numpy' backends.",
                     UserWarning,
-                    stacklevel=3,
+                    stacklevel=find_stack_level(),
                 )
                 _already_warned_mps_init[0] = True
         else:
@@ -128,7 +130,7 @@ class Backend:
                     f"got input in float64. Data will be automatically cast to float32. "
                     "This may result in reduced numerical precision.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=find_stack_level(),
                 )
                 _already_warned_float64[0] = True
 
@@ -644,6 +646,7 @@ def assert_array_almost_equal(x, y, decimal=6, err_msg="", verbose=True, backend
                 f"Reducing precision from decimal={decimal} to decimal=2 for "
                 "torch-mps backend due to float32 conversion limitations",
                 UserWarning,
+                stacklevel=find_stack_level(),
             )
             decimal = 2
 

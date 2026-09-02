@@ -23,7 +23,7 @@ from sklearn.model_selection import KFold, BaseCrossValidator
 from sklearn.utils import check_random_state
 
 from .utils import _auto_n_targets_batch
-from ...utils import maybe_tqdm
+from ...utils import find_stack_level, maybe_tqdm
 
 from ..backends import resolve_backend
 
@@ -256,6 +256,7 @@ def solve_banded_ridge_cv(
             f"when n_samples < n_features (here {n_samples} < {n_features}). "
             "Consider using kernel ridge regression instead.",
             UserWarning,
+            stacklevel=find_stack_level(),
         )
 
     # Convert to backend arrays

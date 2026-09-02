@@ -37,6 +37,7 @@ import traitlets
 
 from nltools.data.atlases import Atlas, load_atlas
 from nltools.templates.matching import get_bg_image, is_standard_space
+from nltools.utils import find_stack_level
 
 _VIEWER_JS = pathlib.Path(__file__).parent / "viewer.js"
 
@@ -138,12 +139,14 @@ def resolve_cmap(name: str) -> str:
             f"colormap {name!r} is a matplotlib name with no exact niivue "
             f"equivalent; using {mapped!r}. Pass a niivue colormap name to "
             "silence this.",
-            stacklevel=2,
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
         return mapped
     warnings.warn(
         f"colormap {name!r} is not a known niivue colormap; falling back to 'warm'.",
-        stacklevel=2,
+        UserWarning,
+        stacklevel=find_stack_level(),
     )
     return "warm"
 

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
-from nltools.utils import reserved_name
+from nltools.utils import DesignMatrixWarning, find_stack_level, reserved_name
 
 from .utils import copy_with, get_data_columns, has_run_separated_drift
 
@@ -78,7 +78,8 @@ def convolve(
             warnings.warn(
                 "All experimental regressors are already convolved; "
                 ".convolve() is a no-op.",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
             return dm
     else:
@@ -212,12 +213,14 @@ def add_poly(
         if poly_name in dm.confounds:
             warnings.warn(
                 f"Design Matrix already has {i}th order polynomial...skipping",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         elif i == 0 and _has_intercept:
             warnings.warn(
                 f"Design Matrix already has an intercept column...skipping {poly_name}",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         else:
             # Create normalized Legendre polynomial over [-1, 1]
@@ -312,7 +315,8 @@ def add_dct_basis(
         if constant_name in (dm.confounds or []) or _has_intercept:
             warnings.warn(
                 f"Design Matrix already has an intercept column...skipping {constant_name}",
-                stacklevel=3,
+                DesignMatrixWarning,
+                stacklevel=find_stack_level(),
             )
         else:
             basis_col_names.insert(0, constant_name)
@@ -326,11 +330,19 @@ def add_dct_basis(
 
     # If no new bases to add, return dm unchanged
     if not basis_to_add:
-        warnings.warn("All basis functions already exist...skipping", stacklevel=3)
+        warnings.warn(
+            "All basis functions already exist...skipping",
+            DesignMatrixWarning,
+            stacklevel=find_stack_level(),
+        )
         return dm
 
     if len(basis_to_add) < len(basis_col_names):
-        warnings.warn("Some basis functions already exist...skipping", stacklevel=3)
+        warnings.warn(
+            "Some basis functions already exist...skipping",
+            DesignMatrixWarning,
+            stacklevel=find_stack_level(),
+        )
 
     # Add new cosine basis columns
     # Only add the columns we don't already have

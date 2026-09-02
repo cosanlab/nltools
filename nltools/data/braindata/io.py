@@ -14,15 +14,20 @@ import warnings
 import numpy as np
 from pathlib import Path
 
+from nltools.utils import ResamplingWarning, find_stack_level
+
 
 def _detect_interpolation(img):
     """Detect appropriate interpolation method based on image data type.
 
     Determines whether an image contains discrete (atlas/label) or continuous
-    data by checking if values are integers and counting unique values.
+    data by checking if values are integers and counting unique values. For a
+    4-D image only the first volume is inspected: it decides label-vs-signal as
+    well as the whole run does, without materializing a float64 copy of every
+    volume (nearly 2 GB for a typical BOLD run).
 
     Args:
-        img: nibabel Nifti1Image or similar image object with get_fdata() method
+        img: nibabel Nifti1Image or similar image object with a ``dataobj``.
 
     Returns:
         str: 'nearest' for discrete/atlas data, 'continuous' for continuous data
@@ -32,15 +37,22 @@ def _detect_interpolation(img):
         - Atlases typically have < 500 unique integer labels
         - Statistical maps have continuous floating-point values
     """
-    data = img.get_fdata()
+    if img.ndim >= 4:
+        data = np.asanyarray(img.dataobj[..., 0])
+    else:
+        data = np.asanyarray(img.dataobj)
 
     # Handle empty or all-NaN data
     valid_data = data[~np.isnan(data)]
     if valid_data.size == 0:
         return "continuous"
 
-    # Check if all values are effectively integers
-    is_integer_valued = np.allclose(valid_data, np.round(valid_data), rtol=1e-10)
+    # Check if all values are effectively integers (trivially true for an
+    # integer dtype; nibabel applies any header scaling, so a scaled int image
+    # arrives here as float and is checked value by value).
+    is_integer_valued = valid_data.dtype.kind in "iu" or np.allclose(
+        valid_data, np.round(valid_data), rtol=1e-10
+    )
 
     if is_integer_valued:
         n_unique = len(np.unique(valid_data))
@@ -122,22 +134,43 @@ def get_interpolation(bd, img):
     return bd._interpolation
 
 
+def _resample_img_to_mask(bd, data_img):
+    """Resample ``data_img`` onto ``bd.mask``'s grid with the resolved interpolation.
+
+    Integer-typed voxel data (int16 BOLD is the common case) is cast to float32
+    first when the interpolation is continuous. nilearn performs exactly that
+    cast itself inside ``resample_img`` — and warns about it on every load —
+    so doing it here removes the notice without changing the result. Nearest
+    interpolation keeps the integer dtype (labels stay labels). A header with
+    no sform (haxby's, for one) gets the same code-2 sform `resample_to`
+    assigns, for the same reason (see `_ensure_sform`).
+    """
+    import nibabel as nib
+    from nilearn.image import resample_to_img
+
+    interpolation = get_interpolation(bd, data_img)
+    if interpolation != "nearest":
+        data = np.asanyarray(data_img.dataobj)
+        if data.dtype.kind in "iu":
+            data_img = nib.Nifti1Image(
+                data.astype(np.float32), data_img.affine, data_img.header
+            )
+            data_img.set_data_dtype(np.float32)
+    return resample_to_img(
+        _ensure_sform(data_img), bd.mask, interpolation=interpolation
+    )
+
+
 def _resample_to_mask(bd, data_img, context=""):
     """Resample data_img to bd.mask if spaces differ and bd._resample is True.
 
     Returns data_img unchanged if spaces already match or resampling is disabled.
     """
-    from nilearn.image import resample_to_img
-
     if check_space_match(data_img, bd.mask) or not bd._resample:
         return data_img
 
     warn_if_resampling(bd, context)
-    return resample_to_img(
-        data_img,
-        bd.mask,
-        interpolation=get_interpolation(bd, data_img),
-    )
+    return _resample_img_to_mask(bd, data_img)
 
 
 def detect_and_update_mask(bd, data_img):
@@ -193,7 +226,7 @@ def detect_and_update_mask(bd, data_img):
             f"Failed to auto-detect template from data: {e}. "
             f"Using default template (get_brainspace().mask).",
             UserWarning,
-            stacklevel=3,
+            stacklevel=find_stack_level(),
         )
         return _resample_to_mask(
             bd,
@@ -269,20 +302,26 @@ def check_space_match(data_img, mask_img):
 
 
 def warn_if_resampling(bd, context=""):
-    """Warn about resampling if verbose=True and resample=True.
+    """Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
+
+    Sibling of the template-mismatch notice in `match_resolution`: that one
+    fires when a template is chosen for data at another resolution; this one
+    fires when the data is actually resampled to the mask's grid.
 
     Args:
         bd: BrainData instance.
-        context (str): Context string to include in warning. Default: empty string.
+        context (str): Why the spaces differ, appended to the message.
+            Default: empty string.
     """
     if bd._resample and bd.verbose:
-        base_msg = "Resampling data to match mask space (resample=True)."
+        resolution = "x".join(f"{r:g}" for r in bd._voxel_resolution)
+        msg = (
+            f"Data does not match the mask space; resampling it to the mask's "
+            f"{resolution}mm grid (resample=True)."
+        )
         if context:
-            msg = f"{base_msg} {context}"
-        else:
-            msg = base_msg
-
-        warnings.warn(msg, UserWarning, stacklevel=4)
+            msg = f"{msg} {context}"
+        warnings.warn(msg, ResamplingWarning, stacklevel=find_stack_level())
 
 
 def mask_images(mask, imgs):
@@ -522,7 +561,9 @@ def load_from_h5(bd, file_path, mask):
         warnings.warn(
             "Existing mask found in HDF5 file but is being ignored because "
             "you passed a value for mask. Set mask=None to use existing "
-            "mask in the HDF5 file"
+            "mask in the HDF5 file",
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
 
 
@@ -551,7 +592,6 @@ def load_from_file(bd, data):
         data: File path or nibabel object.
     """
     import nibabel as nib
-    from nilearn.image import resample_to_img
     from nilearn.masking import apply_mask as nilearn_apply_mask
 
     if isinstance(data, (str, Path)):
@@ -580,14 +620,10 @@ def load_from_file(bd, data):
                 f"Mask affine:\n{bd.mask.affine}\n"
                 f"Data shape: {data_img.shape[:3]}\n"
                 f"Mask shape: {bd.mask.shape[:3]}",
-                UserWarning,
-                stacklevel=2,
+                ResamplingWarning,
+                stacklevel=find_stack_level(),
             )
-        data_img = resample_to_img(
-            data_img,
-            bd.mask,
-            interpolation=get_interpolation(bd, data_img),
-        )
+        data_img = _resample_img_to_mask(bd, data_img)
 
     bd.data = nilearn_apply_mask(data_img, bd.mask)
 

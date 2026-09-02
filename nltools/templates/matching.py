@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from nltools.utils import ResamplingWarning, find_stack_level
+
 from .config import BrainSpaceConfig, get_brainspace
 from .paths import resolve_paths
 from .registry import SUPPORTED_RESOLUTIONS, TEMPLATE_PRIORITY
@@ -65,8 +67,8 @@ def match_resolution(
     Args:
         affine: 4x4 affine matrix from a NIfTI image.
         prefer_exact: If True, prefer an exact resolution match.
-        warn_resample: If True, emit a warning when data resolution doesn't
-            exactly match the selected template.
+        warn_resample: If True, emit a `ResamplingWarning` when the data
+            resolution has no exact template and the closest one is used.
 
     Returns:
         A `TemplateMatch`.
@@ -103,10 +105,13 @@ def match_resolution(
                 break
         if best_distance > 0 and warn_resample:
             warnings.warn(
-                f"\nData resolution ({resolution_float:.3f}mm) doesn't exactly "
-                f"match template: {best_template} {best_resolution}mm.",
-                UserWarning,
-                stacklevel=3,
+                f"Data resolution ({resolution_float:.3f}mm) does not match any "
+                f"bundled MNI template; the closest is {best_template} "
+                f"{best_resolution}mm, so the data will be resampled to that grid. "
+                "To keep the native resolution, pass mask= with a mask in the "
+                "data's own space.",
+                ResamplingWarning,
+                stacklevel=find_stack_level(),
             )
 
     assert best_template is not None and best_resolution is not None

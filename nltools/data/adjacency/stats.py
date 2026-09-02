@@ -6,6 +6,8 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 import numpy as np
 import warnings
 
+from nltools.utils import find_stack_level
+
 
 def similarity(
     adj,
@@ -104,6 +106,7 @@ def similarity(
                     "NaN handling is limited. Consider using method='1d' or None, "
                     "or removing NaN values before calling similarity().",
                     UserWarning,
+                    stacklevel=find_stack_level(),
                 )
                 return arr1, arr2
 

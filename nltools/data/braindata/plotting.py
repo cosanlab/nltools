@@ -5,6 +5,8 @@ import warnings
 
 import numpy as np
 
+from nltools.utils import find_stack_level
+
 
 DEFAULT_SLICE_CUT_COORDS = {
     "x": list(range(-50, 51, 8)),
@@ -198,7 +200,7 @@ def plot_brain(
                 f"{n_to_plot}. Pass `limit={n_total}` (or higher) to plot "
                 "more, or index/aggregate before calling .plot().",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=find_stack_level(),
             )
         sub_objs = [bd[i] for i in range(n_to_plot)]
     else:
@@ -220,7 +222,7 @@ def plot_brain(
                     f"falling back to method='slices' with the bg_img you "
                     "provided.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=find_stack_level(),
                 )
                 method = "slices"
             else:

@@ -2,10 +2,13 @@
 
 __all__ = [
     "RESERVED_PREFIX",
+    "DesignMatrixWarning",
+    "ResamplingWarning",
     "all_same",
     "attempt_to_import",
     "coalesced_gc",
     "concatenate",
+    "find_stack_level",
     "get_resource_path",
     "is_reserved_name",
     "make_progress_bar",
@@ -15,7 +18,9 @@ __all__ = [
 ]
 
 import collections
+import contextlib
 import gc
+import inspect
 import os
 import re
 from contextlib import contextmanager
@@ -96,6 +101,76 @@ def parse_run_separated(name: str) -> tuple[int, str] | None:
     """
     match = _RUN_SEPARATED_RE.fullmatch(name)
     return (int(match.group(1)), match.group(2)) if match else None
+
+
+# ---------------------------------------------------------------------------
+# Warnings: attribution and library-wide categories
+# ---------------------------------------------------------------------------
+
+_PACKAGE_DIR = dirname(__file__) + pathsep
+_TESTS_DIR = join(_PACKAGE_DIR, "tests") + pathsep
+# ``@coalesced_gc()`` (a contextmanager used as a decorator) wraps facade
+# methods in a stdlib contextlib frame; it is nltools plumbing, not user code.
+_PLUMBING_FILES = frozenset({contextlib.__file__})
+
+
+def _is_library_frame(filename: str) -> bool:
+    if filename in _PLUMBING_FILES:
+        return True
+    return filename.startswith(_PACKAGE_DIR) and not filename.startswith(_TESTS_DIR)
+
+
+def find_stack_level() -> int:
+    """Return the ``stacklevel`` that attributes a warning to the caller's code.
+
+    Walks up from the caller until the first frame outside the nltools package
+    (``nltools/tests/`` counts as outside: tests are the library's users; the
+    stdlib ``contextlib`` frame that ``@coalesced_gc()`` inserts counts as
+    inside), so a ``warnings.warn`` deep inside a facade lands on the user's
+    line rather than on nltools internals — the same pattern nilearn and pandas
+    use. Every ``warnings.warn`` in the library passes
+    ``stacklevel=find_stack_level()``; a source-scan test enforces it.
+
+    Returns:
+        int: Value for the ``stacklevel`` argument of ``warnings.warn``.
+
+    Examples:
+        ```python
+        warnings.warn("message", UserWarning, stacklevel=find_stack_level())
+        ```
+    """
+    frame = inspect.currentframe()
+    level = 0
+    try:
+        while frame is not None and _is_library_frame(inspect.getfile(frame)):
+            frame = frame.f_back
+            level += 1
+    finally:
+        del frame
+    return level
+
+
+class ResamplingWarning(UserWarning):
+    """Data is (or will be) resampled to a different space than it arrived in.
+
+    Raised when a data image does not match the mask/template it is loaded
+    against — a detected template at another resolution, or a mask in a
+    different space — and nltools resamples to reconcile them. Subclasses
+    ``UserWarning`` so it participates in default filtering while staying
+    individually silenceable:
+    ``warnings.filterwarnings("ignore", category=ResamplingWarning)``.
+    """
+
+
+class DesignMatrixWarning(UserWarning):
+    """A ``DesignMatrix`` operation was a no-op or partially skipped.
+
+    Raised by regressor builders (``add_poly``, ``add_dct_basis``,
+    ``convolve``) when the requested columns already exist and are skipped.
+    Subclasses ``UserWarning`` so it participates in default filtering while
+    staying individually silenceable:
+    ``warnings.filterwarnings("ignore", category=DesignMatrixWarning)``.
+    """
 
 
 # ---------------------------------------------------------------------------

@@ -602,7 +602,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
                 labels_img=mask_img,
                 strategy=strategy,
                 mask_img=bd.mask,
-                standardize=False,
+                standardize=None,  # nilearn >= 0.15 rejects the bool spelling
                 resampling_target="data" if hasattr(bd, "mask") else None,
             )
 
@@ -726,7 +726,9 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
                   - confounds: Confound timeseries to remove
                   - sample_mask: Volumes to exclude (scrubbing)
                   - detrend: Enable detrending (default False)
-                  - standardize: Enable standardization (default False)
+                  - standardize: ``'zscore_sample'``, ``'psc'``, or None (off,
+                    the default). ``True``/``False`` are accepted as aliases
+                    for ``'zscore_sample'``/None.
                   - ensure_finite: Replace NaN/inf (default False)
 
     Returns:
@@ -744,7 +746,13 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
 
     # Pop (not get) so these are not also forwarded via **kwargs below;
     # otherwise clean() receives detrend/standardize twice -> TypeError.
-    standardize = kwargs.pop("standardize", False)
+    # nilearn >= 0.15 drops boolean `standardize`; translate the aliases here
+    # so callers keep the bool spelling without tripping its FutureWarning.
+    standardize = kwargs.pop("standardize", None)
+    if standardize is True:
+        standardize = "zscore_sample"
+    elif standardize is False:
+        standardize = None
     detrend = kwargs.pop("detrend", False)
 
     # Optimized: Use shallow copy instead of deepcopy

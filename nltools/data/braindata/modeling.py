@@ -12,6 +12,7 @@ import numpy as np
 # that keeps z finite in both directions) — also used by BrainCollection's
 # ttest/ttest2 and the GLM-bundle contrast reader.
 from nltools.algorithms.inference.utils import _signed_z_from_p
+from nltools.utils import find_stack_level
 from .utils import shallow_copy
 
 
@@ -160,7 +161,7 @@ def _warn_if_rank_deficient(X_array, X_model):
         "`fit(model='ridge')` keeps every regressor and has a unique, "
         "order-invariant solution.",
         RankDeficientDesignWarning,
-        stacklevel=3,
+        stacklevel=find_stack_level(),
     )
     return True
 
@@ -269,7 +270,7 @@ def _warn_if_near_collinear(X_array, X_model):
         "`fit(model='ridge')` keeps every regressor and shrinks correlated "
         "coefficients together.",
         NearCollinearDesignWarning,
-        stacklevel=3,
+        stacklevel=find_stack_level(),
     )
 
 
@@ -477,7 +478,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             "already absorbs percent-signal-change scaling, so the scale step "
             "has no effect. Drop scale or use standardize='center'/None.",
             UserWarning,
-            stacklevel=2,
+            stacklevel=find_stack_level(),
         )
 
     # A ridge intercept is redundant once the targets are centered (any scaling
@@ -492,7 +493,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             "de-means each voxel), so the intercept is ~0 and adds nothing. Use "
             "fit_intercept=True only with scale=False, standardize=None.",
             UserWarning,
-            stacklevel=2,
+            stacklevel=find_stack_level(),
         )
 
     # Preprocess before fitting: scale (percent signal change) THEN standardize.

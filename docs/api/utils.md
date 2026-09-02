@@ -187,11 +187,12 @@ find_stack_level() -> int
 Return the ``stacklevel`` that attributes a warning to the caller's code.
 
 Walks up from the caller until the first frame outside the nltools package
-(``nltools/tests/`` counts as outside: tests are the library's users), so a
-``warnings.warn`` deep inside a facade lands on the user's line rather than
-on nltools internals — the same pattern nilearn and pandas use. Every
-``warnings.warn`` in the library passes ``stacklevel=find_stack_level()``;
-a source-scan test enforces it.
+(``nltools/tests/`` counts as outside: tests are the library's users; the
+stdlib ``contextlib`` frame that ``@coalesced_gc()`` inserts counts as
+inside), so a ``warnings.warn`` deep inside a facade lands on the user's
+line rather than on nltools internals — the same pattern nilearn and pandas
+use. Every ``warnings.warn`` in the library passes
+``stacklevel=find_stack_level()``; a source-scan test enforces it.
 
 **Returns:**
 

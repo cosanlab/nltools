@@ -143,6 +143,20 @@ class TestWorkerWarningRelay:
             with pytest.raises(RankDeficientDesignWarning):
                 bc_rank_deficient.fit(model="glm", n_jobs=2)
 
+    def test_relayed_warning_is_attributed_to_the_caller(self, bc_rank_deficient):
+        """The relay lands on the user's `bc.fit(...)` line, not on nltools.
+
+        A worker's own stack ends in joblib/loky (parallel) or nltools
+        (serial), so the recorded worker location can never be user code; the
+        parent re-emits with `find_stack_level()` instead.
+        """
+        for n_jobs in (1, 2):
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always")
+                bc_rank_deficient.fit(model="glm", n_jobs=n_jobs)
+            rank = [x for x in w if issubclass(x.category, RankDeficientDesignWarning)]
+            assert rank and rank[0].filename == __file__, (n_jobs, rank[0].filename)
+
     def test_clean_run_relays_nothing_extra(self, bc_with_designs):
         """A full-rank fit relays no RankDeficientDesignWarning."""
         with warnings.catch_warnings(record=True) as w:
@@ -177,8 +191,6 @@ class TestRelayInternals:
             category_module="nonexistent_module_xyz",
             category_qualname="GhostWarning",
             message="spooky",
-            filename="ghost.py",
-            lineno=1,
             idx=0,
             subject="sub-0001",
         )
@@ -201,8 +213,6 @@ class TestRelayInternals:
             category_module="builtins",
             category_qualname="RuntimeWarning",
             message="overflow encountered",
-            filename="x.py",
-            lineno=3,
             idx=4,
             subject="sub-0005",
         )

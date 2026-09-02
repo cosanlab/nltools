@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 
 from nltools.data.fitresults import Predict
-from nltools.utils import maybe_tqdm
+from nltools.utils import find_stack_level, maybe_tqdm
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ def _resolve_standardize_for_model(resolved_model, standardize: bool) -> bool:
             "to avoid wrapping another StandardScaler around your pipeline. "
             "Pass standardize=True explicitly to override.",
             UserWarning,
-            stacklevel=4,
+            stacklevel=find_stack_level(),
         )
         return False
     return standardize
@@ -627,7 +627,7 @@ def _extract_weight_map(
                 "model ('svm', 'logistic', 'ridge_classifier', 'lda', 'ridge', "
                 "'lasso') or compute permutation importances directly.",
                 UserWarning,
-                stacklevel=4,
+                stacklevel=find_stack_level(),
             )
         return None
 
@@ -881,7 +881,7 @@ def _run_roi(
             "fit error). Setting weight_map / fold_weight_maps / estimator "
             "to None for this call.",
             UserWarning,
-            stacklevel=4,
+            stacklevel=find_stack_level(),
         )
         weight_arr = None
         fold_weight_arr = None

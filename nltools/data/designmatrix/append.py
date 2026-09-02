@@ -244,9 +244,10 @@ def append_horizontal(
     # pre-existing state is the user's business, not this operation's.
     _check_duplicate_values(dm, to_append)
 
-    # Use Polars hstack to concatenate DataFrames horizontally
+    # Heights were validated above, so 'horizontal_extend' (the stable name
+    # polars >= 1.42.1 gives the classic horizontal concat) never pads.
     dfs_to_stack = [dm.data] + [elem.data for elem in to_append]
-    new_df = pl.concat(dfs_to_stack, how="horizontal")
+    new_df = pl.concat(dfs_to_stack, how="horizontal_extend")
 
     # Fill NaN if requested
     if fill_na is not None:

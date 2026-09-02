@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import polars as pl
 
+from nltools.utils import find_stack_level
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -119,7 +121,7 @@ def _read_delimited(path: Path, sep: str) -> pl.DataFrame:
                     f"(nltools <= 0.6.0 wrote such files); rewrite it to "
                     f"silence this warning.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=find_stack_level(),
                 )
                 return reparsed
     return raw

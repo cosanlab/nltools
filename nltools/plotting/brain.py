@@ -19,7 +19,7 @@ from nilearn.plotting import (
 )
 from nilearn.surface import vol_to_surf
 
-from nltools.utils import attempt_to_import
+from nltools.utils import attempt_to_import, find_stack_level
 
 # Optional dependencies
 ipywidgets = attempt_to_import(
@@ -61,7 +61,9 @@ def plot_interactive_brain(
             raise ValueError("Starting threshold provided as string must end in '%'")
         percentile_threshold = True
         warnings.warn(
-            "Percentile thresholding ignores brain mask. Results are likely more liberal than you expect (e.g. with non-interactive plotting)!"
+            "Percentile thresholding ignores brain mask. Results are likely more liberal than you expect (e.g. with non-interactive plotting)!",
+            UserWarning,
+            stacklevel=find_stack_level(),
         )
         threshold = int(threshold[:-1])
 

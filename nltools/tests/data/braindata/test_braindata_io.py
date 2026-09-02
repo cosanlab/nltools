@@ -431,3 +431,95 @@ class TestBrainDataIO:
         assert len(unique_vals) < 10, (
             f"Expected discrete values after resample, got {len(unique_vals)}"
         )
+
+
+class TestIntegerImagesResampleQuietly:
+    """int16 BOLD must load without nilearn's 'Casting data from int16' notice.
+
+    nilearn casts integer data to float itself (and warns) whenever the
+    interpolation is continuous; casting up front removes the cause, and the
+    interpolation probe must not materialize a full float64 copy of a 4-D run
+    just to decide between 'nearest' and 'continuous'.
+    """
+
+    @staticmethod
+    def _int16_bold(tmp_path):
+        rng = np.random.default_rng(0)
+        # 3mm grid -> resampled onto the 2mm default template on load.
+        affine = np.diag([3.0, 3.0, 3.0, 1.0])
+        affine[:3, 3] = [-90, -126, -72]
+        data = rng.integers(200, 4000, size=(20, 24, 20, 6), dtype=np.int16)
+        path = tmp_path / "bold.nii.gz"
+        nib.Nifti1Image(data, affine).to_filename(path)
+        return path
+
+    def test_no_casting_warning_and_same_values(self, tmp_path):
+        import warnings
+
+        from nilearn.image import resample_to_img
+        from nilearn.masking import apply_mask
+
+        path = self._int16_bold(tmp_path)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", message="Casting data from")
+            brain = BrainData(path)
+
+        # Reference: what nilearn produces on the raw int16 image (it casts to
+        # float32 internally), so the up-front cast must be value-identical.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            resampled = resample_to_img(
+                nib.load(path), brain.mask, interpolation="continuous"
+            )
+            expected = apply_mask(resampled, brain.mask)
+        np.testing.assert_allclose(brain.data, expected)
+
+    def test_interpolation_probe_reads_one_volume(self, tmp_path, monkeypatch):
+        from nltools.data.braindata.io import _detect_interpolation
+
+        img = nib.load(self._int16_bold(tmp_path))
+
+        def boom(*_a, **_k):
+            raise AssertionError("get_fdata() materializes the whole 4-D image")
+
+        monkeypatch.setattr(nib.Nifti1Image, "get_fdata", boom)
+        assert _detect_interpolation(img) == "continuous"
+
+    def test_interpolation_probe_still_detects_float_labels(self):
+        """A float-typed atlas with a few integer labels stays 'nearest'."""
+        from nltools.data.braindata.io import _detect_interpolation
+
+        labels = np.zeros((8, 8, 8))
+        labels[2:4] = 1
+        labels[5:7] = 2
+        assert _detect_interpolation(nib.Nifti1Image(labels, np.eye(4))) == "nearest"
+
+    def test_interpolation_probe_integer_bold_is_continuous(self):
+        """Many distinct integer intensities are signal, not labels."""
+        from nltools.data.braindata.io import _detect_interpolation
+
+        data = np.arange(12 * 12 * 12, dtype=np.int16).reshape(12, 12, 12)
+        assert _detect_interpolation(nib.Nifti1Image(data, np.eye(4))) == "continuous"
+
+
+class TestLoadPathSetsSform:
+    def test_no_sform_header_loads_without_nilearn_notice(self, tmp_path):
+        """A header with sform_code=0 (haxby) must not trip nilearn's resampler
+        warning on load; `resample_to` already sets code 2, loading now does too."""
+        import warnings
+
+        affine = np.diag([3.0, 3.0, 3.0, 1.0])
+        affine[:3, 3] = [-90, -126, -72]
+        img = nib.Nifti1Image(
+            np.random.default_rng(0).standard_normal((20, 24, 20, 3)), affine
+        )
+        img.header.set_sform(affine, code=0)
+        img.header.set_qform(affine, code=1)
+        path = tmp_path / "no_sform.nii.gz"
+        img.to_filename(path)
+        assert nib.load(path).header.get_sform(coded=True)[1] == 0
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", message=".*no sform.*")
+            brain = BrainData(path)
+        assert brain.shape[0] == 3

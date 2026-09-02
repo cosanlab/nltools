@@ -363,7 +363,7 @@ def _build_peaks_dataframe(
             "n_voxels": n_voxels,
         }
     )
-    return pl.concat([base, labels], how="horizontal")
+    return pl.concat([base, labels], how="horizontal_extend")
 
 
 # ---------------------------------------------------------------------------

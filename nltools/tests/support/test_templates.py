@@ -279,14 +279,23 @@ class TestMatchResolution:
         with pytest.raises(ValueError, match="outside"):
             match_resolution(_isotropic_affine(15.0))
 
-    def test_warns_on_resample(self, recwarn):
-        # 4mm isn't supported exactly; falls back to closest (3)
-        match_resolution(_isotropic_affine(4.0), warn_resample=True)
-        assert any("doesn't exactly match" in str(w.message) for w in recwarn.list)
+    def test_warns_on_resample(self):
+        """4mm has no exact template: a ResamplingWarning names the fallback and the fix."""
+        from nltools.utils import ResamplingWarning
+
+        with pytest.warns(ResamplingWarning) as record:
+            match_resolution(_isotropic_affine(4.0), warn_resample=True)
+        assert len(record) == 1
+        msg = str(record[0].message)
+        assert "4.000mm" in msg
+        assert "default 3mm" in msg  # which template it will be resampled to
+        assert "mask=" in msg  # the action that keeps native resolution
+        # Attributed to the caller (this file), not to nltools/templates.
+        assert record[0].filename == __file__
 
     def test_no_warning_when_disabled(self, recwarn):
         match_resolution(_isotropic_affine(4.0), warn_resample=False)
-        assert not any("doesn't exactly match" in str(w.message) for w in recwarn.list)
+        assert not recwarn.list
 
 
 # ---------------------------------------------------------------------------

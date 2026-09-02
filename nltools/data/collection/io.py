@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 import nibabel as nib
 import polars as pl
 
+from nltools.utils import find_stack_level
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -108,7 +110,8 @@ def from_bids(
                 f"{len(warned_missing)} BOLD files had no events.tsv; their "
                 f"designs are None. Indices: {warned_missing[:5]}"
                 f"{'...' if len(warned_missing) > 5 else ''}",
-                stacklevel=2,
+                UserWarning,
+                stacklevel=find_stack_level(),
             )
     else:
         designs = [None] * len(bold_paths)

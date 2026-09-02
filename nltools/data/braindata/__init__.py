@@ -1,7 +1,6 @@
 """Represent brain image data with the BrainData class."""
 
 import os
-import warnings  # noqa: F401
 from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING
@@ -14,9 +13,6 @@ if TYPE_CHECKING:
 from nltools.utils import coalesced_gc
 
 from .utils import check_brain_data
-
-warnings.filterwarnings("ignore", category=UserWarning, module="nilearn")
-warnings.filterwarnings("ignore", category=RuntimeWarning, module="nilearn")
 
 __all__ = ["BrainData"]
 

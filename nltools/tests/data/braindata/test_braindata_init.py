@@ -25,6 +25,8 @@ class TestBrainDataInit:
         mask_img = nib.load(get_brainspace().mask)
 
         # With verbose=True, should show resampling warning
+        from nltools.utils import ResamplingWarning
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             brain = BrainData(data_3mm, mask=mask_img, resample=True, verbose=True)
@@ -35,6 +37,11 @@ class TestBrainDataInit:
                 and "resample=true" in str(warning.message).lower()
             ]
             assert len(resample_warnings) > 0  # Warning shown when verbose=True
+            # Its own category, attributed to the caller (this file), and it
+            # names the grid the data is being resampled onto.
+            assert all(x.category is ResamplingWarning for x in resample_warnings)
+            assert all(x.filename == __file__ for x in resample_warnings)
+            assert "2x2x2mm" in str(resample_warnings[0].message)
 
         # With verbose=False, should suppress warning
         with warnings.catch_warnings(record=True) as w:

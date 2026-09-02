@@ -12,6 +12,8 @@ import nibabel as nib
 import numpy as np
 import polars as pl
 
+from nltools.utils import find_stack_level
+
 try:
     import h5py
     import hdf5plugin  # noqa: F401  -- registers blosc/zstd/lz4 filters with h5py
@@ -293,7 +295,7 @@ def load_legacy_adjacency_h5(file_path, mask=None, matrix_type=None):
                 "'distance_flat'. Pass matrix_type= to override, or re-save "
                 "the file to update to the current format.",
                 UserWarning,
-                stacklevel=2,
+                stacklevel=find_stack_level(),
             )
             mt = "distance_flat"
 

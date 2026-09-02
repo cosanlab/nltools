@@ -147,8 +147,12 @@ process's stderr — invisible to `warnings.catch_warnings`, `pytest.warns`, and
 notebook front-ends. `_wrap_worker` captures them (as pickle-safe
 `_WorkerWarning` records — the category travels as import-path strings, never a
 class object), and `_apply` relays them through the parent's warning machinery
-via `warnings.warn_explicit`:
+via `warnings.warn(..., stacklevel=find_stack_level())`:
 
+- **Attributed to the caller** — a worker's own stack bottoms out in
+  joblib/loky or nltools, never in user code, so the worker-side location is
+  not kept; the relayed warning points at the user's `bc.fit(...)` line, the
+  same as every other nltools warning.
 - **Deduplicated across subjects** — one relay per unique (category, message),
   annotated with who raised it (`[raised for 3/20 subjects; first: idx=4
   (sub-0005)]`). The serial `n_jobs=1` fast path goes through the same

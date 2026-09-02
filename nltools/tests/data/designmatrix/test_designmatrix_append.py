@@ -544,3 +544,23 @@ class TestReservedNamespaceOnAppend:
 
         out = dm.append(other, axis=1)
         assert ".nl_poly_0" in out.columns
+
+
+class TestHorizontalAppendPolarsFuture:
+    def test_axis1_emits_no_deprecation_warning(self):
+        """polars >= 1.42.1 deprecates bare how='horizontal'; use the stable name."""
+        import warnings
+
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [3, 4]}, sampling_freq=1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            combined = dm1.append(dm2, axis=1)
+        assert combined.shape == (2, 2)
+
+    def test_axis1_unequal_heights_still_refused(self):
+        """Row-count validation is nltools', not polars' — unchanged."""
+        dm1 = DesignMatrix({"a": [1, 2]}, sampling_freq=1)
+        dm2 = DesignMatrix({"b": [3, 4, 5]}, sampling_freq=1)
+        with pytest.raises(ValueError, match="same number of rows"):
+            dm1.append(dm2, axis=1)

@@ -751,7 +751,7 @@ class DesignMatrix:
         )
 
         if confound_df.shape[1] > 0:
-            combined_df = pl.concat([new_data_df, confound_df], how="horizontal")
+            combined_df = pl.concat([new_data_df, confound_df], how="horizontal_extend")
         else:
             combined_df = new_data_df
 

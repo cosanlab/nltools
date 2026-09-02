@@ -129,7 +129,7 @@ class Glm(BaseModel):
             t_r=t_r,
             noise_model=noise_model,
             smoothing_fwhm=smoothing_fwhm,
-            mask_img=self.mask,
+            mask_img=self._build_masker(smoothing_fwhm, kwargs),
             minimize_memory=False,  # Need this to access predictions
             standardize=False,  # User should standardize beforehand if needed
             signal_scaling=False,  # Scaling is owned by BrainData.fit's explicit
@@ -137,6 +137,34 @@ class Glm(BaseModel):
             drift_model=drift_model,  # Allow user to set, but warning will be suppressed when design matrices provided
             **kwargs,
         )
+
+    def _build_masker(self, smoothing_fwhm, glm_kwargs):
+        """Pre-fit a ``NiftiMasker`` on ``self.mask`` for ``FirstLevelModel``.
+
+        Handing nilearn a bare ``Nifti1Image`` as ``mask_img`` makes it build a
+        ``MultiNiftiMasker`` and fit it on the run images, which emits a
+        ``RuntimeWarning`` ("Generation of a mask has been requested ... while
+        a mask was given") on every fit even though the given mask is what gets
+        used. A fitted masker is used directly (``FirstLevelModel._prepare_mask``
+        sets ``masker_ = mask_img``) with identical betas. nilearn does not copy
+        its own masker-relevant parameters onto a user-supplied masker, so every
+        one ``FirstLevelModel`` would otherwise forward is set here from Glm's
+        values (``standardize`` is overridden by nilearn after the fact).
+        """
+        from nilearn.maskers import NiftiMasker
+
+        masker = NiftiMasker(
+            mask_img=self.mask,
+            smoothing_fwhm=smoothing_fwhm,
+            t_r=self.t_r,
+            target_affine=glm_kwargs.get("target_affine"),
+            target_shape=glm_kwargs.get("target_shape"),
+            memory=glm_kwargs.get("memory"),
+            # nilearn's own embedded masker runs one level quieter than the GLM.
+            memory_level=max(0, glm_kwargs.get("memory_level", 1) - 1),
+            verbose=max(0, glm_kwargs.get("verbose", 0) - 1),
+        )
+        return masker.fit()
 
     def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn FirstLevelModel.fit
         self,
@@ -280,7 +308,7 @@ class Glm(BaseModel):
         self._check_is_fitted()
 
         if X is None:
-            return self._glm.predicted
+            return self._glm.predicted_
 
         if isinstance(self.coef_, list):
             raise NotImplementedError(
@@ -336,11 +364,11 @@ class Glm(BaseModel):
             float: Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
         Note:
-            Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+            Extracts R² values from nilearn's FirstLevelModel.r_square_ attribute,
             which returns a list of Nifti1Image objects (one per run).
             Computes the mean across all non-NaN voxels and all runs.
 
-            For voxel-wise R² maps, access `glm_.r_square` directly.
+            For voxel-wise R² maps, access `glm_.r_square_` directly.
 
         Examples:
             >>> brain.fit(model='glm', X=design_matrix)
@@ -350,7 +378,7 @@ class Glm(BaseModel):
         self._check_is_fitted()
 
         # Get R² maps from nilearn (list of Nifti1Image objects, one per run)
-        r_square_maps = self._glm.r_square
+        r_square_maps = self._glm.r_square_
 
         if r_square_maps is None or len(r_square_maps) == 0:
             raise ValueError(
@@ -438,7 +466,7 @@ class Glm(BaseModel):
             ValueError: If model has not been fitted yet
         """
         self._check_is_fitted()
-        return self._glm.residuals
+        return self._glm.residuals_
 
     @property
     def design_matrices_(self) -> list[pd.DataFrame]:
