@@ -1,10 +1,11 @@
 ---
 title: algorithms.alignment.procrustes
+label: algorithms-alignment-procrustes
 ---
 
 Data alignment — SRM, Procrustes, and state alignment.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -13,7 +14,7 @@ Name | Description
 [`procrustes`](#algorithms-alignment-procrustes-procrustes) | Perform a Procrustes similarity analysis on two data sets.
 [`procrustes_distance`](#algorithms-alignment-procrustes-procrustes-distance) | Test matrix similarity using Procrustes superposition.
 
-## Methods
+## Functions
 
 (algorithms-alignment-procrustes-align)=
 ### `align`
@@ -48,7 +49,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | A dictionary containing a list of transformed subject matrices, a     list of transformation matrices, the shared response matrix, and the     intersubject correlation of the shared responses.
+<code>dict</code> | A dictionary containing a list of transformed subject matrices, a     list of transformation matrices, the shared response matrix, and the     intersubject correlation of the shared responses.
 
 **Examples:**
 
@@ -92,7 +93,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | If `return_index=False` (default), `target[:, remapping]` — the     target's columns reordered to match the reference, oriented pattern x     state (same shape as `target`). If `return_index=True`, the remapping     index array that reorders the target's state columns.
+<code>ndarray</code> | If `return_index=False` (default), `target[:, remapping]` — the     target's columns reordered to match the reference, oriented pattern x     state (same shape as `target`). If `return_index=True`, the remapping     index array that reorders the target's state columns.
 
 (algorithms-alignment-procrustes-procrustes)=
 ### `procrustes`
@@ -131,7 +132,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray), [float](#float), [ndarray](#numpy.ndarray), [float](#float)]</code> | `(mtx1, mtx2,     disparity, R, scale)` — `mtx1` is a standardized version of `data1`;     `mtx2` is the orientation of `data2` that best fits `data1` (centered,     but not necessarily $tr(AA^{T}) = 1$); `disparity` is $M^{2}$ as defined     above; `R` is the `(N, N)` matrix solution of the orthogonal Procrustes     problem, minimizing the Frobenius norm of `dot(data1, R) - data2` subject     to `dot(R.T, R) == I`; `scale` is the sum of the singular values of     `dot(data1.T, data2)`.
+<code>tuple[ndarray, ndarray, float, ndarray, float]</code> | `(mtx1, mtx2,     disparity, R, scale)` — `mtx1` is a standardized version of `data1`;     `mtx2` is the orientation of `data2` that best fits `data1` (centered,     but not necessarily $tr(AA^{T}) = 1$); `disparity` is $M^{2}$ as defined     above; `R` is the `(N, N)` matrix solution of the orthogonal Procrustes     problem, minimizing the Frobenius norm of `dot(data1, R) - data2` subject     to `dot(R.T, R) == I`; `scale` is the sum of the singular values of     `dot(data1.T, data2)`.
 
 (algorithms-alignment-procrustes-procrustes-distance)=
 ### `procrustes_distance`
@@ -153,15 +154,15 @@ inference (Peres-Neto & Jackson, 2001).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat1` | <code>[ndarray](#ndarray)</code> | 2d numpy array; must have same number of rows as mat2 | *required*
-`mat2` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array; must have same number of rows as mat1 | *required*
-`n_permute` | <code>[int](#int)</code> | number of permutation iterations to perform | <code>5000</code>
-`tail` | <code>[int](#int) or [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (similarity > chance) | <code>2</code>
-`n_jobs` | <code>[int](#int)</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
+`mat1` | <code>ndarray</code> | 2d numpy array; must have same number of rows as mat2 | *required*
+`mat2` | <code>ndarray</code> | 1d or 2d numpy array; must have same number of rows as mat1 | *required*
+`n_permute` | <code>int</code> | number of permutation iterations to perform | <code>5000</code>
+`tail` | <code>int or str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (similarity > chance) | <code>2</code>
+`n_jobs` | <code>int</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
 `random_state` | <code>int, np.random.RandomState, or None</code> | seed or generator for the permutation shuffling; default None | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
+<code>dict</code> | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)

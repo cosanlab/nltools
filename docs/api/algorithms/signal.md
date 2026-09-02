@@ -1,10 +1,11 @@
 ---
 title: algorithms.signal
+label: algorithms-signal
 ---
 
 Temporal signal processing — resampling, filtering, and basis functions.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -15,7 +16,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-signal-calc-bpm)=
 ### `calc_bpm`
@@ -37,7 +38,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | Beats per minute for the time interval.
+<code>float</code> | Beats per minute for the time interval.
 
 (algorithms-signal-downsample)=
 ### `downsample`
@@ -62,7 +63,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Downsampled data (same type as input).
+<code>DataFrame \| Series</code> | Downsampled data (same type as input).
 
 (algorithms-signal-make-cosine-basis)=
 ### `make_cosine_basis`
@@ -82,17 +83,17 @@ basis (i.e. sigmoidal/linear drift).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`nsamples` | <code>[int](#int)</code> | number of observations (e.g. TRs) | *required*
-`sampling_freq` | <code>[float](#float)</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
-`filter_length` | <code>[int](#int)</code> | length of filter in seconds | *required*
-`unit_scale` | <code>[bool](#bool)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
-`drop` | <code>[int](#int)</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
+`nsamples` | <code>int</code> | number of observations (e.g. TRs) | *required*
+`sampling_freq` | <code>float</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
+`filter_length` | <code>int</code> | length of filter in seconds | *required*
+`unit_scale` | <code>bool</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
+`drop` | <code>int</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | nsamples x number of basis sets numpy array.
+<code>ndarray</code> | nsamples x number of basis sets numpy array.
 
 (algorithms-signal-upsample)=
 ### `upsample`
@@ -107,14 +108,14 @@ Upsample a Polars DataFrame/Series to a new target frequency or number of sample
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to upsample. Non-numeric columns are dropped from a DataFrame. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency of the data in Hz. | <code>None</code>
-`target` | <code>[float](#float)</code> | Upsampling target. | <code>None</code>
-`target_type` | <code>[str](#str)</code> | Unit of `target`, one of 'samples', 'seconds', or 'hz'. | <code>'samples'</code>
-`method` | <code>[str](#str)</code> | Interpolation method, one of 'linear', 'nearest', 'zero', 'slinear', 'quadratic', or 'cubic'; 'zero', 'slinear', 'quadratic' and 'cubic' refer to spline interpolation of zeroth, first, second or third order (default: 'linear'). | <code>'linear'</code>
+`data` | <code>DataFrame \| Series</code> | Data to upsample. Non-numeric columns are dropped from a DataFrame. | *required*
+`sampling_freq` | <code>float</code> | Sampling frequency of the data in Hz. | <code>None</code>
+`target` | <code>float</code> | Upsampling target. | <code>None</code>
+`target_type` | <code>str</code> | Unit of `target`, one of 'samples', 'seconds', or 'hz'. | <code>'samples'</code>
+`method` | <code>str</code> | Interpolation method, one of 'linear', 'nearest', 'zero', 'slinear', 'quadratic', or 'cubic'; 'zero', 'slinear', 'quadratic' and 'cubic' refer to spline interpolation of zeroth, first, second or third order (default: 'linear'). | <code>'linear'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Upsampled data, the same type as the input.
+<code>DataFrame \| Series</code> | Upsampled data, the same type as the input.

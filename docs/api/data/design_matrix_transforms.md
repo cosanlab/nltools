@@ -1,5 +1,6 @@
 ---
 title: data.designmatrix.transforms
+label: data-design-matrix-transforms
 ---
 
 Standalone transform functions for DesignMatrix.
@@ -7,7 +8,7 @@ Standalone transform functions for DesignMatrix.
 Each function takes a DesignMatrix instance as the first argument (`dm`)
 and returns a new DesignMatrix via `copy_with(dm,...)`.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -16,7 +17,7 @@ Name | Description
 [`upsample`](#data-design-matrix-transforms-upsample) | Increase temporal resolution using Polars-native interpolation.
 [`zscore`](#data-design-matrix-transforms-zscore) | Z-score standardize columns to mean zero and unit variance.
 
-## Methods
+## Functions
 
 (data-design-matrix-transforms-downsample)=
 ### `downsample`
@@ -31,15 +32,21 @@ Reduce temporal resolution using Polars-native operations.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be < current sampling_freq). | *required*
-`method` | <code>[str](#str)</code> | Aggregation method - 'mean' or 'median'. Default: 'mean'. | <code>'mean'</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance to transform. | *required*
+`target` | <code>float</code> | Target sampling frequency in Hz (must be < current sampling_freq). | *required*
+`method` | <code>str</code> | Aggregation method - 'mean' or 'median'. Default: 'mean'. | <code>'mean'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Downsampled DesignMatrix with updated sampling_freq.
+<code>[DesignMatrix](#data-design-matrix)</code> | Downsampled DesignMatrix with updated sampling_freq.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If sampling_freq is not set, target >= current sampling_freq, or method is invalid.
 
 **Examples:**
 
@@ -64,15 +71,21 @@ for data normalization.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
-`method` | <code>[str](#str)</code> | Standardization method. Options are: - 'zscore': Z-score standardization (mean=0, std=1) [default] - 'center': Mean centering only (mean=0) | <code>'zscore'</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance to transform. | *required*
+`columns` | <code>list[str] \| None</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
+`method` | <code>str</code> | Standardization method. Options are: - 'zscore': Z-score standardization (mean=0, std=1) [default] - 'center': Mean centering only (mean=0) | <code>'zscore'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns.
+<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with standardized columns.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If an invalid method is specified.
 
 **Examples:**
 
@@ -95,15 +108,21 @@ Increase temporal resolution using Polars-native interpolation.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
-`target` | <code>[float](#float)</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
-`method` | <code>[str](#str)</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance to transform. | *required*
+`target` | <code>float</code> | Target sampling frequency in Hz (must be > current sampling_freq) | *required*
+`method` | <code>str</code> | Interpolation method - 'linear' or 'nearest' (default: 'linear') | <code>'linear'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Upsampled DesignMatrix with updated sampling_freq.
+<code>[DesignMatrix](#data-design-matrix)</code> | Upsampled DesignMatrix with updated sampling_freq.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If sampling_freq is not set, target <= current sampling_freq, or method is invalid.
 
 **Examples:**
 
@@ -125,11 +144,11 @@ Z-score standardize columns to mean zero and unit variance.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance to transform. | *required*
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance to transform. | *required*
 `columns` | <code>list of str</code> | Columns to standardize. If None, standardize all non-confound columns. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with standardized columns
+<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with standardized columns

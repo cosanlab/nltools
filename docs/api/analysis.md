@@ -1,5 +1,6 @@
 ---
 title: data.roc
+label: analysis
 ---
 
 ROC (Receiver Operating Characteristic) analysis for single-interval classification.
@@ -96,7 +97,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The ROC figure.
+<code>Figure</code> | The ROC figure.
 
 (analysis-summary)=
 ##### `summary`

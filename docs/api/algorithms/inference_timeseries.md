@@ -1,5 +1,6 @@
 ---
 title: algorithms.inference.timeseries
+label: algorithms-inference-timeseries
 ---
 
 Time-series permutation test implementations.
@@ -23,7 +24,7 @@ Surrogate data for hypothesis testing of physical systems. Physics Reports, 748,
 
 </details>
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -31,7 +32,7 @@ Name | Description
 [`phase_randomize`](#algorithms-inference-timeseries-phase-randomize) | FFT-based phase randomization for time-series data.
 [`timeseries_correlation_permutation_test`](#algorithms-inference-timeseries-timeseries-correlation-permutation-test) | Time-series correlation permutation test.
 
-## Methods
+## Functions
 
 (algorithms-inference-timeseries-circle-shift)=
 ### `circle_shift`
@@ -51,15 +52,15 @@ feature (column) independently.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
+`data` | <code>ndarray</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
+`shift_amount` | <code>int \| ndarray \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Circularly shifted data with same shape as input
+<code>ndarray</code> | Circularly shifted data with same shape as input
 
 **Examples:**
 
@@ -107,15 +108,21 @@ dynamics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`device` | <code>[str](#str) \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
+`data` | <code>ndarray</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
+`device` | <code>str \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Phase-randomized data with same shape as input
+<code>ndarray</code> | Phase-randomized data with same shape as input
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If device is not None, 'cpu', 'gpu', or 'auto' (run-or-raise — an invalid device never silently falls back to CPU)
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
@@ -162,18 +169,18 @@ permutation tests inflate Type I error for autocorrelated data.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First time series, shape (n_samples,) or (n_samples, 1) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second time series, shape (n_samples,) or (n_samples, 1) | *required*
-`method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
-`n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
-`device` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
-`return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
+`data1` | <code>ndarray</code> | First time series, shape (n_samples,) or (n_samples, 1) | *required*
+`data2` | <code>ndarray</code> | Second time series, shape (n_samples,) or (n_samples, 1) | *required*
+`method` | <code>Literal['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
+`n_permute` | <code>int</code> | Number of permutations | <code>5000</code>
+`metric` | <code>Literal['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
+`tail` | <code>int \| str</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
+`device` | <code>str \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
+`return_null` | <code>bool</code> | Whether to return null distribution | <code>False</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 

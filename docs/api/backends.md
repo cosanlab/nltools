@@ -1,5 +1,6 @@
 ---
 title: algorithms.backends
+label: backends
 ---
 
 Backend abstraction for CPU/GPU operations.
@@ -14,7 +15,7 @@ Name | Description
 ---- | -----------
 [`Backend`](#backends-backend) | Backend abstraction for numerical operations.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -50,15 +51,15 @@ enabling transparent GPU acceleration when available.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`backend` | <code>[str](#str)</code> | Backend type: 'numpy', 'torch', or 'auto' - 'numpy': CPU-only using NumPy - 'torch': PyTorch with automatic device detection (cuda/mps/cpu) - 'auto': Automatically select best available backend | <code>'numpy'</code>
+`backend` | <code>str</code> | Backend type: 'numpy', 'torch', or 'auto' - 'numpy': CPU-only using NumPy - 'torch': PyTorch with automatic device detection (cuda/mps/cpu) - 'auto': Automatically select best available backend | <code>'numpy'</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`name` | <code>[str](#str)</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
-`device` | <code>[str](#str)</code> | Device type ('cpu', 'cuda', or 'mps')
-`xp` | <code>[module](#module)</code> | Array library module (numpy or torch)
+`name` | <code>str</code> | Backend identifier (e.g., 'numpy', 'torch-cuda', 'torch-mps')
+`device` | <code>str</code> | Device type ('cpu', 'cuda', or 'mps')
+`xp` | <code>module</code> | Array library module (numpy or torch)
 
 **Methods:**
 
@@ -110,7 +111,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Backend array.
+<code>ndarray \| Tensor</code> | Backend array.
 
 (backends-asarray-like)=
 ##### `asarray_like`
@@ -132,7 +133,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Backend array with the same dtype/device as ref.
+<code>ndarray \| Tensor</code> | Backend array with the same dtype/device as ref.
 
 (backends-check-arrays)=
 ##### `check_arrays`
@@ -156,7 +157,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)</code> | Converted arrays in the same order as inputs.
+<code>list</code> | Converted arrays in the same order as inputs.
 
 (backends-concatenate)=
 ##### `concatenate`
@@ -208,7 +209,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[str](#str) \| None</code> | The dtype name (e.g. "float32", "float64"), or None if the     input was None.
+<code>str \| None</code> | The dtype name (e.g. "float32", "float64"), or None if the     input was None.
 
 (backends-expand-dims)=
 ##### `expand_dims`
@@ -290,14 +291,14 @@ Matrix multiplication.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`A` | <code>[array](#array)</code> | First matrix | *required*
-`B` | <code>[array](#array)</code> | Second matrix | *required*
+`A` | <code>array</code> | First matrix | *required*
+`B` | <code>array</code> | Second matrix | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[array](#array)</code> | Result of A @ B
+<code>array</code> | Result of A @ B
 
 (backends-ones-like)=
 ##### `ones_like`
@@ -346,14 +347,14 @@ Compute Singular Value Decomposition.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[array](#array)</code> | Input matrix (n_samples, n_features) | *required*
+`X` | <code>array</code> | Input matrix (n_samples, n_features) | *required*
 `full_matrices` | <code>bool, default=False</code> | If False, returns reduced SVD | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | (U, s, Vt) where:     - U (array): Left singular vectors     - s (array): Singular values     - Vt (array): Right singular vectors (transposed)
+<code>tuple</code> | (U, s, Vt) where:     - U (array): Left singular vectors     - s (array): Singular values     - Vt (array): Right singular vectors (transposed)
 
 (backends-to-cpu)=
 ##### `to_cpu`
@@ -376,7 +377,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| [Tensor](#torch.Tensor)</code> | Array on CPU.
+<code>ndarray \| Tensor</code> | Array on CPU.
 
 (backends-to-device)=
 ##### `to_device`
@@ -391,13 +392,13 @@ Transfer array to backend device.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`arr` | <code>[ndarray](#numpy.ndarray)</code> | Input numpy array | *required*
+`arr` | <code>ndarray</code> | Input numpy array | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[array](#array)</code> | Array on device (numpy array or torch tensor)
+<code>array</code> | Array on device (numpy array or torch tensor)
 
 (backends-to-gpu)=
 ##### `to_gpu`
@@ -421,7 +422,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Tensor](#torch.Tensor)</code> | Array on the GPU device.
+<code>Tensor</code> | Array on the GPU device.
 
 (backends-to-numpy)=
 ##### `to_numpy`
@@ -436,13 +437,13 @@ Convert array back to NumPy.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`arr` | <code>[ndarray](#numpy.ndarray) or [Tensor](#torch.Tensor)</code> | Array to convert | *required*
+`arr` | <code>ndarray or Tensor</code> | Array to convert | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The input as a NumPy array.
+<code>ndarray</code> | The input as a NumPy array.
 
 (backends-zeros-like)=
 ##### `zeros_like`
@@ -464,7 +465,7 @@ Name | Type | Description | Default
 
 
 
-## Methods
+## Functions
 
 (backends-assert-array-almost-equal)=
 ### `assert_array_almost_equal`
@@ -490,6 +491,12 @@ Name | Type | Description | Default
 `verbose` |  | Whether to print detailed error messages | <code>True</code>
 `backend` |  | Backend instance (optional). If None, attempts to detect from x/y. | <code>None</code>
 
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>AssertionError</code> | If the arrays don't match.
+
 (backends-auto-batch-size)=
 ### `auto_batch_size`
 
@@ -507,17 +514,17 @@ allocation `overhead` factor; the clamp/ceil policy lives here.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_items` | <code>[int](#int)</code> | Total number of items (permutations, targets, ...). | *required*
-`bytes_per_item` | <code>[float](#float)</code> | Dominant working-set size of one item in bytes. | *required*
-`budget_gb` | <code>[float](#float)</code> | Memory budget from `device_memory_budget`. | *required*
-`overhead` | <code>[float](#float)</code> | Multiplier for intermediate allocations (e.g. 3.0 when the computation holds ~3x the input working set). | <code>1.0</code>
-`min_batch` | <code>[int](#int)</code> | Smallest batch worth dispatching (amortizes launch and transfer overhead). Never exceeds `n_items`. | <code>1</code>
+`n_items` | <code>int</code> | Total number of items (permutations, targets, ...). | *required*
+`bytes_per_item` | <code>float</code> | Dominant working-set size of one item in bytes. | *required*
+`budget_gb` | <code>float</code> | Memory budget from `device_memory_budget`. | *required*
+`overhead` | <code>float</code> | Multiplier for intermediate allocations (e.g. 3.0 when the computation holds ~3x the input working set). | <code>1.0</code>
+`min_batch` | <code>int</code> | Smallest batch worth dispatching (amortizes launch and transfer overhead). Never exceeds `n_items`. | <code>1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[int](#int), [int](#int)]</code> | `(batch_size, n_batches)` with `batch_size * n_batches >= n_items`.
+<code>tuple[int, int]</code> | `(batch_size, n_batches)` with `batch_size * n_batches >= n_items`.
 
 (backends-auto-n-jobs-for-arrays)=
 ### `auto_n_jobs_for_arrays`
@@ -537,14 +544,14 @@ ignored; an empty list returns ``min_jobs``.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `arrays` |  | Iterable of numpy arrays (None entries allowed). | *required*
-`max_memory_gb` | <code>[float](#float) \| None</code> | Explicit memory budget in GB. None (default) measures available system RAM with headroom via `device_memory_budget`. | <code>None</code>
-`min_jobs` | <code>[int](#int)</code> | Minimum number of workers (default: 1). | <code>1</code>
+`max_memory_gb` | <code>float \| None</code> | Explicit memory budget in GB. None (default) measures available system RAM with headroom via `device_memory_budget`. | <code>None</code>
+`min_jobs` | <code>int</code> | Minimum number of workers (default: 1). | <code>1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[int](#int)</code> | Worker count for ``joblib.Parallel(n_jobs=...)``.
+<code>int</code> | Worker count for ``joblib.Parallel(n_jobs=...)``.
 
 (backends-auto-select-backend)=
 ### `auto_select_backend`
@@ -564,15 +571,15 @@ available.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_samples` | <code>[int](#int)</code> | Number of samples in dataset | *required*
-`n_features` | <code>[int](#int)</code> | Number of features in dataset | *required*
+`n_samples` | <code>int</code> | Number of samples in dataset | *required*
+`n_features` | <code>int</code> | Number of features in dataset | *required*
 `cv` | <code>int, default=1</code> | Number of cross-validation folds (multiplies effective size) | <code>1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Backend](#nltools.algorithms.backends.Backend)</code> | Selected backend instance
+<code>[Backend](#backends-backend)</code> | Selected backend instance
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
@@ -597,7 +604,7 @@ Check if GPU acceleration is available.
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | (available, info) where:     - available (bool): True if GPU (CUDA or MPS) is available     - info (dict): Dictionary with keys:         - 'backend': 'torch' or 'numpy'         - 'device': 'cpu', 'cuda', or 'mps'         - 'device_name': Human-readable device name
+<code>tuple</code> | (available, info) where:     - available (bool): True if GPU (CUDA or MPS) is available     - info (dict): Dictionary with keys:         - 'backend': 'torch' or 'numpy'         - 'device': 'cpu', 'cuda', or 'mps'         - 'device_name': Human-readable device name
 
 (backends-compute-oom-safe)=
 ### `compute_oom_safe`
@@ -628,13 +635,19 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `fn` |  | Callable mapping the arrays to a numpy result (axis-0 aligned). | *required*
 `*arrays` |  | Input arrays sharing axis-0 length. | <code>()</code>
-`min_chunk` | <code>[int](#int)</code> | Chunk size below which an OOM is considered fatal. | <code>1</code>
+`min_chunk` | <code>int</code> | Chunk size below which an OOM is considered fatal. | <code>1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | `fn`'s result, possibly assembled from retried chunks.
+<code>ndarray</code> | `fn`'s result, possibly assembled from retried chunks.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>MemoryError</code> | If the device OOMs even at `min_chunk` items.
 
 (backends-device-memory-budget)=
 ### `device_memory_budget`
@@ -655,15 +668,21 @@ conservative 4 GB fallback applies.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`backend` | <code>[Backend](#nltools.algorithms.backends.Backend) \| None</code> | Resolved `Backend` whose device the work runs on. None is treated as CPU. | <code>None</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit budget override in GB. Must be positive. | <code>None</code>
-`cap_for_batching` | <code>[bool](#bool)</code> | Pass True when the budget sizes batches — a *measured* budget is then capped at `BATCH_WORKING_SET_CEILING_GB`, because working sets beyond the saturation ceiling add allocation cost without throughput gain and starve unified-memory hosts. Never applied to an explicit `max_gpu_memory_gb`; capacity queries (the default) stay uncapped. | <code>False</code>
+`backend` | <code>[Backend](#backends-backend) \| None</code> | Resolved `Backend` whose device the work runs on. None is treated as CPU. | <code>None</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | Explicit budget override in GB. Must be positive. | <code>None</code>
+`cap_for_batching` | <code>bool</code> | Pass True when the budget sizes batches — a *measured* budget is then capped at `BATCH_WORKING_SET_CEILING_GB`, because working sets beyond the saturation ceiling add allocation cost without throughput gain and starve unified-memory hosts. Never applied to an explicit `max_gpu_memory_gb`; capacity queries (the default) stay uncapped. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | Budget in GB.
+<code>float</code> | Budget in GB.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If `max_gpu_memory_gb` is not positive.
 
 (backends-empty-device-cache)=
 ### `empty_device_cache`
@@ -721,4 +740,10 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Backend](#nltools.algorithms.backends.Backend)</code> | Resolved backend instance.
+<code>[Backend](#backends-backend)</code> | Resolved backend instance.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If ``parallel`` is a string not in the accepted set.

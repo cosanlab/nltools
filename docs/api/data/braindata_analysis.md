@@ -1,5 +1,6 @@
 ---
 title: data.braindata.analysis
+label: data-braindata-analysis
 ---
 
 BrainData analysis functions.
@@ -8,7 +9,7 @@ Standalone functions extracted from BrainData class methods for similarity,
 distance, masking, ROI extraction, filtering, thresholding, decomposition,
 alignment, smoothing, and other analytical operations.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -37,7 +38,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-braindata-analysis-align)=
 ### `align`
@@ -69,7 +70,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
+<code>dict</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
 
 **Examples:**
 
@@ -126,7 +127,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Masked BrainData object.
+<code>[BrainData](#data-brain-data)</code> | Masked BrainData object.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -157,7 +158,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | (data2, image2) arrays with compatible masks
+<code>tuple</code> | (data2, image2) arrays with compatible masks
 
 (data-braindata-analysis-decompose)=
 ### `decompose`
@@ -182,7 +183,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | A dictionary of decomposition parameters.
+<code>dict</code> | A dictionary of decomposition parameters.
 
 (data-braindata-analysis-detrend-data)=
 ### `detrend_data`
@@ -204,7 +205,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Detrended BrainData instance.
+<code>[BrainData](#data-brain-data)</code> | Detrended BrainData instance.
 
 (data-braindata-analysis-distance)=
 ### `distance`
@@ -221,16 +222,16 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
 `metric` |  | (str) type of distance metric (can use any scipy.spatial.distance     metric supported by cdist, e.g., 'euclidean', 'cityblock', 'cosine',     'correlation', 'hamming', 'jaccard', etc.) | <code>'euclidean'</code>
-`spatial_scale` | <code>[str](#str)</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
+`spatial_scale` | <code>str</code> | ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. See `BrainData.distance`. | <code>'whole_brain'</code>
 `roi_mask` |  | Atlas for ``spatial_scale='roi'``. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
+`radius_mm` | <code>float</code> | Searchlight radius for ``spatial_scale='searchlight'``. | <code>10.0</code>
 `**kwargs` |  | Additional arguments passed to scipy.spatial.distance.cdist. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
+<code>[Adjacency](#data-adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
 
 (data-braindata-analysis-extract-roi)=
 ### `extract_roi`
@@ -257,7 +258,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | For a binary mask, a scalar (single image) or 1D array     of values (multiple images). For a labeled atlas, a 1D array with one     value per ROI (single image), a 2D array of images x ROIs (multiple     images), or the components array when `method='pca'`.
+<code>float \| ndarray</code> | For a binary mask, a scalar (single image) or 1D array     of values (multiple images). For a labeled atlas, a 1D array with one     value per ROI (single image), a 2D array of images x ROIs (multiple     images), or the components array when `method='pca'`.
 
 **Examples:**
 
@@ -292,13 +293,13 @@ Name | Type | Description | Default
 `sampling_freq` |  | Sampling freq in hertz (i.e. 1 / TR). Default: None. | <code>None</code>
 `high_pass` |  | High pass cutoff frequency. Default: None. | <code>None</code>
 `low_pass` |  | Low pass cutoff frequency. Default: None. | <code>None</code>
-`**kwargs` |  | Additional arguments passed to nilearn.signal.clean       Common options:       - confounds: Confound timeseries to remove       - sample_mask: Volumes to exclude (scrubbing)       - detrend: Enable detrending (default False)       - standardize: Enable standardization (default False)       - ensure_finite: Replace NaN/inf (default False) | <code>{}</code>
+`**kwargs` |  | Additional arguments passed to nilearn.signal.clean       Common options:       - confounds: Confound timeseries to remove       - sample_mask: Volumes to exclude (scrubbing)       - detrend: Enable detrending (default False)       - standardize: ``'zscore_sample'``, ``'psc'``, or None (off,         the default). ``True``/``False`` are accepted as aliases         for ``'zscore_sample'``/None.       - ensure_finite: Replace NaN/inf (default False) | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Filtered BrainData instance
+<code>[BrainData](#data-brain-data)</code> | Filtered BrainData instance
 
 <details class="see-also" open markdown="1">
 <summary>See Also</summary>
@@ -333,13 +334,13 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance of data to be applied | *required*
 `images` |  | BrainData instance of weight map | *required*
-`method` | <code>[str](#str)</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
+`method` | <code>str</code> | Regression method. Default: 'ols'. | <code>'ols'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Raw regression statistics (numpy arrays/scalars, not BrainData)     with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
+<code>dict</code> | Raw regression statistics (numpy arrays/scalars, not BrainData)     with keys `'beta'`, `'t'`, `'p'`, `'df'`, `'sigma'`, `'residual'`.
 
 (data-braindata-analysis-r-to-z)=
 ### `r_to_z`
@@ -360,7 +361,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Transformed BrainData instance.
+<code>[BrainData](#data-brain-data)</code> | Transformed BrainData instance.
 
 (data-braindata-analysis-reduce-per-roi)=
 ### `reduce_per_roi`
@@ -395,16 +396,16 @@ Extract brain connected regions into separate regions.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`min_region_size` | <code>[int](#int)</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
-`method` | <code>[str](#str)</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
-`smoothing_fwhm` | <code>[scalar](#scalar)</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
-`is_mask` | <code>[bool](#bool)</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
+`min_region_size` | <code>int</code> | Minimum volume in mm3 for a region to be                 kept. | <code>1350</code>
+`method` | <code>str</code> | Type of extraction method                 ['connected_components', 'local_regions'].                 If 'connected_components', each component/region                 in the image is extracted automatically by                 labelling each region based upon the presence of                 unique features in their respective regions.                 If 'local_regions', each component/region is                 extracted based on their maximum peak value to                 define a seed marker and then using random                 walker segementation algorithm on these                 markers for region separation. | <code>'local_regions'</code>
+`smoothing_fwhm` | <code>scalar</code> | Smooth an image to extract more sparser                 regions. Only works for method='local_regions'. | <code>6</code>
+`is_mask` | <code>bool</code> | Whether the BrainData instance should be treated             as a boolean mask and if so, calls             connected_label_regions instead. Default: False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance with extracted ROIs as data.
+<code>[BrainData](#data-brain-data)</code> | BrainData instance with extracted ROIs as data.
 
 (data-braindata-analysis-scale-data)=
 ### `scale_data`
@@ -441,7 +442,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with scaled data.
+<code>[BrainData](#data-brain-data)</code> | New BrainData instance with scaled data.
 
 **Examples:**
 
@@ -474,7 +475,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Similarity values.
+<code>ndarray</code> | Similarity values.
 
 (data-braindata-analysis-smooth)=
 ### `smooth`
@@ -496,7 +497,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Copy with smoothed data.
+<code>[BrainData](#data-brain-data)</code> | Copy with smoothed data.
 
 (data-braindata-analysis-standardize)=
 ### `standardize`
@@ -522,7 +523,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Standardized BrainData instance.
+<code>[BrainData](#data-brain-data)</code> | Standardized BrainData instance.
 
 (data-braindata-analysis-temporal-resample)=
 ### `temporal_resample`
@@ -550,7 +551,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Resampled BrainData instance.
+<code>[BrainData](#data-brain-data)</code> | Resampled BrainData instance.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -579,15 +580,15 @@ Name | Type | Description | Default
 `upper` |  | (float or str) Upper cutoff for thresholding. A string like     `'98%'` resolves as a percentile over the finite **nonzero**     voxels (via `nltools.utils.resolve_threshold` — zeros on a     masked map are absence of data and would skew the     percentile); can be None for one-sided thresholding. | <code>None</code>
 `lower` |  | (float or str) Lower cutoff for thresholding. Same percentile     semantics as `upper`; can be None for one-sided thresholding. | <code>None</code>
 `bd` |  | BrainData instance. | *required*
-`binarize` | <code>[bool](#bool)</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
-`coerce_nan` | <code>[bool](#bool)</code> | coerce nan values to 0s; default True | <code>True</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. If > 0, uses     nilearn.image.threshold_img with cluster filtering.     Band-pass filtering (both upper AND lower) not supported     with cluster thresholding. Default 0 (disabled). | <code>0</code>
+`binarize` | <code>bool</code> | return binarized image respecting thresholds if     provided, otherwise binarize on every non-zero value;     default False | <code>False</code>
+`coerce_nan` | <code>bool</code> | coerce nan values to 0s; default True | <code>True</code>
+`cluster_threshold` | <code>int</code> | Minimum cluster size in voxels. If > 0, uses     nilearn.image.threshold_img with cluster filtering.     Band-pass filtering (both upper AND lower) not supported     with cluster thresholding. Default 0 (disabled). | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Thresholded BrainData object.
+<code>[BrainData](#data-brain-data)</code> | Thresholded BrainData object.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -617,7 +618,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | BrainData instance transformed into pairwise comparisons.
+<code>[BrainData](#data-brain-data)</code> | BrainData instance transformed into pairwise comparisons.
 
 (data-braindata-analysis-z-to-r)=
 ### `z_to_r`
@@ -638,4 +639,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | Transformed BrainData instance.
+<code>[BrainData](#data-brain-data)</code> | Transformed BrainData instance.

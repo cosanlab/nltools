@@ -1,10 +1,11 @@
 ---
 title: data.designmatrix.diagnostics
+label: data-design-matrix-diagnostics
 ---
 
 Diagnostic and utility functions for DesignMatrix.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -12,7 +13,7 @@ Name | Description
 [`corr`](#data-design-matrix-diagnostics-corr) | Correlation between DesignMatrix columns as an Adjacency.
 [`vif`](#data-design-matrix-diagnostics-vif) | Compute the variance inflation factor for each column.
 
-## Methods
+## Functions
 
 (data-design-matrix-diagnostics-clean)=
 ### `clean`
@@ -30,17 +31,17 @@ of correlated pair, drops duplicates.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
 `fill_na` | <code>int, float, or None</code> | Fill NaN values before checking correlations. Default: 0. | <code>0</code>
-`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns from correlation check. Default: False. | <code>False</code>
-`thresh` | <code>[float](#float)</code> | Correlation threshold (drop if abs(r) >= thresh). Default: 0.95. | <code>0.95</code>
-`progress_bar` | <code>[bool](#bool)</code> | Print dropped column names. Default: False. | <code>False</code>
+`exclude_confounds` | <code>bool</code> | Skip nuisance/confound columns from correlation check. Default: False. | <code>False</code>
+`thresh` | <code>float</code> | Correlation threshold (drop if abs(r) >= thresh). Default: 0.95. | <code>0.95</code>
+`progress_bar` | <code>bool</code> | Print dropped column names. Default: False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | Cleaned matrix with highly correlated columns removed
+<code>[DesignMatrix](#data-design-matrix)</code> | Cleaned matrix with highly correlated columns removed
 
 (data-design-matrix-diagnostics-corr)=
 ### `corr`
@@ -62,15 +63,21 @@ restores it for display.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. Spearman is computed as Pearson on column ranks. | <code>'pearson'</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`metric` | <code>str</code> | ``'pearson'`` (default) or ``'spearman'``. Spearman is computed as Pearson on column ranks. | <code>'pearson'</code>
 `columns` | <code>list of str</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#nltools.data.Adjacency)</code> | Similarity matrix whose ``labels`` are the included column     names.
+<code>[Adjacency](#data-adjacency)</code> | Similarity matrix whose ``labels`` are the included column     names.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If ``metric`` is unknown or fewer than 2 columns remain.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -96,11 +103,17 @@ Uses diagonal elements of inverted correlation matrix
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`exclude_confounds` | <code>[bool](#bool)</code> | Skip nuisance/confound columns. Default: True. | <code>True</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`exclude_confounds` | <code>bool</code> | Skip nuisance/confound columns. Default: True. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray) \| None</code> | VIF values for each included column, or None if the correlation matrix     is singular (perfect collinearity detected).
+<code>ndarray \| None</code> | VIF values for each included column, or None if the correlation matrix     is singular (perfect collinearity detected).
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the DesignMatrix has only 1 column.

@@ -1,5 +1,6 @@
 ---
 title: data.atlases.labeling
+label: data-atlases-labeling
 ---
 
 Coordinate-level atlas labeling.
@@ -9,13 +10,13 @@ Adapted from [atlasreader](https://github.com/miykael/atlasreader)
 
 > Notter et al. (2019). AtlasReader. JOSS 4(34), 1257.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
 [`label_coords`](#data-atlases-labeling-label-coords) | Look up anatomical labels for a set of MNI mm coordinates.
 
-## Methods
+## Functions
 
 (data-atlases-labeling-label-coords)=
 ### `label_coords`
@@ -35,12 +36,12 @@ sorted by descending probability).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
-`prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
+`coords` | <code>CoordsLike</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
+`atlas` | <code>str \| Sequence[str]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`prob_threshold` | <code>float</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Frame with columns `x`, `y`, `z` plus one column per atlas.     All atlas columns are `Utf8`.
+<code>DataFrame</code> | Frame with columns `x`, `y`, `z` plus one column per atlas.     All atlas columns are `Utf8`.

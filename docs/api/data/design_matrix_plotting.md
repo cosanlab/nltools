@@ -1,5 +1,6 @@
 ---
 title: data.designmatrix.plotting
+label: data-design-matrix-plotting
 ---
 
 DesignMatrix visualization functions.
@@ -8,7 +9,7 @@ Standalone functions extracted from ``DesignMatrix`` methods. Each takes a
 ``DesignMatrix`` instance (``dm``) as its first argument. ``DesignMatrix.plot``
 dispatches over ``method`` to the helpers here, mirroring ``BrainData.plot``.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -17,7 +18,7 @@ Name | Description
 [`plot_matrix`](#data-design-matrix-plotting-plot-matrix) | Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 [`plot_timeseries`](#data-design-matrix-plotting-plot-timeseries) | Plot regressor time courses as overlaid lines.
 
-## Methods
+## Functions
 
 (data-design-matrix-plotting-plot-corr)=
 ### `plot_corr`
@@ -36,21 +37,21 @@ the heatmap reads as a standard correlation matrix.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
-`metric` | <code>[str](#str)</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
-`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; scales with the number of columns when omitted. | <code>None</code>
-`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
-`cmap` | <code>[str](#str) \| None</code> | Colormap name. Default: ``'RdBu_r'``. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`columns` | <code>list[str] \| None</code> | Subset of columns to correlate. Defaults to all columns. | <code>None</code>
+`metric` | <code>str</code> | ``'pearson'`` (default) or ``'spearman'``. | <code>'pearson'</code>
+`figsize` | <code>tuple \| None</code> | Figure size; scales with the number of columns when omitted. | <code>None</code>
+`title` | <code>str \| None</code> | Optional axis title. | <code>None</code>
+`cmap` | <code>str \| None</code> | Colormap name. Default: ``'RdBu_r'``. | <code>None</code>
+`ax` | <code>Axes \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`save` | <code>str \| None</code> | Optional path to save the figure. | <code>None</code>
 `**kwargs` |  | Forwarded to ``seaborn.heatmap`` (e.g. ``annot=False``). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
+<code>Figure</code> | The rendered figure.
 
 (data-design-matrix-plotting-plot-designmatrix)=
 ### `plot_designmatrix`
@@ -67,7 +68,7 @@ See `DesignMatrix.plot` for the full argument documentation.
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The figure containing the plot.
+<code>Figure</code> | The figure containing the plot.
 
 (data-design-matrix-plotting-plot-matrix)=
 ### `plot_matrix`
@@ -82,21 +83,21 @@ Render the design matrix as an SPM-style heatmap (rows=TRs, cols=regressors).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
-`rescale` | <code>[bool](#bool)</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
-`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(4, 6)`` when a new figure is made. | <code>None</code>
-`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
-`cmap` | <code>[str](#str) \| None</code> | Colormap name. Default: ``'gray'``. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`columns` | <code>list[str] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`rescale` | <code>bool</code> | If True, rescale each column by its L2 norm so columns with different native magnitudes are visually comparable (SPM/nilearn convention). Default: True. | <code>True</code>
+`figsize` | <code>tuple \| None</code> | Figure size; defaults to ``(4, 6)`` when a new figure is made. | <code>None</code>
+`title` | <code>str \| None</code> | Optional axis title. | <code>None</code>
+`cmap` | <code>str \| None</code> | Colormap name. Default: ``'gray'``. | <code>None</code>
+`ax` | <code>Axes \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`save` | <code>str \| None</code> | Optional path to save the figure. | <code>None</code>
 `**kwargs` |  | Forwarded to ``seaborn.heatmap``. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
+<code>Figure</code> | The rendered figure.
 
 (data-design-matrix-plotting-plot-timeseries)=
 ### `plot_timeseries`
@@ -114,16 +115,16 @@ multiple DesignMatrices (e.g. original vs. convolved).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`columns` | <code>[list](#list)[[str](#str)] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
-`figsize` | <code>[tuple](#tuple) \| None</code> | Figure size; defaults to ``(8, 4)`` when a new figure is made. | <code>None</code>
-`title` | <code>[str](#str) \| None</code> | Optional axis title. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.pyplot.Axes) \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
-`save` | <code>[str](#str) \| None</code> | Optional path to save the figure. | <code>None</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`columns` | <code>list[str] \| None</code> | Subset of columns to plot. Defaults to all columns. | <code>None</code>
+`figsize` | <code>tuple \| None</code> | Figure size; defaults to ``(8, 4)`` when a new figure is made. | <code>None</code>
+`title` | <code>str \| None</code> | Optional axis title. | <code>None</code>
+`ax` | <code>Axes \| None</code> | Existing axis to draw on; a new figure is created if omitted. | <code>None</code>
+`save` | <code>str \| None</code> | Optional path to save the figure. | <code>None</code>
 `**kwargs` |  | Forwarded to ``matplotlib.axes.Axes.plot`` for each line. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
+<code>Figure</code> | The rendered figure.

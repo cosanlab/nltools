@@ -1,10 +1,11 @@
 ---
 title: algorithms.similarity
+label: algorithms-similarity
 ---
 
 Similarity metrics and correlation.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -16,7 +17,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-similarity-compute-multivariate-similarity)=
 ### `compute_multivariate_similarity`
@@ -38,15 +39,15 @@ p-values, and residuals.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target data, shape (n_features,) - single image | *required*
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Predictor data, shape (n_features, n_predictors) where first column should be intercept (ones) if intercept is desired. If X does not include intercept, an intercept will be added automatically. | *required*
-`method` | <code>[str](#str)</code> | Regression method (currently only 'ols' supported) | <code>'ols'</code>
+`y` | <code>ndarray</code> | Target data, shape (n_features,) - single image | *required*
+`X` | <code>ndarray</code> | Predictor data, shape (n_features, n_predictors) where first column should be intercept (ones) if intercept is desired. If X does not include intercept, an intercept will be added automatically. | *required*
+`method` | <code>str</code> | Regression method (currently only 'ols' supported) | <code>'ols'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)     - 't': t-statistics, shape (n_predictors+1,)     - 'p': p-values, shape (n_predictors+1,)     - 'df': Degrees of freedom (int)     - 'sigma': Residual standard deviation (float)     - 'residual': Residuals, shape (n_features,)
+<code>dict</code> | Dictionary with keys:     - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)     - 't': t-statistics, shape (n_predictors+1,)     - 'p': p-values, shape (n_predictors+1,)     - 'df': Degrees of freedom (int)     - 'sigma': Residual standard deviation (float)     - 'residual': Residuals, shape (n_features,)
 
 **Examples:**
 
@@ -76,15 +77,15 @@ Used by BrainData.similarity() to delegate computation to the functional core.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First data array, shape (n_samples1, n_features) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second data array, shape (n_samples2, n_features) | *required*
-`metric` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
+`data1` | <code>ndarray</code> | First data array, shape (n_samples1, n_features) | *required*
+`data2` | <code>ndarray</code> | Second data array, shape (n_samples2, n_features) | *required*
+`metric` | <code>str</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Similarity matrix or vector     - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar     - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array     - Otherwise: 2D array shape (n_samples1, n_samples2)
+<code>ndarray</code> | Similarity matrix or vector     - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar     - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array     - Otherwise: 2D array shape (n_samples1, n_samples2)
 
 **Examples:**
 
@@ -115,7 +116,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Fisher z-transformed correlation(s).
+<code>ndarray</code> | Fisher z-transformed correlation(s).
 
 (algorithms-similarity-fisher-z-to-r)=
 ### `fisher_z_to_r`
@@ -136,7 +137,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Correlation coefficient(s).
+<code>ndarray</code> | Correlation coefficient(s).
 
 (algorithms-similarity-transform-pairwise)=
 ### `transform_pairwise`
@@ -169,4 +170,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)]</code> | `(X_trans, y_trans)` — `X_trans` has shape     (k, n_features) and holds the data as pairs, where     k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;     if grouping variables exist, values are computed within each group.     `y_trans` has shape (k,) and holds the output class labels with values     {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the     second dimension.
+<code>tuple[ndarray, ndarray]</code> | `(X_trans, y_trans)` — `X_trans` has shape     (k, n_features) and holds the data as pairs, where     k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;     if grouping variables exist, values are computed within each group.     `y_trans` has shape (k,) and holds the output class labels with values     {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the     second dimension.

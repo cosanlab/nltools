@@ -1,12 +1,13 @@
 ---
 title: data.adjacency.modeling
+label: data-adjacency-modeling
 ---
 
 Provide standalone modeling and inference functions for Adjacency matrices.
 
 Each function takes an Adjacency instance as its first argument (`adj`).
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -18,7 +19,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-adjacency-modeling-bootstrap)=
 ### `bootstrap`
@@ -50,7 +51,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
+<code>dict</code> | Dictionary with keys: 'Z', 'p', 'mean', 'std', 'ci_lower', 'ci_upper'       (all Adjacency objects). If save_boots=True, also includes 'samples'.
 
 **Examples:**
 
@@ -84,7 +85,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with Adjacency objects for each statistic
+<code>dict</code> | Dictionary with Adjacency objects for each statistic
 
 (data-adjacency-modeling-generate-permutations)=
 ### `generate_permutations`
@@ -102,14 +103,14 @@ This is useful for iterative comparisons.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | (Adjacency) Adjacency instance | *required*
-`n_permute` | <code>[int](#int)</code> | number of permutations | *required*
-`random_state` | <code>[int](#int) or [RandomState](#numpy.random.RandomState)</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
+`n_permute` | <code>int</code> | number of permutations | *required*
+`random_state` | <code>int or RandomState</code> | random seed for reproducibility. Defaults to None. | <code>None</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | permuted version of adj
+<code>[Adjacency](#data-adjacency)</code> | permuted version of adj
 
 **Examples:**
 
@@ -142,7 +143,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary of stats outputs.
+<code>dict</code> | Dictionary of stats outputs.
 
 (data-adjacency-modeling-social-relations-model)=
 ### `social_relations_model`
@@ -191,4 +192,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Series](#pd.Series) \| [DataFrame](#pd.DataFrame)</code> | All of the effects estimated using SRM (a Series     for a single matrix, a DataFrame with one row per matrix otherwise).
+<code>Series \| DataFrame</code> | All of the effects estimated using SRM (a Series     for a single matrix, a DataFrame with one row per matrix otherwise).

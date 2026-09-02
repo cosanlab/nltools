@@ -171,8 +171,8 @@ help = "Fix, format, and type-check (ruff check --fix -> ruff format -> ty check
 shell = """ruff check nltools --fix && ruff format nltools && ty check nltools"""
 
 [tool.poe.tasks.lint-api]
-help = "Enforce v0.6.0 canonical-kwarg API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check)"
-shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check"""
+help = "Enforce v0.6.0 canonical-kwarg API conventions (vocabulary manifest checker + semgrep rules + keyword-only `*` marker check + docs vocab drift check + docs/api drift check)"
+shell = """python scripts/check_api_vocabulary.py && semgrep scan --config .semgrep/rules.yml --error --metrics off nltools/ && python scripts/check_kwonly.py && python scripts/build_api_vocabulary.py --check && python scripts/build_api_docs.py --check"""
 
 [tool.poe.tasks.test]
 help = "Run default fast test suite (parallel)"
@@ -317,10 +317,13 @@ args = [
 docstring_style = "google"
 # One page per module (scripts/build_api_docs.py lists them): recursing into
 # submodules duplicated every member on the package page and pushed headings
-# past h6. The build script supplies each page's title, so the root heading
-# would only repeat it.
+# past h6.
 show_submodules = false
-show_root_heading = false
+# The root heading must be on for the class template to emit the constructor
+# signature fence. It is rendered at h1 (heading_level below) so members keep
+# their h2/h3 levels, and the postprocess strips it — the build script's
+# frontmatter title stands in for it.
+show_root_heading = true
 # Undocumented members (dataclass fields, module constants) rendered as empty
 # table rows; document a member to publish it.
 show_if_no_docstring = false
@@ -335,11 +338,11 @@ merge_init_into_class = true
 group_by_category = true
 show_category_heading = true
 members_order = "alphabetical"
-heading_level = 2
+heading_level = 1
 filters = ["!^_"]
 docstring_section_style = "table"
 summary = true
-show_docstring_raises = false
+show_docstring_raises = true
 show_root_full_path = false
 show_root_members_full_path = false
 show_object_full_path = false

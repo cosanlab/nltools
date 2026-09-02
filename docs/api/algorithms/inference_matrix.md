@@ -1,5 +1,6 @@
 ---
 title: algorithms.inference.matrix
+label: algorithms-inference-matrix
 ---
 
 Matrix permutation test implementations (Mantel test).
@@ -8,7 +9,7 @@ This module provides CPU-parallel implementations of matrix permutation tests
 for testing correlation between two square matrices, as well as matrix utility
 functions for distance correlation and matrix centering operations.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -19,7 +20,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-inference-matrix-distance-correlation)=
 ### `distance_correlation`
@@ -51,16 +52,22 @@ functions in the dcor Python package.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`x` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array of observations by features | *required*
-`y` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array of observations by features | *required*
-`bias_corrected` | <code>[bool](#bool)</code> | if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True | <code>True</code>
-`ttest` | <code>[bool](#bool)</code> | perform a ttest using the bias_corrected distance correlation; default False | <code>False</code>
+`x` | <code>ndarray</code> | 1d or 2d numpy array of observations by features | *required*
+`y` | <code>ndarray</code> | 1d or 2d numpy array of observations by features | *required*
+`bias_corrected` | <code>bool</code> | if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True | <code>True</code>
+`ttest` | <code>bool</code> | perform a ttest using the bias_corrected distance correlation; default False | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary of results (correlation, t, p, and df); optionally also     covariance, x variance, and y variance.
+<code>dict</code> | Dictionary of results (correlation, t, p, and df); optionally also     covariance, x variance, and y variance.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If arrays are not 1d or 2d, or if ttest=True and bias_corrected=False
 
 **Examples:**
 
@@ -91,13 +98,19 @@ This centers both rows and columns around zero.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat` | <code>[ndarray](#ndarray)</code> | 2d numpy array | *required*
+`mat` | <code>ndarray</code> | 2d numpy array | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Double-centered version of the input.
+<code>ndarray</code> | Double-centered version of the input.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If input is not 2D
 
 **Examples:**
 
@@ -137,24 +150,24 @@ correlation. Count how often permuted correlation is as extreme as observed.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First square matrix (n×n) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second square matrix (n×n) | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson') | <code>'pearson'</code>
-`how` | <code>[str](#str)</code> | Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
-`include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
-`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
-`random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
+`data1` | <code>ndarray</code> | First square matrix (n×n) | *required*
+`data2` | <code>ndarray</code> | Second square matrix (n×n) | *required*
+`n_permute` | <code>int</code> | Number of permutations (default: 5000) | <code>5000</code>
+`metric` | <code>str</code> | Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson') | <code>'pearson'</code>
+`how` | <code>str</code> | Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
+`include_diag` | <code>bool</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`return_null` | <code>bool</code> | Return null distribution (default: False) | <code>False</code>
+`device` | <code>str</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'correlation' (float): Observed correlation coefficient     - 'p' (float): P-value using Phipson-Smyth correction     - 'device' (str): Parallelization method used ('cpu' or None)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+<code>dict</code> | Dictionary with keys:     - 'correlation' (float): Observed correlation coefficient     - 'p' (float): P-value using Phipson-Smyth correction     - 'device' (str): Parallelization method used ('cpu' or None)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -203,13 +216,19 @@ The diagonal is explicitly set to zero.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat` | <code>[ndarray](#ndarray)</code> | 2d numpy array | *required*
+`mat` | <code>ndarray</code> | 2d numpy array | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | U-centered version of the input.
+<code>ndarray</code> | U-centered version of the input.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If input is not 2D
 
 **Examples:**
 

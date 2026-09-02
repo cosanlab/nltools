@@ -11,7 +11,9 @@ files (e.g. to re-apply a postprocess tweak without a full griffe2md regen):
 
 The per-page label prefix (see `_scope_anchors`) is derived from each file's
 path relative to ``docs/api`` via `page_prefix`, so standalone runs and the
-in-process `generate` path produce identical output.
+in-process `build` path label headings identically. Only the build has the
+cross-page ``xref`` index (`xref_entries`), so a standalone run de-links every
+type annotation instead of linking nltools types to their pages.
 
 Design note: nltools docstrings are Google-style Markdown by policy, so most of
 this is a safety net over griffe2md quirks and third-party (re-export) leakage.
@@ -278,6 +280,10 @@ def _remove_deprecated_members(text: str) -> str:
     section. Deprecated *parameter aliases* (table rows like ``threshold``) are
     untouched — they are not method rows and their bodies don't open with
     ``Deprecated:`` after a signature fence.
+
+    Members sit at ``### `` on module and class pages and at ``##### `` for the
+    methods of a class on a module page, so the section match accepts any
+    heading depth; a member section ends at the next heading of any depth.
     """
     # Drop Methods summary-table rows: [`name`](#anchor) | Deprecated...
     # (anchors are slugified by now, so the char class must include `-`.)
@@ -289,21 +295,229 @@ def _remove_deprecated_members(text: str) -> str:
     )
 
     # Drop detail sections whose body opens with "Deprecated:" right after the
-    # signature code fence. Section spans "#### `name`" to the next heading/EOF.
+    # signature code fence.
     def _drop(m: re.Match) -> str:
         body = m.group(0)
         return "" if re.search(r"```\n+Deprecated:", body) else body
 
     return re.sub(
-        r"^#### `\w+`\n.*?(?=^#### |^### |^## |\Z)",
+        r"^#{2,6} `\w+`\n.*?(?=^#{2,6} |\Z)",
         _drop,
         text,
         flags=re.MULTILINE | re.DOTALL,
     )
 
 
+_ANY_HEADING_RE = re.compile(r"^(#{1,6}) ")
+_CODE_HEADING_RE = re.compile(r"^(#{1,6}) `([^`]+)`\s*$")
+
+
+def _is_class_name(name: str) -> bool:
+    """A code-span heading names a class when its first character is uppercase.
+
+    Module and function names are lowercase by convention; the only other
+    capitalized headings griffe2md emits are module constants, which sit under
+    an Attributes section that is removed before this heuristic is consulted.
+    """
+    return name[:1].isupper()
+
+
+def _apply_class_sections(text: str) -> str:
+    """Apply the class-scoped rewrites: ``Functions`` -> ``Methods``, ctor ``-> None``.
+
+    griffe2md labels every function group ``Functions`` (the template is not
+    configurable); inside a class those functions are methods. A class section is
+    a capitalized code-span heading (the page's root heading on a class page, or
+    a ``### `ClassName``` heading on a module page) and runs to the next heading
+    of the same or shallower level. Within it, the ``Functions`` category heading
+    and the ``**Functions:**`` summary label become ``Methods``; module-level
+    functions keep ``Functions``.
+
+    The class's own signature fence — the first fence after its heading, the
+    merged ``__init__`` — ends in ``-> None``, which is noise for a constructor
+    and is stripped. Methods keep their real return annotation.
+    """
+    lines = text.split("\n")
+    class_levels: list[int] = []  # heading levels of the enclosing class sections
+    strip_ctor_return = False
+    in_fence = False
+    for i, line in enumerate(lines):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            if not in_fence:
+                strip_ctor_return = False
+            continue
+        if in_fence:
+            if strip_ctor_return and line.endswith(" -> None"):
+                lines[i] = line[: -len(" -> None")]
+            continue
+        m = _ANY_HEADING_RE.match(line)
+        if m:
+            level = len(m.group(1))
+            while class_levels and class_levels[-1] >= level:
+                class_levels.pop()
+            cm = _CODE_HEADING_RE.match(line)
+            if cm and _is_class_name(cm.group(2)):
+                class_levels.append(level)
+                strip_ctor_return = True
+                continue
+            strip_ctor_return = False
+            if class_levels and line[level + 1 :].strip() == "Functions":
+                lines[i] = f"{m.group(1)} Methods"
+            continue
+        if line.strip():
+            # Prose before the class's fence means the fence isn't a signature.
+            strip_ctor_return = False
+            if class_levels and line == "**Functions:**":
+                lines[i] = "**Methods:**"
+    return "\n".join(lines)
+
+
+def _strip_root_heading(text: str) -> str:
+    """Drop griffe2md's root heading (``# `Name```) from the top of the page.
+
+    ``show_root_heading`` is enabled only because the class template emits the
+    constructor signature fence inside that branch; the heading itself repeats
+    the frontmatter title. Only a level-1 heading that opens the page is removed
+    — ``#`` comments inside fenced examples are never headings.
+    """
+    return re.sub(r"\A# `[^`\n]+`[ \t]*\n+", "", text)
+
+
+_LINK_RE = re.compile(r"\[([^\]`\n]+)\]\(#([\w.]+)\)")
+
+
+def _resolve_xref(target: str, xref: dict[str, str]) -> str | None:
+    """Map a link target (dotted path or bare name) to a page-scoped label.
+
+    Exact match first. Otherwise griffe emitted a *canonical* path (the defining
+    module, ``nltools.algorithms.alignment.srm.SRM``) or a bare name it could not
+    resolve (``PredictCollection``), while the index holds the documented paths
+    (``nltools.algorithms.alignment.SRM``). Fall back to the longest dotted
+    suffix shared with an index key; when several pages document that symbol
+    (a facade re-export and the defining subpackage), prefer the one whose path
+    shares the longest prefix with the target, then the deepest (most specific)
+    page, and give up (``None``) on a remaining tie rather than guess.
+    """
+    if target in xref:
+        return xref[target]
+    parts = target.split(".")
+    for k in range(len(parts), 0, -1):
+        suffix = "." + ".".join(parts[-k:])
+        candidates = [key for key in xref if key.endswith(suffix)]
+        if not candidates:
+            continue
+        labels = {xref[key] for key in candidates}
+        if len(labels) == 1:
+            return labels.pop()
+
+        def shared_prefix(key: str) -> int:
+            n = 0
+            for a, b in zip(key.split("."), parts):
+                if a != b:
+                    break
+                n += 1
+            return n
+
+        def rank(key: str) -> tuple[int, int]:
+            return (shared_prefix(key), key.count("."))
+
+        ranked = sorted(candidates, key=rank, reverse=True)
+        if rank(ranked[0]) > rank(ranked[1]):
+            return xref[ranked[0]]
+        return None
+    return None
+
+
+def _resolve_type_links(text: str, xref: dict[str, str] | None) -> str:
+    """Turn griffe2md's annotation links into page cross-references or plain text.
+
+    Every type in a signature table is wrapped in a same-page link that cannot
+    resolve: ``[str](#str)``, ``[np.ndarray](#numpy.ndarray)``,
+    ``[BrainData](#nltools.data.braindata.BrainData)``. nltools symbols that
+    have a documented page (per ``xref``, the build-time index of dotted path ->
+    label) become ``[Name](#label)``; everything else is de-linked to its title.
+    Backticked summary-table links (``[`align`](#...)``) belong to the labeller
+    and are left alone.
+    """
+
+    def repl(m: re.Match) -> str:
+        title, target = m.group(1), m.group(2)
+        if xref:
+            label = _resolve_xref(target, xref)
+            if label:
+                return f"[{title}](#{label})"
+        return title
+
+    return _LINK_RE.sub(repl, text)
+
+
+_BASE_RE = re.compile(r"<code>\[([^\]]+)\]\(#([\w.]+)\)</code>")
+
+
+def _clean_bases(text: str, xref: dict[str, str] | None) -> str:
+    """Make ``Bases:`` lines readable: drop private/``object`` bases, link the rest.
+
+    griffe2md links each base to an anchor that doesn't exist. nltools bases
+    link to their page (via ``xref``); third-party bases render as their full
+    dotted path in a code span; private bases (``_BaseKFold``) are implementation
+    detail and are dropped, as is ``object``. When nothing is left the line goes,
+    along with the blank line that followed it.
+    """
+
+    def repl(m: re.Match) -> str:
+        bases: list[str] = []
+        for bm in _BASE_RE.finditer(m.group(1)):
+            name, path = bm.group(1), bm.group(2)
+            if name.startswith("_") or path == "object":
+                continue
+            label = _resolve_xref(path, xref) if xref else None
+            bases.append(f"[`{name}`](#{label})" if label else f"`{path}`")
+        return f"Bases: {', '.join(bases)}{m.group(2)}" if bases else ""
+
+    return re.sub(r"^Bases: (.+)(\n+)", repl, text, flags=re.MULTILINE)
+
+
+def xref_entries(module: str, prefix: str, text: str) -> dict[str, str]:
+    """Index the symbols documented on one postprocessed page.
+
+    Maps dotted paths to the page-scoped labels `_scope_anchors` produced: the
+    page itself (``module`` -> ``prefix``, its frontmatter label), each labelled
+    member (``module.name``), and members nested under a class section on a
+    module page (``module.Class.name``). `build_api_docs` merges every page's
+    entries into the ``xref`` index consumed by `_resolve_type_links`.
+    """
+    entries = {module: prefix}
+    class_stack: list[tuple[int, str]] = []
+    pending_label: str | None = None
+    for line in text.split("\n"):
+        lm = re.match(rf"^\(({re.escape(prefix)}-[\w-]+)\)=$", line)
+        if lm:
+            pending_label = lm.group(1)
+            continue
+        m = _CODE_HEADING_RE.match(line)
+        if not m:
+            hm = _HEADING_RE.match(line)
+            if hm:
+                level = len(hm.group(1))
+                while class_stack and class_stack[-1][0] >= level:
+                    class_stack.pop()
+            pending_label = None
+            continue
+        level, name = len(m.group(1)), m.group(2)
+        while class_stack and class_stack[-1][0] >= level:
+            class_stack.pop()
+        path = ".".join([module, *(c for _, c in class_stack), name])
+        if pending_label:
+            entries[path] = pending_label
+        if _is_class_name(name):
+            class_stack.append((level, name))
+        pending_label = None
+    return entries
+
+
 def _myst_slug(heading_text: str) -> str:
-    """Reproduce mystmd's implicit heading-id slug for a heading's text.
+    r"""Reproduce mystmd's implicit heading-id slug for a heading's text.
 
     Lowercase, drop inline formatting, and collapse any run of non-alphanumeric
     characters to a single hyphen (so ``\`one_sample_permutation_test\``` -> id
@@ -362,7 +576,7 @@ def _scope_anchors(text: str, prefix: str) -> str:
 
 
 def _delink_dangling_anchors(text: str) -> str:
-    """De-link summary-table links whose target heading isn't on the page.
+    r"""De-link summary-table links whose target heading isn't on the page.
 
     Every generated link is same-page (``[\`name\`](#slug)``). After we remove
     the Attributes detail section and deprecated members, some summary links point
@@ -380,19 +594,25 @@ def _delink_dangling_anchors(text: str) -> str:
     return re.sub(r"\[`([^`]+)`\]\(#([\w.-]+)\)", repl, text)
 
 
-def postprocess(text: str, prefix: str) -> str:
+def postprocess(text: str, prefix: str, xref: dict[str, str] | None = None) -> str:
     """Fix griffe2md output quirks.
 
     - Insert newline between concatenated headings (e.g. ``### Attributes#### foo``)
     - Shorten dotpath anchors in summary table links to match short heading IDs
-    - Rename 'Functions' summary/category heading to 'Methods' for class pages
+    - Inside class sections only: rename 'Functions' to 'Methods' and strip the
+      constructor's ``-> None``
+    - Drop the root heading (the frontmatter title stands in for it)
     - Strip any residual RST roles and block directives (safety net over
       docstring standardization; catches third-party re-export leakage)
     - Hide deprecated members (documented in the migration guide instead)
     - Label member headings with page-scoped explicit MyST targets
+    - Resolve type-annotation and ``Bases:`` links to documented pages (via
+      ``xref``) or plain text
 
     ``prefix`` is a per-page slug (from the output path) that namespaces the
-    explicit heading labels so they stay unique project-wide.
+    explicit heading labels so they stay unique project-wide. ``xref`` maps
+    dotted symbol paths to those labels across every page (see `xref_entries`);
+    without it every cross-page type link is de-linked.
     """
     # Fix concatenated headings: "### Foo#### Bar" -> "### Foo\n\n#### Bar"
     text = re.sub(r"(#{2,6} .+?)(#{2,6} )", r"\1\n\n\2", text)
@@ -409,20 +629,12 @@ def postprocess(text: str, prefix: str) -> str:
 
     text = re.sub(r"\[`(\w+)`\]\(#[\w.]+\.(\w+)\)", _shorten_anchor, text)
 
-    # Rename "Functions" to "Methods" in category headings and summary labels
-    text = re.sub(r"^(#{2,6}) Functions$", r"\1 Methods", text, flags=re.MULTILINE)
-    text = re.sub(r"^\*\*Functions:\*\*$", "**Methods:**", text, flags=re.MULTILINE)
-
     # Submodules have their own pages, so the Modules summary table only offers
     # links that dangle (or hit a same-slug class); drop it, then reorder the
     # remaining summary tables to a natural reading order (griffe emits
-    # Functions before Attributes). Runs after the Functions->Methods rename so
-    # blocks carry canonical labels.
+    # Functions before Attributes; Functions and Methods sort together).
     text = _remove_modules_summary(text)
     text = _reorder_summary_blocks(text)
-
-    # Remove "Bases: object" (noise for classes that only inherit from object)
-    text = re.sub(r"\nBases: <code>\[object\]\(#object\)</code>\n", "\n", text)
 
     # Remove every Attributes detail section (heading + individual entries); the
     # summary table is enough. Level-aware: each section ends at the next heading
@@ -430,6 +642,12 @@ def postprocess(text: str, prefix: str) -> str:
     # following `### Classes` / `#### FirstClass` headings (which produced a
     # module-h2 -> class-Methods-h5 depth jump that mystmd warned on).
     text = _remove_attributes_sections(text)
+
+    # Class-scoped rewrites need the root heading (a class page's only marker of
+    # class context) and rely on capitalized constants being gone with their
+    # Attributes sections; the root heading goes right after.
+    text = _apply_class_sections(text)
+    text = _strip_root_heading(text)
 
     # Hide deprecated members and strip any residual RST roles (safety net).
     text = _remove_deprecated_members(text)
@@ -442,12 +660,16 @@ def postprocess(text: str, prefix: str) -> str:
     text = _remove_empty_category_headings(text)
     text = _fix_leading_empty_table_cells(text)
 
-    # Final pass: drop summary links whose target heading was removed above.
+    # Drop summary links whose target heading was removed above, then label the
+    # surviving member headings (and their same-page links) with page-scoped
+    # explicit targets, so references resolve explicitly.
     text = _delink_dangling_anchors(text)
-
-    # Label the surviving member/submodule headings (and their same-page links)
-    # with page-scoped explicit targets, so references resolve explicitly.
     text = _scope_anchors(text, prefix)
+
+    # Last: cross-page links. Bases first (its <code>[X](#path)</code> wrappers
+    # would otherwise be rewritten as ordinary type links), then annotations.
+    text = _clean_bases(text, xref)
+    text = _resolve_type_links(text, xref)
 
     return text
 
@@ -466,7 +688,7 @@ def page_prefix(output: Path, docs_api: Path = DOCS_API) -> str:
 def page_title(module: str) -> str:
     """Frontmatter title for the page documenting ``module`` (an import path).
 
-    griffe2md's root heading is disabled (it repeated the page title), so the
+    griffe2md's root heading is stripped (it repeated the page title), so the
     title comes from here. A class page is titled by the class name; a module
     page by its dotted path minus the ``nltools.`` prefix, because bare module
     names repeat across facades (``io`` alone would title four pages).
@@ -477,9 +699,14 @@ def page_title(module: str) -> str:
     return ".".join(parts[1:]) if parts[0] == "nltools" else module
 
 
-def with_frontmatter(text: str, title: str) -> str:
-    """Prepend a MyST frontmatter block carrying ``title``."""
-    return f"---\ntitle: {title}\n---\n\n{text}"
+def with_frontmatter(text: str, title: str, label: str | None = None) -> str:
+    """Prepend a MyST frontmatter block carrying ``title`` and an optional page ``label``.
+
+    The label (the page's `page_prefix`) is what cross-page links to the page
+    itself — a class page for a type annotation — resolve to via ``[X](#label)``.
+    """
+    fields = f"title: {title}\n" + (f"label: {label}\n" if label else "")
+    return f"---\n{fields}---\n\n{text}"
 
 
 def main() -> None:

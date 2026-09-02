@@ -1,5 +1,6 @@
 ---
 title: data.atlases
+label: data-atlases
 ---
 
 Atlas registry, lazy loading, and coordinate labeling.
@@ -22,7 +23,7 @@ Name | Description
 [`AtlasMetadata`](#data-atlases-atlasmetadata) | Static description of a registered atlas.
 [`ClusterReport`](#data-atlases-clusterreport) | Result of `BrainData.cluster_report`.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -39,7 +40,7 @@ Name | Description
 ### `Atlas`
 
 ```python
-Atlas(name: str, image: nb.Nifti1Image, labels: pl.DataFrame, kind: AtlasKind, citation: str) -> None
+Atlas(name: str, image: nb.Nifti1Image, labels: pl.DataFrame, kind: AtlasKind, citation: str)
 ```
 
 A loaded atlas — image, labels, and metadata.
@@ -51,17 +52,17 @@ directly.
 
 Name | Type | Description
 ---- | ---- | -----------
-`name` | <code>[str](#str)</code> | Registry key (e.g. ``"harvard_oxford"``).
-`image` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
-`labels` | <code>[DataFrame](#polars.DataFrame)</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
-`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` or ``"probabilistic"``.
-`citation` | <code>[str](#str)</code> | Short citation for the original atlas.
+`name` | <code>str</code> | Registry key (e.g. ``"harvard_oxford"``).
+`image` | <code>Nifti1Image</code> | NIfTI volume. 3D for deterministic atlases, 4D for probabilistic ones (last axis indexes regions).
+`labels` | <code>DataFrame</code> | Two-column ``index, name`` table. For deterministic atlases ``index`` is the integer voxel value; for probabilistic atlases ``index`` is the region index along the 4th dim of ``image``.
+`kind` | <code>AtlasKind</code> | ``"deterministic"`` or ``"probabilistic"``.
+`citation` | <code>str</code> | Short citation for the original atlas.
 
 (data-atlases-atlasmetadata)=
 ### `AtlasMetadata`
 
 ```python
-AtlasMetadata(kind: AtlasKind, citation: str) -> None
+AtlasMetadata(kind: AtlasKind, citation: str)
 ```
 
 Static description of a registered atlas.
@@ -70,14 +71,14 @@ Static description of a registered atlas.
 
 Name | Type | Description
 ---- | ---- | -----------
-`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
-`citation` | <code>[str](#str)</code> | Short citation string for the original atlas.
+`kind` | <code>AtlasKind</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+`citation` | <code>str</code> | Short citation string for the original atlas.
 
 (data-atlases-clusterreport)=
 ### `ClusterReport`
 
 ```python
-ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
+ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData)
 ```
 
 Result of `BrainData.cluster_report`.
@@ -86,9 +87,9 @@ Result of `BrainData.cluster_report`.
 
 Name | Type | Description
 ---- | ---- | -----------
-`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
-`clusters` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
-`stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+`peaks` | <code>DataFrame</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
+`clusters` | <code>DataFrame</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
+`stat_img` | <code>[BrainData](#data-brain-data)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
 
 **Methods:**
 
@@ -114,13 +115,13 @@ Render an overview glass brain + one slice figure per cluster.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`output_dir` | <code>[str](#str) \| [Path](#pathlib.Path) \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
+`output_dir` | <code>str \| Path \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of     ``(label, figure)`` tuples.
+<code>list[tuple[str, Figure]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of     ``(label, figure)`` tuples.
 
 (data-atlases-to-csv)=
 ##### `to_csv`
@@ -133,7 +134,7 @@ Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 
 
-## Methods
+## Functions
 
 (data-atlases-cluster-report-data)=
 ### `cluster_report_data`
@@ -151,19 +152,19 @@ wraps the result in a `ClusterReport`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with a 3D stat map (single sample). | *required*
-`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
-`two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
-`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
-`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+`bd` | <code>[BrainData](#data-brain-data)</code> | BrainData with a 3D stat map (single sample). | *required*
+`stat_threshold` | <code>float \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
+`cluster_threshold` | <code>int</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>bool</code> | Report negative clusters as separate clusters. | <code>True</code>
+`min_distance` | <code>float</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>str \| Sequence[str]</code> | Atlas name or list of names from `list_atlases`. | <code>DEFAULT_ATLASES</code>
+`prob_threshold` | <code>float</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [DataFrame](#polars.DataFrame), [BrainData](#nltools.data.BrainData)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
+<code>tuple[DataFrame, DataFrame, [BrainData](#data-brain-data)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
 
 (data-atlases-label-coords)=
 ### `label_coords`
@@ -183,15 +184,15 @@ sorted by descending probability).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`coords` | <code>[CoordsLike](#nltools.data.atlases.labeling.CoordsLike)</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
-`prob_threshold` | <code>[float](#float)</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
+`coords` | <code>CoordsLike</code> | ``(N, 3)`` array-like of MNI mm coordinates ``(x, y, z)``. A single coord like ``(-42, -22, 56)`` is also accepted. | *required*
+`atlas` | <code>str \| Sequence[str]</code> | Atlas name or list of names from `list_atlases`. One column is added to the output per atlas. | <code>'harvard_oxford'</code>
+`prob_threshold` | <code>float</code> | For probabilistic atlases only — drop regions with probability (in percent units) below this threshold. | <code>5.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Frame with columns `x`, `y`, `z` plus one column per atlas.     All atlas columns are `Utf8`.
+<code>DataFrame</code> | Frame with columns `x`, `y`, `z` plus one column per atlas.     All atlas columns are `Utf8`.
 
 (data-atlases-list-atlases)=
 ### `list_atlases`
@@ -206,7 +207,7 @@ Return the sorted list of registered atlas names.
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with `load_atlas`.
+<code>list[str]</code> | Sorted list of atlas names usable with `load_atlas`.
 
 (data-atlases-load-atlas)=
 ### `load_atlas`
@@ -225,10 +226,16 @@ afterwards). Subsequent calls in the same process are memoized.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`name` | <code>[str](#str)</code> | Atlas key from `list_atlases`. | *required*
+`name` | <code>str</code> | Atlas key from `list_atlases`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Atlas](#nltools.data.atlases.loading.Atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
+<code>[Atlas](#data-atlases-loading-atlas)</code> | An `Atlas` with image, labels, and metadata loaded.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If ``name`` isn't a registered atlas.

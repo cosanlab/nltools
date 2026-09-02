@@ -1,5 +1,6 @@
 ---
 title: utils
+label: utils
 ---
 
 Cross-cutting utilities used across the nltools package.
@@ -12,7 +13,14 @@ Name | Type | Description
 
 
 
-**Methods:**
+**Classes:**
+
+Name | Description
+---- | -----------
+[`DesignMatrixWarning`](#utils-designmatrixwarning) | A ``DesignMatrix`` operation was a no-op or partially skipped.
+[`ResamplingWarning`](#utils-resamplingwarning) | Data is (or will be) resampled to a different space than it arrived in.
+
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -20,6 +28,7 @@ Name | Description
 [`attempt_to_import`](#utils-attempt-to-import) | Attempt to import an optional dependency, returning None if unavailable.
 [`coalesced_gc`](#utils-coalesced-gc) | Collapse nilearn's forced per-copy ``gc.collect()`` calls into ONE per operation.
 [`concatenate`](#utils-concatenate) | Concatenate a list of BrainData() or Adjacency() objects.
+[`find_stack_level`](#utils-find-stack-level) | Return the ``stacklevel`` that attributes a warning to the caller's code.
 [`get_resource_path`](#utils-get-resource-path) | Get path to nltools resource directory.
 [`is_reserved_name`](#utils-is-reserved-name) | Return True if ``name`` is in the nltools-generated column namespace.
 [`make_progress_bar`](#utils-make-progress-bar) | Build a progress bar, or a no-op stand-in when `progress_bar` is False.
@@ -27,7 +36,38 @@ Name | Description
 [`reserved_name`](#utils-reserved-name) | Build a generated column name inside the reserved namespace.
 [`run_separated_name`](#utils-run-separated-name) | Build the run-separated variant of a column name.
 
-## Methods
+## Classes
+
+(utils-designmatrixwarning)=
+### `DesignMatrixWarning`
+
+Bases: `UserWarning`
+
+A ``DesignMatrix`` operation was a no-op or partially skipped.
+
+Raised by regressor builders (``add_poly``, ``add_dct_basis``,
+``convolve``) when the requested columns already exist and are skipped.
+Subclasses ``UserWarning`` so it participates in default filtering while
+staying individually silenceable:
+``warnings.filterwarnings("ignore", category=DesignMatrixWarning)``.
+
+(utils-resamplingwarning)=
+### `ResamplingWarning`
+
+Bases: `UserWarning`
+
+Data is (or will be) resampled to a different space than it arrived in.
+
+Raised when a data image does not match the mask/template it is loaded
+against — a detected template at another resolution, or a mask in a
+different space — and nltools resamples to reconcile them. Subclasses
+``UserWarning`` so it participates in default filtering while staying
+individually silenceable:
+``warnings.filterwarnings("ignore", category=ResamplingWarning)``.
+
+
+
+## Functions
 
 (utils-all-same)=
 ### `all_same`
@@ -48,7 +88,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[bool](#bool)</code> | True if all items equal the first item, False otherwise.
+<code>bool</code> | True if all items equal the first item, False otherwise.
 
 **Examples:**
 
@@ -84,7 +124,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ModuleType](#ModuleType) \| None</code> | The imported module, or None if the import failed.
+<code>ModuleType \| None</code> | The imported module, or None if the import failed.
 
 **Examples:**
 
@@ -137,6 +177,34 @@ concatenate(data)
 
 Concatenate a list of BrainData() or Adjacency() objects.
 
+(utils-find-stack-level)=
+### `find_stack_level`
+
+```python
+find_stack_level() -> int
+```
+
+Return the ``stacklevel`` that attributes a warning to the caller's code.
+
+Walks up from the caller until the first frame outside the nltools package
+(``nltools/tests/`` counts as outside: tests are the library's users), so a
+``warnings.warn`` deep inside a facade lands on the user's line rather than
+on nltools internals — the same pattern nilearn and pandas use. Every
+``warnings.warn`` in the library passes ``stacklevel=find_stack_level()``;
+a source-scan test enforces it.
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Value for the ``stacklevel`` argument of ``warnings.warn``.
+
+**Examples:**
+
+```python
+warnings.warn("message", UserWarning, stacklevel=find_stack_level())
+```
+
 (utils-get-resource-path)=
 ### `get_resource_path`
 
@@ -172,14 +240,14 @@ terminals get text bars.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | *required*
+`progress_bar` | <code>bool</code> | Whether to display a progress bar. | *required*
 `**tqdm_kwargs` |  | Forwarded to `tqdm` (e.g. `total`, `desc`, `unit`). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tqdm](#tqdm) \| [_NullProgressBar](#nltools.utils._NullProgressBar)</code> | A `tqdm` instance, or a `_NullProgressBar` exposing     the same subset of its interface (`update`, `close`, `set_postfix`,     `set_description`, and the context-manager protocol).
+<code>tqdm \| _NullProgressBar</code> | A `tqdm` instance, or a `_NullProgressBar` exposing     the same subset of its interface (`update`, `close`, `set_postfix`,     `set_description`, and the context-manager protocol).
 
 (utils-maybe-tqdm)=
 ### `maybe_tqdm`
@@ -200,14 +268,14 @@ Importing tqdm lazily also keeps it off the import path when unused. Uses
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `iterable` |  | The iterable to wrap. | *required*
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar. | *required*
+`progress_bar` | <code>bool</code> | Whether to display a progress bar. | *required*
 `**tqdm_kwargs` |  | Forwarded to `tqdm` (e.g. `desc`, `unit`, `total`). | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Iterable](#Iterable)</code> | The original iterable, or a `tqdm`-wrapped version of it.
+<code>Iterable</code> | The original iterable, or a `tqdm`-wrapped version of it.
 
 **Examples:**
 
@@ -230,13 +298,13 @@ Build a generated column name inside the reserved namespace.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`base` | <code>[str](#str)</code> | Name without the reserved prefix, e.g. ``'poly_0'``. | *required*
+`base` | <code>str</code> | Name without the reserved prefix, e.g. ``'poly_0'``. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | `base` prefixed with `RESERVED_PREFIX`, idempotently — a name     that already carries the prefix is returned unchanged.
+<code>str</code> | `base` prefixed with `RESERVED_PREFIX`, idempotently — a name     that already carries the prefix is returned unchanged.
 
 (utils-run-separated-name)=
 ### `run_separated_name`
@@ -256,11 +324,11 @@ generated (``.nl_poly_0`` → ``.nl_r0_poly_0``; prefixes never stack).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`run_idx` | <code>[int](#int)</code> | Zero-based run index. | *required*
-`name` | <code>[str](#str)</code> | Column name to separate. | *required*
+`run_idx` | <code>int</code> | Zero-based run index. | *required*
+`name` | <code>str</code> | Column name to separate. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | ``.nl_r{run_idx}_{base}``.
+<code>str</code> | ``.nl_r{run_idx}_{base}``.

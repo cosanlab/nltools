@@ -1,5 +1,6 @@
 ---
 title: algorithms
+label: algorithms
 ---
 
 nltools.algorithms — the functional core of nltools.
@@ -29,7 +30,7 @@ Name | Description
 [`LocalAlignment`](#algorithms-localalignment) | Local (neighborhood-based) functional alignment across subjects.
 [`SRM`](#algorithms-srm) | Probabilistic Shared Response Model (SRM).
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -87,10 +88,10 @@ Name | Description
 ### `DetSRM`
 
 ```python
-DetSRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+DetSRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0)
 ```
 
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+Bases: `sklearn.base.BaseEstimator`, `sklearn.base.TransformerMixin`
 
 Deterministic Shared Response Model (DetSRM).
 
@@ -185,15 +186,15 @@ Compute the Deterministic Shared Response Model.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`y` | <code>Any \| None</code> | not used | <code>None</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DetSRM](#nltools.algorithms.alignment.srm.DetSRM)</code> | Fitted model (`self`).
+<code>[DetSRM](#algorithms-alignment-detsrm)</code> | Fitted model (`self`).
 
 (algorithms-transform)=
 ##### `transform`
@@ -209,15 +210,15 @@ Use the model to transform data to the Shared Response subspace.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. | *required*
-`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`y` | <code>Any \| None</code> | not used | <code>None</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Shared responses from input data (X); element i has     shape=[features_i, samples_i].
+<code>list[ndarray]</code> | Shared responses from input data (X); element i has     shape=[features_i, samples_i].
 
 (algorithms-transform-subject)=
 ##### `transform_subject`
@@ -240,16 +241,16 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Orthogonal mapping `W_{new}` for the new subject,     shape=[voxels, features].
+<code>ndarray</code> | Orthogonal mapping `W_{new}` for the new subject,     shape=[voxels, features].
 
 (algorithms-hyperalignment)=
 ### `HyperAlignment`
 
 ```python
-HyperAlignment(n_iter: int = 2, auto_pad: bool = True) -> None
+HyperAlignment(n_iter: int = 2, auto_pad: bool = True)
 ```
 
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+Bases: `sklearn.base.BaseEstimator`, `sklearn.base.TransformerMixin`
 
 Hyperalignment using iterative Procrustes alignment.
 
@@ -366,14 +367,14 @@ Fit hyperalignment model to data.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>list of ndarray</code> | List of data matrices, each with shape (n_features, n_samples). Different subjects can have different numbers of features if auto_pad=True. | *required*
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[HyperAlignment](#nltools.algorithms.alignment.hyperalignment.HyperAlignment)</code> | Fitted model (`self`).
+<code>[HyperAlignment](#algorithms-alignment-hyperalignment)</code> | Fitted model (`self`).
 
 ##### `transform`
 
@@ -388,14 +389,14 @@ Transform data to common space using fitted transformations.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>list of ndarray</code> | List of data matrices to transform. Should be the same data used for fitting (or have compatible dimensions). | *required*
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of transformed data matrices in common space.
+<code>list[ndarray]</code> | List of transformed data matrices in common space.
 
 ##### `transform_subject`
 
@@ -409,19 +410,19 @@ Align a new subject to the common space.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`subject_data` | <code>([ndarray](#ndarray), [shape](#shape)([n_features](#n_features), [n_samples](#n_samples)))</code> | Data from a new subject to align to the common template | *required*
+`subject_data` | <code>(ndarray, shape(n_features, n_samples))</code> | Data from a new subject to align to the common template | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray), [float](#float), [float](#float)]</code> | `(transformed, R, disparity,     scale)` — aligned data in common space, the transformation matrix     used, the alignment quality (sum of squared differences), and the     scale factor used.
+<code>tuple[ndarray, ndarray, float, float]</code> | `(transformed, R, disparity,     scale)` — aligned data in common space, the transformation matrix     used, the alignment quality (sum of squared differences), and the     scale factor used.
 
 (algorithms-localalignment)=
 ### `LocalAlignment`
 
 ```python
-LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None) -> None
+LocalAlignment(spatial_scale: str = 'searchlight', method: str = 'procrustes', radius_mm: float = 10.0, roi_mask: nib.Nifti1Image | None = None, n_features: int | None = None, n_iter: int = 3, aggregation: str = 'center', parallel: str | None = 'cpu', n_jobs: int = -1, progress_bar: bool = False, n_neighborhoods_batch: int | None = None, max_memory_gb: float | None = None, transforms_: dict[int, list[np.ndarray]] | None = None, template_: dict[int, np.ndarray] | None = None, neighborhoods_: SphereNeighborhoods | dict[int, np.ndarray] | None = None, n_voxels_: int | None = None, mask_: nib.Nifti1Image | None = None, backend_: Backend | None = None)
 ```
 
 Local (neighborhood-based) functional alignment across subjects.
@@ -433,28 +434,28 @@ or parcels) and applies center-only aggregation to preserve orthogonality.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`spatial_scale` | <code>[str](#str)</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
-`method` | <code>[str](#str)</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
-`radius_mm` | <code>[float](#float)</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
-`roi_mask` | <code>[Nifti1Image](#Nifti1Image) \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
-`n_features` | <code>[int](#int) \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
-`n_iter` | <code>[int](#int)</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
-`aggregation` | <code>[str](#str)</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
-`parallel` | <code>[str](#str) \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU acceleration applies only to `method='procrustes'`; requesting 'gpu' with the 'srm' or 'hyperalignment' methods raises `NotImplementedError` (an explicit GPU request never silently runs on CPU). Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
-`n_neighborhoods_batch` | <code>[int](#int) \| None</code> | Number of neighborhoods to process per batch on the GPU. None auto-calculates a batch size from `max_memory_gb`. Defaults to None. | <code>None</code>
-`max_memory_gb` | <code>[float](#float) \| None</code> | Explicit memory budget (in GB) used to auto-size GPU batches when `n_neighborhoods_batch` is None. None (default) measures the device's available memory. | <code>None</code>
+`spatial_scale` | <code>str</code> | Spatial scale, either 'searchlight' (overlapping spheres) or 'roi' (non-overlapping parcels). Defaults to 'searchlight'. | <code>'searchlight'</code>
+`method` | <code>str</code> | Alignment method, one of 'procrustes', 'srm', or 'hyperalignment'. Defaults to 'procrustes'. | <code>'procrustes'</code>
+`radius_mm` | <code>float</code> | Sphere radius in millimeters for the searchlight scale. Defaults to 10.0. | <code>10.0</code>
+`roi_mask` | <code>Nifti1Image \| None</code> | Parcellation image for the ROI scale. Required if `spatial_scale='roi'`. Defaults to None. | <code>None</code>
+`n_features` | <code>int \| None</code> | Number of features for SRM. None uses full Procrustes (preserves dims). Defaults to None. | <code>None</code>
+`n_iter` | <code>int</code> | Number of iterations for alignment refinement. Defaults to 3. | <code>3</code>
+`aggregation` | <code>str</code> | Aggregation method: 'center' (center-only, preserves orthogonality) or 'all'. Defaults to 'center'. | <code>'center'</code>
+`parallel` | <code>str \| None</code> | Parallelization mode. None runs single-threaded numpy, 'cpu' uses joblib CPU parallelization, and 'gpu' uses PyTorch. GPU acceleration applies only to `method='procrustes'`; requesting 'gpu' with the 'srm' or 'hyperalignment' methods raises `NotImplementedError` (an explicit GPU request never silently runs on CPU). Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of jobs for CPU parallelization. Defaults to -1. | <code>-1</code>
+`progress_bar` | <code>bool</code> | Whether to display tqdm progress bars during fit and transform. Defaults to False. | <code>False</code>
+`n_neighborhoods_batch` | <code>int \| None</code> | Number of neighborhoods to process per batch on the GPU. None auto-calculates a batch size from `max_memory_gb`. Defaults to None. | <code>None</code>
+`max_memory_gb` | <code>float \| None</code> | Explicit memory budget (in GB) used to auto-size GPU batches when `n_neighborhoods_batch` is None. None (default) measures the device's available memory. | <code>None</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`transforms_` | <code>[dict](#dict)[[int](#int), [list](#list)[[ndarray](#numpy.ndarray)]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
-`template_` | <code>[dict](#dict)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Per-neighborhood templates used for alignment.
-`neighborhoods_` | <code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods) \| [dict](#dict)</code> | Computed neighborhoods (searchlight or roi).
-`n_voxels_` | <code>[int](#int)</code> | Total number of voxels in the mask.
-`mask_` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask used for fitting.
+`transforms_` | <code>dict[int, list[ndarray]]</code> | Per-neighborhood transforms. Keys are center voxel indices, values are lists of transform matrices (one per subject).
+`template_` | <code>dict[int, ndarray]</code> | Per-neighborhood templates used for alignment.
+`neighborhoods_` | <code>[SphereNeighborhoods](#neighborhoods-sphereneighborhoods) \| dict</code> | Computed neighborhoods (searchlight or roi).
+`n_voxels_` | <code>int</code> | Total number of voxels in the mask.
+`mask_` | <code>Nifti1Image</code> | Brain mask used for fitting.
 
 **Methods:**
 
@@ -504,14 +505,14 @@ Fit local alignment on multi-subject data.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). Subjects can have different numbers of samples - the underlying alignment methods (SRM, HyperAlignment) handle this via zero-padding. | *required*
-`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+`data` | <code>list[ndarray]</code> | List of subject data arrays, each shape (n_voxels, n_samples). Subjects can have different numbers of samples - the underlying alignment methods (SRM, HyperAlignment) handle this via zero-padding. | *required*
+`mask` | <code>Nifti1Image</code> | Brain mask defining the voxel space. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[LocalAlignment](#nltools.algorithms.alignment.local.LocalAlignment)</code> | The fitted alignment model (`self`).
+<code>[LocalAlignment](#algorithms-alignment-localalignment)</code> | The fitted alignment model (`self`).
 
 (algorithms-fit-transform)=
 ##### `fit_transform`
@@ -526,14 +527,14 @@ Fit alignment and transform data in one step.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
-`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Brain mask defining the voxel space. | *required*
+`data` | <code>list[ndarray]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+`mask` | <code>Nifti1Image</code> | Brain mask defining the voxel space. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject.
+<code>list[ndarray]</code> | Aligned data for each subject.
 
 ##### `transform`
 
@@ -552,22 +553,22 @@ For the roi scale: all voxels in each parcel use the same transform.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
+`data` | <code>list[ndarray]</code> | List of subject data arrays, each shape (n_voxels, n_samples). | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Aligned data for each subject, each shape     (n_voxels, n_samples).
+<code>list[ndarray]</code> | Aligned data for each subject, each shape     (n_voxels, n_samples).
 
 (algorithms-srm)=
 ### `SRM`
 
 ```python
-SRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0) -> None
+SRM(*, n_iter: int = 10, features: int = 50, rand_seed: int = 0)
 ```
 
-Bases: <code>[BaseEstimator](#sklearn.base.BaseEstimator)</code>, <code>[TransformerMixin](#sklearn.base.TransformerMixin)</code>
+Bases: `sklearn.base.BaseEstimator`, `sklearn.base.TransformerMixin`
 
 Probabilistic Shared Response Model (SRM).
 
@@ -664,16 +665,16 @@ Compute the probabilistic Shared Response Model.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples]</code> | Each element in the list contains the fMRI data of one subject. Subjects can have different numbers of samples if pad_samples=True. | *required*
-`y` | <code>[Any](#typing.Any) \| None</code> | not used | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
-`pad_samples` | <code>[bool](#bool)</code> | If True (default), automatically zero-pad subjects with fewer samples to match the longest subject. This allows fitting SRM on data with unequal numbers of time points across subjects. | <code>True</code>
+`y` | <code>Any \| None</code> | not used | <code>None</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`pad_samples` | <code>bool</code> | If True (default), automatically zero-pad subjects with fewer samples to match the longest subject. This allows fitting SRM on data with unequal numbers of time points across subjects. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[SRM](#nltools.algorithms.alignment.srm.SRM)</code> | Fitted model (`self`).
+<code>[SRM](#algorithms-alignment-srm)</code> | Fitted model (`self`).
 
 ##### `transform`
 
@@ -688,15 +689,15 @@ Use the model to transform matrix to Shared Response space.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` | <code>list of 2D arrays, element i has shape=[voxels_i, samples_i]</code> | Each element in the list contains the fMRI data of one subject. Note that number of voxels and samples can vary across subjects. | *required*
-`y` | <code>[Any](#typing.Any) \| None</code> | not used (as it is unsupervised learning) | <code>None</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
+`y` | <code>Any \| None</code> | not used (as it is unsupervised learning) | <code>None</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU parallelization via joblib (default, multi-subject processing) - "gpu": not implemented -- raises `NotImplementedError` (never a silent CPU fallback) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = auto-detect based on memory). Only used when parallel="cpu". Defaults to -1. | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Shared responses from input data (X); element i has     shape=[features_i, samples_i].
+<code>list[ndarray]</code> | Shared responses from input data (X); element i has     shape=[features_i, samples_i].
 
 ##### `transform_subject`
 
@@ -718,11 +719,11 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Orthogonal mapping `W_{new}` for the new subject,     shape=[voxels, features].
+<code>ndarray</code> | Orthogonal mapping `W_{new}` for the new subject,     shape=[voxels, features].
 
 
 
-## Methods
+## Functions
 
 (algorithms-align)=
 ### `align`
@@ -757,7 +758,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | A dictionary containing a list of transformed subject matrices, a     list of transformation matrices, the shared response matrix, and the     intersubject correlation of the shared responses.
+<code>dict</code> | A dictionary containing a list of transformed subject matrices, a     list of transformation matrices, the shared response matrix, and the     intersubject correlation of the shared responses.
 
 **Examples:**
 
@@ -801,7 +802,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | If `return_index=False` (default), `target[:, remapping]` — the     target's columns reordered to match the reference, oriented pattern x     state (same shape as `target`). If `return_index=True`, the remapping     index array that reorders the target's state columns.
+<code>ndarray</code> | If `return_index=False` (default), `target[:, remapping]` — the     target's columns reordered to match the reference, oriented pattern x     state (same shape as `target`). If `return_index=True`, the remapping     index array that reorders the target's state columns.
 
 (algorithms-calc-bpm)=
 ### `calc_bpm`
@@ -823,7 +824,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | Beats per minute for the time interval.
+<code>float</code> | Beats per minute for the time interval.
 
 (algorithms-circle-shift)=
 ### `circle_shift`
@@ -843,15 +844,15 @@ feature (column) independently.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`shift_amount` | <code>[int](#int) \| [ndarray](#numpy.ndarray) \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
+`data` | <code>ndarray</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
+`shift_amount` | <code>int \| ndarray \| None</code> | Shift amount(s). If None, random shift is used. For 1D: int specifying shift amount For 2D: array of length n_features with shift per feature | <code>None</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility (if shift_amount is None) | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Circularly shifted data with same shape as input
+<code>ndarray</code> | Circularly shifted data with same shape as input
 
 **Examples:**
 
@@ -890,15 +891,15 @@ p-values, and residuals.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target data, shape (n_features,) - single image | *required*
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Predictor data, shape (n_features, n_predictors) where first column should be intercept (ones) if intercept is desired. If X does not include intercept, an intercept will be added automatically. | *required*
-`method` | <code>[str](#str)</code> | Regression method (currently only 'ols' supported) | <code>'ols'</code>
+`y` | <code>ndarray</code> | Target data, shape (n_features,) - single image | *required*
+`X` | <code>ndarray</code> | Predictor data, shape (n_features, n_predictors) where first column should be intercept (ones) if intercept is desired. If X does not include intercept, an intercept will be added automatically. | *required*
+`method` | <code>str</code> | Regression method (currently only 'ols' supported) | <code>'ols'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)     - 't': t-statistics, shape (n_predictors+1,)     - 'p': p-values, shape (n_predictors+1,)     - 'df': Degrees of freedom (int)     - 'sigma': Residual standard deviation (float)     - 'residual': Residuals, shape (n_features,)
+<code>dict</code> | Dictionary with keys:     - 'beta': Regression coefficients including intercept, shape (n_predictors+1,)     - 't': t-statistics, shape (n_predictors+1,)     - 'p': p-values, shape (n_predictors+1,)     - 'df': Degrees of freedom (int)     - 'sigma': Residual standard deviation (float)     - 'residual': Residuals, shape (n_features,)
 
 **Examples:**
 
@@ -928,15 +929,15 @@ Used by BrainData.similarity() to delegate computation to the functional core.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First data array, shape (n_samples1, n_features) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second data array, shape (n_samples2, n_features) | *required*
-`metric` | <code>[str](#str)</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
+`data1` | <code>ndarray</code> | First data array, shape (n_samples1, n_features) | *required*
+`data2` | <code>ndarray</code> | Second data array, shape (n_samples2, n_features) | *required*
+`metric` | <code>str</code> | Type of similarity metric - 'correlation' or 'pearson': Pearson correlation - 'spearman' or 'rank_correlation': Spearman rank correlation - 'dot_product': Dot product - 'cosine': Cosine similarity | <code>'correlation'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Similarity matrix or vector     - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar     - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array     - Otherwise: 2D array shape (n_samples1, n_samples2)
+<code>ndarray</code> | Similarity matrix or vector     - If data1.shape[0] == 1 and data2.shape[0] == 1: scalar     - If data1.shape[0] == 1 or data2.shape[0] == 1: 1D array     - Otherwise: 2D array shape (n_samples1, n_samples2)
 
 **Examples:**
 
@@ -968,23 +969,23 @@ phase_randomize methods instead.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | Data to permute - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Data to correlate with - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Correlation metric (default: 'pearson') - 'pearson': Pearson correlation (linear relationships) - 'spearman': Spearman rank correlation (monotonic relationships) - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties) | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
+`data1` | <code>ndarray</code> | Data to permute - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
+`data2` | <code>ndarray</code> | Data to correlate with - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature | *required*
+`n_permute` | <code>int</code> | Number of permutations (default: 5000) | <code>5000</code>
+`metric` | <code>str</code> | Correlation metric (default: 'pearson') - 'pearson': Pearson correlation (linear relationships) - 'spearman': Spearman rank correlation (monotonic relationships) - 'kendall': Kendall tau rank correlation (ordinal association, robust to ties) | <code>'pearson'</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate one variable for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`return_null` | <code>bool</code> | If True, return full null distribution (default: False) | <code>False</code>
+`device` | <code>str</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>float</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
+`random_state` | <code>int</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'correlation' (float or np.ndarray): Observed correlation(s)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
+<code>dict</code> | Dictionary with keys:     - 'correlation' (float or np.ndarray): Observed correlation(s)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -1060,16 +1061,22 @@ functions in the dcor Python package.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`x` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array of observations by features | *required*
-`y` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array of observations by features | *required*
-`bias_corrected` | <code>[bool](#bool)</code> | if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True | <code>True</code>
-`ttest` | <code>[bool](#bool)</code> | perform a ttest using the bias_corrected distance correlation; default False | <code>False</code>
+`x` | <code>ndarray</code> | 1d or 2d numpy array of observations by features | *required*
+`y` | <code>ndarray</code> | 1d or 2d numpy array of observations by features | *required*
+`bias_corrected` | <code>bool</code> | if false use double-centering which produces a biased-estimate that converges to 1 as the number of dimensions increase. Otherwise used u-centering to correct this bias. **Note** this must be True if ttest=True; default True | <code>True</code>
+`ttest` | <code>bool</code> | perform a ttest using the bias_corrected distance correlation; default False | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary of results (correlation, t, p, and df); optionally also     covariance, x variance, and y variance.
+<code>dict</code> | Dictionary of results (correlation, t, p, and df); optionally also     covariance, x variance, and y variance.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If arrays are not 1d or 2d, or if ttest=True and bias_corrected=False
 
 **Examples:**
 
@@ -1100,13 +1107,19 @@ This centers both rows and columns around zero.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat` | <code>[ndarray](#ndarray)</code> | 2d numpy array | *required*
+`mat` | <code>ndarray</code> | 2d numpy array | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Double-centered version of the input.
+<code>ndarray</code> | Double-centered version of the input.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If input is not 2D
 
 **Examples:**
 
@@ -1142,7 +1155,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Downsampled data (same type as input).
+<code>DataFrame \| Series</code> | Downsampled data (same type as input).
 
 (algorithms-fdr)=
 ### `fdr`
@@ -1166,7 +1179,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | p-value threshold based on independence or positive dependence.
+<code>float</code> | p-value threshold based on independence or positive dependence.
 
 (algorithms-find-spikes)=
 ### `find_spikes`
@@ -1184,14 +1197,14 @@ Name | Type | Description | Default
 `data` |  | BrainData or nibabel instance | *required*
 `global_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR global signal. None to skip. | <code>3</code>
 `diff_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR mean absolute frame-to-frame difference. None to skip. | <code>3</code>
-`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
-`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
+`TR` | <code>float \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>float \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.DesignMatrix)</code> | One indicator column per detected spike TR, named     ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved     namespace for generated columns (see `RESERVED_PREFIX`), with all     spike columns pre-marked as confounds. The two detectors run     independently, so a single bad volume is routinely caught by both;     those detections are bitwise-identical one-hot columns, and only one     is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —     the column values are the same either way). Row position is the time     axis (no separate `TR` index column — that was a pandas-era     artifact). When `TR` / `sampling_freq` aren't provided the DM has     `sampling_freq=None`; you can still `.append()` it onto a DM that     does have one.
+<code>[DesignMatrix](#data-design-matrix)</code> | One indicator column per detected spike TR, named     ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved     namespace for generated columns (see `RESERVED_PREFIX`), with all     spike columns pre-marked as confounds. The two detectors run     independently, so a single bad volume is routinely caught by both;     those detections are bitwise-identical one-hot columns, and only one     is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —     the column values are the same either way). Row position is the time     axis (no separate `TR` index column — that was a pandas-era     artifact). When `TR` / `sampling_freq` aren't provided the DM has     `sampling_freq=None`; you can still `.append()` it onto a DM that     does have one.
 
 (algorithms-fisher-r-to-z)=
 ### `fisher_r_to_z`
@@ -1212,7 +1225,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Fisher z-transformed correlation(s).
+<code>ndarray</code> | Fisher z-transformed correlation(s).
 
 (algorithms-fisher-z-to-r)=
 ### `fisher_z_to_r`
@@ -1233,7 +1246,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Correlation coefficient(s).
+<code>ndarray</code> | Correlation coefficient(s).
 
 (algorithms-glover-dispersion-derivative)=
 ### `glover_dispersion_derivative`
@@ -1250,16 +1263,16 @@ Thin wrapper over nilearn's `glover_dispersion_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-glover-hrf)=
 ### `glover_hrf`
@@ -1276,16 +1289,16 @@ Thin wrapper over nilearn's `glover_hrf`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
+<code>ndarray</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
 
 (algorithms-glover-time-derivative)=
 ### `glover_time_derivative`
@@ -1302,16 +1315,16 @@ Thin wrapper over nilearn's `glover_time_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The time derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The time derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-holm-bonf)=
 ### `holm_bonf`
@@ -1337,7 +1350,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | p-value threshold based on the Bonferroni step-down procedure.
+<code>float</code> | p-value threshold based on the Bonferroni step-down procedure.
 
 (algorithms-isc)=
 ### `isc`
@@ -1382,24 +1395,24 @@ which provides optimized implementations with CPU-parallel and GPU acceleration 
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#pd.DataFrame) \| [ndarray](#numpy.ndarray)</code> | Observations by subjects; ISC is computed across subjects. | *required*
-`n_samples` | <code>[int](#int)</code> | Number of random samples/bootstraps. | <code>5000</code>
-`summary` | <code>[str](#str)</code> | ISC summary statistic, one of 'mean' or 'median' (default: 'median'). | <code>'median'</code>
-`method` | <code>[str](#str)</code> | Method to compute p-values, one of 'bootstrap', 'circle_shift', or 'phase_randomize' (default: 'bootstrap'). | <code>'bootstrap'</code>
-`ci_percentile` | <code>[int](#int)</code> | Confidence-interval width in percent for the bootstrap CI (default: 95). | <code>95</code>
-`exclude_self_corr` | <code>[bool](#bool)</code> | Set self-correlations (same subject bootstrapped twice) to nan (default: True). | <code>True</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
-`metric` | <code>[str](#str)</code> | Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs (default: 'correlation'). | <code>'correlation'</code>
-`return_null` | <code>[bool](#bool)</code> | Return the permutation distribution along with the p-value (default: False). | <code>False</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPUs to use; -1 means all CPUs. | <code>-1</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Seed or generator for the resampling (default: None). | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, display a progress bar (default: False). | <code>False</code>
+`data` | <code>DataFrame \| ndarray</code> | Observations by subjects; ISC is computed across subjects. | *required*
+`n_samples` | <code>int</code> | Number of random samples/bootstraps. | <code>5000</code>
+`summary` | <code>str</code> | ISC summary statistic, one of 'mean' or 'median' (default: 'median'). | <code>'median'</code>
+`method` | <code>str</code> | Method to compute p-values, one of 'bootstrap', 'circle_shift', or 'phase_randomize' (default: 'bootstrap'). | <code>'bootstrap'</code>
+`ci_percentile` | <code>int</code> | Confidence-interval width in percent for the bootstrap CI (default: 95). | <code>95</code>
+`exclude_self_corr` | <code>bool</code> | Set self-correlations (same subject bootstrapped twice) to nan (default: True). | <code>True</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
+`metric` | <code>str</code> | Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs (default: 'correlation'). | <code>'correlation'</code>
+`return_null` | <code>bool</code> | Return the permutation distribution along with the p-value (default: False). | <code>False</code>
+`n_jobs` | <code>int</code> | Number of CPUs to use; -1 means all CPUs. | <code>-1</code>
+`random_state` | <code>int \| RandomState \| None</code> | Seed or generator for the resampling (default: None). | <code>None</code>
+`progress_bar` | <code>bool</code> | If True, display a progress bar (default: False). | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Permutation results with keys 'isc', 'p', 'ci', and 'null_dist'.
+<code>dict</code> | Permutation results with keys 'isc', 'p', 'ci', and 'null_dist'.
 
 (algorithms-isc-group)=
 ### `isc_group`
@@ -1440,25 +1453,25 @@ pinning the classic pairwise behavior and the `n_samples` vocabulary.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`group1` | <code>[DataFrame](#pd.DataFrame) \| [ndarray](#numpy.ndarray)</code> | Observations by subjects for the first group. | *required*
-`group2` | <code>[DataFrame](#pd.DataFrame) \| [ndarray](#numpy.ndarray)</code> | Observations by subjects for the second group. | *required*
-`n_samples` | <code>[int](#int)</code> | Number of samples for permutation or bootstrapping. | <code>5000</code>
-`summary` | <code>[str](#str)</code> | ISC summary statistic, one of 'mean' or 'median' (default: 'median'). | <code>'median'</code>
-`method` | <code>[str](#str)</code> | Method to compute p-values, one of 'permute' or 'bootstrap' (default: 'permute'). | <code>'permute'</code>
-`ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (default: 95). | <code>95</code>
-`exclude_self_corr` | <code>[bool](#bool)</code> | Exclude self-correlations in bootstrap (default: True). | <code>True</code>
-`return_null` | <code>[bool](#bool)</code> | Return the permutation distribution along with the p-value (default: False). | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
-`metric` | <code>[str](#str)</code> | Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs (default: 'correlation'). | <code>'correlation'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPUs to use; -1 means all CPUs. | <code>-1</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | If True, display a progress bar (default: False). | <code>False</code>
+`group1` | <code>DataFrame \| ndarray</code> | Observations by subjects for the first group. | *required*
+`group2` | <code>DataFrame \| ndarray</code> | Observations by subjects for the second group. | *required*
+`n_samples` | <code>int</code> | Number of samples for permutation or bootstrapping. | <code>5000</code>
+`summary` | <code>str</code> | ISC summary statistic, one of 'mean' or 'median' (default: 'median'). | <code>'median'</code>
+`method` | <code>str</code> | Method to compute p-values, one of 'permute' or 'bootstrap' (default: 'permute'). | <code>'permute'</code>
+`ci_percentile` | <code>float</code> | Confidence interval percentile (default: 95). | <code>95</code>
+`exclude_self_corr` | <code>bool</code> | Exclude self-correlations in bootstrap (default: True). | <code>True</code>
+`return_null` | <code>bool</code> | Return the permutation distribution along with the p-value (default: False). | <code>False</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
+`metric` | <code>str</code> | Pairwise distance metric; see sklearn's `pairwise_distances` for valid inputs (default: 'correlation'). | <code>'correlation'</code>
+`n_jobs` | <code>int</code> | Number of CPUs to use; -1 means all CPUs. | <code>-1</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility. | <code>None</code>
+`progress_bar` | <code>bool</code> | If True, display a progress bar (default: False). | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Permutation results with keys 'isc_group_difference' (observed ISC difference,     float or array), 'p' (p-value, float or array), 'ci' (confidence interval tuple     `(lower, upper)`), and 'null_dist' (null distribution, only if `return_null=True`).
+<code>dict</code> | Permutation results with keys 'isc_group_difference' (observed ISC difference,     float or array), 'p' (p-value, float or array), 'ci' (confidence interval tuple     `(lower, upper)`), and 'null_dist' (null distribution, only if `return_null=True`).
 
 (algorithms-isc-group-permutation-test)=
 ### `isc_group_permutation_test`
@@ -1477,27 +1490,27 @@ from Chen et al. (2016) for correct group comparison inference.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`group1` | <code>[ndarray](#numpy.ndarray)</code> | First group data with one of the following shapes: - (n_observations, n_subjects1): Single feature - (n_observations, n_subjects1, n_voxels): Voxel-wise | *required*
-`group2` | <code>[ndarray](#numpy.ndarray)</code> | Second group data with one of the following shapes: - (n_observations, n_subjects2): Single feature - (n_observations, n_subjects2, n_voxels): Voxel-wise | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations/bootstrap iterations. Defaults to 5000. | <code>5000</code>
-`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
-`method` | <code>[Literal](#typing.Literal)['permute', 'bootstrap']</code> | Resampling method for p-value computation: - 'permute': Subject-wise permutation (combines groups, permutes labels) - 'bootstrap': Subject-wise bootstrap (resamples within each group) Defaults to 'permute'. | <code>'permute'</code>
-`summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
-`ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
-`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
-`return_null` | <code>[bool](#bool)</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
-`exclude_self_corr` | <code>[bool](#bool)</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
-`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
+`group1` | <code>ndarray</code> | First group data with one of the following shapes: - (n_observations, n_subjects1): Single feature - (n_observations, n_subjects1, n_voxels): Voxel-wise | *required*
+`group2` | <code>ndarray</code> | Second group data with one of the following shapes: - (n_observations, n_subjects2): Single feature - (n_observations, n_subjects2, n_voxels): Voxel-wise | *required*
+`n_permute` | <code>int</code> | Number of permutations/bootstrap iterations. Defaults to 5000. | <code>5000</code>
+`summary` | <code>Literal['median', 'mean']</code> | Summary statistic for aggregating ISC values: - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`method` | <code>Literal['permute', 'bootstrap']</code> | Resampling method for p-value computation: - 'permute': Subject-wise permutation (combines groups, permutes labels) - 'bootstrap': Subject-wise bootstrap (resamples within each group) Defaults to 'permute'. | <code>'permute'</code>
+`summary_statistic` | <code>Literal['leave-one-out', 'pairwise']</code> | ISC computation method: - 'pairwise': Average all pairwise correlations - 'leave-one-out': Correlate each subject with mean of others Defaults to 'pairwise'. | <code>'pairwise'</code>
+`ci_percentile` | <code>float</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
+`tail` | <code>int \| str</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
+`device` | <code>Literal['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
+`random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
+`return_null` | <code>bool</code> | If True, return null distribution in result dict. Defaults to False. | <code>False</code>
+`progress_bar` | <code>bool</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
+`exclude_self_corr` | <code>bool</code> | Mask self-correlations in bootstrap (pairwise only). Defaults to True. | <code>True</code>
+`metric` | <code>str</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. Defaults to 'correlation'. | <code>'correlation'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys 'isc_group_difference' (observed ISC difference, float or     array per voxel), 'p' (Phipson-Smyth corrected p-value), 'ci' (confidence     interval tuple `(lower, upper)`), 'device' (parallelization method used),     and optionally 'null_dist' (bootstrap/permutation distribution).
+<code>dict[str, Any]</code> | Dictionary with keys 'isc_group_difference' (observed ISC difference, float or     array per voxel), 'p' (Phipson-Smyth corrected p-value), 'ci' (confidence     interval tuple `(lower, upper)`), 'device' (parallelization method used),     and optionally 'null_dist' (bootstrap/permutation distribution).
 
 **Examples:**
 
@@ -1560,27 +1573,27 @@ bootstrap resampling.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data array with one of the following shapes: - (n_observations, n_subjects): Single feature ISC - (n_observations, n_subjects, n_voxels): Voxel-wise ISC | *required*
-`n_permute` | <code>[int](#int)</code> | Number of bootstrap iterations or permutations. Defaults to 5000. | <code>5000</code>
-`summary` | <code>[Literal](#typing.Literal)['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
-`summary_statistic` | <code>[Literal](#typing.Literal)['leave-one-out', 'pairwise']</code> | ISC computation method. Options: - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016. - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure. Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3). Defaults to 'pairwise'. | <code>'pairwise'</code>
-`method` | <code>[Literal](#typing.Literal)['bootstrap', 'circle_shift', 'phase_randomize']</code> | Resampling method for p-value computation: - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016) - 'circle_shift': Circular time-series shift (preserves autocorrelation) - 'phase_randomize': FFT phase randomization (preserves power spectrum) Defaults to 'bootstrap'. | <code>'bootstrap'</code>
-`ci_percentile` | <code>[float](#float)</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | If True, return bootstrap/permutation distribution in result dict. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
-`exclude_self_corr` | <code>[bool](#bool)</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
-`metric` | <code>[str](#str)</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
-`device` | <code>[Literal](#typing.Literal)['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU working-set budget in GB. For the pairwise GPU bootstrap (``device='gpu'``, ``summary_statistic='pairwise'``, ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk, n_subjects, n_subjects)`` resample tensor, chunking voxels and permutations to fit — so whole-brain runs stay within budget. Not used by the LOO or surrogate (circle_shift/phase_randomize) paths. Defaults to 4. | <code>None</code>
-`random_state` | <code>[int](#int) \| None</code> | Random seed for reproducibility. | <code>None</code>
+`data` | <code>ndarray</code> | Data array with one of the following shapes: - (n_observations, n_subjects): Single feature ISC - (n_observations, n_subjects, n_voxels): Voxel-wise ISC | *required*
+`n_permute` | <code>int</code> | Number of bootstrap iterations or permutations. Defaults to 5000. | <code>5000</code>
+`summary` | <code>Literal['median', 'mean']</code> | Summary statistic to aggregate ISC values. - 'median': Direct median (robust to outliers) - 'mean': Fisher z-transformed mean (unbiased averaging) Defaults to 'median'. | <code>'median'</code>
+`summary_statistic` | <code>Literal['leave-one-out', 'pairwise']</code> | ISC computation method. Options: - 'leave-one-out': Correlate each subject with mean of others. O(n_subjects), unbiased, recommended by Chen et al. 2016. - 'pairwise': Average all pairwise correlations. O(n_subjects²), captures full correlation structure. Note: These methods are statistically different and monotonically but non-linearly related (see Chen et al. 2016, Figure 3). Defaults to 'pairwise'. | <code>'pairwise'</code>
+`method` | <code>Literal['bootstrap', 'circle_shift', 'phase_randomize']</code> | Resampling method for p-value computation: - 'bootstrap': Subject-wise bootstrap (default, Chen et al. 2016) - 'circle_shift': Circular time-series shift (preserves autocorrelation) - 'phase_randomize': FFT phase randomization (preserves power spectrum) Defaults to 'bootstrap'. | <code>'bootstrap'</code>
+`ci_percentile` | <code>float</code> | Confidence interval percentile (e.g., 95 for 95% CI). Defaults to 95. | <code>95</code>
+`tail` | <code>int \| str</code> | Two-tailed (2 or 'two', default) or one-tailed (1 or 'one', positive direction) p-value. | <code>2</code>
+`return_null` | <code>bool</code> | If True, return bootstrap/permutation distribution in result dict. Defaults to False. | <code>False</code>
+`progress_bar` | <code>bool</code> | Show progress bar during bootstrap/permutation. Defaults to False. | <code>False</code>
+`exclude_self_corr` | <code>bool</code> | If True, mask self-correlations (perfect correlations from duplicate subjects in bootstrap samples) as NaN. If False, include them in the summary statistic. Only applies when method='bootstrap' and summary_statistic='pairwise'. Defaults to True. | <code>True</code>
+`metric` | <code>str</code> | Similarity metric for pairwise ISC computation. See sklearn.metrics.pairwise_distances for valid options. Only applies when summary_statistic='pairwise'. For 'correlation', uses optimized np.corrcoef. Other metrics use pairwise_distances. Defaults to 'correlation'. | <code>'correlation'</code>
+`device` | <code>Literal['cpu', 'gpu'] \| None</code> | Parallelization method: - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (10-30× speedup for voxel-wise LOO) - None: Single-threaded NumPy (for debugging/small problems) Defaults to 'cpu'. | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (-1 = all cores). Only used when device='cpu'. Defaults to -1. | <code>-1</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | GPU working-set budget in GB. For the pairwise GPU bootstrap (``device='gpu'``, ``summary_statistic='pairwise'``, ``method='bootstrap'``) this bounds the ``(perm_batch, voxel_chunk, n_subjects, n_subjects)`` resample tensor, chunking voxels and permutations to fit — so whole-brain runs stay within budget. Not used by the LOO or surrogate (circle_shift/phase_randomize) paths. Defaults to 4. | <code>None</code>
+`random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)[[str](#str), [Any](#typing.Any)]</code> | Dictionary with keys 'isc' (observed ISC value, float or array per voxel),     'p' (Phipson-Smyth corrected p-value), 'ci' (confidence interval tuple     `(lower, upper)`), 'device' (parallelization method used), and     optionally 'null_dist' (bootstrap/permutation distribution).
+<code>dict[str, Any]</code> | Dictionary with keys 'isc' (observed ISC value, float or array per voxel),     'p' (Phipson-Smyth corrected p-value), 'ci' (confidence interval tuple     `(lower, upper)`), 'device' (parallelization method used), and     optionally 'null_dist' (bootstrap/permutation distribution).
 
 **Examples:**
 
@@ -1659,15 +1672,15 @@ Each subject's ISFC computation is independent and can be parallelized efficient
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Subject matrices (observations x voxels/rois). | *required*
-`method` | <code>[str](#str)</code> | Approach to computing ISFC; 'average' uses leave-one-out. | <code>'average'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs; -1 means all available cores (default: -1). | <code>-1</code>
+`data` | <code>list[ndarray]</code> | Subject matrices (observations x voxels/rois). | *required*
+`method` | <code>str</code> | Approach to computing ISFC; 'average' uses leave-one-out. | <code>'average'</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs; -1 means all available cores (default: -1). | <code>-1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)</code> | One ISFC matrix (`np.ndarray`) per subject.
+<code>list</code> | One ISFC matrix (`np.ndarray`) per subject.
 
 (algorithms-isps)=
 ### `isps`
@@ -1708,18 +1721,18 @@ functional connectivity. Brain connectivity, 2(2), 91-101.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#pd.DataFrame) \| [ndarray](#numpy.ndarray)</code> | Observations x subjects data. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency of the data in Hz. | <code>0.5</code>
-`low_cut` | <code>[float](#float)</code> | Lower cutoff for the bandpass filter. | <code>0.04</code>
-`high_cut` | <code>[float](#float)</code> | Upper cutoff for the bandpass filter. | <code>0.07</code>
-`order` | <code>[int](#int)</code> | Butterworth bandpass filter order. | <code>5</code>
-`pairwise` | <code>[bool](#bool)</code> | If True, compute phase-angle coherence on pairwise phase-angle differences instead of on the raw phase angles. | <code>False</code>
+`data` | <code>DataFrame \| ndarray</code> | Observations x subjects data. | *required*
+`sampling_freq` | <code>float</code> | Sampling frequency of the data in Hz. | <code>0.5</code>
+`low_cut` | <code>float</code> | Lower cutoff for the bandpass filter. | <code>0.04</code>
+`high_cut` | <code>float</code> | Upper cutoff for the bandpass filter. | <code>0.07</code>
+`order` | <code>int</code> | Butterworth bandpass filter order. | <code>5</code>
+`pairwise` | <code>bool</code> | If True, compute phase-angle coherence on pairwise phase-angle differences instead of on the raw phase angles. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Mean phase angle, vector length, and Rayleigh statistic.
+<code>dict</code> | Mean phase angle, vector length, and Rayleigh statistic.
 
 (algorithms-make-cosine-basis)=
 ### `make_cosine_basis`
@@ -1739,17 +1752,17 @@ basis (i.e. sigmoidal/linear drift).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`nsamples` | <code>[int](#int)</code> | number of observations (e.g. TRs) | *required*
-`sampling_freq` | <code>[float](#float)</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
-`filter_length` | <code>[int](#int)</code> | length of filter in seconds | *required*
-`unit_scale` | <code>[bool](#bool)</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
-`drop` | <code>[int](#int)</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
+`nsamples` | <code>int</code> | number of observations (e.g. TRs) | *required*
+`sampling_freq` | <code>float</code> | sampling frequency in hertz (i.e. 1 / TR) | *required*
+`filter_length` | <code>int</code> | length of filter in seconds | *required*
+`unit_scale` | <code>bool</code> | assure that the basis functions are on the normalized range [-1, 1]; default True | <code>True</code>
+`drop` | <code>int</code> | index of which early/slow bases to drop if any; default is to drop constant (i.e. intercept) like SPM. Unlike SPM, retains first basis (i.e. linear/sigmoidal). Will cumulatively drop bases up to and inclusive of index provided (e.g. 2, drops bases 1 and 2) | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | nsamples x number of basis sets numpy array.
+<code>ndarray</code> | nsamples x number of basis sets numpy array.
 
 (algorithms-matrix-permutation-test)=
 ### `matrix_permutation_test`
@@ -1778,24 +1791,24 @@ correlation. Count how often permuted correlation is as extreme as observed.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First square matrix (n×n) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second square matrix (n×n) | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`metric` | <code>[str](#str)</code> | Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson') | <code>'pearson'</code>
-`how` | <code>[str](#str)</code> | Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
-`include_diag` | <code>[bool](#bool)</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | Return null distribution (default: False) | <code>False</code>
-`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
-`random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
+`data1` | <code>ndarray</code> | First square matrix (n×n) | *required*
+`data2` | <code>ndarray</code> | Second square matrix (n×n) | *required*
+`n_permute` | <code>int</code> | Number of permutations (default: 5000) | <code>5000</code>
+`metric` | <code>str</code> | Correlation metric, one of 'pearson', 'spearman', or 'kendall' (default: 'pearson') | <code>'pearson'</code>
+`how` | <code>str</code> | Which elements to compare, one of 'upper', 'lower', or 'full' (default: 'upper') - 'upper': Upper triangle only (assumes symmetric matrices) - 'lower': Lower triangle only - 'full': All elements (see include_diag) | <code>'upper'</code>
+`include_diag` | <code>bool</code> | Include diagonal elements (only applies if how='full') (default: False) | <code>False</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (r != 0) - `1`/`'one'`: One-tailed (r > 0; negate the data for the other direction) | <code>2</code>
+`return_null` | <code>bool</code> | Return null distribution (default: False) | <code>False</code>
+`device` | <code>str</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of parallel workers, -1 = all cores (default: -1) Only used when device='cpu' | <code>-1</code>
+`random_state` | <code>int</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'correlation' (float): Observed correlation coefficient     - 'p' (float): P-value using Phipson-Smyth correction     - 'device' (str): Parallelization method used ('cpu' or None)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
+<code>dict</code> | Dictionary with keys:     - 'correlation' (float): Observed correlation coefficient     - 'p' (float): P-value using Phipson-Smyth correction     - 'device' (str): Parallelization method used ('cpu' or None)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -1848,7 +1861,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | Thresholded BrainData instance with cumulative map. Positive     values indicate how many thresholds were passed for positive stats;     negative values indicate how many thresholds were passed for negative     stats.
+<code>[BrainData](#data-brain-data)</code> | Thresholded BrainData instance with cumulative map. Positive     values indicate how many thresholds were passed for positive stats;     negative values indicate how many thresholds were passed for negative     stats.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -1881,21 +1894,21 @@ distributions, consider alternative methods (e.g., bootstrap resampling).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Data to test - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature (voxel-wise) | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (mean != 0) - `1`/`'one'`: One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display a progress bar (default: False) | <code>False</code>
+`data` | <code>ndarray</code> | Data to test - shape (n_samples,) for single feature - shape (n_samples, n_features) for multi-feature (voxel-wise) | *required*
+`n_permute` | <code>int</code> | Number of permutations (default: 5000) | <code>5000</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (mean != 0) - `1`/`'one'`: One-tailed (mean > 0; negate the data for the other   direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`return_null` | <code>bool</code> | If True, return full null distribution (default: False) | <code>False</code>
+`device` | <code>str</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>float</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
+`random_state` | <code>int</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Whether to display a progress bar (default: False) | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'mean' (float or np.ndarray): Observed mean(s)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
+<code>dict</code> | Dictionary with keys:     - 'mean' (float or np.ndarray): Observed mean(s)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -1962,15 +1975,21 @@ dynamics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
-`device` | <code>[str](#str) \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
+`data` | <code>ndarray</code> | Time series data, shape (n_samples,) or (n_samples, n_features) | *required*
+`device` | <code>str \| None</code> | Compute device. - 'cpu' / None: NumPy FFT (default, float64 precision) - 'gpu': PyTorch FFT on CUDA/MPS (float32 precision, 5-20× faster for large data) - 'auto': use a GPU if present, else CPU | <code>'cpu'</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Phase-randomized data with same shape as input
+<code>ndarray</code> | Phase-randomized data with same shape as input
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If device is not None, 'cpu', 'gpu', or 'auto' (run-or-raise — an invalid device never silently falls back to CPU)
 
 <details class="notes" open markdown="1">
 <summary>Notes</summary>
@@ -2017,18 +2036,18 @@ inference (Peres-Neto & Jackson, 2001).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat1` | <code>[ndarray](#ndarray)</code> | 2d numpy array; must have same number of rows as mat2 | *required*
-`mat2` | <code>[ndarray](#ndarray)</code> | 1d or 2d numpy array; must have same number of rows as mat1 | *required*
-`n_permute` | <code>[int](#int)</code> | number of permutation iterations to perform | <code>5000</code>
-`tail` | <code>[int](#int) or [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (similarity > chance) | <code>2</code>
-`n_jobs` | <code>[int](#int)</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
+`mat1` | <code>ndarray</code> | 2d numpy array; must have same number of rows as mat2 | *required*
+`mat2` | <code>ndarray</code> | 1d or 2d numpy array; must have same number of rows as mat1 | *required*
+`n_permute` | <code>int</code> | number of permutation iterations to perform | <code>5000</code>
+`tail` | <code>int or str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (similarity > chance) | <code>2</code>
+`n_jobs` | <code>int</code> | The number of CPUs to use to do permutation; default -1 (all) | <code>-1</code>
 `random_state` | <code>int, np.random.RandomState, or None</code> | seed or generator for the permutation shuffling; default None | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
+<code>dict</code> | results with keys `similarity` (float in [0, 1]) and `p` (permuted p-value)
 
 (algorithms-regress)=
 ### `regress`
@@ -2048,15 +2067,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `X` |  | Design matrix, shape ``(n_samples, n_regressors)``. | *required*
 `Y` |  | Response, shape ``(n_samples,)`` or ``(n_samples, n_targets)``. | *required*
-`method` | <code>[str](#str)</code> | Only ``'ols'`` is supported in v0.6.0. The legacy ``'robust'`` and ``'arma'`` methods were dropped; use statsmodels or a dedicated package if you need them. | <code>'ols'</code>
-`stats` | <code>[str](#str)</code> | ``'full'`` returns the 6-tuple below; ``'betas'`` returns just ``b``; ``'tstats'`` returns ``(b, t)``. | <code>'full'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0; negate a regressor for the other direction). | <code>2</code>
+`method` | <code>str</code> | Only ``'ols'`` is supported in v0.6.0. The legacy ``'robust'`` and ``'arma'`` methods were dropped; use statsmodels or a dedicated package if you need them. | <code>'ols'</code>
+`stats` | <code>str</code> | ``'full'`` returns the 6-tuple below; ``'betas'`` returns just ``b``; ``'tstats'`` returns ``(b, t)``. | <code>'full'</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: beta > 0; negate a regressor for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | ``(b, se, t, p, df, res)`` when ``stats='full'`` — coefficients,     standard errors, t-statistics, p-values (per ``tail``), residual     degrees of freedom, and residuals. ``stats='betas'`` returns just     ``b``; ``stats='tstats'`` returns ``(b, t)``.
+<code>tuple</code> | ``(b, se, t, p, df, res)`` when ``stats='full'`` — coefficients,     standard errors, t-statistics, p-values (per ``tail``), residual     degrees of freedom, and residuals. ``stats='betas'`` returns just     ``b``; ``stats='tstats'`` returns ``(b, t)``.
 
 (algorithms-ridge-cv)=
 ### `ridge_cv`
@@ -2074,20 +2093,20 @@ then fits a final model on all data using the selected alpha.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
-`alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
+`X` | <code>ndarray</code> | Training data features with shape (n_samples, n_features) | *required*
+`y` | <code>ndarray</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
+`alphas` | <code>ndarray</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
-`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
+`fit_intercept` | <code>bool</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary containing:<br>    - 'alpha' (float): Best alpha value selected by CV     - 'coef' (np.ndarray): Coefficients using best alpha on full dataset     - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target         with shape (n_folds, n_alphas, n_targets)     - 'backend' (str): Backend used for computation
+<code>dict</code> | Dictionary containing:<br>    - 'alpha' (float): Best alpha value selected by CV     - 'coef' (np.ndarray): Coefficients using best alpha on full dataset     - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target         with shape (n_folds, n_alphas, n_targets)     - 'backend' (str): Backend used for computation
 
 **Examples:**
 
@@ -2153,18 +2172,18 @@ The shrinkage factor s / (s**2 + alpha) regularizes small singular values.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
-`alpha` | <code>[float](#float)</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
+`X` | <code>ndarray</code> | Training data features with shape (n_samples, n_features) | *required*
+`y` | <code>ndarray</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
+`alpha` | <code>float</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
+`max_gpu_memory_gb` | <code>float</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Ridge regression coefficients     - shape (n_features,) for single-target regression     - shape (n_features, n_targets) for multi-target regression
+<code>ndarray</code> | Ridge regression coefficients     - shape (n_features,) for single-target regression     - shape (n_features, n_targets) for multi-target regression
 
 **Examples:**
 
@@ -2212,16 +2231,16 @@ Thin wrapper over nilearn's `spm_dispersion_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-spm-hrf)=
 ### `spm_hrf`
@@ -2238,16 +2257,16 @@ Thin wrapper over nilearn's `spm_hrf`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
+<code>ndarray</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
 
 (algorithms-spm-time-derivative)=
 ### `spm_time_derivative`
@@ -2264,16 +2283,16 @@ Thin wrapper over nilearn's `spm_time_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The time derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The time derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-threshold)=
 ### `threshold`
@@ -2297,7 +2316,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData) \| [tuple](#tuple)[[BrainData](#nltools.data.BrainData), [BrainData](#nltools.data.BrainData)]</code> | The thresholded BrainData instance;     if `return_mask=True`, a tuple `(out, mask)` where `mask` is the     BrainData instance of the thresholding mask.
+<code>[BrainData](#data-brain-data) \| tuple[[BrainData](#data-brain-data), [BrainData](#data-brain-data)]</code> | The thresholded BrainData instance;     if `return_mask=True`, a tuple `(out, mask)` where `mask` is the     BrainData instance of the thresholding mask.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -2330,18 +2349,18 @@ permutation tests inflate Type I error for autocorrelated data.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | First time series, shape (n_samples,) or (n_samples, 1) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Second time series, shape (n_samples,) or (n_samples, 1) | *required*
-`method` | <code>[Literal](#typing.Literal)['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
-`n_permute` | <code>[int](#int)</code> | Number of permutations | <code>5000</code>
-`metric` | <code>[Literal](#typing.Literal)['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
-`device` | <code>[str](#str) \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
-`return_null` | <code>[bool](#bool)</code> | Whether to return null distribution | <code>False</code>
-`random_state` | <code>[int](#int) \| [RandomState](#numpy.random.RandomState) \| None</code> | Random seed for reproducibility | <code>None</code>
-`progress_bar` | <code>[bool](#bool)</code> | Show a progress bar over permutations (default: False) | <code>False</code>
+`data1` | <code>ndarray</code> | First time series, shape (n_samples,) or (n_samples, 1) | *required*
+`data2` | <code>ndarray</code> | Second time series, shape (n_samples,) or (n_samples, 1) | *required*
+`method` | <code>Literal['circle_shift', 'phase_randomize']</code> | Permutation method: - 'circle_shift': Circular shift (preserves autocorrelation) - 'phase_randomize': FFT-based (preserves power spectrum) | <code>'circle_shift'</code>
+`n_permute` | <code>int</code> | Number of permutations | <code>5000</code>
+`metric` | <code>Literal['pearson', 'spearman', 'kendall']</code> | Correlation type ('pearson', 'spearman', 'kendall') | <code>'pearson'</code>
+`tail` | <code>int \| str</code> | Test type (default: 2) - 2 or 'two': Two-tailed test (default) - 1 or 'one': One-tailed test in the test's positive direction   (to test the negative direction, negate the data / swap groups) | <code>2</code>
+`device` | <code>str \| None</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of parallel jobs (-1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
+`return_null` | <code>bool</code> | Whether to return null distribution | <code>False</code>
+`random_state` | <code>int \| RandomState \| None</code> | Random seed for reproducibility | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over permutations (default: False) | <code>False</code>
 
 **Returns:**
 
@@ -2415,7 +2434,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)]</code> | `(X_trans, y_trans)` — `X_trans` has shape     (k, n_features) and holds the data as pairs, where     k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;     if grouping variables exist, values are computed within each group.     `y_trans` has shape (k,) and holds the output class labels with values     {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the     second dimension.
+<code>tuple[ndarray, ndarray]</code> | `(X_trans, y_trans)` — `X_trans` has shape     (k, n_features) and holds the data as pairs, where     k = n_samples * (n_samples - 1) / 2 if grouping values were not passed;     if grouping variables exist, values are computed within each group.     `y_trans` has shape (k,) and holds the output class labels with values     {-1, +1}; if y was shape (n_samples, 2), it is (k, 2) with groups on the     second dimension.
 
 (algorithms-trim)=
 ### `trim`
@@ -2430,14 +2449,14 @@ Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to trim. | *required*
-`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
+`data` | <code>DataFrame \| Series</code> | Data to trim. | *required*
+`cutoff` | <code>dict</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Trimmed data (outliers replaced with NaN), the     same type as the input.
+<code>DataFrame \| Series</code> | Trimmed data (outliers replaced with NaN), the     same type as the input.
 
 (algorithms-two-sample-permutation-test)=
 ### `two_sample_permutation_test`
@@ -2459,21 +2478,21 @@ are arbitrary). Valid for independent samples from similar distributions.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data1` | <code>[ndarray](#numpy.ndarray)</code> | Group 1 data - shape (n_samples1,) for single feature - shape (n_samples1, n_features) for multi-feature (voxel-wise) | *required*
-`data2` | <code>[ndarray](#numpy.ndarray)</code> | Group 2 data - shape (n_samples2,) for single feature - shape (n_samples2, n_features) for multi-feature (voxel-wise) | *required*
-`n_permute` | <code>[int](#int)</code> | Number of permutations (default: 5000) | <code>5000</code>
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (mean1 != mean2) - `1`/`'one'`: One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
-`return_null` | <code>[bool](#bool)</code> | If True, return full null distribution (default: False) | <code>False</code>
-`device` | <code>[str](#str)</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
-`n_jobs` | <code>[int](#int)</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed for reproducibility | <code>None</code>
+`data1` | <code>ndarray</code> | Group 1 data - shape (n_samples1,) for single feature - shape (n_samples1, n_features) for multi-feature (voxel-wise) | *required*
+`data2` | <code>ndarray</code> | Group 2 data - shape (n_samples2,) for single feature - shape (n_samples2, n_features) for multi-feature (voxel-wise) | *required*
+`n_permute` | <code>int</code> | Number of permutations (default: 5000) | <code>5000</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). - `2`/`'two'`: Two-tailed test (mean1 != mean2) - `1`/`'one'`: One-tailed (mean1 > mean2; swap the groups for the   other direction). The fixed direction keeps MCP correction valid. | <code>2</code>
+`return_null` | <code>bool</code> | If True, return full null distribution (default: False) | <code>False</code>
+`device` | <code>str</code> | Parallelization method (default: 'cpu') - None: Single-threaded NumPy (for debugging/small problems) - 'cpu': CPU parallelization via joblib (default, 4-8× speedup) - 'gpu': GPU acceleration via PyTorch (fastest for large problems) | <code>'cpu'</code>
+`n_jobs` | <code>int</code> | Number of CPU cores for parallelization (default: -1 = all cores) Only used when device='cpu' | <code>-1</code>
+`max_gpu_memory_gb` | <code>float</code> | Explicit GPU memory budget in GB. None (default) measures the device's available memory. Controls automatic batching to prevent OOM errors. Only used with device='gpu'. Larger values allow more permutations per batch but risk OOM on smaller GPUs. | <code>None</code>
+`random_state` | <code>int</code> | Random seed for reproducibility | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
+<code>dict</code> | Dictionary with keys:     - 'mean_diff' (float or np.ndarray): Observed mean difference (data1 - data2)     - 'p' (float or np.ndarray): P-value(s)     - 'null_dist' (np.ndarray): Null distribution (if return_null=True)     - 'device' (str): Parallelization method used
 
 **Examples:**
 
@@ -2530,13 +2549,19 @@ The diagonal is explicitly set to zero.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mat` | <code>[ndarray](#ndarray)</code> | 2d numpy array | *required*
+`mat` | <code>ndarray</code> | 2d numpy array | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | U-centered version of the input.
+<code>ndarray</code> | U-centered version of the input.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If input is not 2D
 
 **Examples:**
 
@@ -2560,17 +2585,17 @@ Upsample a Polars DataFrame/Series to a new target frequency or number of sample
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to upsample. Non-numeric columns are dropped from a DataFrame. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency of the data in Hz. | <code>None</code>
-`target` | <code>[float](#float)</code> | Upsampling target. | <code>None</code>
-`target_type` | <code>[str](#str)</code> | Unit of `target`, one of 'samples', 'seconds', or 'hz'. | <code>'samples'</code>
-`method` | <code>[str](#str)</code> | Interpolation method, one of 'linear', 'nearest', 'zero', 'slinear', 'quadratic', or 'cubic'; 'zero', 'slinear', 'quadratic' and 'cubic' refer to spline interpolation of zeroth, first, second or third order (default: 'linear'). | <code>'linear'</code>
+`data` | <code>DataFrame \| Series</code> | Data to upsample. Non-numeric columns are dropped from a DataFrame. | *required*
+`sampling_freq` | <code>float</code> | Sampling frequency of the data in Hz. | <code>None</code>
+`target` | <code>float</code> | Upsampling target. | <code>None</code>
+`target_type` | <code>str</code> | Unit of `target`, one of 'samples', 'seconds', or 'hz'. | <code>'samples'</code>
+`method` | <code>str</code> | Interpolation method, one of 'linear', 'nearest', 'zero', 'slinear', 'quadratic', or 'cubic'; 'zero', 'slinear', 'quadratic' and 'cubic' refer to spline interpolation of zeroth, first, second or third order (default: 'linear'). | <code>'linear'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Upsampled data, the same type as the input.
+<code>DataFrame \| Series</code> | Upsampled data, the same type as the input.
 
 (algorithms-winsorize)=
 ### `winsorize`
@@ -2585,15 +2610,15 @@ Winsorize a Polars DataFrame/Series with the largest/lowest value not considered
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to winsorize. | *required*
-`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
-`replace_with_cutoff` | <code>[bool](#bool)</code> | If True, replace outliers with the cutoff value; if False, replace them with the closest existing values (default: True). | <code>True</code>
+`data` | <code>DataFrame \| Series</code> | Data to winsorize. | *required*
+`cutoff` | <code>dict</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
+`replace_with_cutoff` | <code>bool</code> | If True, replace outliers with the cutoff value; if False, replace them with the closest existing values (default: True). | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Winsorized data, the same type as the input.
+<code>DataFrame \| Series</code> | Winsorized data, the same type as the input.
 
 (algorithms-zscore)=
 ### `zscore`
@@ -2618,4 +2643,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Same type and shape as the input, each column     z-scored using the sample standard deviation (ddof=1).
+<code>DataFrame \| Series</code> | Same type and shape as the input, each column     z-scored using the sample standard deviation (ddof=1).

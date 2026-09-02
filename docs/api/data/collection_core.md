@@ -1,5 +1,6 @@
 ---
 title: data.collection.core
+label: data-collection-core
 ---
 
 Module-level helpers for BrainCollection.
@@ -7,7 +8,7 @@ Module-level helpers for BrainCollection.
 Pure functions: metadata coercion, mask resolution, run/step ID generation,
 step-directory naming. No class state lives here.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -19,7 +20,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-collection-core-coerce-metadata)=
 ### `coerce_metadata`

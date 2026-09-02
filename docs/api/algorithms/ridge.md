@@ -1,5 +1,6 @@
 ---
 title: algorithms.ridge
+label: algorithms-ridge
 ---
 
 Ridge regression algorithms and utilities.
@@ -12,7 +13,7 @@ Features:
 - GPU acceleration (10-100x speedup on large datasets)
 - Banded ridge for multiple feature spaces
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -36,7 +37,7 @@ Y = np.random.randn(100, 10)
 result = solve_ridge_cv(X, Y, alphas=[0.1, 1.0, 10.0])
 ```
 
-## Methods
+## Functions
 
 (algorithms-ridge-cross-val-predict-ridge)=
 ### `cross_val_predict_ridge`
@@ -62,23 +63,30 @@ predictions and per-fold R² needed for ``cv_results_``.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
-`Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). 1D ``Y`` is promoted to (n_samples, 1). | *required*
-`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray)</code> | Per-target alpha array of shape (n_targets,) or a scalar (broadcast to every target). | *required*
-`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``) are rejected — pass the splitter object instead. | <code>5</code>
-`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and Y on the *training fold's* mean per fold (sklearn convention) and add the intercept back so predictions live on the original Y scale. | <code>False</code>
-`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during refit (for memory efficiency). If None, processes all targets at once. | <code>None</code>
-`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas. If None, processes all unique alphas at once. | <code>None</code>
-`Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
-`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
-`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>None</code>
+`X` | <code>ndarray</code> | Feature matrix of shape (n_samples, n_features). | *required*
+`Y` | <code>ndarray</code> | Target data of shape (n_samples, n_targets). 1D ``Y`` is promoted to (n_samples, 1). | *required*
+`alphas` | <code>float \| ndarray</code> | Per-target alpha array of shape (n_targets,) or a scalar (broadcast to every target). | *required*
+`cv` | <code>int \| BaseCrossValidator</code> | Cross-validation strategy. If int, uses KFold with that many splits (no shuffling). Generators (e.g. ``KFold(5).split(X)``) are rejected — pass the splitter object instead. | <code>5</code>
+`fit_intercept` | <code>bool</code> | If True, center X and Y on the *training fold's* mean per fold (sklearn convention) and add the intercept back so predictions live on the original Y scale. | <code>False</code>
+`n_targets_batch` | <code>int \| None</code> | Batch size for targets during refit (for memory efficiency). If None, processes all targets at once. | <code>None</code>
+`n_alphas_batch` | <code>int \| None</code> | Batch size for alphas. If None, processes all unique alphas at once. | <code>None</code>
+`Y_in_cpu` | <code>bool</code> | If True, keep Y on CPU and transfer batches to backend device as needed (recommended for large neuroimaging Y). | <code>True</code>
+`score_func` | <code>Callable[[ndarray, ndarray], ndarray] \| None</code> | Per-fold scoring function ``(y_true, y_pred) -> per-target scores``. If None, uses R² in NumPy on CPU (cheap at one fold's size and decoupled from backend ops to avoid stray transfers). | <code>None</code>
+`parallel` | <code>str \| None</code> | Backend to use: "cpu", "gpu", or None. | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'predictions': (n_samples, n_targets) held-out per-target       predictions on the original Y scale (CPU numpy).     - 'folds': (n_samples,) int fold index per row (CPU numpy).     - 'scores': (n_splits, n_targets) per-fold R² (or       ``score_func``) at the supplied alpha (CPU numpy).     - 'backend': Backend used (for transparency).
+<code>dict</code> | Dictionary with keys:     - 'predictions': (n_samples, n_targets) held-out per-target       predictions on the original Y scale (CPU numpy).     - 'folds': (n_samples,) int fold index per row (CPU numpy).     - 'scores': (n_splits, n_targets) per-fold R² (or       ``score_func``) at the supplied alpha (CPU numpy).     - 'backend': Backend used (for transparency).
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>TypeError</code> | If ``cv`` is a single-use generator. Pass the splitter object instead.
+<code>ValueError</code> | If ``alphas`` does not broadcast to ``(n_targets,)``, or ``n_samples`` of X and Y disagree.
 
 (algorithms-ridge-generate-dirichlet-samples)=
 ### `generate_dirichlet_samples`
@@ -97,16 +105,16 @@ regression random search.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_samples` | <code>[int](#int)</code> | Number of samples to generate. | *required*
-`n_kernels` | <code>[int](#int)</code> | Number of dimensions (feature spaces) of the distribution. | *required*
-`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
+`n_samples` | <code>int</code> | Number of samples to generate. | *required*
+`n_kernels` | <code>int</code> | Number of dimensions (feature spaces) of the distribution. | *required*
+`concentration` | <code>float \| list[float]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, samples cycle through the list. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`random_state` | <code>int \| None</code> | Random generator seed. Use an int for deterministic samples. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Dirichlet samples of shape (n_samples, n_kernels).     Each row sums to 1 (lies on simplex).
+<code>ndarray</code> | Dirichlet samples of shape (n_samples, n_kernels).     Each row sums to 1 (lies on simplex).
 
 **Examples:**
 
@@ -136,20 +144,20 @@ then fits a final model on all data using the selected alpha.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
-`alphas` | <code>[ndarray](#numpy.ndarray)</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
+`X` | <code>ndarray</code> | Training data features with shape (n_samples, n_features) | *required*
+`y` | <code>ndarray</code> | Target values with shape (n_samples,) or (n_samples, n_targets) | *required*
+`alphas` | <code>ndarray</code> | Array of alpha values to try. If None, uses default range: np.logspace(-2, 4, 20) = [0.01, 0.015, ..., 10000] | <code>None</code>
 `cv` | <code>int or sklearn CV splitter</code> | Number of folds (int) or an sklearn cross-validator (anything with ``.split(X)`` and ``.get_n_splits()``, e.g. ``KFold(5, shuffle=True)`` or ``GroupKFold(8)``). Splitters are honored for the actual fold iteration, so leave-one-run-out and shuffled-K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
-`fit_intercept` | <code>[bool](#bool)</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
+`fit_intercept` | <code>bool</code> | If True, center X and y on the training mean before fitting and recover the intercept after. The returned ``coef`` is on the centered scale; the recovered intercept is returned under the ``intercept`` key. Defaults to False. | <code>False</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to "cpu". | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary containing:<br>    - 'alpha' (float): Best alpha value selected by CV     - 'coef' (np.ndarray): Coefficients using best alpha on full dataset     - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target         with shape (n_folds, n_alphas, n_targets)     - 'backend' (str): Backend used for computation
+<code>dict</code> | Dictionary containing:<br>    - 'alpha' (float): Best alpha value selected by CV     - 'coef' (np.ndarray): Coefficients using best alpha on full dataset     - 'cv_scores' (np.ndarray): Cross-validation R**2 scores for each fold, alpha, and target         with shape (n_folds, n_alphas, n_targets)     - 'backend' (str): Backend used for computation
 
 **Examples:**
 
@@ -215,18 +223,18 @@ The shrinkage factor s / (s**2 + alpha) regularizes small singular values.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Training data features with shape (n_samples, n_features) | *required*
-`y` | <code>[ndarray](#numpy.ndarray)</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
-`alpha` | <code>[float](#float)</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>[str](#str)</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
-`max_gpu_memory_gb` | <code>[float](#float)</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int)</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
+`X` | <code>ndarray</code> | Training data features with shape (n_samples, n_features) | *required*
+`y` | <code>ndarray</code> | Target values with shape (n_samples,) or (n_samples, n_targets). Can be 1D for single-target or 2D for multi-target | *required*
+`alpha` | <code>float</code> | Regularization strength. Must be positive. Higher values increase regularization (shrink coefficients toward zero). Defaults to 1.0. | <code>1.0</code>
+`parallel` | <code>str</code> | Execution backend. - None: Single-threaded NumPy (debugging/small problems) - "cpu": CPU-only using NumPy (default) - "gpu": GPU acceleration via PyTorch. Requires torch installed   (raises ImportError otherwise); degrades to torch-CPU only when no   GPU device is present. Use "auto" for torch-optional CPU fallback. Defaults to None. | <code>None</code>
+`max_gpu_memory_gb` | <code>float</code> | GPU memory budget in GB (only used if parallel='gpu'). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int</code> | Random seed (not currently used, kept for consistency). Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Ridge regression coefficients     - shape (n_features,) for single-target regression     - shape (n_features, n_targets) for multi-target regression
+<code>ndarray</code> | Ridge regression coefficients     - shape (n_features,) for single-target regression     - shape (n_features, n_targets) for multi-target regression
 
 **Examples:**
 
@@ -284,34 +292,34 @@ standard ridge regression is applied with alpha grid search.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`Xs` | <code>[list](#list)[[ndarray](#numpy.ndarray)]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
-`Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`n_iter` | <code>[int](#int) \| [integer](#numpy.integer) \| [ndarray](#numpy.ndarray)</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
-`concentration` | <code>[float](#float) \| [list](#list)[[float](#float)]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
-`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
-`local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
-`Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
-`fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
-`conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
-`jitter_alphas` | <code>[bool](#bool)</code> | If True, alphas range is slightly jittered for each gamma. Defaults to False. | <code>False</code>
-`return_weights` | <code>[bool](#bool)</code> | Whether to refit on the entire dataset and return the weights. Defaults to True. | <code>True</code>
-`diagonalize_method` | <code>[str](#str)</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
-`warn` | <code>[bool](#bool)</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
-`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`Xs` | <code>list[ndarray]</code> | Feature matrices for different feature spaces. Each array has shape (n_samples, n_features_i). All must have the same n_samples. | *required*
+`Y` | <code>ndarray</code> | Target data of shape (n_samples, n_targets). | *required*
+`n_iter` | <code>int \| integer \| ndarray</code> | Number of feature-space weights combination to search, or array of shape (n_iter, n_spaces). If an array is given, the solver uses it as the list of weights to try, instead of sampling from a Dirichlet distribution. Defaults to 100. | <code>100</code>
+`concentration` | <code>float \| list[float]</code> | Concentration parameters of the Dirichlet distribution. - A value of 1 corresponds to uniform sampling over the simplex. - A value of infinity corresponds to equal weights. - If a list, iteratively cycle through the list. Not used if n_iter is an array. Defaults to [0.1, 1.0]. | <code>[0.1, 1.0]</code>
+`alphas` | <code>float \| ndarray \| list[float]</code> | Range of ridge regularization parameters to try. Can be float or array of shape (n_alphas,). Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>int \| BaseCrossValidator</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`local_alpha` | <code>bool</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
+`n_targets_batch` | <code>int \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>int \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>int \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`Y_in_cpu` | <code>bool</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
+`score_func` | <code>Callable[[ndarray, ndarray], ndarray] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`fit_intercept` | <code>bool</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
+`progress_bar` | <code>bool</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
+`conservative` | <code>bool</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
+`jitter_alphas` | <code>bool</code> | If True, alphas range is slightly jittered for each gamma. Defaults to False. | <code>False</code>
+`return_weights` | <code>bool</code> | Whether to refit on the entire dataset and return the weights. Defaults to True. | <code>True</code>
+`diagonalize_method` | <code>str</code> | Method used to diagonalize the features. Currently only "svd" is supported. Defaults to "svd". | <code>'svd'</code>
+`warn` | <code>bool</code> | If True, warn if the number of samples is smaller than the number of features. Defaults to True. | <code>True</code>
+`parallel` | <code>str \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'deltas': Best log feature-space weights for each target,         shape (n_spaces, n_targets). deltas = log(gamma / alpha), where         gamma are the feature space weights.     - 'cv_scores': Cross-validation scores per iteration, averaged over splits,         for the best alpha, shape (n_iter, n_targets). Always returned on CPU         (numpy array).     - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,         shape (n_features_total, n_targets), or None if return_weights=False.         Always returned on CPU (numpy array).     - 'intercept': Intercept of shape (n_targets,), or None if         fit_intercept=False or return_weights=False.     - 'backend': Backend used (for transparency).
+<code>dict</code> | Dictionary with keys:     - 'deltas': Best log feature-space weights for each target,         shape (n_spaces, n_targets). deltas = log(gamma / alpha), where         gamma are the feature space weights.     - 'cv_scores': Cross-validation scores per iteration, averaged over splits,         for the best alpha, shape (n_iter, n_targets). Always returned on CPU         (numpy array).     - 'coefs': Ridge coefficients refit on entire dataset using best hyperparameters,         shape (n_features_total, n_targets), or None if return_weights=False.         Always returned on CPU (numpy array).     - 'intercept': Intercept of shape (n_targets,), or None if         fit_intercept=False or return_weights=False.     - 'backend': Backend used (for transparency).
 
 **Examples:**
 
@@ -385,28 +393,28 @@ cross-validation for hyperparameter selection.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>[ndarray](#numpy.ndarray)</code> | Feature matrix of shape (n_samples, n_features). | *required*
-`Y` | <code>[ndarray](#numpy.ndarray)</code> | Target data of shape (n_samples, n_targets). | *required*
-`alphas` | <code>[float](#float) \| [ndarray](#numpy.ndarray) \| [list](#list)[[float](#float)]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
-`cv` | <code>[int](#int) \| [BaseCrossValidator](#sklearn.model_selection.BaseCrossValidator)</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
-`local_alpha` | <code>[bool](#bool)</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
-`n_targets_batch` | <code>[int](#int) \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
-`n_targets_batch_refit` | <code>[int](#int) \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
-`n_alphas_batch` | <code>[int](#int) \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
-`Y_in_cpu` | <code>[bool](#bool)</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
-`score_func` | <code>[Callable](#collections.abc.Callable)[[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)], [ndarray](#numpy.ndarray)] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
-`fit_intercept` | <code>[bool](#bool)</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
-`progress_bar` | <code>[bool](#bool)</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
-`conservative` | <code>[bool](#bool)</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
-`parallel` | <code>[str](#str) \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>[float](#float) \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>None</code>
-`random_state` | <code>[int](#int) \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
+`X` | <code>ndarray</code> | Feature matrix of shape (n_samples, n_features). | *required*
+`Y` | <code>ndarray</code> | Target data of shape (n_samples, n_targets). | *required*
+`alphas` | <code>float \| ndarray \| list[float]</code> | Ridge regularization parameters to try. Defaults to [0.1, 1.0, 10.0]. | <code>[0.1, 1.0, 10.0]</code>
+`cv` | <code>int \| BaseCrossValidator</code> | Cross-validation strategy. If int, uses KFold with that many splits. Defaults to 5. | <code>5</code>
+`local_alpha` | <code>bool</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. Defaults to True. | <code>True</code>
+`n_targets_batch` | <code>int \| None</code> | Batch size for targets during CV (for memory efficiency). If None, processes all targets at once. Defaults to None. | <code>None</code>
+`n_targets_batch_refit` | <code>int \| None</code> | Batch size for targets during refit. If None, uses n_targets_batch value. Defaults to None. | <code>None</code>
+`n_alphas_batch` | <code>int \| None</code> | Batch size for alphas (for memory efficiency). If None, processes all alphas at once. Defaults to None. | <code>None</code>
+`Y_in_cpu` | <code>bool</code> | If True, keep Y on CPU and transfer batches to GPU as needed. This prevents OOM when Y is large (e.g., 300k voxels). Defaults to True (recommended for neuroimaging). | <code>True</code>
+`score_func` | <code>Callable[[ndarray, ndarray], ndarray] \| None</code> | Scoring function (y_true, y_pred) -> scores. If None, uses R² score. Defaults to None. | <code>None</code>
+`fit_intercept` | <code>bool</code> | Whether to fit an intercept. If False, X and Y should be centered. Defaults to False. | <code>False</code>
+`progress_bar` | <code>bool</code> | Whether to display progress bar (requires tqdm). Defaults to False. | <code>False</code>
+`conservative` | <code>bool</code> | If True, select largest alpha within 1 std of best score. Defaults to False. | <code>False</code>
+`parallel` | <code>str \| None</code> | Backend to use: "cpu", "gpu", or None. Defaults to "cpu". | <code>'cpu'</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB (only used if parallel="gpu"). Defaults to 4.0. | <code>None</code>
+`random_state` | <code>int \| None</code> | Random generator seed. Use an int for deterministic search. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with keys:     - 'best_alphas': Selected best alpha for each target (or same alpha repeated         if local_alpha=False), shape (n_targets,).     - 'coefs': Ridge coefficients refit on entire dataset using best alphas,         shape (n_features, n_targets). Always returned on CPU (numpy array).     - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).         Always returned on CPU (numpy array).     - 'intercept': Per-target intercept of shape (n_targets,). Only present         when ``fit_intercept=True``.     - 'backend': Backend used (for transparency).
+<code>dict</code> | Dictionary with keys:     - 'best_alphas': Selected best alpha for each target (or same alpha repeated         if local_alpha=False), shape (n_targets,).     - 'coefs': Ridge coefficients refit on entire dataset using best alphas,         shape (n_features, n_targets). Always returned on CPU (numpy array).     - 'cv_scores': Cross-validation scores for best alphas, shape (n_splits, n_alphas, n_targets).         Always returned on CPU (numpy array).     - 'intercept': Per-target intercept of shape (n_targets,). Only present         when ``fit_intercept=True``.     - 'backend': Backend used (for transparency).
 
 **Examples:**
 

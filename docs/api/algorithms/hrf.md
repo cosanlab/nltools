@@ -1,5 +1,6 @@
 ---
 title: algorithms.hrf
+label: algorithms-hrf
 ---
 
 Hemodynamic response functions — thin wrappers over nilearn.
@@ -14,7 +15,7 @@ Every function returns a 1D array sampled every ``t_r / oversampling``
 seconds for ``time_length`` seconds, and is scaled so the canonical HRF
 peaks at 1.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -27,7 +28,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-hrf-glover-dispersion-derivative)=
 ### `glover_dispersion_derivative`
@@ -44,16 +45,16 @@ Thin wrapper over nilearn's `glover_dispersion_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-hrf-glover-hrf)=
 ### `glover_hrf`
@@ -70,16 +71,16 @@ Thin wrapper over nilearn's `glover_hrf`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
+<code>ndarray</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
 
 (algorithms-hrf-glover-time-derivative)=
 ### `glover_time_derivative`
@@ -96,16 +97,16 @@ Thin wrapper over nilearn's `glover_time_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The time derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The time derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-hrf-spm-dispersion-derivative)=
 ### `spm_dispersion_derivative`
@@ -122,16 +123,16 @@ Thin wrapper over nilearn's `spm_dispersion_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The dispersion derivative sampled every `t_r / oversampling` seconds.
 
 (algorithms-hrf-spm-hrf)=
 ### `spm_hrf`
@@ -148,16 +149,16 @@ Thin wrapper over nilearn's `spm_hrf`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
+<code>ndarray</code> | The HRF sampled every `t_r / oversampling` seconds, peak scaled to 1.
 
 (algorithms-hrf-spm-time-derivative)=
 ### `spm_time_derivative`
@@ -174,13 +175,13 @@ Thin wrapper over nilearn's `spm_time_derivative`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time in seconds. | *required*
-`oversampling` | <code>[int](#int)</code> | Temporal oversampling factor (default: 50). | <code>50</code>
-`time_length` | <code>[float](#float)</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
-`onset` | <code>[float](#float)</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
+`t_r` | <code>float</code> | Repetition time in seconds. | *required*
+`oversampling` | <code>int</code> | Temporal oversampling factor (default: 50). | <code>50</code>
+`time_length` | <code>float</code> | HRF kernel length in seconds (default: 32.0). | <code>32.0</code>
+`onset` | <code>float</code> | Onset of the response in seconds (default: 0.0). | <code>0.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | The time derivative sampled every `t_r / oversampling` seconds.
+<code>ndarray</code> | The time derivative sampled every `t_r / oversampling` seconds.

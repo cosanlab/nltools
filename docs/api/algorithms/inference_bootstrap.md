@@ -1,5 +1,6 @@
 ---
 title: algorithms.inference.bootstrap
+label: algorithms-inference-bootstrap
 ---
 
 Bootstrap inference utilities with CPU/GPU support.
@@ -30,9 +31,9 @@ mean and variance. Optionally stores all samples for exact percentile CIs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`shape` | <code>[tuple](#tuple)[[int](#int), ...]</code> | Shape of each bootstrap sample. | *required*
-`save_samples` | <code>[bool](#bool)</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>[tuple](#tuple)[[float](#float), [float](#float)]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
+`shape` | <code>tuple[int, ...]</code> | Shape of each bootstrap sample. | *required*
+`save_samples` | <code>bool</code> | If True, store all samples for exact percentile confidence intervals. If False, use normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
+`percentiles` | <code>tuple[float, float]</code> | Percentiles for confidence intervals (e.g., (2.5, 97.5) for 95% CI). Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
 
 **Methods:**
 
@@ -70,13 +71,13 @@ Compute final bootstrap statistics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`tail` | <code>[int](#int) \| [str](#str)</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: statistic > 0; negate the data for the other direction). | <code>2</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)[[str](#str), [ndarray](#numpy.ndarray)]</code> | Dictionary with keys 'mean' (bootstrap mean), 'std' (bootstrap standard     deviation), 'Z' (z-scores, mean/std), 'p' (p-values per ``tail``),     'ci_lower' and 'ci_upper' (confidence bounds), and 'samples' (all     samples, only if ``save_samples=True``).
+<code>dict[str, ndarray]</code> | Dictionary with keys 'mean' (bootstrap mean), 'std' (bootstrap standard     deviation), 'Z' (z-scores, mean/std), 'p' (p-values per ``tail``),     'ci_lower' and 'ci_upper' (confidence bounds), and 'samples' (all     samples, only if ``save_samples=True``).
 
 **Examples:**
 
@@ -103,4 +104,4 @@ Uses Welford's algorithm for numerical stability.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`sample` | <code>[ndarray](#numpy.ndarray)</code> | New bootstrap sample with shape matching self.shape. | *required*
+`sample` | <code>ndarray</code> | New bootstrap sample with shape matching self.shape. | *required*

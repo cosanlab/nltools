@@ -1,5 +1,6 @@
 ---
 title: data.collection.inference
+label: data-collection-inference
 ---
 
 Group-level reductions and cross-subject ops for BrainCollection.
@@ -9,7 +10,7 @@ Reductions stream from path-backed inputs (Welford-style) and produce
 in-memory ``BrainData`` (or dicts of them); they never path-back their
 own output.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -30,7 +31,7 @@ Name | Description
 [`ttest2`](#data-collection-inference-ttest2) | Two-sample t-test between two collections (subject-level).
 [`var`](#data-collection-inference-var) | Variance across subjects (ddof=1).
 
-## Methods
+## Functions
 
 (data-collection-inference-align)=
 ### `align`

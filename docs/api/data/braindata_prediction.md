@@ -1,5 +1,6 @@
 ---
 title: data.braindata.prediction
+label: data-braindata-prediction
 ---
 
 BrainData prediction — timeseries (encoding) and MVPA (decoding).
@@ -9,7 +10,7 @@ with fields populated based on dispatch. Mirrors `BrainData.fit` /
 `Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
 self with attributes, ``inplace=False`` returns the dataclass.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -20,7 +21,7 @@ Name | Description
 [`resolve_model`](#data-braindata-prediction-resolve-model) | Resolve a string shortcut or pass through a sklearn estimator.
 [`resolve_scoring`](#data-braindata-prediction-resolve-scoring) | Resolve scoring='auto' to 'accuracy' (classifier) or 'r2' (regressor).
 
-## Methods
+## Functions
 
 (data-braindata-prediction-build-pipeline)=
 ### `build_pipeline`

@@ -1,5 +1,6 @@
 ---
 title: plotting
+label: plotting
 ---
 
 nltools.plotting — Visualization utilities for neuroimaging analysis.
@@ -18,7 +19,7 @@ All public functions are re-exported here for convenience:
 from nltools.plotting import plot_surf, plot_roc, component_viewer  # all work
 ```
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -37,7 +38,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (plotting-component-viewer)=
 ### `component_viewer`
@@ -86,7 +87,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), ...]</code> | `(long_df, within_mean_df)` without     `permutation_test`, or `(long_df, within_mean_df, mean_diff_df, p_df)`     with it. All frames are polars DataFrames. `long_df` has columns     [Distance, Group, Comparison]. The three square-matrix-like frames are     long format with columns [label1, label2, value] so they can be     pivoted to a matrix if needed.
+<code>tuple[DataFrame, ...]</code> | `(long_df, within_mean_df)` without     `permutation_test`, or `(long_df, within_mean_df, mean_diff_df, p_df)`     with it. All frames are polars DataFrames. `long_df` has columns     [Distance, Group, Comparison]. The three square-matrix-like frames are     long format with columns [label1, label2, value] so they can be     pivoted to a matrix if needed.
 
 (plotting-plot-dist-from-hyperplane)=
 ### `plot_dist_from_hyperplane`
@@ -107,7 +108,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FacetGrid](#seaborn.FacetGrid)</code> | Distance from the hyperplane per sample.
+<code>FacetGrid</code> | Distance from the hyperplane per sample.
 
 (plotting-plot-flatmap)=
 ### `plot_flatmap`
@@ -130,29 +131,29 @@ requiring external dependencies like pycortex.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `brain` |  | BrainData, nibabel Nifti1Image, or file path to NIfTI image. Data must be in MNI152 space. | *required*
-`threshold` | <code>[float](#float) or [str](#str)</code> | Values below this absolute threshold are masked. Can be a float or percentile string like '95%'. Defaults to None (no threshold). | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Matplotlib colormap for data. Defaults to 'RdBu_r' (diverging red-blue). | <code>'RdBu_r'</code>
-`vmax` | <code>[float](#float)</code> | Maximum value for colormap. If None, uses symmetric max of absolute values. | <code>None</code>
-`vmin` | <code>[float](#float)</code> | Minimum value for colormap. If None and vmax is set, uses -vmax for diverging maps. | <code>None</code>
-`template` | <code>[str](#str)</code> | fsaverage resolution. Options: 'fsaverage3' (642 vertices), 'fsaverage4' (2562), 'fsaverage5' (10242, default), 'fsaverage6' (40962), 'fsaverage' (163842, full resolution). | <code>'fsaverage5'</code>
-`with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern as grayscale background. Defaults to True. | <code>True</code>
-`curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature (0=flat gray, 1=full contrast). Defaults to 0.5. | <code>0.5</code>
-`curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature (0=dark, 1=bright). Defaults to 0.5. | <code>0.5</code>
+`threshold` | <code>float or str</code> | Values below this absolute threshold are masked. Can be a float or percentile string like '95%'. Defaults to None (no threshold). | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap for data. Defaults to 'RdBu_r' (diverging red-blue). | <code>'RdBu_r'</code>
+`vmax` | <code>float</code> | Maximum value for colormap. If None, uses symmetric max of absolute values. | <code>None</code>
+`vmin` | <code>float</code> | Minimum value for colormap. If None and vmax is set, uses -vmax for diverging maps. | <code>None</code>
+`template` | <code>str</code> | fsaverage resolution. Options: 'fsaverage3' (642 vertices), 'fsaverage4' (2562), 'fsaverage5' (10242, default), 'fsaverage6' (40962), 'fsaverage' (163842, full resolution). | <code>'fsaverage5'</code>
+`with_curvature` | <code>bool</code> | Show sulcal/gyral pattern as grayscale background. Defaults to True. | <code>True</code>
+`curvature_contrast` | <code>float</code> | Contrast of curvature (0=flat gray, 1=full contrast). Defaults to 0.5. | <code>0.5</code>
+`curvature_brightness` | <code>float</code> | Mean brightness of curvature (0=dark, 1=bright). Defaults to 0.5. | <code>0.5</code>
 `transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to render vertices outside the mask as transparent (so the curvature shows through). ``"auto"`` (default) uses the input ``BrainData``'s ``.mask`` when available, matching the behavior of the volumetric ``.plot()``. Pass ``None`` to disable masking entirely. | <code>'auto'</code>
-`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Defaults to True. | <code>True</code>
-`colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
-`title` | <code>[str](#str)</code> | Figure title. Defaults to None. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
-`interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
-`axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. If None, creates new figure. Defaults to None. | <code>None</code>
-`save` | <code>[str](#str)</code> | File path to save figure. Defaults to None. | <code>None</code>
+`colorbar` | <code>bool</code> | Show colorbar. Defaults to True. | <code>True</code>
+`colorbar_orientation` | <code>str</code> | 'horizontal' or 'vertical'. Defaults to 'horizontal'. | <code>'horizontal'</code>
+`figsize` | <code>tuple</code> | Figure size (width, height). Defaults to (12, 6). | <code>(12, 6)</code>
+`title` | <code>str</code> | Figure title. Defaults to None. | <code>None</code>
+`radius_mm` | <code>float</code> | Sampling radius in mm for vol_to_surf projection. Larger values provide smoother projections. Defaults to 3.0. | <code>3.0</code>
+`interpolation` | <code>str</code> | Interpolation for vol_to_surf. Options: 'linear', 'nearest_most_frequent'. Defaults to 'linear'. | <code>'linear'</code>
+`axes` | <code>Axes</code> | Existing axes to plot on. If None, creates new figure. Defaults to None. | <code>None</code>
+`save` | <code>str</code> | File path to save figure. Defaults to None. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The figure containing the flatmap.
+<code>Figure</code> | The figure containing the flatmap.
 
 **Examples:**
 
@@ -209,10 +210,10 @@ Create an interactive brain visualization with nilearn.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`brain` | <code>[BrainData](#nltools.BrainData)</code> | a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume) | *required*
-`threshold` | <code>[float](#float) / [str](#str)</code> | threshold to initialize the visualization, may be a percentile string; default 1e-6 | <code>1e-06</code>
-`surface` | <code>[bool](#bool)</code> | whether to create a surface-based plot; default False | <code>False</code>
-`percentile_threshold` | <code>[bool](#bool)</code> | whether to interpret threshold values as percentiles | <code>False</code>
+`brain` | <code>[BrainData](#data-brain-data)</code> | a BrainData instance of 1d or 2d shape (i.e. 3d or 4d volume) | *required*
+`threshold` | <code>float / str</code> | threshold to initialize the visualization, may be a percentile string; default 1e-6 | <code>1e-06</code>
+`surface` | <code>bool</code> | whether to create a surface-based plot; default False | <code>False</code>
+`percentile_threshold` | <code>bool</code> | whether to interpret threshold values as percentiles | <code>False</code>
 `kwargs` |  | optional arguments to nilearn.view_img or nilearn.view_img_on_surf | <code>{}</code>
 
 <details class="note" open markdown="1">
@@ -247,7 +248,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [tuple](#tuple)[[DataFrame](#polars.DataFrame), [dict](#dict)]</code> | A polars DataFrame with columns     [Distance, Group, Type] in long format. If `permutation_test=True`, a     tuple `(long_df, stats)` where `stats` is a dict of per-group stats.
+<code>DataFrame \| tuple[DataFrame, dict]</code> | A polars DataFrame with columns     [Distance, Group, Type] in long format. If `permutation_test=True`, a     tuple `(long_df, stats)` where `stats` is a dict of per-group stats.
 
 (plotting-plot-probability)=
 ### `plot_probability`
@@ -268,7 +269,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FacetGrid](#seaborn.FacetGrid)</code> | Scatterplot.
+<code>FacetGrid</code> | Scatterplot.
 
 (plotting-plot-roc)=
 ### `plot_roc`
@@ -290,7 +291,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The ROC figure.
+<code>Figure</code> | The ROC figure.
 
 (plotting-plot-scatter)=
 ### `plot_scatter`
@@ -311,7 +312,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[FacetGrid](#seaborn.FacetGrid)</code> | Scatterplot.
+<code>FacetGrid</code> | Scatterplot.
 
 (plotting-plot-silhouette)=
 ### `plot_silhouette`
@@ -344,7 +345,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | Frame with columns [label, mean_silhouette]. If     `permutation_test` is True, adds a `p` column (1.0 for clusters with     non-positive mean).
+<code>DataFrame</code> | Frame with columns [label, mean_silhouette]. If     `permutation_test` is True, adds a `p` column (1.0 for clusters with     non-positive mean).
 
 (plotting-plot-stacked-adjacency)=
 ### `plot_stacked_adjacency`
@@ -371,7 +372,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Axes](#matplotlib.axes.Axes)</code> | Axes holding the stacked heatmap.
+<code>Axes</code> | Axes holding the stacked heatmap.
 
 (plotting-plot-surf)=
 ### `plot_surf`
@@ -394,27 +395,27 @@ The grid is ``len(view) × len(hemi)`` — rows = views, cols = hemispheres.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `brain` |  | BrainData, nibabel Nifti1Image, or file path (MNI-space). | *required*
-`hemi` | <code>[str](#str) or [list](#list)</code> | ``"left"``, ``"right"``, ``"both"`` (default), or a list subset like ``["left"]``. | <code>'both'</code>
-`view` | <code>[str](#str) or [list](#list)</code> | ``"montage"`` (default, → ``["lateral", "medial"]``), a single view string, or any list subset of ``("lateral", "medial", "dorsal", "ventral", "anterior", "posterior")``. | <code>'montage'</code>
-`surface` | <code>[str](#str)</code> | fsaverage mesh to render on. One of ``"pial"`` (default), ``"inflated"``, ``"white"``, ``"sphere"``. | <code>'pial'</code>
-`template` | <code>[str](#str)</code> | fsaverage resolution (``"fsaverage3"`` … ``"fsaverage"``). Default ``"fsaverage5"``. | <code>'fsaverage5'</code>
-`threshold` | <code>[float](#float) or [str](#str)</code> | Absolute cutoff (``0.3``) or percentile string (``"95%"``). | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Matplotlib colormap. Default ``"RdBu_r"``. | <code>'RdBu_r'</code>
-`vmin, vmax` | <code>[float](#float)</code> | Colormap range. Defaults to symmetric ±max-abs. | *required*
+`hemi` | <code>str or list</code> | ``"left"``, ``"right"``, ``"both"`` (default), or a list subset like ``["left"]``. | <code>'both'</code>
+`view` | <code>str or list</code> | ``"montage"`` (default, → ``["lateral", "medial"]``), a single view string, or any list subset of ``("lateral", "medial", "dorsal", "ventral", "anterior", "posterior")``. | <code>'montage'</code>
+`surface` | <code>str</code> | fsaverage mesh to render on. One of ``"pial"`` (default), ``"inflated"``, ``"white"``, ``"sphere"``. | <code>'pial'</code>
+`template` | <code>str</code> | fsaverage resolution (``"fsaverage3"`` … ``"fsaverage"``). Default ``"fsaverage5"``. | <code>'fsaverage5'</code>
+`threshold` | <code>float or str</code> | Absolute cutoff (``0.3``) or percentile string (``"95%"``). | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap. Default ``"RdBu_r"``. | <code>'RdBu_r'</code>
+`vmin, vmax` | <code>float</code> | Colormap range. Defaults to symmetric ±max-abs. | *required*
 `transparency` | <code>BrainData, Nifti1Image, str, Path, or "auto"</code> | Binary mask used to NaN-out vertices outside the mask so the background shines through. ``"auto"`` uses ``BrainData.mask``. | <code>'auto'</code>
-`bg_on_data` | <code>[bool](#bool)</code> | Whether to multiply data by background. | <code>False</code>
-`colorbar` | <code>[bool](#bool)</code> | Show a single shared colorbar. Default ``True``. | <code>True</code>
-`colorbar_orientation` | <code>[str](#str)</code> | ``"horizontal"`` (default) or ``"vertical"``. | <code>'horizontal'</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size. Default ``(10, 8)``. | <code>(10, 8)</code>
-`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | vol_to_surf sampling radius. Default ``3.0``. | <code>3.0</code>
-`interpolation` | <code>[str](#str)</code> | vol_to_surf interpolation. Default ``"linear"``. | <code>'linear'</code>
-`zoom` | <code>[float](#float)</code> | Zoom factor for each 3D axis (``Axes3D.set_box_aspect(zoom=...)``). Default ``1.2``; try ``1.4`` for the tightest clean framing. | <code>1.2</code>
+`bg_on_data` | <code>bool</code> | Whether to multiply data by background. | <code>False</code>
+`colorbar` | <code>bool</code> | Show a single shared colorbar. Default ``True``. | <code>True</code>
+`colorbar_orientation` | <code>str</code> | ``"horizontal"`` (default) or ``"vertical"``. | <code>'horizontal'</code>
+`figsize` | <code>tuple</code> | Figure size. Default ``(10, 8)``. | <code>(10, 8)</code>
+`title` | <code>str</code> | Figure title. | <code>None</code>
+`radius_mm` | <code>float</code> | vol_to_surf sampling radius. Default ``3.0``. | <code>3.0</code>
+`interpolation` | <code>str</code> | vol_to_surf interpolation. Default ``"linear"``. | <code>'linear'</code>
+`zoom` | <code>float</code> | Zoom factor for each 3D axis (``Axes3D.set_box_aspect(zoom=...)``). Default ``1.2``; try ``1.4`` for the tightest clean framing. | <code>1.2</code>
 `axes` | <code>ndarray of Axes3D</code> | Pre-existing 3D axes to draw into. Shape should be ``(len(view), len(hemi))``. | <code>None</code>
-`save` | <code>[str](#str)</code> | Path to save the figure. | <code>None</code>
+`save` | <code>str</code> | Path to save the figure. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The surface figure.
+<code>Figure</code> | The surface figure.

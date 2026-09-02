@@ -1,5 +1,6 @@
 ---
 title: data.designmatrix.regressors
+label: data-design-matrix-regressors
 ---
 
 Provide standalone regressor functions for DesignMatrix.
@@ -7,7 +8,7 @@ Provide standalone regressor functions for DesignMatrix.
 Each function takes a DesignMatrix as its first argument (`dm`) and returns
 a new DesignMatrix with the requested transformation applied.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -15,7 +16,7 @@ Name | Description
 [`add_poly`](#data-design-matrix-regressors-add-poly) | Add Legendre polynomial drift terms.
 [`convolve`](#data-design-matrix-regressors-convolve) | Convolve columns with an HRF or custom kernel.
 
-## Methods
+## Functions
 
 (data-design-matrix-regressors-add-dct-basis)=
 ### `add_dct_basis`
@@ -30,16 +31,22 @@ Add discrete cosine transform basis functions for high-pass filtering.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add DCT basis to. | *required*
-`duration` | <code>[float](#float)</code> | Filter duration in seconds. Default: 180. | <code>180</code>
-`drop` | <code>[int](#int)</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
-`include_constant` | <code>[bool](#bool)</code> | If True, also add a constant/intercept column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to add DCT basis to. | *required*
+`duration` | <code>float</code> | Filter duration in seconds. Default: 180. | <code>180</code>
+`drop` | <code>int</code> | Number of low-frequency bases to drop. Default: 0. | <code>0</code>
+`include_constant` | <code>bool</code> | If True, also add a constant/intercept column named ``.nl_cosine_0`` (analogous to ``.nl_poly_0`` in `add_poly`). The underlying DCT basis drops the constant per SPM convention; set False to match SPM behavior. Default: True. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with DCT basis columns appended, named     ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
+<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with DCT basis columns appended, named     ``.nl_cosine_{i}`` in the reserved namespace (see `RESERVED_PREFIX`).
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If sampling_freq is not set, or if the design already carries run-separated drift terms from a previous multi-run append.
 
 (data-design-matrix-regressors-add-poly)=
 ### `add_poly`
@@ -54,15 +61,21 @@ Add Legendre polynomial drift terms.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to add polynomials to. | *required*
-`order` | <code>[int](#int)</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
-`include_lower` | <code>[bool](#bool)</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to add polynomials to. | *required*
+`order` | <code>int</code> | Polynomial order (0=intercept, 1=linear, 2=quadratic, ...). Default: 0. | <code>0</code>
+`include_lower` | <code>bool</code> | If True, include all orders from 0 to order. Default: True. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with polynomial columns appended, named     ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
+<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with polynomial columns appended, named     ``.nl_poly_{order}`` in the reserved namespace (see `RESERVED_PREFIX`).
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If order < 0, or if the design already carries run-separated drift terms from a previous multi-run append.
 
 (data-design-matrix-regressors-convolve)=
 ### `convolve`
@@ -77,15 +90,15 @@ Convolve columns with an HRF or custom kernel.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix to convolve. | *required*
-`conv_func` | <code>[str](#str) or [ndarray](#ndarray)</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix to convolve. | *required*
+`conv_func` | <code>str or ndarray</code> | 'hrf' for canonical Glover HRF, or custom kernel(s). Can be 1D array (single kernel) or 2D (samples x kernels) | <code>'hrf'</code>
 `columns` | <code>list of str</code> | Columns to convolve (default: all non-confound columns) | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | New DesignMatrix with convolved columns
+<code>[DesignMatrix](#data-design-matrix)</code> | New DesignMatrix with convolved columns
 
 **Examples:**
 

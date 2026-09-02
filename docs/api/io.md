@@ -1,12 +1,13 @@
 ---
 title: io
+label: io
 ---
 
 nltools I/O utilities.
 
 HDF5 serialization for neuroimaging data types.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -16,7 +17,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (io-is-h5-path)=
 ### `is_h5_path`
@@ -37,7 +38,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[bool](#bool)</code> | True if the file has an HDF5 extension (.h5 or .hdf5).
+<code>bool</code> | True if the file has an HDF5 extension (.h5 or .hdf5).
 
 **Examples:**
 
@@ -74,7 +75,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary containing loaded data, X, Y, and optionally mask info.
+<code>dict</code> | Dictionary containing loaded data, X, Y, and optionally mask info.
 
 (io-to-h5)=
 ### `to_h5`

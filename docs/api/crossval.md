@@ -1,5 +1,6 @@
 ---
 title: cross_validation
+label: crossval
 ---
 
 Scikit-learn-compatible cross-validation data classes.
@@ -10,7 +11,7 @@ Name | Description
 ---- | -----------
 [`KFoldStratified`](#crossval-kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -26,8 +27,6 @@ Name | Description
 ```python
 KFoldStratified(n_splits = 3, *, shuffle = False, random_state = None)
 ```
-
-Bases: <code>[_BaseKFold](#sklearn.model_selection._split._BaseKFold)</code>
 
 Stratify continuous targets across K-fold cross-validation.
 
@@ -77,11 +76,11 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[ndarray](#numpy.ndarray), [ndarray](#numpy.ndarray)]</code> | `(train, test)` — the training set indices     and the testing set indices for that split.
+<code>tuple[ndarray, ndarray]</code> | `(train, test)` — the training set indices     and the testing set indices for that split.
 
 
 
-## Methods
+## Functions
 
 (crossval-resolve-cv)=
 ### `resolve_cv`
@@ -105,12 +104,18 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `cv` |  | ``'loo'`` (`LeaveOneOut`), ``'logo'`` (`LeaveOneGroupOut` — pass the grouping variable via ``groups``), an int fold count, or an sklearn splitter (returned unchanged). | *required*
 `groups` |  | Group labels, or None. Only consulted for int specs. | <code>None</code>
-`classifier` | <code>[bool](#bool)</code> | Whether the downstream model is a classifier — an int spec becomes the stratified variant (`StratifiedKFold`, or `StratifiedGroupKFold` with groups) for classifiers. | <code>False</code>
-`shuffle` | <code>[bool](#bool)</code> | Whether an int spec's KFold variant shuffles samples before splitting. Ignored for the group variants (fold membership is set by ``groups``). | <code>False</code>
-`random_state` | <code>[int](#int) \| None</code> | Seed for ``shuffle``. | <code>None</code>
+`classifier` | <code>bool</code> | Whether the downstream model is a classifier — an int spec becomes the stratified variant (`StratifiedKFold`, or `StratifiedGroupKFold` with groups) for classifiers. | <code>False</code>
+`shuffle` | <code>bool</code> | Whether an int spec's KFold variant shuffles samples before splitting. Ignored for the group variants (fold membership is set by ``groups``). | <code>False</code>
+`random_state` | <code>int \| None</code> | Seed for ``shuffle``. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BaseCrossValidator](#BaseCrossValidator)</code> | An sklearn splitter instance.
+<code>BaseCrossValidator</code> | An sklearn splitter instance.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | On an unknown string spec, including the pre-v0.6.0 names ``'loso'`` / ``'loro'`` (use ``'logo'`` with ``groups=``).

@@ -1,10 +1,11 @@
 ---
 title: algorithms.corrections
+label: algorithms-corrections
 ---
 
 Multiple comparison corrections and thresholding.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -15,7 +16,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-corrections-fdr)=
 ### `fdr`
@@ -39,7 +40,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | p-value threshold based on independence or positive dependence.
+<code>float</code> | p-value threshold based on independence or positive dependence.
 
 (algorithms-corrections-holm-bonf)=
 ### `holm_bonf`
@@ -65,7 +66,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | p-value threshold based on the Bonferroni step-down procedure.
+<code>float</code> | p-value threshold based on the Bonferroni step-down procedure.
 
 (algorithms-corrections-multi-threshold)=
 ### `multi_threshold`
@@ -88,7 +89,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | Thresholded BrainData instance with cumulative map. Positive     values indicate how many thresholds were passed for positive stats;     negative values indicate how many thresholds were passed for negative     stats.
+<code>[BrainData](#data-brain-data)</code> | Thresholded BrainData instance with cumulative map. Positive     values indicate how many thresholds were passed for positive stats;     negative values indicate how many thresholds were passed for negative     stats.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -123,7 +124,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData) \| [tuple](#tuple)[[BrainData](#nltools.data.BrainData), [BrainData](#nltools.data.BrainData)]</code> | The thresholded BrainData instance;     if `return_mask=True`, a tuple `(out, mask)` where `mask` is the     BrainData instance of the thresholding mask.
+<code>[BrainData](#data-brain-data) \| tuple[[BrainData](#data-brain-data), [BrainData](#data-brain-data)]</code> | The thresholded BrainData instance;     if `return_mask=True`, a tuple `(out, mask)` where `mask` is the     BrainData instance of the thresholding mask.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>

@@ -1,5 +1,6 @@
 ---
 title: datasets
+label: dataset
 ---
 
 Dataset download and example-data utilities.
@@ -10,7 +11,7 @@ Hugging Face dataset and resolve through the same `fetch_resource` machinery
 as the MNI templates and atlases. Arbitrary Neurovault collections are still
 available via `fetch_neurovault_collection`.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -20,7 +21,7 @@ Name | Description
 [`fetch_pain`](#dataset-fetch-pain) | Download and load the pain dataset from the nltools HF dataset.
 [`load_haxby_example`](#dataset-load-haxby-example) | Load a small synthetic Haxby-like dataset, entirely in-memory.
 
-## Methods
+## Functions
 
 (dataset-download-nifti)=
 ### `download_nifti`
@@ -35,14 +36,21 @@ Download an image from a URL to a nifti file.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`url` | <code>[str](#str)</code> | URL of the image to download | *required*
-`data_dir` | <code>[str](#str)</code> | Directory to save the file. If None, uses current directory. | <code>None</code>
+`url` | <code>str</code> | URL of the image to download | *required*
+`data_dir` | <code>str</code> | Directory to save the file. If None, uses current directory. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Path to the downloaded file
+<code>str</code> | Path to the downloaded file
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ImportError</code> | If requests is not available
+<code>ValueError</code> | If URL is invalid
 
 (dataset-fetch-emotion-ratings)=
 ### `fetch_emotion_ratings`
@@ -65,13 +73,13 @@ locally on first use, so this works with no extra setup.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`verbose` | <code>[int](#int)</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
+`verbose` | <code>int</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | `BrainData` with the 679 images; `X` holds the metadata table.
+<code>[BrainData](#data-brain-data)</code> | `BrainData` with the 679 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -97,15 +105,22 @@ This function uses the modern nilearn API to download collections from Neurovaul
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`collection_id` | <code>[int](#int)</code> | Neurovault collection ID | *required*
-`data_dir` | <code>[str](#str)</code> | Directory to store downloaded data. If None, uses nilearn's default data directory. | <code>None</code>
-`verbose` | <code>[int](#int)</code> | Verbosity level. Default: 1 | <code>1</code>
+`collection_id` | <code>int</code> | Neurovault collection ID | *required*
+`data_dir` | <code>str</code> | Directory to store downloaded data. If None, uses nilearn's default data directory. | <code>None</code>
+`verbose` | <code>int</code> | Verbosity level. Default: 1 | <code>1</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | (metadata polars.DataFrame, list of image file paths)
+<code>tuple</code> | (metadata polars.DataFrame, list of image file paths)
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If collection_id is invalid
+<code>RuntimeError</code> | If download fails
 
 (dataset-fetch-pain)=
 ### `fetch_pain`
@@ -128,13 +143,13 @@ locally on first use, so this works with no extra setup.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`verbose` | <code>[int](#int)</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
+`verbose` | <code>int</code> | Verbosity passed to `BrainData` while loading. Default: 0 | <code>0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | `BrainData` with the 84 images; `X` holds the metadata table.
+<code>[BrainData](#data-brain-data)</code> | `BrainData` with the 84 images; `X` holds the metadata table.
 
 <details class="references" open markdown="1">
 <summary>References</summary>
@@ -170,14 +185,14 @@ in a randomized 9-TR block design with TR=2.5s.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`n_runs` | <code>[int](#int)</code> | Number of runs to generate. Default 1. | <code>1</code>
-`random_state` | <code>[int](#int) \| None</code> | Seed for reproducible output. Default 42. | <code>42</code>
+`n_runs` | <code>int</code> | Number of runs to generate. Default 1. | <code>1</code>
+`random_state` | <code>int \| None</code> | Seed for reproducible output. Default 42. | <code>42</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)</code> | `(list[BrainData], list[DesignMatrix])`, each of length n_runs.     The DesignMatrix columns are the eight condition names suffixed     with ``_c0`` (HRF-convolved boxcars).
+<code>tuple</code> | `(list[BrainData], list[DesignMatrix])`, each of length n_runs.     The DesignMatrix columns are the eight condition names suffixed     with ``_c0`` (HRF-convolved boxcars).
 
 **Examples:**
 

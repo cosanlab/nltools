@@ -1,10 +1,11 @@
 ---
 title: algorithms.outliers
+label: algorithms-outliers
 ---
 
 Outlier detection, robust statistics, and data normalization.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -15,7 +16,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (algorithms-outliers-find-spikes)=
 ### `find_spikes`
@@ -33,14 +34,14 @@ Name | Type | Description | Default
 `data` |  | BrainData or nibabel instance | *required*
 `global_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR global signal. None to skip. | <code>3</code>
 `diff_spike_cutoff` |  | (int, None) cutoff in std-deviations for spikes in the per-TR mean absolute frame-to-frame difference. None to skip. | <code>3</code>
-`TR` | <code>[float](#float) \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
-`sampling_freq` | <code>[float](#float) \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
+`TR` | <code>float \| None</code> | Repetition time in seconds. Sets the returned DesignMatrix's sampling_freq for downstream `.append(...)` / `.convolve()`. Pass exactly one of `TR` or `sampling_freq`. | <code>None</code>
+`sampling_freq` | <code>float \| None</code> | Sampling frequency in Hz (= 1/TR). See `TR`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DesignMatrix](#nltools.data.DesignMatrix)</code> | One indicator column per detected spike TR, named     ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved     namespace for generated columns (see `RESERVED_PREFIX`), with all     spike columns pre-marked as confounds. The two detectors run     independently, so a single bad volume is routinely caught by both;     those detections are bitwise-identical one-hot columns, and only one     is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —     the column values are the same either way). Row position is the time     axis (no separate `TR` index column — that was a pandas-era     artifact). When `TR` / `sampling_freq` aren't provided the DM has     `sampling_freq=None`; you can still `.append()` it onto a DM that     does have one.
+<code>[DesignMatrix](#data-design-matrix)</code> | One indicator column per detected spike TR, named     ``.nl_global_spike{n}`` / ``.nl_diff_spike{n}`` in the reserved     namespace for generated columns (see `RESERVED_PREFIX`), with all     spike columns pre-marked as confounds. The two detectors run     independently, so a single bad volume is routinely caught by both;     those detections are bitwise-identical one-hot columns, and only one     is kept (the ``.nl_global_spike*`` name, a deterministic tie-break —     the column values are the same either way). Row position is the time     axis (no separate `TR` index column — that was a pandas-era     artifact). When `TR` / `sampling_freq` aren't provided the DM has     `sampling_freq=None`; you can still `.append()` it onto a DM that     does have one.
 
 (algorithms-outliers-trim)=
 ### `trim`
@@ -55,14 +56,14 @@ Trim a Polars DataFrame/Series by replacing outlier values with NaNs.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to trim. | *required*
-`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
+`data` | <code>DataFrame \| Series</code> | Data to trim. | *required*
+`cutoff` | <code>dict</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Trimmed data (outliers replaced with NaN), the     same type as the input.
+<code>DataFrame \| Series</code> | Trimmed data (outliers replaced with NaN), the     same type as the input.
 
 (algorithms-outliers-winsorize)=
 ### `winsorize`
@@ -77,15 +78,15 @@ Winsorize a Polars DataFrame/Series with the largest/lowest value not considered
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Data to winsorize. | *required*
-`cutoff` | <code>[dict](#dict)</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
-`replace_with_cutoff` | <code>[bool](#bool)</code> | If True, replace outliers with the cutoff value; if False, replace them with the closest existing values (default: True). | <code>True</code>
+`data` | <code>DataFrame \| Series</code> | Data to winsorize. | *required*
+`cutoff` | <code>dict</code> | A dictionary with keys `{'std': [low, high]}` or `{'quantile': [low, high]}`. | <code>None</code>
+`replace_with_cutoff` | <code>bool</code> | If True, replace outliers with the cutoff value; if False, replace them with the closest existing values (default: True). | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Winsorized data, the same type as the input.
+<code>DataFrame \| Series</code> | Winsorized data, the same type as the input.
 
 (algorithms-outliers-zscore)=
 ### `zscore`
@@ -110,4 +111,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame) \| [Series](#polars.Series)</code> | Same type and shape as the input, each column     z-scored using the sample standard deviation (ddof=1).
+<code>DataFrame \| Series</code> | Same type and shape as the input, each column     z-scored using the sample standard deviation (ddof=1).

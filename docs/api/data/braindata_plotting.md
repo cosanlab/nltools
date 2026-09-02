@@ -1,10 +1,11 @@
 ---
 title: data.braindata.plotting
+label: data-braindata-plotting
 ---
 
 BrainData plotting functions.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -15,7 +16,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-braindata-plotting-auto-select-colormap)=
 ### `auto_select_colormap`
@@ -30,13 +31,13 @@ Auto-select colormap based on data characteristics.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>[ndarray](#numpy.ndarray)</code> | numpy array of brain data | *required*
+`data` | <code>ndarray</code> | numpy array of brain data | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Colormap name
+<code>str</code> | Colormap name
 
 (data-braindata-plotting-plot-brain)=
 ### `plot_brain`
@@ -52,28 +53,28 @@ Plot BrainData instance using nilearn visualization or matplotlib.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`method` | <code>[str](#str)</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
-`upper` | <code>[str](#str) / [float](#float)</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
-`lower` | <code>[str](#str) / [float](#float)</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
-`threshold` | <code>[float](#float)</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``abs(value) < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
-`view` | <code>[str](#str)</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
-`cut_coords` | <code>[list](#list) or [dict](#dict)</code> | Cut coordinates for multi-slice views. If provided, takes precedence over ``view``-based defaults. Either a list of per-axis coordinate sequences whose length matches ``view``, or a dict keyed by axis letter (``{"x": [...], "z": [...]}``) from which entries for each axis in ``view`` are looked up. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Colormap name. | <code>None</code>
-`bg_img` | <code>[Nifti1Image](#Nifti1Image) or [str](#str)</code> | Background image for slice views. | <code>None</code>
-`ax` | <code>[Axes](#matplotlib.axes.Axes)</code> | Matplotlib axis to plot on. | <code>None</code>
-`figsize` | <code>[tuple](#tuple)</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
-`title` | <code>[str](#str)</code> | Plot title. | <code>None</code>
-`colorbar` | <code>[bool](#bool)</code> | Whether to show colorbar. Default: True. | <code>True</code>
-`save` | <code>[str](#str)</code> | Path to save figure(s). | <code>None</code>
-`stat` | <code>[str](#str)</code> | Statistic for timeseries plots. Valid options: 'mean', 'median', 'std'. | <code>'mean'</code>
-`limit` | <code>[int](#int)</code> | Maximum number of images to render when ``bd`` contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. A warning is emitted if the data has more images than ``limit``. Ignored for single-image data and for matplotlib-based methods (``"timeseries"``, ``"histogram"``), which already aggregate across images. | <code>3</code>
+`method` | <code>str</code> | Visualization type ('glass', 'slices', 'timeseries', 'histogram'). | <code>'glass'</code>
+`upper` | <code>str / float</code> | Upper threshold applied to the data (nltools semantics; may be a percentile string like ``"95%"``). | <code>None</code>
+`lower` | <code>str / float</code> | Lower threshold applied to the data (nltools semantics). | <code>None</code>
+`threshold` | <code>float</code> | Absolute-value transparency cutoff forwarded to the underlying nilearn plot function. Voxels with ``abs(value) < threshold`` are rendered transparent. Must be >= 0. Use ``upper``/``lower`` for one-sided data thresholding. | <code>None</code>
+`view` | <code>str</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
+`cut_coords` | <code>list or dict</code> | Cut coordinates for multi-slice views. If provided, takes precedence over ``view``-based defaults. Either a list of per-axis coordinate sequences whose length matches ``view``, or a dict keyed by axis letter (``{"x": [...], "z": [...]}``) from which entries for each axis in ``view`` are looked up. | <code>None</code>
+`cmap` | <code>str</code> | Colormap name. | <code>None</code>
+`bg_img` | <code>Nifti1Image or str</code> | Background image for slice views. | <code>None</code>
+`ax` | <code>Axes</code> | Matplotlib axis to plot on. | <code>None</code>
+`figsize` | <code>tuple</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
+`title` | <code>str</code> | Plot title. | <code>None</code>
+`colorbar` | <code>bool</code> | Whether to show colorbar. Default: True. | <code>True</code>
+`save` | <code>str</code> | Path to save figure(s). | <code>None</code>
+`stat` | <code>str</code> | Statistic for timeseries plots. Valid options: 'mean', 'median', 'std'. | <code>'mean'</code>
+`limit` | <code>int</code> | Maximum number of images to render when ``bd`` contains multiple maps and ``method`` is ``"glass"`` or ``"slices"``. Default: 3. A warning is emitted if the data has more images than ``limit``. Ignored for single-image data and for matplotlib-based methods (``"timeseries"``, ``"histogram"``), which already aggregate across images. | <code>3</code>
 `**kwargs` |  | Additional arguments passed to nilearn plot functions. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure) \| [list](#list)[[Figure](#matplotlib.figure.Figure)]</code> | For     single-image data, the figure object (last one created if     `method="slices"` produced multiple per-axis figures). For     multi-image data with `method` in `{"glass", "slices"}`, a list of     figures (one per image for glass; one per image-and-view pair for     slices). All figures auto-display in notebooks.
+<code>Figure \| list[Figure]</code> | For     single-image data, the figure object (last one created if     `method="slices"` produced multiple per-axis figures). For     multi-image data with `method` in `{"glass", "slices"}`, a list of     figures (one per image for glass; one per image-and-view pair for     slices). All figures auto-display in notebooks.
 
 (data-braindata-plotting-plot-flatmap-brain)=
 ### `plot_flatmap_brain`
@@ -89,29 +90,29 @@ Plot brain data on cortical flatmap.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`threshold` | <code>[float](#float)</code> | Values below this absolute threshold are masked. | <code>None</code>
-`cmap` | <code>[str](#str)</code> | Matplotlib colormap for data. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
-`vmax` | <code>[float](#float)</code> | Maximum value for colormap. | <code>None</code>
-`vmin` | <code>[float](#float)</code> | Minimum value for colormap. | <code>None</code>
-`template` | <code>[str](#str)</code> | fsaverage resolution. Default: 'fsaverage5'. | <code>'fsaverage5'</code>
-`with_curvature` | <code>[bool](#bool)</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
-`curvature_contrast` | <code>[float](#float)</code> | Contrast of curvature. Default: 0.5. | <code>0.5</code>
-`curvature_brightness` | <code>[float](#float)</code> | Mean brightness of curvature. Default: 0.5. | <code>0.5</code>
-`transparency` | <code>[str](#str) or [float](#float) or [array](#array) - [like](#like)</code> | Transparency/alpha applied to the surface data. ``'auto'`` (default) lets the renderer choose. | <code>'auto'</code>
-`colorbar` | <code>[bool](#bool)</code> | Show colorbar. Default: True. | <code>True</code>
-`colorbar_orientation` | <code>[str](#str)</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
-`figsize` | <code>[tuple](#tuple)</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
-`title` | <code>[str](#str)</code> | Figure title. | <code>None</code>
-`radius_mm` | <code>[float](#float)</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
-`interpolation` | <code>[str](#str)</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
-`axes` | <code>[Axes](#matplotlib.axes.Axes)</code> | Existing axes to plot on. | <code>None</code>
-`save` | <code>[str](#str)</code> | File path to save figure. | <code>None</code>
+`threshold` | <code>float</code> | Values below this absolute threshold are masked. | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap for data. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
+`vmax` | <code>float</code> | Maximum value for colormap. | <code>None</code>
+`vmin` | <code>float</code> | Minimum value for colormap. | <code>None</code>
+`template` | <code>str</code> | fsaverage resolution. Default: 'fsaverage5'. | <code>'fsaverage5'</code>
+`with_curvature` | <code>bool</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
+`curvature_contrast` | <code>float</code> | Contrast of curvature. Default: 0.5. | <code>0.5</code>
+`curvature_brightness` | <code>float</code> | Mean brightness of curvature. Default: 0.5. | <code>0.5</code>
+`transparency` | <code>str or float or array - like</code> | Transparency/alpha applied to the surface data. ``'auto'`` (default) lets the renderer choose. | <code>'auto'</code>
+`colorbar` | <code>bool</code> | Show colorbar. Default: True. | <code>True</code>
+`colorbar_orientation` | <code>str</code> | 'horizontal' or 'vertical'. Default: 'horizontal'. | <code>'horizontal'</code>
+`figsize` | <code>tuple</code> | Figure size. Default: (12, 6). | <code>(12, 6)</code>
+`title` | <code>str</code> | Figure title. | <code>None</code>
+`radius_mm` | <code>float</code> | sampling radius in mm for vol_to_surf. Default: 3.0. | <code>3.0</code>
+`interpolation` | <code>str</code> | Interpolation for vol_to_surf. Default: 'linear'. | <code>'linear'</code>
+`axes` | <code>Axes</code> | Existing axes to plot on. | <code>None</code>
+`save` | <code>str</code> | File path to save figure. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Figure](#matplotlib.figure.Figure)</code> | The rendered figure.
+<code>Figure</code> | The rendered figure.
 
 (data-braindata-plotting-prepare-save-paths)=
 ### `prepare_save_paths`
@@ -127,10 +128,10 @@ Prepare save paths for multiple plot outputs.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `save` |  | Base save path (str or Path) | *required*
-`idx` | <code>[int](#int)</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
+`idx` | <code>int</code> | Image index appended as ``_img{idx}`` to the base filename. Used to disambiguate saves across multiple images. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | Dictionary with 'glass' and 'slices' keys containing save paths
+<code>dict</code> | Dictionary with 'glass' and 'slices' keys containing save paths

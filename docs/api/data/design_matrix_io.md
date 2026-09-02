@@ -1,5 +1,6 @@
 ---
 title: data.designmatrix.io
+label: data-design-matrix-io
 ---
 
 Provide DesignMatrix I/O and visualization functions.
@@ -7,7 +8,7 @@ Provide DesignMatrix I/O and visualization functions.
 Standalone functions extracted from DesignMatrix methods.
 Each takes a DesignMatrix instance (`dm`) as its first argument.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -20,7 +21,7 @@ Name | Description
 [`write`](#data-design-matrix-io-write) | Write DesignMatrix to file.
 [`write_h5`](#data-design-matrix-io-write-h5) | Write DesignMatrix to HDF5 file with metadata.
 
-## Methods
+## Functions
 
 (data-design-matrix-io-events-to-dm)=
 ### `events_to_dm`
@@ -41,15 +42,15 @@ explicitly when convolution is desired. Drops nilearn's auto-added
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`events` | <code>[DataFrame](#polars.DataFrame) \| [DataFrame](#pandas.DataFrame)</code> | pandas or polars DataFrame with BIDS columns `onset`, `duration`, `trial_type` (required); `modulation` is passed through if present. | *required*
-`run_length` | <code>[int](#int)</code> | Number of TRs the run contains. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
+`events` | <code>DataFrame \| DataFrame</code> | pandas or polars DataFrame with BIDS columns `onset`, `duration`, `trial_type` (required); `modulation` is passed through if present. | *required*
+`run_length` | <code>int</code> | Number of TRs the run contains. | *required*
+`sampling_freq` | <code>float</code> | Sampling frequency in Hz (= 1/TR). | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#polars.DataFrame)</code> | One column per unique `trial_type`, values in     {0, modulation} indicating where each condition is active.
+<code>DataFrame</code> | One column per unique `trial_type`, values in     {0, modulation} indicating where each condition is active.
 
 (data-design-matrix-io-load-from-file)=
 ### `load_from_file`
@@ -74,15 +75,15 @@ per run, unlike confounds which are 1 row per TR).
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`path` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to a `.tsv` or `.csv` file. | *required*
-`run_length` | <code>[int](#int) \| [str](#str)</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
-`sampling_freq` | <code>[float](#float)</code> | Sampling frequency in Hz (= 1/TR). | *required*
+`path` | <code>str \| Path</code> | Path to a `.tsv` or `.csv` file. | *required*
+`run_length` | <code>int \| str</code> | Number of TRs, or `'infer'` for tabular inputs. | *required*
+`sampling_freq` | <code>float</code> | Sampling frequency in Hz (= 1/TR). | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [bool](#bool)]</code> | `(frame, is_events)` — `is_events` signals to     the caller that the columns are experimental regressors rather than     nuisance.
+<code>tuple[DataFrame, bool]</code> | `(frame, is_events)` — `is_events` signals to     the caller that the columns are experimental regressors rather than     nuisance.
 
 (data-design-matrix-io-read-h5)=
 ### `read_h5`
@@ -104,13 +105,13 @@ time so downstream recognition stays keyed on the prefix alone.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`file_name` | <code>[str](#str) \| [Path](#pathlib.Path)</code> | Path to the HDF5 file. | *required*
+`file_name` | <code>str \| Path</code> | Path to the HDF5 file. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [dict](#dict)]</code> | `(frame, metadata)`, where metadata holds     ``sampling_freq``, ``convolved``, ``confounds``, ``multi``, and     ``n_rows`` — absent keys meaning the file didn't record them.
+<code>tuple[DataFrame, dict]</code> | `(frame, metadata)`, where metadata holds     ``sampling_freq``, ``convolved``, ``confounds``, ``multi``, and     ``n_rows`` — absent keys meaning the file didn't record them.
 
 (data-design-matrix-io-separator-for-path)=
 ### `separator_for_path`
@@ -142,13 +143,13 @@ Column order is preserved from DataFrame.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | 2D array with shape (n_samples, n_columns)
+<code>ndarray</code> | 2D array with shape (n_samples, n_columns)
 
 **Examples:**
 
@@ -175,13 +176,13 @@ slower (~10-20%) than pyarrow-based conversion but removes the dependency.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[DataFrame](#pandas.DataFrame)</code> | Pandas DataFrame with same data and column names.
+<code>DataFrame</code> | Pandas DataFrame with same data and column names.
 
 **Examples:**
 
@@ -208,9 +209,9 @@ determined by file extension.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`file_name` | <code>[str](#str)</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
-`sep` | <code>[str](#str) \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`file_name` | <code>str</code> | Output file path. Use .tsv, .csv, or .h5/.hdf5 extension. | *required*
+`sep` | <code>str \| None</code> | Column separator for text files. Defaults to the delimiter the extension implies (comma for ``.csv``, tab otherwise), so the file reads back correctly; pass a value to override. Ignored for HDF5. | <code>None</code>
 
 **Examples:**
 
@@ -249,5 +250,5 @@ detour through a homogeneous numpy array.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#nltools.data.designmatrix.DesignMatrix)</code> | DesignMatrix instance. | *required*
-`file_name` | <code>[str](#str)</code> | Output HDF5 file path. | *required*
+`dm` | <code>[DesignMatrix](#data-design-matrix)</code> | DesignMatrix instance. | *required*
+`file_name` | <code>str</code> | Output HDF5 file path. | *required*

@@ -1,5 +1,6 @@
 ---
 title: templates
+label: templates
 ---
 
 Global MNI brain-space configuration for nltools.
@@ -16,7 +17,7 @@ Name | Description
 [`BrainSpaceConfig`](#templates-brainspaceconfig) | Immutable MNI template configuration.
 [`TemplateMatch`](#templates-templatematch) | Result of matching a data affine to a template.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -63,7 +64,7 @@ Scope a change to a block:
 ### `BrainSpaceConfig`
 
 ```python
-BrainSpaceConfig(template: TemplateName = 'default', resolution: Resolution = 2) -> None
+BrainSpaceConfig(template: TemplateName = 'default', resolution: Resolution = 2)
 ```
 
 Immutable MNI template configuration.
@@ -72,14 +73,14 @@ Immutable MNI template configuration.
 
 Name | Type | Description
 ---- | ---- | -----------
-`template` | <code>[TemplateName](#nltools.templates.registry.TemplateName)</code> | Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
-`resolution` | <code>[Resolution](#nltools.templates.registry.Resolution)</code> | Resolution in mm (1, 2, or 3).
+`template` | <code>TemplateName</code> | Template variant (``'default'``, ``'nilearn'``, ``'fmriprep'``).
+`resolution` | <code>Resolution</code> | Resolution in mm (1, 2, or 3).
 
 (templates-templatematch)=
 ### `TemplateMatch`
 
 ```python
-TemplateMatch(template: str, resolution: int, mask_path: str, brain_path: str, plot_path: str, match_distance: float) -> None
+TemplateMatch(template: str, resolution: int, mask_path: str, brain_path: str, plot_path: str, match_distance: float)
 ```
 
 Result of matching a data affine to a template.
@@ -88,16 +89,16 @@ Result of matching a data affine to a template.
 
 Name | Type | Description
 ---- | ---- | -----------
-`template` | <code>[str](#str)</code> | Best-matching template name.
-`resolution` | <code>[int](#int)</code> | Best-matching resolution in mm.
-`mask_path` | <code>[str](#str)</code> | Path to the matched mask file.
-`brain_path` | <code>[str](#str)</code> | Path to the matched brain file.
-`plot_path` | <code>[str](#str)</code> | Path to the matched T1/plot file.
-`match_distance` | <code>[float](#float)</code> | Absolute difference in mm between detected data resolution and the selected template resolution (0 for exact).
+`template` | <code>str</code> | Best-matching template name.
+`resolution` | <code>int</code> | Best-matching resolution in mm.
+`mask_path` | <code>str</code> | Path to the matched mask file.
+`brain_path` | <code>str</code> | Path to the matched brain file.
+`plot_path` | <code>str</code> | Path to the matched T1/plot file.
+`match_distance` | <code>float</code> | Absolute difference in mm between detected data resolution and the selected template resolution (0 for exact).
 
 
 
-## Methods
+## Functions
 
 (templates-fetch-resource)=
 ### `fetch_resource`
@@ -112,13 +113,13 @@ Return a local path to a file from the ``nltools/niftis`` HF dataset.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`relpath` | <code>[str](#str)</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use `list_resources` to enumerate what's available. | *required*
+`relpath` | <code>str</code> | Path within the dataset repo, e.g. ``'default/2mm-MNI152-2009fsl-mask.nii.gz'`` or ``'masks/k88_parcel_names.csv'``. Use `list_resources` to enumerate what's available. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Absolute path to the cached file on disk. The returned path drops     straight into anything that takes a NIfTI path — nilearn plotting     and masking helpers, `nibabel.load`, and `BrainData(path)`.
+<code>str</code> | Absolute path to the cached file on disk. The returned path drops     straight into anything that takes a NIfTI path — nilearn plotting     and masking helpers, `nibabel.load`, and `BrainData(path)`.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -149,15 +150,21 @@ an appropriate background anatomical.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a BrainData's masker. | *required*
-`img_type` | <code>[str](#str)</code> | ``'brain'`` for brain-extracted image or ``'plot'`` for full T1. | <code>'brain'</code>
-`config` | <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig) \| None</code> | Optional explicit config; defaults to current global. | <code>None</code>
+`affine` | <code>ndarray</code> | 4x4 affine matrix from a BrainData's masker. | *required*
+`img_type` | <code>str</code> | ``'brain'`` for brain-extracted image or ``'plot'`` for full T1. | <code>'brain'</code>
+`config` | <code>[BrainSpaceConfig](#templates-brainspaceconfig) \| None</code> | Optional explicit config; defaults to current global. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Path to the template image file.
+<code>str</code> | Path to the template image file.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If voxels are non-isotropic or ``img_type`` is invalid.
 
 (templates-get-brainspace)=
 ### `get_brainspace`
@@ -187,14 +194,14 @@ would render in misleading positions.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a NIfTI image (typically ``bd.mask.affine``). | *required*
-`config` | <code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig) \| None</code> | Optional explicit ``BrainSpaceConfig``; defaults to the current global brain space (only the supported resolution set is consulted). | <code>None</code>
+`affine` | <code>ndarray</code> | 4x4 affine matrix from a NIfTI image (typically ``bd.mask.affine``). | *required*
+`config` | <code>[BrainSpaceConfig](#templates-brainspaceconfig) \| None</code> | Optional explicit ``BrainSpaceConfig``; defaults to the current global brain space (only the supported resolution set is consulted). | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[bool](#bool), [str](#str) \| None]</code> | ``(True, None)`` if compatible; otherwise ``(False, reason)`` with     ``reason`` a one-line human-readable explanation suitable for     embedding in an error message.
+<code>tuple[bool, str \| None]</code> | ``(True, None)`` if compatible; otherwise ``(False, reason)`` with     ``reason`` a one-line human-readable explanation suitable for     embedding in an error message.
 
 (templates-list-resources)=
 ### `list_resources`
@@ -213,13 +220,13 @@ web UI.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`prefix` | <code>[str](#str) \| None</code> | Optional path prefix to filter by (e.g., ``'masks/'``, ``'default/'``, ``'fmriprep/'``). Matches with ``str.startswith``. | <code>None</code>
+`prefix` | <code>str \| None</code> | Optional path prefix to filter by (e.g., ``'masks/'``, ``'default/'``, ``'fmriprep/'``). Matches with ``str.startswith``. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | Sorted list of relative paths usable with `fetch_resource`.
+<code>list[str]</code> | Sorted list of relative paths usable with `fetch_resource`.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -244,15 +251,21 @@ resolution most closely matches the data's voxel size.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`affine` | <code>[ndarray](#numpy.ndarray)</code> | 4x4 affine matrix from a NIfTI image. | *required*
-`prefer_exact` | <code>[bool](#bool)</code> | If True, prefer an exact resolution match. | <code>True</code>
-`warn_resample` | <code>[bool](#bool)</code> | If True, emit a warning when data resolution doesn't exactly match the selected template. | <code>True</code>
+`affine` | <code>ndarray</code> | 4x4 affine matrix from a NIfTI image. | *required*
+`prefer_exact` | <code>bool</code> | If True, prefer an exact resolution match. | <code>True</code>
+`warn_resample` | <code>bool</code> | If True, emit a `ResamplingWarning` when the data resolution has no exact template and the closest one is used. | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[TemplateMatch](#nltools.templates.matching.TemplateMatch)</code> | A `TemplateMatch`.
+<code>[TemplateMatch](#templates-templatematch)</code> | A `TemplateMatch`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If detected resolution is outside a reasonable range.
 
 (templates-reset-brainspace)=
 ### `reset_brainspace`
@@ -276,14 +289,20 @@ Build mask/brain/plot paths for a template + resolution.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`template` | <code>[str](#str)</code> | Template name (``'default'``, ``'nilearn'``, ``'fmriprep'``). | *required*
-`resolution` | <code>[int](#int)</code> | Resolution in mm. | *required*
+`template` | <code>str</code> | Template name (``'default'``, ``'nilearn'``, ``'fmriprep'``). | *required*
+`resolution` | <code>int</code> | Resolution in mm. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)[[str](#str), [str](#str)]</code> | Dict with keys ``'mask'``, ``'brain'``, ``'plot'``.
+<code>dict[str, str]</code> | Dict with keys ``'mask'``, ``'brain'``, ``'plot'``.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If template or resolution is invalid.
 
 (templates-resolve-template-name)=
 ### `resolve_template_name`
@@ -300,14 +319,14 @@ Supports names of the form ``'{res}mm-MNI152-2009{version}'``.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`template_name` | <code>[str](#str)</code> | e.g. ``'2mm-MNI152-2009c'``, ``'3mm-MNI152-2009a'``. | *required*
-`file_type` | <code>[str](#str)</code> | ``'mask'``, ``'brain'``, or ``'T1'``. | <code>'mask'</code>
+`template_name` | <code>str</code> | e.g. ``'2mm-MNI152-2009c'``, ``'3mm-MNI152-2009a'``. | *required*
+`file_type` | <code>str</code> | ``'mask'``, ``'brain'``, or ``'T1'``. | <code>'mask'</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Absolute path to the requested template file.
+<code>str</code> | Absolute path to the requested template file.
 
 (templates-set-brainspace)=
 ### `set_brainspace`
@@ -326,14 +345,14 @@ fields retain their current value.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`template` | <code>[TemplateName](#nltools.templates.registry.TemplateName) \| None</code> | Template name to set. If ``None``, keeps current. | <code>None</code>
-`resolution` | <code>[Resolution](#nltools.templates.registry.Resolution) \| None</code> | Resolution to set. If ``None``, keeps current. | <code>None</code>
+`template` | <code>TemplateName \| None</code> | Template name to set. If ``None``, keeps current. | <code>None</code>
+`resolution` | <code>Resolution \| None</code> | Resolution to set. If ``None``, keeps current. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig)</code> | The new (or unchanged) current ``BrainSpaceConfig``.
+<code>[BrainSpaceConfig](#templates-brainspaceconfig)</code> | The new (or unchanged) current ``BrainSpaceConfig``.
 
 (templates-with-brainspace)=
 ### `with_brainspace`
@@ -351,11 +370,11 @@ raised inside the block.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`template` | <code>[TemplateName](#nltools.templates.registry.TemplateName) \| None</code> | Template name for the duration of the block. | <code>None</code>
-`resolution` | <code>[Resolution](#nltools.templates.registry.Resolution) \| None</code> | Resolution for the duration of the block. | <code>None</code>
+`template` | <code>TemplateName \| None</code> | Template name for the duration of the block. | <code>None</code>
+`resolution` | <code>Resolution \| None</code> | Resolution for the duration of the block. | <code>None</code>
 
 **Yields:**
 
 Type | Description
 ---- | -----------
-<code>[BrainSpaceConfig](#nltools.templates.config.BrainSpaceConfig)</code> | The ``BrainSpaceConfig`` active inside the block.
+<code>[BrainSpaceConfig](#templates-brainspaceconfig)</code> | The ``BrainSpaceConfig`` active inside the block.

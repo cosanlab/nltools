@@ -1,5 +1,6 @@
 ---
 title: data.collection.execution
+label: data-collection-execution
 ---
 
 Parallel execution machinery for BrainCollection.
@@ -16,7 +17,7 @@ Name | Description
 [`BrainCollectionWorkerError`](#data-collection-execution-braincollectionworkererror) | Raised in the parent process when a worker fails inside ``_apply``.
 [`tqdm_joblib`](#data-collection-execution-tqdm-joblib) | Context manager that updates a tqdm bar as joblib workers complete.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -35,7 +36,7 @@ Name | Description
 (data-collection-execution-braincollectionworkererror)=
 ### `BrainCollectionWorkerError`
 
-Bases: <code>[RuntimeError](#RuntimeError)</code>
+Bases: `RuntimeError`
 
 Raised in the parent process when a worker fails inside ``_apply``.
 
@@ -58,7 +59,7 @@ the duration of the ``with`` block.
 
 
 
-## Methods
+## Functions
 
 (data-collection-execution-detect-bundle-kind)=
 ### `detect_bundle_kind`

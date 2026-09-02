@@ -1,5 +1,6 @@
 ---
 title: data.braindata.neighborhoods
+label: neighborhoods
 ---
 
 Spatial neighborhood computation for neuroimaging analyses.
@@ -17,7 +18,7 @@ Name | Description
 ---- | -----------
 [`SphereNeighborhoods`](#neighborhoods-sphereneighborhoods) | Precomputed sphere neighborhoods for a brain mask.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -46,7 +47,7 @@ for center_idx, neighbor_indices in neighborhoods.iter_neighborhoods():
 ### `SphereNeighborhoods`
 
 ```python
-SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius_mm: float, n_voxels: int) -> None
+SphereNeighborhoods(adjacency: sparse.csr_matrix, mask_hash: str, radius_mm: float, n_voxels: int)
 ```
 
 Precomputed sphere neighborhoods for a brain mask.
@@ -59,10 +60,10 @@ iteration over neighborhoods for searchlight-style analyses.
 
 Name | Type | Description
 ---- | ---- | -----------
-`adjacency` | <code>[csr_matrix](#scipy.sparse.csr_matrix)</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
-`mask_hash` | <code>[str](#str)</code> | Hash of the source mask for validation
-`radius_mm` | <code>[float](#float)</code> | Radius in millimeters
-`n_voxels` | <code>[int](#int)</code> | Number of voxels in the mask
+`adjacency` | <code>csr_matrix</code> | Sparse CSR matrix (n_voxels, n_voxels) where adjacency[i, j] is True if voxel j is within radius of voxel i
+`mask_hash` | <code>str</code> | Hash of the source mask for validation
+`radius_mm` | <code>float</code> | Radius in millimeters
+`n_voxels` | <code>int</code> | Number of voxels in the mask
 
 **Methods:**
 
@@ -100,13 +101,13 @@ Get the number of voxels in a neighborhood.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`voxel_idx` | <code>[int](#int)</code> | Index of the center voxel | *required*
+`voxel_idx` | <code>int</code> | Index of the center voxel | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[int](#int)</code> | Number of voxels in the neighborhood
+<code>int</code> | Number of voxels in the neighborhood
 
 (neighborhoods-get-neighbors)=
 ##### `get_neighbors`
@@ -121,13 +122,13 @@ Get indices of all voxels in the neighborhood of a given voxel.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`voxel_idx` | <code>[int](#int)</code> | Index of the center voxel (0 to n_voxels-1) | *required*
+`voxel_idx` | <code>int</code> | Index of the center voxel (0 to n_voxels-1) | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Array of voxel indices within radius of the center voxel
+<code>ndarray</code> | Array of voxel indices within radius of the center voxel
 
 (neighborhoods-iter-neighborhoods)=
 ##### `iter_neighborhoods`
@@ -142,7 +143,7 @@ Iterate over all neighborhoods.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`progress_bar` | <code>[bool](#bool)</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
+`progress_bar` | <code>bool</code> | If True, wrap iterator with tqdm progress bar | <code>False</code>
 
 
 
@@ -150,9 +151,9 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[int](#int), [ndarray](#numpy.ndarray)]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
+<code>tuple[int, ndarray]</code> | Tuple of (center_voxel_idx, neighbor_indices) for each voxel
 
-## Methods
+## Functions
 
 (neighborhoods-compute-searchlight-neighborhoods)=
 ### `compute_searchlight_neighborhoods`
@@ -175,15 +176,21 @@ voxel resolution.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`mask_img` | <code>[Nifti1Image](#nibabel.Nifti1Image)</code> | NIfTI mask image defining the brain region | *required*
-`radius_mm` | <code>[float](#float)</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
-`use_cache` | <code>[bool](#bool)</code> | If True, cache results to ~/.nltools/cache/searchlight/ for fast reloading (default: True) | <code>True</code>
+`mask_img` | <code>Nifti1Image</code> | NIfTI mask image defining the brain region | *required*
+`radius_mm` | <code>float</code> | Radius of spheres in millimeters (default: 10.0) | <code>10.0</code>
+`use_cache` | <code>bool</code> | If True, cache results to ~/.nltools/cache/searchlight/ for fast reloading (default: True) | <code>True</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[SphereNeighborhoods](#nltools.data.braindata.neighborhoods.SphereNeighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
+<code>[SphereNeighborhoods](#neighborhoods-sphereneighborhoods)</code> | SphereNeighborhoods with precomputed adjacency matrix
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If mask has no non-zero voxels
 
 **Examples:**
 

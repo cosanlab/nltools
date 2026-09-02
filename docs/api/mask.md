@@ -1,10 +1,11 @@
 ---
 title: mask
+label: mask
 ---
 
 Utilities for creating and manipulating brain masks.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -16,7 +17,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (mask-collapse-mask)=
 ### `collapse_mask`
@@ -41,7 +42,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | BrainData instance of a mask with different integers indicating     different masks.
+<code>[BrainData](#data-brain-data)</code> | BrainData instance of a mask with different integers indicating     different masks.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If ``mask`` is neither a nibabel nor BrainData instance, or if it holds fewer than 2 masks (nothing to collapse).
 
 (mask-create-sphere)=
 ### `create_sphere`
@@ -64,7 +71,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Nifti1Image](#Nifti1Image)</code> | A binary image with the requested spheres in mask space.
+<code>Nifti1Image</code> | A binary image with the requested spheres in mask space.
 
 (mask-expand-mask)=
 ### `expand_mask`
@@ -86,7 +93,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | BrainData instance of multiple binary masks.
+<code>[BrainData](#data-brain-data)</code> | BrainData instance of multiple binary masks.
 
 (mask-roi-to-brain)=
 ### `roi_to_brain`
@@ -114,7 +121,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | A BrainData instance with each ROI populated by the     provided value(s).
+<code>[BrainData](#data-brain-data)</code> | A BrainData instance with each ROI populated by the     provided value(s).
 
 (mask-roi-to-brain-from-atlas)=
 ### `roi_to_brain_from_atlas`
@@ -139,13 +146,13 @@ Name | Type | Description | Default
 `atlas` |  | Labeled image — ``BrainData``, ``Nifti1Image``, or path-like. Resampled to ``source_mask`` (nearest-neighbor) if shapes/affines differ. | *required*
 `source_mask` |  | ``Nifti1Image`` (or path) defining the output voxel grid. The returned ``BrainData`` is masked to this image. | *required*
 `roi_labels` |  | Integer atlas IDs in the same order as ``values``. If None, defaults to ``np.unique`` of the atlas with 0 stripped (sorted ascending). | <code>None</code>
-`fill` | <code>[float](#float)</code> | Value for voxels not in any provided ROI. Default ``np.nan``. | <code>[nan](#numpy.nan)</code>
+`fill` | <code>float</code> | Value for voxels not in any provided ROI. Default ``np.nan``. | <code>nan</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.BrainData)</code> | Masked to `source_mask`, with each in-atlas voxel set to its     parcel's scalar from `values`. Holds a single image when `values` is     1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
+<code>[BrainData](#data-brain-data)</code> | Masked to `source_mask`, with each in-atlas voxel set to its     parcel's scalar from `values`. Holds a single image when `values` is     1-D, or `n_images` images when `values` is 2-D `(n_images, n_parcels)`.
 
 **Examples:**
 

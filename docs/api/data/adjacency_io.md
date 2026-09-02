@@ -1,10 +1,11 @@
 ---
 title: data.adjacency.io
+label: data-adjacency-io
 ---
 
 I/O functions for Adjacency objects.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -13,7 +14,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-adjacency-io-to-graph)=
 ### `to_graph`
@@ -30,13 +31,13 @@ Only works on single matrices for now.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#nltools.data.adjacency.Adjacency)</code> | Adjacency instance (must be a single matrix). | *required*
+`adj` | <code>[Adjacency](#data-adjacency)</code> | Adjacency instance (must be a single matrix). | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Graph](#networkx.Graph) or [DiGraph](#networkx.DiGraph)</code> | Graph representation of the     adjacency matrix. Uses DiGraph for directed matrices.
+<code>Graph or DiGraph</code> | Graph representation of the     adjacency matrix. Uses DiGraph for directed matrices.
 
 (data-adjacency-io-write)=
 ### `write`
@@ -52,5 +53,5 @@ Write out Adjacency object to csv file.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` |  | Adjacency object to write | *required*
-`file_name` | <code>[str](#str)</code> | name of file name to write | *required*
-`method` | <code>[str](#str)</code> | method to write out data ['long','square'] | <code>'long'</code>
+`file_name` | <code>str</code> | name of file name to write | *required*
+`method` | <code>str</code> | method to write out data ['long','square'] | <code>'long'</code>

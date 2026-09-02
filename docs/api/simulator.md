@@ -1,5 +1,6 @@
 ---
 title: data.simulator
+label: simulator
 ---
 
 Tools to simulate multivariate brain and grid data for testing analysis pipelines.
@@ -88,8 +89,8 @@ Add a rectangular signal to self.data.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`signal_width` | <code>[int](#int)</code> | width of signal box | <code>20</code>
-`signal_amplitude` | <code>[int](#int)</code> | intensity of signal | <code>1</code>
+`signal_width` | <code>int</code> | width of signal box | <code>20</code>
+`signal_amplitude` | <code>int</code> | intensity of signal | <code>1</code>
 
 (simulator-create-mask)=
 ##### `create_mask`
@@ -140,8 +141,8 @@ Threshold the fitted simulation.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`threshold` | <code>[float](#float)</code> | threshold to apply to simulation | *required*
-`threshold_type` | <code>[str](#str)</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
+`threshold` | <code>float</code> | threshold to apply to simulation | *required*
+`threshold_type` | <code>str</code> | type of threshold to use can be a specific t-value or p-value ['t', 'p', 'q'] | *required*
 
 (simulator-simulator)=
 ### `Simulator`

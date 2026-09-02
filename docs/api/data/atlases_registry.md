@@ -1,5 +1,6 @@
 ---
 title: data.atlases.registry
+label: data-atlases-registry
 ---
 
 Static registry of atlases hosted at ``nltools/niftis/atlases``.
@@ -18,7 +19,7 @@ Name | Description
 ---- | -----------
 [`AtlasMetadata`](#data-atlases-registry-atlasmetadata) | Static description of a registered atlas.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -32,7 +33,7 @@ Name | Description
 ### `AtlasMetadata`
 
 ```python
-AtlasMetadata(kind: AtlasKind, citation: str) -> None
+AtlasMetadata(kind: AtlasKind, citation: str)
 ```
 
 Static description of a registered atlas.
@@ -41,12 +42,12 @@ Static description of a registered atlas.
 
 Name | Type | Description
 ---- | ---- | -----------
-`kind` | <code>[AtlasKind](#nltools.data.atlases.registry.AtlasKind)</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
-`citation` | <code>[str](#str)</code> | Short citation string for the original atlas.
+`kind` | <code>AtlasKind</code> | ``"deterministic"`` (3D integer-labeled) or ``"probabilistic"`` (4D, last axis indexes regions).
+`citation` | <code>str</code> | Short citation string for the original atlas.
 
 
 
-## Methods
+## Functions
 
 (data-atlases-registry-list-atlases)=
 ### `list_atlases`
@@ -61,4 +62,4 @@ Return the sorted list of registered atlas names.
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[str](#str)]</code> | Sorted list of atlas names usable with `load_atlas`.
+<code>list[str]</code> | Sorted list of atlas names usable with `load_atlas`.

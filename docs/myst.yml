@@ -56,6 +56,7 @@ project:
             - file: api/data/adjacency_modeling.md
             - file: api/data/adjacency_plotting.md
             - file: api/data/adjacency_io.md
+            - file: api/data/adjacency_spatial.md
         - title: DesignMatrix
           children:
             - file: api/data/design_matrix_transforms.md
@@ -78,6 +79,8 @@ project:
             - file: api/data/atlases_labeling.md
             - file: api/data/atlases_reporting.md
         - file: api/models.md
+        - file: api/data/fitresults.md
+          title: Fit & Predict results
     - title: API Functions
       children:
         - file: api/plotting.md
@@ -117,7 +120,6 @@ project:
         - file: api/algorithms/inference_isc.md
         - file: api/algorithms/inference_intersubject.md
         - file: api/algorithms/inference_bootstrap.md
-        - file: api/algorithms/inference_utils.md
     - title: Development
       children:
         - file: contributing.md

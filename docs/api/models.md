@@ -1,5 +1,6 @@
 ---
 title: models
+label: models
 ---
 
 Model classes for neuroimaging analysis.
@@ -22,10 +23,10 @@ Name | Description
 ### `BaseModel`
 
 ```python
-BaseModel() -> None
+BaseModel()
 ```
 
-Bases: <code>[ABC](#abc.ABC)</code>
+Bases: `abc.ABC`
 
 Abstract base class for all nltools models.
 
@@ -38,9 +39,9 @@ Follows scikit-learn API conventions:
 
 Name | Type | Description
 ---- | ---- | -----------
-`n_features_in_` | <code>[int](#int)</code> | Number of features seen during fit
-`n_samples_` | <code>[int](#int)</code> | Number of samples seen during fit
-`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
+`n_features_in_` | <code>int</code> | Number of features seen during fit
+`n_samples_` | <code>int</code> | Number of samples seen during fit
+`is_fitted_` | <code>bool</code> | Whether the model has been fitted
 
 **Methods:**
 
@@ -74,7 +75,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BaseModel](#nltools.models.base.BaseModel)</code> | Fitted model instance
+<code>[BaseModel](#models-basemodel)</code> | Fitted model instance
 
 (models-predict)=
 ##### `predict`
@@ -95,7 +96,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#ndarray)</code> | Predicted values
+<code>ndarray</code> | Predicted values
 
 (models-score)=
 ##### `score`
@@ -117,16 +118,16 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | Model performance metric
+<code>float</code> | Model performance metric
 
 (models-glm)=
 ### `Glm`
 
 ```python
-Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool) -> None
+Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool)
 ```
 
-Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
+Bases: [`BaseModel`](#models-basemodel)
 
 General Linear Model for fMRI data analysis with sklearn-compatible API.
 
@@ -138,17 +139,17 @@ interface (fit/predict/score) while exposing full nilearn GLM functionality.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>[float](#float)</code> | Repetition time (TR) in seconds. If None, will be inferred from data. | <code>None</code>
+`t_r` | <code>float</code> | Repetition time (TR) in seconds. If None, will be inferred from data. | <code>None</code>
 `noise_model` | <code>str, default='ols'</code> | Noise model for temporal autocorrelation ('ols' or 'ar1').<br>- 'ols': Ordinary Least Squares (assumes independent errors) - 'ar1': Autoregressive AR(1) model (accounts for temporal correlation) | <code>'ols'</code>
-`smoothing_fwhm` | <code>[float](#float)</code> | Full-Width at Half Maximum (FWHM) in mm for spatial smoothing. If None, no smoothing is applied. | <code>None</code>
-`mask` | <code>[Nifti1Image](#Nifti1Image)</code> | Mask image defining voxels to include in analysis. If None, uses MNI template mask (default, like BrainData). | <code>None</code>
+`smoothing_fwhm` | <code>float</code> | Full-Width at Half Maximum (FWHM) in mm for spatial smoothing. If None, no smoothing is applied. | <code>None</code>
+`mask` | <code>Nifti1Image</code> | Mask image defining voxels to include in analysis. If None, uses MNI template mask (default, like BrainData). | <code>None</code>
 `**kwargs` |  | Additional arguments passed to nilearn FirstLevelModel. | <code>{}</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`is_fitted_` | <code>[bool](#bool)</code> | Whether the model has been fitted
+`is_fitted_` | <code>bool</code> | Whether the model has been fitted
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -248,7 +249,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Nifti1Image](#nibabel.Nifti1Image) \| [dict](#dict)</code> | The contrast map, or a dict of all maps when ``output_type='all'``.
+<code>Nifti1Image \| dict</code> | The contrast map, or a dict of all maps when ``output_type='all'``.
 
 **Examples:**
 
@@ -290,7 +291,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Glm](#nltools.models.glm.Glm)</code> | Fitted model instance (for method chaining)
+<code>[Glm](#models-glm)</code> | Fitted model instance (for method chaining)
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -323,7 +324,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[Nifti1Image](#nibabel.Nifti1Image)] \| [ndarray](#numpy.ndarray)</code> | Fitted values (when X is None) or predictions for the new X.
+<code>list[Nifti1Image] \| ndarray</code> | Fitted values (when X is None) or predictions for the new X.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>NotImplementedError</code> | If X is given for a multi-run fit (a single new design is ambiguous across runs — fit per run instead).
+<code>ValueError</code> | If X's column count does not match the fitted design.
 
 (models-report)=
 ##### `report`
@@ -349,7 +357,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[HTMLReport](#HTMLReport)</code> | nilearn report object; call `.save_as_html(path)` or     display it in a notebook.
+<code>HTMLReport</code> | nilearn report object; call `.save_as_html(path)` or     display it in a notebook.
 
 ##### `score`
 
@@ -373,16 +381,16 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float)</code> | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
+<code>float</code> | Mean R² across all voxels and runs. Range: [0, 1], higher is better.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Extracts R² values from nilearn's FirstLevelModel.r_square attribute,
+Extracts R² values from nilearn's FirstLevelModel.r_square_ attribute,
 which returns a list of Nifti1Image objects (one per run).
 Computes the mean across all non-NaN voxels and all runs.
 
-For voxel-wise R² maps, access `glm_.r_square` directly.
+For voxel-wise R² maps, access `glm_.r_square_` directly.
 
 </details>
 
@@ -398,10 +406,10 @@ For voxel-wise R² maps, access `glm_.r_square` directly.
 ### `Ridge`
 
 ```python
-Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False) -> None
+Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False)
 ```
 
-Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>
+Bases: [`BaseModel`](#models-basemodel)
 
 Ridge regression with optional GPU acceleration and banded ridge support.
 
@@ -436,10 +444,10 @@ Name | Type | Description | Default
 Name | Type | Description
 ---- | ---- | -----------
 `coef_` | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
-`alpha_` | <code>[float](#float) or [ndarray](#ndarray)</code> | Alpha value(s) used (selected via CV if alpha='auto')
-`cv_scores_` | <code>[ndarray](#ndarray)</code> | Cross-validation scores (only if alpha='auto')
-`deltas_` | <code>[ndarray](#ndarray) or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#Backend)</code> | Resolved backend instance used for computation (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
+`alpha_` | <code>float or ndarray</code> | Alpha value(s) used (selected via CV if alpha='auto')
+`cv_scores_` | <code>ndarray</code> | Cross-validation scores (only if alpha='auto')
+`deltas_` | <code>ndarray or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
+`backend_` | <code>[Backend](#backends-backend)</code> | Resolved backend instance used for computation (its ``.name`` reports the concrete device, e.g. ``'torch-cuda'``).
 
 **Methods:**
 
@@ -495,7 +503,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Ridge](#nltools.models.ridge.Ridge)</code> | Fitted model instance
+<code>[Ridge](#models-ridge)</code> | Fitted model instance
 
 ##### `predict`
 
@@ -515,7 +523,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Predicted values, shape ``(n_samples,)`` or     ``(n_samples, n_targets)``.
+<code>ndarray</code> | Predicted values, shape ``(n_samples,)`` or     ``(n_samples, n_targets)``.
 
 ##### `score`
 
@@ -539,4 +547,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[float](#float) or [ndarray](#ndarray)</code> | - If y is 1D: scalar R²     - If y is 2D: array of shape (n_targets,) with per-target R² scores
+<code>float or ndarray</code> | - If y is 1D: scalar R²     - If y is 2D: array of shape (n_targets,) with per-target R² scores

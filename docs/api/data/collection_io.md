@@ -1,5 +1,6 @@
 ---
 title: data.collection.io
+label: data-collection-io
 ---
 
 IO and constructors for BrainCollection.
@@ -8,7 +9,7 @@ Constructors (``from_bids``, ``from_glob``, ``from_paths``, ``read``),
 write, load/unload, cache plumbing, and ``memory_estimate``. Anything that
 crosses the disk boundary lives here.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -22,7 +23,7 @@ Name | Description
 [`unload`](#data-collection-io-unload) | Drop in-memory data for items that have backing paths.
 [`write`](#data-collection-io-write) | Write a clean, portable copy of ``bc`` outside the cache root.
 
-## Methods
+## Functions
 
 (data-collection-io-discover-bids)=
 ### `discover_bids`

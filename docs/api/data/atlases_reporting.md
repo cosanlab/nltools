@@ -1,5 +1,6 @@
 ---
 title: data.atlases.reporting
+label: data-atlases-reporting
 ---
 
 Cluster reports — peak/cluster geometry plus atlas labels.
@@ -14,7 +15,7 @@ Name | Description
 ---- | -----------
 [`ClusterReport`](#data-atlases-reporting-clusterreport) | Result of `BrainData.cluster_report`.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -28,7 +29,7 @@ Name | Description
 ### `ClusterReport`
 
 ```python
-ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData) -> None
+ClusterReport(peaks: pl.DataFrame, clusters: pl.DataFrame, stat_img: BrainData)
 ```
 
 Result of `BrainData.cluster_report`.
@@ -37,9 +38,9 @@ Result of `BrainData.cluster_report`.
 
 Name | Type | Description
 ---- | ---- | -----------
-`peaks` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
-`clusters` | <code>[DataFrame](#polars.DataFrame)</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
-`stat_img` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
+`peaks` | <code>DataFrame</code> | Polars DataFrame, one row per peak (incl. sub-peaks). Columns ``cluster_id``, ``x``, ``y``, ``z`` (mm), ``peak_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas. ``cluster_id`` shares the integer id space of ``clusters`` (they are joinable); sub-peaks carry their parent cluster's id.
+`clusters` | <code>DataFrame</code> | Polars DataFrame, one row per cluster. Columns ``cluster_id``, ``peak_x``, ``peak_y``, ``peak_z``, ``mean_stat``, ``volume_mm3``, ``n_voxels``, then one Utf8 column per atlas (mass-weighted top regions).
+`stat_img` | <code>[BrainData](#data-brain-data)</code> | BrainData with the thresholded stat map (sub-cluster voxels and clusters smaller than ``cluster_threshold`` zeroed).
 
 **Methods:**
 
@@ -65,13 +66,13 @@ Render an overview glass brain + one slice figure per cluster.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`output_dir` | <code>[str](#str) \| [Path](#pathlib.Path) \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
+`output_dir` | <code>str \| Path \| None</code> | If given, save ``overview.png`` and ``cluster_NN.png`` files into the directory and return ``None``. If omitted, return a list of ``(label, matplotlib.figure.Figure)`` tuples without writing to disk. | <code>None</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[list](#list)[[tuple](#tuple)[[str](#str), [Figure](#matplotlib.figure.Figure)]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of     ``(label, figure)`` tuples.
+<code>list[tuple[str, Figure]] \| None</code> | ``None`` when ``output_dir`` is set, else a list of     ``(label, figure)`` tuples.
 
 (data-atlases-reporting-to-csv)=
 ##### `to_csv`
@@ -84,7 +85,7 @@ Write ``peaks.csv`` and ``clusters.csv`` into ``output_dir``.
 
 
 
-## Methods
+## Functions
 
 (data-atlases-reporting-cluster-report-data)=
 ### `cluster_report_data`
@@ -102,16 +103,16 @@ wraps the result in a `ClusterReport`.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#nltools.data.BrainData)</code> | BrainData with a 3D stat map (single sample). | *required*
-`stat_threshold` | <code>[float](#float) \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
-`cluster_threshold` | <code>[int](#int)</code> | Minimum cluster size in voxels. | <code>10</code>
-`two_sided` | <code>[bool](#bool)</code> | Report negative clusters as separate clusters. | <code>True</code>
-`min_distance` | <code>[float](#float)</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
-`atlas` | <code>[str](#str) \| [Sequence](#collections.abc.Sequence)[[str](#str)]</code> | Atlas name or list of names from `list_atlases`. | <code>[DEFAULT_ATLASES](#nltools.data.atlases.registry.DEFAULT_ATLASES)</code>
-`prob_threshold` | <code>[float](#float)</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
+`bd` | <code>[BrainData](#data-brain-data)</code> | BrainData with a 3D stat map (single sample). | *required*
+`stat_threshold` | <code>float \| None</code> | Voxel-level threshold. ``None`` means treat ``bd`` as already thresholded (skip voxel filtering, keep all non-zero voxels). | <code>3.0</code>
+`cluster_threshold` | <code>int</code> | Minimum cluster size in voxels. | <code>10</code>
+`two_sided` | <code>bool</code> | Report negative clusters as separate clusters. | <code>True</code>
+`min_distance` | <code>float</code> | Minimum distance (mm) between sub-peaks. Passed to `get_clusters_table`. | <code>8.0</code>
+`atlas` | <code>str \| Sequence[str]</code> | Atlas name or list of names from `list_atlases`. | <code>DEFAULT_ATLASES</code>
+`prob_threshold` | <code>float</code> | Drop probabilistic-atlas regions below this %. | <code>5.0</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[tuple](#tuple)[[DataFrame](#polars.DataFrame), [DataFrame](#polars.DataFrame), [BrainData](#nltools.data.BrainData)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.
+<code>tuple[DataFrame, DataFrame, [BrainData](#data-brain-data)]</code> | Tuple ``(peaks, clusters, thresholded_bd)``.

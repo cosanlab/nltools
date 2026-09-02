@@ -1,10 +1,11 @@
 ---
 title: data.braindata.bootstrap
+label: data-braindata-bootstrap
 ---
 
 Bootstrap functions extracted from BrainData methods.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -13,7 +14,7 @@ Name | Description
 
 
 
-## Methods
+## Functions
 
 (data-braindata-bootstrap-bootstrap)=
 ### `bootstrap`
@@ -50,7 +51,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | - For simple stats (with ``save_boots=False``): Returns BrainData       with bootstrap mean     - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',       'ci_lower', 'ci_upper' (all BrainData objects)     - If ``save_boots=True``: Returns a dict (even for simple stats)       with an added 'samples' key holding all samples as a raw ndarray
+<code>[BrainData](#data-brain-data) or dict</code> | - For simple stats (with ``save_boots=False``): Returns BrainData       with bootstrap mean     - For model stats: Returns dict with keys: 'mean', 'std', 'Z', 'p',       'ci_lower', 'ci_upper' (all BrainData objects)     - If ``save_boots=True``: Returns a dict (even for simple stats)       with an added 'samples' key holding all samples as a raw ndarray
 
 **Examples:**
 
@@ -118,4 +119,4 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData) or [dict](#dict)</code> | - If return_dict=False and save_boots=False: Returns BrainData with mean     - Otherwise: Returns dict with BrainData objects for each statistic.       The optional 'samples' entry (when save_boots=True) is a raw       ndarray, not a BrainData.
+<code>[BrainData](#data-brain-data) or dict</code> | - If return_dict=False and save_boots=False: Returns BrainData with mean     - Otherwise: Returns dict with BrainData objects for each statistic.       The optional 'samples' entry (when save_boots=True) is a raw       ndarray, not a BrainData.

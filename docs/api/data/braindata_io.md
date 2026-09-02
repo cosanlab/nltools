@@ -1,5 +1,6 @@
 ---
 title: data.braindata.io
+label: data-braindata-io
 ---
 
 BrainData I/O and loading functions.
@@ -8,7 +9,7 @@ Standalone functions extracted from BrainData class methods for mask initializat
 data loading (from files, lists, URLs, HDF5, other BrainData objects), resampling,
 writing, and uploading.
 
-**Methods:**
+**Functions:**
 
 Name | Description
 ---- | -----------
@@ -26,12 +27,10 @@ Name | Description
 [`resample_to`](#data-braindata-io-resample-to) | Resample BrainData to match target image or resolution.
 [`to_nifti`](#data-braindata-io-to-nifti) | Convert BrainData instance to a nibabel NIfTI image.
 [`upload_neurovault`](#data-braindata-io-upload-neurovault) | Upload data to NeuroVault.
-[`warn_if_resampling`](#data-braindata-io-warn-if-resampling) | Warn about resampling if verbose=True and resample=True.
+[`warn_if_resampling`](#data-braindata-io-warn-if-resampling) | Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
 [`write_brain_data`](#data-braindata-io-write-brain-data) | Write out BrainData object to Nifti or HDF5 File.
 
-
-
-## Methods
+## Functions
 
 (data-braindata-io-check-space-match)=
 ### `check_space_match`
@@ -53,7 +52,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[bool](#bool)</code> | True if spaces match (no resampling needed), False otherwise
+<code>bool</code> | True if spaces match (no resampling needed), False otherwise
 
 (data-braindata-io-detect-and-update-mask)=
 ### `detect_and_update_mask`
@@ -81,7 +80,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Nifti1Image](#nibabel.Nifti1Image)</code> | The data_img, possibly resampled to match the mask
+<code>Nifti1Image</code> | The data_img, possibly resampled to match the mask
 
 (data-braindata-io-detect-space)=
 ### `detect_space`
@@ -102,7 +101,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | 'mni' if mask is MNI template, 'native' otherwise
+<code>str</code> | 'mni' if mask is MNI template, 'native' otherwise
 
 (data-braindata-io-get-interpolation)=
 ### `get_interpolation`
@@ -126,7 +125,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[str](#str)</code> | Interpolation method. When 'auto', resolves to 'nearest' or     'continuous' based on data type. Otherwise returns the instance's     configured interpolation setting.
+<code>str</code> | Interpolation method. When 'auto', resolves to 'nearest' or     'continuous' based on data type. Otherwise returns the instance's     configured interpolation setting.
 
 (data-braindata-io-initialize-mask)=
 ### `initialize_mask`
@@ -263,7 +262,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[ndarray](#numpy.ndarray)</code> | Masked data of shape ``(len(imgs), n_voxels)``.
+<code>ndarray</code> | Masked data of shape ``(len(imgs), n_voxels)``.
 
 (data-braindata-io-resample-to)=
 ### `resample_to`
@@ -287,7 +286,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#nltools.data.braindata.BrainData)</code> | New BrainData instance with resampled data
+<code>[BrainData](#data-brain-data)</code> | New BrainData instance with resampled data
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If both img and resolution are None, or both are provided
+<code>TypeError</code> | If img is not a valid image type
 
 (data-braindata-io-to-nifti)=
 ### `to_nifti`
@@ -308,7 +314,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Nifti1Image](#nibabel.Nifti1Image)</code> | Brain data in volumetric NIfTI format.
+<code>Nifti1Image</code> | Brain data in volumetric NIfTI format.
 
 (data-braindata-io-upload-neurovault)=
 ### `upload_neurovault`
@@ -326,18 +332,18 @@ Adds any columns in bd.X to image metadata. Index will be used as image name.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`access_token` | <code>[str](#str)</code> | NeuroVault API access token. Required. | <code>None</code>
-`collection_name` | <code>[str](#str)</code> | Name of new collection to create. | <code>None</code>
-`collection_id` | <code>[int](#int)</code> | NeuroVault collection ID if adding images to an existing collection. | <code>None</code>
-`img_type` | <code>[str](#str)</code> | NeuroVault map type. Required. | <code>None</code>
-`img_modality` | <code>[str](#str)</code> | NeuroVault image modality. Required. | <code>None</code>
+`access_token` | <code>str</code> | NeuroVault API access token. Required. | <code>None</code>
+`collection_name` | <code>str</code> | Name of new collection to create. | <code>None</code>
+`collection_id` | <code>int</code> | NeuroVault collection ID if adding images to an existing collection. | <code>None</code>
+`img_type` | <code>str</code> | NeuroVault map type. Required. | <code>None</code>
+`img_modality` | <code>str</code> | NeuroVault image modality. Required. | <code>None</code>
 `**kwargs` |  | Additional keyword arguments passed to the NeuroVault API. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[dict](#dict)</code> | NeuroVault collection information.
+<code>dict</code> | NeuroVault collection information.
 
 (data-braindata-io-warn-if-resampling)=
 ### `warn_if_resampling`
@@ -346,14 +352,18 @@ Type | Description
 warn_if_resampling(bd, context = '')
 ```
 
-Warn about resampling if verbose=True and resample=True.
+Emit a `ResamplingWarning` if ``verbose=True`` and ``resample=True``.
+
+Sibling of the template-mismatch notice in `match_resolution`: that one
+fires when a template is chosen for data at another resolution; this one
+fires when the data is actually resampled to the mask's grid.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`context` | <code>[str](#str)</code> | Context string to include in warning. Default: empty string. | <code>''</code>
+`context` | <code>str</code> | Why the spaces differ, appended to the message. Default: empty string. | <code>''</code>
 
 (data-braindata-io-write-brain-data)=
 ### `write_brain_data`
@@ -369,4 +379,4 @@ Write out BrainData object to Nifti or HDF5 File.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` |  | BrainData instance. | *required*
-`file_name` | <code>[str](#str) or [Path](#pathlib.Path)</code> | Output file path. Supports .nii/.nii.gz (NIfTI) and .h5/.hdf5 (HDF5) formats. | *required*
+`file_name` | <code>str or Path</code> | Output file path. Supports .nii/.nii.gz (NIfTI) and .h5/.hdf5 (HDF5) formats. | *required*
