@@ -10,7 +10,7 @@
 
 - **v0.6.0**: breaking release — API changes allowed.
 - **Breaking commits**: `!` in the type (`feat(data)!:`, `refactor!:`) plus a `BREAKING:` line in the body describing the API change.
-- **Task tracking**: Linear (project `nltools`, team `Ejolly`).
+- **Task tracking**: Github `cosanlab/nltools`
 
 ## Skills
 
