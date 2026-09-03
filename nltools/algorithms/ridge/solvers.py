@@ -120,9 +120,9 @@ def solve_banded_ridge_cv(
         warn (bool): If True, warn when `n_samples < n_features`, where banded
             ridge is slower than kernel ridge. Defaults to True.
         parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
-            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
-            device when no GPU is present); `"auto"` uses torch when installed
-            and NumPy otherwise. Defaults to `"cpu"`.
+            `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a
+            Torch CPU backend when no accelerator is available. Defaults to
+            `"cpu"`.
         max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
             `n_targets_batch` when `parallel="gpu"`. None measures the device.
             Defaults to None.
@@ -253,7 +253,7 @@ def solve_banded_ridge_cv(
             _auto_n_targets_batch(
                 max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
-            if parallel == "gpu"
+            if backend.is_gpu
             else n_targets
         )
     if n_targets_batch_refit is None:
@@ -670,9 +670,9 @@ def solve_ridge_cv(
             deviation of the best score (more regularization at similar
             performance). Defaults to False.
         parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
-            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
-            device when no GPU is present); `"auto"` uses torch when installed
-            and NumPy otherwise. Defaults to `"cpu"`.
+            `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a
+            Torch CPU backend when no accelerator is available. Defaults to
+            `"cpu"`.
         max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
             `n_targets_batch` when `parallel="gpu"`. None measures the device.
             Defaults to None.
@@ -744,7 +744,7 @@ def solve_ridge_cv(
             _auto_n_targets_batch(
                 max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
-            if parallel == "gpu"
+            if backend.is_gpu
             else n_targets
         )
     if n_targets_batch_refit is None:
@@ -927,9 +927,9 @@ def cross_val_predict_ridge(
             -> per-target scores`, evaluated on NumPy arrays. None uses R²,
             computed in NumPy on the CPU. Defaults to None.
         parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
-            `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU
-            device when no GPU is present); `"auto"` uses torch when installed
-            and NumPy otherwise. Defaults to `"cpu"`.
+            `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a
+            Torch CPU backend when no accelerator is available. Defaults to
+            `"cpu"`.
         max_gpu_memory_gb (float | None): GPU memory budget in GB used to derive
             `n_targets_batch` when `parallel="gpu"`. None measures the device.
             Defaults to None.
@@ -998,7 +998,7 @@ def cross_val_predict_ridge(
             _auto_n_targets_batch(
                 max_gpu_memory_gb, n_alphas_batch * n_samples, n_targets
             )
-            if parallel == "gpu"
+            if backend.is_gpu
             else n_targets
         )
 

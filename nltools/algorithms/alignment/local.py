@@ -15,7 +15,7 @@ from collections.abc import Iterator
 import numpy as np
 from scipy.linalg import orthogonal_procrustes
 
-from nltools.algorithms.backends import Backend
+from nltools.algorithms.backends import Backend, resolve_backend
 from nltools.utils import make_progress_bar, maybe_tqdm
 
 if TYPE_CHECKING:
@@ -430,11 +430,13 @@ class LocalAlignment:
             ImportError: If `parallel='gpu'` and PyTorch is not installed. An
                 explicit GPU request never silently degrades to CPU; use
                 `parallel='cpu'` when torch is unavailable.
+            RuntimeError: If PyTorch is installed but no CUDA or MPS accelerator
+                is available.
         """
         if self.parallel is None or self.parallel == "cpu":
             return Backend("numpy")
         # parallel == 'gpu' (validated in __post_init__): run-or-raise.
-        backend = Backend("torch")
+        backend = resolve_backend("gpu")
         logger.info(f"Using backend: {backend.name}")
         return backend
 

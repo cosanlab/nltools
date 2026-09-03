@@ -228,8 +228,15 @@ class BrainData:
             eq_mask = True
         elif self.mask is None or other.mask is None:
             eq_mask = False
-        elif hasattr(self.mask, "get_filename") and hasattr(other.mask, "get_filename"):
-            eq_mask = self.mask.get_filename() == other.mask.get_filename()
+        elif hasattr(self.mask, "dataobj") and hasattr(other.mask, "dataobj"):
+            eq_mask = (
+                self.mask.shape == other.mask.shape
+                and np.array_equal(self.mask.affine, other.mask.affine)
+                and np.array_equal(
+                    np.asanyarray(self.mask.dataobj),
+                    np.asanyarray(other.mask.dataobj),
+                )
+            )
         else:
             eq_mask = self.mask == other.mask
 

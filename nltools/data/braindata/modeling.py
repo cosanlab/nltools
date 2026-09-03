@@ -760,8 +760,8 @@ def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
     fit_intercept = bool(getattr(bd.model_, "fit_intercept", False))
 
     # Translate the facade 'device' selector to the ridge layer's 'parallel'
-    # vocabulary by resolving to a concrete backend: 'gpu'/'auto' land on a
-    # real GPU only when one is present, otherwise fall back to CPU.
+    # vocabulary by resolving to a concrete backend: 'gpu' requires an
+    # accelerator, while 'auto' may fall back to CPU.
     backend_obj = resolve_backend(device)
     parallel = "gpu" if backend_obj.device in ("cuda", "mps") else "cpu"
 

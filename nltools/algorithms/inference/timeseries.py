@@ -37,7 +37,7 @@ from .correlation import (
     _spearman_correlation,
     _kendall_correlation,
 )
-from nltools.algorithms.backends import Backend
+from nltools.algorithms.backends import Backend, resolve_backend
 
 if TYPE_CHECKING:
     import torch
@@ -170,9 +170,7 @@ def phase_randomize(
         device = "gpu" if check_gpu_available()[0] else "cpu"
 
     if device == "gpu":
-        from nltools.algorithms.backends import Backend
-
-        backend_obj = Backend("torch")
+        backend_obj = resolve_backend("gpu")
         return _phase_randomize_gpu(data, backend_obj, rng)
 
     # device is None or 'cpu': NumPy FFT
@@ -836,7 +834,7 @@ def timeseries_correlation_permutation_test(
 
         return results
     # GPU mode
-    backend_obj = Backend("torch")
+    backend_obj = resolve_backend("gpu")
     rng = check_random_state(random_state)
     return _timeseries_correlation_permutation_gpu_batched(
         data1,

@@ -34,8 +34,7 @@ def _auto_n_targets_batch(
     column — e.g. the alpha-batched prediction block `n_alphas_batch *
     n_samples` in the CV solvers, or `rank + n_features + n_samples` in the
     single-fit SVD path. A 5× overhead factor keeps peak allocation clear of
-    the budget. The result is floored at `min(1000, n_targets)` and capped at
-    `n_targets`.
+    the budget.
 
     Args:
         max_gpu_memory_gb (float | None): GPU memory budget in GB. None measures
@@ -46,7 +45,7 @@ def _auto_n_targets_batch(
             measure the budget when `max_gpu_memory_gb` is None).
 
     Returns:
-        int: Target batch size in `[min(1000, n_targets), n_targets]`.
+        int: Target batch size in `[1, n_targets]`.
     """
     from ..backends import auto_batch_size, device_memory_budget
 
@@ -58,7 +57,6 @@ def _auto_n_targets_batch(
         elements_per_target * 4,  # float32
         budget_gb=budget_gb,
         overhead=5.0,
-        min_batch=min(1000, n_targets),
     )
     return n_targets_batch
 

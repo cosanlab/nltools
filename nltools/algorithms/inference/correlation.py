@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from sklearn.utils import check_random_state
 from scipy.stats import rankdata, kendalltau
 
-from nltools.algorithms.backends import Backend
+from nltools.algorithms.backends import Backend, resolve_backend
 from .utils import (
     _compute_pvalue,
     _auto_batch_size,
@@ -880,7 +880,7 @@ def correlation_permutation_test(
             progress_bar=progress_bar,
         )
     # GPU mode
-    backend_obj = Backend("torch")
+    backend_obj = resolve_backend("gpu")
     rng = check_random_state(random_state)
     return _correlation_permutation_gpu_batched(
         data1,

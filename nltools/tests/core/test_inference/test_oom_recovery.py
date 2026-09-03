@@ -11,20 +11,15 @@ torch's reduction blocking varies with batch shape, so values can differ
 by reduction order (observed max ~6e-08 on torch-cpu). The p tolerance
 allows a single boundary count flip from that noise.
 
-The simulated-OOM tests run on any torch device (torch-cpu included), so
-they exercise the recovery logic in CI without GPU hardware.
+The tests inject a PyTorch backend so the recovery wiring remains covered on
+CPU-only CI. Separate policy tests verify that a public ``device='gpu'``
+request never falls back to torch-cpu.
 """
-
-import importlib.util
 
 import numpy as np
 import pytest
 
 from nltools.algorithms.backends import Backend
-
-pytestmark = pytest.mark.skipif(
-    importlib.util.find_spec("torch") is None, reason="PyTorch not installed"
-)
 
 # Batches larger than this many rows "OOM" once patched; must exceed
 # n_samples so the one-time data transfers still succeed.
@@ -35,6 +30,16 @@ N_PERMUTE = 300
 # is not (~1 ulp). See module docstring.
 NULL_TOL = {"rtol": 1e-4, "atol": 1e-6}
 P_ATOL = 1.01 / (N_PERMUTE + 1)
+
+
+@pytest.fixture(autouse=True)
+def _inject_torch_backend(monkeypatch):
+    """Exercise device recovery with PyTorch even when no GPU is available."""
+    from nltools.algorithms.inference import correlation, one_sample, two_sample
+
+    backend = Backend("torch")
+    for module in (correlation, one_sample, two_sample):
+        monkeypatch.setattr(module, "resolve_backend", lambda _name: backend)
 
 
 def _assert_recovered_matches(baseline, recovered):

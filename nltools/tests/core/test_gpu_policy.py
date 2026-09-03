@@ -15,6 +15,37 @@ def _subjects(n=3, voxels=10, samples=24, seed=0):
     return [rng.standard_normal((voxels, samples)) for _ in range(n)]
 
 
+def test_explicit_gpu_requires_an_accelerator(monkeypatch):
+    """An installed CPU-only Torch must not satisfy an explicit GPU request."""
+    from nltools.algorithms import backends as backends_mod
+
+    def _init_torch_cpu(self):
+        self.name = "torch-cpu"
+        self.device = "cpu"
+        self.xp = object()
+        self._torch_device = "cpu"
+
+    monkeypatch.setattr(backends_mod.Backend, "_init_torch", _init_torch_cpu)
+
+    with pytest.raises(RuntimeError, match="no GPU accelerator"):
+        backends_mod.resolve_backend("gpu")
+
+
+def test_auto_may_select_a_cpu_backend(monkeypatch):
+    """Automatic selection remains the graceful CPU fallback path."""
+    from nltools.algorithms import backends as backends_mod
+
+    def _init_torch_cpu(self):
+        self.name = "torch-cpu"
+        self.device = "cpu"
+        self.xp = object()
+        self._torch_device = "cpu"
+
+    monkeypatch.setattr(backends_mod.Backend, "_init_torch", _init_torch_cpu)
+
+    assert backends_mod.resolve_backend("auto").device == "cpu"
+
+
 class TestSrmRunOrRaise:
     def test_srm_fit_gpu_raises(self):
         from nltools.algorithms.alignment import SRM

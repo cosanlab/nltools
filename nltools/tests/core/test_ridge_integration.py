@@ -189,11 +189,11 @@ class TestNewAPI:
 
 
 # Helper function
-def _torch_available():
-    """Check if PyTorch is available."""
-    import importlib.util
+def _gpu_available():
+    """Check whether PyTorch can use CUDA or MPS."""
+    from nltools.algorithms.backends import check_gpu_available
 
-    return importlib.util.find_spec("torch") is not None
+    return check_gpu_available()[0]
 
 
 class TestBackendManagement:
@@ -222,7 +222,7 @@ class TestBackendManagement:
         assert result["backend"] == "numpy"
 
     @pytest.mark.skipif(
-        not _torch_available(), reason="PyTorch not available for backend testing"
+        not _gpu_available(), reason="GPU not available for backend testing"
     )
     def test_backend_consistency(self):
         """Results should be consistent across cpu and gpu backends."""
@@ -238,7 +238,7 @@ class TestBackendManagement:
         coefs_cpu = result_cpu["coefs"]
         scores_cpu = result_cpu["cv_scores"]
 
-        # GPU backend (will use torch-cpu/mps/cuda depending on hardware)
+        # GPU backend (CUDA or MPS).
         result_gpu = solve_ridge_cv(X, Y, alphas=alphas, cv=2, parallel="gpu")
         coefs_gpu = result_gpu["coefs"]
         scores_gpu = result_gpu["cv_scores"]

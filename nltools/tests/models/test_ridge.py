@@ -5,7 +5,7 @@ import pytest
 
 from nltools.models import Ridge
 
-from .conftest import torch_available
+from .conftest import gpu_available
 
 pytestmark = pytest.mark.slow
 
@@ -181,7 +181,7 @@ class TestRidgeBackend:
         assert model.backend_.name == "numpy"
         assert repr(model) == "Ridge(alpha=1.0, device='cpu')"
 
-    @pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
+    @pytest.mark.skipif(not gpu_available(), reason="GPU not available")
     def test_torch_backend(self):
         """Ridge should work with PyTorch backend."""
         np.random.seed(42)
@@ -195,7 +195,7 @@ class TestRidgeBackend:
         assert y_pred.shape == (100,)
         assert model.backend_.name.startswith("torch")
 
-    @pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
+    @pytest.mark.skipif(not gpu_available(), reason="GPU not available")
     def test_cpu_gpu_equivalence(self):
         """Ridge should give same results on CPU and GPU."""
         np.random.seed(42)

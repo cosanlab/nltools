@@ -776,7 +776,7 @@ def _auto_batch_size_ridge(
     Thin adapter over the core layer in `nltools.algorithms.backends`: supplies
     the bootstrap working-set estimate — `X_boot` `(batch, n_samples, n_features)`
     plus `y_boot` `(batch, n_samples, n_voxels)` in float32, with a conservative
-    3× overhead for SVD buffers — and the 10-iteration dispatch floor.
+    3× overhead for SVD buffers.
 
     Args:
         n_bootstrap (int): Total number of bootstrap iterations.
@@ -798,7 +798,7 @@ def _auto_batch_size_ridge(
     )
     bytes_per_boot = (n_samples * n_features + n_samples * n_voxels) * 4  # float32
     return auto_batch_size(
-        n_bootstrap, bytes_per_boot, budget_gb=budget_gb, overhead=3.0, min_batch=10
+        n_bootstrap, bytes_per_boot, budget_gb=budget_gb, overhead=3.0
     )
 
 

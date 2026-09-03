@@ -63,10 +63,8 @@ def ridge_svd(
         alpha (float): Regularization strength; must be non-negative. Larger
             values shrink the coefficients harder toward zero. Defaults to 1.0.
         parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
-            `"gpu"` runs on PyTorch (requires torch, raising ImportError
-            otherwise, and falls back to the torch CPU device when no GPU is
-            present); `"auto"` uses torch when installed and NumPy otherwise.
-            Defaults to None.
+            `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a
+            Torch CPU backend when no accelerator is available. Defaults to None.
         max_gpu_memory_gb (float | None): GPU memory budget in GB for batching
             over targets (torch backends only). None measures the device.
             Defaults to None.
@@ -210,10 +208,9 @@ def ridge_cv(
             on the centered scale; the intercept is returned under the
             `'intercept'` key. Defaults to False.
         parallel (str | None): Execution backend. `None` or `"cpu"` runs on NumPy;
-            `"gpu"` runs on PyTorch (requires torch, raising ImportError
-            otherwise, and falls back to the torch CPU device when no GPU is
-            present — it never falls back to NumPy); `"auto"` uses torch when
-            installed and NumPy otherwise. Defaults to `"cpu"`.
+            `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a
+            Torch CPU backend when no accelerator is available. Defaults to
+            `"cpu"`.
         max_gpu_memory_gb (float | None): GPU memory budget in GB for batching
             over targets (torch backends only). None measures the device.
             Defaults to None.
@@ -290,9 +287,6 @@ def ridge_cv(
     # Initialize CV scores array: (n_splits, n_alphas, n_targets)
     cv_scores = np.zeros((n_splits, n_alphas, n_targets))
 
-    # Convert backend to parallel parameter for ridge_svd
-    parallel_param = "gpu" if backend.name.startswith("torch") else "cpu"
-
     # Perform cross-validation using whatever splitter the caller passed —
     # this is the fix that makes shuffled K-fold and leave-one-run-out
     # actually do what the user asked.
@@ -305,7 +299,7 @@ def ridge_cv(
                 X_train,
                 y_train,
                 alpha=alpha,
-                parallel=parallel_param,
+                parallel=backend,
                 max_gpu_memory_gb=max_gpu_memory_gb,
             )
             if coef.ndim == 1:
@@ -326,7 +320,7 @@ def ridge_cv(
         X,
         y,
         alpha=best_alpha,
-        parallel=parallel_param,
+        parallel=backend,
         max_gpu_memory_gb=max_gpu_memory_gb,
     )
 

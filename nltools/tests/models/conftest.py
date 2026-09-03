@@ -8,9 +8,15 @@ import pytest
 from nltools.models import Ridge
 
 
-def torch_available():
-    """Check if PyTorch is installed."""
-    return importlib.util.find_spec("torch") is not None
+def gpu_available():
+    """Check whether PyTorch can use CUDA or MPS."""
+    if importlib.util.find_spec("torch") is None:
+        return False
+    import torch
+
+    return torch.cuda.is_available() or (
+        hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+    )
 
 
 @pytest.fixture(scope="module")

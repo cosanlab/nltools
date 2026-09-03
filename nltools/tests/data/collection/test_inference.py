@@ -6,6 +6,7 @@ import nibabel as nib
 import numpy as np
 import pytest
 
+from nltools.algorithms.backends import check_gpu_available
 from nltools.data import BrainCollection, BrainData
 
 
@@ -521,6 +522,8 @@ class TestPermutationEngineDelegation:
         )
         np.testing.assert_allclose(out["null_dist"].reshape(60, -1), eng["null_dist"])
 
+    @pytest.mark.gpu
+    @pytest.mark.skipif(not check_gpu_available()[0], reason="GPU not available")
     def test_device_gpu_is_real(self, bc_inmem):
         """device='gpu' actually dispatches to the engine's GPU path."""
         pytest.importorskip("torch")

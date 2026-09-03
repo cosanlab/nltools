@@ -9,7 +9,7 @@ across `n_jobs` cores, or batched PyTorch on the GPU).
 import numpy as np
 from sklearn.utils import check_random_state
 
-from nltools.algorithms.backends import Backend
+from nltools.algorithms.backends import Backend, resolve_backend
 from .utils import (
     _compute_pvalue,
     _auto_batch_size,
@@ -438,7 +438,7 @@ def two_sample_permutation_test(
             progress_bar=progress_bar,
         )
     # GPU mode
-    backend_obj = Backend("torch")
+    backend_obj = resolve_backend("gpu")
     rng = check_random_state(random_state)
     return _two_sample_permutation_gpu_batched(
         data1,

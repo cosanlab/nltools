@@ -878,8 +878,7 @@ class TestKendallGpu:
     """Kendall tau-b on the GPU path: real kernel, no silent CPU fallback."""
 
     pytestmark = pytest.mark.skipif(
-        __import__("importlib.util", fromlist=["util"]).find_spec("torch") is None,
-        reason="PyTorch not installed",
+        not check_gpu_available()[0], reason="GPU not available"
     )
 
     def _tied_data(self, seed=0, n=25, f=4):
@@ -1046,8 +1045,7 @@ class TestGpuSpearmanTies:
     """GPU Spearman over tied data must agree with the CPU/scipy path."""
 
     pytestmark = pytest.mark.skipif(
-        __import__("importlib.util", fromlist=["util"]).find_spec("torch") is None,
-        reason="PyTorch not installed",
+        not check_gpu_available()[0], reason="GPU not available"
     )
 
     def _tied_data(self, seed=0, n=25, f=4):

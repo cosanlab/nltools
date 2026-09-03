@@ -107,9 +107,9 @@ def bootstrap(
     )
     from nltools.data import DesignMatrix
     from nltools.algorithms.backends import (
-        Backend,
         check_gpu_available,
         auto_select_backend,
+        resolve_backend,
     )
 
     # Determine if we should use GPU. `device='gpu'` demands a real GPU;
@@ -124,7 +124,7 @@ def bootstrap(
             if device == "auto":
                 backend = auto_select_backend(bd.data.shape[0], bd.data.shape[1])
             else:
-                backend = Backend("torch")
+                backend = resolve_backend("gpu")
         elif device == "gpu":
             raise ValueError(
                 "GPU requested via device='gpu' but no GPU is available. "

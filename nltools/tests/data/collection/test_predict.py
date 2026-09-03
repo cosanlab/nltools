@@ -216,6 +216,46 @@ class TestComputeContrastsBehavior:
         assert isinstance(out, BrainCollection)
         assert out.n_subjects == fitted_bc.n_subjects
 
+    def test_default_in_memory_fit_result_computes_contrasts(self, bc_with_designs):
+        fitted = bc_with_designs.fit(model="glm", n_jobs=1)
+
+        out = fitted.compute_contrasts("a - b", statistic="beta", n_jobs=1)
+
+        assert isinstance(out, BrainCollection)
+        assert all(out.is_loaded)
+
+    @pytest.mark.parametrize("statistic", ["beta", "t", "z", "p", "se"])
+    def test_in_memory_collection_contrasts_match_braindata(
+        self, bc_with_designs, statistic
+    ):
+        fitted = bc_with_designs.fit(model="glm", n_jobs=1)
+
+        actual = fitted.compute_contrasts(
+            "a - b", statistic=statistic, n_jobs=1
+        )._items[0]
+        if statistic == "se":
+            expected = fitted._items[0].compute_contrasts("a - b", statistic="all")[
+                "se"
+            ]
+        else:
+            expected = fitted._items[0].compute_contrasts("a - b", statistic=statistic)
+
+        np.testing.assert_allclose(actual.data, expected.data, rtol=1e-5, atol=1e-7)
+
+    @pytest.mark.parametrize("statistic", ["p", "z"])
+    def test_cached_collection_contrasts_match_braindata(
+        self, bc_with_designs, statistic
+    ):
+        in_memory_fit = bc_with_designs.fit(model="glm", n_jobs=1)
+        expected = in_memory_fit._items[0].compute_contrasts(
+            "a - b", statistic=statistic
+        )
+        cached_fit = bc_with_designs.fit(model="glm", cache=True, n_jobs=1)
+
+        actual = cached_fit.compute_contrasts("a - b", statistic=statistic, n_jobs=1)[0]
+
+        np.testing.assert_allclose(actual.data, expected.data, rtol=1e-5, atol=1e-7)
+
     def test_single_regressor_identity_contrast(self, fitted_bc):
         out = fitted_bc.compute_contrasts("a", statistic="beta", n_jobs=1)
         assert isinstance(out, BrainCollection)

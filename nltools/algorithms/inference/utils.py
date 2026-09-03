@@ -173,9 +173,8 @@ def _auto_batch_size(
 
     Thin adapter over the core layer in `nltools.algorithms.backends`:
     supplies the permutation-test working-set estimate (the `data_perm`
-    tensor, `(batch_size, n_samples, n_features)` float32) and the
-    100-permutation dispatch floor; the budget/clamp policy lives in
-    `auto_batch_size`.
+    tensor, `(batch_size, n_samples, n_features)` float32); the budget and
+    clamp policy live in `auto_batch_size`.
 
     Args:
         n_permute (int): Total number of permutations to compute.
@@ -207,6 +206,4 @@ def _auto_batch_size(
         backend, max_gpu_memory_gb=max_memory_gb, cap_for_batching=True
     )
     bytes_per_perm = n_samples * n_features * 4  # float32 data_perm row
-    return auto_batch_size(
-        n_permute, bytes_per_perm, budget_gb=budget_gb, min_batch=100
-    )
+    return auto_batch_size(n_permute, bytes_per_perm, budget_gb=budget_gb)

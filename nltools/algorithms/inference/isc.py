@@ -27,6 +27,7 @@ from scipy.stats import rankdata
 from sklearn.utils import check_random_state
 from sklearn.metrics import pairwise_distances
 
+from nltools.algorithms.backends import Backend, resolve_backend
 from .utils import _compute_pvalue, EPSILON, maybe_tqdm
 from .validation import validate_device_parameter, validate_tail_parameter
 
@@ -66,8 +67,8 @@ def _compute_loo_isc(data, backend="numpy"):
     """
     if backend == "numpy":
         return _compute_loo_isc_numpy(data)
-    if backend == "torch":
-        return _compute_loo_isc_gpu(data)
+    if backend == "torch" or isinstance(backend, Backend):
+        return _compute_loo_isc_gpu(data, backend=backend)
     raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
@@ -128,7 +129,7 @@ def _batch_correlation_gpu(x, y):
     return correlations
 
 
-def _compute_loo_isc_gpu(data):
+def _compute_loo_isc_gpu(data, backend=None):
     """GPU-accelerated leave-one-out ISC computation.
 
     Batches correlation computation across voxels for significant speedup
@@ -140,7 +141,9 @@ def _compute_loo_isc_gpu(data):
         raise ValueError("GPU backend requires 3D voxel-wise data")
 
     n_obs, n_subjects, n_voxels = data.shape
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if backend is None or backend == "torch":
+        backend = Backend("torch")
+    device = backend._torch_device
 
     # Transfer data to GPU once
     data_gpu = torch.tensor(data, dtype=torch.float32, device=device)
@@ -203,12 +206,12 @@ def _compute_pairwise_isc(data, backend="numpy", metric="correlation"):
     """
     if backend == "numpy":
         return _compute_pairwise_isc_numpy(data, metric=metric)
-    if backend == "torch":
+    if backend == "torch" or isinstance(backend, Backend):
         if metric != "correlation":
             raise ValueError(
                 f"GPU backend only supports metric='correlation', got {metric}"
             )
-        return _compute_pairwise_isc_gpu(data)
+        return _compute_pairwise_isc_gpu(data, backend=backend)
     raise ValueError(f"backend must be 'numpy' or 'torch', got {backend}")
 
 
@@ -392,7 +395,7 @@ def _batch_corrcoef_gpu(data_gpu):
     return corr_matrices
 
 
-def _compute_pairwise_isc_gpu(data):
+def _compute_pairwise_isc_gpu(data, backend=None):
     """GPU-accelerated pairwise ISC computation.
 
     Batches correlation matrix computation across voxels for significant
@@ -408,7 +411,9 @@ def _compute_pairwise_isc_gpu(data):
 
     n_obs, n_subjects, n_voxels = data.shape
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if backend is None or backend == "torch":
+        backend = Backend("torch")
+    device = backend._torch_device
 
     # Transpose to (n_voxels, n_subjects, n_observations) for efficient batching
     data_transposed = np.transpose(data, (2, 1, 0))
@@ -683,7 +688,6 @@ def _permute_isc_group_cpu_parallel(
             data_size_mb=combined_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     rng = check_random_state(random_state)
@@ -884,7 +888,6 @@ def _bootstrap_isc_group_cpu_parallel(
             data_size_mb=combined_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     rng = check_random_state(random_state)
@@ -1053,6 +1056,14 @@ def isc_group_permutation_test(
 
     validate_device_parameter(device)
 
+    # Reject an unsupported algorithm/device combination before probing
+    # hardware, so the argument error is stable across machines.
+    if device == "gpu" and summary_statistic == "pairwise" and metric != "correlation":
+        raise ValueError(
+            f"GPU pairwise ISC only supports metric='correlation', got "
+            f"{metric!r}. Use device='cpu' for other similarity metrics."
+        )
+
     # Determine backend for computation phase based on device parameter
     if device == "cpu" or device is None:
         # CPU modes
@@ -1066,7 +1077,7 @@ def isc_group_permutation_test(
             bootstrap_backend = "cpu-parallel"
     else:
         # GPU mode
-        compute_backend = "torch"
+        compute_backend = resolve_backend("gpu")
         bootstrap_backend = "cpu-parallel"  # Bootstrap still uses CPU parallel
 
     # Phase 1: Compute observed ISC difference
@@ -1296,7 +1307,6 @@ def _bootstrap_loo_cpu_parallel(
             data_size_mb=data_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     # Pre-generate seeds for deterministic parallelization
@@ -1480,7 +1490,6 @@ def _bootstrap_pairwise_cpu_parallel(
             data_size_mb=data_size_mb,
             n_permute=n_permute,
             max_memory_gb=max_memory_gb,
-            min_jobs=1,
         )
 
     # Pre-generate seeds
@@ -1593,8 +1602,13 @@ def _pairwise_gpu_batch_sizes(
     budget_gb = device_memory_budget(
         backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
     )
-    budget = max(per_elem, gb_to_bytes(budget_gb))
-    max_elems = max(1, budget // per_elem)  # bound on perm_batch * voxel_chunk
+    budget = gb_to_bytes(budget_gb)
+    if budget < per_elem:
+        raise ValueError(
+            f"one item requires {per_elem / 1e9:.6g} GB, exceeding the "
+            f"{budget_gb:.6g} GB memory budget"
+        )
+    max_elems = budget // per_elem  # bound on perm_batch * voxel_chunk
     voxel_chunk = min(n_voxels, max_elems)
     perm_batch = max(1, max_elems // voxel_chunk)
     perm_batch = min(perm_batch, n_permute)
@@ -1609,6 +1623,7 @@ def _bootstrap_pairwise_gpu(
     exclude_self_corr=True,
     max_gpu_memory_gb=None,
     progress_bar=False,
+    backend=None,
 ):
     """GPU pairwise bootstrap: resample subjects and recompute on-device.
 
@@ -1643,7 +1658,9 @@ def _bootstrap_pairwise_gpu(
 
     n_obs, n_subjects, n_voxels = data.shape
     n_permute = boot_indices.shape[0]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if backend is None:
+        backend = resolve_backend("gpu")
+    device = backend._torch_device
 
     data_gpu = torch.tensor(
         np.transpose(data, (2, 1, 0)), dtype=torch.float32, device=device
@@ -1652,8 +1669,6 @@ def _bootstrap_pairwise_gpu(
     # Match np.fill_diagonal(corr, 1.0) from the numpy path.
     diag = torch.arange(n_subjects, device=device)
     corr[:, diag, diag] = 1.0
-
-    from types import SimpleNamespace
 
     from nltools.algorithms.backends import compute_oom_safe
 
@@ -1665,9 +1680,7 @@ def _bootstrap_pairwise_gpu(
         n_subjects,
         n_permute,
         max_gpu_memory_gb,
-        # This path drives torch directly rather than through Backend; hand
-        # the budget helper the device type it needs for measurement.
-        backend=SimpleNamespace(device=device.type),
+        backend=backend,
     )
 
     out = np.empty((n_permute, n_voxels), dtype=np.float64)
@@ -1706,7 +1719,7 @@ def _bootstrap_pairwise_gpu(
         else:
             raise ValueError(f"summary must be 'median' or 'mean', got {summary}")
 
-        return res.double().cpu().numpy()
+        return res.cpu().double().numpy()
 
     perm_starts = maybe_tqdm(
         list(range(0, n_permute, perm_batch)),
@@ -1863,6 +1876,14 @@ def isc_permutation_test(
 
     validate_device_parameter(device)
 
+    # Reject an unsupported algorithm/device combination before probing
+    # hardware, so the argument error is stable across machines.
+    if device == "gpu" and summary_statistic == "pairwise" and metric != "correlation":
+        raise ValueError(
+            f"GPU pairwise ISC only supports metric='correlation', got "
+            f"{metric!r}. Use device='cpu' for other similarity metrics."
+        )
+
     # Determine backend for computation phase based on device parameter
     if device == "cpu" or device is None:
         # CPU modes
@@ -1876,20 +1897,11 @@ def isc_permutation_test(
             bootstrap_backend = "cpu-parallel"
     else:
         # GPU mode
-        compute_backend = "torch"
+        compute_backend = resolve_backend("gpu")
         # Pairwise bootstrap runs on-device (resample + recompute the condensed
         # matrix per iteration); LOO bootstrap only resamples precomputed values,
         # so CPU-parallel is already fine there (the GPU win is in _compute_loo_isc).
         bootstrap_backend = "gpu" if summary_statistic == "pairwise" else "cpu-parallel"
-
-    # Input validation: GPU pairwise ISC only implements correlation. Fail fast
-    # on the contradictory combo rather than deep inside the compute call, and
-    # match the sibling isc_group_permutation_test (which also rejects it).
-    if device == "gpu" and summary_statistic == "pairwise" and metric != "correlation":
-        raise ValueError(
-            f"GPU pairwise ISC only supports metric='correlation', got "
-            f"{metric!r}. Use device='cpu' for other similarity metrics."
-        )
 
     # Phase 1: Compute ISC (run once)
     if summary_statistic == "leave-one-out":
@@ -1966,6 +1978,7 @@ def isc_permutation_test(
                     exclude_self_corr=exclude_self_corr,
                     max_gpu_memory_gb=max_gpu_memory_gb,
                     progress_bar=progress_bar,
+                    backend=compute_backend,
                 )
             elif bootstrap_backend == "numpy":
                 rng = check_random_state(random_state)

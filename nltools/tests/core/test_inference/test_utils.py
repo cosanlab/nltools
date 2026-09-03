@@ -189,15 +189,23 @@ class TestMemoryManagement:
         )
         assert n_jobs == requested
 
-    def test_auto_n_jobs_cpu_min_jobs_floor(self):
-        """Even with a huge working set, never drop below min_jobs."""
-        n_jobs = _auto_n_jobs_cpu(
-            data_size_mb=10000.0,  # Huge data per worker
-            n_permute=1000,
-            max_memory_gb=0.01,  # Extremely limited memory (10 MB)
-            min_jobs=1,
-        )
-        assert n_jobs >= 1
+    def test_auto_n_jobs_cpu_raises_when_one_worker_exceeds_budget(self):
+        """An explicit budget must fit the estimated working set of one worker."""
+        with pytest.raises(ValueError, match="one worker requires"):
+            _auto_n_jobs_cpu(
+                data_size_mb=10000.0,
+                n_permute=1000,
+                max_memory_gb=0.01,
+            )
+
+    def test_auto_n_jobs_cpu_uses_decimal_gigabyte_budget(self):
+        """A 1 GB cap must not be widened to 1 GiB during worker sizing."""
+        with pytest.raises(ValueError, match="one worker requires"):
+            _auto_n_jobs_cpu(
+                data_size_mb=334.0,
+                n_permute=100,
+                max_memory_gb=1.0,
+            )
 
     # ========================================================================
     # GPU Memory Management Tests
@@ -244,16 +252,15 @@ class TestMemoryManagement:
         )
         assert batch_large >= batch_small  # More memory = larger batches
 
-    def test_auto_batch_size_minimum(self):
-        """Test that batch size never goes below minimum."""
-        # Even with very restrictive memory, should use minimum batch size
-        batch_size, n_batches = _auto_batch_size(
-            n_permute=5000,
-            n_samples=30,
-            n_features=100000,  # Huge features
-            max_memory_gb=0.01,  # Very small memory
-        )
-        assert batch_size >= 100  # Minimum batch size
+    def test_auto_batch_size_raises_when_one_permutation_exceeds_budget(self):
+        """A dispatch floor must not override an explicit memory limit."""
+        with pytest.raises(ValueError, match="one item requires"):
+            _auto_batch_size(
+                n_permute=5000,
+                n_samples=30,
+                n_features=100000,
+                max_memory_gb=0.01,
+            )
 
     def test_auto_batch_size_maximum(self):
         """Test that batch size never exceeds n_permute."""

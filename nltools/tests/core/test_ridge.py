@@ -15,11 +15,11 @@ from nltools.algorithms.ridge import ridge_svd
 # ============================================================================
 
 
-def _torch_available():
-    """Check if PyTorch is installed"""
-    import importlib.util
+def _gpu_available():
+    """Check whether PyTorch can use CUDA or MPS."""
+    from nltools.algorithms.backends import check_gpu_available
 
-    return importlib.util.find_spec("torch") is not None
+    return check_gpu_available()[0]
 
 
 # ============================================================================
@@ -101,7 +101,7 @@ def test_ridge_regularization_effect():
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_ridge_cpu_gpu_equivalence():
     """CPU and GPU should give same results"""
     np.random.seed(42)
@@ -205,9 +205,9 @@ def test_ridge_cv_reproducibility():
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not _torch_available(), reason="PyTorch not installed")
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_ridge_cv_cpu_gpu_equivalence():
-    """CPU and GPU CV should give same results (with graceful fallback)"""
+    """CPU and GPU CV should give equivalent results."""
     from nltools.algorithms.ridge import ridge_cv
 
     np.random.seed(42)
@@ -216,7 +216,6 @@ def test_ridge_cv_cpu_gpu_equivalence():
     alphas = [0.1, 1.0, 10.0]
 
     result_cpu = ridge_cv(X, y, alphas=alphas, cv=3, parallel="cpu")
-    # Request GPU - should gracefully fallback to CPU if GPU unavailable
     result_gpu = ridge_cv(X, y, alphas=alphas, cv=3, parallel="gpu")
 
     # Both should produce valid results
@@ -251,6 +250,7 @@ def test_large_dataset_completion():
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_backend_selection():
     """Backend selection should work correctly"""
     from nltools.algorithms.ridge import ridge_cv
@@ -263,7 +263,7 @@ def test_backend_selection():
     result_small = ridge_cv(X_small, y_small, cv=3, parallel="cpu")
     assert result_small["coef"].shape == (1000,)
 
-    # Large problem - try GPU (will fallback to CPU if unavailable)
+    # Large problem on the accelerator.
     X_large = np.random.randn(300, 50000).astype(np.float32)
     y_large = np.random.randn(300).astype(np.float32)
     result_large = ridge_cv(X_large, y_large, alphas=[1.0, 10.0], cv=3, parallel="gpu")
@@ -477,6 +477,63 @@ class TestSolveRidgeCvIntercept:
         X_off = X.mean(axis=0)
         expected = Y_off - X_off @ result["coefs"]
         np.testing.assert_allclose(intercept, expected, rtol=1e-4, atol=1e-4)
+
+
+def test_auto_gpu_backend_applies_memory_budget_to_all_ridge_solvers(monkeypatch):
+    """`parallel="auto"` must batch targets when it resolves to a GPU."""
+    from nltools.algorithms.backends import Backend
+    from nltools.algorithms.ridge import (
+        cross_val_predict_ridge,
+        solve_banded_ridge_cv,
+        solve_ridge_cv,
+    )
+    from nltools.algorithms.ridge import solvers
+
+    backend = Backend("numpy")
+    backend.device = "mps"
+    calls = []
+
+    monkeypatch.setattr(solvers, "resolve_backend", lambda _parallel: backend)
+
+    def record_batch_size(max_memory_gb, working_set_size, n_targets):
+        calls.append((max_memory_gb, working_set_size, n_targets))
+        return 2
+
+    monkeypatch.setattr(solvers, "_auto_n_targets_batch", record_batch_size)
+
+    rng = np.random.default_rng(42)
+    X = rng.standard_normal((8, 3))
+    Y = rng.standard_normal((8, 4))
+
+    solve_banded_ridge_cv(
+        [X],
+        Y,
+        n_iter=1,
+        alphas=[1.0],
+        cv=2,
+        warn=False,
+        parallel="auto",
+        max_gpu_memory_gb=0.5,
+    )
+    solve_ridge_cv(
+        X,
+        Y,
+        alphas=[1.0],
+        cv=2,
+        parallel="auto",
+        max_gpu_memory_gb=0.5,
+    )
+    cross_val_predict_ridge(
+        X,
+        Y,
+        alphas=1.0,
+        cv=2,
+        parallel="auto",
+        max_gpu_memory_gb=0.5,
+    )
+
+    assert len(calls) == 3
+    assert all(call[0] == 0.5 for call in calls)
 
 
 class TestSolverApiConsistency:

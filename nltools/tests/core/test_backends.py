@@ -1022,23 +1022,18 @@ class TestAutoBatchSizeCore:
         assert batch == 10
         assert n_batches == 10
 
-    def test_min_batch_floor(self):
+    def test_batch_size_is_limited_by_budget(self):
         from nltools.algorithms.backends import auto_batch_size
 
-        # Budget fits <1 item but floor forces min_batch
-        batch, _ = auto_batch_size(
-            1000, bytes_per_item=int(1e9), budget_gb=0.5, min_batch=100
-        )
-        assert batch == 100
-
-    def test_min_batch_never_exceeds_n_items(self):
-        from nltools.algorithms.backends import auto_batch_size
-
-        batch, n_batches = auto_batch_size(
-            5, bytes_per_item=int(1e9), budget_gb=0.5, min_batch=100
-        )
+        # Budget fits five items.
+        batch, _ = auto_batch_size(1000, bytes_per_item=int(1e9), budget_gb=5.5)
         assert batch == 5
-        assert n_batches == 1
+
+    def test_one_item_too_large_raises(self):
+        from nltools.algorithms.backends import auto_batch_size
+
+        with pytest.raises(ValueError, match="one item requires"):
+            auto_batch_size(5, bytes_per_item=int(1e9), budget_gb=0.5)
 
     def test_overhead_shrinks_batch(self):
         from nltools.algorithms.backends import auto_batch_size
@@ -1214,7 +1209,7 @@ class TestAutoNJobsForArrays:
         arrays = [np.zeros((10, 10)), None, np.zeros((5, 5))]
         assert auto_n_jobs_for_arrays(arrays) >= 1
 
-    def test_empty_returns_min_jobs(self):
+    def test_empty_returns_one_worker(self):
         from nltools.algorithms.backends import auto_n_jobs_for_arrays
 
         assert auto_n_jobs_for_arrays([]) == 1

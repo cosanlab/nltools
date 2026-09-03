@@ -13,6 +13,39 @@ class TestBrainDataCore:
         """Test shape property returns correct dimensions."""
         assert minimal_brain_data.shape == (50, 5)
 
+    def test_equality_compares_in_memory_mask_affines(self):
+        import nibabel as nib
+
+        mask_data = np.ones((2, 2, 2), dtype=np.uint8)
+        mask_a = nib.Nifti1Image(mask_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_data, np.diag([2.0, 2.0, 2.0, 1.0]))
+        data = np.zeros((1, mask_data.size))
+
+        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
+
+    def test_equality_accepts_equivalent_in_memory_masks(self):
+        import nibabel as nib
+
+        mask_data = np.ones((2, 2, 2), dtype=np.uint8)
+        mask_a = nib.Nifti1Image(mask_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_data.copy(), np.eye(4))
+        data = np.zeros((1, mask_data.size))
+
+        assert BrainData(data, mask=mask_a) == BrainData(data.copy(), mask=mask_b)
+
+    def test_equality_compares_in_memory_mask_voxels(self):
+        import nibabel as nib
+
+        mask_a_data = np.zeros((2, 2, 2), dtype=np.uint8)
+        mask_b_data = np.zeros((2, 2, 2), dtype=np.uint8)
+        mask_a_data.flat[[0, 1]] = 1
+        mask_b_data.flat[[0, 2]] = 1
+        mask_a = nib.Nifti1Image(mask_a_data, np.eye(4))
+        mask_b = nib.Nifti1Image(mask_b_data, np.eye(4))
+        data = np.zeros((1, 2))
+
+        assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
+
     @pytest.mark.parametrize("method", ["mean", "median"])
     def test_stat_aggregation(self, minimal_brain_data, method):
         """Test mean/median across axes."""

@@ -44,6 +44,7 @@ from nltools.algorithms.inference.isc import (
     _bootstrap_pairwise_numpy,
     _compute_loo_isc,
     _compute_pairwise_isc,
+    _pairwise_gpu_batch_sizes,
     isc_permutation_test,
 )
 
@@ -59,6 +60,24 @@ TOLERANCE_EXACT = 1e-5
 # Tolerance for GPU vs CPU comparisons (float32 vs float64)
 TOLERANCE_GPU_VALUE = 1e-3  # 0.1% error for computed values
 TOLERANCE_GPU_PVALUE = 5e-3  # 0.5% error for P-values (more FP error)
+
+
+def _gpu_available():
+    """Check whether PyTorch can use CUDA or MPS."""
+    from nltools.algorithms.backends import check_gpu_available
+
+    return check_gpu_available()[0]
+
+
+def test_pairwise_gpu_batch_sizes_rejects_one_item_over_budget():
+    """A hard memory limit must not be exceeded to fit a minimum batch."""
+    with pytest.raises(ValueError, match="one item requires"):
+        _pairwise_gpu_batch_sizes(
+            n_voxels=1,
+            n_subjects=100,
+            n_permute=1,
+            max_gpu_memory_gb=0.0001,
+        )
 
 
 # =============================================================================
@@ -485,6 +504,7 @@ def test_isc_backend_consistency_numpy_cpu_parallel():
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_isc_gpu_matches_cpu():
     """GPU backend matches CPU within float32 tolerance."""
     _ = pytest.importorskip("torch")
@@ -625,6 +645,7 @@ def test_isc_chen_bootstrap_correctness():
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_isc_gpu_speedup_loo():
     """GPU provides speedup for voxel-wise LOO computation."""
     torch = pytest.importorskip("torch")
@@ -665,6 +686,7 @@ def test_isc_gpu_speedup_loo():
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_isc_gpu_pairwise_matches_cpu():
     """GPU pairwise ISC matches CPU within float32 tolerance.
 
@@ -708,6 +730,7 @@ def test_isc_gpu_pairwise_matches_cpu():
 
 @pytest.mark.gpu
 @pytest.mark.slow
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_isc_gpu_pairwise_speedup():
     """GPU pairwise ISC is meaningfully faster than CPU on a whole-brain-scale run.
 
@@ -993,13 +1016,14 @@ def test_isc_gpu_pairwise_non_correlation_raises():
         )
 
 
+@pytest.mark.skipif(not _gpu_available(), reason="GPU not available")
 def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
     """device='gpu' must route the pairwise compute to the torch backend.
 
     Regression guard for the wiring fix: the observed pairwise ISC previously
     hardcoded `backend='numpy'` even under `device='gpu'`, making the GPU a
-    silent no-op. Spy on `_compute_pairwise_isc` and assert it's invoked with
-    `backend='torch'`. No CUDA needed — torch falls back to its CPU device.
+    silent no-op. Spy on `_compute_pairwise_isc` and assert it receives a
+    resolved accelerator backend.
     """
     pytest.importorskip("torch")
     from nltools.algorithms.inference import isc as isc_mod
@@ -1023,9 +1047,7 @@ def test_isc_pairwise_gpu_engages_torch_backend(monkeypatch):
         random_state=0,
         progress_bar=False,
     )
-    assert "torch" in seen, (
-        f"pairwise device='gpu' used backends {seen}; expected 'torch'."
-    )
+    assert any(getattr(backend, "is_gpu", False) for backend in seen)
 
 
 def test_isc_exclude_self_corr_pairwise_only():

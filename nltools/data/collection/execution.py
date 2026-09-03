@@ -1294,7 +1294,8 @@ def _compute_contrast_from_bundle(
       - var(c'β) = sigma² · c' (X'X)⁻¹ c
       - t = effect / sqrt(var)
       - df = n_obs − rank(X)
-      - p = 2 · sf(|t|, df), z = sign(t) · isf(p/2)
+      - p = sf(t, df), z = isf(p), matching nilearn's directional contrast
+        convention
 
     Returns an ndarray (one stat per voxel) or, if ``contrast_type='all'``,
     a dict with ``{'beta', 't', 'z', 'p', 'se'}``.
@@ -1331,12 +1332,12 @@ def _compute_contrast_from_bundle(
     from nltools.algorithms.inference.utils import _signed_z_from_p
 
     df = max(X.shape[0] - int(np.linalg.matrix_rank(X)), 1)
-    p = 2.0 * t_dist.sf(np.abs(t_stat), df)
+    p = t_dist.sf(t_stat, df)
 
     if contrast_type == "p":
         return p
 
-    z = _signed_z_from_p(t_stat, p)
+    z = _signed_z_from_p(t_stat, p, tail_internal="upper")
 
     if contrast_type == "z":
         return z
@@ -1357,13 +1358,15 @@ def _contrast_worker(
     """Worker for ``BC.compute_contrasts``: read bundle, compute, write NIfTI."""
     from ..braindata import BrainData as _BrainData
 
-    if not isinstance(task.item, (str, Path)):
+    if isinstance(task.item, _BrainData):
+        bundle = _extract_glm_bundle_data(task.item)
+    elif isinstance(task.item, (str, Path)):
+        bundle = read_glm_bundle(Path(task.item))
+    else:
         raise ValueError(
-            "compute_contrasts requires bundle-path items; got an in-memory "
-            "object. Run .fit(model='glm', cache=True) first or use cache=True."
+            "compute_contrasts requires fitted BrainData or GLM bundle items; "
+            f"got {type(task.item).__name__}"
         )
-
-    bundle = read_glm_bundle(Path(task.item))
     arr = _compute_contrast_from_bundle(bundle, contrast, contrast_type)
     if isinstance(arr, dict):
         # contrast_type='all' is dispatched at the BC layer; should not

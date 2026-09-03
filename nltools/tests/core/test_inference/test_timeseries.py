@@ -13,7 +13,7 @@ from nltools.tests.core.test_inference import (
     TOLERANCE_GPU_VALUE,
     TOLERANCE_GPU_PVALUE,
 )
-from nltools.algorithms.backends import Backend
+from nltools.algorithms.backends import Backend, check_gpu_available
 
 
 class TestCircleShift:
@@ -554,6 +554,10 @@ class TestTimeseriesCorrelation:
 
 class TestTimeseriesGPU:
     """Tests for GPU-accelerated timeseries permutation tests."""
+
+    pytestmark = pytest.mark.skipif(
+        not check_gpu_available()[0], reason="GPU not available"
+    )
 
     @pytest.mark.slow
     def test_gpu_basic_functionality_circle_shift(self):

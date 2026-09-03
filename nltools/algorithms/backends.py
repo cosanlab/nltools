@@ -630,22 +630,29 @@ def resolve_backend(parallel):
 
     Args:
         parallel (str | Backend | None): Backend specifier. `None` or `"cpu"`
-            gives the numpy backend; `"gpu"` is an alias for `"torch"`
-            (auto-detects cuda, mps, or cpu); `"numpy"`, `"torch"`, and `"auto"`
-            are passed to `Backend(...)`; a `Backend` instance is returned as-is.
+            gives the numpy backend; `"gpu"` requires CUDA or MPS; `"numpy"`,
+            `"torch"`, and `"auto"` are passed to `Backend(...)`; a `Backend`
+            instance is returned as-is.
 
     Returns:
         Backend: Resolved backend instance.
 
     Raises:
         ValueError: If `parallel` is a string outside the accepted set.
+        RuntimeError: If `parallel="gpu"` and no accelerator is available.
     """
     if isinstance(parallel, Backend):
         return parallel
     if parallel in (None, "cpu"):
         return Backend("numpy")
     if parallel == "gpu":
-        return Backend("torch")
+        backend = Backend("torch")
+        if not backend.is_gpu:
+            raise RuntimeError(
+                "GPU requested explicitly, but no GPU accelerator is available. "
+                "Use 'cpu' or 'auto' to allow CPU execution."
+            )
+        return backend
     if parallel in ("numpy", "torch", "auto"):
         return Backend(parallel)
     raise ValueError(
@@ -904,7 +911,6 @@ def auto_batch_size(
     *,
     budget_gb: float,
     overhead: float = 1.0,
-    min_batch: int = 1,
 ) -> tuple[int, int]:
     """Split `n_items` into batches that fit a memory budget.
 
@@ -918,24 +924,29 @@ def auto_batch_size(
         budget_gb (float): Memory budget from `device_memory_budget`.
         overhead (float): Multiplier for intermediate allocations (e.g. 3.0 when
             the computation holds ~3x the input working set). Defaults to 1.0.
-        min_batch (int): Smallest batch worth dispatching (amortizes launch and
-            transfer overhead). Never exceeds `n_items`. Defaults to 1.
 
     Returns:
         tuple[int, int]: `(batch_size, n_batches)` with
             `batch_size * n_batches >= n_items`.
 
     Raises:
-        ValueError: If `n_items` is not positive.
+        ValueError: If the inputs are invalid or one item exceeds the budget.
     """
     if n_items <= 0:
         raise ValueError(f"n_items must be positive, got {n_items}")
+    if budget_gb <= 0:
+        raise ValueError(f"budget_gb must be positive, got {budget_gb}")
     per_item = bytes_per_item * overhead
     if per_item <= 0:
         batch_size = n_items
     else:
-        batch_size = int(gb_to_bytes(budget_gb) / per_item)
-    batch_size = min(max(batch_size, min_batch), n_items)
+        capacity = int(gb_to_bytes(budget_gb) / per_item)
+        if capacity < 1:
+            raise ValueError(
+                f"one item requires {per_item / 1e9:.6g} GB, exceeding the "
+                f"{budget_gb:.6g} GB memory budget"
+            )
+        batch_size = min(capacity, n_items)
     n_batches = int(np.ceil(n_items / batch_size))
     return batch_size, n_batches
 
@@ -1031,14 +1042,13 @@ def _auto_n_jobs_cpu(
     data_size_mb: float,
     n_permute: int,
     max_memory_gb: float | None = None,
-    min_jobs: int = 1,
     max_jobs: int | None = None,
 ) -> int:
     """Choose how many CPU workers fit in memory for a permutation job.
 
     Each joblib worker pickles its copy of the data, which costs roughly 3× the
     array size, so the worker count is the memory budget divided by that
-    per-worker cost, clamped to `[min_jobs, max_jobs]`.
+    per-worker cost, capped at `max_jobs`.
 
     Args:
         data_size_mb (float): Size of the data array in MB.
@@ -1047,7 +1057,6 @@ def _auto_n_jobs_cpu(
         max_memory_gb (float | None): Explicit memory budget in GB. None
             (default) measures available system RAM with headroom via
             `device_memory_budget`.
-        min_jobs (int): Minimum number of workers. Defaults to 1.
         max_jobs (int | None): Maximum number of workers. None (default) means
             all cores.
 
@@ -1067,25 +1076,27 @@ def _auto_n_jobs_cpu(
         max_jobs = multiprocessing.cpu_count()
 
     available_memory_gb = device_memory_budget(None, max_gpu_memory_gb=max_memory_gb)
-    available_memory_mb = available_memory_gb * 1024
+    available_memory_bytes = gb_to_bytes(available_memory_gb)
 
     # Memory per worker: data serialization overhead (3× is conservative for pickle)
     # Plus small overhead for result arrays (n_permute results per worker)
     serialization_factor = 3.0
-    result_overhead_mb = (n_permute * 4 / 1024**2) * 0.1  # ~10% overhead estimate
-    memory_per_worker_mb = data_size_mb * serialization_factor + result_overhead_mb
+    memory_per_worker_bytes = (
+        data_size_mb * 1024**2 * serialization_factor + n_permute * 4 * 0.1
+    )
 
     # How many workers can fit in memory budget?
-    if memory_per_worker_mb <= 0:
-        return min_jobs
+    if memory_per_worker_bytes <= 0:
+        return 1
 
-    max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
-    max_workers_by_memory = max(min_jobs, min(max_workers_by_memory, max_jobs))
+    max_workers_by_memory = int(available_memory_bytes / memory_per_worker_bytes)
+    if max_workers_by_memory < 1:
+        raise ValueError(
+            f"one worker requires approximately {memory_per_worker_bytes / 1e9:.6g} "
+            f"GB, exceeding the {available_memory_gb:.6g} GB memory budget"
+        )
 
-    # Use at least min_jobs, but don't exceed memory budget
-    optimal_n_jobs = max(min_jobs, min(max_workers_by_memory, max_jobs))
-
-    return optimal_n_jobs
+    return max(1, min(max_workers_by_memory, max_jobs))
 
 
 def _estimate_data_size_mb(data: np.ndarray) -> float:
@@ -1118,30 +1129,26 @@ def auto_n_jobs_for_arrays(
     arrays,
     *,
     max_memory_gb: float | None = None,
-    min_jobs: int = 1,
 ) -> int:
     """Memory-aware joblib worker count for a per-item map over arrays.
 
     Sizes workers by the largest item (each worker pickles its item), using
     the same measured budget as the device batching layer. None entries are
-    ignored; an empty list returns `min_jobs`.
+    ignored; an empty list returns one worker.
 
     Args:
         arrays (Iterable[np.ndarray | None]): Arrays to map over (None entries allowed).
         max_memory_gb (float | None): Explicit memory budget in GB. None (default)
             measures available system RAM with headroom via `device_memory_budget`.
-        min_jobs (int): Minimum number of workers. Defaults to 1.
-
     Returns:
         int: Worker count for `joblib.Parallel(n_jobs=...)`.
     """
     arrays = [a for a in arrays if a is not None]
     if not arrays:
-        return min_jobs
+        return 1
     max_size_mb = max(_estimate_data_size_mb(a) for a in arrays)
     return _auto_n_jobs_cpu(
         data_size_mb=max_size_mb,
         n_permute=len(arrays),
         max_memory_gb=max_memory_gb,
-        min_jobs=min_jobs,
     )
