@@ -93,3 +93,4 @@ scripts/sub-*
 *.nii.gz
 scratch/
 .playwright-cli/
+**/__pycache__/

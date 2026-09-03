@@ -1,90 +1,104 @@
-# CLAUDE.md
+# AGENTS
 
-## Gates
+> `nltools` is a neuroimaging and statistical modeling Python library that focuses on ease-of-use, numerical correctness, and performance
 
-`uv run poe lint` (ruff fix → ruff format → ty) · `uv run poe lint-api` (canonical-kwarg checker, semgrep, keyword-only check, docstring check, plus drift checks for the rendered vocabulary and API docs). Run `lint-api` after touching any public signature or docstring.
+## Operating Rules
 
-**Every command needs the `uv run` prefix** — bare `pytest`/`python` uses the wrong environment. `uv run poe` lists every task with help text; the sections below cover only the ones whose behavior isn't obvious from that listing.
+- This project uses `uv` for Python environment and task management; run `uv run poe` for the current task list. 
+- Project work is tracked in `cosanlab/nltools` on GitHub. Use `gh` for issues and pull requests.
+- Treat `pyproject.toml`, source code, and tests as authoritative when documentation disagrees.
+- Docstrings use Google-style Markdown:
+  - Start with a complete summary sentence of at most 120 characters.
+  - Use `Args:`, `Returns:`, `Raises:`, `Examples:`, and `Note:`
+  - Use Markdown code spans for references and fenced Python blocks for examples.
+- Always keep module level exports i.e. `__all__` in `__init__.py` up-to-date
+- User-facing functions, methods, and class names must never use a `_` prefix
+- Use the vendored `.claude/skills/nilearn` skill before writing, reviewing, or debugging nilearn code.
+- Use the vendored marimo skills when editing notebooks under `docs/tutorials/`.
 
-## Project Context
+## Architecture
 
-- **v0.6.0**: breaking release — API changes allowed.
-- **Breaking commits**: `!` in the type (`feat(data)!:`, `refactor!:`) plus a `BREAKING:` line in the body describing the API change.
-- **Task tracking**: Github `cosanlab/nltools`
+`nltools` uses a functional core with an imperative shell that separates public API from internal functionality:
 
-## Skills
+### Public API
 
-Use the vendored project skills (`.claude/skills/`) for the domains they cover — don't work from memory:
+- `nltools.data`: contains the stateful class facades: `BrainData`, `Adjacency`, `DesignMatrix`, and `BrainCollection`. These classes and their methods are the **primary** user-facing surface
+  - Facade methods *delegate* to internal modules and should not contain numerical or domain logic of their own.
+- `nltools.algorithms`: contains statistical functions and models that serve as the **secondary** user-facing surface
+- `nltools.{cross-validation, datasets, mask}`: contain additional helper functions also part of the **secondary** user-facing surface
 
-- **`nilearn`** — before writing, reviewing, or debugging any nilearn code (GLM, masking, plotting, decoding, datasets, connectivity). This codebase builds directly on nilearn; the skill carries current signatures and patterns.
-- **`marimo-notebook` / `marimo-pair`** — when authoring or editing the marimo `.py` tutorials under `docs/tutorials/`.
+`docs/_data/api-vocabulary.yml` is the authority for public keyword names, defaults, keyword-only requirements, banned aliases, and documented exceptions. Consult it before adding or changing a public signature. Edit the manifest, then regenerate its outputs. Do not edit rendered vocabulary tables.
 
-## Architecture: Functional Core, Imperative Shell
+Use explicit signatures for internal nltools calls. `**kwargs` is allowed only when forwarding arguments to a third-party API such as sklearn, nilearn, matplotlib, seaborn, nibabel, or pandas.
 
-Classes are **facades and glue** — all real logic lives in pure functions. Classes compose and delegate to them, never the reverse.
+Keep trailing control arguments in this order when they apply:
 
-- **Shell** (imperative): `nltools/data/` — `BrainData`, `Adjacency`, `DesignMatrix`, `BrainCollection`, each a facade over a package of submodules (io, modeling, plotting, …).
-- **Core** (functional): `utils`, `cross_validation`, `mask`, and `nltools/algorithms/` — the single functional entry point, flat: `from nltools.algorithms import fdr, zscore, isc, ...`. Its `__init__.py` docstring maps the submodules.
-- **`nltools.stats` was removed in v0.6.0** — everything it held now lives in `nltools.algorithms`.
+```python
+..., domain_kwargs, return_flags, n_jobs=-1, random_state=None, progress_bar=False
+```
 
-**Design rules:**
+Some ridge and alignment internals retain legacy parameter names. Translate them at the facade boundary rather than renaming those internals casually.
 
-- Frozen dataclasses for immutable state containers; modern Python throughout (type hints, `|` unions).
-- **No underscore-prefixed module names** (`validation.py`, not `_validation.py`). Leading underscores are fine for functions and methods, just not filenames.
-- **Generated column names use the reserved `.nl_` prefix** (`nltools.utils.RESERVED_PREFIX`): build them with `reserved_name()` / `run_separated_name()`, recognize them with `is_reserved_name()` / `parse_run_separated()` — never by pattern-matching user-controlled names.
-- **One GPU execution layer, run-or-raise**: memory budgets, batch sizing, and OOM recovery live only in `algorithms/backends.py` (`device_memory_budget`, `auto_batch_size`, `compute_oom_safe`, `auto_n_jobs_for_arrays`) — algorithms supply per-item working-set estimates, never their own budget math (a source-scan test enforces this). `max_gpu_memory_gb=None` = measure the device. Explicit `device='gpu'` / `parallel='gpu'` runs on GPU or raises; `'auto'` is the only graceful fallback.
+Treat public names, signatures, defaults, and semantics as compatibility contracts. Do not introduce an intentional breaking change unless the task explicitly authorizes it. Document an approved break in the migration guide and use a conventional commit with `!` and a `BREAKING:` body entry.
 
-**Internals reference** — read the relevant page before changing that subsystem, and keep it in sync when behavior changes:
+The `uv run poe ok` gate includes the API checks required after changing a public signature or docstring.
 
-- `docs/development/execution-model.md` — `BrainCollection` parallel execution: path-backed caching, the `cache=` knob, HDF5 fit bundles, the pickling contract, parallel write safety.
-- `docs/development/ridge-internals.md` — the six ridge tricks and the `Backend` abstraction (`parallel=`, hyphenated names, MPS).
-- `docs/development/inference-internals.md` — permutation/bootstrap algorithms, deterministic cross-backend RNG, Phipson-Smyth p-values, numerical stability.
-- `docs/development/index.md` — architecture overview and the rendered kwarg vocabulary table (the human-facing entry point; the Design Tour at `docs/public/design-tour.html` links into these).
+### Internal Modules
 
-## API Conventions (v0.6.0)
-
-**Single source of truth: `docs/_data/api-vocabulary.yml`** — canonical kwarg names, banned aliases, per-kwarg contracts (required defaults, keyword-onlyness), documented exceptions, and enforcement scope. Read it before naming or renaming any public kwarg. `scripts/check_api_vocabulary.py` enforces it against every public signature; `scripts/build_api_vocabulary.py` renders it into the docs tables (edit the YAML, never the rendered AUTOGEN blocks). New carve-outs go in that file's `exceptions:` / `enforcement.exemptions:` with a reason — never as inline suppressions.
-
-Mistake-prone distinctions: `method=` (algorithm variant) vs `metric=` (similarity only) vs `summary=` (`'mean'|'median'` central tendency); `n_jobs=` (CPU workers) vs `device=` (cpu/gpu); `n_permute` (permutations) vs `n_samples` (bootstrap).
-
-Conventions the manifest can't express per-kwarg (enforcer in parentheses):
-
-- **Trailing kwarg order** (when any apply): `..., domain_kwargs, return_flags, n_jobs=-1, random_state=None, progress_bar=False` (convention only).
-- **`**kwargs`**: permitted **only** when forwarding to an external third-party API (sklearn, matplotlib, nilearn, nibabel, seaborn, pandas); internal nltools delegation must use explicit signatures (semgrep `kwargs-internal-forwarding`).
-- **Keyword-only `*` marker**: required in `__init__` after the primary data arg, and in any public method with 3+ kwargs (`scripts/check_kwonly.py`).
-- **Facade translation**: the ridge/alignment layers keep legacy names (`parallel=`, `backend=`, `n_iter=`); facades translate at the boundary, and the checker path-excludes those subsystems.
-- **`spatial_scale`**: a given method may support a subset of `'whole_brain'|'roi'|'searchlight'` and raise `NotImplementedError` for the rest; vocabulary follows Jolly & Chang, 2021, *SCAN*.
+- All other modules and sub-modules contain _internal_ functionality that supports the user-facing API
+- These modules should be the **only** source of implementation; logic should not be duplicated in the user-facing API
+- Module filenames must not begin with an underscore, but internal functions and methods may
+- Separate state from business logic without overengineering:
+  - Use frozen dataclasses for immutable state containers
+  - Writing pure functions for business logic
 
 ## Documentation
 
-Jupyter Book v2 (mystmd), deployed to https://nltools.org on every push to `master` (`docs-deploy.yml`) — so docs track master and run ahead of the PyPI release. The version lives **only** in `pyproject.toml`. A single `BASE_URL` env var parameterizes the build (unset = root, which covers both local builds and the nltools.org deploy; `/<repo>` only for a subpath deploy).
+The package version lives only in `pyproject.toml`.
 
-- **`docs/api/` is generated and committed** — `griffe2md` from Google-style docstrings via `scripts/build_api_docs.py`. Never hand-edit those files; `lint-api` fails on the drift. Same for every rendered `AUTOGEN` block.
-- `uv run poe docs-build` = `docs-generate` (API md + tutorial md) → `docs-site`. **`myst` must be given `--execute`** or tutorial pages render with no outputs — the poe tasks already pass it. A cell that raises halts every later cell in that notebook while the build still exits 0, so grep the build log for `⛔️`.
-- **Tutorials**: the plain marimo `.py` notebooks under `docs/tutorials/{basics,workflows}/` are the single source of truth (`uv run marimo edit <nb>.py`); `scripts/marimo_to_myst.py` renders each into a committed sibling `.md` that the site executes. Edit the `.py`, never the `.md`. The PEP 723 header lists only `marimo` + `nltools>=0.6.0` so `uvx marimo edit --sandbox` and molab can run them.
-- In-browser support (marimo WASM tutorial pages and the library's Pyodide path) is deferred post-0.6.0 and preserved on the `0.6.1-browser` branch — don't reintroduce it.
+`docs/api/` and marked `AUTOGEN` blocks are generated and committed. Change their source, then run the generator. Never edit generated output directly.
 
-### Docstring style — Google-style Markdown, NO RST
+Marimo notebooks under `docs/tutorials/{basics,workflows}/` are tutorial sources. Edit the `.py` notebook, not its generated `.md` sibling.
 
-RST syntax does not render and leaks into the published docs.
+Use `uv run poe docs-generate` after changing docstrings, the vocabulary manifest, or tutorial `.py` files. Use `uv run poe docs-build` when the change can affect the rendered site or executed tutorials.
 
-- **Sections:** `Args:` / `Returns:` / `Raises:` / `Examples:` / `Note:` — not RST field lists (`:param x:`, `:returns:`).
-- **Cross-references:** plain Markdown code spans — `` `BrainData.distance` ``, `` `list_atlases` `` — never RST roles (`` :meth:`...` ``, `` :func:`...` ``).
-- **Code blocks:** fenced ```` ```python ```` blocks, not RST `::` literal blocks.
-- **First line = summary:** griffe uses the first physical line as the one-line summary in tables. Keep it a complete, standalone sentence (≤120 chars, ends with a period) and put detail in a following paragraph.
-- **Deprecated members:** start the docstring with `Deprecated:` — they are auto-hidden from the API reference and documented in the migration guide instead.
+## Hard invariants
 
-## Testing: Red-Green TDD
+- Generated column names use the reserved `.nl_` namespace. Build and inspect them with `reserved_name()`, `run_separated_name()`, `is_reserved_name()`, and `parse_run_separated()`. Never recognize generated columns by matching user-controlled naming patterns.
+- GPU execution is centralized in `nltools/algorithms/backends.py`. Memory budgeting, batch sizing, worker sizing, and OOM recovery belong there. Algorithms provide working-set estimates but must not implement their own budget calculations.
+- An explicit `device="gpu"` or `parallel="gpu"` must run on the GPU or raise. Only `"auto"` may fall back.
+- Read the relevant design document before changing these subsystems:
+  - `docs/development/execution-model.md` for `BrainCollection` execution, caching, serialization, and parallel writes
+  - `docs/development/ridge-internals.md` for ridge backends and numerical behavior
+  - `docs/development/inference-internals.md` for permutation tests, bootstrap tests, RNG behavior, and numerical stability
+  - `docs/development/index.md` for the overall architecture
 
-Always write or identify a **failing test first**, then the minimal code to pass it: red → green → refactor → re-run related tests for regressions. Run `uv run poe lint` before running tests.
+Update the corresponding document when an invariant or behavior changes.
 
-- **Markers:** `slow` and `integration` are both skipped by default — `test-all` runs them (~7 min; ask first). `gpu` requires CUDA.
-- **Capture output:** `uv run pytest ... 2>&1 | tee pytest.log`, then search the log rather than re-running.
-- Tests mirror the source layout under `nltools/tests/`: `data/` (the four data classes), `core/` (algorithms, including `core/test_algorithms/` and `core/test_inference/`), `models/`, `io_tests/`, `plotting/`, `support/`, `integration/`, `fixtures/`.
+
+## Workflow and gates
+
+Use red-green TDD for behavioral changes:
+
+1. Write or identify a failing test.
+2. Make the smallest change that passes it.
+3. Rerun the focused test until it passes.
+4. Run `uv run poe ok` before considering the change complete.
+
+`uv run poe ok` is the project-wide completion gate. It fails fast in this order:
+
+1. Ruff lint
+2. Ruff format check
+3. ty type checking
+4. Public API and Semgrep checks
+5. The default fast test suite
+
+Use `uv run poe` to find targeted test tasks during development. The `lint` task remains available when code needs automatic lint and formatting fixes.
+
+For focused debugging, capture the result once and inspect the log:
 
 ```bash
-uv run pytest nltools/tests/data/braindata -xvs   # targeted TDD (preferred)
-uv run pytest -k "ridge and cv" -x
-uv run poe test                                   # default: fast tests, parallel
-uv run poe test-braindata                         # per-class/module wrappers; `uv run poe` lists all
+uv run pytest <path-or-expression> -xvs 2>&1 | tee pytest.log
 ```
+
+The default suite skips `slow` and `integration` tests. Do not run `uv run poe test-all` without checking first.
