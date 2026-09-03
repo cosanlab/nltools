@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.10"
+__generated_with = "0.24.0"
 app = marimo.App(width="medium")
 
 
@@ -22,16 +22,14 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        # BrainData Basics
+    mo.md(r"""
+    # BrainData Basics
 
-        The `BrainData` class is the core data structure in `nltools` for working with
-        neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient
-        computation, automatically handles resampling to standard MNI space (default),
-        and supports standard Python operations like indexing, arithmetic, and iteration.
-        """
-    )
+    The `BrainData` class is the core data structure in `nltools` for working with
+    neuroimaging data. It stores data as 2D arrays (images x voxels) for efficient
+    computation, automatically handles resampling to standard MNI space (default),
+    and supports standard Python operations like indexing, arithmetic, and iteration.
+    """)
     return
 
 
@@ -41,24 +39,22 @@ def _():
 
     # Empty brain
     BrainData()
-    return (BrainData,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Loading data
+    mo.md(r"""
+    ## Loading data
 
-        You pass a file path, a `nilearn`/`nibabel` image, a file URL, or lists of any of
-        those to `BrainData()` — it loads and resamples to MNI space if needed, e.g.
-        `BrainData('myfile.nii.gz')`.
+    You pass a file path, a `nilearn`/`nibabel` image, a file URL, or lists of any of
+    those to `BrainData()` — it loads and resamples to MNI space if needed, e.g.
+    `BrainData('myfile.nii.gz')`.
 
-        To keep things simple we use one of the included datasets. `fetch_pain()`
-        downloads a pain-perception study (Chang et al., 2015): 28 subjects x 3
-        conditions = 84 images.
-        """
-    )
+    To keep things simple we use one of the included datasets. `fetch_pain()`
+    downloads a pain-perception study (Chang et al., 2015): 28 subjects x 3
+    conditions = 84 images.
+    """)
     return
 
 
@@ -72,10 +68,10 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "The `BrainData` repr shows the shape (images x voxels) and whether metadata "
-        "`polars` DataFrames (X, Y) are attached."
-    )
+    mo.md("""
+    The `BrainData` repr shows the shape (images x voxels) and whether metadata "
+        "`polars` DataFrames (X, Y) are attached.
+    """)
     return
 
 
@@ -87,7 +83,9 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Access the underlying data as a numpy array with the `.data` attribute:")
+    mo.md("""
+    Access the underlying data as a numpy array with the `.data` attribute:
+    """)
     return
 
 
@@ -99,14 +97,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        `BrainData` also stores metadata as `polars` DataFrames on `.X` and `.Y`:
+    mo.md(r"""
+    `BrainData` also stores metadata as `polars` DataFrames on `.X` and `.Y`:
 
-        - **X**: design matrix / covariates for modeling
-        - **Y**: outcome variables or labels
-        """
-    )
+    - **X**: design matrix / covariates for modeling
+    - **Y**: outcome variables or labels
+    """)
     return
 
 
@@ -119,32 +115,28 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Saving data
+    mo.md(r"""
+    ## Saving data
 
-        `BrainData` saves as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata
-        (X, Y) and masks and produces smaller files:
+    `BrainData` saves as NIfTI (`.nii.gz`) or HDF5 (`.h5`). HDF5 preserves metadata
+    (X, Y) and masks and produces smaller files:
 
-        ```python
-        brains.write("data.nii.gz")   # NIfTI
-        brains.write("data.h5")       # HDF5, with X/Y/mask/etc.
-        ```
-        """
-    )
+    ```python
+    brains.write("data.nii.gz")   # NIfTI
+    brains.write("data.h5")       # HDF5, with X/Y/mask/etc.
+    ```
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Indexing and slicing
+    mo.md(r"""
+    ## Indexing and slicing
 
-        `BrainData` supports standard Python-style indexing, and all indexing preserves
-        the X/Y metadata.
-        """
-    )
+    `BrainData` supports standard Python-style indexing, and all indexing preserves
+    the X/Y metadata.
+    """)
     return
 
 
@@ -159,7 +151,9 @@ def _(brains):
 def _(brains):
     # Slicing
     first_five = brains[:5]
-    print(f"Sliced: {first_five.shape}")
+
+    # Same voxels, space, etc as brains
+    first_five
     return
 
 
@@ -167,13 +161,17 @@ def _(brains):
 def _(brains):
     # List indexing
     selected = brains[[0, 10, 20, 30]]
-    print(f"Selected: {selected.shape}")
+
+    # The 0th, 10th, 20th, and 30th images
+    selected
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Boolean indexing filters images by computed properties:")
+    mo.md("""
+    Boolean indexing filters images by computed properties:
+    """)
     return
 
 
@@ -190,7 +188,9 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("Use `.append()` to concatenate `BrainData` objects:")
+    mo.md("""
+    Use `.append()` to concatenate `BrainData` objects:
+    """)
     return
 
 
@@ -203,14 +203,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Arithmetic operations
+    mo.md(r"""
+    ## Arithmetic operations
 
-        `BrainData` supports element-wise arithmetic with scalars and other `BrainData`
-        objects.
-        """
-    )
+    `BrainData` supports element-wise arithmetic with scalars and other `BrainData`
+    objects.
+    """)
     return
 
 
@@ -237,14 +235,12 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Statistical operations
+    mo.md(r"""
+    ## Statistical operations
 
-        `BrainData` exposes many statistical methods that reduce across images
-        (`axis=0`) or across voxels (`axis=1`).
-        """
-    )
+    `BrainData` exposes many statistical methods that reduce across images
+    (`axis=0`) or across voxels (`axis=1`).
+    """)
     return
 
 
@@ -290,16 +286,16 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        "Threshold by absolute value or percentile, optionally binarizing for a mask:"
-    )
+    mo.md("""
+    Threshold by absolute value or percentile, optionally binarizing for a mask:
+    """)
     return
 
 
 @app.cell
 def _(brains):
     # Keep only voxels in the top 5%
-    brains.mean().threshold(upper="95%").plot()
+    brains.mean().threshold(upper="95%").plot(cmap='Blues')
     return
 
 
@@ -313,13 +309,11 @@ def _(brains):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Masking
+    mo.md(r"""
+    ## Masking
 
-        Use `apply_mask` to restrict data to a region of interest.
-        """
-    )
+    Use `apply_mask` to restrict data to a region of interest.
+    """)
     return
 
 
@@ -350,29 +344,29 @@ def _(mean_brain, roi_mask, vmax, vmin):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ## Visualization
+    mo.md(r"""
+    ## Visualization
 
-        `BrainData.plot()` supports several visualization types via the `method`
-        argument. Most wrap [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html),
-        so you can always drop down to `BrainData.to_nifti()` and call nilearn directly.
+    `BrainData.plot()` supports several visualization types via the `method`
+    argument. Most wrap [`nilearn.plotting`](https://nilearn.github.io/dev/modules/plotting.html),
+    so you can always drop down to `BrainData.to_nifti()` and call nilearn directly.
 
-        ### Glass brain (default)
-        """
-    )
+    ### Glass brain (default)
+    """)
     return
 
 
 @app.cell
 def _(masked_data):
-    masked_data.plot(title="Mean Activation")
+    masked_data.plot(title="Mean Activation", cmap='viridis')
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("### Slices")
+    mo.md("""
+    ### Slices
+    """)
     return
 
 
@@ -392,7 +386,9 @@ def _(masked_data):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("### Surface & flat-map")
+    mo.md("""
+    ### Surface & flat-map
+    """)
     return
 
 
@@ -410,14 +406,12 @@ def _(masked_data):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Timeseries & voxel distribution
+    mo.md(r"""
+    ### Timeseries & voxel distribution
 
-        For multi-image `BrainData`, plot the mean signal over images; `histogram` shows
-        the voxel-intensity distribution.
-        """
-    )
+    For multi-image `BrainData`, plot the mean signal over images; `histogram` shows
+    the voxel-intensity distribution.
+    """)
     return
 
 
@@ -437,21 +431,19 @@ def _(mean_brain):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-        ### Interactive viewer
+    mo.md(r"""
+    ### Interactive viewer
 
-        `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer —
-        a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
-        stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
-        right-drag on the image) to window the map live; scroll through slices, scrub 4D
-        frames, render in 3D, and overlay nltools atlases with hover-to-label. It speaks
-        anywidget's standard model API, so it renders in any live kernel (marimo, Jupyter).
+    `BrainData.iplot()` returns an interactive [niivue](https://niivue.com) viewer —
+    a WebGL `anywidget` that drives `@niivue/niivue` directly: a threshold slider
+    stacked above the viewer, with the stat-map colorbar shown. Drag the slider (or
+    right-drag on the image) to window the map live; scroll through slices, scrub 4D
+    frames, render in 3D, and overlay nltools atlases with hover-to-label. It speaks
+    anywidget's standard model API, so it renders in any live kernel (marimo, Jupyter).
 
-        Pass `controls=False` to hide the slider (right-drag windowing still works), and
-        `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
-        """
-    )
+    Pass `controls=False` to hide the slider (right-drag windowing still works), and
+    `colorbar=False` to hide the colorbar. No `ipywidgets` dependency needed.
+    """)
     return
 
 
@@ -461,6 +453,11 @@ def _(masked_data):
     # @niivue/niivue directly). It needs a live kernel, so on this static page
     # only a placeholder appears; run the notebook to explore the volume.
     masked_data.iplot()
+    return
+
+
+@app.cell
+def _():
     return
 
 

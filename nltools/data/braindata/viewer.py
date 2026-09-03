@@ -433,12 +433,6 @@ def compute_display_window(
     """
     import numpy as np
 
-    if not isinstance(autoscale, bool):
-        raise TypeError(
-            f"autoscale must be True or False, got {autoscale!r}. For a custom "
-            'percentile window pass lower/upper (e.g. lower="60%", upper="98%").'
-        )
-
     from nltools.utils import resolve_threshold
 
     arr = np.asarray(data, dtype=float)
