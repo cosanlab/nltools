@@ -89,7 +89,8 @@ public signature against in CI. The table below is rendered from it:
 | Bootstrap sample count | `n_samples` |
 | Tail of test | `tail` (`2 \| 'two' \| 1 \| 'one'`; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
-| Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw extremes) |
+| Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |
+| Display symmetry | `symmetric: bool \| 'auto' = 'auto'` (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius_mm: float` |
 <!-- /AUTOGEN:api-vocabulary:index-table -->

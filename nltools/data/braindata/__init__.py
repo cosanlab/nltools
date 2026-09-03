@@ -3,7 +3,7 @@
 import os
 from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
@@ -1135,7 +1135,8 @@ class BrainData:
             method (str): Visualization type: 'glass', 'slices', 'timeseries', 'histogram'
             upper (str/float, optional): Upper threshold.
             lower (str/float, optional): Lower threshold.
-            threshold (float, optional): Convenience parameter for thresholding.
+            threshold (float | str, optional): Absolute transparency cutoff.
+                Percentile strings resolve over finite, nonzero magnitudes.
             view (str): For ``method="slices"``, any non-empty combination of
                 ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
                 Default: ``"z"``.
@@ -1143,7 +1144,7 @@ class BrainData:
                 multi-slice views. Takes precedence over ``view``-based
                 defaults. Either a list matching ``len(view)`` or a dict
                 keyed by axis letter.
-            cmap (str, optional): Colormap name.
+            cmap (str, optional): Colormap name. Defaults are sign-aware.
             bg_img (str/nibabel image, optional): Background image.
             ax (matplotlib.axes.Axes, optional): Matplotlib axis.
             figsize (tuple, optional): default figure size if no axis (8, 6)
@@ -1189,7 +1190,7 @@ class BrainData:
         self,
         *,
         threshold=None,
-        cmap="RdBu_r",
+        cmap=None,
         vmax=None,
         vmin=None,
         template="fsaverage5",
@@ -1209,10 +1210,10 @@ class BrainData:
         """Plot brain data on cortical flatmap.
 
         Args:
-            threshold (float, optional): Values below this absolute threshold are masked.
-            cmap (str): Matplotlib colormap. Default: 'RdBu_r'.
-            vmax (float, optional): Maximum value for colormap.
-            vmin (float, optional): Minimum value for colormap.
+            threshold (float | str, optional): Absolute cutoff or percentile string.
+            cmap (str, optional): Matplotlib colormap. Defaults are sign-aware.
+            vmax (float, optional): Maximum value; inferred from displayed data.
+            vmin (float, optional): Minimum value; inferred from displayed data.
             template (str): Freesurfer surface resolution. Default: 'fsaverage5'.
             with_curvature (bool): Show sulcal/gyral pattern. Default: True.
             curvature_contrast (float): Contrast of curvature overlay. Default: 0.5.
@@ -1264,7 +1265,7 @@ class BrainData:
         surface="pial",
         template="fsaverage5",
         threshold=None,
-        cmap="RdBu_r",
+        cmap=None,
         vmin=None,
         vmax=None,
         transparency="auto",
@@ -1335,7 +1336,8 @@ class BrainData:
         lower: "float | str | None" = None,
         upper: "float | str | None" = None,
         autoscale: bool = True,
-        cmap: str = "warm",
+        symmetric: bool | Literal["auto"] = "auto",
+        cmap: "str | None" = None,
         bg_img: "str | bool | None" = None,
         atlas: "str | Atlas | None" = None,
         opacity: float = 1.0,
@@ -1358,14 +1360,12 @@ class BrainData:
         ``controls=False`` to hide the slider (right-drag windowing still
         works).
 
-        Thresholding is a divergent magnitude window: ``cal_min`` is the
-        display floor (sub-floor voxels render transparent), ``cal_max`` the
-        saturation point, with the positive limb using ``cmap`` and the
-        negative limb its mirrored partner. Precedence: ``lower``/``upper``
-        win; otherwise ``threshold`` sets the floor; any unset edge comes
-        from ``autoscale``. The window is always computed in Python and
-        passed to niivue explicitly, so the slider handles show exactly the
-        window being rendered.
+        Thresholding uses positive and negative display limbs. ``cal_min`` is
+        the magnitude floor and ``cal_max`` the positive saturation point;
+        niivue receives the negative endpoints explicitly. By default, mixed
+        maps use symmetric limbs while each sign in a one-sided map determines
+        its own ceiling. The window is computed in Python, and the two controls
+        show the shared floor and positive-limb ceiling.
 
         Args:
             view: ``"ortho"`` (default), ``"axial"``, ``"coronal"``,
@@ -1385,11 +1385,16 @@ class BrainData:
                 longer wash out the whole map — and an epsilon floor, never
                 above the smallest nonzero magnitude, so zeros render
                 transparent and every real voxel stays visible (threshold up
-                from there). ``False``: the raw data extremes (the old
-                behavior, made explicit). For a custom percentile window pass
+                from there). ``False``: the raw magnitude range from zero to
+                the largest absolute value. For a custom percentile window pass
                 ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``).
-            cmap: niivue colormap for the positive limb (default ``"warm"``).
-                Common matplotlib names are auto-mapped with a warning.
+            symmetric: ``"auto"`` (default) mirrors mixed-signed maps but lets
+                each sign in a one-sided map determine its own ceiling. ``True``
+                always mirrors; ``False`` scales positive and negative limbs
+                independently.
+            cmap: niivue colormap for the positive limb. The default uses
+                niivue's red positive and blue negative palettes. Common
+                matplotlib names are auto-mapped with a warning.
             bg_img: ``None``/``True`` auto-loads the matching MNI template
                 when the data is in standard space (else none); ``False``
                 disables the background; a path string uses that image.
@@ -1405,24 +1410,28 @@ class BrainData:
                 (default ``True``). ``False`` hides it; the viewer still
                 supports niivue's right-drag windowing. No extra dependency
                 either way — the slider is native to the widget frontend.
-            **kwargs (dict): Forwarded verbatim to ``new Niivue(opts)`` (e.g.
-                ``height``, ConfigOptions like ``is_colorbar``).
+            **kwargs (dict): Passed as niivue options. ``height`` configures
+                the canvas and ``is_colorbar`` overrides ``colorbar``.
 
         Returns:
             NiivueViewer: An `anywidget.AnyWidget` whose threshold window is
                 reactive via the `cal_min` and `cal_max` traits.
 
         Raises:
-            TypeError: If ``autoscale`` is not a bool.
+            TypeError: If ``autoscale`` is not a bool or ``symmetric`` is not
+                ``True``, ``False``, or ``"auto"``.
         """
-        from .viewer import build_viewer, compute_display_window
+        from .viewer import build_viewer, compute_display_windows
 
-        cal_min, cal_max = compute_display_window(
-            self.data,
-            autoscale=autoscale,
-            threshold=threshold,
-            lower=lower,
-            upper=upper,
+        cal_min, cal_max, cal_min_neg, cal_max_neg, mirror_negative = (
+            compute_display_windows(
+                self.data,
+                autoscale=autoscale,
+                threshold=threshold,
+                lower=lower,
+                upper=upper,
+                symmetric=symmetric,
+            )
         )
 
         return build_viewer(
@@ -1430,6 +1439,9 @@ class BrainData:
             view=view,
             cal_min=cal_min,
             cal_max=cal_max,
+            cal_min_neg=cal_min_neg,
+            cal_max_neg=cal_max_neg,
+            mirror_negative=mirror_negative,
             cmap=cmap,
             atlas=atlas,
             bg_img=bg_img,

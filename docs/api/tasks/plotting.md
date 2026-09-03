@@ -20,7 +20,7 @@ Name | Description
 ### `plot_surf`
 
 ```python
-plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
+plot_surf(brain, *, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
 Plot volumetric data on fsaverage surfaces in a tight montage.
@@ -42,9 +42,9 @@ Name | Type | Description | Default
 `surface` | <code>str</code> | fsaverage mesh to render on. One of `'pial'` (default), `'inflated'`, `'white'`, `'sphere'`. | <code>'pial'</code>
 `template` | <code>str</code> | fsaverage resolution (`'fsaverage3'` … `'fsaverage'`). Default `'fsaverage5'`. | <code>'fsaverage5'</code>
 `threshold` | <code>float \| str</code> | Absolute cutoff (`0.3`) or percentile string (`'95%'`). | <code>None</code>
-`cmap` | <code>str</code> | Matplotlib colormap. Default `'RdBu_r'`. | <code>'RdBu_r'</code>
-`vmin` | <code>float</code> | Colormap lower bound. Defaults to −max-abs of the data (symmetric range). | <code>None</code>
-`vmax` | <code>float</code> | Colormap upper bound. Defaults to +max-abs of the data (symmetric range). | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap. By default, positive-only maps use ``"Reds"``, negative-only maps use ``"Blues_r"``, and mixed maps use ``"RdBu_r"``. | <code>None</code>
+`vmin` | <code>float</code> | Colormap lower bound. Defaults to zero for positive-only maps, the data minimum for negative-only maps, and negative max-absolute value for mixed maps. | <code>None</code>
+`vmax` | <code>float</code> | Colormap upper bound. Defaults to the data maximum for positive-only maps, zero for negative-only maps, and max-absolute value for mixed maps. | <code>None</code>
 `transparency` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path \| None</code> | Binary mask used to NaN-out vertices outside the mask so the background shines through. `'auto'` (default) uses `BrainData.mask`; None disables masking. | <code>'auto'</code>
 `bg_on_data` | <code>bool</code> | Whether to multiply data by the background. Default False. | <code>False</code>
 `colorbar` | <code>bool</code> | Show a single shared colorbar. Default True. | <code>True</code>
@@ -67,7 +67,7 @@ Type | Description
 ### `plot_flatmap`
 
 ```python
-plot_flatmap(brain, *, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(brain, *, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -85,9 +85,9 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `brain` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path</code> | Image to plot. Data must be in MNI152 space. | *required*
 `threshold` | <code>float or str</code> | Values below this absolute threshold are masked. Can be a float or percentile string like '95%'. Defaults to None (no threshold). | <code>None</code>
-`cmap` | <code>str</code> | Matplotlib colormap for data. Defaults to 'RdBu_r' (diverging red-blue). | <code>'RdBu_r'</code>
-`vmax` | <code>float</code> | Maximum value for colormap. If None, uses symmetric max of absolute values. | <code>None</code>
-`vmin` | <code>float</code> | Minimum value for colormap. If None and vmax is set, uses -vmax for diverging maps. | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap. The default is ``"Reds"`` for positive-only maps, ``"Blues_r"`` for negative-only maps, and ``"RdBu_r"`` for mixed maps. | <code>None</code>
+`vmax` | <code>float</code> | Maximum value. Defaults to the positive data maximum, zero for negative-only data, or max-absolute value for mixed data. | <code>None</code>
+`vmin` | <code>float</code> | Minimum value. Defaults to zero for positive-only data, the negative data minimum, or negative max-absolute value for mixed data. | <code>None</code>
 `template` | <code>str</code> | fsaverage resolution. Options: 'fsaverage3' (642 vertices), 'fsaverage4' (2562), 'fsaverage5' (10242, default), 'fsaverage6' (40962), 'fsaverage' (163842, full resolution). | <code>'fsaverage5'</code>
 `with_curvature` | <code>bool</code> | Show sulcal/gyral pattern as grayscale background. Defaults to True. | <code>True</code>
 `curvature_contrast` | <code>float</code> | Contrast of curvature (0=flat gray, 1=full contrast). Defaults to 0.5. | <code>0.5</code>

@@ -85,10 +85,9 @@ def plot_brain(
             (nltools semantics; may be a percentile string like ``"95%"``).
         lower (str | float | None): Lower threshold applied to the data
             (nltools semantics).
-        threshold (float, optional): Absolute-value transparency cutoff
-            forwarded to the underlying nilearn plot function. Voxels with
-            ``abs(value) < threshold`` are rendered transparent. Must be >= 0.
-            Use ``upper``/``lower`` for one-sided data thresholding.
+        threshold (float | str, optional): Absolute-value transparency cutoff
+            forwarded to nilearn. Percentile strings such as ``"95%"`` are
+            resolved over finite, nonzero magnitudes. Must be >= 0.
         view (str): For ``method="slices"``, any non-empty combination of
             ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``).
             Default: ``"z"``.
@@ -98,7 +97,9 @@ def plot_brain(
             matches ``view``, or a dict keyed by axis letter (``{"x": [...],
             "z": [...]}``) from which entries for each axis in ``view`` are
             looked up.
-        cmap (str, optional): Colormap name.
+        cmap (str, optional): Colormap name. By default, positive-only maps use
+            ``"Reds"``, negative-only maps use ``"Blues_r"``, and mixed maps
+            use ``"RdBu_r"``.
         bg_img (Nifti1Image or str, optional): Background image for slice views.
         ax (matplotlib.axes.Axes, optional): Matplotlib axis to plot on.
         figsize (tuple, optional): default figure size if no axis (8, 6)
@@ -133,7 +134,7 @@ def plot_brain(
     if bd.is_empty:
         raise ValueError("Cannot plot empty BrainData object")
 
-    if threshold is not None and threshold < 0:
+    if threshold is not None and not isinstance(threshold, str) and threshold < 0:
         raise ValueError(
             f"`threshold` is an absolute-value cutoff and must be >= 0 "
             f"(got {threshold}). Use `upper` / `lower` for one-sided data "
@@ -259,7 +260,19 @@ def plot_brain(
         else:
             obj = sub
 
-        cmap_use = cmap if cmap is not None else auto_select_colormap(obj.data)
+        from nltools.utils import resolve_threshold
+
+        threshold_use = resolve_threshold(threshold, np.abs(obj.data))
+        if threshold_use is not None and threshold_use < 0:
+            raise ValueError(
+                f"`threshold` is an absolute-value cutoff and must be >= 0 "
+                f"(got {threshold_use}). Use `upper` / `lower` for one-sided "
+                f"data thresholding."
+            )
+        displayed_data = obj.data
+        if threshold_use is not None:
+            displayed_data = displayed_data[np.abs(displayed_data) >= threshold_use]
+        cmap_use = cmap if cmap is not None else auto_select_colormap(displayed_data)
         save_paths = prepare_save_paths(save, idx if multi else None) if save else None
 
         # A plot cannot show NaN/inf; nilearn zero-fills them itself but warns
@@ -286,8 +299,8 @@ def plot_brain(
             sub_title = title
         if sub_title:
             plot_kwargs["title"] = sub_title
-        if threshold is not None:
-            plot_kwargs["threshold"] = threshold
+        if threshold_use is not None:
+            plot_kwargs["threshold"] = threshold_use
         plot_kwargs.setdefault("transparency", obj.mask)
 
         if method == "glass":
@@ -349,7 +362,7 @@ def plot_flatmap_brain(
     bd,
     *,
     threshold=None,
-    cmap="RdBu_r",
+    cmap=None,
     vmax=None,
     vmin=None,
     template="fsaverage5",
@@ -370,11 +383,11 @@ def plot_flatmap_brain(
 
     Args:
         bd (BrainData): Data to plot (must be in standard MNI space).
-        threshold (float, optional): Values below this absolute threshold
-            are masked.
-        cmap (str): Matplotlib colormap for data. Default: 'RdBu_r'.
-        vmax (float, optional): Maximum value for colormap.
-        vmin (float, optional): Minimum value for colormap.
+        threshold (float | str, optional): Values below this absolute threshold
+            are masked; percentile strings are accepted.
+        cmap (str, optional): Matplotlib colormap. The default is sign-aware.
+        vmax (float, optional): Maximum value; inferred from displayed data.
+        vmin (float, optional): Minimum value; inferred from displayed data.
         template (str): fsaverage resolution. Default: 'fsaverage5'.
         with_curvature (bool): Show sulcal/gyral pattern. Default: True.
         curvature_contrast (float): Contrast of curvature. Default: 0.5.
@@ -535,8 +548,8 @@ def auto_select_colormap(data):
         data (np.ndarray): Brain data values.
 
     Returns:
-        str: Colormap name — 'hot' if >90% of values are positive, 'cool' if
-            >90% are negative, otherwise the bipolar 'RdBu_r'.
+        str: ``'Reds'`` for positive-only data, ``'Blues_r'`` for
+            negative-only data, otherwise ``'RdBu_r'``.
     """
     # Flatten data for analysis
     if data.ndim > 1:
@@ -544,21 +557,16 @@ def auto_select_colormap(data):
     else:
         data_flat = data
 
-    # Remove NaN/Inf
-    data_flat = data_flat[np.isfinite(data_flat)]
+    # Stored zeros are background, not evidence that a map is mixed-signed.
+    data_flat = data_flat[np.isfinite(data_flat) & (data_flat != 0)]
 
     if len(data_flat) == 0:
         return "RdBu_r"  # Default fallback
 
-    # Check data range for colormap selection
-    # If mostly positive (> 90% positive), use hot/reds
-    positive_ratio = np.sum(data_flat > 0) / len(data_flat)
-    if positive_ratio > 0.9:
-        return "hot"
-    # If mostly negative (> 90% negative), use cool/blues
-    if (1 - positive_ratio) > 0.9:
-        return "cool"
-    # Otherwise use bipolar
+    if np.all(data_flat > 0):
+        return "Reds"
+    if np.all(data_flat < 0):
+        return "Blues_r"
     return "RdBu_r"
 
 

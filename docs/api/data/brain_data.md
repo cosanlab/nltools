@@ -593,7 +593,7 @@ fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
 ### `iplot`
 
 ```python
-iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool = True, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
+iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool = True, symmetric: bool | Literal['auto'] = 'auto', cmap: str | None = None, bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
 ```
 
 Interactive WebGL brain viewer powered by niivue.
@@ -610,14 +610,12 @@ reactive through the ``cal_min`` / ``cal_max`` traits. Pass
 ``controls=False`` to hide the slider (right-drag windowing still
 works).
 
-Thresholding is a divergent magnitude window: ``cal_min`` is the
-display floor (sub-floor voxels render transparent), ``cal_max`` the
-saturation point, with the positive limb using ``cmap`` and the
-negative limb its mirrored partner. Precedence: ``lower``/``upper``
-win; otherwise ``threshold`` sets the floor; any unset edge comes
-from ``autoscale``. The window is always computed in Python and
-passed to niivue explicitly, so the slider handles show exactly the
-window being rendered.
+Thresholding uses positive and negative display limbs. ``cal_min`` is
+the magnitude floor and ``cal_max`` the positive saturation point;
+niivue receives the negative endpoints explicitly. By default, mixed
+maps use symmetric limbs while each sign in a one-sided map determines
+its own ceiling. The window is computed in Python, and the two controls
+show the shared floor and positive-limb ceiling.
 
 **Parameters:**
 
@@ -627,15 +625,16 @@ Name | Type | Description | Default
 `threshold` | <code>float \| str \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). Accepts a percentile string (``"95%"``) resolved over the finite nonzero magnitudes, consistent with `threshold`. | <code>None</code>
 `lower` | <code>float \| str \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
 `upper` | <code>float \| str \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
-`autoscale` | <code>bool</code> | Robust default window for the edges not set above. ``True`` (default): ceiling at the 98th percentile of the finite nonzero magnitudes — a couple of outlier voxels no longer wash out the whole map — and an epsilon floor, never above the smallest nonzero magnitude, so zeros render transparent and every real voxel stays visible (threshold up from there). ``False``: the raw data extremes (the old behavior, made explicit). For a custom percentile window pass ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``). | <code>True</code>
-`cmap` | <code>str</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
+`autoscale` | <code>bool</code> | Robust default window for the edges not set above. ``True`` (default): ceiling at the 98th percentile of the finite nonzero magnitudes — a couple of outlier voxels no longer wash out the whole map — and an epsilon floor, never above the smallest nonzero magnitude, so zeros render transparent and every real voxel stays visible (threshold up from there). ``False``: the raw magnitude range from zero to the largest absolute value. For a custom percentile window pass ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``). | <code>True</code>
+`symmetric` | <code>bool \| Literal['auto']</code> | ``"auto"`` (default) mirrors mixed-signed maps but lets each sign in a one-sided map determine its own ceiling. ``True`` always mirrors; ``False`` scales positive and negative limbs independently. | <code>'auto'</code>
+`cmap` | <code>str \| None</code> | niivue colormap for the positive limb. The default uses niivue's red positive and blue negative palettes. Common matplotlib names are auto-mapped with a warning. | <code>None</code>
 `bg_img` | <code>str \| bool \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
 `atlas` | <code>str \| [Atlas](#tasks-atlases-atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
 `opacity` | <code>float</code> | Stat-map (and filled-atlas) opacity in ``0..1``. | <code>1.0</code>
 `outline` | <code>float</code> | ``> 0`` draws atlas region boundaries of that width (stat map stays visible); ``0`` draws filled regions. | <code>0.0</code>
 `colorbar` | <code>bool</code> | Show the stat-map colorbar (default ``True``). An explicit ``is_colorbar`` kwarg overrides this. | <code>True</code>
 `controls` | <code>bool</code> | Render an in-widget threshold slider above the viewer (default ``True``). ``False`` hides it; the viewer still supports niivue's right-drag windowing. No extra dependency either way — the slider is native to the widget frontend. | <code>True</code>
-`**kwargs` | <code>dict</code> | Forwarded verbatim to ``new Niivue(opts)`` (e.g. ``height``, ConfigOptions like ``is_colorbar``). | <code>{}</code>
+`**kwargs` | <code>dict</code> | Passed as niivue options. ``height`` configures the canvas and ``is_colorbar`` overrides ``colorbar``. | <code>{}</code>
 
 **Returns:**
 
@@ -647,7 +646,7 @@ Type | Description
 
 Type | Description
 ---- | -----------
-<code>TypeError</code> | If ``autoscale`` is not a bool.
+<code>TypeError</code> | If ``autoscale`` is not a bool or ``symmetric`` is not ``True``, ``False``, or ``"auto"``.
 
 (data-brain-data-mean)=
 ### `mean`
@@ -736,10 +735,10 @@ Name | Type | Description | Default
 `method` | <code>str</code> | Visualization type: 'glass', 'slices', 'timeseries', 'histogram' | <code>'glass'</code>
 `upper` | <code>str / float</code> | Upper threshold. | <code>None</code>
 `lower` | <code>str / float</code> | Lower threshold. | <code>None</code>
-`threshold` | <code>float</code> | Convenience parameter for thresholding. | <code>None</code>
+`threshold` | <code>float \| str</code> | Absolute transparency cutoff. Percentile strings resolve over finite, nonzero magnitudes. | <code>None</code>
 `view` | <code>str</code> | For ``method="slices"``, any non-empty combination of ``"x"``, ``"y"``, ``"z"`` (e.g. ``"xyz"``, ``"xz"``, ``"y"``). Default: ``"z"``. | <code>'z'</code>
 `cut_coords` | <code>list or dict</code> | Cut coordinates for multi-slice views. Takes precedence over ``view``-based defaults. Either a list matching ``len(view)`` or a dict keyed by axis letter. | <code>None</code>
-`cmap` | <code>str</code> | Colormap name. | <code>None</code>
+`cmap` | <code>str</code> | Colormap name. Defaults are sign-aware. | <code>None</code>
 `bg_img` | <code>str/nibabel image</code> | Background image. | <code>None</code>
 `ax` | <code>Axes</code> | Matplotlib axis. | <code>None</code>
 `figsize` | <code>tuple</code> | default figure size if no axis (8, 6) | <code>(8, 6)</code>
@@ -760,7 +759,7 @@ Type | Description
 ### `plot_flatmap`
 
 ```python
-plot_flatmap(*, threshold = None, cmap = 'RdBu_r', vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
+plot_flatmap(*, threshold = None, cmap = None, vmax = None, vmin = None, template = 'fsaverage5', with_curvature = True, curvature_contrast = 0.5, curvature_brightness = 0.5, transparency = 'auto', colorbar = True, colorbar_orientation = 'horizontal', figsize = (12, 6), title = None, radius_mm = 3.0, interpolation = 'linear', axes = None, save = None)
 ```
 
 Plot brain data on cortical flatmap.
@@ -769,10 +768,10 @@ Plot brain data on cortical flatmap.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`threshold` | <code>float</code> | Values below this absolute threshold are masked. | <code>None</code>
-`cmap` | <code>str</code> | Matplotlib colormap. Default: 'RdBu_r'. | <code>'RdBu_r'</code>
-`vmax` | <code>float</code> | Maximum value for colormap. | <code>None</code>
-`vmin` | <code>float</code> | Minimum value for colormap. | <code>None</code>
+`threshold` | <code>float \| str</code> | Absolute cutoff or percentile string. | <code>None</code>
+`cmap` | <code>str</code> | Matplotlib colormap. Defaults are sign-aware. | <code>None</code>
+`vmax` | <code>float</code> | Maximum value; inferred from displayed data. | <code>None</code>
+`vmin` | <code>float</code> | Minimum value; inferred from displayed data. | <code>None</code>
 `template` | <code>str</code> | Freesurfer surface resolution. Default: 'fsaverage5'. | <code>'fsaverage5'</code>
 `with_curvature` | <code>bool</code> | Show sulcal/gyral pattern. Default: True. | <code>True</code>
 `curvature_contrast` | <code>float</code> | Contrast of curvature overlay. Default: 0.5. | <code>0.5</code>
@@ -797,7 +796,7 @@ Type | Description
 ### `plot_surf`
 
 ```python
-plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = 'RdBu_r', vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
+plot_surf(*, hemi = 'both', view = 'montage', surface = 'pial', template = 'fsaverage5', threshold = None, cmap = None, vmin = None, vmax = None, transparency = 'auto', bg_on_data = False, colorbar = True, colorbar_orientation = 'horizontal', figsize = (10, 8), title = None, radius_mm = 3.0, interpolation = 'linear', zoom = 1.2, axes = None, save = None)
 ```
 
 Render this BrainData on fsaverage surfaces as a tight 2×2 montage.

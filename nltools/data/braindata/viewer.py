@@ -29,6 +29,7 @@ import functools
 import gzip
 import pathlib
 import warnings
+from typing import Literal
 
 import anywidget
 import traitlets
@@ -406,7 +407,7 @@ def compute_display_window(
       magnitudes (robust to outliers), floor = an epsilon just above zero,
       never above the smallest nonzero magnitude (zeros render transparent,
       every real voxel shows — threshold up from there).
-    - ``False``: the raw finite data extremes.
+    - ``False``: the raw magnitude range from zero to the largest absolute value.
 
     For a custom percentile window, pass ``lower``/``upper`` as percentile
     strings (``lower="60%", upper="98%"``) rather than a second spelling of
@@ -435,6 +436,9 @@ def compute_display_window(
 
     from nltools.utils import resolve_threshold
 
+    if not isinstance(autoscale, bool):
+        raise TypeError("autoscale must be a bool")
+
     arr = np.asarray(data, dtype=float)
     finite = arr[np.isfinite(arr)]
     magnitudes = np.abs(finite[finite != 0])
@@ -462,12 +466,11 @@ def compute_display_window(
         floor, ceiling = None, None
 
     if autoscale is False:
-        if finite.size == 0:
-            lo_ext, hi_ext = 0.0, 1.0
-        else:
-            lo_ext, hi_ext = float(finite.min()), float(finite.max())
-        floor = lo_ext if floor is None else float(floor)
-        ceiling = hi_ext if ceiling is None else float(ceiling)
+        ceiling = (
+            float(magnitudes.max()) if ceiling is None and magnitudes.size else ceiling
+        )
+        ceiling = 1.0 if ceiling is None else float(ceiling)
+        floor = 0.0 if floor is None else float(floor)
         return floor, ceiling
 
     if ceiling is None:
@@ -482,6 +485,57 @@ def compute_display_window(
         epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
         floor = min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
     return float(floor), float(ceiling)
+
+
+def compute_display_windows(
+    data,
+    *,
+    autoscale: bool = True,
+    threshold=None,
+    lower=None,
+    upper=None,
+    symmetric: bool | Literal["auto"] = "auto",
+) -> tuple[float, float, float, float, bool]:
+    """Resolve positive and negative niivue display limbs.
+
+    ``symmetric='auto'`` mirrors the limbs only for mixed-signed data.
+    ``False`` scales each present sign independently; ``True`` always mirrors.
+    """
+    import numpy as np
+
+    if not (isinstance(symmetric, bool) or symmetric == "auto"):
+        raise TypeError("symmetric must be True, False, or 'auto'")
+
+    cal_min, cal_max = compute_display_window(
+        data,
+        autoscale=autoscale,
+        threshold=threshold,
+        lower=lower,
+        upper=upper,
+    )
+    values = np.asarray(data, dtype=float).ravel()
+    values = values[np.isfinite(values) & (values != 0)]
+    positive = values[values > 0]
+    negative_magnitudes = np.abs(values[values < 0])
+    use_symmetric = symmetric is True or (
+        symmetric == "auto" and positive.size > 0 and negative_magnitudes.size > 0
+    )
+
+    if use_symmetric:
+        return cal_min, cal_max, -cal_max, -cal_min, True
+
+    explicit_ceiling = upper is not None
+
+    def _ceiling(sign_values, fallback):
+        if explicit_ceiling or sign_values.size == 0:
+            return float(fallback)
+        if autoscale:
+            return float(np.percentile(sign_values, _AUTOSCALE_CEILING_PCT))
+        return float(sign_values.max())
+
+    positive_ceiling = _ceiling(positive, cal_max)
+    negative_ceiling = _ceiling(negative_magnitudes, cal_max)
+    return cal_min, positive_ceiling, -negative_ceiling, -cal_min, False
 
 
 # --------------------------------------------------------------------------- #
@@ -543,7 +597,8 @@ class NiivueViewer(anywidget.AnyWidget):
     Holds the volume stack as byte traits (``bg_bytes`` / ``statmap_bytes`` /
     ``atlas_bytes``, any empty and skipped) plus display-parameter traits that
     ``viewer.js`` reads to configure niivue. Scalar traits (``cal_min`` /
-    ``cal_max`` / ``slice_type`` / ``colorbar`` / ``atlas_outline``) are
+    ``cal_max`` / negative endpoints / ``slice_type`` / ``colorbar`` /
+    ``atlas_outline``) are
     reactive: set them from Python and the frontend updates in place; the
     in-widget threshold slider writes ``cal_min`` / ``cal_max`` back.
 
@@ -566,6 +621,9 @@ class NiivueViewer(anywidget.AnyWidget):
     # Reactive stat-map window; None == niivue auto (percentile-derived).
     cal_min = traitlets.Float(None, allow_none=True).tag(sync=True)
     cal_max = traitlets.Float(None, allow_none=True).tag(sync=True)
+    cal_min_neg = traitlets.Float(None, allow_none=True).tag(sync=True)
+    cal_max_neg = traitlets.Float(None, allow_none=True).tag(sync=True)
+    mirror_negative = traitlets.Bool(True).tag(sync=True)
 
     slice_type = traitlets.Unicode("MULTIPLANAR").tag(sync=True)
     colorbar = traitlets.Bool(True).tag(sync=True)
@@ -574,7 +632,7 @@ class NiivueViewer(anywidget.AnyWidget):
     # Controls + layout.
     controls = traitlets.Bool(True).tag(sync=True)
     slider_bounds = traitlets.Dict().tag(sync=True)
-    height = traitlets.Int(400).tag(sync=True)
+    height = traitlets.Int(600).tag(sync=True)
 
     # Extra niivue ConfigOptions forwarded verbatim to ``new Niivue(opts)``.
     niivue_opts = traitlets.Dict().tag(sync=True)
@@ -585,8 +643,11 @@ def build_viewer(
     *,
     cal_min: float,
     cal_max: float,
+    cal_min_neg: float,
+    cal_max_neg: float,
+    mirror_negative: bool,
     view: str = "ortho",
-    cmap: str = "warm",
+    cmap: str | None = None,
     atlas: str | Atlas | None = None,
     bg_img: str | bool | None = None,
     opacity: float = 1.0,
@@ -607,8 +668,12 @@ def build_viewer(
             `compute_display_window` so the slider handles and the rendered
             window can never disagree.
         cal_max: Window ceiling. Required, as above.
+        cal_min_neg: Negative-limb saturation endpoint.
+        cal_max_neg: Negative-limb threshold endpoint.
+        mirror_negative: Keep the negative endpoints mirrored when controls move.
         view: See `slice_type_for`.
-        cmap: Positive colormap (niivue or matplotlib name).
+        cmap: Positive colormap (niivue or matplotlib name). ``None`` uses the
+            sign-aware red-positive/blue-negative default.
         atlas: Atlas name, `Atlas`, or ``None``.
         bg_img: See `resolve_background`.
         opacity: Stat-map (and filled-atlas) opacity.
@@ -619,13 +684,15 @@ def build_viewer(
             suppressed by the frontend.
         controls: Render the in-widget threshold slider (default ``True``).
         niivue_opts: Extra kwargs forwarded verbatim to ``new Niivue(opts)``.
-            A ``height`` key sets the canvas height; an ``is_colorbar`` key
-            overrides ``colorbar``.
+            A ``height`` key overrides the 600px ortho and 400px single-view
+            defaults; an ``is_colorbar`` key overrides ``colorbar``.
 
     Returns:
         NiivueViewer: A configured widget ready to display.
     """
-    cmap_resolved = resolve_cmap(cmap)
+    # niivue selects the positive/negative limb from the voxel sign, so this
+    # pair is already sign-aware without swapping colormap names per map.
+    cmap_resolved = "warm" if cmap is None else resolve_cmap(cmap)
     cmap_negative = divergent_partner(cmap_resolved)
     slice_name = slice_type_for(view)
     atlas_obj = _coerce_atlas(atlas)
@@ -642,7 +709,7 @@ def build_viewer(
     # Pull height / is_colorbar out of the forwarded niivue opts: height is a
     # canvas-layout trait, and an explicit is_colorbar wins over colorbar=.
     opts = dict(niivue_opts or {})
-    height = int(opts.pop("height", 400))
+    height = int(opts.pop("height", 600 if view == "ortho" else 400))
     if "is_colorbar" in opts:
         colorbar = bool(opts.pop("is_colorbar"))
 
@@ -662,6 +729,9 @@ def build_viewer(
         atlas_lut=atlas_lut,
         cal_min=cal_min,
         cal_max=cal_max,
+        cal_min_neg=cal_min_neg,
+        cal_max_neg=cal_max_neg,
+        mirror_negative=mirror_negative,
         slice_type=slice_name,
         colorbar=bool(colorbar),
         atlas_outline=float(outline) if atlas_obj is not None else 0.0,

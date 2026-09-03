@@ -182,6 +182,50 @@ class TestBrainDataPlotting:
         with pytest.raises(ValueError, match="absolute-value"):
             minimal_brain_data[0].plot(threshold=-0.5)
 
+    def test_plot_percentile_threshold_uses_nonzero_magnitudes(
+        self, minimal_brain_data, monkeypatch
+    ):
+        """Percentile thresholds use the same magnitude frame as ``iplot``."""
+        import matplotlib.pyplot as plt
+        import nilearn.plotting
+
+        bd = minimal_brain_data[0].copy()
+        bd.data[:] = 0
+        bd.data[:4] = [-4.0, -2.0, 1.0, 8.0]
+        expected = float(np.percentile([4.0, 2.0, 1.0, 8.0], 75))
+        captured = {}
+        fig = plt.figure()
+
+        class Display:
+            frame_axes = type("FrameAxes", (), {"figure": fig})()
+
+        def fake_plot_glass_brain(*args, **kwargs):
+            captured.update(kwargs)
+            return Display()
+
+        monkeypatch.setattr(nilearn.plotting, "plot_glass_brain", fake_plot_glass_brain)
+        bd.plot(method="glass", threshold="75%")
+
+        assert captured["threshold"] == pytest.approx(expected)
+        assert captured["cmap"] == "Reds"
+        plt.close(fig)
+
+
+class TestDefaultStatColormap:
+    @pytest.mark.parametrize(
+        "data,expected",
+        [
+            (np.array([0.0, 1.0, 3.0, np.nan]), "Reds"),
+            (np.array([0.0, -1.0, -3.0, -np.inf]), "Blues_r"),
+            (np.array([-3.0, 0.0, 1.0]), "RdBu_r"),
+            (np.array([0.0, np.nan]), "RdBu_r"),
+        ],
+    )
+    def test_uses_sign_of_finite_nonzero_values(self, data, expected):
+        from nltools.data.braindata.plotting import auto_select_colormap
+
+        assert auto_select_colormap(data) == expected
+
     def test_plot_custom_title(self, minimal_brain_data):
         """Test custom title"""
         result = minimal_brain_data[0].plot(title="My Custom Title")

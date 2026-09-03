@@ -110,6 +110,10 @@ class TestView:
         with pytest.raises(ValueError, match="render"):
             minimal_brain_data[0].iplot(bg_img=False, view="surface")
 
+    def test_default_height_depends_on_view(self, minimal_brain_data):
+        assert minimal_brain_data[0].iplot(bg_img=False).height == 600
+        assert minimal_brain_data[0].iplot(bg_img=False, view="axial").height == 400
+
 
 class TestThreshold:
     def test_threshold_sets_cal_min(self, minimal_brain_data):
@@ -151,6 +155,15 @@ class TestColormap:
         with pytest.warns(UserWarning, match="matplotlib"):
             v = minimal_brain_data[0].iplot(bg_img=False, cmap="RdBu_r")
         assert v.statmap["colormap"] == "warm"
+
+    def test_default_palette_is_sign_aware(self, minimal_brain_data):
+        positive = minimal_brain_data[0].copy()
+        positive.data = np.abs(positive.data)
+        negative = minimal_brain_data[0].copy()
+        negative.data = -np.abs(negative.data)
+
+        assert positive.iplot(bg_img=False).statmap["colormap"] == "warm"
+        assert negative.iplot(bg_img=False).statmap["colormap_negative"] == "winter"
 
 
 class TestColorbar:
@@ -277,8 +290,8 @@ class TestAutoscale:
     def test_autoscale_false_uses_extremes_explicitly(self):
         bd = _sparse_bd()
         v = bd.iplot(bg_img=False, autoscale=False)
-        assert v.cal_min == pytest.approx(float(bd.data.min()))
-        assert v.cal_max == pytest.approx(float(bd.data.max()))
+        assert v.cal_min == 0.0
+        assert v.cal_max == pytest.approx(float(np.abs(bd.data).max()))
 
     def test_percentile_window_comes_from_lower_and_upper(self):
         """A custom percentile window is spelled with `lower`/`upper`.
@@ -319,3 +332,30 @@ class TestAutoscale:
         v2 = bd.iplot(bg_img=False, autoscale=False)
         assert v2.slider_bounds["value_low"] == pytest.approx(v2.cal_min)
         assert v2.slider_bounds["value_high"] == pytest.approx(v2.cal_max)
+
+    def test_auto_symmetry_uses_symmetric_limbs_for_mixed_data(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False)
+        assert v.cal_min_neg == pytest.approx(-v.cal_max)
+        assert v.cal_max_neg == pytest.approx(-v.cal_min)
+        assert v.mirror_negative is True
+
+    def test_false_scales_positive_and_negative_limbs_independently(self):
+        bd = _sparse_bd()
+        v = bd.iplot(bg_img=False, symmetric=False)
+        positives = bd.data[bd.data > 0]
+        negatives = np.abs(bd.data[bd.data < 0])
+        assert v.cal_max == pytest.approx(float(np.percentile(positives, 98)))
+        assert v.cal_min_neg == pytest.approx(-float(np.percentile(negatives, 98)))
+        assert v.mirror_negative is False
+
+    def test_true_forces_symmetry_for_one_sided_data(self):
+        bd = _sparse_bd()
+        bd.data = np.abs(bd.data)
+        v = bd.iplot(bg_img=False, symmetric=True)
+        assert v.cal_min_neg == pytest.approx(-v.cal_max)
+        assert v.cal_max_neg == pytest.approx(-v.cal_min)
+
+    def test_invalid_symmetric_raises(self):
+        with pytest.raises(TypeError, match="symmetric"):
+            _sparse_bd().iplot(bg_img=False, symmetric="sometimes")

@@ -29,6 +29,38 @@ ipywidgets = attempt_to_import(
 )
 
 
+def _resolve_stat_map_defaults(data, *, cmap=None, vmin=None, vmax=None):
+    """Resolve sign-aware stat-map defaults from finite, nonzero values.
+
+    Explicit values are preserved. Missing range endpoints follow nilearn's
+    convention: one-sided maps include zero, while mixed maps are symmetric.
+    """
+    values = np.asarray(data, dtype=float).ravel()
+    values = values[np.isfinite(values) & (values != 0)]
+
+    has_positive = bool(np.any(values > 0))
+    has_negative = bool(np.any(values < 0))
+    if has_positive and not has_negative:
+        default_cmap = "Reds"
+        default_vmin = 0.0
+        default_vmax = float(values.max())
+    elif has_negative and not has_positive:
+        default_cmap = "Blues_r"
+        default_vmin = float(values.min())
+        default_vmax = 0.0
+    else:
+        default_cmap = "RdBu_r"
+        max_abs = float(np.max(np.abs(values))) if values.size else 1.0
+        default_vmin = -max_abs
+        default_vmax = max_abs
+
+    return (
+        default_cmap if cmap is None else cmap,
+        default_vmin if vmin is None else vmin,
+        default_vmax if vmax is None else vmax,
+    )
+
+
 def plot_interactive_brain(
     brain,
     *,
@@ -240,7 +272,7 @@ def plot_surf(
     surface="pial",
     template="fsaverage5",
     threshold=None,
-    cmap="RdBu_r",
+    cmap=None,
     vmin=None,
     vmax=None,
     transparency="auto",
@@ -278,11 +310,15 @@ def plot_surf(
             Default `'fsaverage5'`.
         threshold (float | str, optional): Absolute cutoff (`0.3`) or percentile
             string (`'95%'`).
-        cmap (str): Matplotlib colormap. Default `'RdBu_r'`.
-        vmin (float, optional): Colormap lower bound. Defaults to −max-abs of the
-            data (symmetric range).
-        vmax (float, optional): Colormap upper bound. Defaults to +max-abs of the
-            data (symmetric range).
+        cmap (str, optional): Matplotlib colormap. By default, positive-only
+            maps use ``"Reds"``, negative-only maps use ``"Blues_r"``, and
+            mixed maps use ``"RdBu_r"``.
+        vmin (float, optional): Colormap lower bound. Defaults to zero for
+            positive-only maps, the data minimum for negative-only maps, and
+            negative max-absolute value for mixed maps.
+        vmax (float, optional): Colormap upper bound. Defaults to the data
+            maximum for positive-only maps, zero for negative-only maps, and
+            max-absolute value for mixed maps.
         transparency (BrainData | nibabel.Nifti1Image | str | Path | None): Binary
             mask used to NaN-out vertices outside the mask so the background shines
             through. `'auto'` (default) uses `BrainData.mask`; None disables masking.
@@ -364,14 +400,13 @@ def plot_surf(
             float(np.percentile(np.abs(all_vals), pct)) if len(all_vals) else None
         )
 
-    # Symmetric diverging color range if not specified
-    if vmax is None:
-        all_vals = np.concatenate([textures[h] for h in hemis])
-        vmax = (
-            float(np.nanmax(np.abs(all_vals))) if np.any(np.isfinite(all_vals)) else 1.0
-        )
-    if vmin is None:
-        vmin = -vmax
+    all_vals = np.concatenate([textures[h] for h in hemis])
+    range_vals = (
+        all_vals[np.abs(all_vals) >= threshold] if threshold is not None else all_vals
+    )
+    cmap, vmin, vmax = _resolve_stat_map_defaults(
+        range_vals, cmap=cmap, vmin=vmin, vmax=vmax
+    )
 
     # --- figure / axes grid ----------------------------------------------
     nrows, ncols = len(views), len(hemis)
@@ -440,7 +475,7 @@ def plot_flatmap(
     brain,
     *,
     threshold=None,
-    cmap="RdBu_r",
+    cmap=None,
     vmax=None,
     vmin=None,
     template="fsaverage5",
@@ -472,12 +507,15 @@ def plot_flatmap(
         threshold (float or str, optional): Values below this absolute
             threshold are masked. Can be a float or percentile string
             like '95%'. Defaults to None (no threshold).
-        cmap (str, optional): Matplotlib colormap for data. Defaults to
-            'RdBu_r' (diverging red-blue).
-        vmax (float, optional): Maximum value for colormap. If None,
-            uses symmetric max of absolute values.
-        vmin (float, optional): Minimum value for colormap. If None
-            and vmax is set, uses -vmax for diverging maps.
+        cmap (str, optional): Matplotlib colormap. The default is ``"Reds"``
+            for positive-only maps, ``"Blues_r"`` for negative-only maps, and
+            ``"RdBu_r"`` for mixed maps.
+        vmax (float, optional): Maximum value. Defaults to the positive data
+            maximum, zero for negative-only data, or max-absolute value for
+            mixed data.
+        vmin (float, optional): Minimum value. Defaults to zero for positive-only
+            data, the negative data minimum, or negative max-absolute value for
+            mixed data.
         template (str, optional): fsaverage resolution. Options:
             'fsaverage3' (642 vertices), 'fsaverage4' (2562),
             'fsaverage5' (10242, default), 'fsaverage6' (40962),
@@ -617,12 +655,15 @@ def plot_flatmap(
         if len(all_values) > 0:
             threshold = np.percentile(np.abs(all_values), percentile)
 
-    # Determine colormap range
-    if vmax is None:
-        all_values = np.concatenate([texture_left, texture_right])
-        vmax = np.nanmax(np.abs(all_values))
-    if vmin is None:
-        vmin = -vmax  # Symmetric for diverging colormaps
+    all_values = np.concatenate([texture_left, texture_right])
+    range_values = (
+        all_values[np.abs(all_values) >= threshold]
+        if threshold is not None
+        else all_values
+    )
+    cmap, vmin, vmax = _resolve_stat_map_defaults(
+        range_values, cmap=cmap, vmin=vmin, vmax=vmax
+    )
 
     # Apply threshold masking
     if threshold is not None:

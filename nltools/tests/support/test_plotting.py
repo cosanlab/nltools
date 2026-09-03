@@ -13,6 +13,30 @@ from nltools.data import BrainData
 from nltools.plotting import plot_surf, plot_flatmap
 
 
+class TestStatMapDefaults:
+    @pytest.mark.parametrize(
+        "values,expected",
+        [
+            ([0.0, 1.0, 4.0, float("nan")], ("Reds", 0.0, 4.0)),
+            ([0.0, -1.0, -4.0, float("inf")], ("Blues_r", -4.0, 0.0)),
+            ([-2.0, 0.0, 4.0], ("RdBu_r", -4.0, 4.0)),
+        ],
+    )
+    def test_sign_aware_nilearn_ranges(self, values, expected):
+        from nltools.plotting.brain import _resolve_stat_map_defaults
+
+        assert _resolve_stat_map_defaults(values) == expected
+
+    def test_explicit_values_win_individually(self):
+        from nltools.plotting.brain import _resolve_stat_map_defaults
+
+        assert _resolve_stat_map_defaults([1.0, 4.0], cmap="viridis", vmin=-1.0) == (
+            "viridis",
+            -1.0,
+            4.0,
+        )
+
+
 @pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
 class TestPlotSurf:
     """Test plot_surf() function — 2×2 surface montage with tight framing."""
