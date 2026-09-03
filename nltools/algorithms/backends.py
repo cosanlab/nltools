@@ -12,6 +12,7 @@ their own budget math.
 """
 
 import warnings
+from copy import deepcopy
 import numpy as np
 from typing import Any
 
@@ -54,6 +55,14 @@ class Backend:
             raise ValueError(
                 f"Unknown backend: {backend}. Use 'numpy', 'torch', or 'auto'"
             )
+
+    def __deepcopy__(self, memo):
+        """Copy backend state without trying to pickle its array module."""
+        copied = type(self).__new__(type(self))
+        memo[id(self)] = copied
+        for name, value in self.__dict__.items():
+            setattr(copied, name, value if name == "xp" else deepcopy(value, memo))
+        return copied
 
     def _init_numpy(self):
         """Initialize NumPy backend."""

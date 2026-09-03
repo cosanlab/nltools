@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import pytest
 
-from nltools.data.fitresults import Predict
+from nltools.data import Predict
 
 
 # ---------------------------------------------------------------------------
@@ -359,6 +359,32 @@ class TestInplace:
         assert sim_brain_data.predict_scores is not None
         assert isinstance(sim_brain_data.predict_mean_score, float)
 
+    def test_inplace_cross_mode_replaces_prediction_state(self, minimal_brain_data):
+        n = len(minimal_brain_data)
+        y = np.array([0] * (n // 2) + [1] * (n - n // 2))
+        X = np.random.default_rng(0).standard_normal((n, 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        fitted_model = minimal_brain_data.model_
+
+        minimal_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)
+        assert hasattr(minimal_brain_data, "predict_predictions")
+        assert hasattr(minimal_brain_data, "predict_weight_map")
+
+        minimal_brain_data.predict(
+            y=y,
+            spatial_scale="searchlight",
+            cv=3,
+            radius_mm=4.0,
+            n_jobs=1,
+            inplace=True,
+        )
+
+        assert hasattr(minimal_brain_data, "predict_accuracy_map")
+        assert not hasattr(minimal_brain_data, "predict_predictions")
+        assert not hasattr(minimal_brain_data, "predict_weight_map")
+        assert minimal_brain_data.model_ is fitted_model
+        assert hasattr(minimal_brain_data, "ridge_weights")
+
 
 # ---------------------------------------------------------------------------
 # Searchlight / ROI — accuracy_map populated, weight_map None
@@ -460,8 +486,14 @@ class TestBrainDataWrapping:
         for field in ("weight_map", "fold_weight_maps"):
             obj = getattr(result, field)
             assert isinstance(obj, BrainData), f"{field} should be BrainData"
-        # Same mask as the source BrainData (so .plot() composes)
-        assert result.weight_map.mask is sim_brain_data.mask
+        # Equivalent but independently owned mask (so .plot() composes without aliasing)
+        assert result.weight_map.mask is not sim_brain_data.mask
+        np.testing.assert_array_equal(
+            result.weight_map.mask.get_fdata(), sim_brain_data.mask.get_fdata()
+        )
+        np.testing.assert_array_equal(
+            result.weight_map.mask.affine, sim_brain_data.mask.affine
+        )
         # Underlying numpy still accessible and has expected shapes
         assert result.weight_map.data.shape == (n_voxels,)
         assert result.fold_weight_maps.data.shape == (3, n_voxels)
@@ -475,7 +507,13 @@ class TestBrainDataWrapping:
             y=y, spatial_scale="searchlight", cv=3, radius_mm=4.0, n_jobs=1
         )
         assert isinstance(result.accuracy_map, BrainData)
-        assert result.accuracy_map.mask is minimal_brain_data.mask
+        assert result.accuracy_map.mask is not minimal_brain_data.mask
+        np.testing.assert_array_equal(
+            result.accuracy_map.mask.get_fdata(), minimal_brain_data.mask.get_fdata()
+        )
+        np.testing.assert_array_equal(
+            result.accuracy_map.mask.affine, minimal_brain_data.mask.affine
+        )
 
 
 # ---------------------------------------------------------------------------

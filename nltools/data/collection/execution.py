@@ -1035,7 +1035,7 @@ def read_predict_bundle(path: Path):
     import json
 
     from ..braindata import BrainData as _BrainData
-    from ..fitresults import Predict
+    from ..results import Predict
 
     f, attrs = _read_bundle_attrs_and_validate(Path(path))
     try:

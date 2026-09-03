@@ -374,8 +374,8 @@ class TestResolveTypeLinks:
     XREF = {
         "nltools.data.braindata.BrainData": "data-brain-data",
         "nltools.data.braindata.BrainData.align": "data-brain-data-align",
-        "nltools.data.fitresults": "data-fitresults",
-        "nltools.data.fitresults.PredictCollection": "data-fitresults-predictcollection",
+        "nltools.data.results": "data-results",
+        "nltools.data.results.PredictCollection": "data-results-predictcollection",
         "nltools.algorithms.SRM": "algorithms-srm",
         "nltools.algorithms.alignment.SRM": "algorithms-alignment-srm",
         "nltools.models.BaseModel": "models-basemodel",
@@ -397,8 +397,7 @@ class TestResolveTypeLinks:
         page = "<code>[PredictCollection](#PredictCollection)</code>"
         out = postprocess_mod._resolve_type_links(page, self.XREF)
         assert (
-            out
-            == "<code>[PredictCollection](#data-fitresults-predictcollection)</code>"
+            out == "<code>[PredictCollection](#data-results-predictcollection)</code>"
         )
 
     def test_canonical_path_prefers_closest_page(self, postprocess_mod):

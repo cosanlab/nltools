@@ -193,25 +193,12 @@ class BrainData:
         return perform_arithmetic(self, y, np.add, "add")
 
     def __deepcopy__(self, memo):
-        """Custom deepcopy that handles model attributes.
-
-        Model-related attributes (model_, X_, glm_*, ridge_*) as well as
-        ``mask`` and ``masker`` are shared (not copied) to avoid pickle
-        errors with unpicklable Backend objects. All other attributes are
-        deep copied.
-        """
+        """Create an independent snapshot of all data and fitted state."""
         new = BrainData.__new__(BrainData)
         memo[id(self)] = new
 
         for key, value in self.__dict__.items():
-            if key in ("mask", "masker"):
-                setattr(new, key, value)
-            elif key in ("model_", "X_"):
-                setattr(new, key, value)
-            elif key.startswith(("glm_", "ridge_")):
-                setattr(new, key, value)
-            else:
-                setattr(new, key, deepcopy(value, memo))
+            setattr(new, key, deepcopy(value, memo))
 
         return new
 
@@ -243,13 +230,13 @@ class BrainData:
         return eq_data and eq_X and eq_Y and eq_mask
 
     def __getitem__(self, index):
-        from .utils import _polars_row_select, shallow_copy
+        from .utils import _copy_without_fit_state, _polars_row_select
 
-        new = shallow_copy(self)
+        new = _copy_without_fit_state(self, copy_data=False)
         if isinstance(index, (int, np.integer)):
             new.data = np.array(self.data[index, :]).squeeze()
         elif isinstance(index, slice):
-            new.data = self.data[index, :]
+            new.data = np.array(self.data[index, :], copy=True)
         else:
             index = np.array(index).flatten()
             new.data = np.array(self.data[index, :]).squeeze()
@@ -338,18 +325,22 @@ class BrainData:
 
     def __setitem__(self, index, value):
         import polars as pl
+        from .utils import _clear_fit_state
 
         if not isinstance(value, BrainData):
             raise ValueError(
                 "Make sure the value you are trying to set is a BrainData() instance."
             )
-        self.data[index, :] = value.data
+        new_data = self.data.copy()
+        new_data[index, :] = value.data
+        new_y = None
         if not value.Y.is_empty():
             if self.Y.is_empty():
                 raise ValueError("Cannot set Y values: self.Y is empty.")
             arr = self.Y.to_numpy()
             arr[index] = value.Y.to_numpy()
-            self.Y = pl.DataFrame(arr, schema=self.Y.columns)
+            new_y = pl.DataFrame(arr, schema=self.Y.columns)
+        new_X = None
         if not value.X.is_empty():
             if self.X.is_empty():
                 raise ValueError("Cannot set X values: self.X is empty.")
@@ -357,7 +348,14 @@ class BrainData:
                 raise ValueError("Make sure self.X is the same size as value.X.")
             arr = self.X.to_numpy()
             arr[index] = value.X.to_numpy()
-            self.X = pl.DataFrame(arr, schema=self.X.columns)
+            new_X = pl.DataFrame(arr, schema=self.X.columns)
+
+        _clear_fit_state(self)
+        self.data = new_data
+        if new_y is not None:
+            self.Y = new_y
+        if new_X is not None:
+            self.X = new_X
 
     def __sub__(self, y):
         """Subtract from BrainData."""
@@ -509,18 +507,17 @@ class BrainData:
         Returns:
             BrainData: New appended BrainData instance.
         """
-        from .utils import shallow_copy
+        from .utils import _copy_without_fit_state
         from .validation import validate_append_shapes
 
         data = check_brain_data(data)
 
         if self.is_empty:
-            out = shallow_copy(data)
-            out.data = data.data.copy()
+            out = _copy_without_fit_state(data)
         else:
             validate_append_shapes(self.shape, data.shape)
 
-            out = shallow_copy(self)
+            out = _copy_without_fit_state(self, copy_data=False)
             out.data = np.vstack([self.data, data.data])
 
             if not ignore_attrs:
@@ -569,9 +566,9 @@ class BrainData:
         Returns:
             BrainData: BrainData instance with new datatype.
         """
-        from .utils import shallow_copy
+        from .utils import _copy_without_fit_state
 
-        out = shallow_copy(self)
+        out = _copy_without_fit_state(self, copy_data=False)
         out.data = self.data.astype(dtype)
         return out
 
@@ -741,17 +738,13 @@ class BrainData:
         return self.model_.report(contrasts=contrasts, **kwargs)
 
     def copy(self):
-        """Create a copy of a BrainData instance (data deep-copied).
+        """Create an independent snapshot of a BrainData instance.
 
-        The `data` array and most attributes are deep-copied, so mutating the
-        copy's data leaves the original untouched. **Fitted state is shared, not
-        copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
-        `masker` are held by reference (this avoids pickling unpicklable Backend
-        objects — see `__deepcopy__`). Mutating those on the copy mutates the
-        original; refit the copy if you need independent fit results.
+        Data, metadata, mask state, and any fitted model/results are copied.
+        Mutating either object after copying does not affect the other.
 
         Returns:
-            BrainData: A copy with independent data but shared fitted state.
+            BrainData: An independent copy, including fitted state.
         """
         return deepcopy(self)
 
@@ -761,7 +754,9 @@ class BrainData:
         Returns:
             BrainData: A copy of this object with an empty data array.
         """
-        out = deepcopy(self)
+        from .utils import _copy_without_fit_state
+
+        out = _copy_without_fit_state(self, copy_data=False)
         out.data = np.array([])
         return out
 
@@ -987,11 +982,8 @@ class BrainData:
                 the Ridge model — center X and y on the training fold mean
                 per fold and recover the intercept after.
             inplace (bool, default=True): If True, mutate self and return self.
-                If False, return a Fit dataclass with the results. ``self.data``
-                and the result attributes (``ridge_*`` / ``glm_*`` /
-                ``cv_results_``) are left unchanged, but ``self.model_`` and
-                ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on
-                self so ``predict()`` / ``compute_contrasts()`` still work.
+                If False, fit and return an independent `BrainData` copy while
+                leaving every part of self untouched.
             scale (bool or 'auto', default='auto'): Apply percent-signal-change
                 scaling before fitting via nilearn's per-voxel ``mean_scaling``.
                 ``'auto'`` → False for both models (PSC is opt-in). Redundant
@@ -1006,8 +998,8 @@ class BrainData:
                 (e.g. ``alpha`` for ridge).
 
         Returns:
-            BrainData | Fit: If ``inplace=True``, returns self (fitted BrainData).
-                If ``inplace=False``, returns a `Fit` dataclass with results.
+            BrainData: Self when ``inplace=True``; otherwise an independently
+                owned fitted copy.
 
         Note:
             After ``model="glm"``, the following per-regressor BrainData

@@ -322,7 +322,7 @@ class TestPredictDispatch:
         tiny_brain_factory,
     ):
         # Use single-map-per-subject items (1, 27).
-        from nltools.data.fitresults import Predict
+        from nltools.data import Predict
 
         np.random.seed(0)
         single_maps = [
@@ -380,7 +380,7 @@ class TestPredictGroupCarveOut:
         return BrainCollection(maps, mask=tiny_mask, lazy=False, cache_dir=None)
 
     def test_predict_group_returns_predict(self, tiny_mask):
-        from nltools.data.fitresults import Predict
+        from nltools.data import Predict
 
         bc = self._single_map_bc(tiny_mask)
         out = bc.predict_group(np.array([0, 1, 0, 1, 0, 1]))
@@ -606,7 +606,7 @@ class TestPredictPerSubject:
     def test_returns_predict_collection_one_result_per_subject(
         self, tiny_mask, tiny_brain_factory
     ):
-        from nltools.data.fitresults import Predict, PredictCollection
+        from nltools.data import Predict, PredictCollection
 
         bc = self._bc(tiny_mask, tiny_brain_factory)
         pc = bc.predict(y=self._labels(), cv=3, random_state=0, n_jobs=1)

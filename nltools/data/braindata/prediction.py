@@ -1,9 +1,8 @@
 """BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Single entry point: `predict`. Returns `Predict`
-with fields populated based on dispatch. Mirrors `BrainData.fit` /
-`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
-self with attributes, ``inplace=False`` returns the dataclass.
+Single entry point: `predict`. Returns a frozen structural `Predict` record
+with fields populated based on dispatch. ``inplace=True`` attaches its
+payloads to self; ``inplace=False`` returns the record.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from nltools.data.fitresults import Predict
+from nltools.data.results import Predict
 from nltools.utils import find_stack_level, maybe_tqdm
 
 
@@ -185,7 +184,7 @@ def predict_timeseries(bd, *, X=None):
     from nltools.data import BrainData
     from nltools.models import Glm
 
-    from .utils import shallow_copy
+    from .utils import _copy_without_fit_state
 
     if not hasattr(bd, "model_"):
         raise ValueError(
@@ -228,7 +227,7 @@ def predict_timeseries(bd, *, X=None):
     else:
         y_pred = bd.model_.predict(X)
 
-    predictions = shallow_copy(bd)
+    predictions = _copy_without_fit_state(bd, copy_data=False)
     predictions.data = y_pred
     return predictions
 
@@ -331,6 +330,9 @@ def predict_mvpa(
         )
 
     if inplace:
+        from .utils import _clear_prediction_state
+
+        _clear_prediction_state(bd)
         for fname in result.available():
             setattr(bd, f"predict_{fname}", getattr(result, fname))
         return bd

@@ -6,6 +6,7 @@ two-sample t-tests, and the design-matrix diagnostics `fit` runs before a GLM.
 """
 
 import warnings
+from copy import deepcopy
 
 import numpy as np
 
@@ -14,7 +15,7 @@ import numpy as np
 # ttest/ttest2 and the GLM-bundle contrast reader.
 from nltools.algorithms.inference.utils import _signed_z_from_p
 from nltools.utils import find_stack_level
-from .utils import shallow_copy
+from .utils import _clear_fit_state, _copy_without_fit_state
 
 
 def resolve_preprocessing_defaults(model, scale, standardize):
@@ -305,8 +306,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     category so it can be silenced surgically with
     ``warnings.filterwarnings``.
 
-    **Results stored on `bd`** (when `inplace=True`; with `inplace=False` the same
-    values are returned on a `Fit` instead):
+    **Results stored on the returned `BrainData`:**
 
     - `model_` — the fitted `Ridge` or `Glm` instance (always set, so `predict()`
       works).
@@ -339,13 +339,9 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         fit_intercept (bool): Ridge only. If True, fit an intercept term.
             Redundant (and warned against) when the data is already centered via
             `scale` or `standardize`. Forwarded to `Ridge`. Default: False.
-        inplace (bool): If True, mutate `bd` and return it. If False, return a
-            `Fit` dataclass; `bd.data` and the result attributes (`ridge_*` /
-            `glm_*` / `cv_results_`) are left unchanged, but `bd.model_` and
-            `bd.X_` (plus `bd.design_matrix` for GLM) are still updated so that
-            `predict()` / `compute_contrasts()` work off `bd`. Successive
-            `inplace=False` fits therefore overwrite the model used by a later
-            `bd.predict()`. Default: True.
+        inplace (bool): If True, mutate `bd` and return it. If False, fit and
+            return an independent `BrainData` copy while leaving every part of
+            `bd` untouched. Default: True.
         progress_bar (bool): Display a progress bar for long-running
             operations. Default: False.
         scale (bool | str): Apply percent-signal-change scaling to the data
@@ -365,8 +361,8 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             `noise_model`, `minimize_memory`, etc.
 
     Returns:
-        BrainData | Fit: `bd` itself when `inplace=True`; a `Fit` dataclass with
-            the results when `inplace=False`.
+        BrainData: `bd` itself when `inplace=True`; otherwise an independently
+            owned fitted copy.
 
     Examples:
         ```python
@@ -375,18 +371,17 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
         weights = brain_data.ridge_weights
 
-        # inplace=False: return a Fit dataclass; result attributes are not set on
-        # brain_data (model_ and X_ are still updated so predict() works)
-        fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
-        assert isinstance(fit, Fit)
-        assert 'weights' in fit.available()
+        # inplace=False: fit a copy; brain_data remains completely unchanged
+        fitted = brain_data.fit(
+            model='ridge', alpha=1.0, cv=5, X=features, inplace=False
+        )
+        weights = fitted.ridge_weights
         assert not hasattr(brain_data, 'ridge_weights')
-        print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
+        print(f"CV R2: {fitted.cv_results_['mean_score'].mean():.3f}")
 
-        # GLM with Fit dataclass
-        fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
-        assert 'betas' in fit_glm.available()
-        assert 't_stats' in fit_glm.available()
+        # The returned GLM copy can compute contrasts
+        fitted_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+        contrast = fitted_glm.compute_contrasts('conditionA - conditionB')
         ```
     """
     from nltools.models import Ridge, Glm
@@ -431,33 +426,15 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
                     f"number of samples must match."
                 )
 
-    # Always store model_ and X_ for predict() to work (even if inplace=False)
-    bd.X_ = X_model
-
-    # Create temporary copy if inplace=False to avoid mutating result attributes
+    target = bd if inplace else _copy_without_fit_state(bd, independent=True)
     if inplace:
-        target = bd
+        _clear_fit_state(target)
+    if isinstance(X_model, list):
+        target.X_ = [np.array(part, copy=True) for part in X_model]
+    elif hasattr(X_model, "copy"):
+        target.X_ = X_model.copy()
     else:
-        # Create temporary copy for fitting (to avoid mutating bd's result attributes)
-        target = bd.copy()
-        # Set X_ on copy (will be set below)
-        target.X_ = X_model
-        # Clean up any existing result attributes from the copy
-        for attr in [
-            "ridge_weights",
-            "ridge_fitted_values",
-            "ridge_scores",
-            "glm_betas",
-            "glm_t",
-            "glm_p",
-            "glm_se",
-            "glm_residual",
-            "glm_predicted",
-            "glm_r2",
-            "cv_results_",
-        ]:
-            if hasattr(target, attr):
-                delattr(target, attr)
+        target.X_ = deepcopy(X_model)
 
     # Resolve per-model preprocessing defaults ('auto' sentinel).
     scale, standardize = resolve_preprocessing_defaults(model, scale, standardize)
@@ -525,7 +502,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         ridge_kwargs.setdefault("local_alpha", local_alpha)
         ridge_kwargs.setdefault("fit_intercept", fit_intercept)
         target.model_ = Ridge(**ridge_kwargs)
-        fit_ridge(target, X_model, cv=cv, device=device, **kwargs)
+        fit_ridge(target, target.X_, cv=cv, device=device, **kwargs)
     elif model == "glm":
         if cv is not None:
             raise NotImplementedError(
@@ -540,18 +517,9 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         if "progress_bar" not in glm_kwargs:
             glm_kwargs["progress_bar"] = progress_bar
         target.model_ = Glm(**glm_kwargs)
-        fit_glm(target, X_model)
+        fit_glm(target, target.X_)
 
-    # If inplace=False, copy model_ to bd (needed for predict()) and return Fit
-    if not inplace:
-        # Store model_ and X_ on bd for predict() to work
-        bd.model_ = target.model_
-        # Also store design_matrix for GLM compute_contrasts()
-        if model == "glm" and hasattr(target, "design_matrix"):
-            bd.design_matrix = target.design_matrix
-        # Return Fit dataclass with results
-        return to_fit_dataclass(target, model=model)
-    return bd
+    return target
 
 
 def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params (alpha) to compute_ridge_cv
@@ -627,16 +595,16 @@ def _normalize_cv(cv):
 def _populate_ridge_attributes(bd, X):
     """Set ridge_weights / ridge_fitted_values / ridge_scores from bd.model_."""
     # Ridge.coef_ is (n_features, n_voxels); no transpose.
-    bd.ridge_weights = shallow_copy(bd)
-    bd.ridge_weights.data = bd.model_.coef_
+    bd.ridge_weights = _copy_without_fit_state(bd, copy_data=False)
+    bd.ridge_weights.data = np.array(bd.model_.coef_, copy=True)
 
     fitted = bd.model_.predict(X)
-    bd.ridge_fitted_values = shallow_copy(bd)
-    bd.ridge_fitted_values.data = fitted
+    bd.ridge_fitted_values = _copy_without_fit_state(bd, copy_data=False)
+    bd.ridge_fitted_values.data = np.array(fitted, copy=True)
 
     scores = bd.model_.score(X, bd.data)  # (n_voxels,)
-    bd.ridge_scores = shallow_copy(bd)
-    bd.ridge_scores.data = scores.reshape(1, -1)
+    bd.ridge_scores = _copy_without_fit_state(bd, copy_data=False)
+    bd.ridge_scores.data = np.array(scores, copy=True).reshape(1, -1)
 
 
 def _assemble_ridge_cv_results(bd, X, cv):
@@ -664,7 +632,9 @@ def _assemble_ridge_cv_results(bd, X, cv):
 
     cv_splitter = _normalize_cv(cv) if not isinstance(cv, int) else cv
 
-    alpha_scores = bd.model_.cv_scores_  # (n_splits, n_alphas, n_voxels)
+    alpha_scores = np.array(
+        bd.model_.cv_scores_, copy=True
+    )  # (n_splits, n_alphas, n_voxels)
     n_splits, n_alphas, n_voxels = alpha_scores.shape
 
     # Per-voxel selected α (already on the model). May be scalar when the
@@ -674,7 +644,7 @@ def _assemble_ridge_cv_results(bd, X, cv):
     if not isinstance(best_alpha, np.ndarray):
         best_alpha_arr = np.full(n_voxels, float(best_alpha))
     else:
-        best_alpha_arr = best_alpha
+        best_alpha_arr = np.array(best_alpha, copy=True)
 
     # Per-voxel best-α index → per-fold scores at that α.
     # alpha_scores has the candidate alphas in the order solve_ridge_cv saw
@@ -710,8 +680,8 @@ def _assemble_ridge_cv_results(bd, X, cv):
         parallel=parallel,
     )
 
-    cv_predictions_brain = shallow_copy(bd)
-    cv_predictions_brain.data = pred_result["predictions"]
+    cv_predictions_brain = _copy_without_fit_state(bd, copy_data=False)
+    cv_predictions_brain.data = np.array(pred_result["predictions"], copy=True)
 
     return {
         "best_alpha": best_alpha_arr
@@ -775,8 +745,8 @@ def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
         parallel=parallel,
     )
 
-    cv_predictions_brain = shallow_copy(bd)
-    cv_predictions_brain.data = pred_result["predictions"]
+    cv_predictions_brain = _copy_without_fit_state(bd, copy_data=False)
+    cv_predictions_brain.data = np.array(pred_result["predictions"], copy=True)
 
     return {
         "scores": pred_result["scores"],
@@ -816,7 +786,7 @@ def fit_glm(bd, X):
     # Betas come straight from the cached coef_ (assembled from run_glm theta),
     # so the per-regressor maps stay in masked-array space with no Nifti
     # round-trip. coef_ is (n_regressors, n_voxels).
-    bd.glm_betas = BrainData(data=bd.model_.coef_, mask=bd.mask)
+    bd.glm_betas = BrainData(data=np.array(bd.model_.coef_, copy=True), mask=bd.mask)
 
     # Per-regressor t / p / se via nilearn's FUNCTIONAL compute_contrast on the
     # fitted (labels_, results_): arrays in masked space, no unmask. Correct for
@@ -844,7 +814,7 @@ def fit_glm(bd, X):
     bd.glm_residual = BrainData(bd.model_.residuals, mask=bd.mask)
 
     # Predicted = original - residuals
-    bd.glm_predicted = bd.copy()
+    bd.glm_predicted = _copy_without_fit_state(bd, copy_data=False)
     bd.glm_predicted.data = bd.data - bd.glm_residual.data
 
     # R-squared calculation
@@ -853,96 +823,8 @@ def fit_glm(bd, X):
     r2_values = 1 - (ss_residual / (ss_total + 1e-10))
 
     # Create single-image BrainData for R-squared
-    bd.glm_r2 = bd[0].copy()
+    bd.glm_r2 = _copy_without_fit_state(bd, copy_data=False)
     bd.glm_r2.data = r2_values.reshape(1, -1)
-
-
-def to_fit_dataclass(bd, model):
-    """Convert BrainData fit results to Fit dataclass.
-
-    Args:
-        bd (BrainData): Fitted data carrying `ridge_*` or `glm_*` result attributes.
-        model (str): Model type (`'ridge'` or `'glm'`).
-
-    Returns:
-        Fit: Dataclass containing the fit results.
-    """
-    from nltools.data.fitresults import Fit
-
-    if model == "ridge":
-        # Extract Ridge results
-        fitted_values = bd.ridge_fitted_values.data  # (n_samples, n_voxels)
-        weights = bd.ridge_weights.data  # (n_features, n_voxels)
-        scores = bd.ridge_scores.data  # (1, n_voxels)
-        # Squeeze first dimension to get (n_voxels,)
-        if scores.ndim > 1 and scores.shape[0] == 1:
-            scores = scores[0]  # (n_voxels,)
-        else:
-            scores = scores.squeeze()  # (n_voxels,)
-
-        # Extract CV results if available
-        cv_scores = None
-        cv_mean_score = None
-        cv_predictions = None
-        cv_folds = None
-        cv_best_alpha = None
-        cv_alpha_scores = None
-
-        if hasattr(bd, "cv_results_") and bd.cv_results_ is not None:
-            cv_results = bd.cv_results_
-            cv_scores = cv_results.get("scores")  # (n_folds, n_voxels)
-            cv_mean_score = cv_results.get("mean_score")  # (n_voxels,)
-
-            # Extract predictions from BrainData
-            if "predictions" in cv_results:
-                cv_predictions = cv_results["predictions"].data  # (n_samples, n_voxels)
-
-            cv_folds = cv_results.get("folds")  # (n_samples,)
-            cv_best_alpha = cv_results.get(
-                "best_alpha"
-            )  # (n_voxels,) per-voxel α, or scalar when local_alpha=False (or None)
-            cv_alpha_scores = cv_results.get(
-                "alpha_scores"
-            )  # (n_folds, n_alphas, n_voxels) or None
-
-        return Fit(
-            fitted_values=fitted_values,
-            weights=weights,
-            scores=scores,
-            cv_scores=cv_scores,
-            cv_mean_score=cv_mean_score,
-            cv_predictions=cv_predictions,
-            cv_folds=cv_folds,
-            cv_best_alpha=cv_best_alpha,
-            cv_alpha_scores=cv_alpha_scores,
-        )
-
-    if model == "glm":
-        # Extract GLM results
-        fitted_values = bd.glm_predicted.data  # (n_samples, n_voxels)
-        betas = bd.glm_betas.data  # (n_regressors, n_voxels)
-        t_stats = bd.glm_t.data  # (n_regressors, n_voxels)
-        p_values = bd.glm_p.data  # (n_regressors, n_voxels)
-        se = bd.glm_se.data  # (n_regressors, n_voxels)
-        residuals = bd.glm_residual.data  # (n_samples, n_voxels)
-        r2 = bd.glm_r2.data  # (1, n_voxels)
-        # Squeeze first dimension to get (n_voxels,)
-        if r2.ndim > 1 and r2.shape[0] == 1:
-            r2 = r2[0]  # (n_voxels,)
-        else:
-            r2 = r2.squeeze()  # (n_voxels,)
-
-        return Fit(
-            fitted_values=fitted_values,
-            betas=betas,
-            t_stats=t_stats,
-            p_values=p_values,
-            se=se,
-            residuals=residuals,
-            r2=r2,
-        )
-
-    raise AssertionError(f"unvalidated model passed to to_fit_dataclass: {model!r}")
 
 
 def ttest(

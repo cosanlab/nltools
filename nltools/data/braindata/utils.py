@@ -42,26 +42,91 @@ def check_brain_data_is_single(data):
     return len(data.shape) <= 1
 
 
-def shallow_copy(bd):
-    """Create a shallow copy of a BrainData for efficient method chaining.
+_PREDICTION_STATE_ATTRIBUTES = (
+    "predict_predictions",
+    "predict_scores",
+    "predict_mean_score",
+    "predict_std_score",
+    "predict_cv_folds",
+    "predict_roi_labels",
+    "predict_accuracy_map",
+    "predict_weight_map",
+    "predict_fold_weight_maps",
+    "predict_estimator",
+    "predict_permutation_scores",
+    "predict_permutation_pvalue",
+)
 
-    Creates a new BrainData instance that shares immutable objects (mask)
-    but copies mutable attributes.  The data array is NOT copied — callers
-    should handle data copying as needed.
+_FIT_STATE_ATTRIBUTES = (
+    "model_",
+    "X_",
+    "design_matrix",
+    "cv_results_",
+    "ridge_weights",
+    "ridge_fitted_values",
+    "ridge_scores",
+    "glm_betas",
+    "glm_t",
+    "glm_p",
+    "glm_se",
+    "glm_residual",
+    "glm_predicted",
+    "glm_r2",
+    *_PREDICTION_STATE_ATTRIBUTES,
+)
+
+
+def _clear_prediction_state(bd):
+    """Remove results attached by a previous in-place decoding call."""
+    for name in _PREDICTION_STATE_ATTRIBUTES:
+        if hasattr(bd, name):
+            delattr(bd, name)
+
+
+def _clear_fit_state(bd):
+    """Remove state invalidated by changing a BrainData object's data."""
+    for name in _FIT_STATE_ATTRIBUTES:
+        if name == "design_matrix":
+            bd.design_matrix = None
+        elif hasattr(bd, name):
+            delattr(bd, name)
+
+
+def _copy_without_fit_state(bd, *, copy_data=True, independent=False):
+    """Create a result-shaped BrainData without derived model state.
+
+    By default, the data buffer and mutable metadata are copied while the mask
+    and masker are shared. Callers that immediately replace ``data`` can opt
+    out of that copy. With ``independent=True``, all retained state is
+    deep-copied. Every mode omits fitted/prediction state and resets
+    ``design_matrix`` to ``None``.
 
     Args:
         bd (BrainData): Instance to copy.
+        copy_data (bool): Copy the data buffer. Default True.
+        independent (bool): Deep-copy retained structure and data. Default False.
 
     Returns:
-        BrainData: New instance with shared/copied attributes.
+        BrainData: Clean derived instance.
     """
     from . import BrainData
 
     new = BrainData.__new__(BrainData)
+    memo = {id(bd): new}
 
     for key, value in bd.__dict__.items():
+        if key in _FIT_STATE_ATTRIBUTES:
+            if key == "design_matrix":
+                new.design_matrix = None
+            continue
         if key == "data":
-            new.data = bd.data  # reference only
+            setattr(
+                new,
+                key,
+                deepcopy(value, memo) if independent or copy_data else value,
+            )
+        elif independent:
+            setattr(new, key, deepcopy(value, memo))
         elif key in ("mask", "masker"):
             setattr(new, key, value)
         elif key in ("_X", "_Y"):
@@ -70,20 +135,11 @@ def shallow_copy(bd):
             setattr(
                 new, key, value.clone() if isinstance(value, pl.DataFrame) else value
             )
-        elif key == "design_matrix":
-            if value is not None:
-                if hasattr(value, "copy"):
-                    setattr(new, key, value.copy())
-                else:
-                    setattr(new, key, deepcopy(value))
-            else:
-                setattr(new, key, None)
-        elif key.startswith(("glm_", "ridge_")):
-            setattr(new, key, value)
-        elif key in ("model_", "X_", "cv_results_"):
-            pass  # fitted model state — don't propagate
         else:
-            setattr(new, key, deepcopy(value))
+            setattr(new, key, deepcopy(value, memo))
+
+    if not hasattr(new, "design_matrix"):
+        new.design_matrix = None
 
     return new
 
@@ -106,28 +162,31 @@ def perform_arithmetic(
     """
     from .validation import validate_arithmetic_operand, validate_brain_data_shapes
 
-    new = bd if inplace else shallow_copy(bd)
     operand_type = validate_arithmetic_operand(other, operation_name)
 
     if operand_type == "scalar":
         if reverse:
-            new.data = operation(other, bd.data)
+            result_data = operation(other, bd.data)
         else:
-            new.data = operation(bd.data, other)
+            result_data = operation(bd.data, other)
     elif operand_type == "brain_data":
         validate_brain_data_shapes(bd, other, operation_name)
         if reverse:
-            new.data = operation(other.data, bd.data)
+            result_data = operation(other.data, bd.data)
         else:
-            new.data = operation(bd.data, other.data)
+            result_data = operation(bd.data, other.data)
     elif operand_type == "array":
         if len(other) != len(bd):
             raise ValueError(
                 f"Vector {operation_name} requires that the length of the vector "
                 f"({len(other)}) match the number of images ({len(bd)})"
             )
-        new.data = np.dot(bd.data.T, other).T
+        result_data = np.dot(bd.data.T, other).T
 
+    new = bd if inplace else _copy_without_fit_state(bd, copy_data=False)
+    if inplace:
+        _clear_fit_state(new)
+    new.data = result_data
     return new
 
 
@@ -156,7 +215,7 @@ def apply_func(bd, stat_func, axis=0):
     if axis == 0:
         import polars as pl
 
-        out = shallow_copy(bd)
+        out = _copy_without_fit_state(bd, copy_data=False)
         out.data = stat_func(bd.data, axis=0)
         out.X = pl.DataFrame()
         out.Y = pl.DataFrame()

@@ -211,6 +211,7 @@ def roi_to_brain(data, mask_x):
             provided value(s).
     """
     import polars as pl
+    from nltools.data.braindata.utils import _copy_without_fit_state
 
     if isinstance(data, (pl.DataFrame, pl.Series)):
         arr = data.to_numpy()
@@ -234,7 +235,7 @@ def roi_to_brain(data, mask_x):
     if arr.ndim == 1:
         if len(arr) != len(mask_x):
             raise ValueError("Data must have the same number of rows as mask has ROIs.")
-        out = mask_x[0].copy()
+        out = _copy_without_fit_state(mask_x[0], copy_data=False)
         out.data = np.zeros(out.data.shape)
         for roi in range(len(mask_x)):
             out.data[np.where(mask_x.data[roi, :])] = arr[roi]
@@ -248,7 +249,7 @@ def roi_to_brain(data, mask_x):
                 raise ValueError(
                     "Data must have the same number of rows as rois in mask"
                 )
-        out = mask_x.copy()
+        out = _copy_without_fit_state(mask_x, copy_data=False)
         out.data = np.zeros((arr.shape[1], out.data.shape[1]))
         for roi in range(len(mask_x)):
             roi_data = arr[roi, :].reshape(-1, 1)

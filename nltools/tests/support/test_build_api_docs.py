@@ -169,7 +169,7 @@ class TestPagesRegistry:
         ):
             assert gone not in modules
         by_module = {p.module: p.output for p in build_mod.PAGES if p.module}
-        assert by_module["nltools.data.fitresults"] == "data/fitresults.md"
+        assert by_module["nltools.data.results"] == "data/results.md"
         assert by_module["nltools.algorithms.inference"] == "algorithms/inference.md"
 
     def test_a_to_z_index_is_the_algorithms_namespace(self, build_mod):

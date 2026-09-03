@@ -1,4 +1,4 @@
-"""Tests for PredictCollection (fitresults/) — per-subject Predict results.
+"""Tests for `PredictCollection` per-subject prediction results.
 
 The container returned by ``BrainCollection.predict(y=...)``: one `Predict`
 per subject plus the collection's per-subject metadata, with stacking
@@ -13,7 +13,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from nltools.data.fitresults import Predict, PredictCollection
+from nltools.data import Predict, PredictCollection
 
 
 @pytest.fixture(scope="module")
@@ -47,10 +47,23 @@ class TestConstruction:
         assert isinstance(pc[0], Predict)
         assert all(isinstance(r, Predict) for r in pc)
 
-    def test_results_are_immutable(self, tiny_mask):
+    def test_results_binding_is_frozen(self, tiny_mask):
         pc = PredictCollection([_whole_brain_predict(0, tiny_mask)])
         with pytest.raises(FrozenInstanceError):
             pc.results = ()
+
+    def test_payloads_are_independently_owned(self, tiny_mask):
+        result = _whole_brain_predict(0, tiny_mask)
+        metadata = pl.DataFrame({"subject": ["s1"]})
+        pc = PredictCollection([result], metadata=metadata)
+
+        result.scores[0] = 99.0
+        result.weight_map.data[0] = 99.0
+
+        assert pc[0] is not result
+        assert pc[0].scores[0] != 99.0
+        assert not np.all(pc[0].weight_map.data == 99.0)
+        assert pc.metadata is not metadata
 
     def test_empty_raises(self):
         with pytest.raises(ValueError, match="empty"):

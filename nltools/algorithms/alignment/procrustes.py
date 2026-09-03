@@ -3,7 +3,6 @@
 __all__ = ["align", "align_states", "procrustes", "procrustes_distance"]
 
 import numpy as np
-from copy import deepcopy
 from joblib import Parallel, delayed
 from scipy.linalg import orthogonal_procrustes
 from scipy.optimize import linear_sum_assignment
@@ -77,16 +76,16 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
             "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
         )
 
-    data = deepcopy(data)
-
     if isinstance(data[0], BrainData):
+        from nltools.data.braindata.utils import _copy_without_fit_state
+
         data_type = "BrainData"
-        data_out = [x.copy() for x in data]
-        transformation_out = [x.copy() for x in data]
-        data = [x.data.T for x in data]
+        data_out = [_copy_without_fit_state(x, copy_data=False) for x in data]
+        transformation_out = [_copy_without_fit_state(x, copy_data=False) for x in data]
+        data = [np.array(x.data.T, copy=True) for x in data]
     elif isinstance(data[0], np.ndarray):
         data_type = "numpy"
-        data = [x.T for x in data]
+        data = [np.array(x.T, copy=True) for x in data]
     else:
         raise ValueError(f"Type {type(data[0])} is not implemented yet.")
 
@@ -149,7 +148,7 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
             for i, x in enumerate(out["transformed"]):
                 data_out[i].data = x.T
                 out["transformed"] = data_out
-            common = data_out[0].copy()
+            common = _copy_without_fit_state(data_out[0], copy_data=False)
             common.data = out["common_model"]
             out["common_model"] = common
         else:

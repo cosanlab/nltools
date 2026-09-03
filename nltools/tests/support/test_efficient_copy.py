@@ -1,10 +1,10 @@
 """Tests for efficient copying in BrainData
 
 These tests verify that:
-1. Shallow copying is actually shallow (not deep)
+1. Derived copies own their data by default
 2. Data independence is maintained (no accidental mutations)
-3. Efficiency is verified structurally (shared mask, no deep copy of data)
-   rather than via wall-clock timing, which is noise-dominated on small data
+3. Efficiency is explicit: masks are shared, data is owned by default, and
+   output shells skip the data copy only when replacing it immediately
 4. All updated methods use efficient copying
 """
 
@@ -12,22 +12,22 @@ import pytest
 import numpy as np
 from copy import deepcopy
 from nltools.data import BrainData
-from nltools.data.braindata.utils import shallow_copy
+from nltools.data.braindata.utils import _copy_without_fit_state
 from nltools.mask import create_sphere
 import pandas as pd
 
 
-def test_shallow_copy_with_data(sim_brain_data):
-    """Test that _shallow_copy_with_data works correctly"""
+def test_copy_without_fit_state_with_data(sim_brain_data):
+    """The clean internal copy shares structure but drops derived state."""
 
-    # Create shallow copy
-    copied = shallow_copy(sim_brain_data)
+    # Derived copies own data but share reusable spatial structure.
+    copied = _copy_without_fit_state(sim_brain_data)
 
     # Should share mask
     assert copied.mask is sim_brain_data.mask
 
-    # Should initially share data array
-    assert copied.data is sim_brain_data.data
+    assert copied.data is not sim_brain_data.data
+    np.testing.assert_array_equal(copied.data, sim_brain_data.data)
 
     # Should have copied X and Y if present
     if hasattr(sim_brain_data, "X") and sim_brain_data.X is not None:
@@ -103,38 +103,39 @@ def test_scale_with_different_values(sim_brain_data):
         assert scaled.data is not sim_brain_data.data
 
 
-def test_shallow_vs_deepcopy_sharing():
-    """Shallow copy shares the underlying arrays; deepcopy does not."""
+def test_copy_data_false_is_an_explicit_shell_optimization():
+    """Only the explicit shell mode aliases data awaiting replacement."""
 
     s1 = create_sphere([12, 10, -8], radius=10)
     brain = BrainData([s1] * 10)  # 10 images
 
     deep_copied = deepcopy(brain)
-    shallow_copied = shallow_copy(brain)
+    derived = _copy_without_fit_state(brain)
+    shell = _copy_without_fit_state(brain, copy_data=False)
 
-    # The efficiency guarantee, verified structurally rather than by clock:
-    # a shallow copy shares the data buffer with the source, whereas deepcopy
-    # duplicates it. (The mask is a shared immutable resource in both cases.)
-    assert shallow_copied.data is brain.data
+    assert derived.data is not brain.data
+    assert shell.data is brain.data
     assert deep_copied.data is not brain.data
+    assert derived.mask is brain.mask
+    assert shell.mask is brain.mask
+    assert deep_copied.mask is not brain.mask
 
     # All three carry identical values
-    assert np.array_equal(shallow_copied.data, brain.data)
+    assert np.array_equal(derived.data, brain.data)
+    assert np.array_equal(shell.data, brain.data)
     assert np.array_equal(deep_copied.data, brain.data)
 
 
-def test_shallow_copy_is_truly_shallow(sim_brain_data):
-    """Verify that shallow copy shares the right objects and copies the right ones"""
+def test_copy_without_fit_state_shares_only_spatial_structure(sim_brain_data):
+    """The default derived copy owns mutable data and metadata."""
 
     # Add DataFrame attributes to test
     sim_brain_data.test_X = pd.DataFrame({"col1": [1, 2, 3]})
 
-    # Create shallow copy
-    copied = shallow_copy(sim_brain_data)
+    copied = _copy_without_fit_state(sim_brain_data)
 
-    # These should be SHARED (same object in memory)
     assert id(copied.mask) == id(sim_brain_data.mask), "mask should be shared"
-    assert id(copied.data) == id(sim_brain_data.data), "data should initially be shared"
+    assert id(copied.data) != id(sim_brain_data.data), "data should be copied"
 
     # These should be COPIED (different objects)
     if hasattr(sim_brain_data, "X") and sim_brain_data.X is not None:

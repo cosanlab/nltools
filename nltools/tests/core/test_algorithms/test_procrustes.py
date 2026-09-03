@@ -82,6 +82,23 @@ class TestAlign:
             np.sum(out["transformed"][0] - transformed.T), 0, decimal=3
         )
 
+    @pytest.mark.slow
+    def test_braindata_outputs_drop_input_fit_state(self, simulated_brains):
+        brains = list(simulated_brains)
+        for brain in brains:
+            X = np.arange(len(brain), dtype=float).reshape(-1, 1)
+            brain.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+
+        out = align(brains, method="procrustes")
+
+        for result in [*out["transformed"], *out["transformation_matrix"]]:
+            assert result.design_matrix is None
+            assert not hasattr(result, "model_")
+            assert not hasattr(result, "ridge_weights")
+        assert out["common_model"].design_matrix is None
+        assert not hasattr(out["common_model"], "model_")
+        assert all(hasattr(brain, "model_") for brain in brains)
+
 
 class TestProcrustes:
     """Test Procrustes transformation directly."""

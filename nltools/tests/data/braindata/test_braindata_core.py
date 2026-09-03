@@ -1,4 +1,5 @@
 import numpy as np
+import polars as pl
 import pytest
 
 from nltools.data import BrainData, Adjacency
@@ -45,6 +46,76 @@ class TestBrainDataCore:
         data = np.zeros((1, 2))
 
         assert BrainData(data, mask=mask_a) != BrainData(data, mask=mask_b)
+
+    def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
+        """Copying a fitted BrainData produces an independent snapshot."""
+        X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+
+        copied = minimal_brain_data.copy()
+
+        copied.data[0, 0] = 11.0
+        copied.X_[0, 0] = 12.0
+        copied.model_.coef_[0, 0] = 13.0
+        copied.ridge_weights.data[0, 0] = 14.0
+        copied.mask.get_fdata(caching="fill")[0, 0, 0] = 0.0
+
+        assert minimal_brain_data.data[0, 0] != 11.0
+        assert minimal_brain_data.X_[0, 0] != 12.0
+        assert minimal_brain_data.model_.coef_[0, 0] != 13.0
+        assert minimal_brain_data.ridge_weights.data[0, 0] != 14.0
+        assert minimal_brain_data.mask.get_fdata()[0, 0, 0] != 0.0
+
+    def test_create_empty_drops_fitted_state(self, minimal_brain_data):
+        X = np.random.default_rng(1).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+
+        empty = minimal_brain_data.create_empty()
+
+        assert empty.data.size == 0
+        assert empty.design_matrix is None
+        assert not hasattr(empty, "model_")
+        assert not hasattr(empty, "X_")
+        assert not hasattr(empty, "ridge_weights")
+
+    def test_inplace_arithmetic_drops_fitted_state(self, minimal_brain_data):
+        X = np.random.default_rng(2).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+
+        minimal_brain_data += 1.0
+
+        assert minimal_brain_data.design_matrix is None
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "X_")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+
+    def test_setitem_drops_fitted_state(self, minimal_brain_data):
+        replacement = minimal_brain_data[0]
+        X = np.random.default_rng(3).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+
+        minimal_brain_data[0] = replacement
+
+        assert minimal_brain_data.design_matrix is None
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "X_")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+
+    def test_failed_setitem_preserves_data_and_fitted_state(self, minimal_brain_data):
+        replacement = minimal_brain_data[0]
+        replacement.X = pl.DataFrame({"unexpected": [1.0]})
+        X = np.random.default_rng(4).standard_normal((len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        original_data = minimal_brain_data.data.copy()
+        original_model = minimal_brain_data.model_
+        original_weights = minimal_brain_data.ridge_weights
+
+        with pytest.raises(ValueError, match="self.X is the same size"):
+            minimal_brain_data[0] = replacement
+
+        np.testing.assert_array_equal(minimal_brain_data.data, original_data)
+        assert minimal_brain_data.model_ is original_model
+        assert minimal_brain_data.ridge_weights is original_weights
 
     @pytest.mark.parametrize("method", ["mean", "median"])
     def test_stat_aggregation(self, minimal_brain_data, method):

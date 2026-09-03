@@ -6,7 +6,7 @@ Loads nltools once with griffe and renders every page in PAGES in-process
 `postprocess_api_docs`) and writes it under docs/api/. Three kinds of page:
 
 - **module pages** — one module or class rendered with griffe2md's own template
-  (the four data classes, `models`, `fitresults`, and the internal-module
+  (the four data classes, `models`, `results`, and the internal-module
   reference);
 - **task pages** (docs/api/tasks/) — a hand-written intro over an explicit list
   of objects drawn from several modules, grouped by what a user wants to do;
@@ -123,7 +123,7 @@ PAGES: tuple[Page, ...] = (
     _module_page("nltools.data.adjacency.Adjacency", "data/adjacency.md"),
     _module_page("nltools.data.designmatrix.DesignMatrix", "data/design_matrix.md"),
     _module_page("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
-    _module_page("nltools.data.fitresults", "data/fitresults.md"),
+    _module_page("nltools.data.results", "data/results.md"),
     _module_page("nltools.models", "models.md"),
     # --- functions by task --------------------------------------------------
     _task_page(

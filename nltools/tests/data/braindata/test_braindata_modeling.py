@@ -1,4 +1,3 @@
-import tempfile
 import warnings
 
 import numpy as np
@@ -270,10 +269,10 @@ class TestBrainDataModeling:
         assert hasattr(minimal_brain_data, "X_")
         assert minimal_brain_data.model_.progress_bar is False
 
-    def test_fit_inplace_false_returns_fit_dataclass_ridge(self, minimal_brain_data):
-        """Test inplace=False returns Fit dataclass for Ridge."""
-        from nltools.data.fitresults import Fit
-
+    def test_fit_inplace_false_returns_independent_fitted_brain_data(
+        self, minimal_brain_data
+    ):
+        """A non-inplace ridge fit owns its complete fitted state."""
         brain = minimal_brain_data.copy()
         for attr in [
             "ridge_weights",
@@ -296,44 +295,47 @@ class TestBrainDataModeling:
         X_train = np.random.randn(len(brain), 10)
         original_data = brain.data.copy()
 
-        fit = brain.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+        fitted = brain.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
 
-        assert isinstance(fit, Fit)
-        assert "fitted_values" in fit.available()
-        assert "weights" in fit.available()
-        assert "scores" in fit.available()
-        assert fit.fitted_values.shape == brain.shape
-        assert fit.weights.shape == (10, brain.shape[1])
-        assert fit.scores.shape == (brain.shape[1],)
+        assert isinstance(fitted, BrainData)
+        assert fitted is not brain
+        assert fitted.ridge_fitted_values.shape == brain.shape
+        assert fitted.ridge_weights.shape == (10, brain.shape[1])
+        assert fitted.ridge_scores.shape == (1, brain.shape[1])
         assert not hasattr(brain, "ridge_weights")
-        assert hasattr(brain, "model_")
+        assert not hasattr(brain, "model_")
+        assert not hasattr(brain, "X_")
         np.testing.assert_array_equal(brain.data, original_data)
 
-    @pytest.mark.slow
-    def test_fit_inplace_false_returns_fit_dataclass_ridge_cv(self, minimal_brain_data):
-        """Test inplace=False returns Fit dataclass with CV results for Ridge."""
-        from nltools.data.fitresults import Fit
+        fitted.data[0, 0] = 123.0
+        fitted.X_[0, 0] = 456.0
+        fitted.ridge_weights.data[0, 0] = 789.0
+        assert brain.data[0, 0] != 123.0
+        assert X_train[0, 0] != 456.0
+        assert fitted.model_.coef_[0, 0] != 789.0
+        assert not hasattr(fitted.ridge_weights, "model_")
+        assert fitted.ridge_weights.design_matrix is None
 
+    @pytest.mark.slow
+    def test_fit_inplace_false_returns_brain_data_with_ridge_cv(
+        self, minimal_brain_data
+    ):
+        """The returned BrainData carries ridge cross-validation state."""
         brain = minimal_brain_data.copy()
         X_train = np.random.randn(len(brain), 10)
 
-        fit = brain.fit(model="ridge", alpha=1.0, X=X_train, cv=3, inplace=False)
+        fitted = brain.fit(model="ridge", alpha=1.0, X=X_train, cv=3, inplace=False)
 
-        assert isinstance(fit, Fit)
-        assert "cv_scores" in fit.available()
-        assert "cv_mean_score" in fit.available()
-        assert "cv_predictions" in fit.available()
-        assert "cv_folds" in fit.available()
-        assert fit.cv_scores.shape == (3, brain.shape[1])
-        assert fit.cv_mean_score.shape == (brain.shape[1],)
-        assert fit.cv_predictions.shape == brain.shape
-        assert fit.cv_folds.shape == (len(brain),)
+        assert isinstance(fitted, BrainData)
+        assert fitted.cv_results_["scores"].shape == (3, brain.shape[1])
+        assert fitted.cv_results_["mean_score"].shape == (brain.shape[1],)
+        assert fitted.cv_results_["predictions"].shape == brain.shape
+        assert fitted.cv_results_["folds"].shape == (len(brain),)
+        assert not hasattr(brain, "cv_results_")
 
     @pytest.mark.slow
-    def test_fit_inplace_false_returns_fit_dataclass_glm(self, minimal_brain_data):
-        """Test inplace=False returns Fit dataclass for GLM."""
-        from nltools.data.fitresults import Fit
-
+    def test_fit_inplace_false_returns_brain_data_with_glm(self, minimal_brain_data):
+        """The returned BrainData carries a complete independent GLM fit."""
         brain = minimal_brain_data.copy()
         design_matrix = pd.DataFrame(
             {
@@ -343,50 +345,125 @@ class TestBrainDataModeling:
         )
         original_data = brain.data.copy()
 
-        fit = brain.fit(model="glm", noise_model="ols", X=design_matrix, inplace=False)
+        fitted = brain.fit(
+            model="glm", noise_model="ols", X=design_matrix, inplace=False
+        )
 
-        assert isinstance(fit, Fit)
-        assert "fitted_values" in fit.available()
-        assert "betas" in fit.available()
-        assert "t_stats" in fit.available()
-        assert "p_values" in fit.available()
-        assert "se" in fit.available()
-        assert "residuals" in fit.available()
-        assert "r2" in fit.available()
-        assert fit.fitted_values.shape == brain.shape
-        assert fit.betas.shape == (2, brain.shape[1])
+        assert isinstance(fitted, BrainData)
+        assert fitted.glm_predicted.shape == brain.shape
+        assert fitted.glm_betas.shape == (2, brain.shape[1])
+        assert hasattr(fitted, "glm_t")
+        assert hasattr(fitted, "glm_p")
+        assert hasattr(fitted, "glm_se")
+        assert hasattr(fitted, "glm_residual")
+        assert hasattr(fitted, "glm_r2")
+        assert not hasattr(fitted.glm_predicted, "model_")
         assert not hasattr(brain, "glm_betas")
-        assert hasattr(brain, "model_")
+        assert not hasattr(brain, "model_")
+        assert brain.design_matrix is None
         np.testing.assert_array_equal(brain.data, original_data)
 
-    def test_fit_inplace_false_allows_predict(self, minimal_brain_data):
-        """Test that inplace=False still allows predict() to work."""
+    def test_fit_inplace_false_result_allows_predict(self, minimal_brain_data):
+        """Prediction belongs to the returned fitted copy, not the original."""
         X_train = np.random.randn(len(minimal_brain_data), 10)
-        minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+        fitted = minimal_brain_data.fit(
+            model="ridge", alpha=1.0, X=X_train, inplace=False
+        )
 
         X_test = np.random.randn(20, 10)
-        predictions = minimal_brain_data.predict(X=X_test)
+        predictions = fitted.predict(X=X_test)
         assert predictions.shape == (20, minimal_brain_data.shape[1])
 
-    def test_fit_inplace_false_serialization(self, minimal_brain_data):
-        """Test Fit dataclass serialization roundtrip."""
-        from nltools.data.fitresults import Fit
-        import os
+    def test_refit_without_cv_clears_prior_cv_results(self, minimal_brain_data):
+        X = np.random.randn(len(minimal_brain_data), 4)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
+        assert hasattr(minimal_brain_data, "cv_results_")
 
-        X_train = np.random.randn(len(minimal_brain_data), 10)
-        fit = minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
 
-        with tempfile.NamedTemporaryFile(suffix=".npz", delete=False) as f:
-            np.savez(f.name, **fit.asdict())
-            loaded = np.load(f.name)
-            fit_reconstructed = Fit(**{k: loaded[k] for k in loaded.files})
-            os.unlink(f.name)
+        assert not hasattr(minimal_brain_data, "cv_results_")
 
-        np.testing.assert_array_equal(
-            fit.fitted_values, fit_reconstructed.fitted_values
+    def test_copy_owns_nested_cv_state(self, minimal_brain_data):
+        X = np.random.randn(len(minimal_brain_data), 4)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
+
+        copied = minimal_brain_data.copy()
+        copied.cv_results_["scores"][0, 0] = 91.0
+        copied.cv_results_["predictions"].data[0, 0] = 92.0
+
+        assert minimal_brain_data.cv_results_["scores"][0, 0] != 91.0
+        assert minimal_brain_data.cv_results_["predictions"].data[0, 0] != 92.0
+
+    @pytest.mark.slow
+    def test_refit_replaces_prior_model_state(self, minimal_brain_data):
+        """Refitting across model types cannot leave mixed result state."""
+        ridge_X = np.random.randn(len(minimal_brain_data), 3)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+
+        glm_X = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condition": np.random.randn(len(minimal_brain_data)),
+            }
         )
-        np.testing.assert_array_equal(fit.weights, fit_reconstructed.weights)
-        np.testing.assert_array_equal(fit.scores, fit_reconstructed.scores)
+        minimal_brain_data.fit(model="glm", X=glm_X, noise_model="ols")
+
+        assert hasattr(minimal_brain_data, "glm_betas")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+        assert not hasattr(minimal_brain_data, "ridge_fitted_values")
+        assert not hasattr(minimal_brain_data, "ridge_scores")
+
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+
+        assert hasattr(minimal_brain_data, "ridge_weights")
+        assert not hasattr(minimal_brain_data, "glm_betas")
+        assert not hasattr(minimal_brain_data, "glm_predicted")
+        assert minimal_brain_data.design_matrix is None
+
+    @pytest.mark.slow
+    def test_non_inplace_refit_preserves_fitted_source(self, minimal_brain_data):
+        ridge_X = np.random.randn(len(minimal_brain_data), 3)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+        original_weights = minimal_brain_data.ridge_weights.data.copy()
+
+        glm_X = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condition": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        fitted_glm = minimal_brain_data.fit(
+            model="glm", X=glm_X, noise_model="ols", inplace=False
+        )
+
+        assert hasattr(fitted_glm, "glm_betas")
+        assert not hasattr(fitted_glm, "ridge_weights")
+        np.testing.assert_array_equal(
+            minimal_brain_data.ridge_weights.data, original_weights
+        )
+        assert not hasattr(minimal_brain_data, "glm_betas")
+
+    @pytest.mark.slow
+    def test_fitted_glm_copy_is_usable_and_independent(self, minimal_brain_data):
+        design = pd.DataFrame(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "condition": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", X=design, noise_model="ols")
+        original_coefficient = minimal_brain_data.model_.coef_[0, 0]
+        minimal_brain_data.glm_betas.data[0, 0] = 95.0
+        assert minimal_brain_data.model_.coef_[0, 0] == original_coefficient
+
+        copied = minimal_brain_data.copy()
+        copied_contrast = copied.compute_contrasts("condition")
+        copied.glm_betas.data[0, 0] = 93.0
+        copied.model_.coef_[0, 0] = 94.0
+
+        assert isinstance(copied_contrast, BrainData)
+        assert minimal_brain_data.glm_betas.data[0, 0] != 93.0
+        assert minimal_brain_data.model_.coef_[0, 0] != 94.0
 
     @pytest.mark.slow
     def test_glm_fit_numerical_correctness(self, minimal_brain_data):
@@ -608,8 +685,6 @@ class TestBrainDataModeling:
 
     def test_fit_scale_inplace_false(self, minimal_brain_data):
         """fit() with preprocessing and inplace=False doesn't modify original."""
-        from nltools.data.fitresults import Fit
-
         X = np.random.randn(len(minimal_brain_data), 10)
         original_data = minimal_brain_data.data.copy()
 
@@ -617,7 +692,7 @@ class TestBrainDataModeling:
             model="ridge", alpha=1.0, X=X, inplace=False, scale=True, standardize=None
         )
 
-        assert isinstance(result, Fit)
+        assert isinstance(result, BrainData)
         np.testing.assert_allclose(minimal_brain_data.data, original_data)
 
     def test_predict_with_no_X_uses_training_data(self, minimal_brain_data):
@@ -1273,6 +1348,15 @@ class TestBrainDataRidgePerVoxelAlpha:
         best = bd.cv_results_["best_alpha"]
         assert isinstance(best, np.ndarray)
         assert best.shape == (bd.shape[1],)
+        assert best is not bd.model_.alpha_
+        assert bd.cv_results_["alpha_scores"] is not bd.model_.cv_scores_
+
+        model_alpha = bd.model_.alpha_.copy()
+        model_scores = bd.model_.cv_scores_.copy()
+        best[0] = -1.0
+        bd.cv_results_["alpha_scores"][0, 0, 0] = -1.0
+        np.testing.assert_array_equal(bd.model_.alpha_, model_alpha)
+        np.testing.assert_array_equal(bd.model_.cv_scores_, model_scores)
 
     def test_local_alpha_false_collapses_to_scalar(self):
         bd, X, _ = self._per_voxel_fixture()

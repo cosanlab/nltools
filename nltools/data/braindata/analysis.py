@@ -9,7 +9,7 @@ Each takes a `BrainData` as its first argument; the corresponding
 import numpy as np
 import polars as pl
 
-from .utils import shallow_copy
+from .utils import _copy_without_fit_state
 
 
 def check_masks(bd, image):
@@ -220,10 +220,10 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
     for label in unique_labels:
         cols = label_vec == label
-        sub = bd.copy()
+        sub = _copy_without_fit_state(bd, copy_data=False)
         sub.data = bd.data[:, cols]
         if method == "procrustes":
-            t_sub = target_bd.copy()
+            t_sub = _copy_without_fit_state(target_bd, copy_data=False)
             t_sub.data = target_bd.data[:, cols]
             sub_target = t_sub
         else:
@@ -505,7 +505,6 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
     from .utils import check_brain_data, check_brain_data_is_single
 
-    masked = shallow_copy(bd)
     # Coerce raw Niimg-like masks into the *target's* space, not the default
     # MNI152 template. Without bd.mask as context, check_brain_data re-homes a
     # raw nifti onto the package-default mask, which silently mismatches (and
@@ -519,14 +518,16 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
     if resample_mask_to_brain:
         mask_img = resample_to_img(
             mask_img,
-            masked.to_nifti(),
+            bd.to_nifti(),
             interpolation="nearest",  # Masks are discrete, use nearest
             force_resample=True,
             copy_header=True,
         )
 
     # Use nilearn's apply_mask for efficient masking (C-optimized, single path, memory efficient)
-    masked.data = nilearn_apply_mask(masked.to_nifti(), mask_img)
+    masked_data = nilearn_apply_mask(bd.to_nifti(), mask_img)
+    masked = _copy_without_fit_state(bd, copy_data=False)
+    masked.data = masked_data
 
     # Update mask, voxel resolution, and space
     masked.mask = mask_img
@@ -649,7 +650,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
             if check_brain_data_is_single(bd):
                 raise ValueError("Cannot run PCA on a single image")
 
-            atlas_mask = mask_brain.copy()
+            atlas_mask = _copy_without_fit_state(mask_brain, copy_data=False)
             atlas_mask.data = (mask_brain.data > 0).astype(float)
             all_masked = apply_mask(bd, atlas_mask)
 
@@ -660,7 +661,7 @@ def extract_roi(bd, mask, method="mean", n_components=None):
 
             out = []
             for label in unique_labels:
-                roi = shallow_copy(all_masked)
+                roi = _copy_without_fit_state(all_masked, copy_data=False)
                 roi.data = all_masked.data[:, labels_flat == label]
                 output = decompose(
                     roi, method="pca", n_components=n_components, axis="images"
@@ -693,9 +694,8 @@ def detrend_data(bd, method="linear"):
     if len(bd.shape) == 1:
         raise ValueError("Make sure there is more than one image in order to detrend.")
 
-    out = shallow_copy(bd)
-    # Copy data and detrend
-    out.data = detrend(bd.data.copy(), type=method, axis=0)
+    out = _copy_without_fit_state(bd, copy_data=False)
+    out.data = detrend(bd.data, type=method, axis=0)
     return out
 
 
@@ -710,7 +710,7 @@ def r_to_z(bd):
     """
     from nltools.algorithms.similarity import fisher_r_to_z
 
-    out = shallow_copy(bd)
+    out = _copy_without_fit_state(bd, copy_data=False)
     # fisher_r_to_z creates a new array
     out.data = fisher_r_to_z(bd.data)
     return out
@@ -727,7 +727,7 @@ def z_to_r(bd):
     """
     from nltools.algorithms.similarity import fisher_z_to_r
 
-    out = shallow_copy(bd)
+    out = _copy_without_fit_state(bd, copy_data=False)
     # fisher_z_to_r creates a new array
     out.data = fisher_z_to_r(bd.data)
     return out
@@ -778,8 +778,8 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
         standardize = None
     detrend = kwargs.pop("detrend", False)
 
-    # Optimized: Use shallow copy instead of deepcopy
-    out = shallow_copy(bd)
+    # The output immediately replaces data, so avoid copying the source buffer.
+    out = _copy_without_fit_state(bd, copy_data=False)
     out.data = clean(
         bd.data,
         t_r=1.0 / sampling_freq,
@@ -821,8 +821,8 @@ def standardize(bd, *, axis=0, method="center"):
         std[std == 0] = 1.0  # constant along `axis` -> 0, not nan
         centered /= std
 
-    # Optimized: Use shallow copy instead of deepcopy
-    out = shallow_copy(bd)
+    # The output immediately replaces data, so avoid copying the source buffer.
+    out = _copy_without_fit_state(bd, copy_data=False)
     out.data = centered.astype(bd.data.dtype, copy=False)
     return out
 
@@ -864,8 +864,7 @@ def scale_data(bd, scale_val=100.0, axis=None):
         scaled = brain.scale(100.0, axis=0)
         ```
     """
-    out = shallow_copy(bd)
-    out.data = bd.data.copy()
+    out = _copy_without_fit_state(bd)
 
     if axis is None:
         # Grand-mean scaling: divide by global mean
@@ -956,7 +955,7 @@ def threshold_data(
             raise ValueError("Must provide either upper or lower threshold")
 
         # Handle percentile strings
-        b = bd.copy()
+        b = _copy_without_fit_state(bd)
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
@@ -965,7 +964,7 @@ def threshold_data(
         threshold_val = resolve_threshold(threshold_val, b.data)
 
         # Use nilearn's cluster thresholding
-        out = shallow_copy(bd)
+        out = _copy_without_fit_state(bd, copy_data=False)
         thresholded_img = threshold_img(
             b.to_nifti(),
             threshold=threshold_val,
@@ -983,7 +982,7 @@ def threshold_data(
         return out
 
     # Use current efficient implementation (fast path)
-    b = bd.copy()
+    b = _copy_without_fit_state(bd)
 
     if coerce_nan:
         b.data = np.nan_to_num(b.data)
@@ -1055,7 +1054,7 @@ def transform_pairwise_data(bd):
     """
     from nltools.algorithms.similarity import transform_pairwise
 
-    out = shallow_copy(bd)
+    out = _copy_without_fit_state(bd, copy_data=False)
     out.data, new_Y = transform_pairwise(bd.data, bd.Y.to_numpy())
     new_Y = np.where(np.asarray(new_Y) == -1, 0, new_Y)
     out.Y = pl.DataFrame(new_Y)
@@ -1158,7 +1157,6 @@ def align(bd, target, method="procrustes", axis=0):
             "Method must be ['probabilistic_srm','deterministic_srm','procrustes']"
         )
 
-    source = bd.copy()
     data1 = bd.data.copy()
 
     if method == "procrustes":
@@ -1194,8 +1192,9 @@ def align(bd, target, method="procrustes", axis=0):
         # # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
 
-        out["transformation_matrix"] = source
-        out["transformation_matrix"].data = U.dot(V).T
+        transformation = _copy_without_fit_state(bd, copy_data=False)
+        transformation.data = U.dot(V).T
+        out["transformation_matrix"] = transformation
 
         out["transformed"] = data1.dot(out["transformation_matrix"].data.T)
         out["common_model"] = target
@@ -1203,10 +1202,13 @@ def align(bd, target, method="procrustes", axis=0):
         _, transformed, out["disparity"], tf_mtx, out["scale"] = procrustes(
             data2, data1
         )
-        source.data = transformed
-        out["transformed"] = source
+        transformed_brain = _copy_without_fit_state(bd, copy_data=False)
+        transformed_brain.data = transformed
+        out["transformed"] = transformed_brain
         out["common_model"] = target
-        out["transformation_matrix"] = source.copy()
+        out["transformation_matrix"] = _copy_without_fit_state(
+            transformed_brain, copy_data=False
+        )
         out["transformation_matrix"].data = tf_mtx
     if axis == 1:
         if method == "procrustes":
@@ -1232,9 +1234,6 @@ def smooth(bd, fwhm):
 
     from .utils import check_brain_data_is_single
 
-    # Optimized: Use shallow copy instead of deepcopy, single conversion path
-    out = shallow_copy(bd)
-
     # Single conversion: data -> nifti -> smooth -> data
     nifti = bd.to_nifti()
     smoothed_nifti = smooth_img(nifti, fwhm)
@@ -1242,9 +1241,10 @@ def smooth(bd, fwhm):
 
     # Ensure single images remain 1D
     if check_brain_data_is_single(bd):
-        out.data = smoothed_data.flatten()
-    else:
-        out.data = smoothed_data
+        smoothed_data = smoothed_data.flatten()
+
+    out = _copy_without_fit_state(bd, copy_data=False)
+    out.data = smoothed_data
 
     return out
 
@@ -1292,9 +1292,6 @@ def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     """
     from scipy.interpolate import pchip
 
-    # Optimized: Use shallow copy instead of deepcopy
-    out = shallow_copy(bd)
-
     if target_type == "samples":
         n_samples = target
     elif target_type == "seconds":
@@ -1307,8 +1304,10 @@ def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     orig_spacing = np.arange(0, bd.shape[0], 1)
     new_spacing = np.arange(0, bd.shape[0], n_samples)
 
-    out.data = np.zeros([len(new_spacing), bd.shape[1]])
+    resampled_data = np.zeros([len(new_spacing), bd.shape[1]])
     for i in range(bd.shape[1]):
         interpolate = pchip(orig_spacing, bd.data[:, i])
-        out.data[:, i] = interpolate(new_spacing)
+        resampled_data[:, i] = interpolate(new_spacing)
+    out = _copy_without_fit_state(bd, copy_data=False)
+    out.data = resampled_data
     return out

@@ -1289,7 +1289,7 @@ class BrainCollection:
     ):  # -> PredictCollection
         """Map ``BrainData.predict(y=...)`` over subjects via ``_apply``."""
         from ..braindata import BrainData
-        from ..fitresults import PredictCollection
+        from ..results import PredictCollection
         from . import execution
 
         # Fit/predict bundles hold model arrays, not decodable images — refuse

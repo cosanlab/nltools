@@ -1,12 +1,10 @@
-"""Regression tests for F050 / F051 in braindata/modeling.py.
+"""Regression tests for ridge CV alpha ordering and non-mutating fits.
 
 - F051: ``_assemble_ridge_cv_results`` used ``np.searchsorted`` to map the
   per-voxel selected alpha back to a column of the ``(n_splits, n_alphas,
   n_voxels)`` score cube. searchsorted assumes an ascending grid; with
   user-supplied unsorted ``alphas`` it returns the wrong index, so the
   reported per-fold CV scores correspond to the wrong alpha.
-- F050: ``fit(inplace=False)`` documentation/behavior contract (see the
-  docstring test below).
 """
 
 import numpy as np
@@ -51,10 +49,8 @@ class TestRidgeCvUnsortedAlphas:
         np.testing.assert_allclose(cv["scores"], expected_scores)
 
 
-class TestFitInplaceFalseDocstringContract:
-    """F050: with inplace=False, `.data` and the ridge_*/glm_* result
-    attributes stay unmutated, but model_/X_ ARE set on self so predict()
-    works. This codifies the (now accurately documented) behavior."""
+class TestFitInplaceFalseContract:
+    """A non-inplace fit leaves every part of the original untouched."""
 
     def test_inplace_false_leaves_data_and_result_attrs_unmutated(
         self, minimal_brain_data
@@ -73,13 +69,11 @@ class TestFitInplaceFalseDocstringContract:
         X = np.random.randn(len(brain), 10)
         original = brain.data.copy()
 
-        brain.fit(model="ridge", alpha=1.0, X=X, inplace=False)
+        fitted = brain.fit(model="ridge", alpha=1.0, X=X, inplace=False)
 
-        # Data and result attributes are NOT mutated...
         np.testing.assert_array_equal(brain.data, original)
         assert not hasattr(brain, "ridge_weights")
-        # ...but model_/X_ ARE set so predict() can run on self.
-        assert hasattr(brain, "model_")
-        assert hasattr(brain, "X_")
-        preds = brain.predict(X=np.random.randn(4, 10))
+        assert not hasattr(brain, "model_")
+        assert not hasattr(brain, "X_")
+        preds = fitted.predict(X=np.random.randn(4, 10))
         assert preds.shape == (4, brain.shape[1])

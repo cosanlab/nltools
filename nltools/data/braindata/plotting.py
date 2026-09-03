@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 
 from nltools.utils import find_stack_level
+from .utils import _copy_without_fit_state
 
 
 DEFAULT_SLICE_CUT_COORDS = {
@@ -280,7 +281,7 @@ def plot_brain(
         # or where std == 0). Zero-fill up front so the result is identical
         # and silent.
         if not np.all(np.isfinite(obj.data)):
-            obj = obj.copy()
+            obj = _copy_without_fit_state(obj, copy_data=False)
             obj.data = np.nan_to_num(obj.data, nan=0.0, posinf=0.0, neginf=0.0)
 
         try:

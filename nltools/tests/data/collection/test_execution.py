@@ -505,7 +505,7 @@ class TestBundleKindDetection:
         assert execution.detect_bundle_kind(glm) == "glm"
 
     def test_predict_bundle_detected(self, tmp_path):
-        from nltools.data.fitresults import Predict
+        from nltools.data import Predict
 
         path = tmp_path / "sub-01.h5"
         execution.write_predict_bundle(
@@ -559,7 +559,7 @@ class TestPredictBundleStringPredictions:
     """String class labels must survive the HDF5 predict bundle (F10)."""
 
     def test_round_trip_bit_perfect(self, tmp_path):
-        from nltools.data.fitresults import Predict
+        from nltools.data import Predict
 
         result = Predict(
             predictions=np.array(["face", "house", "face", "house"]),
