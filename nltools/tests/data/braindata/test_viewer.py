@@ -203,6 +203,15 @@ class TestComputeDisplayWindow:
         smallest_nonzero = np.abs(data[data != 0]).min()
         assert 0.0 < floor <= smallest_nonzero
 
+    def test_autoscale_must_be_a_bool(self):
+        """`autoscale` is bool-only; percentile windows use lower/upper."""
+        from nltools.data.braindata.viewer import compute_display_window
+
+        data = np.array([-3.0, 0.0, 1.0, 4.0])
+        for bad in [(60, 98), None, "98%", 98]:
+            with pytest.raises(TypeError, match="autoscale"):
+                compute_display_window(data, autoscale=bad)
+
     def test_default_floor_stays_above_zero_for_ordinary_maps(self):
         """The floor is still a positive epsilon so exact zeros stay transparent."""
         from nltools.data.braindata.viewer import compute_display_window

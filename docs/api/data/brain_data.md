@@ -593,7 +593,7 @@ fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
 ### `iplot`
 
 ```python
-iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool | tuple[float, float] = True, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
+iplot(*, view: str = 'ortho', threshold: float | str | None = None, lower: float | str | None = None, upper: float | str | None = None, autoscale: bool = True, cmap: str = 'warm', bg_img: str | bool | None = None, atlas: str | Atlas | None = None, opacity: float = 1.0, outline: float = 0.0, colorbar: bool = True, controls: bool = True, **kwargs: bool)
 ```
 
 Interactive WebGL brain viewer powered by niivue.
@@ -627,7 +627,7 @@ Name | Type | Description | Default
 `threshold` | <code>float \| str \| None</code> | Convenience symmetric magnitude floor (→ ``cal_min``). Accepts a percentile string (``"95%"``) resolved over the finite nonzero magnitudes, consistent with `threshold`. | <code>None</code>
 `lower` | <code>float \| str \| None</code> | Window floor (→ ``cal_min``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
 `upper` | <code>float \| str \| None</code> | Window ceiling (→ ``cal_max``). Overrides ``threshold``. Accepts a percentile string. | <code>None</code>
-`autoscale` | <code>bool \| tuple[float, float]</code> | Robust default window for the edges not set above. ``True`` (default): ceiling at the 98th percentile of the finite nonzero magnitudes — a couple of outlier voxels no longer wash out the whole map — and an epsilon floor, never above the smallest nonzero magnitude, so zeros render transparent and every real voxel stays visible (threshold up from there). ``(lo_pct, hi_pct)``: floor/ceiling at those magnitude percentiles. ``False``: the raw data extremes (the old behavior, made explicit). | <code>True</code>
+`autoscale` | <code>bool</code> | Robust default window for the edges not set above. ``True`` (default): ceiling at the 98th percentile of the finite nonzero magnitudes — a couple of outlier voxels no longer wash out the whole map — and an epsilon floor, never above the smallest nonzero magnitude, so zeros render transparent and every real voxel stays visible (threshold up from there). ``False``: the raw data extremes (the old behavior, made explicit). For a custom percentile window pass ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``). | <code>True</code>
 `cmap` | <code>str</code> | niivue colormap for the positive limb (default ``"warm"``). Common matplotlib names are auto-mapped with a warning. | <code>'warm'</code>
 `bg_img` | <code>str \| bool \| None</code> | ``None``/``True`` auto-loads the matching MNI template when the data is in standard space (else none); ``False`` disables the background; a path string uses that image. | <code>None</code>
 `atlas` | <code>str \| [Atlas](#tasks-atlases-atlas) \| None</code> | Atlas overlay — a registry name (e.g. ``"aal"``), a loaded `Atlas`, or ``None``. Deterministic atlases only; probabilistic atlases raise. | <code>None</code>
@@ -642,6 +642,12 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>NiivueViewer</code> | An `anywidget.AnyWidget` whose threshold window is     reactive via the `cal_min` and `cal_max` traits.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>TypeError</code> | If ``autoscale`` is not a bool.
 
 (data-brain-data-mean)=
 ### `mean`

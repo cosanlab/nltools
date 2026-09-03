@@ -1334,7 +1334,7 @@ class BrainData:
         threshold: "float | str | None" = None,
         lower: "float | str | None" = None,
         upper: "float | str | None" = None,
-        autoscale: "bool | tuple[float, float]" = True,
+        autoscale: bool = True,
         cmap: str = "warm",
         bg_img: "str | bool | None" = None,
         atlas: "str | Atlas | None" = None,
@@ -1385,10 +1385,9 @@ class BrainData:
                 longer wash out the whole map — and an epsilon floor, never
                 above the smallest nonzero magnitude, so zeros render
                 transparent and every real voxel stays visible (threshold up
-                from there).
-                ``(lo_pct, hi_pct)``: floor/ceiling at those magnitude
-                percentiles. ``False``: the raw data extremes (the old
-                behavior, made explicit).
+                from there). ``False``: the raw data extremes (the old
+                behavior, made explicit). For a custom percentile window pass
+                ``lower``/``upper`` (e.g. ``lower="60%", upper="98%"``).
             cmap: niivue colormap for the positive limb (default ``"warm"``).
                 Common matplotlib names are auto-mapped with a warning.
             bg_img: ``None``/``True`` auto-loads the matching MNI template
@@ -1412,6 +1411,9 @@ class BrainData:
         Returns:
             NiivueViewer: An `anywidget.AnyWidget` whose threshold window is
                 reactive via the `cal_min` and `cal_max` traits.
+
+        Raises:
+            TypeError: If ``autoscale`` is not a bool.
         """
         from .viewer import build_viewer, compute_display_window
 

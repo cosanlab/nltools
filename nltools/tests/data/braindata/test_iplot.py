@@ -280,12 +280,22 @@ class TestAutoscale:
         assert v.cal_min == pytest.approx(float(bd.data.min()))
         assert v.cal_max == pytest.approx(float(bd.data.max()))
 
-    def test_autoscale_tuple_sets_percentile_window(self):
+    def test_percentile_window_comes_from_lower_and_upper(self):
+        """A custom percentile window is spelled with `lower`/`upper`.
+
+        `autoscale` is a bool: robust default, or the raw extremes. There is
+        deliberately no second spelling of a percentile window.
+        """
         bd = _sparse_bd()
-        v = bd.iplot(bg_img=False, autoscale=(60, 98))
+        v = bd.iplot(bg_img=False, lower="60%", upper="98%")
         vals = np.abs(bd.data[bd.data != 0])
         assert v.cal_min == pytest.approx(float(np.percentile(vals, 60)))
         assert v.cal_max == pytest.approx(float(np.percentile(vals, 98)))
+
+    def test_non_boolean_autoscale_raises(self):
+        bd = _sparse_bd()
+        with pytest.raises(TypeError, match="autoscale"):
+            bd.iplot(bg_img=False, autoscale=(60, 98))
 
     def test_explicit_threshold_keeps_autoscaled_ceiling(self):
         bd = _sparse_bd()

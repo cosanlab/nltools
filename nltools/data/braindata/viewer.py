@@ -372,18 +372,25 @@ def bd_to_nifti_bytes(bd) -> bytes:
 # Display window (autoscaling)
 # --------------------------------------------------------------------------- #
 
-# Autoscale ceiling percentile over |finite nonzero| — outliers must not set
-# the scale (what nilearn and FSLeyes both do).
+# Autoscale ceiling percentile over |finite nonzero| — a couple of outlier
+# voxels must not set the whole color scale. 98 is the upper edge of the
+# "robust range" convention: FSL's `fslstats -r` (2%/98% of a 1000-bin
+# histogram) and niivue's own calMinMax ("robust range (2%..98%)",
+# percentileFrac = 0.02). Both take the signed 2%/98%; we take the ceiling
+# only, over magnitudes, because this window is symmetric about zero.
 _AUTOSCALE_CEILING_PCT = 98.0
 # Epsilon floor as a fraction of the ceiling: visually zero (everything above
-# true zero stays visible) while zeros still render transparent.
+# true zero stays visible) while zeros still render transparent. A floor, not
+# a threshold — the robust range's 2% low edge would hide real voxels.
+# (nilearn's plot_stat_map/view_img default to threshold=1e-6 for the same
+# reason.)
 _AUTOSCALE_FLOOR_FRAC = 1e-6
 
 
 def compute_display_window(
     data,
     *,
-    autoscale: bool | tuple[float, float] = True,
+    autoscale: bool = True,
     threshold=None,
     lower=None,
     upper=None,
@@ -399,9 +406,11 @@ def compute_display_window(
       magnitudes (robust to outliers), floor = an epsilon just above zero,
       never above the smallest nonzero magnitude (zeros render transparent,
       every real voxel shows — threshold up from there).
-    - ``(lo_pct, hi_pct)``: floor/ceiling at those percentiles of the
-      finite nonzero magnitudes.
     - ``False``: the raw finite data extremes.
+
+    For a custom percentile window, pass ``lower``/``upper`` as percentile
+    strings (``lower="60%", upper="98%"``) rather than a second spelling of
+    the same thing on ``autoscale``.
 
     ``threshold`` / ``lower`` / ``upper`` accept percentile strings
     (``"98%"``), resolved over the finite nonzero **magnitudes** via
@@ -410,7 +419,7 @@ def compute_display_window(
 
     Args:
         data (np.ndarray): The BrainData's data array.
-        autoscale (bool | tuple[float, float]): See above.
+        autoscale (bool): See above.
         threshold (float | str | None): Symmetric magnitude floor (ignored when
             ``lower``/``upper`` are given).
         lower (float | str | None): Explicit window floor.
@@ -418,8 +427,17 @@ def compute_display_window(
 
     Returns:
         tuple[float, float]: ``(cal_min, cal_max)``.
+
+    Raises:
+        TypeError: If ``autoscale`` is not a bool.
     """
     import numpy as np
+
+    if not isinstance(autoscale, bool):
+        raise TypeError(
+            f"autoscale must be True or False, got {autoscale!r}. For a custom "
+            'percentile window pass lower/upper (e.g. lower="60%", upper="98%").'
+        )
 
     from nltools.utils import resolve_threshold
 
@@ -458,27 +476,17 @@ def compute_display_window(
         ceiling = hi_ext if ceiling is None else float(ceiling)
         return floor, ceiling
 
-    if autoscale is True:
-        lo_pct, hi_pct = None, _AUTOSCALE_CEILING_PCT
-    else:
-        lo_pct, hi_pct = autoscale
-
     if ceiling is None:
-        ceiling = _mag_pct(hi_pct)
+        ceiling = _mag_pct(_AUTOSCALE_CEILING_PCT)
         if ceiling == 0.0:
             ceiling = 1.0  # empty / all-zero map: keep a sane window
     if floor is None:
-        if lo_pct is not None:
-            floor = _mag_pct(lo_pct)
-        else:
-            # The default floor exists to make stored zeros transparent, not
-            # to threshold. A bare fraction of the ceiling would start hiding
-            # real voxels once the map's dynamic range exceeds 1 / the
-            # fraction, so clamp it to the smallest nonzero magnitude.
-            epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
-            floor = (
-                min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
-            )
+        # The default floor exists to make stored zeros transparent, not to
+        # threshold. A bare fraction of the ceiling would start hiding real
+        # voxels once the map's dynamic range exceeds 1 / the fraction, so
+        # clamp it to the smallest nonzero magnitude.
+        epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
+        floor = min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
     return float(floor), float(ceiling)
 
 
