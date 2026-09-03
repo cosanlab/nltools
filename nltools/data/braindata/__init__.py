@@ -1382,8 +1382,10 @@ class BrainData:
             autoscale: Robust default window for the edges not set above.
                 ``True`` (default): ceiling at the 98th percentile of the
                 finite nonzero magnitudes — a couple of outlier voxels no
-                longer wash out the whole map — with an epsilon floor
-                (everything nonzero visible; threshold up from there).
+                longer wash out the whole map — and an epsilon floor, never
+                above the smallest nonzero magnitude, so zeros render
+                transparent and every real voxel stays visible (threshold up
+                from there).
                 ``(lo_pct, hi_pct)``: floor/ceiling at those magnitude
                 percentiles. ``False``: the raw data extremes (the old
                 behavior, made explicit).

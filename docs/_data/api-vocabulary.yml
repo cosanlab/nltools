@@ -87,6 +87,10 @@ vocabulary:
     kwarg: "lower, upper, binarize"
     tour_note: "convenience `threshold` where bidirectional"
     index_md: "`lower`, `upper`, `binarize` (+ `threshold` where bidirectional)"
+  - concept: "Display autoscaling"
+    kwarg: "autoscale"
+    tour_note: "`True` = robust percentile window · `False` = raw data extremes"
+    index_md: "`autoscale: bool = True` (viewer display window; `False` = raw extremes)"
   - concept: "Diagonal flag"
     kwarg: "include_diag"
     tour_note: "not `ignore_diagonal` — inverted sense"
@@ -183,6 +187,10 @@ enforcement:
       allowed_defaults: [false]
       keyword_only: true
       hint: "canonical form is `*, progress_bar: bool = False`"
+    autoscale:
+      allowed_defaults: [true]
+      keyword_only: true
+      hint: "canonical form is `*, autoscale: bool = True` — robust by default; False is the raw-extremes escape hatch, never the default"
     n_jobs:
       allowed_defaults: [-1]
       hint: "canonical form is `n_jobs: int = -1` (all cores)"

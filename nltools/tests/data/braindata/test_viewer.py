@@ -183,6 +183,61 @@ class TestComputeDisplayWindow:
         )
         assert (floor, ceiling) == (-1.0, 2.0)
 
+    def test_default_floor_never_hides_a_nonzero_voxel(self):
+        """The autoscale floor sits at or below the smallest nonzero magnitude.
+
+        The floor exists to make stored zeros transparent, not to threshold.
+        A fixed fraction of the ceiling breaks that promise once a map's
+        dynamic range exceeds 1 / the fraction: the smallest real voxels fall
+        below the floor and render transparent, which is data loss the user
+        never asked for.
+        """
+        from nltools.data.braindata.viewer import compute_display_window
+
+        # P98 ~ 1.0, so a ceiling-fraction floor lands at 1e-6 -- three orders
+        # of magnitude above the smallest real voxel.
+        data = np.concatenate([np.full(500, 1.0), np.array([1e-9])])
+
+        floor, ceiling = compute_display_window(data)
+
+        smallest_nonzero = np.abs(data[data != 0]).min()
+        assert 0.0 < floor <= smallest_nonzero
+
+    def test_default_floor_stays_above_zero_for_ordinary_maps(self):
+        """The floor is still a positive epsilon so exact zeros stay transparent."""
+        from nltools.data.braindata.viewer import compute_display_window
+
+        rng = np.random.default_rng(0)
+        data = rng.standard_normal(500)
+        data[::7] = 0.0
+
+        floor, ceiling = compute_display_window(data)
+
+        assert floor > 0.0
+        assert floor < ceiling
+
+
+class TestBuildViewerRequiresWindow:
+    """``build_viewer`` cannot be constructed without an explicit window.
+
+    An optional window is how the renderer and the slider handles drifted
+    apart in the first place: niivue autoscaled from ``NaN`` while the
+    handles showed the raw data extremes. Making both edges required means
+    that divergence is unrepresentable at construction.
+    """
+
+    def test_missing_both_edges_raises(self):
+        from nltools.data.braindata.viewer import build_viewer
+
+        with pytest.raises(TypeError, match="cal_min"):
+            build_viewer(_FakeBD([-3.0, 0.0, 4.0]))
+
+    def test_missing_one_edge_raises(self):
+        from nltools.data.braindata.viewer import build_viewer
+
+        with pytest.raises(TypeError, match="cal_max"):
+            build_viewer(_FakeBD([-3.0, 0.0, 4.0]), cal_min=1.0)
+
 
 class TestThresholdSliderBounds:
     def test_bounds_span_finite_data(self):

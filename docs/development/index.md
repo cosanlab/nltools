@@ -30,7 +30,7 @@ The four facades and their submodules:
   `neighborhoods` · `cache` · `plotting` · `viewer` · `validation`
 - **`Adjacency`** — `io` · `modeling` · `stats` · `spatial` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
-- **`BrainCollection`** — `core` · `execution` · `inference` · `io` · `pipeline`
+- **`BrainCollection`** — `core` · `execution` · `inference` · `io`
 
 ### Design rules
 
@@ -89,6 +89,7 @@ public signature against in CI. The table below is rendered from it:
 | Bootstrap sample count | `n_samples` |
 | Tail of test | `tail` (`2 \| 'two' \| 1 \| 'one'`; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
+| Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw extremes) |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius_mm: float` |
 <!-- /AUTOGEN:api-vocabulary:index-table -->

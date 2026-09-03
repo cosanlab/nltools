@@ -396,9 +396,9 @@ def compute_display_window(
     sets the floor; any **unset** edge comes from ``autoscale``:
 
     - ``True`` (default): ceiling = 98th percentile of the finite nonzero
-      magnitudes (robust to outliers), floor = an epsilon just above zero
-      (zeros render transparent, everything else shows — threshold up from
-      there).
+      magnitudes (robust to outliers), floor = an epsilon just above zero,
+      never above the smallest nonzero magnitude (zeros render transparent,
+      every real voxel shows — threshold up from there).
     - ``(lo_pct, hi_pct)``: floor/ceiling at those percentiles of the
       finite nonzero magnitudes.
     - ``False``: the raw finite data extremes.
@@ -468,7 +468,17 @@ def compute_display_window(
         if ceiling == 0.0:
             ceiling = 1.0  # empty / all-zero map: keep a sane window
     if floor is None:
-        floor = ceiling * _AUTOSCALE_FLOOR_FRAC if lo_pct is None else _mag_pct(lo_pct)
+        if lo_pct is not None:
+            floor = _mag_pct(lo_pct)
+        else:
+            # The default floor exists to make stored zeros transparent, not
+            # to threshold. A bare fraction of the ceiling would start hiding
+            # real voxels once the map's dynamic range exceeds 1 / the
+            # fraction, so clamp it to the smallest nonzero magnitude.
+            epsilon = ceiling * _AUTOSCALE_FLOOR_FRAC
+            floor = (
+                min(epsilon, float(magnitudes.min())) if magnitudes.size else epsilon
+            )
     return float(floor), float(ceiling)
 
 
@@ -571,9 +581,9 @@ class NiivueViewer(anywidget.AnyWidget):
 def build_viewer(
     bd,
     *,
+    cal_min: float,
+    cal_max: float,
     view: str = "ortho",
-    cal_min: float | None = None,
-    cal_max: float | None = None,
     cmap: str = "warm",
     atlas: str | Atlas | None = None,
     bg_img: str | bool | None = None,
@@ -591,9 +601,11 @@ def build_viewer(
 
     Args:
         bd (BrainData): BrainData to view.
+        cal_min: Window floor (threshold). Required — resolve it with
+            `compute_display_window` so the slider handles and the rendered
+            window can never disagree.
+        cal_max: Window ceiling. Required, as above.
         view: See `slice_type_for`.
-        cal_min: Window floor (threshold), or ``None`` for auto.
-        cal_max: Window ceiling, or ``None`` for auto.
         cmap: Positive colormap (niivue or matplotlib name).
         atlas: Atlas name, `Atlas`, or ``None``.
         bg_img: See `resolve_background`.
