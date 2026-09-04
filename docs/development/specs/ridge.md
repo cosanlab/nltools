@@ -46,6 +46,8 @@ second cross-validation pass for held-out predictions. `Ridge.alpha_` and
 `BrainData` results. `ridge_r2` is the full-data, per-target value returned by
 `Ridge.score`; the facade does not use the ambiguous name `ridge_scores`, which
 could be confused with the negative-MSE selection values in `cv_scores_`.
+Every attached or returned `BrainData` follows the ownership contract in
+`braindata.md`, including independent mask and masker state.
 
 ## Public API
 
@@ -221,10 +223,11 @@ The adapter exposes the selected alpha and simplex weights as `alpha_` and
 `feature_space_weights_`, with the shapes specified above. Himalaya's `deltas_`
 representation remains private.
 
-Cached Ridge fit bundles contain the fitted coefficients and the
-feature-structure metadata required for prediction. They do not contain the
-training feature matrices, copies of `alpha_` or `cv_scores_`, or held-out
-predictions from another validation pass.
+The internal collection cache stores every fitted Ridge attribute specified
+above exactly once, plus the facade-only fitted values and R-squared map. It
+does not store training feature matrices, duplicate estimator fields on the
+facade, or held-out predictions from another validation pass. Hydration
+reconstructs independently owned estimator and facade state.
 
 ## Fixed-hyperparameter refitting
 
@@ -358,8 +361,8 @@ banded model rather than flattening away its structure.
 
 `BrainData.bootstrap(statistic="weights", X=...)` and
 `BrainData.bootstrap(statistic="predict", X=..., X_test=...)` support both
-ordinary and banded fitted Ridge models. `X` is always required and must contain the
-training features in their original row order. Its row count must equal the
+ordinary and banded fitted Ridge models. `X` is always required and must contain
+the training features in their original row order. Its row count must equal the
 number of observations in the fitted `BrainData`. Fitting does not retain a
 hidden training-feature snapshot, so omitting `X` raises even when the same
 features were supplied to `fit`.

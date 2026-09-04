@@ -280,6 +280,8 @@ mapping, or an unnamed sequence of contrast definitions is invalid.
 fitting to `Glm`, and stores `glm_betas`, `glm_residual`, `glm_predicted`, and
 `glm_r2` as `BrainData` results. Fitting does not compute or store eager
 `glm_t`, `glm_p`, or `glm_se` maps.
+Every attached or returned `BrainData` follows the ownership contract in
+`braindata.md`, including independent mask and masker state.
 
 The fitted `BrainData` does not retain the training input as `X_` or
 `design_matrix`. Feature names and contrast state belong to `model_`.
@@ -322,13 +324,14 @@ coefficients are reordered to the canonical order before applying the vector.
 Missing or additional features raise `ValueError` rather than allowing one
 numeric vector to represent different estimands across members.
 
-Cached GLM fit bundles serialize `GlmFitState` losslessly alongside the fitted
-effect, prediction, residual, and R-squared arrays needed by the facade. They
-must not downcast Nilearn's state to float32. Both OLS and autoregressive fits
-are supported. Loading a bundle and computing a contrast uses the same internal
-Nilearn-backed function as an in-memory `Glm`; the collection layer must not
-store the training design or reconstruct OLS statistics from `X`, residuals,
-or a pseudoinverse.
+The internal collection cache stores `GlmFitState` losslessly and stores every
+other fitted numerical value exactly once. Hydration reconstructs the fitted
+estimator and the facade's independently owned effect, prediction, residual,
+and R-squared maps. The cache must not downcast Nilearn's state to float32. Both
+OLS and autoregressive fits are supported. Loading cached state and computing a
+contrast uses the same internal Nilearn-backed function as an in-memory `Glm`;
+the collection layer must not store the training design or reconstruct OLS
+statistics from `X`, residuals, or a pseudoinverse.
 
 For a stack of subject-level effect maps, `BrainData.ttest` provides the
 intercept-only group test without retaining a fitted model. Its default p-value

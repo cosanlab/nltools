@@ -21,7 +21,51 @@ wrapper. Model prediction and MVPA decoding continue to share the existing
 
 `copy()` returns a complete, independently owned snapshot. The copy includes
 data, mask and masker state, row metadata, a fitted estimator, and attached fit
-results when present. Mutating the copy must not affect the source.
+results when present. Mutating the copy must not affect the source. Python's
+`copy.copy()` and `copy.deepcopy()` produce the same complete snapshot; there
+is no public shallow-copy operation.
+
+One internal graph-copy engine owns object allocation, `deepcopy` memo handling,
+attribute traversal, and alias preservation. Callers use narrow semantic entry
+points rather than selecting independent copy flags:
+
+```python
+_copy_complete(source, memo=None)
+_copy_for_fit(source)
+_result_from_array(source, data, *, rows: Literal["preserve", "clear"])
+_result_from_selection(source, index)
+_result_from_rows(source, data, *, X, Y)
+_result_with_mask(
+    source,
+    data,
+    mask,
+    *,
+    rows: Literal["preserve", "clear"],
+)
+```
+
+`copy()`, `__copy__`, and `__deepcopy__` delegate to `_copy_complete`.
+`_copy_for_fit` excludes every attribute in `_FIT_STATE_ATTRIBUTES` before
+copying retained state, so `fit(inplace=False)` does not copy an old estimator
+merely to delete it. Both copy operations independently own every retained
+mutable value.
+
+The array, replacement-row, and replacement-mask constructors require final
+data owned independently from the source. The selection constructor derives
+its data and row metadata by applying `index` once to the source data, `.X`,
+and `.Y`. Every result constructor excludes fitted state and applies the
+row-metadata policy below atomically. `_result_from_rows` validates replacement
+data, `.X`, and `.Y` row counts before returning.
+
+All results independently own valid mask state. A result that preserves the
+voxel axis independently copies compatible masker state. `_result_with_mask`
+owns the replacement mask, recomputes all mask-derived spatial state, and
+resets or rebuilds the masker rather than retaining one fitted for another
+voxel axis.
+
+All semantic entry points use the same graph-copy engine and expose no
+ownership or data-copy controls. Every mutable value retained by the result is
+independently owned.
 
 ## Row metadata
 
@@ -40,6 +84,15 @@ refer to the same observations in the same order.
   retains their aligned row metadata.
 - Prediction for an explicit new design clears the source row metadata. The
   prediction design is not installed as the result's `.X`.
+- An operation that creates a new row axis supplies its complete replacement
+  `.X` and `.Y` to `_result_from_rows` rather than attaching metadata after
+  construction. Pairwise transformation clears `.X` and installs only its
+  generated `.Y`.
+
+With `ignore_attrs=False`, `append()` requires each metadata family to be empty
+on both operands or populated with compatible schemas on both operands. A
+one-sided or schema-incompatible `.X` or `.Y` raises. With `ignore_attrs=True`,
+the result clears both metadata frames.
 
 One shared result-construction policy must enforce these rules. Individual
 methods must not mechanically copy row metadata and then repair mismatches.
@@ -600,15 +653,37 @@ fixed-hyperparameter refit. A `"predict"` replicate applies that refitted
 coefficient array to the unchanged `X_test`. Neither mode runs MVPA or returns
 decoding weight maps.
 
-## Open design questions
+## Persistence
 
-The following contracts are intentionally unresolved and must be settled before
-this specification is complete:
+Public `BrainData.write` persists the data container, not a fitted-object
+snapshot. Writing a fitted object is allowed, but loading the result always
+produces an unfitted `BrainData`.
 
-- standalone serialization of fitted estimators, compact GLM contrast state,
-  row metadata, and attached results; and
-- the exact internal result-construction representation that enforces the row
-  metadata policy without duplicating logic.
+NIfTI output is an image export containing the data and spatial geometry. It
+does not retain row metadata. HDF5 output is portable `BrainData` persistence
+containing the data, mask by value, and row-aligned `.X` and `.Y`. If a mask is
+file-backed, HDF5 retains only the basename of its filename, never the parent
+path. The reconstructed in-memory mask reports that basename from
+`get_filename()`; a mask created in memory continues to report `None`. Embedded
+mask data and geometry are authoritative, and no operation reopens the retained
+basename. Neither format stores `model_`, attached fit maps, result records,
+masker caches, or execution settings.
+
+The HDF5 input boundary retains an isolated reader for files written by
+nltools 0.5.1 and earlier with Deepdish/PyTables. It recognizes only that
+legacy data-container layout and translates it immediately into the same
+canonical data, mask, `.X`, and `.Y` values returned by the current reader.
+Any stored legacy mask path is reduced to its basename during translation. The
+loader returns the current in-memory representation; downstream code does not
+branch on the source format. Current code never writes the legacy format, and
+the adapter does not read old fitted or collection-cache state.
+
+Internal `BrainCollection` caches use a separate, explicitly versioned format.
+They preserve the complete fitted-member state specified in
+`braincollection.md` and are not accepted as public `BrainData` input files.
+`Predict`, contrast, and bootstrap records are separate returned values rather
+than attached `BrainData` state. Writing a `BrainData` payload extracted from
+one of those records writes only that map or stack.
 
 ## Required tests
 
@@ -617,6 +692,8 @@ Tests must establish:
 - exact public signatures, defaults, keyword-only boundaries, and absence of
   removed aliases;
 - complete source immutability and ownership under `fit(inplace=False)`;
+- equivalent independent snapshots from `BrainData.copy()`, `copy.copy()`, and
+  `copy.deepcopy()`;
 - replacement rather than coexistence of GLM and Ridge state;
 - exhaustive fit-state clearing after every in-place data or axis mutation;
 - row-metadata preservation, aligned selection, and clearing for every output

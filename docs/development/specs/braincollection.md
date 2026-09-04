@@ -21,9 +21,11 @@ kind of collection member. Indexing, iteration, transformation, fitting,
 prediction, contrasts, and reductions behave identically for cached and
 in-memory members.
 
-`fit()` returns a new collection of independently owned fitted members. It does
-not mutate the source collection or any source member. Caching changes storage
-location and resource use only.
+`fit()` returns a new collection of fitted members independently owned from the
+source and from one another. Each member and every attached `BrainData` result
+follows the ownership contract in `braindata.md`. Fitting does not mutate the
+source collection or any source member. Caching changes storage location and
+resource use only.
 
 API names, errors, and docstrings use “member,” not “subject,” except when a
 specific metadata field or statistical operation genuinely refers to subjects.
@@ -123,10 +125,12 @@ Cached fitted members use the same complete internal cache representation as
 other cached `BrainData` members. Model-only bundles are not collection
 members. This requirement does not settle the public serialization API.
 
-Hydration restores independently owned data, mask state, row metadata, fitted
-estimator, attached results, and compact inferential state. It does not infer a
-bundle type from whichever serialized fields happen to be present, and it does
-not recognize obsolete development bundle layouts.
+Hydration restores each member as an independently owned object graph. Its
+mutable state does not alias the collection or another member, and valid aliases
+within the member are preserved. Serialized mask bytes may be deduplicated, but
+hydration creates separate mutable mask and masker state for each member. The
+loader does not infer a bundle type from whichever fields happen to be present
+or recognize obsolete development bundle layouts.
 
 Cached execution must not change return types or supported methods. A fitted
 collection remains valid for indexing, iteration, member transformations,
@@ -266,7 +270,8 @@ BrainCollection.predict_group(
 
 The method requires exactly one map per collection member. Each member's
 `BrainData.data` must have shape `(n_voxels,)` or `(1, n_voxels)`. All members
-must have the same mask, affine, voxel order, and feature count. The method
+must have spatially equivalent mask values, affine, voxel order, and feature
+count; equivalence never requires shared Python object identity. The method
 stacks maps in collection order using NumPy's dtype-promotion rules; it never
 unconditionally downcasts them. It then delegates once to `BrainData.predict`.
 All estimator, cross-validation, scoring, spatial, result, and error semantics
@@ -338,6 +343,10 @@ requires it.
 No operation may mutate a materialized source member. Worker inputs are
 independently owned snapshots or read-only representations, and worker outputs
 become independently owned result members.
+
+Integer indexing and iteration return complete, independently owned
+`BrainData` snapshots. They never expose an internal in-memory or hydrated
+member object directly.
 
 ## Open design questions
 
