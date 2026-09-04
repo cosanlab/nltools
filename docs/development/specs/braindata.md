@@ -390,24 +390,131 @@ class BootstrapResult(Generic[Payload]):
     standard_error: Payload
     ci_lower: Payload
     ci_upper: Payload
-    samples: Samples | None = None
+    samples: np.ndarray | None = None
 ```
 
-`Samples` is a placeholder for the unresolved retained-sample payload types
-listed under Open design questions; it is not yet an approved public alias.
+For `BrainData.bootstrap`, `Payload` is always `BrainData`. The four summary
+payloads have identical `.data.shape`, own their data independently, preserve
+the source mask, and clear row metadata and fitted state. When present,
+`samples` is an independently owned NumPy array. The frozen result prevents
+field rebinding; it does not make the contained objects immutable.
 
-`estimate` is the statistic evaluated once on the original full sample.
-`standard_error` is the sample standard deviation of the bootstrap replicates.
-The result does not expose the replicate mean as the estimate and does not
-provide generic `z`, `p`, or `tail` outputs. Those quantities would require a
-separately designed bootstrap hypothesis test with null resampling and a
-pivotal or studentized statistic.
+The record is defined in `nltools.data.results` for internal result
+construction but is not re-exported from `nltools.data` or another public
+namespace. Users receive it from `bootstrap` and interact with its named
+fields; they do not need to import or construct it.
+
+`BrainData.bootstrap` has this public signature:
+
+```python
+BrainData.bootstrap(
+    statistic,
+    *,
+    X=None,
+    X_test=None,
+    n_samples=5000,
+    confidence_level=0.95,
+    device="cpu",
+    memory_budget_gb=None,
+    return_samples=False,
+    n_jobs=-1,
+    random_state=None,
+    progress_bar=False,
+) -> BootstrapResult[BrainData]
+```
+
+`statistic` is required and accepts only `"mean"`, `"median"`, `"std"`,
+`"sum"`, `"min"`, `"max"`, `"weights"`, or `"predict"`. An unknown value
+raises `ValueError`. The removed `stat` keyword raises `TypeError`. `n_samples`
+is the number of bootstrap replicates.
+
+Arguments are validated by mode before resampling:
+
+- A basic statistic does not require a fitted model and rejects `X`, `X_test`,
+  and `device="gpu"`.
+- `"weights"` requires a fitted `Ridge` and explicit training features `X`. It
+  rejects `X_test`.
+- `"predict"` requires a fitted `Ridge`, explicit training features `X`, and
+  evaluation features `X_test`.
+- Both Ridge modes reject any fitted estimator other than `Ridge`.
+
+For Ridge, `X` must contain the training feature values in their original row
+order; it need not be the same Python object passed to `fit`. `device` accepts
+only `"cpu"` or `"gpu"`. An explicit GPU request runs Ridge refits on an
+available CUDA or MPS backend or raises. `memory_budget_gb` governs retained
+output and CPU-worker planning for every mode, and GPU-batch planning for the
+two Ridge modes. `n_jobs` is the CPU-worker ceiling, including aggregation
+around GPU refits; the planner may use fewer workers.
+
+`n_samples` must be an integer of at least two. `confidence_level` must be
+finite and strictly between zero and one. `memory_budget_gb`, when supplied,
+must be finite and positive.
+
+This method implements an IID row bootstrap. `BrainData.data` must be a
+two-dimensional stack containing at least two observations. Each replicate
+draws exactly `n_obs` row indices with replacement. For Ridge, the same indices
+resample the response data and every training feature space together.
+
+Rows must be exchangeable for the resulting uncertainty estimates to be
+meaningful. The method does not implement grouped, clustered, stratified, or
+block resampling. In particular, users must not treat an autocorrelated fMRI
+time series as IID rows; dependent observations require a separately designed
+resampling procedure.
+
+### Bootstrap output shapes
+
+A basic statistic returns one spatial map, so every summary has
+`data.shape == (n_voxels,)`, matching the existing single-map convention for
+`BrainData` reductions. Its retained samples have shape
+`(n_samples, n_voxels)`.
+
+Ridge weights retain their feature axis. Every summary has shape
+`(n_features, n_voxels)`, and retained samples have shape
+`(n_samples, n_features, n_voxels)`. Banded features use the concatenated
+fitted feature order defined by `Ridge`; they do not introduce a different
+return type.
+
+Ridge predictions retain the `X_test` row axis. Every summary has shape
+`(n_test, n_voxels)`, and retained samples have shape
+`(n_samples, n_test, n_voxels)`. A singleton feature or test-row axis is not
+squeezed.
+
+`estimate` is the statistic evaluated once on the original full sample. For
+`"weights"`, it is an independent copy of the fitted full-data coefficients.
+For `"predict"`, it is the fitted full-data model evaluated at `X_test`.
+`standard_error` is the elementwise sample standard deviation of the bootstrap
+replicates with `ddof=1`. The result does not expose the replicate mean or
+generic `z`, `p`, or `tail` outputs. Those quantities require a separately
+defined bootstrap hypothesis test.
+
+Basic statistics use the corresponding NumPy reduction over the observation
+axis:
+
+```text
+"mean"   -> np.mean(data, axis=0)
+"median" -> np.median(data, axis=0)
+"std"    -> np.std(data, axis=0, ddof=0)
+"sum"    -> np.sum(data, axis=0)
+"min"    -> np.min(data, axis=0)
+"max"    -> np.max(data, axis=0)
+```
+
+Every replicate applies the same operation after resampling rows. In
+particular, `"std"` matches `BrainData.std()` and NumPy's population standard
+deviation. This is distinct from `BootstrapResult.standard_error`, which uses
+`ddof=1` across bootstrap replicates. The operations propagate non-finite
+values; `bootstrap` does not substitute their `nan*` variants.
 
 `bootstrap` accepts one `confidence_level`, which defaults to `0.95`; it does
 not accept separate percentile bounds. It returns the central percentile
-interval using NumPy's linear interpolation. For `B` replicates and confidence
-level `c`, the streaming accumulator retains the running variance and this many
-of the smallest and largest values per output element:
+interval using NumPy's linear interpolation. These are elementwise marginal
+intervals: the nominal confidence level applies separately to each voxel,
+feature, or test-row element. The result does not imply simultaneous coverage
+or multiple-comparison control across an output map or stack.
+
+For `B` replicates and confidence level `c`, the streaming accumulator retains
+the running variance and this many of the smallest and largest values per
+output element:
 
 ```text
 k = ceil((B - 1) * (1 - c) / 2) + 1
@@ -423,26 +530,59 @@ and returned. It never changes interval semantics. Returned samples place the
 bootstrap axis first. A different confidence level requires a new bootstrap run
 unless the complete distribution was retained.
 
+The full-sample estimate and every completed replicate are converted to CPU
+NumPy `float64` arrays. Aggregation and optional sample retention use those
+converted values, so all five result fields are `float64`. GPU Ridge refits
+still use Himalaya's required `float32` computation; conversion occurs only
+after each fit. Memory preflight budgets eight bytes per retained output value.
+
+When `return_samples=True`, recomputing the sample standard deviation and
+linear percentiles from `samples` must match `standard_error`, `ci_lower`, and
+`ci_upper` within float64 numerical tolerance.
+
+`random_state` deterministically derives one independent seed per replicate.
+Those seeds define the same resampled row indices regardless of CPU worker
+count, memory-driven batching, or CPU/GPU execution. Retained samples remain in
+replicate-index order rather than worker-completion order. Scheduling changes
+and GPU out-of-memory batch splitting must not change which resamples are
+evaluated.
+
+An integer `random_state` reproduces that seed sequence. `None` draws fresh
+entropy and is intentionally nondeterministic.
+
+A successful call contains exactly the `n_samples` preassigned replicates. A
+recoverable out-of-memory condition may retry the same replicate and row
+indices with a smaller batch. A terminal fitting or numerical failure raises
+the entire call and identifies the replicate index. Failed replicates are never
+dropped, and replacement row samples are never drawn.
+
+The same `random_state` always produces the same resample indices and replicate
+order. Numerical reproducibility of the fitted values follows the selected
+backend and its libraries. CPU and GPU results are compared within explicit
+tolerances rather than byte-for-byte because GPU Ridge arithmetic remains
+`float32`; converting completed outputs to `float64` does not recreate CPU
+arithmetic.
+
 Tail storage is memory-efficient, not constant-memory. It scales with
 `(1 - confidence_level) * B * output_size`, where `B` is the number of
 bootstrap replicates. The centralized backend planner uses `memory_budget_gb`
-to preflight the output and choose output blocks, worker concurrency, and
-device batches. GPU estimators may calculate replicates on the GPU, but
-accumulation remains on the CPU.
+to preflight output storage and choose output blocks, worker concurrency, and
+device batches. GPU Ridge refits run on the GPU; accumulation remains on the
+CPU.
 
-Non-model bootstrap statistics are the explicit strings `"mean"`, `"median"`,
-`"std"`, `"sum"`, `"min"`, and `"max"`. `bootstrap` does not accept arbitrary
-callables or dynamically dispatch to other `BrainData` methods. Each statistic
-reduces the resampled observation axis and returns one spatial estimate.
+If mandatory tail storage, retained samples, or final summary payloads cannot
+fit the memory budget, `bootstrap` raises before resampling. It does not weaken
+the confidence interval, reduce `n_samples`, or disable `return_samples`.
+
+`bootstrap` does not accept callable statistics or dispatch dynamically to
+other `BrainData` methods.
 
 ## Ridge bootstrap behavior
 
-Ridge coefficient and prediction bootstraps require the original training `X`
-explicitly because fitted objects do not retain it. Prediction bootstraps also
-require `X_test`. The fitted `Ridge` supplies `alpha_` and, for a banded model,
-`feature_space_weights_`; it does not supply the observations being resampled.
-Calling either model-bootstrap mode without `X` raises even when the same
-features were passed to `fit`.
+Ridge bootstrap resamples the explicitly supplied training `X`; fitted objects
+do not retain a hidden copy. The fitted `Ridge` supplies `alpha_` and, for a
+banded model, `feature_space_weights_`, but not the observations or features
+being resampled.
 
 Ordinary Ridge uses matrices. Banded Ridge uses named mappings aligned to the
 fitted feature-space names and widths. Every training feature space and
@@ -455,21 +595,16 @@ Bootstrap refits hold selected hyperparameters fixed. Ordinary Ridge retains
 fixed-hyperparameter refit path and never reruns cross-validation or random
 search.
 
-`"weights"` summarizes coefficients from the fitted encoding Ridge model.
-`"predict"` summarizes brain-response predictions obtained by applying each
-refitted coefficient array to `X_test`. Neither mode bootstraps MVPA decoding or
-silently converts decoding weight maps into encoding-model results.
+A `"weights"` replicate is the coefficient array from one
+fixed-hyperparameter refit. A `"predict"` replicate applies that refitted
+coefficient array to the unchanged `X_test`. Neither mode runs MVPA or returns
+decoding weight maps.
 
 ## Open design questions
 
 The following contracts are intentionally unresolved and must be settled before
 this specification is complete:
 
-- the complete `bootstrap()` signature around the settled non-model statistics
-  and Ridge `"weights"` and `"predict"` modes;
-- the concrete payload types for `BootstrapResult.samples`, especially for
-  coefficient distributions with both bootstrap and feature axes;
-- the exact output-shape convention for scalar, single-map, and stacked results;
 - standalone serialization of fitted estimators, compact GLM contrast state,
   row metadata, and attached results; and
 - the exact internal result-construction representation that enforces the row

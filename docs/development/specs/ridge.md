@@ -356,9 +356,9 @@ banded model rather than flattening away its structure.
 
 ## BrainData bootstrap boundary
 
-`BrainData.bootstrap(stat="weights", X=...)` and
-`BrainData.bootstrap(stat="predict", X=..., X_test=...)` support both ordinary
-and banded fitted Ridge models. `X` is always required and must contain the
+`BrainData.bootstrap(statistic="weights", X=...)` and
+`BrainData.bootstrap(statistic="predict", X=..., X_test=...)` support both
+ordinary and banded fitted Ridge models. `X` is always required and must contain the
 training features in their original row order. Its row count must equal the
 number of observations in the fitted `BrainData`. Fitting does not retain a
 hidden training-feature snapshot, so omitting `X` raises even when the same
