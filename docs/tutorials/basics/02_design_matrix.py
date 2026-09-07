@@ -86,8 +86,8 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    `DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work — "
-        "`.head()`, `.tail()`, `.select()`, etc.
+    `DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work —
+    `.head()`, `.tail()`, `.select()`, etc.
     """)
     return
 
@@ -115,8 +115,8 @@ def _(dm):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    Visualize it as an SPM-style heatmap — rows are time-points, columns are "
-        "regressors:
+    Visualize it as an SPM-style heatmap — rows are time-points, columns are
+    regressors:
     """)
     return
 
@@ -150,8 +150,8 @@ def _(dm):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    `.plot(method='timeseries')` draws regressors as line plots. Passing the same "
-        "`ax` to a second call overlays the convolved version on the original:
+    `.plot(method='timeseries')` draws regressors as line plots. Passing the same
+    `ax` to a second call overlays the convolved version on the original:
     """)
     return
 
@@ -247,8 +247,8 @@ def _(dm):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    `.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you "
-        "can hand it to any of the `Adjacency` tools:
+    `.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you
+    can hand it to any of the `Adjacency` tools:
     """)
     return
 
@@ -403,11 +403,11 @@ def _(csf, dm_task, motion, spikes):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    `dm_full.convolved` records the HRF-convolved task regressors; "
-        "`dm_full.confounds` records the motion / spike / CSF / drift columns. Both are "
-        "managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only "
-        "properties (pass `convolved=` / `confounds=` to the constructor to set initial "
-        "state directly).
+    `dm_full.convolved` records the HRF-convolved task regressors;
+    `dm_full.confounds` records the motion / spike / CSF / drift columns. Both are
+    managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only
+    properties (pass `convolved=` / `confounds=` to the constructor to set initial
+    state directly).
     """)
     return
 
@@ -421,9 +421,9 @@ def _(dm_full):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    If your confounds are already a `DesignMatrix`, pass them the same way — "
-        "`as_confounds=True` is the explicit knob to mark its columns as confounds even "
-        "when its own `confounds` list is empty:
+    If your confounds are already a `DesignMatrix`, pass them the same way —
+    `as_confounds=True` is the explicit knob to mark its columns as confounds even
+    when its own `confounds` list is empty:
     """)
     return
 

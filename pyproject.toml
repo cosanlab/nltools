@@ -244,7 +244,7 @@ shell = """cd docs && myst clean --execute -y"""
 help = "Generate API docs (griffe2md) and tutorial markdown (marimo → MyST-NB) from source"
 shell = """
 set -eu
-python scripts/build_api_docs.py
+python scripts/build_api_docs.py --clean
 python scripts/build_api_vocabulary.py
 python scripts/marimo_to_myst.py --all
 """

@@ -162,7 +162,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Predict](#data-fitresults-predict)</code> | The reconstructed result.
+<code>[Predict](#data-results-predict)</code> | The reconstructed result.
 
 **Raises:**
 
@@ -271,7 +271,7 @@ cannot be serialized.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `out_path` | <code>Path</code> | Destination ``.h5`` path. | *required*
-`result` | <code>[Predict](#data-fitresults-predict)</code> | The decoding result to persist. | *required*
+`result` | <code>[Predict](#data-results-predict)</code> | The decoding result to persist. | *required*
 `mask_bytes` | <code>bytes</code> | The mask image serialized as NIfTI bytes. | *required*
 `affine` | <code>ndarray</code> | The data's affine. | *required*
 `model_spec` | <code>dict</code> | Refit ingredients (model spec, ``spatial_scale``, ``cv``, ``scoring``, ``standardize``, ...). | *required*

@@ -68,7 +68,8 @@ dm = DesignMatrix(
 )
 ```
 
-`DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work — `.head()`, `.tail()`, `.select()`, etc.
+`DesignMatrix` behaves like a `polars` DataFrame, so familiar methods work —
+`.head()`, `.tail()`, `.select()`, etc.
 
 ```{code-cell} python3
 dm
@@ -84,7 +85,8 @@ dm.head()
 dm.select("face_A", "face_B").tail()
 ```
 
-Visualize it as an SPM-style heatmap — rows are time-points, columns are regressors:
+Visualize it as an SPM-style heatmap — rows are time-points, columns are
+regressors:
 
 ```{code-cell} python3
 dm.plot()
@@ -102,14 +104,15 @@ and smeared in time:
 dm.convolve().plot()
 ```
 
-`.plot(method='timeseries')` draws regressors as line plots. Passing the same `ax` to a second call overlays the convolved version on the original:
+`.plot(method='timeseries')` draws regressors as line plots. Passing the same
+`ax` to a second call overlays the convolved version on the original:
 
 ```{code-cell} python3
 import matplotlib.pyplot as plt
 
 _fig, _ax = plt.subplots(figsize=(8, 4))
 dm.plot(method="timeseries", columns=["face_A"], ax=_ax)
-_ = dm.convolve().plot(method="timeseries", columns=["face_A_c0"], ax=_ax)
+dm.convolve().plot(method="timeseries", columns=["face_A_c0"], ax=_ax)
 ```
 
 ## Creating drift regressors
@@ -158,7 +161,8 @@ Visualize a correlation matrix of the columns with `.plot(method='corr')`:
 dm.plot(method="corr")
 ```
 
-`.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you can hand it to any of the `Adjacency` tools:
+`.corr()` returns an nltools `Adjacency` (a labeled similarity matrix), so you
+can hand it to any of the `Adjacency` tools:
 
 ```{code-cell} python3
 dm.corr()
@@ -253,13 +257,19 @@ dm_full = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
 print(dm_full)
 ```
 
-`dm_full.convolved` records the HRF-convolved task regressors; `dm_full.confounds` records the motion / spike / CSF / drift columns. Both are managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only properties (pass `convolved=` / `confounds=` to the constructor to set initial state directly).
+`dm_full.convolved` records the HRF-convolved task regressors;
+`dm_full.confounds` records the motion / spike / CSF / drift columns. Both are
+managed by `.convolve()` / `.append()` / `.add_poly()` and are read-only
+properties (pass `convolved=` / `confounds=` to the constructor to set initial
+state directly).
 
 ```{code-cell} python3
 dm_full.plot()
 ```
 
-If your confounds are already a `DesignMatrix`, pass them the same way — `as_confounds=True` is the explicit knob to mark its columns as confounds even when its own `confounds` list is empty:
+If your confounds are already a `DesignMatrix`, pass them the same way —
+`as_confounds=True` is the explicit knob to mark its columns as confounds even
+when its own `confounds` list is empty:
 
 ```{code-cell} python3
 motion_dm = DesignMatrix(motion, sampling_freq=dm.sampling_freq)

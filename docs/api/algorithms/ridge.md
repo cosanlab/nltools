@@ -69,7 +69,7 @@ Name | Type | Description | Default
 `n_alphas_batch` | <code>int \| None</code> | Alphas per batch. None processes all unique alphas at once. Defaults to None. | <code>None</code>
 `Y_in_cpu` | <code>bool</code> | If True, keep `Y` on the CPU and move one fold's training targets at a time to the device (recommended for large neuroimaging `Y`). Defaults to True. | <code>True</code>
 `score_func` | <code>Callable \| None</code> | Per-fold scoring function `(y_true, y_pred) -> per-target scores`, evaluated on NumPy arrays. None uses R², computed in NumPy on the CPU. Defaults to None. | <code>None</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU device when no GPU is present); `"auto"` uses torch when installed and NumPy otherwise. Defaults to `"cpu"`. | <code>'cpu'</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB used to derive `n_targets_batch` when `parallel="gpu"`. None measures the device. Defaults to None. | <code>None</code>
 
 **Returns:**
@@ -143,7 +143,7 @@ Name | Type | Description | Default
 `alphas` | <code>ndarray \| None</code> | Alpha values to try. None uses `np.logspace(-2, 4, 20)` (0.01 to 10000). Defaults to None. | <code>None</code>
 `cv` | <code>int \| BaseCrossValidator</code> | Number of folds, or an sklearn cross-validator (anything with `.split(X)` and `.get_n_splits()`, e.g. `KFold(5, shuffle=True)` or `GroupKFold(8)`). The splitter drives the actual fold iteration, so leave-one-run-out and shuffled K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
 `fit_intercept` | <code>bool</code> | If True, center `X` and `y` on their means before fitting and recover the intercept afterwards. The returned `coef` is on the centered scale; the intercept is returned under the `'intercept'` key. Defaults to False. | <code>False</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch, raising ImportError otherwise, and falls back to the torch CPU device when no GPU is present — it never falls back to NumPy); `"auto"` uses torch when installed and NumPy otherwise. Defaults to `"cpu"`. | <code>'cpu'</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
 
@@ -193,7 +193,7 @@ Name | Type | Description | Default
 `X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
 `y` | <code>ndarray</code> | Targets, shape (n_samples,) for a single target or (n_samples, n_targets) for several. | *required*
 `alpha` | <code>float</code> | Regularization strength; must be non-negative. Larger values shrink the coefficients harder toward zero. Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch, raising ImportError otherwise, and falls back to the torch CPU device when no GPU is present); `"auto"` uses torch when installed and NumPy otherwise. Defaults to None. | <code>None</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to None. | <code>None</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
 
@@ -268,7 +268,7 @@ Name | Type | Description | Default
 `return_weights` | <code>bool</code> | If True, refit on the full data with the selected hyperparameters and return the coefficients. Defaults to True. | <code>True</code>
 `diagonalize_method` | <code>str</code> | Feature decomposition; only `"svd"` is supported. Defaults to `"svd"`. | <code>'svd'</code>
 `warn` | <code>bool</code> | If True, warn when `n_samples < n_features`, where banded ridge is slower than kernel ridge. Defaults to True. | <code>True</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU device when no GPU is present); `"auto"` uses torch when installed and NumPy otherwise. Defaults to `"cpu"`. | <code>'cpu'</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB used to derive `n_targets_batch` when `parallel="gpu"`. None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Random generator seed; use an int for a deterministic search. Defaults to None. | <code>None</code>
 
@@ -335,7 +335,7 @@ Name | Type | Description | Default
 `fit_intercept` | <code>bool</code> | If True, center `X` and `Y` per training fold and return the intercept. If False, `X` and `Y` should already be centered. Defaults to False. | <code>False</code>
 `progress_bar` | <code>bool</code> | Accepted for API symmetry with `solve_banded_ridge_cv`; this solver shows no progress bar. Defaults to False. | <code>False</code>
 `conservative` | <code>bool</code> | If True, pick the largest alpha within one standard deviation of the best score (more regularization at similar performance). Defaults to False. | <code>False</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch; falls back to the torch CPU device when no GPU is present); `"auto"` uses torch when installed and NumPy otherwise. Defaults to `"cpu"`. | <code>'cpu'</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB used to derive `n_targets_batch` when `parallel="gpu"`. None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Unused by this solver (the search is deterministic); accepted for signature consistency. Defaults to None. | <code>None</code>
 

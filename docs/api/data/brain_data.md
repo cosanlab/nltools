@@ -54,7 +54,7 @@ Name | Description
 [`bootstrap`](#data-brain-data-bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_report`](#data-brain-data-cluster-report) | Generate a cluster report with anatomical labels.
 [`compute_contrasts`](#data-brain-data-compute-contrasts) | Compute contrasts from fitted GLM results.
-[`copy`](#data-brain-data-copy) | Create a copy of a BrainData instance (data deep-copied).
+[`copy`](#data-brain-data-copy) | Create an independent snapshot of a BrainData instance.
 [`create_empty`](#data-brain-data-create-empty) | Create a copy of BrainData with empty data array.
 [`decompose`](#data-brain-data-decompose) | Decompose BrainData object.
 [`detrend`](#data-brain-data-detrend) | Remove linear trend from each voxel.
@@ -337,20 +337,16 @@ Contrast weights should sum to zero for proper inference in most cases.
 copy()
 ```
 
-Create a copy of a BrainData instance (data deep-copied).
+Create an independent snapshot of a BrainData instance.
 
-The `data` array and most attributes are deep-copied, so mutating the
-copy's data leaves the original untouched. **Fitted state is shared, not
-copied**: `model_`, `X_`, every `glm_*`/`ridge_*` result, and `mask`/
-`masker` are held by reference (this avoids pickling unpicklable Backend
-objects — see `__deepcopy__`). Mutating those on the copy mutates the
-original; refit the copy if you need independent fit results.
+Data, metadata, mask state, and any fitted model/results are copied.
+Mutating either object after copying does not affect the other.
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data)</code> | A copy with independent data but shared fitted state.
+<code>[BrainData](#page-data-brain-data)</code> | An independent copy, including fitted state.
 
 (data-brain-data-create-empty)=
 ### `create_empty`
@@ -550,7 +546,7 @@ Name | Type | Description | Default
 `device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Ignored when ``model='glm'``. | <code>'cpu'</code>
 `local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
 `fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
-`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, return a Fit dataclass with the results. ``self.data`` and the result attributes (``ridge_*`` / ``glm_*`` / ``cv_results_``) are left unchanged, but ``self.model_`` and ``self.X_`` (plus ``self.design_matrix`` for GLM) ARE updated on self so ``predict()`` / ``compute_contrasts()`` still work. | <code>True</code>
+`inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, fit and return an independent `BrainData` copy while leaving every part of self untouched. | <code>True</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling before fitting via nilearn's per-voxel ``mean_scaling``. ``'auto'`` → False for both models (PSC is opt-in). Redundant with ``standardize='zscore'`` (warns). Applied before ``standardize``. | <code>'auto'</code>
 `standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. ``'center'``, ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge, ``None`` for glm. | <code>'auto'</code>
 `progress_bar` | <code>bool</code> | Display a progress bar during fitting. Default: False. | <code>False</code>
@@ -560,7 +556,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data) \| [Fit](#data-fitresults-fit)</code> | If ``inplace=True``, returns self (fitted BrainData).     If ``inplace=False``, returns a `Fit` dataclass with results.
+<code>[BrainData](#page-data-brain-data)</code> | Self when ``inplace=True``; otherwise an independently     owned fitted copy.
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -906,7 +902,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Predict](#data-fitresults-predict) \| [BrainData](#page-data-brain-data)</code> | ``Predict`` dataclass when ``inplace=False``;     ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
+<code>[Predict](#data-results-predict) \| [BrainData](#page-data-brain-data)</code> | ``Predict`` dataclass when ``inplace=False``;     ``self`` (mutated, with ``predict_*`` attrs) when ``inplace=True``.
 
 **Examples:**
 

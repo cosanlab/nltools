@@ -5,10 +5,9 @@ label: page-data-braindata-prediction
 
 BrainData prediction — timeseries (encoding) and MVPA (decoding).
 
-Single entry point: `predict`. Returns `Predict`
-with fields populated based on dispatch. Mirrors `BrainData.fit` /
-`Fit` patterns: frozen result dataclass, ``inplace=True`` mutates
-self with attributes, ``inplace=False`` returns the dataclass.
+Single entry point: `predict`. Returns a frozen structural `Predict` record
+with fields populated based on dispatch. ``inplace=True`` attaches its
+payloads to self; ``inplace=False`` returns the record.
 
 **Functions:**
 

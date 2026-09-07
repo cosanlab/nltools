@@ -69,8 +69,8 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
-    The `BrainData` repr shows the shape (images x voxels) and whether metadata "
-        "`polars` DataFrames (X, Y) are attached.
+    The `BrainData` repr shows the shape (images x voxels) and whether metadata
+    `polars` DataFrames (X, Y) are attached.
     """)
     return
 

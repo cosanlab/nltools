@@ -579,7 +579,7 @@ Type | Description
 ### `auto_batch_size`
 
 ```python
-auto_batch_size(n_items: int, bytes_per_item: float, *, budget_gb: float, overhead: float = 1.0, min_batch: int = 1) -> tuple[int, int]
+auto_batch_size(n_items: int, bytes_per_item: float, *, budget_gb: float, overhead: float = 1.0) -> tuple[int, int]
 ```
 
 Split `n_items` into batches that fit a memory budget.
@@ -596,7 +596,6 @@ Name | Type | Description | Default
 `bytes_per_item` | <code>float</code> | Dominant working-set size of one item in bytes. | *required*
 `budget_gb` | <code>float</code> | Memory budget from `device_memory_budget`. | *required*
 `overhead` | <code>float</code> | Multiplier for intermediate allocations (e.g. 3.0 when the computation holds ~3x the input working set). Defaults to 1.0. | <code>1.0</code>
-`min_batch` | <code>int</code> | Smallest batch worth dispatching (amortizes launch and transfer overhead). Never exceeds `n_items`. Defaults to 1. | <code>1</code>
 
 **Returns:**
 
@@ -608,20 +607,20 @@ Type | Description
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If `n_items` is not positive.
+<code>ValueError</code> | If the inputs are invalid or one item exceeds the budget.
 
 (backends-auto-n-jobs-for-arrays)=
 ### `auto_n_jobs_for_arrays`
 
 ```python
-auto_n_jobs_for_arrays(arrays, *, max_memory_gb: float | None = None, min_jobs: int = 1) -> int
+auto_n_jobs_for_arrays(arrays, *, max_memory_gb: float | None = None) -> int
 ```
 
 Memory-aware joblib worker count for a per-item map over arrays.
 
 Sizes workers by the largest item (each worker pickles its item), using
 the same measured budget as the device batching layer. None entries are
-ignored; an empty list returns `min_jobs`.
+ignored; an empty list returns one worker.
 
 **Parameters:**
 
@@ -629,13 +628,9 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `arrays` | <code>Iterable[ndarray \| None]</code> | Arrays to map over (None entries allowed). | *required*
 `max_memory_gb` | <code>float \| None</code> | Explicit memory budget in GB. None (default) measures available system RAM with headroom via `device_memory_budget`. | <code>None</code>
-`min_jobs` | <code>int</code> | Minimum number of workers. Defaults to 1. | <code>1</code>
 
-**Returns:**
-
-Type | Description
----- | -----------
-<code>int</code> | Worker count for `joblib.Parallel(n_jobs=...)`.
+Returns:
+    int: Worker count for `joblib.Parallel(n_jobs=...)`.
 
 (backends-auto-select-backend)=
 ### `auto_select_backend`
@@ -814,7 +809,7 @@ and the torch import happen once, upstream.
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`parallel` | <code>str \| [Backend](#backends-backend) \| None</code> | Backend specifier. `None` or `"cpu"` gives the numpy backend; `"gpu"` is an alias for `"torch"` (auto-detects cuda, mps, or cpu); `"numpy"`, `"torch"`, and `"auto"` are passed to `Backend(...)`; a `Backend` instance is returned as-is. | *required*
+`parallel` | <code>str \| [Backend](#backends-backend) \| None</code> | Backend specifier. `None` or `"cpu"` gives the numpy backend; `"gpu"` requires CUDA or MPS; `"numpy"`, `"torch"`, and `"auto"` are passed to `Backend(...)`; a `Backend` instance is returned as-is. | *required*
 
 **Returns:**
 
@@ -827,3 +822,4 @@ Type | Description
 Type | Description
 ---- | -----------
 <code>ValueError</code> | If `parallel` is a string outside the accepted set.
+<code>RuntimeError</code> | If `parallel="gpu"` and no accelerator is available.

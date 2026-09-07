@@ -27,7 +27,6 @@ Name | Description
 [`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
 [`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
-[`to_fit_dataclass`](#data-braindata-modeling-to-fit-dataclass) | Convert BrainData fit results to Fit dataclass.
 [`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
@@ -198,8 +197,7 @@ column-standardized condition number above 30) fires
 category so it can be silenced surgically with
 ``warnings.filterwarnings``.
 
-**Results stored on `bd`** (when `inplace=True`; with `inplace=False` the same
-values are returned on a `Fit` instead):
+**Results stored on the returned `BrainData`:**
 
 - `model_` — the fitted `Ridge` or `Glm` instance (always set, so `predict()`
   works).
@@ -222,7 +220,7 @@ Name | Type | Description | Default
 `device` | <code>str</code> | Ridge only. Compute device for the ridge solve/CV: `'cpu'` (NumPy), `'gpu'` (PyTorch on CUDA/MPS when available), or `'auto'` (GPU if present, else CPU). Forwarded to `Ridge` and the CV evaluation. Ignored for `model='glm'`. Default: `'cpu'`. | <code>'cpu'</code>
 `local_alpha` | <code>bool</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to `Ridge`. Default: True. | <code>True</code>
 `fit_intercept` | <code>bool</code> | Ridge only. If True, fit an intercept term. Redundant (and warned against) when the data is already centered via `scale` or `standardize`. Forwarded to `Ridge`. Default: False. | <code>False</code>
-`inplace` | <code>bool</code> | If True, mutate `bd` and return it. If False, return a `Fit` dataclass; `bd.data` and the result attributes (`ridge_*` / `glm_*` / `cv_results_`) are left unchanged, but `bd.model_` and `bd.X_` (plus `bd.design_matrix` for GLM) are still updated so that `predict()` / `compute_contrasts()` work off `bd`. Successive `inplace=False` fits therefore overwrite the model used by a later `bd.predict()`. Default: True. | <code>True</code>
+`inplace` | <code>bool</code> | If True, mutate `bd` and return it. If False, fit and return an independent `BrainData` copy while leaving every part of `bd` untouched. Default: True. | <code>True</code>
 `progress_bar` | <code>bool</code> | Display a progress bar for long-running operations. Default: False. | <code>False</code>
 `scale` | <code>bool \| str</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel `mean_scaling` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). `'auto'` (default) resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with `standardize='zscore'` (a warning is raised for that combination). Applied before `standardize`. | <code>'auto'</code>
 `standardize` | <code>str \| None</code> | Standardize each voxel across observations after scaling: `'center'` (subtract the mean), `'zscore'` (subtract mean, divide by std), or None (off). `'auto'` (default) resolves to `'zscore'` for `model='ridge'` (so a shared alpha regularizes voxels fairly) and None for `model='glm'`. | <code>'auto'</code>
@@ -232,7 +230,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data) \| [Fit](#data-fitresults-fit)</code> | `bd` itself when `inplace=True`; a `Fit` dataclass with     the results when `inplace=False`.
+<code>[BrainData](#page-data-brain-data)</code> | `bd` itself when `inplace=True`; otherwise an independently     owned fitted copy.
 
 **Examples:**
 
@@ -242,18 +240,17 @@ brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
 print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
 weights = brain_data.ridge_weights
 
-# inplace=False: return a Fit dataclass; result attributes are not set on
-# brain_data (model_ and X_ are still updated so predict() works)
-fit = brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features, inplace=False)
-assert isinstance(fit, Fit)
-assert 'weights' in fit.available()
+# inplace=False: fit a copy; brain_data remains completely unchanged
+fitted = brain_data.fit(
+    model='ridge', alpha=1.0, cv=5, X=features, inplace=False
+)
+weights = fitted.ridge_weights
 assert not hasattr(brain_data, 'ridge_weights')
-print(f"CV R2: {fit.cv_mean_score.mean():.3f}")
+print(f"CV R2: {fitted.cv_results_['mean_score'].mean():.3f}")
 
-# GLM with Fit dataclass
-fit_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
-assert 'betas' in fit_glm.available()
-assert 't_stats' in fit_glm.available()
+# The returned GLM copy can compute contrasts
+fitted_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
+contrast = fitted_glm.compute_contrasts('conditionA - conditionB')
 ```
 
 (data-braindata-modeling-fit-glm)=
@@ -364,28 +361,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>tuple</code> | ``(scale, standardize)`` with any ``'auto'`` resolved.
-
-(data-braindata-modeling-to-fit-dataclass)=
-### `to_fit_dataclass`
-
-```python
-to_fit_dataclass(bd, model)
-```
-
-Convert BrainData fit results to Fit dataclass.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#page-data-brain-data)</code> | Fitted data carrying `ridge_*` or `glm_*` result attributes. | *required*
-`model` | <code>str</code> | Model type (`'ridge'` or `'glm'`). | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[Fit](#data-fitresults-fit)</code> | Dataclass containing the fit results.
 
 (data-braindata-modeling-ttest)=
 ### `ttest`

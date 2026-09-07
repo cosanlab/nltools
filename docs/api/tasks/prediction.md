@@ -255,7 +255,7 @@ Name | Type | Description | Default
 `alphas` | <code>ndarray \| None</code> | Alpha values to try. None uses `np.logspace(-2, 4, 20)` (0.01 to 10000). Defaults to None. | <code>None</code>
 `cv` | <code>int \| BaseCrossValidator</code> | Number of folds, or an sklearn cross-validator (anything with `.split(X)` and `.get_n_splits()`, e.g. `KFold(5, shuffle=True)` or `GroupKFold(8)`). The splitter drives the actual fold iteration, so leave-one-run-out and shuffled K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
 `fit_intercept` | <code>bool</code> | If True, center `X` and `y` on their means before fitting and recover the intercept afterwards. The returned `coef` is on the centered scale; the intercept is returned under the `'intercept'` key. Defaults to False. | <code>False</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch, raising ImportError otherwise, and falls back to the torch CPU device when no GPU is present — it never falls back to NumPy); `"auto"` uses torch when installed and NumPy otherwise. Defaults to `"cpu"`. | <code>'cpu'</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
 
@@ -305,7 +305,7 @@ Name | Type | Description | Default
 `X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
 `y` | <code>ndarray</code> | Targets, shape (n_samples,) for a single target or (n_samples, n_targets) for several. | *required*
 `alpha` | <code>float</code> | Regularization strength; must be non-negative. Larger values shrink the coefficients harder toward zero. Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` runs on PyTorch (requires torch, raising ImportError otherwise, and falls back to the torch CPU device when no GPU is present); `"auto"` uses torch when installed and NumPy otherwise. Defaults to None. | <code>None</code>
+`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to None. | <code>None</code>
 `max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
 `random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
 

@@ -63,7 +63,7 @@ stats = OnlineBootstrapStats(shape=(brain.shape[1],), save_samples=False)
 for sample in bootstrap_samples:
     stats.update(sample.data)
 result = stats.get_results()  # keys: mean, std, Z, p, ci_lower, ci_upper
-mean_brain = shallow_copy(brain)
+mean_brain = _copy_without_fit_state(brain, copy_data=False)
 mean_brain.data = result['mean']
 ```
 

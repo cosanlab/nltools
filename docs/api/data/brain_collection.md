@@ -720,7 +720,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[PredictCollection](#data-fitresults-predictcollection) \| [BrainCollection](#page-data-brain-collection)</code> | `PredictCollection` (mode 1) or     `BrainCollection` (mode 2).
+<code>[PredictCollection](#data-results-predictcollection) \| [BrainCollection](#page-data-brain-collection)</code> | `PredictCollection` (mode 1) or     `BrainCollection` (mode 2).
 
 (data-brain-collection-predict-group)=
 ### `predict_group`
@@ -759,7 +759,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Predict](#data-fitresults-predict)</code> | Result with CV attributes, plus the permutation-null fields     when ``n_permute > 0``.
+<code>[Predict](#data-results-predict)</code> | Result with CV attributes, plus the permutation-null fields     when ``n_permute > 0``.
 
 (data-brain-collection-read)=
 ### `read`

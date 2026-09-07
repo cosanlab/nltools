@@ -49,7 +49,8 @@ from nltools.datasets import fetch_pain
 brains = fetch_pain()
 ```
 
-The `BrainData` repr shows the shape (images x voxels) and whether metadata `polars` DataFrames (X, Y) are attached.
+The `BrainData` repr shows the shape (images x voxels) and whether metadata
+`polars` DataFrames (X, Y) are attached.
 
 ```{code-cell} python3
 brains
@@ -94,13 +95,17 @@ brains[0]
 ```{code-cell} python3
 # Slicing
 first_five = brains[:5]
-print(f"Sliced: {first_five.shape}")
+
+# Same voxels, space, etc as brains
+first_five
 ```
 
 ```{code-cell} python3
 # List indexing
 selected = brains[[0, 10, 20, 30]]
-print(f"Selected: {selected.shape}")
+
+# The 0th, 10th, 20th, and 30th images
+selected
 ```
 
 Boolean indexing filters images by computed properties:
@@ -180,7 +185,7 @@ Threshold by absolute value or percentile, optionally binarizing for a mask:
 
 ```{code-cell} python3
 # Keep only voxels in the top 5%
-brains.mean().threshold(upper="95%").plot()
+brains.mean().threshold(upper="95%").plot(cmap='Blues')
 ```
 
 ```{code-cell} python3
@@ -221,7 +226,7 @@ so you can always drop down to `BrainData.to_nifti()` and call nilearn directly.
 ### Glass brain (default)
 
 ```{code-cell} python3
-masked_data.plot(title="Mean Activation")
+masked_data.plot(title="Mean Activation", cmap='viridis')
 ```
 
 ### Slices

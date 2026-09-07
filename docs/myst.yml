@@ -73,8 +73,8 @@ project:
             - file: api/data/adjacency.md
             - file: api/data/design_matrix.md
             - file: api/data/brain_collection.md
-            - file: api/data/fitresults.md
-              title: Fit & Predict results
+            - file: api/data/results.md
+              title: Prediction results
             - file: api/models.md
         - title: Functions by task
           children:
