@@ -94,3 +94,4 @@ scripts/sub-*
 scratch/
 .playwright-cli/
 **/__pycache__/
+.kata.local.toml
