@@ -338,17 +338,18 @@ K-fold splits; callers who need another design must pass a cross-validator.
 `BrainCollection.fit(model="ridge", X=...)` uses an unambiguous structural
 grammar:
 
-- one matrix is an ordinary feature matrix shared by every member;
-- a list of matrices supplies one ordinary feature matrix per member;
 - one named mapping supplies shared banded feature spaces;
-- a list of named mappings supplies banded feature spaces per member;
-- a callable returns one matrix or one named mapping for the current member;
-- `None` uses the collection's paired ordinary designs.
+- any value coercible to a finite numeric two-dimensional array supplies one
+  shared ordinary matrix, including a nested numeric list;
+- otherwise, a collection-length sequence supplies either one two-dimensional
+  ordinary matrix per member or one named mapping per member, without mixing
+  the two modes;
+- `None` uses each member's stored ordinary design.
 
-For per-member inputs, the outer list length must equal the collection length.
-Each member validates its own sample count and feature widths. Banded mappings
-for every member must have the same feature-space name set; order may differ
-and is aligned by name.
+For per-member inputs, the outer sequence length must equal the collection
+length. Each member validates its own sample count and feature widths. Banded
+mappings for every member must have the same feature-space name set; order may
+differ and is aligned by name.
 
 `BrainCollection.predict` accepts one shared matrix or mapping, or an outer
 list providing one matrix or mapping per fitted member. Each fitted model

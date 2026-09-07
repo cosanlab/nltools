@@ -64,7 +64,7 @@ Use `uv run poe docs-generate` after changing docstrings, the vocabulary manifes
 
 ## Hard invariants
 
-- Generated column names use the reserved `.nl_` namespace. Build and inspect them with `reserved_name()`, `run_separated_name()`, `is_reserved_name()`, and `parse_run_separated()`. Never recognize generated columns by matching user-controlled naming patterns.
+- The reserved `.nl_` namespace applies only to columns generated inside a `DesignMatrix`. Create, recognize, and parse those names with `reserved_name()`, `run_separated_name()`, `is_reserved_name()`, and `parse_run_separated()`. Never identify generated `DesignMatrix` columns by matching user-controlled naming patterns.
 - GPU execution is centralized in `nltools/algorithms/backends.py`. Memory budgeting, batch sizing, worker sizing, and OOM recovery belong there. Algorithms provide working-set estimates but must not implement their own budget calculations.
 - An explicit `device="gpu"` or `parallel="gpu"` must run on the GPU or raise. Only `"auto"` may fall back.
 - Read the relevant design document before changing these subsystems:

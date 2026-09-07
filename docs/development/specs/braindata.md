@@ -97,6 +97,38 @@ the result clears both metadata frames.
 One shared result-construction policy must enforce these rules. Individual
 methods must not mechanically copy row metadata and then repair mismatches.
 
+## Spatial transformations
+
+Spatial resampling and masking are separate operations:
+
+```python
+BrainData.resample(
+    *,
+    img=None,
+    resolution=None,
+    interpolation=None,
+) -> BrainData
+
+BrainData.apply_mask(mask) -> BrainData
+```
+
+`resample()` accepts exactly one of `img` or `resolution`. An `img` supplies only
+the target grid; its intensity values do not define the output mask. A positive
+`resolution` supplies an isotropic voxel size in millimeters. `interpolation`
+is `"nearest"`, `"linear"`, `"continuous"`, or `None` for the data-aware
+default. The method uses nearest-neighbor interpolation to resample the source
+mask onto the target grid, then installs an independent copy on the result.
+
+`apply_mask()` changes mask support without changing the grid. The supplied mask
+must be a single three-dimensional image on the same grid and with the same
+affine as the source. A mismatch raises rather than resampling either operand.
+To apply a mask from another grid, callers first use `resample()` explicitly.
+
+Both operations return independently owned results. They preserve row-aligned
+`.X` and `.Y`. They always clear every fitted-state attribute because either
+operation can change the voxel axis. There is no `resample_to()` alias or
+`resample_mask_to_brain` flag.
+
 ## Model fitting
 
 The public signature is:
@@ -698,6 +730,12 @@ Tests must establish:
 - exhaustive fit-state clearing after every in-place data or axis mutation;
 - row-metadata preservation, aligned selection, and clearing for every output
   axis category;
+- exact `resample()` and `apply_mask()` signatures; exactly one of `img` or
+  positive `resolution`; target images used only as grids; nearest-neighbor
+  source-mask resampling; same-grid mask application without implicit
+  resampling; preservation of `.X` and `.Y`; fitted-state clearing; independent
+  output ownership; and absence of `resample_to()` and
+  `resample_mask_to_brain`;
 - exact estimator delegation and attached result shapes for GLM, ordinary
   Ridge, and banded Ridge;
 - deterministic `predict` dispatch and all invalid argument/state combinations;
