@@ -64,19 +64,6 @@ def test_summary_and_metric_are_canonical(func):
     )
 
 
-def test_braincollection_isc_uses_summary_kwarg():
-    from nltools.data import BrainCollection
-
-    for method in (BrainCollection.isc, BrainCollection.isc_test):
-        params = inspect.signature(method).parameters
-        assert "summary" in params, f"{method.__qualname__} lacks summary="
-        assert params["summary"].default == "median"
-        assert "metric" not in params, (
-            f"{method.__qualname__}: the mean/median aggregation choice must be "
-            "summary= — metric is reserved for similarity metrics"
-        )
-
-
 @pytest.mark.parametrize("func", [isc, isc_group], ids=lambda f: f.__name__)
 def test_wrappers_expose_progress_bar(func):
     param = inspect.signature(func).parameters.get("progress_bar")

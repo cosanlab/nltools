@@ -82,8 +82,7 @@ def resolve_cv(
 ):
     """Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
 
-    The single cv-resolution rule shared by `BrainData.predict`,
-    `BrainCollection.predict`, and `BrainCollection.predict_group`. String
+    The cv-resolution rule used by `BrainData.predict`. String
     names follow sklearn's splitter classes. An int spec honors `groups` when
     one is supplied (it becomes a `GroupKFold` variant rather than a plain
     `KFold`, which would ignore the groups).

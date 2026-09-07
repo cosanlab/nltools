@@ -1,5 +1,8 @@
 # BrainCollection specification
 
+> Release scope: BrainCollection and collection-only requirements in this specification
+> are deferred to 0.6.1. Retained BrainData and estimator contracts remain targets for 0.6.0.
+
 This working specification defines the approved `BrainCollection` contracts and
 records unresolved decisions explicitly. Code, tests, and docstrings must
 implement the settled sections. Compatibility notes and migration

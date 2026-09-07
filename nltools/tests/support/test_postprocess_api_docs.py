@@ -375,7 +375,7 @@ class TestResolveTypeLinks:
         "nltools.data.braindata.BrainData": "data-brain-data",
         "nltools.data.braindata.BrainData.align": "data-brain-data-align",
         "nltools.data.results": "data-results",
-        "nltools.data.results.PredictCollection": "data-results-predictcollection",
+        "nltools.data.results.Predict": "data-results-predict",
         "nltools.algorithms.SRM": "algorithms-srm",
         "nltools.algorithms.alignment.SRM": "algorithms-alignment-srm",
         "nltools.models.BaseModel": "models-basemodel",
@@ -394,11 +394,9 @@ class TestResolveTypeLinks:
     def test_bare_name_resolves_by_suffix(self, postprocess_mod):
         # griffe couldn't resolve the annotation (string/TYPE_CHECKING import),
         # so the anchor is the bare name.
-        page = "<code>[PredictCollection](#PredictCollection)</code>"
+        page = "<code>[Predict](#Predict)</code>"
         out = postprocess_mod._resolve_type_links(page, self.XREF)
-        assert (
-            out == "<code>[PredictCollection](#data-results-predictcollection)</code>"
-        )
+        assert out == "<code>[Predict](#data-results-predict)</code>"
 
     def test_canonical_path_prefers_closest_page(self, postprocess_mod):
         # SRM is rendered on two pages; the canonical (defining) path shares the

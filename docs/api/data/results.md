@@ -10,7 +10,6 @@ Structural result records returned by decoding operations.
 Name | Description
 ---- | -----------
 [`Predict`](#data-results-predict) | Frozen structural record for `BrainData.predict` decoding results.
-[`PredictCollection`](#data-results-predictcollection) | Frozen structural record for per-subject decoding results.
 
 
 
@@ -20,7 +19,7 @@ Name | Description
 ### `Predict`
 
 ```python
-Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: float | np.ndarray | None = None, std_score: float | np.ndarray | None = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: BrainData | None = None, weight_map: BrainData | None = None, fold_weight_maps: BrainData | None = None, estimator: Any = None, permutation_scores: np.ndarray | None = None, permutation_pvalue: float | np.ndarray | BrainData | None = None)
+Predict(predictions: np.ndarray | None = None, scores: np.ndarray | None = None, mean_score: float | np.ndarray | None = None, std_score: float | np.ndarray | None = None, cv_folds: np.ndarray | None = None, roi_labels: np.ndarray | None = None, accuracy_map: BrainData | None = None, weight_map: BrainData | None = None, fold_weight_maps: BrainData | None = None, estimator: Any = None)
 ```
 
 Frozen structural record for `BrainData.predict` decoding results.
@@ -65,9 +64,7 @@ Name | Type | Description
 `accuracy_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(1, n_voxels)`` map — for ROI, every voxel in parcel *i* holds that parcel's mean score (NaN outside parcels); for searchlight, the sphere-centered score at each voxel.
 `weight_map` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(1, n_voxels)`` ``coef_`` of the model refit on all data — the publishable map. For ROI, each parcel's coefficients are written back into voxel space (NaN outside parcels); magnitudes are not comparable across parcels.
 `fold_weight_maps` | <code>[BrainData](#page-data-brain-data) \| None</code> | ``(n_folds, n_voxels)`` stack of per-fold ``coef_`` for stability analysis.
-`estimator` | <code>Any</code> | The fitted all-data sklearn estimator (whole-brain; use it to ``.predict()`` on new data), or a ``dict[int, estimator]`` keyed by atlas label (ROI). ``None`` when read back from a cached bundle.
-`permutation_scores` | <code>ndarray \| None</code> | Label-permutation null from `BrainCollection.predict_group` — ``(n_permute,)`` for whole-brain, ``(n_permute, n_rois)`` for ROI, ``(n_permute, n_voxels)`` for searchlight.
-`permutation_pvalue` | <code>float \| ndarray \| [BrainData](#page-data-brain-data) \| None</code> | Upper-tail permutation p-value — a float, ``(n_rois,)``, or a ``(1, n_voxels)`` `BrainData` map, matching ``permutation_scores``.
+`estimator` | <code>Any</code> | The fitted all-data sklearn estimator (whole-brain; use it to ``.predict()`` on new data), or a ``dict[int, estimator]`` keyed by atlas label (ROI).
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
@@ -118,64 +115,3 @@ available() -> list
 ```
 
 Return names of non-None fields (excludes private).
-
-(data-results-predictcollection)=
-### `PredictCollection`
-
-```python
-PredictCollection(results: tuple[Predict, ...], metadata: pl.DataFrame | None = None, paths: tuple[Path | None, ...] | None = None)
-```
-
-Frozen structural record for per-subject decoding results.
-
-Returned by ``BrainCollection.predict(y=...)``: one `Predict` per subject
-(each an independent within-subject model), plus the collection's
-per-subject metadata. Sequence-like — ``len``, iteration, and integer
-indexing all address the underlying `Predict` objects.
-
-The stacking properties are the bridge to second-level inference: the
-per-subject maps become one ``BrainData (n_subjects, n_voxels)``, ready
-for a group test.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`results` | <code>tuple[[Predict](#data-results-predict), ...]</code> | One `Predict` per subject, in collection order.
-`metadata` | <code>DataFrame \| None</code> | Per-subject metadata (one row per subject), carried over from the source collection.
-`paths` | <code>tuple[Path \| None, ...] \| None</code> | On-disk predict-bundle paths, populated when the producing call cached its results (``cache=True`` / ``'auto'``).
-`mean_scores` | <code>ndarray</code> | Stacked per-subject mean CV score — ``(n_subjects,)`` for whole-brain decoding, ``(n_subjects, n_rois)`` for ROI.
-`std_scores` | <code>ndarray</code> | Stacked per-subject score standard deviation across folds, same shape as ``mean_scores``.
-`scores` | <code>DataFrame</code> | Per-subject score table — the metadata plus ``mean_score`` / ``std_score`` columns. Whole-brain decoding only; ROI results raise (use ``mean_scores`` / ``std_scores``).
-`weight_maps` | <code>[BrainData](#page-data-brain-data)</code> | Per-subject decoder maps stacked into one ``(n_subjects, n_voxels)`` `BrainData`.
-`accuracy_maps` | <code>[BrainData](#page-data-brain-data)</code> | Per-subject accuracy maps stacked into one ``(n_subjects, n_voxels)`` `BrainData`.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`available`](#data-results-available) | Return field names populated on every subject's `Predict`.
-
-
-
-**Examples:**
-
-```python
-pc = collection.predict(y="condition", cv=5)
-pc.scores                    # per-subject accuracy table
-pc[0].weight_map.plot()      # one subject's decoder map
-
-# Second-level inference on the decoder maps:
-from nltools.algorithms import one_sample_permutation_test
-group = one_sample_permutation_test(pc.weight_maps.data)
-```
-
-#### Methods
-
-##### `available`
-
-```python
-available() -> list
-```
-
-Return field names populated on every subject's `Predict`.

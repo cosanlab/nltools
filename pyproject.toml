@@ -20,12 +20,7 @@ classifiers = [
 keywords=["neuroimaging", "preprocessing", "analysis", "machine-learning"]
 dependencies = [
     "anywidget>=0.9",
-    # BrainCollection.fit() always writes HDF5 fit bundles
-    # (data/collection/execution.py imports h5py unguarded), so h5py is
-    # required for core functionality, not an optional add-on. hdf5plugin
-    # stays in the `h5` extra: it only registers blosc/zstd/lz4 filters for
-    # reading compressed legacy files, and nltools/io/h5.py already guards
-    # that import with an actionable error.
+    # Shared BrainData, DesignMatrix, and Adjacency HDF5 persistence.
     "h5py>=3.15",
     "huggingface-hub>=0.30",
     "joblib>=1.5.3",
@@ -203,10 +198,6 @@ cmd = "pytest nltools/tests/data/adjacency nltools/tests/plotting/test_adjacency
 [tool.poe.tasks.test-designmatrix]
 help = "Test DesignMatrix class"
 cmd = "pytest nltools/tests/data/designmatrix -n auto --maxprocesses=4 -x"
-
-[tool.poe.tasks.test-collection]
-help = "Test BrainCollection class"
-cmd = "pytest nltools/tests/data/collection -n auto --maxprocesses=4 -x"
 
 [tool.poe.tasks.test-algorithms]
 help = "Test consolidated algorithms modules (corrections/outliers/signal/similarity/regression/intersubject/procrustes)"

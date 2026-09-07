@@ -27,4 +27,4 @@ Learn how to use nltools with the [tutorials](tutorials/index.md) on this site, 
 
 For a task-by-task map of which call to reach for and what will bite you, see the [User Guide](guide/index.md).
 
-The reference is organized by what you want to do: the four [data classes](api/data/brain_data.md) (`BrainData`, `Adjacency`, `DesignMatrix`, `BrainCollection`), the public functions grouped [by task](api/tasks/loading.md), and an [A–Z index](api/algorithms.md) of `nltools.algorithms`. Upgrading from v0.5? Start with [Migrating from v0.5](migration-guide.md).
+The reference is organized by what you want to do: the three [data classes](api/data/brain_data.md) (`BrainData`, `Adjacency`, `DesignMatrix`), the public functions grouped [by task](api/tasks/loading.md), and an [A–Z index](api/algorithms.md) of `nltools.algorithms`. Upgrading from v0.5? Start with [Migrating from v0.5](migration-guide.md).

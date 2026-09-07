@@ -3,7 +3,7 @@ title: Prediction & cross-validation
 label: page-tasks-prediction
 ---
 
-Decode or predict from brain data. `BrainData.predict` and `BrainCollection.predict_group` run the workflow. Listed here are the pieces they accept or return: the cross-validation schemes (`resolve_cv` turns an int, a name, or an sklearn splitter into one), the ridge solvers behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and the plots of weights, margins, and predictions.
+Decode or predict from brain data. `BrainData.predict` runs the workflow. Listed here are the pieces it accepts or returns: the cross-validation schemes (`resolve_cv` turns an int, a name, or an sklearn splitter into one), the ridge solvers behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and the plots of weights, margins, and predictions.
 
 **Classes:**
 
@@ -204,8 +204,7 @@ resolve_cv(cv, *, groups = None, classifier: bool = False, shuffle: bool = False
 
 Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
 
-The single cv-resolution rule shared by `BrainData.predict`,
-`BrainCollection.predict`, and `BrainCollection.predict_group`. String
+The cv-resolution rule used by `BrainData.predict`. String
 names follow sklearn's splitter classes. An int spec honors `groups` when
 one is supplied (it becomes a `GroupKFold` variant rather than a plain
 `KFold`, which would ignore the groups).

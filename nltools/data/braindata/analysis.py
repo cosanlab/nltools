@@ -9,7 +9,14 @@ Each takes a `BrainData` as its first argument; the corresponding
 import numpy as np
 import polars as pl
 
-from .utils import _copy_without_fit_state
+from .utils import _result_from_array, _result_from_rows, _result_with_mask
+
+
+def _subset_mask(bd, columns):
+    """Build a spatial mask for selected columns of a masked array."""
+    from nilearn.masking import unmask
+
+    return unmask(np.asarray(columns, dtype=np.uint8), bd.mask)
 
 
 def check_masks(bd, image):
@@ -220,11 +227,16 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
     for label in unique_labels:
         cols = label_vec == label
-        sub = _copy_without_fit_state(bd, copy_data=False)
-        sub.data = bd.data[:, cols]
+        sub = _result_with_mask(
+            bd, bd.data[:, cols], _subset_mask(bd, cols), rows="preserve"
+        )
         if method == "procrustes":
-            t_sub = _copy_without_fit_state(target_bd, copy_data=False)
-            t_sub.data = target_bd.data[:, cols]
+            t_sub = _result_with_mask(
+                target_bd,
+                target_bd.data[:, cols],
+                _subset_mask(target_bd, cols),
+                rows="preserve",
+            )
             sub_target = t_sub
         else:
             sub_target = target  # SRM common model is voxel-agnostic
@@ -249,9 +261,7 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
         cols = label_vec == label
         out_arr[:, cols] = parcel_arr
 
-    from nltools.data import BrainData
-
-    transformed_bd = BrainData(out_arr, mask=bd.mask)
+    transformed_bd = _result_from_array(bd, out_arr, rows="preserve")
     return {
         "transformed": transformed_bd,
         "transformation_matrix": transforms,
@@ -526,16 +536,7 @@ def apply_mask(bd, mask, resample_mask_to_brain=False):
 
     # Use nilearn's apply_mask for efficient masking (C-optimized, single path, memory efficient)
     masked_data = nilearn_apply_mask(bd.to_nifti(), mask_img)
-    masked = _copy_without_fit_state(bd, copy_data=False)
-    masked.data = masked_data
-
-    # Update mask, voxel resolution, and space
-    masked.mask = mask_img
-    affine = mask_img.affine
-    masked._voxel_resolution = np.abs(np.diag(affine[:3, :3]))
-    from .io import detect_space
-
-    masked._space = detect_space(mask_img)
+    masked = _result_with_mask(bd, masked_data, mask_img, rows="preserve")
 
     # Preserve 1D output for single images (backward compatibility)
     if (len(masked.shape) > 1) & (masked.shape[0] == 1):
@@ -650,8 +651,9 @@ def extract_roi(bd, mask, method="mean", n_components=None):
             if check_brain_data_is_single(bd):
                 raise ValueError("Cannot run PCA on a single image")
 
-            atlas_mask = _copy_without_fit_state(mask_brain, copy_data=False)
-            atlas_mask.data = (mask_brain.data > 0).astype(float)
+            atlas_mask = _result_from_array(
+                mask_brain, (mask_brain.data > 0).astype(float), rows="preserve"
+            )
             all_masked = apply_mask(bd, atlas_mask)
 
             # apply_mask preserves voxel ordering relative to the mask, so the
@@ -661,8 +663,12 @@ def extract_roi(bd, mask, method="mean", n_components=None):
 
             out = []
             for label in unique_labels:
-                roi = _copy_without_fit_state(all_masked, copy_data=False)
-                roi.data = all_masked.data[:, labels_flat == label]
+                roi = _result_with_mask(
+                    all_masked,
+                    all_masked.data[:, labels_flat == label],
+                    _subset_mask(all_masked, labels_flat == label),
+                    rows="preserve",
+                )
                 output = decompose(
                     roi, method="pca", n_components=n_components, axis="images"
                 )
@@ -694,8 +700,7 @@ def detrend_data(bd, method="linear"):
     if len(bd.shape) == 1:
         raise ValueError("Make sure there is more than one image in order to detrend.")
 
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data = detrend(bd.data, type=method, axis=0)
+    out = _result_from_array(bd, detrend(bd.data, type=method, axis=0), rows="preserve")
     return out
 
 
@@ -710,9 +715,7 @@ def r_to_z(bd):
     """
     from nltools.algorithms.similarity import fisher_r_to_z
 
-    out = _copy_without_fit_state(bd, copy_data=False)
-    # fisher_r_to_z creates a new array
-    out.data = fisher_r_to_z(bd.data)
+    out = _result_from_array(bd, fisher_r_to_z(bd.data), rows="preserve")
     return out
 
 
@@ -727,9 +730,7 @@ def z_to_r(bd):
     """
     from nltools.algorithms.similarity import fisher_z_to_r
 
-    out = _copy_without_fit_state(bd, copy_data=False)
-    # fisher_z_to_r creates a new array
-    out.data = fisher_z_to_r(bd.data)
+    out = _result_from_array(bd, fisher_z_to_r(bd.data), rows="preserve")
     return out
 
 
@@ -778,9 +779,7 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
         standardize = None
     detrend = kwargs.pop("detrend", False)
 
-    # The output immediately replaces data, so avoid copying the source buffer.
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data = clean(
+    data = clean(
         bd.data,
         t_r=1.0 / sampling_freq,
         detrend=detrend,
@@ -789,7 +788,17 @@ def filter_data(  # nosemgrep: kwargs-internal-forwarding  # forwards to nilearn
         low_pass=low_pass,
         **kwargs,
     )
-    return out
+    sample_mask = kwargs.get("sample_mask")
+    if sample_mask is None:
+        return _result_from_array(bd, data, rows="preserve")
+    from .utils import _polars_row_select
+
+    return _result_from_rows(
+        bd,
+        data,
+        X=_polars_row_select(bd.X, sample_mask),
+        Y=_polars_row_select(bd.Y, sample_mask),
+    )
 
 
 def standardize(bd, *, axis=0, method="center"):
@@ -822,8 +831,9 @@ def standardize(bd, *, axis=0, method="center"):
         centered /= std
 
     # The output immediately replaces data, so avoid copying the source buffer.
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data = centered.astype(bd.data.dtype, copy=False)
+    out = _result_from_array(
+        bd, centered.astype(bd.data.dtype, copy=False), rows="preserve"
+    )
     return out
 
 
@@ -864,19 +874,19 @@ def scale_data(bd, scale_val=100.0, axis=None):
         scaled = brain.scale(100.0, axis=0)
         ```
     """
-    out = _copy_without_fit_state(bd)
+    data = bd.data
 
     if axis is None:
         # Grand-mean scaling: divide by global mean
-        grand_mean = out.data.mean()
+        grand_mean = data.mean()
         if np.abs(grand_mean) < np.finfo(float).eps:
-            out.data = np.zeros_like(out.data)
+            data = np.zeros_like(data)
         else:
-            out.data = out.data / grand_mean * scale_val
+            data = data / grand_mean * scale_val
     elif axis == 0:
         # Voxel-wise scaling: divide each voxel by its temporal mean
         # Compute mean along time axis (axis=0), keeping dims for broadcasting
-        voxel_means = out.data.mean(axis=0, keepdims=True)
+        voxel_means = data.mean(axis=0, keepdims=True)
 
         # Handle zero-mean voxels to avoid NaN/Inf
         # Set zero-mean voxels to 1 temporarily, then zero out result
@@ -884,15 +894,15 @@ def scale_data(bd, scale_val=100.0, axis=None):
         voxel_means_safe = np.where(zero_mask, 1.0, voxel_means)
 
         # Scale
-        out.data = out.data / voxel_means_safe * scale_val
+        data = data / voxel_means_safe * scale_val
 
         # Zero out voxels that had zero mean
         if np.any(zero_mask):
-            out.data[:, zero_mask.squeeze()] = 0.0
+            data[:, zero_mask.squeeze()] = 0.0
     else:
         raise ValueError(f"axis must be None or 0, got {axis}")
 
-    return out
+    return _result_from_array(bd, data, rows="preserve")
 
 
 def threshold_data(
@@ -955,7 +965,7 @@ def threshold_data(
             raise ValueError("Must provide either upper or lower threshold")
 
         # Handle percentile strings
-        b = _copy_without_fit_state(bd)
+        b = _result_from_array(bd, bd.data, rows="preserve")
         if coerce_nan:
             b.data = np.nan_to_num(b.data)
 
@@ -964,7 +974,7 @@ def threshold_data(
         threshold_val = resolve_threshold(threshold_val, b.data)
 
         # Use nilearn's cluster thresholding
-        out = _copy_without_fit_state(bd, copy_data=False)
+        out = _result_from_array(bd, bd.data, rows="preserve")
         thresholded_img = threshold_img(
             b.to_nifti(),
             threshold=threshold_val,
@@ -982,7 +992,7 @@ def threshold_data(
         return out
 
     # Use current efficient implementation (fast path)
-    b = _copy_without_fit_state(bd)
+    b = _result_from_array(bd, bd.data, rows="preserve")
 
     if coerce_nan:
         b.data = np.nan_to_num(b.data)
@@ -1040,7 +1050,9 @@ def regions(
             bd.to_nifti(), min_region_size, method, smoothing_fwhm
         )
 
-    return BrainData(region_imgs, mask=bd.mask)
+    return _result_from_array(
+        bd, BrainData(region_imgs, mask=bd.mask).data, rows="clear"
+    )
 
 
 def transform_pairwise_data(bd):
@@ -1054,11 +1066,9 @@ def transform_pairwise_data(bd):
     """
     from nltools.algorithms.similarity import transform_pairwise
 
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data, new_Y = transform_pairwise(bd.data, bd.Y.to_numpy())
+    data, new_Y = transform_pairwise(bd.data, bd.Y.to_numpy())
     new_Y = np.where(np.asarray(new_Y) == -1, 0, new_Y)
-    out.Y = pl.DataFrame(new_Y)
-    return out
+    return _result_from_rows(bd, data, X=None, Y=pl.DataFrame(new_Y))
 
 
 def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator
@@ -1102,14 +1112,16 @@ def decompose(  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklea
 
     if axis == "images":
         out["decomposition_object"].fit(bd.data.T)
-        out["components"] = bd.create_empty()
-        out["components"].data = out["decomposition_object"].transform(bd.data.T).T
+        out["components"] = _result_from_array(
+            bd, out["decomposition_object"].transform(bd.data.T).T, rows="clear"
+        )
         out["weights"] = out["decomposition_object"].components_.T
     elif axis == "voxels":
         out["decomposition_object"].fit(bd.data)
         out["weights"] = out["decomposition_object"].transform(bd.data)
-        out["components"] = bd.create_empty()
-        out["components"].data = out["decomposition_object"].components_
+        out["components"] = _result_from_array(
+            bd, out["decomposition_object"].components_, rows="clear"
+        )
     return out
 
 
@@ -1192,28 +1204,25 @@ def align(bd, target, method="procrustes", axis=0):
         # # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
 
-        transformation = _copy_without_fit_state(bd, copy_data=False)
-        transformation.data = U.dot(V).T
+        transformation = _result_from_array(bd, U.dot(V).T, rows="clear")
         out["transformation_matrix"] = transformation
 
         out["transformed"] = data1.dot(out["transformation_matrix"].data.T)
-        out["common_model"] = target
+        out["common_model"] = np.array(target, copy=True)
     elif method == "procrustes":
         _, transformed, out["disparity"], tf_mtx, out["scale"] = procrustes(
             data2, data1
         )
-        transformed_brain = _copy_without_fit_state(bd, copy_data=False)
-        transformed_brain.data = transformed
-        out["transformed"] = transformed_brain
-        out["common_model"] = target
-        out["transformation_matrix"] = _copy_without_fit_state(
-            transformed_brain, copy_data=False
+        transformed_brain = _result_from_array(
+            bd, transformed.T if axis == 1 else transformed, rows="preserve"
         )
-        out["transformation_matrix"].data = tf_mtx
+        out["transformed"] = transformed_brain
+        out["common_model"] = _result_from_array(target, target.data, rows="clear")
+        out["transformation_matrix"] = _result_from_array(
+            transformed_brain, tf_mtx, rows="clear"
+        )
     if axis == 1:
-        if method == "procrustes":
-            out["transformed"].data = out["transformed"].data.T
-        else:
+        if method != "procrustes":
             out["transformed"] = out["transformed"].T
 
     return out
@@ -1243,8 +1252,7 @@ def smooth(bd, fwhm):
     if check_brain_data_is_single(bd):
         smoothed_data = smoothed_data.flatten()
 
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data = smoothed_data
+    out = _result_from_array(bd, smoothed_data, rows="preserve")
 
     return out
 
@@ -1308,6 +1316,5 @@ def temporal_resample(bd, *, sampling_freq=None, target=None, target_type="hz"):
     for i in range(bd.shape[1]):
         interpolate = pchip(orig_spacing, bd.data[:, i])
         resampled_data[:, i] = interpolate(new_spacing)
-    out = _copy_without_fit_state(bd, copy_data=False)
-    out.data = resampled_data
+    out = _result_from_rows(bd, resampled_data, X=None, Y=None)
     return out

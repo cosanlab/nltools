@@ -57,7 +57,7 @@ def standardize(
 ) -> DesignMatrix:
     """Standardize columns using the specified method.
 
-    Provides the same normalization API as `BrainData` and `BrainCollection`.
+    Provides the same normalization API as `BrainData`.
 
     Args:
         dm (DesignMatrix): DesignMatrix instance to transform.

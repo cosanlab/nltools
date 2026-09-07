@@ -8,7 +8,6 @@ from benchmarks.workloads import (
     make_braindata,
     make_labels,
     make_mask,
-    make_ondisk_subjects,
     make_regression_arrays,
 )
 
@@ -33,20 +32,3 @@ def test_make_labels_range():
     labels = make_labels(50, n_classes=2)
     assert labels.shape == (50,)
     assert set(np.unique(labels)).issubset({0, 1})
-
-
-def test_make_ondisk_subjects_loads_into_collection(tmp_path):
-    from nltools.data import BrainCollection
-
-    paths, mask_path = make_ondisk_subjects(
-        tmp_path, n_subjects=3, n_images=8, n_voxels=500
-    )
-    assert len(paths) == 3
-    assert all(p.exists() for p in paths)
-
-    bc = BrainCollection(
-        [str(p) for p in paths], mask=str(mask_path), lazy=True, cache_dir=None
-    )
-    assert bc.n_subjects == 3
-    # A masked load yields (n_images, n_voxels) per subject.
-    assert bc[0].data.shape == (8, 500)

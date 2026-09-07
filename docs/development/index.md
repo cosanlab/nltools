@@ -10,8 +10,7 @@ coding assistants working in the repo). It documents *how* nltools is built and 
 — the invariants that keep the codebase coherent. For *what the public API does*, see
 the reference: the [data classes](../api/data/brain_data.md), the
 [functions by task](../api/tasks/loading.md), and the
-[`nltools.algorithms` A–Z index](../api/algorithms.md); for a visual, interactive
-walkthrough, see the [Design Tour](/design-tour.html).
+[`nltools.algorithms` A–Z index](../api/algorithms.md); for release recovery scope, see the [recovery inventory](recovery-plan.md).
 
 ## Functional core, imperative shell
 
@@ -20,17 +19,16 @@ logic lives in pure functions.**
 
 | Layer | Role | Where |
 |---|---|---|
-| **Imperative shell** | Four data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix,collection}/` |
+| **Imperative shell** | Three data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix}/` |
 | **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, …), `utils`, `cross_validation`, `mask` |
 | **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference,ridge}/` |
 
-The four facades and their submodules:
+The three facades and their submodules:
 
 - **`BrainData`** — `io` · `analysis` · `modeling` · `prediction` · `bootstrap` ·
   `neighborhoods` · `cache` · `plotting` · `viewer` · `validation`
 - **`Adjacency`** — `io` · `modeling` · `stats` · `spatial` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
-- **`BrainCollection`** — `core` · `execution` · `inference` · `io`
 
 ### Design rules
 
@@ -68,7 +66,7 @@ The four facades and their submodules:
 (canonical-api-vocabulary)=
 ### Canonical API vocabulary
 
-The four facades share one kwarg vocabulary (v0.6.0). The machine-readable source of
+The three facades share one kwarg vocabulary (v0.6.0). The machine-readable source of
 truth is [`docs/_data/api-vocabulary.yml`](https://github.com/cosanlab/nltools/blob/main/docs/_data/api-vocabulary.yml),
 which also carries the enforcement rules `scripts/check_api_vocabulary.py` checks every
 public signature against in CI. The table below is rendered from it:
@@ -97,11 +95,15 @@ public signature against in CI. The table below is rendered from it:
 
 ## The internals pages
 
-- **[Execution model](execution-model.md)** — how `BrainCollection` runs per-subject
-  work in parallel: path-backed-by-default caching, the `cache=` knob, HDF5 fit bundles,
-  the pickling contract, and parallel write safety.
 - **[Ridge internals](ridge-internals.md)** — the six mathematical tricks behind the
   GPU-accelerated ridge solver, and the backend abstraction.
 - **[Inference internals](inference-internals.md)** — permutation and bootstrap testing:
   the algorithms, deterministic cross-backend RNG, p-value calculation, and numerical
   stability.
+
+## Deferred 0.6.1 design
+
+`BrainCollection` and its exclusive execution, persistence, and prediction support
+are deferred to 0.6.1. The [collection specification](specs/braincollection.md) and
+[execution design](execution-model.md) preserve that work. Shared HDF5 persistence,
+searchlight caching, estimators, alignment, and inference remain in 0.6.0.

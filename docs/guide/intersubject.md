@@ -23,9 +23,6 @@ Leave-one-out ISC | [`isc_permutation_test`](../api/tasks/intersubject.md#tasks-
 Region-to-region | [`isfc`](../api/tasks/intersubject.md#tasks-intersubject-isfc) | Takes a list of per-subject `(n_obs, n_regions)` matrices
 Moment-to-moment synchrony | [`isps`](../api/tasks/intersubject.md#tasks-intersubject-isps) | Band-limited phase synchrony; set `sampling_freq=` and the band
 Compare two groups | [`isc_group`](../api/tasks/intersubject.md#tasks-intersubject-isc-group) | `method='permute'` shuffles group labels; `'bootstrap'` resamples
-Whole-brain ISC map | [`BrainCollection.isc`](../api/data/brain_collection.md#data-brain-collection-isc)`(method='loo')` | Streams; peak memory ~2 subjects regardless of N
-Whole-brain ISC + p-values | [`BrainCollection.isc_test`](../api/data/brain_collection.md#data-brain-collection-isc-test) | Bootstrap over subjects; needs all subjects resident
-Restrict to a region | `bc.isc(roi_mask=...)` | Same call, fewer voxels
 
 ## One timeseries
 
@@ -50,25 +47,9 @@ conn = isfc(per_subject_matrices, method="average")
 phase = isps(data, sampling_freq=0.5, low_cut=0.04, high_cut=0.07)
 ```
 
-## Whole brain, across subjects
-
-```python
-bc = BrainCollection(brains, mask=mask)
-
-isc_map = bc.isc(method="loo", summary="median")          # {'isc', 'per_subject'}
-tested = bc.isc_test(method="loo", n_samples=1000, summary="median", random_state=0)
-```
-
-`method='loo'` correlates each subject against the average of the others and streams the data, so
-memory stays at roughly two subjects no matter how many you have. `method='pairwise'` computes all
-`n(n-1)/2` pairs and has to materialize every subject; so does `isc_test`, which needs random
-subject access across bootstrap draws.
-
 ## Gotchas
 
-- `BrainCollection.isc` and `isc_test` accept neither `n_jobs` nor `device`. They are streaming
-  reductions, not per-subject parallel operations. The array-level `isc_permutation_test` is where
-  `device='gpu'` lives, and it pays off for long timeseries with many permutations. See
+- `isc_permutation_test` accepts `device="gpu"` for array-level inference. See
   [Performance & GPU](../performance.md).
 - `exclude_self_corr=True` (the default) sets a subject's correlation with itself to NaN when the
   bootstrap draws them twice. Turning it off inflates ISC.

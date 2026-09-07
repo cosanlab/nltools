@@ -2,7 +2,7 @@
 
 A small harness for measuring **speed and memory** of nltools at realistic
 neuroimaging scales, across the CPU (NumPy) and GPU (PyTorch MPS/CUDA) backends.
-It benchmarks the user-facing API (`BrainData.fit`/`.predict`, `BrainCollection`)
+It benchmarks the user-facing API (`BrainData.fit`/`.predict`)
 alongside the algorithm-layer primitives (`ridge_cv`, permutation tests).
 
 ## Layout
@@ -14,7 +14,6 @@ benchmarks/
   bench_ridge.py     # ridge_cv + BrainData.fit(model='ridge'), CPU vs GPU
   bench_predict.py   # BrainData.predict across whole_brain / roi / searchlight
   bench_inference.py # permutation tests (one/two-sample, correlation), CPU vs GPU
-  bench_collection.py# BrainCollection over N subjects: lazy vs in-memory, n_jobs
   run.py             # CLI: run domains, write results/<host>.parquet + env.json
   build_docs.py      # regenerate docs/performance.md tables from the artifact
   results/           # committed parquet artifacts + env.json provenance
@@ -29,8 +28,7 @@ Every condition runs `reps` timed repetitions after a warmup, recording:
 - **peak RSS** — process resident-set high-water mark, sampled on a background
   thread (the headline for array/tensor workloads). Joblib/loky workers are
   separate processes, so their memory is not in the main-process RSS — this is
-  most meaningful for single-process ops (e.g. `BrainCollection` lazy vs
-  in-memory).
+  most meaningful for single-process ops (e.g. BrainData fitting).
 - **peak GPU** — CUDA `max_memory_allocated` (exact) or an MPS allocated-delta
   proxy (no true-peak API on MPS).
 
@@ -47,7 +45,7 @@ uv run python -m benchmarks.run
 uv run python -m benchmarks.run --quick
 
 # A subset, more reps, tagged artifact:
-uv run python -m benchmarks.run --domains ridge collection --reps 5 --tag trial
+uv run python -m benchmarks.run --domains ridge inference --reps 5 --tag trial
 
 # See what would run:
 uv run python -m benchmarks.run --dry-run
@@ -82,6 +80,3 @@ and register the module in `run.py`'s `DOMAINS`. Add a case to
   paths keep float64. Speed comparisons are like-for-like on float32 inputs.
 - **Searchlight** cost is O(n_voxels) model fits — it is swept at a small voxel
   count on purpose.
-- **`BrainCollection` memory** is the reason the collection benchmark exists:
-  lazy/path-backed mode should keep peak RSS ~flat as N subjects grows, while
-  `lazy=False` scales with N.

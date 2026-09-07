@@ -1,5 +1,8 @@
 # Ridge specification
 
+> Release scope: BrainCollection and collection-only requirements in this specification
+> are deferred to 0.6.1. Retained BrainData and estimator contracts remain targets for 0.6.0.
+
 This file specifies `nltools.models.Ridge` and its Himalaya adapter. Code,
 tests, and docstrings must implement this contract. Compatibility notes and
 migration history belong elsewhere.

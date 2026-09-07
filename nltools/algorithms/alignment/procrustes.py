@@ -77,11 +77,10 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
         )
 
     if isinstance(data[0], BrainData):
-        from nltools.data.braindata.utils import _copy_without_fit_state
+        from nltools.data.braindata.utils import _result_from_array
 
         data_type = "BrainData"
-        data_out = [_copy_without_fit_state(x, copy_data=False) for x in data]
-        transformation_out = [_copy_without_fit_state(x, copy_data=False) for x in data]
+        sources = data.copy()
         data = [np.array(x.data.T, copy=True) for x in data]
     elif isinstance(data[0], np.ndarray):
         data_type = "numpy"
@@ -145,18 +144,20 @@ def align(  # nosemgrep: kwargs-internal-forwarding  # forwards to the SRM/DetSR
 
     if data_type == "BrainData":
         if method == "procrustes":
-            for i, x in enumerate(out["transformed"]):
-                data_out[i].data = x.T
-                out["transformed"] = data_out
-            common = _copy_without_fit_state(data_out[0], copy_data=False)
-            common.data = out["common_model"]
-            out["common_model"] = common
+            out["transformed"] = [
+                _result_from_array(source, values.T, rows="preserve")
+                for source, values in zip(sources, out["transformed"])
+            ]
+            out["common_model"] = _result_from_array(
+                sources[0], out["common_model"], rows="clear"
+            )
         else:
             out["transformed"] = [x.T for x in out["transformed"]]
 
-        for i, x in enumerate(out["transformation_matrix"]):
-            transformation_out[i].data = x.T
-        out["transformation_matrix"] = transformation_out
+        out["transformation_matrix"] = [
+            _result_from_array(source, values.T, rows="clear")
+            for source, values in zip(sources, out["transformation_matrix"])
+        ]
 
     # Calculate Intersubject Correlation (ISC) on final transformed data
     # ISC measures correlation along the aligned dimension:

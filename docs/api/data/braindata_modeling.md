@@ -342,8 +342,7 @@ resolve_preprocessing_defaults(model, scale, standardize)
 
 Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
 
-Single source of truth shared by ``BrainData.fit`` and ``BrainCollection.fit``
-so both facades agree on per-model defaults. ``scale`` (percent-signal-change)
+Per-model defaults for ``BrainData.fit``. ``scale`` (percent-signal-change)
 is opt-in for both models. Ridge standardizes its targets by default so a
 shared alpha regularizes voxels fairly; GLM does neither so betas stay in
 native units.

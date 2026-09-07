@@ -12,7 +12,6 @@ by the artifact stem, e.g. ``pikachu`` / ``Eshin-M3-Air-mps``) so an MPS run and
 a CUDA run coexist without their rows colliding. Per host:
 - **Speed + memory per domain** — every condition (sec, peak RSS, GPU MB).
 - **GPU speedup** (ridge, inference) — CPU vs GPU seconds paired by condition.
-- **Memory: lazy vs in-memory** (collection) — peak RSS as N subjects grows.
 """
 
 from __future__ import annotations
@@ -116,29 +115,6 @@ def _speedup_table(df: pl.DataFrame, domain: str) -> str:
     return "\n".join(lines)
 
 
-def _collection_memory_table(df: pl.DataFrame) -> str:
-    sub = df.filter((pl.col("domain") == "collection") & (pl.col("p_op") == "mean"))
-    if sub.is_empty():
-        return ""
-    piv = (
-        sub.group_by("p_n_subjects", "p_mode")
-        .agg(pl.col("peak_rss_mb").max())
-        .pivot(values="peak_rss_mb", index="p_n_subjects", on="p_mode")
-        .sort("p_n_subjects")
-    )
-    lines = [
-        "#### collection — peak RSS: lazy vs in-memory `.mean()`",
-        "",
-        "| N subjects | lazy | in-memory |",
-        "|---:|--:|--:|",
-    ]
-    for r in piv.iter_rows(named=True):
-        lazy = f"{r['lazy']:.1f} MB" if r.get("lazy") is not None else "-"
-        inmem = f"{r['in_memory']:.1f} MB" if r.get("in_memory") is not None else "-"
-        lines.append(f"| {r['p_n_subjects']} | {lazy} | {inmem} |")
-    return "\n".join(lines)
-
-
 def _host_section(df_host: pl.DataFrame, host: str, env: dict) -> list[str]:
     """One host's provenance + speedup + memory + full-results tables."""
     title = env.get("host", host)
@@ -146,11 +122,8 @@ def _host_section(df_host: pl.DataFrame, host: str, env: dict) -> list[str]:
     speedups = [t for d in ("ridge", "inference") if (t := _speedup_table(df_host, d))]
     if speedups:
         parts += ["**GPU speedup**", "", *_join(speedups)]
-    mem = _collection_memory_table(df_host)
-    if mem:
-        parts += ["**Memory scaling**", "", mem, ""]
     parts += ["**Full results**", ""]
-    for domain in ("ridge", "predict", "inference", "collection"):
+    for domain in ("ridge", "predict", "inference"):
         if not df_host.filter(pl.col("domain") == domain).is_empty():
             parts += [_domain_table(df_host, domain), ""]
     return parts

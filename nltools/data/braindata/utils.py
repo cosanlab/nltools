@@ -53,8 +53,6 @@ _PREDICTION_STATE_ATTRIBUTES = (
     "predict_weight_map",
     "predict_fold_weight_maps",
     "predict_estimator",
-    "predict_permutation_scores",
-    "predict_permutation_pvalue",
 )
 
 _FIT_STATE_ATTRIBUTES = (
@@ -92,56 +90,147 @@ def _clear_fit_state(bd):
             delattr(bd, name)
 
 
-def _copy_without_fit_state(bd, *, copy_data=True, independent=False):
-    """Create a result-shaped BrainData without derived model state.
-
-    By default, the data buffer and mutable metadata are copied while the mask
-    and masker are shared. Callers that immediately replace ``data`` can opt
-    out of that copy. With ``independent=True``, all retained state is
-    deep-copied. Every mode omits fitted/prediction state and resets
-    ``design_matrix`` to ``None``.
-
-    Args:
-        bd (BrainData): Instance to copy.
-        copy_data (bool): Copy the data buffer. Default True.
-        independent (bool): Deep-copy retained structure and data. Default False.
-
-    Returns:
-        BrainData: Clean derived instance.
-    """
-    from . import BrainData
-
-    new = BrainData.__new__(BrainData)
-    memo = {id(bd): new}
-
-    for key, value in bd.__dict__.items():
-        if key in _FIT_STATE_ATTRIBUTES:
-            if key == "design_matrix":
-                new.design_matrix = None
-            continue
-        if key == "data":
-            setattr(
-                new,
-                key,
-                deepcopy(value, memo) if independent or copy_data else value,
-            )
-        elif independent:
-            setattr(new, key, deepcopy(value, memo))
-        elif key in ("mask", "masker"):
-            setattr(new, key, value)
-        elif key in ("_X", "_Y"):
-            import polars as pl
-
-            setattr(
-                new, key, value.clone() if isinstance(value, pl.DataFrame) else value
-            )
-        else:
-            setattr(new, key, deepcopy(value, memo))
-
-    if not hasattr(new, "design_matrix"):
-        new.design_matrix = None
-
+def _copy_graph(source, *, memo=None, exclude=(), replacements=None):
+    """Copy one retained object graph, preserving its internal aliases."""
+    if memo is None:
+        memo = {}
+    if id(source) in memo:
+        return memo[id(source)]
+    new = type(source).__new__(type(source))
+    memo[id(source)] = new
+    values = {
+        key: value for key, value in source.__dict__.items() if key not in exclude
+    }
+    if replacements is not None:
+        values.update(replacements)
+    _copy_object_frames(values, memo)
+    for key, value in values.items():
+        setattr(new, key, deepcopy(value, memo))
     return new
+
+
+def _copy_object_frames(values, memo):
+    """Prepare Polars Object cells for deepcopy without sharing Python objects."""
+    import polars as pl
+
+    frames = []
+    seen = set()
+
+    def discover(value):
+        if id(value) in seen or id(value) in memo:
+            return
+        seen.add(id(value))
+        if isinstance(value, pl.DataFrame):
+            frames.append(value)
+            for series in value:
+                if series.dtype == pl.Object:
+                    for cell in series:
+                        discover(cell)
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                discover(key)
+                discover(item)
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                discover(item)
+
+    discover(values)
+    # Register all frames first, including frames referred to by Object cells.
+    # The common memo preserves cycles and cell aliases across metadata frames.
+    for frame in frames:
+        memo[id(frame)] = frame.clone()
+    for frame in frames:
+        for index, series in enumerate(frame):
+            if series.dtype == pl.Object:
+                memo[id(frame)].replace_column(
+                    index,
+                    pl.Series(
+                        series.name,
+                        [deepcopy(cell, memo) for cell in series],
+                        dtype=pl.Object,
+                    ),
+                )
+
+
+def _copy_complete(source, memo=None):
+    """Return a complete independently owned snapshot."""
+    return _copy_graph(source, memo=memo)
+
+
+def _copy_for_fit(source):
+    """Copy retained state without traversing obsolete fitted attributes."""
+    return _copy_graph(
+        source, exclude=_FIT_STATE_ATTRIBUTES, replacements={"design_matrix": None}
+    )
+
+
+def _row_values(data, X, Y):
+    """Validate the complete replacement row state before graph construction."""
+    from .validation import validate_frame
+
+    data = np.asarray(data)
+    count = 0 if data.size == 0 else (1 if data.ndim == 1 else data.shape[0])
+    X, Y = validate_frame(X, frame_type="X"), validate_frame(Y, frame_type="Y")
+    for name, frame in (("X", X), ("Y", Y)):
+        if not frame.is_empty() and frame.height != count:
+            raise ValueError(
+                f"{name} has {frame.height} rows but result data has {count} rows"
+            )
+    return {"data": data, "_X": X, "_Y": Y, "design_matrix": None}
+
+
+def _result_from_rows(source, data, *, X, Y):
+    """Construct independently owned data with complete replacement row metadata."""
+    return _copy_graph(
+        source, exclude=_FIT_STATE_ATTRIBUTES, replacements=_row_values(data, X, Y)
+    )
+
+
+def _result_from_array(source, data, *, rows):
+    """Construct a result with an explicit observation-row policy."""
+    if rows not in ("preserve", "clear"):
+        raise ValueError("rows must be 'preserve' or 'clear'")
+    return _result_from_rows(
+        source,
+        data,
+        X=source.X if rows == "preserve" else None,
+        Y=source.Y if rows == "preserve" else None,
+    )
+
+
+def _result_from_selection(source, index):
+    """Apply one observation selection to data and both metadata frames."""
+    if not isinstance(index, (int, np.integer, slice)):
+        index = np.asarray(index).flatten()
+    data = source.data[index, :]
+    if not isinstance(index, slice) and data.ndim == 2 and data.shape[0] == 1:
+        data = data[0]
+    return _result_from_rows(
+        source,
+        data,
+        X=_polars_row_select(source.X, index),
+        Y=_polars_row_select(source.Y, index),
+    )
+
+
+def _result_with_mask(source, data, mask, *, rows):
+    """Install independent replacement spatial state for a changed voxel axis."""
+    from .io import initialize_mask
+
+    data = np.asarray(data)
+    if data.size and data.shape[-1] != int(np.count_nonzero(mask.get_fdata() > 0)):
+        raise ValueError("Result voxel axis must match replacement mask support")
+    if rows not in ("preserve", "clear"):
+        raise ValueError("rows must be 'preserve' or 'clear'")
+    values = _row_values(
+        data,
+        source.X if rows == "preserve" else None,
+        source.Y if rows == "preserve" else None,
+    )
+    values.update({"mask": mask, "masker": None, "_labels": None})
+    result = _copy_graph(source, exclude=_FIT_STATE_ATTRIBUTES, replacements=values)
+    initialize_mask(result, result.mask)
+    return result
 
 
 def perform_arithmetic(
@@ -183,11 +272,16 @@ def perform_arithmetic(
             )
         result_data = np.dot(bd.data.T, other).T
 
-    new = bd if inplace else _copy_without_fit_state(bd, copy_data=False)
     if inplace:
-        _clear_fit_state(new)
-    new.data = result_data
-    return new
+        _clear_fit_state(bd)
+        bd.data = result_data
+        if operand_type == "array":
+            bd.X = None
+            bd.Y = None
+        return bd
+    return _result_from_array(
+        bd, result_data, rows="clear" if operand_type == "array" else "preserve"
+    )
 
 
 def apply_func(bd, stat_func, axis=0):
@@ -213,13 +307,7 @@ def apply_func(bd, stat_func, axis=0):
     if axis == 1:
         return stat_func(bd.data, axis=1)
     if axis == 0:
-        import polars as pl
-
-        out = _copy_without_fit_state(bd, copy_data=False)
-        out.data = stat_func(bd.data, axis=0)
-        out.X = pl.DataFrame()
-        out.Y = pl.DataFrame()
-        return out
+        return _result_from_array(bd, stat_func(bd.data, axis=0), rows="clear")
     raise ValueError("axis must be 0 or 1")
 
 

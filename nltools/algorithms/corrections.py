@@ -82,7 +82,7 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         image by the p-values of another.
     """
     from nltools.data import BrainData
-    from nltools.data.braindata.utils import _copy_without_fit_state
+    from nltools.data.braindata.utils import _result_from_array
 
     if not isinstance(stat, BrainData):
         raise ValueError("Make sure stat is a BrainData instance")
@@ -114,13 +114,11 @@ def threshold(stat, p, thr=0.05, return_mask=False):
         thresholded_data = np.zeros(len(stat.data), dtype=float)
 
     # Create output BrainData with same mask as stat
-    out = _copy_without_fit_state(stat, copy_data=False)
-    out.data = thresholded_data
+    out = _result_from_array(stat, thresholded_data, rows="clear")
 
     if return_mask:
         # Create mask BrainData with same mask as p
-        mask = _copy_without_fit_state(p, copy_data=False)
-        mask.data = p_mask
+        mask = _result_from_array(p, p_mask, rows="clear")
         return out, mask
     return out
 
@@ -179,9 +177,8 @@ def multi_threshold(t_map, p_map, thresh):
     cumulative_data = pos_out - neg_out
 
     # Create output BrainData with cumulative map
-    from nltools.data.braindata.utils import _copy_without_fit_state
+    from nltools.data.braindata.utils import _result_from_array
 
-    out = _copy_without_fit_state(t_map, copy_data=False)
-    out.data = cumulative_data
+    out = _result_from_array(t_map, cumulative_data, rows="clear")
 
     return out

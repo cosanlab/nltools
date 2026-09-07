@@ -56,12 +56,10 @@ nltools provides two computational backends:
 The harness produces one artifact per host, and the block below renders one
 section per host: an Apple-Silicon **MPS** run (`Eshin-M3-Air`) and an NVIDIA
 **CUDA** run (`pikachu`, a GB10/aarch64 box). Both are at whole-brain-ish 3mm
-scale (~20k voxels; `BrainCollection` over 20–50 on-disk subjects). At this size
+scale (~20k voxels). At this size
 ridge is dominated by parallel-pool setup, so CPU≈MPS on Apple Silicon; **CUDA
 already pulls ahead** (1.4–1.6× on ridge, 2–4× on permutation inference), and the
-larger GPU wins land at 2mm (~230k voxels). The other standouts are the
-`BrainCollection` **memory** story (lazy peak RSS stays flat as N grows) and CPU
-parallel scaling, below.
+larger GPU wins land at 2mm (~230k voxels). CPU parallel scaling is also reported below.
 :::
 
 <!-- BENCH:START -->
@@ -98,15 +96,6 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 | `one_sample[perm=3000]` | 576.3 ms | 438.5 ms | **1.31×** |
 | `two_sample[perm=1000]` | 264.9 ms | 173.3 ms | **1.53×** |
 | `two_sample[perm=3000]` | 397.9 ms | 501.5 ms | **0.79×** |
-
-**Memory scaling**
-
-#### collection — peak RSS: lazy vs in-memory `.mean()`
-
-| N subjects | lazy | in-memory |
-|---:|--:|--:|
-| 20 | 0.0 MB | 29.9 MB |
-| 50 | 0.0 MB | 103.3 MB |
 
 **Full results**
 
@@ -145,19 +134,6 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 | `two_sample[perm=3000]` | cpu | 397.9 ms | 10.9 MB | - |
 | `two_sample[perm=3000]` | mps | 501.5 ms | 2.9 MB | - |
 
-#### collection
-
-| Condition | Device | Time | Peak RSS | GPU mem |
-|---|---|--:|--:|--:|
-| `apply[standardize,N=20,n_jobs=-1]` | cpu | 520.4 ms | 36.0 MB | - |
-| `apply[standardize,N=20,n_jobs=1]` | cpu | 1.72 s | 12.9 MB | - |
-| `apply[standardize,N=50,n_jobs=-1]` | cpu | 1.30 s | 28.1 MB | - |
-| `apply[standardize,N=50,n_jobs=1]` | cpu | 4.29 s | 69.5 MB | - |
-| `mean[in_memory,N=20]` | cpu | 2.84 s | 29.9 MB | - |
-| `mean[in_memory,N=50]` | cpu | 7.13 s | 103.3 MB | - |
-| `mean[lazy,N=20]` | cpu | 2.86 s | 0.0 MB | - |
-| `mean[lazy,N=50]` | cpu | 7.19 s | 0.0 MB | - |
-
 ### `pikachu.ucsd.edu`
 
 **Host:** `pikachu.ucsd.edu`  
@@ -187,15 +163,6 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 | `one_sample[perm=3000]` | 774.0 ms | 279.9 ms | **2.77×** |
 | `two_sample[perm=1000]` | 285.9 ms | 97.5 ms | **2.93×** |
 | `two_sample[perm=3000]` | 609.9 ms | 285.3 ms | **2.14×** |
-
-**Memory scaling**
-
-#### collection — peak RSS: lazy vs in-memory `.mean()`
-
-| N subjects | lazy | in-memory |
-|---:|--:|--:|
-| 20 | 97.3 MB | 198.3 MB |
-| 50 | 99.8 MB | 326.3 MB |
 
 **Full results**
 
@@ -233,19 +200,6 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 | `two_sample[perm=1000]` | cuda | 97.5 ms | 21.0 MB | 77 MB |
 | `two_sample[perm=3000]` | cpu | 609.9 ms | 240.1 MB | - |
 | `two_sample[perm=3000]` | cuda | 285.3 ms | 180.8 MB | 158 MB |
-
-#### collection
-
-| Condition | Device | Time | Peak RSS | GPU mem |
-|---|---|--:|--:|--:|
-| `apply[standardize,N=20,n_jobs=-1]` | cpu | 281.9 ms | 38.4 MB | - |
-| `apply[standardize,N=20,n_jobs=1]` | cpu | 2.25 s | 131.1 MB | - |
-| `apply[standardize,N=50,n_jobs=-1]` | cpu | 561.8 ms | 38.4 MB | - |
-| `apply[standardize,N=50,n_jobs=1]` | cpu | 5.17 s | 258.7 MB | - |
-| `mean[in_memory,N=20]` | cpu | 830.2 ms | 198.3 MB | - |
-| `mean[in_memory,N=50]` | cpu | 1.95 s | 326.3 MB | - |
-| `mean[lazy,N=20]` | cpu | 795.8 ms | 97.3 MB | - |
-| `mean[lazy,N=50]` | cpu | 1.86 s | 99.8 MB | - |
 <!-- BENCH:END -->
 
 ---
@@ -444,11 +398,10 @@ from each artifact's `.env.json`). The runs currently committed are an
 Apple-Silicon MPS box and a GB10/aarch64 CUDA box (`pikachu`).
 
 ### Benchmark domains
-The harness (`benchmarks/`) sweeps four domains at realistic neuroimaging scale:
+The harness (`benchmarks/`) sweeps three domains at realistic neuroimaging scale:
 1. **ridge** — `ridge_cv` + `BrainData.fit(model='ridge')`, CPU vs GPU.
 2. **predict** — `BrainData.predict` across `whole_brain` / `roi` / `searchlight`.
 3. **inference** — one-/two-sample and correlation permutation tests, CPU vs GPU.
-4. **collection** — `BrainCollection` over N subjects: lazy vs in-memory, `n_jobs`.
 
 ### Metrics
 - **Execution time**: median wall-clock across timed reps (after a warmup).

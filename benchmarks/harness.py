@@ -8,7 +8,7 @@ each workload's real cost is visible:
   on a background thread (true peak, catches transient balloons). The headline
   for array/tensor workloads. Note: joblib/loky workers are separate processes,
   so their memory is not in the main-process RSS — this metric is most meaningful
-  for single-process ops (e.g. `BrainCollection` lazy vs in-memory).
+  for single-process ops (e.g. BrainData fitting).
 - **peak_device_mb** — GPU allocator peak (CUDA: exact via
   ``max_memory_allocated``; MPS: allocated-delta proxy, no true-peak API).
 
@@ -206,7 +206,7 @@ def benchmark(
     Args:
         fn: Operation to benchmark. Called as ``fn(setup())`` when ``setup`` is
             given (fresh per-rep input, e.g. for write benchmarks), else ``fn()``.
-        domain: Coarse group (``"ridge"``, ``"inference"``, ``"collection"``, ...).
+        domain: Coarse group (``"ridge"``, ``"inference"``, ``"predict"``).
         name: Specific condition label.
         device: ``"cpu"``, ``"mps"``, or ``"cuda"`` — selects the device probe.
         reps: Timed repetitions; ``seconds`` is their median.

@@ -27,8 +27,6 @@ Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this regi
 Voxel-by-voxel | `spatial_scale='searchlight', radius_mm=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
 Classifier performance | [`Roc`](../api/tasks/prediction.md#tasks-prediction-roc) | `calculate()` then `summary()` or `plot()`
 Encoding (features → voxels) | [`ridge_cv`](../api/tasks/prediction.md#tasks-prediction-ridge-cv), [`ridge_svd`](../api/tasks/prediction.md#tasks-prediction-ridge-svd), [`Ridge`](../api/models.md#models-ridge) | `Ridge(local_alpha=True)` picks a per-voxel alpha; a list of feature spaces makes it banded
-One model per subject | [`BrainCollection.predict`](../api/data/brain_collection.md#data-brain-collection-predict) | Returns a [`PredictCollection`](../api/data/fitresults.md#data-fitresults-predictcollection)
-One model across subjects | [`BrainCollection.predict_group`](../api/data/brain_collection.md#data-brain-collection-predict-group) | Pools every image; `cv='logo'` by default so folds respect subjects
 
 ## Decoding
 
@@ -79,7 +77,7 @@ see [Performance & GPU](../performance.md).
 - `standardize=True` (the default) z-scores voxels *inside* each training fold, not before the
   split, so there is no leakage.
 - `n_jobs` defaults to `1` on `BrainData.predict` because searchlight copies the brain into every
-  worker, and because collection-level parallelism already nests around it.
+  worker.
 - A ROC on a regression model's `predictions` needs a binary `binary_outcome`. Pass the labels,
   not the continuous target.
 

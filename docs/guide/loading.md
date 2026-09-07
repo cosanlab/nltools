@@ -26,7 +26,6 @@ Example data | [`fetch_pain`](../api/tasks/loading.md#tasks-loading-fetch-pain),
 Bundled masks and atlases | [`list_resources`](../api/tasks/loading.md#tasks-loading-list-resources), [`fetch_resource`](../api/tasks/loading.md#tasks-loading-fetch-resource) | Returns a local path; parcellations live under `masks/`
 Published maps | [`fetch_neurovault_collection`](../api/tasks/loading.md#tasks-loading-fetch-neurovault-collection), [`download_nifti`](../api/tasks/loading.md#tasks-loading-download-nifti) | `BrainData` also accepts a URL directly
 Build a mask | [`create_sphere`](../api/tasks/loading.md#tasks-loading-create-sphere), [`expand_mask`](../api/tasks/loading.md#tasks-loading-expand-mask), [`collapse_mask`](../api/tasks/loading.md#tasks-loading-collapse-mask) | `expand_mask` turns one labeled atlas into per-ROI binary masks
-Many subjects | [`BrainCollection.from_paths`](../api/data/brain_collection.md#data-brain-collection-from-paths) / [`from_bids`](../api/data/brain_collection.md#data-brain-collection-from-bids) / [`from_glob`](../api/data/brain_collection.md#data-brain-collection-from-glob) | See [Working with many subjects](collections.md)
 Stack objects | [`concatenate`](../api/tasks/loading.md#tasks-loading-concatenate) | Works on lists of `BrainData` or `Adjacency`
 
 ## Loading

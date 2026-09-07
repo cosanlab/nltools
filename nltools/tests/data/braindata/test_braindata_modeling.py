@@ -251,7 +251,7 @@ class TestBrainDataModeling:
             10,
             minimal_brain_data.shape[1],
         )
-        assert minimal_brain_data.ridge_weights.mask is minimal_brain_data.mask
+        assert minimal_brain_data.ridge_weights.mask is not minimal_brain_data.mask
 
     # ==================== Fit inplace parameter tests ====================
 

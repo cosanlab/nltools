@@ -122,7 +122,6 @@ PAGES: tuple[Page, ...] = (
     _module_page("nltools.data.braindata.BrainData", "data/brain_data.md"),
     _module_page("nltools.data.adjacency.Adjacency", "data/adjacency.md"),
     _module_page("nltools.data.designmatrix.DesignMatrix", "data/design_matrix.md"),
-    _module_page("nltools.data.collection.BrainCollection", "data/brain_collection.md"),
     _module_page("nltools.data.results", "data/results.md"),
     _module_page("nltools.models", "models.md"),
     # --- functions by task --------------------------------------------------
@@ -210,9 +209,8 @@ PAGES: tuple[Page, ...] = (
     _task_page(
         "prediction",
         "Prediction & cross-validation",
-        "Decode or predict from brain data. `BrainData.predict` and "
-        "`BrainCollection.predict_group` run the workflow. Listed here are the "
-        "pieces they accept or return: the cross-validation schemes (`resolve_cv` "
+        "Decode or predict from brain data. `BrainData.predict` runs the workflow. Listed here are the "
+        "pieces it accepts or returns: the cross-validation schemes (`resolve_cv` "
         "turns an int, a name, or an sklearn splitter into one), the ridge solvers "
         "behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and "
         "the plots of weights, margins, and predictions.",
@@ -451,20 +449,6 @@ PAGES: tuple[Page, ...] = (
     _module_page(
         "nltools.data.designmatrix.io", "data/design_matrix_io.md", internal=True
     ),
-    _module_page(
-        "nltools.data.collection.core", "data/collection_core.md", internal=True
-    ),
-    _module_page(
-        "nltools.data.collection.execution",
-        "data/collection_execution.md",
-        internal=True,
-    ),
-    _module_page(
-        "nltools.data.collection.inference",
-        "data/collection_inference.md",
-        internal=True,
-    ),
-    _module_page("nltools.data.collection.io", "data/collection_io.md", internal=True),
 )
 
 

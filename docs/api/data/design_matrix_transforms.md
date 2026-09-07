@@ -65,7 +65,7 @@ standardize(dm: DesignMatrix, columns: list[str] | None = None, method: str = 'z
 
 Standardize columns using the specified method.
 
-Provides the same normalization API as `BrainData` and `BrainCollection`.
+Provides the same normalization API as `BrainData`.
 
 **Parameters:**
 

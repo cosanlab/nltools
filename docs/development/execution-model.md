@@ -3,13 +3,18 @@ title: Execution model (BrainCollection)
 description: How BrainCollection runs per-subject work in parallel — caching, HDF5 bundles, pickling, and write safety.
 ---
 
+> Deferred 0.6.1 design evidence. BrainCollection and this collection-only execution
+> subsystem are absent from 0.6.0. This document preserves the earlier implementation
+> design; the approved collection specification governs future implementation.
+
+
 # Execution model — `BrainCollection`
 
 `BrainCollection` saves users from writing for-loops over `BrainData`. It is a
 parallel, lazy iterator of `BrainData` whose API mirrors `BrainData`, with first-class
 `(BrainData, DesignMatrix)` pairing. This page documents the execution machinery that
-makes it memory-efficient. It is design reference, not API documentation — for method
-signatures see the [BrainCollection API](../api/data/brain_collection.md).
+makes it memory-efficient. This page is design reference. For the approved future contract, see the
+[BrainCollection specification](specs/braincollection.md).
 
 The machinery lives under `nltools/data/collection/`:
 

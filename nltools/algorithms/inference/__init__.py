@@ -31,8 +31,7 @@ References:
 
 Note:
     These are the functional core. The data classes wrap them —
-    `BrainData.ttest`, `BrainData.bootstrap`, `Adjacency.ttest`,
-    `BrainCollection.permutation_test`, `BrainCollection.isc` — and handle
+    `BrainData.ttest`, `BrainData.bootstrap`, `Adjacency.ttest` — and handle
     masking and result reshaping for you.
 """
 

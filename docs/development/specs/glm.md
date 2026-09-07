@@ -1,5 +1,8 @@
 # GLM specification
 
+> Release scope: BrainCollection and collection-only requirements in this specification
+> are deferred to 0.6.1. Retained BrainData and estimator contracts remain targets for 0.6.0.
+
 This file specifies `nltools.models.Glm` and its functional numerical core.
 Code, tests, and docstrings must implement this contract. Compatibility notes
 and migration history belong elsewhere.

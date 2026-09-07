@@ -646,7 +646,7 @@ def to_nifti(bd):
     img = unmask(bd.data, bd.mask)
     # unmask inherits the mask's dtype (often int8) for the output header, which
     # would scale-quantize float data to ~1 LSB on save — silently lossy for stat
-    # maps, betas, and the BrainCollection disk cache. Pin the on-disk dtype to the
+    # maps and betas. Pin the on-disk dtype to the
     # data's own so writes are lossless (integer masks stay integer, maps stay float).
     img.set_data_dtype(bd.data.dtype)
     return img

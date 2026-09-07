@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from .utils import _copy_without_fit_state
+from .utils import _result_from_array
 
 
 def bootstrap(
@@ -88,8 +88,7 @@ def bootstrap(
         for sample in bootstrap_samples:
             stats.update(sample.data)
         result = stats.get_results()  # keys: mean, std, Z, p, ci_lower, ci_upper
-        mean_brain = _copy_without_fit_state(brain, copy_data=False)
-        mean_brain.data = result['mean']
+        mean_brain = BrainData(result['mean'], mask=brain.mask)
         ```
 
     Note:
@@ -297,12 +296,11 @@ def convert_bootstrap_results_to_brain_data(
         out = {}
         for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
             if key in result:
-                out[key] = _copy_without_fit_state(bd, copy_data=False)
                 # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
                 data_2d = (
                     result[key] if result[key].ndim == 2 else result[key].reshape(1, -1)
                 )
-                out[key].data = data_2d
+                out[key] = _result_from_array(bd, data_2d, rows="clear")
         if "samples" in result:
             out["samples"] = result["samples"]
         return out
@@ -311,14 +309,12 @@ def convert_bootstrap_results_to_brain_data(
         out = {}
         for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
             if key in result:
-                out[key] = _copy_without_fit_state(bd, copy_data=False)
-                out[key].data = result[key]
+                out[key] = _result_from_array(bd, result[key], rows="clear")
         return out
     # Return BrainData with mean (for simple stats)
-    boot_mean = _copy_without_fit_state(bd, copy_data=False)
     # Reshape 1D arrays to 2D (1, n_voxels) for BrainData
     mean_2d = (
         result["mean"] if result["mean"].ndim == 2 else result["mean"].reshape(1, -1)
     )
-    boot_mean.data = mean_2d
+    boot_mean = _result_from_array(bd, mean_2d, rows="clear")
     return boot_mean

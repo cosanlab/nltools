@@ -2,7 +2,6 @@
 
 import os
 from collections.abc import Sequence
-from copy import deepcopy
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -192,15 +191,17 @@ class BrainData:
 
         return perform_arithmetic(self, y, np.add, "add")
 
+    def __copy__(self):
+        """Create an independent snapshot of all data and fitted state."""
+        from .utils import _copy_complete
+
+        return _copy_complete(self)
+
     def __deepcopy__(self, memo):
         """Create an independent snapshot of all data and fitted state."""
-        new = BrainData.__new__(BrainData)
-        memo[id(self)] = new
+        from .utils import _copy_complete
 
-        for key, value in self.__dict__.items():
-            setattr(new, key, deepcopy(value, memo))
-
-        return new
+        return _copy_complete(self, memo)
 
     def __eq__(self, other):
         """Check equality between BrainData."""
@@ -230,22 +231,9 @@ class BrainData:
         return eq_data and eq_X and eq_Y and eq_mask
 
     def __getitem__(self, index):
-        from .utils import _copy_without_fit_state, _polars_row_select
+        from .utils import _result_from_selection
 
-        new = _copy_without_fit_state(self, copy_data=False)
-        if isinstance(index, (int, np.integer)):
-            new.data = np.array(self.data[index, :]).squeeze()
-        elif isinstance(index, slice):
-            new.data = np.array(self.data[index, :], copy=True)
-        else:
-            index = np.array(index).flatten()
-            new.data = np.array(self.data[index, :]).squeeze()
-
-        if not self.Y.is_empty():
-            new.Y = _polars_row_select(self.Y, index)
-        if not self.X.is_empty():
-            new.X = _polars_row_select(self.X, index)
-        return new
+        return _result_from_selection(self, index)
 
     def __iadd__(self, y):
         """In-place addition (+=)."""
@@ -497,46 +485,51 @@ class BrainData:
 
         Args:
             data (BrainData): BrainData instance to append.
-            ignore_attrs (bool): If True, skip concatenation of X and Y
-                attributes. Useful when appending images where .X or .Y
-                have different column counts. Default False.
+            ignore_attrs (bool): Clear both X and Y on the result when True.
+                Otherwise, each metadata frame must be empty on both inputs or
+                have compatible columns on both inputs. Default False.
             **kwargs (dict): Currently ignored. X/Y are concatenated with polars'
                 ``pl.concat(..., how="vertical_relaxed")``, which takes no
                 caller-supplied options.
 
         Returns:
-            BrainData: New appended BrainData instance.
+            BrainData: Independently owned data with concatenated row metadata.
+
+        Raises:
+            ValueError: Metadata is present on only one input or has incompatible columns.
         """
-        from .utils import _copy_without_fit_state
+        from .utils import _result_from_rows
         from .validation import validate_append_shapes
+        import polars as pl
 
         data = check_brain_data(data)
-
         if self.is_empty:
-            out = _copy_without_fit_state(data)
-        else:
-            validate_append_shapes(self.shape, data.shape)
-
-            out = _copy_without_fit_state(self, copy_data=False)
-            out.data = np.vstack([self.data, data.data])
-
-            if not ignore_attrs:
-                import polars as pl
-
-                if not self.X.is_empty() and not data.X.is_empty():
-                    out.X = pl.concat([self.X, data.X], how="vertical_relaxed")
-                elif not data.X.is_empty():
-                    out.X = data.X
-
-                if not self.Y.is_empty() and not data.Y.is_empty():
-                    out.Y = pl.concat([self.Y, data.Y], how="vertical_relaxed")
-                elif not data.Y.is_empty():
-                    out.Y = data.Y
+            return _result_from_rows(
+                data,
+                data.data,
+                X=None if ignore_attrs else data.X,
+                Y=None if ignore_attrs else data.Y,
+            )
+        validate_append_shapes(self.shape, data.shape)
+        frames = []
+        for name in ("X", "Y"):
+            left, right = getattr(self, name), getattr(data, name)
+            if ignore_attrs or (left.is_empty() and right.is_empty()):
+                frames.append(None)
+            elif left.is_empty() or right.is_empty() or left.columns != right.columns:
+                raise ValueError(
+                    f"append requires compatible {name} metadata on both operands"
+                )
             else:
-                out.X = None
-                out.Y = None
-
-        return out
+                try:
+                    frames.append(pl.concat([left, right], how="vertical_relaxed"))
+                except pl.exceptions.SchemaError as error:
+                    raise ValueError(
+                        f"append requires compatible {name} metadata schemas"
+                    ) from error
+        return _result_from_rows(
+            self, np.vstack([self.data, data.data]), X=frames[0], Y=frames[1]
+        )
 
     @coalesced_gc()
     def apply_mask(self, mask, resample_mask_to_brain=False):
@@ -566,10 +559,9 @@ class BrainData:
         Returns:
             BrainData: BrainData instance with new datatype.
         """
-        from .utils import _copy_without_fit_state
+        from .utils import _result_from_array
 
-        out = _copy_without_fit_state(self, copy_data=False)
-        out.data = self.data.astype(dtype)
+        out = _result_from_array(self, self.data.astype(dtype), rows="preserve")
         return out
 
     def bootstrap(
@@ -742,11 +734,14 @@ class BrainData:
 
         Data, metadata, mask state, and any fitted model/results are copied.
         Mutating either object after copying does not affect the other.
+        Python's `copy.copy()` and `copy.deepcopy()` have the same semantics.
 
         Returns:
             BrainData: An independent copy, including fitted state.
         """
-        return deepcopy(self)
+        from .utils import _copy_complete
+
+        return _copy_complete(self)
 
     def create_empty(self):
         """Create a copy of BrainData with empty data array.
@@ -754,10 +749,9 @@ class BrainData:
         Returns:
             BrainData: A copy of this object with an empty data array.
         """
-        from .utils import _copy_without_fit_state
+        from .utils import _result_from_array
 
-        out = _copy_without_fit_state(self, copy_data=False)
-        out.data = np.array([])
+        out = _result_from_array(self, np.array([]), rows="clear")
         return out
 
     @coalesced_gc()  # nosemgrep: kwargs-internal-forwarding  # forwards to the sklearn decomposition estimator

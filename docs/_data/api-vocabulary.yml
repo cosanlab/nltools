@@ -220,16 +220,8 @@ enforcement:
       allowed_defaults: [2]
       hint: "canonical form is `tail: int | str = 2` — 2|'two' (two-tailed, the library default) or 1|'one' (one-tailed in the test's positive direction); sites where only one tail is statistically valid (dcorr, F, Rayleigh) take no tail kwarg at all"
   exemptions:
-    # Migrated from `# nosemgrep: banned-kwarg-permutation-count` suppressions:
-    # n_iter here is the LocalAlignment/SRM solver iteration count, matching the
-    # estimator's own kwarg (same rationale as the Ridge n_iter exception F105) —
-    # not a permutation count.
-    - {path: "nltools/data/collection/__init__.py", function: "BrainCollection.align", kwarg: "n_iter", reason: "SRM/LocalAlignment solver iterations, matching the estimator's own name"}
-    - {path: "nltools/data/collection/inference.py", function: "align", kwarg: "n_iter", reason: "delegation target of BrainCollection.align"}
-    # BrainData.predict deliberately defaults n_jobs=1: searchlight at n_jobs=-1
-    # duplicates the brain per worker (memory) and nests under collection-level
-    # parallelism (see docs/development/execution-model.md and the docstring).
-    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight memory + nested-parallelism guard; documented in the docstring"}
+    # BrainData.predict defaults n_jobs=1 to limit searchlight worker memory.
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight worker memory; documented in the docstring"}
     - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}
   # Keyword-only `*`-marker carve-outs (scripts/check_kwonly.py). These
   # functions deliberately mirror numpy signatures so they are drop-in

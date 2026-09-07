@@ -37,7 +37,7 @@ from nltools.algorithms.inference import (
     two_sample_permutation_test,
 )
 from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
-from nltools.data import Adjacency, BrainCollection, BrainData
+from nltools.data import Adjacency, BrainData
 from nltools.data.roc import Roc
 
 TAIL_ENTRY_POINTS = [
@@ -62,11 +62,6 @@ TAIL_ENTRY_POINTS = [
     Adjacency.regress,
     Adjacency.similarity,
     Adjacency.bootstrap,
-    BrainCollection.ttest,
-    BrainCollection.ttest2,
-    BrainCollection.permutation_test,
-    BrainCollection.permutation_test2,
-    BrainCollection.isc_test,
     Roc.calculate,
 ]
 

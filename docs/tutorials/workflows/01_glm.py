@@ -277,7 +277,7 @@ def _(mo):
     | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
     | Correction | FDR threshold | `nltools.algorithms.fdr`, `nltools.algorithms.threshold` |
 
-    The per-subject loop is the explicit path; [`BrainCollection`](../basics/04_brain_collection.md) wraps the same per-subject fit → contrast → group test into parallel, cached calls (`bc.fit(...)`, `bc.compute_contrasts(...)`, `bc.ttest()`).
+    The per-subject loop fits each design and extracts its contrast. Concatenating those maps gives one row per subject for the group test.
 
     **Next steps**
 

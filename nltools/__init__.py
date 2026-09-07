@@ -2,7 +2,7 @@
 
 Focused on multivariate analyses and built on top of nilearn and scikit-learn,
 nltools provides high-level data classes — `BrainData`, `Adjacency`,
-`DesignMatrix`, and `BrainCollection` — that wrap common neuroimaging
+and `DesignMatrix` — that wrap common neuroimaging
 workflows, alongside a functional core of statistics and algorithms (e.g.
 ridge regression, SRM, hyperalignment, and inference).
 """

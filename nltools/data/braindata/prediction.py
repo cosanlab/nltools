@@ -184,7 +184,7 @@ def predict_timeseries(bd, *, X=None):
     from nltools.data import BrainData
     from nltools.models import Glm
 
-    from .utils import _copy_without_fit_state
+    from .utils import _result_from_array
 
     if not hasattr(bd, "model_"):
         raise ValueError(
@@ -227,8 +227,9 @@ def predict_timeseries(bd, *, X=None):
     else:
         y_pred = bd.model_.predict(X)
 
-    predictions = _copy_without_fit_state(bd, copy_data=False)
-    predictions.data = y_pred
+    predictions = _result_from_array(
+        bd, y_pred, rows="preserve" if using_training_data else "clear"
+    )
     return predictions
 
 
@@ -399,69 +400,6 @@ def resolve_model(model: Any):
             f"got {type(model).__name__}"
         )
     return model
-
-
-def _serialize_model_spec(model: Any) -> dict:
-    """Build a JSON-able refit spec for a ``model=`` argument.
-
-    Predict bundles persist the *ingredients* of a decoding run rather than
-    a pickled estimator; this is the model half of that contract. Shapes:
-
-    - string shortcut → ``{'kind': 'shortcut', 'name': 'svm',
-      'refittable': True}``;
-    - estimator whose shallow ``get_params()`` survive JSON →
-      ``{'kind': 'estimator', 'class': 'sklearn.svm._classes.SVC',
-      'params': {...}, 'refittable': True}``;
-    - anything else (nested estimators, callables, array params) →
-      ``{'kind': 'repr', 'repr': repr(model), 'refittable': False}`` — the
-      bundle is explicitly marked non-refittable rather than pretending a
-      repr string is a spec.
-
-    ``_model_from_spec`` is the inverse.
-    """
-    import json
-
-    if isinstance(model, str):
-        return {"kind": "shortcut", "name": model, "refittable": True}
-    if hasattr(model, "get_params"):
-        try:
-            params = model.get_params(deep=False)
-            json.dumps(params)
-        except (TypeError, ValueError):
-            pass
-        else:
-            cls = type(model)
-            return {
-                "kind": "estimator",
-                "class": f"{cls.__module__}.{cls.__qualname__}",
-                "params": params,
-                "refittable": True,
-            }
-    return {"kind": "repr", "repr": repr(model), "refittable": False}
-
-
-def _model_from_spec(spec: dict | str):
-    """Reconstruct an unfitted estimator from a ``_serialize_model_spec`` dict.
-
-    A bare string (legacy spec form) is treated as a shortcut name. Raises
-    ``ValueError`` for specs marked non-refittable.
-    """
-    import importlib
-
-    if isinstance(spec, str):
-        return resolve_model(spec)
-    kind = spec.get("kind")
-    if kind == "shortcut":
-        return resolve_model(spec["name"])
-    if kind == "estimator":
-        module_path, _, cls_name = spec["class"].rpartition(".")
-        cls = getattr(importlib.import_module(module_path), cls_name)
-        return cls(**spec["params"])
-    raise ValueError(
-        "model spec is not refittable (its params could not be serialized); "
-        f"stored repr: {spec.get('repr', '<missing>')}. Rebuild the estimator "
-        "by hand to refit."
-    )
 
 
 def resolve_scoring(scoring: str, classifier: bool) -> str:
@@ -733,8 +671,7 @@ def _resolve_roi_labels(brain_mask, roi_mask) -> tuple[np.ndarray, np.ndarray]:
     Loads a path, resamples (nearest) into the brain mask's grid when shapes
     or affines differ, and returns ``(label_vec, unique_labels)`` where
     ``label_vec`` is the ``(n_voxels,)`` int atlas label per in-mask voxel
-    and ``unique_labels`` the sorted non-zero labels. Shared by ``_run_roi``
-    and ``BrainCollection.predict_group``'s permutation null.
+    and ``unique_labels`` the sorted non-zero labels used by ``_run_roi``.
     """
     from pathlib import Path
 
@@ -909,83 +846,4 @@ def _run_roi(
         weight_map=_to_braindata(weight_arr, bd.mask),
         fold_weight_maps=_to_braindata(fold_weight_arr, bd.mask),
         estimator=estimator_dict,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Score-only CV cores — used by BrainCollection.predict_group's permutation
-# null so null iterations pay for scoring only (no all-data refit, no
-# weight-map extraction, no map assembly). Each mirrors its runner's fold
-# loop exactly so null values match a full re-run for the same labels.
-# ---------------------------------------------------------------------------
-
-
-def _cv_mean_score(X, y, pipe, cv, groups, scoring) -> float:
-    """Mean CV score only — the scoring core of ``_run_whole_brain``."""
-    from sklearn.base import clone
-    from sklearn.metrics import check_scoring
-
-    scorer = check_scoring(pipe, scoring=scoring)
-    fold_scores = [
-        float(
-            scorer(
-                clone(pipe).fit(X[train_idx], y[train_idx]), X[test_idx], y[test_idx]
-            )
-        )
-        for train_idx, test_idx in _iter_split(cv, X, y, groups)
-    ]
-    return float(np.mean(fold_scores))
-
-
-def _cv_roi_mean_scores(
-    X, y, pipe, cv, groups, scoring, label_vec, unique_labels
-) -> np.ndarray:
-    """Per-parcel mean CV scores only — the scoring core of ``_run_roi``.
-
-    Returns ``(n_rois,)`` with NaN for empty or failing parcels, matching
-    ``_run_roi``'s per-parcel error semantics.
-    """
-    from sklearn.base import clone
-    from sklearn.metrics import check_scoring
-
-    split_indices = list(_iter_split(cv, X, y, groups))
-    scorer = check_scoring(pipe, scoring=scoring)
-    out = np.full(len(unique_labels), np.nan, dtype=float)
-    for k, roi_label in enumerate(unique_labels):
-        cols = label_vec == roi_label
-        if not cols.any():
-            continue
-        X_roi = X[:, cols]
-        try:
-            fold_scores = [
-                float(
-                    scorer(
-                        clone(pipe).fit(X_roi[train_idx], y[train_idx]),
-                        X_roi[test_idx],
-                        y[test_idx],
-                    )
-                )
-                for train_idx, test_idx in split_indices
-            ]
-        except Exception:
-            continue
-        out[k] = float(np.nanmean(fold_scores))
-    return out
-
-
-def _cv_searchlight_scores(
-    X, y, pipe, cv, groups, scoring, neighborhood_list
-) -> np.ndarray:
-    """Per-voxel sphere scores only — the scoring core of ``_run_searchlight``.
-
-    ``neighborhood_list`` is ``[(center_idx, neighbor_indices), ...]`` in
-    mask-voxel order; returns ``(n_voxels,)`` with NaN for degenerate or
-    failing spheres.
-    """
-    return np.asarray(
-        [
-            _score_sphere(X, y, pipe, cv, groups, scoring, neighbor_indices)
-            for _, neighbor_indices in neighborhood_list
-        ],
-        dtype=float,
     )

@@ -10,7 +10,7 @@ Each tutorial runs end-to-end and shows its outputs inline. Every page is render
 
 ## Basics
 
-These tutorials introduce the four core data classes in nltools. Each one covers creation, manipulation, and common operations.
+These tutorials introduce the three core data classes in nltools. Each one covers creation, manipulation, and common operations.
 
 ::::{grid} 1 2 2 2
 
@@ -27,11 +27,6 @@ Creating design matrices, building task regressors, HRF convolution, and nuisanc
 :::{grid-item-card} Adjacency Basics
 :link: basics/03_adjacency
 Creating Adjacency objects, square vs. vector forms, thresholding, and binarizing matrices.
-:::
-
-:::{grid-item-card} BrainCollection Basics
-:link: basics/04_brain_collection
-A parallel, memory-efficient iterator of BrainData: per-subject operations in parallel, path-backed caching, and group reductions across subjects.
 :::
 
 ::::

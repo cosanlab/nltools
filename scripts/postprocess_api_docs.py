@@ -393,7 +393,7 @@ def _resolve_xref(target: str, xref: dict[str, str]) -> str | None:
 
     Exact match first. Otherwise griffe emitted a *canonical* path (the defining
     module, ``nltools.algorithms.alignment.srm.SRM``) or a bare name it could not
-    resolve (``PredictCollection``), while the index holds the documented paths
+    resolve (``Predict``), while the index holds the documented paths
     (``nltools.algorithms.alignment.SRM``). Fall back to the longest dotted
     suffix shared with an index key; when several pages document that symbol
     (a facade re-export and the defining subpackage), prefer the one whose path

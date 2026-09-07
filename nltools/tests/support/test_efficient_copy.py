@@ -1,30 +1,21 @@
-"""Tests for efficient copying in BrainData
-
-These tests verify that:
-1. Derived copies own their data by default
-2. Data independence is maintained (no accidental mutations)
-3. Efficiency is explicit: masks are shared, data is owned by default, and
-   output shells skip the data copy only when replacing it immediately
-4. All updated methods use efficient copying
-"""
+"""Ownership and numerical regressions for common BrainData transforms."""
 
 import pytest
 import numpy as np
-from copy import deepcopy
 from nltools.data import BrainData
-from nltools.data.braindata.utils import _copy_without_fit_state
+from nltools.data.braindata.utils import _copy_for_fit
 from nltools.mask import create_sphere
 import pandas as pd
 
 
-def test_copy_without_fit_state_with_data(sim_brain_data):
-    """The clean internal copy shares structure but drops derived state."""
+def test_copy_for_fit_with_data(sim_brain_data):
+    """The fit preparation copy independently owns retained structure."""
 
-    # Derived copies own data but share reusable spatial structure.
-    copied = _copy_without_fit_state(sim_brain_data)
+    # Derived copies independently own both data and spatial structure.
+    copied = _copy_for_fit(sim_brain_data)
 
-    # Should share mask
-    assert copied.mask is sim_brain_data.mask
+    # Should own mask
+    assert copied.mask is not sim_brain_data.mask
 
     assert copied.data is not sim_brain_data.data
     np.testing.assert_array_equal(copied.data, sim_brain_data.data)
@@ -40,7 +31,7 @@ def test_copy_without_fit_state_with_data(sim_brain_data):
 
 
 def test_scale_efficient(sim_brain_data):
-    """Test that scale() uses efficient copying"""
+    """Test that scale() uses independent copying"""
 
     # Test scale method
     scaled = sim_brain_data.scale(100.0)
@@ -51,8 +42,8 @@ def test_scale_efficient(sim_brain_data):
     # Verify data independence
     assert scaled.data is not sim_brain_data.data
 
-    # Verify mask sharing (efficient)
-    assert scaled.mask is sim_brain_data.mask
+    # Verify independent mask state
+    assert scaled.mask is not sim_brain_data.mask
 
     # Original should be unchanged
     original_mean = sim_brain_data.data.mean()
@@ -61,13 +52,12 @@ def test_scale_efficient(sim_brain_data):
 
 @pytest.mark.filterwarnings("ignore:Numerical issues:UserWarning")
 def test_method_chaining_efficiency(sim_brain_data):
-    """Test that method chaining shares the mask and never mutates the original"""
+    """Chained transforms leave the original data and mask independent."""
 
     result = sim_brain_data.scale(100.0).standardize()
 
-    # Efficiency is structural, not clock-based: the mask is shared (no deep
-    # copy) while the data array is a fresh, independent buffer.
-    assert result.mask is sim_brain_data.mask
+    # Both mask state and the transformed data buffer are independently owned.
+    assert result.mask is not sim_brain_data.mask
     assert result.data is not sim_brain_data.data
     assert result.shape == sim_brain_data.shape
 
@@ -103,38 +93,24 @@ def test_scale_with_different_values(sim_brain_data):
         assert scaled.data is not sim_brain_data.data
 
 
-def test_copy_data_false_is_an_explicit_shell_optimization():
-    """Only the explicit shell mode aliases data awaiting replacement."""
+def test_derived_array_owns_input_data(sim_brain_data):
+    from nltools.data.braindata.utils import _result_from_array
 
-    s1 = create_sphere([12, 10, -8], radius=10)
-    brain = BrainData([s1] * 10)  # 10 images
-
-    deep_copied = deepcopy(brain)
-    derived = _copy_without_fit_state(brain)
-    shell = _copy_without_fit_state(brain, copy_data=False)
-
-    assert derived.data is not brain.data
-    assert shell.data is brain.data
-    assert deep_copied.data is not brain.data
-    assert derived.mask is brain.mask
-    assert shell.mask is brain.mask
-    assert deep_copied.mask is not brain.mask
-
-    # All three carry identical values
-    assert np.array_equal(derived.data, brain.data)
-    assert np.array_equal(shell.data, brain.data)
-    assert np.array_equal(deep_copied.data, brain.data)
+    result = _result_from_array(sim_brain_data, sim_brain_data.data, rows="preserve")
+    result.data[0, 0] = 999
+    assert sim_brain_data.data[0, 0] != 999
+    assert result.mask is not sim_brain_data.mask
 
 
-def test_copy_without_fit_state_shares_only_spatial_structure(sim_brain_data):
+def test_copy_for_fit_owns_spatial_structure(sim_brain_data):
     """The default derived copy owns mutable data and metadata."""
 
     # Add DataFrame attributes to test
     sim_brain_data.test_X = pd.DataFrame({"col1": [1, 2, 3]})
 
-    copied = _copy_without_fit_state(sim_brain_data)
+    copied = _copy_for_fit(sim_brain_data)
 
-    assert id(copied.mask) == id(sim_brain_data.mask), "mask should be shared"
+    assert id(copied.mask) != id(sim_brain_data.mask), "mask should be independent"
     assert id(copied.data) != id(sim_brain_data.data), "data should be copied"
 
     # These should be COPIED (different objects)
@@ -172,33 +148,31 @@ def test_data_mutation_safety(sim_brain_data):
 
 
 def test_all_arithmetic_methods_efficient(sim_brain_data):
-    """Test that all arithmetic operations use efficient copying"""
+    """Test that all arithmetic operations use independent copying"""
 
-    # Verify that arithmetic operations preserve object sharing
+    # Verify that arithmetic operations preserve object independence
     result = sim_brain_data + 1
-    assert id(result.mask) == id(sim_brain_data.mask), "Addition should share mask"
+    assert id(result.mask) != id(sim_brain_data.mask), "Addition should own mask"
 
     result = sim_brain_data - 1
-    assert id(result.mask) == id(sim_brain_data.mask), "Subtraction should share mask"
+    assert id(result.mask) != id(sim_brain_data.mask), "Subtraction should own mask"
 
     result = sim_brain_data * 2
-    assert id(result.mask) == id(sim_brain_data.mask), (
-        "Multiplication should share mask"
-    )
+    assert id(result.mask) != id(sim_brain_data.mask), "Multiplication should own mask"
 
     result = sim_brain_data / 2
-    assert id(result.mask) == id(sim_brain_data.mask), "Division should share mask"
+    assert id(result.mask) != id(sim_brain_data.mask), "Division should own mask"
 
-    # Test chaining preserves efficiency
+    # Test chaining preserves independence
     result = ((sim_brain_data + 1) * 2 - 0.5) / 2
-    assert id(result.mask) == id(sim_brain_data.mask), "Chain should share mask"
+    assert id(result.mask) != id(sim_brain_data.mask), "Chain should own mask"
 
     # Verify data independence
     assert id(result.data) != id(sim_brain_data.data), "Should have new data"
 
 
 def test_transform_methods_efficient():
-    """Transform methods share the mask and leave the source data untouched."""
+    """Transform methods own the mask and leave the source data untouched."""
 
     s1 = create_sphere([12, 10, -8], radius=10)
     brain = BrainData([s1] * 20)  # 20 images
@@ -206,21 +180,20 @@ def test_transform_methods_efficient():
 
     result = brain.scale(100.0).standardize()
 
-    # No deep copy of the mask, an independent data buffer, and the source
-    # data is never mutated in place by the transform chain.
-    assert result.mask is brain.mask
+    # Mask state and data are independent; the source remains unchanged.
+    assert result.mask is not brain.mask
     assert result.data is not brain.data
     assert np.array_equal(brain.data, original_data)
 
 
 def test_getitem_efficiency(sim_brain_data):
-    """Test that indexing operations use efficient copying"""
+    """Test that indexing operations use independent copying"""
 
-    # Test that indexing preserves object sharing
+    # Test that indexing preserves object independence
     indexed = sim_brain_data[0]
 
-    # Should share mask
-    assert id(indexed.mask) == id(sim_brain_data.mask), "Indexing should share mask"
+    # Should own mask
+    assert id(indexed.mask) != id(sim_brain_data.mask), "Indexing should own mask"
 
     # Data should be different (it's a slice/subset)
     assert indexed.data.shape != sim_brain_data.data.shape, (
@@ -229,18 +202,18 @@ def test_getitem_efficiency(sim_brain_data):
 
     # Test slicing
     sliced = sim_brain_data[0:2]
-    assert id(sliced.mask) == id(sim_brain_data.mask), "Slicing should share mask"
+    assert id(sliced.mask) != id(sim_brain_data.mask), "Slicing should own mask"
 
     # Test fancy indexing
     if len(sim_brain_data) >= 3:
         fancy = sim_brain_data[[0, 2]]
-        assert id(fancy.mask) == id(sim_brain_data.mask), (
-            "Fancy indexing should share mask"
+        assert id(fancy.mask) != id(sim_brain_data.mask), (
+            "Fancy indexing should own mask"
         )
 
 
 def test_append_correctness():
-    """Test that append works correctly with efficient copying"""
+    """Test that append works correctly with independent copying"""
 
     # Create test data with multiple images for clearer testing
     s1 = create_sphere([12, 10, -8], radius=10)
@@ -281,9 +254,9 @@ def test_append_correctness():
         "Last image should match brain2 last image"
     )
 
-    # Verify efficient copying: should share mask
-    assert id(appended.mask) == id(brain1.mask), (
-        "Append should share mask object (efficient)"
+    # Verify independent copying: should own mask
+    assert id(appended.mask) != id(brain1.mask), (
+        "Append should own mask object independently"
     )
 
     # Verify data independence: new data array
@@ -305,7 +278,7 @@ def test_append_correctness():
 
 @pytest.mark.slow
 def test_no_accidental_deep_copies():
-    """Ensure methods aren't secretly doing deep copies internally"""
+    """Transforms independently copy custom mutable state."""
 
     # Create a BrainData with a reasonable size
     s1 = create_sphere([12, 10, -8], radius=10)
@@ -315,12 +288,12 @@ def test_no_accidental_deep_copies():
     brain._custom_tracking_attribute = "original"
     brain._custom_list = [1, 2, 3]
 
-    # Operations that should NOT deep copy the BrainData object
+    # Operations return independent derived objects
     scaled = brain.scale(100.0)
 
-    # Verify object sharing behavior
+    # Verify object independence behavior
     assert id(scaled) != id(brain), "Should be a new object"
-    assert id(scaled.mask) == id(brain.mask), "Should share mask object"
+    assert id(scaled.mask) != id(brain.mask), "Should own mask object"
 
     # Verify custom attributes were copied correctly
     assert hasattr(scaled, "_custom_tracking_attribute"), (
@@ -344,7 +317,7 @@ def test_no_accidental_deep_copies():
 
 @pytest.mark.slow
 def test_chained_operations_preserve_efficiency():
-    """Test that chaining multiple operations maintains object sharing"""
+    """Test that chaining multiple operations maintains independence"""
 
     # Create test data
     s1 = create_sphere([12, 10, -8], radius=10)
@@ -353,8 +326,8 @@ def test_chained_operations_preserve_efficiency():
     # Test a long chain of operations
     result = brain.scale(100.0).r_to_z().z_to_r().scale(50.0)
 
-    # Verify that mask is still shared after chain
-    assert id(result.mask) == id(brain.mask), "Chain should preserve mask sharing"
+    # Verify that mask remains independent after chaining
+    assert id(result.mask) != id(brain.mask), "Chain should preserve mask independence"
 
     # Verify data is independent
     assert id(result.data) != id(brain.data), "Data should be new after chain"

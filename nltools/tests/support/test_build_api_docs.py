@@ -240,7 +240,6 @@ PUBLIC_NAMESPACES = [
     "nltools.models",
     "nltools.data.atlases",
     "nltools.utils",
-    "nltools.data.collection",
 ]
 
 # Exported names whose home is an internal-module page by design: low-level
@@ -264,14 +263,12 @@ INTERNAL_ONLY = {
     "match_resolution",
     "resolve_paths",
     "resolve_template_name",
-    # nltools.data.collection execution internals.
-    "BrainCollectionWorkerError",
 }
 
 # Exported module constants with no docstring: griffe2md hides them
 # (``show_if_no_docstring = false``), so no page can carry them until the
 # constant gets a docstring at its definition.
-UNDOCUMENTED_CONSTANTS = {"BUNDLE_SCHEMA_VERSION"}
+UNDOCUMENTED_CONSTANTS = set()
 
 
 @pytest.fixture(scope="module")

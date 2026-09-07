@@ -11,18 +11,16 @@ from copy import deepcopy
 import numpy as np
 
 # Shared z-from-p conversion (single source of truth for the clipping policy
-# that keeps z finite in both directions) — also used by BrainCollection's
-# ttest/ttest2 and the GLM-bundle contrast reader.
+# that keeps z finite in both directions).
 from nltools.algorithms.inference.utils import _signed_z_from_p
 from nltools.utils import find_stack_level
-from .utils import _clear_fit_state, _copy_without_fit_state
+from .utils import _clear_fit_state, _copy_for_fit, _result_from_array
 
 
 def resolve_preprocessing_defaults(model, scale, standardize):
     """Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
 
-    Single source of truth shared by ``BrainData.fit`` and ``BrainCollection.fit``
-    so both facades agree on per-model defaults. ``scale`` (percent-signal-change)
+    Per-model defaults for ``BrainData.fit``. ``scale`` (percent-signal-change)
     is opt-in for both models. Ridge standardizes its targets by default so a
     shared alpha regularizes voxels fairly; GLM does neither so betas stay in
     native units.
@@ -426,7 +424,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
                     f"number of samples must match."
                 )
 
-    target = bd if inplace else _copy_without_fit_state(bd, independent=True)
+    target = bd if inplace else _copy_for_fit(bd)
     if inplace:
         _clear_fit_state(target)
     if isinstance(X_model, list):
@@ -595,16 +593,19 @@ def _normalize_cv(cv):
 def _populate_ridge_attributes(bd, X):
     """Set ridge_weights / ridge_fitted_values / ridge_scores from bd.model_."""
     # Ridge.coef_ is (n_features, n_voxels); no transpose.
-    bd.ridge_weights = _copy_without_fit_state(bd, copy_data=False)
-    bd.ridge_weights.data = np.array(bd.model_.coef_, copy=True)
+    bd.ridge_weights = _result_from_array(
+        bd, np.array(bd.model_.coef_, copy=True), rows="clear"
+    )
 
     fitted = bd.model_.predict(X)
-    bd.ridge_fitted_values = _copy_without_fit_state(bd, copy_data=False)
-    bd.ridge_fitted_values.data = np.array(fitted, copy=True)
+    bd.ridge_fitted_values = _result_from_array(
+        bd, np.array(fitted, copy=True), rows="preserve"
+    )
 
     scores = bd.model_.score(X, bd.data)  # (n_voxels,)
-    bd.ridge_scores = _copy_without_fit_state(bd, copy_data=False)
-    bd.ridge_scores.data = np.array(scores, copy=True).reshape(1, -1)
+    bd.ridge_scores = _result_from_array(
+        bd, np.array(scores, copy=True).reshape(1, -1), rows="clear"
+    )
 
 
 def _assemble_ridge_cv_results(bd, X, cv):
@@ -680,8 +681,9 @@ def _assemble_ridge_cv_results(bd, X, cv):
         parallel=parallel,
     )
 
-    cv_predictions_brain = _copy_without_fit_state(bd, copy_data=False)
-    cv_predictions_brain.data = np.array(pred_result["predictions"], copy=True)
+    cv_predictions_brain = _result_from_array(
+        bd, np.array(pred_result["predictions"], copy=True), rows="preserve"
+    )
 
     return {
         "best_alpha": best_alpha_arr
@@ -745,8 +747,9 @@ def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
         parallel=parallel,
     )
 
-    cv_predictions_brain = _copy_without_fit_state(bd, copy_data=False)
-    cv_predictions_brain.data = np.array(pred_result["predictions"], copy=True)
+    cv_predictions_brain = _result_from_array(
+        bd, np.array(pred_result["predictions"], copy=True), rows="preserve"
+    )
 
     return {
         "scores": pred_result["scores"],
@@ -786,7 +789,9 @@ def fit_glm(bd, X):
     # Betas come straight from the cached coef_ (assembled from run_glm theta),
     # so the per-regressor maps stay in masked-array space with no Nifti
     # round-trip. coef_ is (n_regressors, n_voxels).
-    bd.glm_betas = BrainData(data=np.array(bd.model_.coef_, copy=True), mask=bd.mask)
+    bd.glm_betas = _result_from_array(
+        bd, np.array(bd.model_.coef_, copy=True), rows="clear"
+    )
 
     # Per-regressor t / p / se via nilearn's FUNCTIONAL compute_contrast on the
     # fitted (labels_, results_): arrays in masked space, no unmask. Correct for
@@ -805,17 +810,20 @@ def fit_glm(bd, X):
         p_maps.append(contrast.p_value().ravel())
         se_maps.append(np.sqrt(np.abs(contrast.effect_variance().ravel())))
 
-    bd.glm_t = BrainData(data=np.vstack(t_maps), mask=bd.mask)
-    bd.glm_p = BrainData(data=np.vstack(p_maps), mask=bd.mask)
-    bd.glm_se = BrainData(data=np.vstack(se_maps), mask=bd.mask)
+    bd.glm_t = _result_from_array(bd, np.vstack(t_maps), rows="clear")
+    bd.glm_p = _result_from_array(bd, np.vstack(p_maps), rows="clear")
+    bd.glm_se = _result_from_array(bd, np.vstack(se_maps), rows="clear")
 
     # Residuals stay from nilearn: for AR noise models these are the whitened
     # residuals, which Y - X@coef_ does not reproduce, so keep nilearn's.
-    bd.glm_residual = BrainData(bd.model_.residuals, mask=bd.mask)
+    bd.glm_residual = _result_from_array(
+        bd, BrainData(bd.model_.residuals, mask=bd.mask).data, rows="preserve"
+    )
 
     # Predicted = original - residuals
-    bd.glm_predicted = _copy_without_fit_state(bd, copy_data=False)
-    bd.glm_predicted.data = bd.data - bd.glm_residual.data
+    bd.glm_predicted = _result_from_array(
+        bd, bd.data - bd.glm_residual.data, rows="preserve"
+    )
 
     # R-squared calculation
     ss_total = np.sum((bd.data - bd.data.mean(axis=0)) ** 2, axis=0)
@@ -823,8 +831,7 @@ def fit_glm(bd, X):
     r2_values = 1 - (ss_residual / (ss_total + 1e-10))
 
     # Create single-image BrainData for R-squared
-    bd.glm_r2 = _copy_without_fit_state(bd, copy_data=False)
-    bd.glm_r2.data = r2_values.reshape(1, -1)
+    bd.glm_r2 = _result_from_array(bd, r2_values.reshape(1, -1), rows="clear")
 
 
 def ttest(
@@ -879,8 +886,6 @@ def ttest(
     """
     from scipy.stats import ttest_1samp
 
-    from . import BrainData
-
     if bd.data.ndim < 2 or bd.data.shape[0] < 2:
         raise ValueError(
             "t-test requires multiple images (got shape[0] < 2). "
@@ -921,10 +926,10 @@ def ttest(
     z_arr = _signed_z_from_p(t_arr, p_arr, tail_internal)
 
     return {
-        "mean": BrainData(np.asarray(mean_arr), mask=bd.mask),
-        "t": BrainData(np.asarray(t_arr), mask=bd.mask),
-        "z": BrainData(z_arr, mask=bd.mask),
-        "p": BrainData(p_arr, mask=bd.mask),
+        "mean": _result_from_array(bd, np.asarray(mean_arr), rows="clear"),
+        "t": _result_from_array(bd, np.asarray(t_arr), rows="clear"),
+        "z": _result_from_array(bd, z_arr, rows="clear"),
+        "p": _result_from_array(bd, p_arr, rows="clear"),
     }
 
 
@@ -948,7 +953,6 @@ def ttest2(bd, other, equal_var=True, tail=2):
     """
     from scipy.stats import ttest_ind
 
-    from . import BrainData
     from nltools.algorithms.inference.validation import validate_tail_parameter
 
     tail_internal = validate_tail_parameter(tail)
@@ -963,10 +967,8 @@ def ttest2(bd, other, equal_var=True, tail=2):
     t_arr, p_arr = ttest_ind(
         bd.data, other.data, axis=0, equal_var=equal_var, alternative=alternative
     )
-    t_bd = BrainData(mask=bd.mask)
-    t_bd.data = np.asarray(t_arr)
-    p_bd = BrainData(mask=bd.mask)
-    p_bd.data = np.asarray(p_arr)
+    t_bd = _result_from_array(bd, np.asarray(t_arr), rows="clear")
+    p_bd = _result_from_array(bd, np.asarray(p_arr), rows="clear")
     return {"t": t_bd, "p": p_bd}
 
 
@@ -1084,7 +1086,6 @@ def compute_contrasts(bd, contrasts, statistic="t"):
         t-maps into a group one-sample test conflates effect magnitude with
         precision.
     """
-    from . import BrainData
 
     if not hasattr(bd, "glm_betas"):
         raise RuntimeError(
@@ -1134,11 +1135,11 @@ def compute_contrasts(bd, contrasts, statistic="t"):
         vals = _functional_contrast(labels, run_results, contrast_vector, statistic)
         if want_all:
             results[name] = {
-                key: BrainData(data=arr, mask=bd.mask, verbose=False)
+                key: _result_from_array(bd, arr, rows="clear")
                 for key, arr in vals.items()
             }
         else:
-            results[name] = BrainData(data=vals, mask=bd.mask, verbose=False)
+            results[name] = _result_from_array(bd, vals, rows="clear")
 
     if single_contrast:
         return results["contrast"]

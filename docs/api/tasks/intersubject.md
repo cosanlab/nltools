@@ -39,7 +39,7 @@ P-values use the percentile method, as in Brainiak. The classic surrogate
 methods instead circle-shift or phase-randomize each time series (Lancaster
 et al., 2018), preserving its temporal autocorrelation, and recompute ISC.
 
-Runs on plain arrays; `BrainCollection.isc` wraps it for brain data.
+Runs on plain arrays with observations aligned across subjects.
 `isc_permutation_test` exposes the same engine with `device='gpu'` and
 leave-one-out ISC.
 

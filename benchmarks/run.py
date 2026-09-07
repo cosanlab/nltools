@@ -2,7 +2,7 @@
 
     uv run python -m benchmarks.run                 # all domains, full sizes
     uv run python -m benchmarks.run --quick         # tiny sizes (validation)
-    uv run python -m benchmarks.run --domains ridge collection
+    uv run python -m benchmarks.run --domains ridge inference
     uv run python -m benchmarks.run --dry-run       # list what would run
 
 Writes ``benchmarks/results/<host>[-<tag>].parquet`` + ``<...>.env.json``. Docs
@@ -13,14 +13,13 @@ from __future__ import annotations
 
 import argparse
 
-from benchmarks import bench_collection, bench_inference, bench_predict, bench_ridge
+from benchmarks import bench_inference, bench_predict, bench_ridge
 from benchmarks.harness import BenchResult, write_results
 
 DOMAINS = {
     "ridge": bench_ridge,
     "inference": bench_inference,
     "predict": bench_predict,
-    "collection": bench_collection,
 }
 
 

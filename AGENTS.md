@@ -22,7 +22,7 @@
 
 ### Public API
 
-- `nltools.data`: contains the stateful class facades: `BrainData`, `Adjacency`, `DesignMatrix`, and `BrainCollection`. These classes and their methods are the **primary** user-facing surface
+- `nltools.data`: contains the stateful class facades: `BrainData`, `Adjacency`, and `DesignMatrix`. These classes and their methods are the **primary** user-facing surface
   - Facade methods *delegate* to internal modules and should not contain numerical or domain logic of their own.
 - `nltools.algorithms`: contains statistical functions and models that serve as the **secondary** user-facing surface
 - `nltools.{cross-validation, datasets, mask}`: contain additional helper functions also part of the **secondary** user-facing surface
@@ -68,7 +68,7 @@ Use `uv run poe docs-generate` after changing docstrings, the vocabulary manifes
 - GPU execution is centralized in `nltools/algorithms/backends.py`. Memory budgeting, batch sizing, worker sizing, and OOM recovery belong there. Algorithms provide working-set estimates but must not implement their own budget calculations.
 - An explicit `device="gpu"` or `parallel="gpu"` must run on the GPU or raise. Only `"auto"` may fall back.
 - Read the relevant design document before changing these subsystems:
-  - `docs/development/execution-model.md` for `BrainCollection` execution, caching, serialization, and parallel writes
+  - `docs/development/execution-model.md` preserves deferred 0.6.1 `BrainCollection` execution design; it is not an active 0.6.0 subsystem
   - `docs/development/ridge-internals.md` for ridge backends and numerical behavior
   - `docs/development/inference-internals.md` for permutation tests, bootstrap tests, RNG behavior, and numerical stability
   - `docs/development/index.md` for the overall architecture

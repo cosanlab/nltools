@@ -143,14 +143,20 @@ Append data to BrainData instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `data` | <code>[BrainData](#page-data-brain-data)</code> | BrainData instance to append. | *required*
-`ignore_attrs` | <code>bool</code> | If True, skip concatenation of X and Y attributes. Useful when appending images where .X or .Y have different column counts. Default False. | <code>False</code>
+`ignore_attrs` | <code>bool</code> | Clear both X and Y on the result when True. Otherwise, each metadata frame must be empty on both inputs or have compatible columns on both inputs. Default False. | <code>False</code>
 `**kwargs` | <code>dict</code> | Currently ignored. X/Y are concatenated with polars' ``pl.concat(..., how="vertical_relaxed")``, which takes no caller-supplied options. | <code>{}</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[BrainData](#page-data-brain-data)</code> | New appended BrainData instance.
+<code>[BrainData](#page-data-brain-data)</code> | Independently owned data with concatenated row metadata.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | Metadata is present on only one input or has incompatible columns.
 
 (data-brain-data-apply-mask)=
 ### `apply_mask`
@@ -341,6 +347,7 @@ Create an independent snapshot of a BrainData instance.
 
 Data, metadata, mask state, and any fitted model/results are copied.
 Mutating either object after copying does not affect the other.
+Python's `copy.copy()` and `copy.deepcopy()` have the same semantics.
 
 **Returns:**
 

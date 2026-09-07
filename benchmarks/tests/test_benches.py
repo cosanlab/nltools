@@ -10,7 +10,6 @@ from __future__ import annotations
 import pytest
 
 from benchmarks import (
-    bench_collection,
     bench_inference,
     bench_predict,
     bench_ridge,
@@ -27,8 +26,6 @@ def _assert_valid(results):
         assert r.name and r.domain
 
 
-@pytest.mark.parametrize(
-    "runner", [bench_ridge, bench_inference, bench_predict, bench_collection]
-)
+@pytest.mark.parametrize("runner", [bench_ridge, bench_inference, bench_predict])
 def test_runner_quick(runner):
     _assert_valid(runner.run(reps=1, quick=True))

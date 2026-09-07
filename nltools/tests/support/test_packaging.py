@@ -14,10 +14,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 
-# Modules imported unconditionally by the BrainCollection execution path.
-# BrainCollection.fit() always writes HDF5 fit bundles, so these are required
-# for core functionality, not optional add-ons.
-COLLECTION_EXECUTION = Path("nltools/data/collection/execution.py")
+# Shared persistence imports must be available in a core installation.
+PERSISTENCE_MODULE = Path("nltools/io/h5.py")
 DISTRIBUTION_FOR_MODULE = {"h5py": "h5py", "hdf5plugin": "hdf5plugin"}
 
 
@@ -56,16 +54,11 @@ def _unguarded_imports(path: Path) -> set[str]:
     return found - guarded
 
 
-def test_collection_execution_imports_are_core_dependencies():
-    """BrainCollection.fit() cannot work without these, so they must be core.
-
-    Regression guard: h5py/hdf5plugin previously lived only in the optional
-    ``h5`` extra, so ``BrainCollection.fit()`` raised ``ModuleNotFoundError``
-    from inside a joblib worker for anyone who installed plain ``nltools``.
-    """
-    path = REPO_ROOT / COLLECTION_EXECUTION
+def test_persistence_imports_are_core_dependencies():
+    """Shared HDF5 persistence dependencies belong in the core installation."""
+    path = REPO_ROOT / PERSISTENCE_MODULE
     if not path.exists():
-        pytest.skip(f"{COLLECTION_EXECUTION} not present")
+        pytest.skip(f"{PERSISTENCE_MODULE} not present")
 
     core = _core_dependency_names()
     unguarded = _unguarded_imports(path)
@@ -76,7 +69,7 @@ def test_collection_execution_imports_are_core_dependencies():
         if module in unguarded and dist.lower() not in core
     }
     assert not missing, (
-        f"{COLLECTION_EXECUTION} imports {sorted(missing)} unconditionally, but "
+        f"{PERSISTENCE_MODULE} imports {sorted(missing)} unconditionally, but "
         f"they are not in [project].dependencies. Either declare them as core "
         f"dependencies or guard the import with a message pointing at the extra."
     )
