@@ -267,6 +267,7 @@ def threshold(adj, *, upper=None, lower=None, binarize=False):
 def ttest(
     adj,
     *,
+    popmean=0.0,
     permutation=False,
     n_permute=5000,
     tail=2,
@@ -275,64 +276,76 @@ def ttest(
     random_state=None,
     progress_bar=False,
 ):
-    """Calculate a one-sample t-test across stacked matrices.
+    """Run a one-sample t-test across stacked matrices.
+
+    Tests every stored edge against `popmean` across the matrices in the stack.
+    Delegates the statistics to the shared one-sample contract in
+    `nltools.algorithms.inference.one_sample`.
 
     Args:
-        adj (Adjacency): Adjacency instance (must contain multiple matrices).
-        permutation (bool): Run the test as a permutation test. Note this can be very
-            slow.
-        n_permute (int): Number of permutations (used only when `permutation=True`).
-            Default 5000.
-        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed,
-            positive direction).
-        return_null (bool): If True, also return the null distribution. Default False.
+        adj (Adjacency): Stack of two or more matrices with the same node order
+            and storage kind.
+        popmean (float): Population mean to test against. Default 0.0.
+        permutation (bool): If True, take p from a sign-flip permutation test on
+            `matrices - popmean`. The reported `t` stays the observed parametric
+            statistic. Default False.
+        n_permute (int): Number of permutations, used only when
+            `permutation=True`. Default 5000.
+        tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
+            (one-tailed: mean > `popmean`).
+        return_null (bool): If True, also return the permutation null. Has no
+            effect on the parametric path, which computes no null. Default False.
         n_jobs (int): Number of parallel jobs. Default -1 (all cores).
         random_state (int, optional): Random seed for reproducibility.
         progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict: `'t'` — Adjacency of t values (or means when `permutation=True`) — and
-            `'p'` — Adjacency of p values.
+        dict: `'mean'`, `'t'`, `'z'` and `'p'` as independent single-matrix
+            `Adjacency` results that retain the node count, storage kind
+            (including directed) and shared node labels, with matrix metadata
+            cleared. `'mean'` is the edgewise mean minus `popmean`; `'t'` is the
+            observed one-sample t-statistic on both paths; `'p'` is parametric,
+            or the empirical sign-flip p-value when `permutation=True`; `'z'` is
+            the tail-aware normal score of `p`. With `permutation=True` and
+            `return_null=True` the dict also holds `'null_dist'`, an owned
+            `(n_permute, n_edges)` array of centered means in flat storage
+            order and in the units of `'mean'`. Maps are unthresholded. Apply a
+            cutoff or a multiple-comparison correction afterwards.
+
+    Raises:
+        ValueError: If `adj` holds fewer than two matrices.
     """
-    from copy import deepcopy
+    import polars as pl
 
-    from nltools.data.adjacency import Adjacency
-    from nltools.algorithms.inference import one_sample_permutation_test
+    from nltools.algorithms.inference.one_sample import _one_sample_statistics
 
-    if adj.is_single_matrix:
-        raise ValueError("t-test cannot be run on single matrices.")
+    from .state import common_labels, result
 
-    if permutation:
-        t = []
-        p = []
-        for i in range(adj.data.shape[1]):
-            stats = one_sample_permutation_test(
-                adj.data[:, i],
-                n_permute=n_permute,
-                tail=tail,
-                return_null=return_null,
-                n_jobs=n_jobs,
-                random_state=random_state,
-                progress_bar=progress_bar,
-            )
-            t.append(stats["mean"])
-            p.append(stats["p"])
-        t = Adjacency(np.array(t))
-        p = Adjacency(np.array(p))
-    else:
-        from scipy.stats import ttest_1samp
-
-        from nltools.algorithms.inference.validation import validate_tail_parameter
-
-        # 'one' = mean > 0 (negate the data for the other direction).
-        alternative = (
-            "two-sided" if validate_tail_parameter(tail) == "two" else "greater"
+    if adj.is_single_matrix or adj.data.shape[0] < 2:
+        raise ValueError(
+            "t-test requires multiple matrices (got fewer than 2). "
+            "Stack matrices into a single Adjacency first."
         )
-        t = adj.mean().copy()
-        p = deepcopy(t)
-        t.data, p.data = ttest_1samp(adj.data, 0, 0, alternative=alternative)
 
-    return {"t": t, "p": p}
+    stats = _one_sample_statistics(
+        adj.data,
+        popmean=popmean,
+        permutation=permutation,
+        n_permute=n_permute,
+        tail=tail,
+        return_null=return_null,
+        n_jobs=n_jobs,
+        random_state=random_state,
+        progress_bar=progress_bar,
+    )
+    labels = common_labels(adj)
+    results = {
+        key: result(adj, stats[key], labels=labels, Y=pl.DataFrame())
+        for key in ("mean", "t", "z", "p")
+    }
+    if "null_dist" in stats:
+        results["null_dist"] = stats["null_dist"]
+    return results
 
 
 def _label_distance_long(adj, labels):

@@ -712,6 +712,7 @@ class Adjacency:
     def ttest(
         self,
         *,
+        popmean=0.0,
         permutation=False,
         n_permute=5000,
         tail=2,
@@ -720,29 +721,62 @@ class Adjacency:
         random_state=None,
         progress_bar: bool = False,
     ):
-        """Calculate a one-sample t-test across stacked matrices.
+        """Run a one-sample t-test across stacked matrices.
+
+        Tests every stored edge against `popmean` across the matrices in the
+        stack.
 
         Args:
-            permutation (bool): Run the test as a permutation test. Note this can be
-                very slow.
-            n_permute (int): Number of permutations (used only when
-                `permutation=True`). Default 5000.
+            popmean (float): Population mean to test against. Default 0.0.
+            permutation (bool): If True, take p from a sign-flip permutation
+                test on `matrices - popmean`. The reported `t` stays the
+                observed parametric statistic. Default False.
+            n_permute (int): Number of permutations, used only when
+                `permutation=True`. Default 5000.
             tail (int | str): `2`/`'two'` (two-tailed, default) or `1`/`'one'`
-                (one-tailed: mean > 0; negate the data for the other direction).
-                Applies to both the parametric and permutation paths.
-            return_null (bool): If True, also return the null distribution. Default False.
+                (one-tailed: mean > `popmean`). Applies to both paths.
+            return_null (bool): If True, also return the permutation null. Has
+                no effect on the parametric path, which computes no null.
+                Default False.
             n_jobs (int): Number of parallel jobs. Default -1 (all cores).
             random_state (int, optional): Random seed for reproducibility.
             progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            dict: `'t'` — Adjacency of t values (or means when `permutation=True`) —
-                and `'p'` — Adjacency of p values.
+            dict: `'mean'`, `'t'`, `'z'` and `'p'` as independent single-matrix
+                `Adjacency` results that retain the node count, storage kind
+                (including directed) and shared node labels, with matrix
+                metadata cleared. `'mean'` is the edgewise mean minus `popmean`;
+                `'t'` is the observed one-sample t-statistic on both paths;
+                `'p'` is parametric, or the empirical sign-flip p-value when
+                `permutation=True`; `'z'` is the tail-aware normal score of `p`.
+                With `permutation=True` and `return_null=True` the dict also
+                holds `'null_dist'`, an owned `(n_permute, n_edges)` array of
+                centered means in flat storage order and in the units of
+                `'mean'`. Maps are unthresholded. Apply a cutoff or a
+                multiple-comparison correction afterwards.
+
+        Raises:
+            ValueError: If this Adjacency holds fewer than two matrices.
+
+        Examples:
+            ```python
+            result = stacked.ttest()
+            result["mean"]  # effect size per edge
+            result["t"].squareform()  # back to a node-by-node matrix
+
+            # Threshold after testing, never inside it
+            import numpy as np
+
+            significant = result["t"].copy()
+            significant.data = np.where(result["p"].data < 0.05, result["t"].data, 0.0)
+            ```
         """
         from .stats import ttest
 
         return ttest(
             self,
+            popmean=popmean,
             permutation=permutation,
             n_permute=n_permute,
             tail=tail,

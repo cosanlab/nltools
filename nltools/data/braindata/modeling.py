@@ -10,9 +10,6 @@ from copy import deepcopy
 
 import numpy as np
 
-# Shared z-from-p conversion (single source of truth for the clipping policy
-# that keeps z finite in both directions).
-from nltools.algorithms.inference.utils import _signed_z_from_p
 from nltools.utils import find_stack_level
 from .utils import _clear_fit_state, _copy_for_fit, _result_from_array
 
@@ -845,46 +842,57 @@ def ttest(
     n_jobs=-1,
     random_state=None,
 ):
-    """One-sample voxelwise t-test across images (axis 0).
+    """Run a one-sample voxelwise t-test across images (axis 0).
 
     For a BrainData stack of images (e.g. subject-level contrast maps with
-    shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
-    from ``popmean``.
+    shape `(n_images, n_voxels)`), test whether the per-voxel mean differs from
+    `popmean`. Delegates the statistics to the shared one-sample contract in
+    `nltools.algorithms.inference.one_sample`.
 
     Args:
         bd (BrainData): Stack of two or more images.
         popmean (float): Population mean to test against. Default 0.0.
-        permutation (bool): If True, use a sign-flip permutation test on
-            ``images - popmean`` via
-            ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come
-            from the empirical null and the parametric t-statistic is still
-            reported alongside for reference. Default False.
-        n_permute (int): Number of permutations (used only when
-            ``permutation=True``). Default 5000.
+        permutation (bool): If True, take p from a sign-flip permutation test on
+            `images - popmean` via `one_sample_permutation_test`. The reported
+            `t` stays the observed parametric statistic. Default False.
+        n_permute (int): Number of permutations, used only when
+            `permutation=True`. Default 5000.
         tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
-            for one-tailed (positive direction).
-        return_null (bool): Currently has no effect. The returned dict always
-            contains exactly ``{"mean", "t", "z", "p"}`` and the null
-            distribution is discarded even when this is True. Default False.
+            for one-tailed (mean > `popmean`).
+        return_null (bool): If True, also return the permutation null. Has no
+            effect on the parametric path, which computes no null. Default False.
         n_jobs (int): Number of parallel jobs. Default -1 (all cores).
         random_state (int | None): Random seed for reproducibility.
 
     Returns:
-        dict[str, BrainData]: Four keys. `"mean"` is the voxelwise mean across
-            images minus `popmean` (i.e. `mean(images) - popmean`, an effect-size
-            estimate; equals the raw voxelwise mean only when `popmean=0`); `"t"`
-            the parametric one-sample t-statistic; `"z"` the signed z-score,
-            `sign(t) * norm.isf(p/2)`, matching nilearn's `output_type='z_score'`
-            (useful for thresholding on z at small df where t tails are heavier
-            than normal); `"p"` the p-value (parametric, or permutation-based
-            when `permutation=True`). The effect size is always returned
-            alongside the inferential maps so group-level code never has to
-            compute the mean separately.
+        dict: `"mean"`, `"t"`, `"z"` and `"p"` as independent `BrainData` images
+            with observation metadata cleared. `"mean"` is the voxelwise mean
+            minus `popmean` — the effect relative to the tested null, equal to
+            the raw mean only when `popmean=0`. `"t"` is the observed one-sample
+            t-statistic on both paths. `"p"` is parametric, or the empirical
+            sign-flip p-value when `permutation=True`. `"z"` is the tail-aware
+            normal score of `p` (`sign(t) * norm.isf(p/2)` two-tailed), matching
+            nilearn's `output_type='z_score'`. With `permutation=True` and
+            `return_null=True` the dict also holds `"null_dist"`, an owned
+            `(n_permute, n_voxels)` array of centered means in the units of
+            `"mean"`. Maps are unthresholded. Apply a cutoff or a
+            multiple-comparison correction afterwards.
 
     Raises:
-        ValueError: If ``bd`` contains fewer than 2 images.
+        ValueError: If `bd` contains fewer than 2 images.
+
+    Examples:
+        ```python
+        result = contrast_maps.ttest()
+        significant = result["z"].data * (result["p"].data < 0.001)
+
+        perm = contrast_maps.ttest(
+            permutation=True, n_permute=5000, return_null=True, random_state=0
+        )
+        perm["null_dist"].shape  # → (5000, n_voxels)
+        ```
     """
-    from scipy.stats import ttest_1samp
+    from nltools.algorithms.inference.one_sample import _one_sample_statistics
 
     if bd.data.ndim < 2 or bd.data.shape[0] < 2:
         raise ValueError(
@@ -892,45 +900,23 @@ def ttest(
             "Stack subject-level maps into a single BrainData first."
         )
 
-    from nltools.algorithms.inference.validation import validate_tail_parameter
-
-    tail_internal = validate_tail_parameter(tail)
-    # Parametric t / p are always computed — they're the cheap reference
-    # even on the permutation path. The requested tail maps onto scipy's
-    # alternative= ('one' = mean > popmean; negate the data for the other side).
-    alternative = "two-sided" if tail_internal == "two" else "greater"
-    t_arr, p_param = ttest_1samp(bd.data, popmean, axis=0, alternative=alternative)
-    mean_arr = np.asarray(bd.data).mean(axis=0) - popmean
-
-    if permutation:
-        from nltools.algorithms.inference import one_sample_permutation_test
-
-        # Sign-flipping tests symmetry around 0, so the engine must see the
-        # popmean-referenced data — flipping the raw data would silently test
-        # mean != 0 instead of mean != popmean.
-        perm = one_sample_permutation_test(
-            bd.data - popmean,
-            n_permute=n_permute,
-            tail=tail,
-            return_null=return_null,
-            n_jobs=n_jobs,
-            random_state=random_state,
-        )
-        p_arr = np.asarray(perm["p"])
-        # The engine's mean of the shifted data IS mean(images) - popmean —
-        # keep it for numerical consistency with the reported p.
-        mean_arr = np.asarray(perm["mean"])
-    else:
-        p_arr = np.asarray(p_param)
-
-    z_arr = _signed_z_from_p(t_arr, p_arr, tail_internal)
-
-    return {
-        "mean": _result_from_array(bd, np.asarray(mean_arr), rows="clear"),
-        "t": _result_from_array(bd, np.asarray(t_arr), rows="clear"),
-        "z": _result_from_array(bd, z_arr, rows="clear"),
-        "p": _result_from_array(bd, p_arr, rows="clear"),
+    stats = _one_sample_statistics(
+        bd.data,
+        popmean=popmean,
+        permutation=permutation,
+        n_permute=n_permute,
+        tail=tail,
+        return_null=return_null,
+        n_jobs=n_jobs,
+        random_state=random_state,
+    )
+    results = {
+        key: _result_from_array(bd, stats[key], rows="clear")
+        for key in ("mean", "t", "z", "p")
     }
+    if "null_dist" in stats:
+        results["null_dist"] = stats["null_dist"]
+    return results
 
 
 def ttest2(bd, other, equal_var=True, tail=2):

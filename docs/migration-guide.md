@@ -518,6 +518,36 @@ res = bd.ttest(popmean=0.5, permutation=True)
 
 Calls with the default `popmean=0.0` (the overwhelmingly common case) are numerically unchanged. If you recorded permutation p-values from a non-zero `popmean` call, they were wrong — re-run that analysis.
 
+`return_null=True` now works. Earlier in v0.6.0 development it was accepted and silently ignored, and the null was computed and discarded. Combined with `permutation=True` it now adds `"null_dist"` to the result dict: a plain `(n_permute, n_voxels)` array of centered means in the units of `"mean"`. The four map keys are unchanged, and `return_null` still has no effect on the parametric path, which computes no null.
+
+```python
+# before: the null was computed and thrown away
+res = bd.ttest(permutation=True, n_permute=5000, return_null=True)
+set(res)  # {"mean", "t", "z", "p"}
+
+# now
+set(res)  # {"mean", "t", "z", "p", "null_dist"}
+res["null_dist"].shape  # (5000, n_voxels)
+```
+
+(adjacency-ttest-contract)=
+### `Adjacency.ttest` matches `BrainData.ttest`
+
+**Status**: ⚠️ **BREAKING CHANGE** (v0.6.0) — mislabeled permutation `t` fixed
+
+`Adjacency.ttest` now returns the same four keys as `BrainData.ttest` — `"mean"`, `"t"`, `"z"`, `"p"` — plus `"null_dist"` with `permutation=True, return_null=True`. It also gains `popmean=0.0`. Its permutation branch previously stored the *mean* under `"t"`; `"t"` is now the observed t-statistic on both branches, and the permutation null holds centered means. Results are independent Adjacency objects that keep the node count, storage kind (directed storage included), and shared node labels, and never alias the input. Every returned map is `float64`, including `"null_dist"` — the shared statistics helper computes in double precision, so a `float32` stack no longer returns `float32` results. There are no compatibility shims.
+
+```python
+# before: {"t", "p"}, where permutation "t" was really the edgewise mean
+t_map = stacked.ttest(permutation=True)["t"]
+
+# now: the mean is its own key and "t" is the t-statistic
+res = stacked.ttest(permutation=True, popmean=0.0)
+res["mean"], res["t"], res["z"], res["p"]
+```
+
+The permutation path is faster too: it calls the engine once for the whole edge matrix instead of once per edge.
+
 
 (browser-support-deferred)=
 ### In-browser (WASM) support removed — returns in 0.6.1
@@ -1144,7 +1174,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `BrainData.regress()` | `.fit(model='glm', X=design_matrix)` — the old method is removed entirely; calling it raises `AttributeError` | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, spatial_scale=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. `spatial_scale=` selects ``'whole_brain'``, ``'roi'``, or ``'searchlight'``; `method=` is no longer overloaded. See [Pattern 4](#pattern-4-machine-learning-classification-regression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
-| `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"t", "p"}` (or `{"mean", "p"}` when `permutation=True`). Also see new `.ttest2(other)` for two-sample tests. | **Low** |
+| `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"mean", "t", "z", "p"}`, plus `"null_dist"` with `permutation=True, return_null=True`. Threshold the maps afterwards. Also see new `.ttest2(other)` for two-sample tests. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |

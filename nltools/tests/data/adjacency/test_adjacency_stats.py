@@ -166,14 +166,17 @@ class TestAdjacencyStats:
     @pytest.mark.slow
     def test_ttest(self, sim_adjacency_multiple):
         """Test t-test with and without permutation."""
-        out = sim_adjacency_multiple.ttest()
-        assert len(out["t"]) == 1
-        assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
-        assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
-        out = sim_adjacency_multiple.ttest(permutation=True, n_permute=100)
-        assert len(out["t"]) == 1
-        assert out["t"].shape[0] == sim_adjacency_multiple.shape[1]
-        assert out["p"].shape[0] == sim_adjacency_multiple.shape[1]
+        n_edges = sim_adjacency_multiple.data.shape[1]
+        for out in (
+            sim_adjacency_multiple.ttest(),
+            sim_adjacency_multiple.ttest(permutation=True, n_permute=100),
+        ):
+            assert set(out) == {"mean", "t", "z", "p"}
+            for key in ("mean", "t", "z", "p"):
+                assert len(out[key]) == 1
+                assert out[key].data.shape == (n_edges,)
+                assert out[key].n_nodes == sim_adjacency_multiple.n_nodes
+                assert out[key].labels == sim_adjacency_multiple.labels
 
     def test_ttest_parametric_honors_tail(self, sim_adjacency_multiple):
         """tail=1 must reach the parametric path (was silently ignored pre-0.6.0)."""
@@ -221,3 +224,209 @@ class TestAdjacencyStats:
 
         with pytest.raises(ValueError, match="same length"):
             adj.stats_label_distance(labels=np.array([0, 1]))
+
+
+def _adjacency_stack(
+    n_matrices=8, n_nodes=4, *, matrix_type="distance", labels=None, Y=None, seed=0
+):
+    """Build a stack of random matrices in flat storage order."""
+    rng = np.random.default_rng(seed)
+    n_edges = (
+        n_nodes * n_nodes if matrix_type == "directed" else n_nodes * (n_nodes - 1) // 2
+    )
+    values = rng.standard_normal((n_matrices, n_edges)) + 0.3
+    return Adjacency(values, matrix_type=f"{matrix_type}_flat", labels=labels, Y=Y)
+
+
+class TestAdjacencyTTest:
+    """Shared one-sample t-test contract (docs/development/specs/ttest.md)."""
+
+    def test_ttest_returns_four_owned_maps(self):
+        stack = _adjacency_stack()
+        out = stack.ttest()
+        assert set(out) == {"mean", "t", "z", "p"}
+        for key, value in out.items():
+            assert isinstance(value, Adjacency), key
+            assert value.is_single_matrix
+            assert value.n_nodes == stack.n_nodes
+            assert value.data.shape == (stack.data.shape[1],)
+            assert value.matrix_type == stack.matrix_type
+
+    @pytest.mark.parametrize("popmean", [0.0, 0.5])
+    @pytest.mark.parametrize("tail,alternative", [(2, "two-sided"), (1, "greater")])
+    def test_ttest_parametric_matches_scipy(self, popmean, tail, alternative):
+        from scipy.stats import ttest_1samp
+
+        stack = _adjacency_stack()
+        out = stack.ttest(popmean=popmean, tail=tail)
+        expected_t, expected_p = ttest_1samp(
+            stack.data, popmean, axis=0, alternative=alternative
+        )
+        np.testing.assert_allclose(out["t"].data, expected_t)
+        np.testing.assert_allclose(out["p"].data, expected_p)
+        np.testing.assert_allclose(out["mean"].data, stack.data.mean(axis=0) - popmean)
+
+    def test_ttest_single_edge(self):
+        """A two-node stack stores one edge and still returns one matrix per key."""
+        from scipy.stats import ttest_1samp
+
+        stack = _adjacency_stack(n_nodes=2)
+        parametric = stack.ttest(popmean=0.5)
+        expected_t, expected_p = ttest_1samp(stack.data, 0.5, axis=0)
+        np.testing.assert_allclose(parametric["t"].data, expected_t)
+        np.testing.assert_allclose(parametric["p"].data, expected_p)
+        np.testing.assert_allclose(
+            parametric["mean"].data, stack.data.mean(axis=0) - 0.5
+        )
+
+        out = stack.ttest(
+            permutation=True, n_permute=32, return_null=True, random_state=0
+        )
+        for key in ("mean", "t", "z", "p"):
+            assert out[key].n_nodes == 2
+            assert np.asarray(out[key].data).shape == (1,)
+        assert out["null_dist"].shape == (32, 1)
+
+    def test_ttest_permutation_matches_engine_at_fixed_seed(self):
+        from scipy.stats import ttest_1samp
+
+        from nltools.algorithms.inference import one_sample_permutation_test
+
+        stack = _adjacency_stack()
+        popmean = 0.2
+        out = stack.ttest(
+            popmean=popmean,
+            permutation=True,
+            n_permute=64,
+            return_null=True,
+            random_state=11,
+        )
+        engine = one_sample_permutation_test(
+            stack.data - popmean,
+            n_permute=64,
+            tail=2,
+            return_null=True,
+            n_jobs=-1,
+            random_state=11,
+        )
+        np.testing.assert_allclose(out["p"].data, engine["p"])
+        np.testing.assert_allclose(out["mean"].data, engine["mean"])
+        np.testing.assert_allclose(out["null_dist"], engine["null_dist"])
+        assert out["null_dist"].shape == (64, stack.data.shape[1])
+        # t is the observed statistic, not the mean the null holds.
+        expected_t, _ = ttest_1samp(stack.data, popmean, axis=0)
+        np.testing.assert_allclose(out["t"].data, expected_t)
+
+    def test_ttest_null_only_when_permuting_and_requested(self):
+        stack = _adjacency_stack()
+        assert "null_dist" not in stack.ttest(return_null=True)
+        assert "null_dist" not in stack.ttest(
+            permutation=True, n_permute=16, random_state=0
+        )
+        with_null = stack.ttest(
+            permutation=True, n_permute=16, return_null=True, random_state=0
+        )
+        without_null = stack.ttest(
+            permutation=True, n_permute=16, return_null=False, random_state=0
+        )
+        for key in ("mean", "t", "z", "p"):
+            np.testing.assert_array_equal(with_null[key].data, without_null[key].data)
+
+    def test_ttest_z_follows_the_shared_conversion(self):
+        from scipy.stats import norm
+
+        stack = _adjacency_stack()
+        two = stack.ttest()
+        np.testing.assert_allclose(
+            two["z"].data,
+            np.sign(two["t"].data) * norm.isf(np.asarray(two["p"].data) / 2.0),
+        )
+        upper = stack.ttest(tail=1)
+        np.testing.assert_allclose(
+            upper["z"].data, norm.isf(np.asarray(upper["p"].data))
+        )
+
+    def test_ttest_symmetric_result_has_a_zero_diagonal(self):
+        stack = _adjacency_stack()
+        square = stack.ttest()["t"].squareform()
+        assert square.shape == (stack.n_nodes, stack.n_nodes)
+        np.testing.assert_array_equal(np.diag(square), np.zeros(stack.n_nodes))
+
+    def test_ttest_directed_storage_and_node_order_survive(self):
+        labels = ["a", "b", "c"]
+        stack = _adjacency_stack(n_nodes=3, matrix_type="directed", labels=labels)
+        out = stack.ttest()
+        for key in ("mean", "t", "z", "p"):
+            assert out[key].matrix_type == "directed"
+            assert out[key].n_nodes == 3
+            assert out[key].labels == labels
+            assert np.asarray(out[key].data).shape == (9,)
+        # Flat storage order is preserved: t reshapes to the directed square.
+        np.testing.assert_allclose(
+            out["t"].squareform(), np.asarray(out["t"].data).reshape(3, 3)
+        )
+
+    def test_ttest_retains_shared_and_consistent_labels(self):
+        labels = ["a", "b", "c", "d"]
+        shared = _adjacency_stack(labels=labels)
+        assert shared.ttest()["t"].labels == labels
+        nested = _adjacency_stack(n_matrices=3, labels=[labels] * 3)
+        assert nested.ttest()["t"].labels == labels
+
+    def test_ttest_clears_inconsistent_labels_and_matrix_metadata(self):
+        import polars as pl
+
+        labels = [
+            ["a", "b", "c", "d"],
+            ["a", "b", "c", "d"],
+            ["w", "x", "y", "z"],
+        ]
+        stack = _adjacency_stack(
+            n_matrices=3,
+            labels=labels,
+            Y=pl.DataFrame({"group": [0, 1, 1]}),
+        )
+        out = stack.ttest()
+        for key in ("mean", "t", "z", "p"):
+            assert out[key].labels == []
+            assert out[key].Y.is_empty()
+
+    def test_ttest_requires_two_matrices(self):
+        single = _adjacency_stack(n_matrices=1)[0]
+        with pytest.raises(ValueError, match="multiple matrices"):
+            single.ttest()
+        one_row_stack = _adjacency_stack(n_matrices=1)
+        assert not one_row_stack.is_single_matrix
+        with pytest.raises(ValueError, match="multiple matrices"):
+            one_row_stack.ttest()
+
+    def test_ttest_results_are_owned(self):
+        stack = _adjacency_stack()
+        original = stack.data.copy()
+        out = stack.ttest(
+            permutation=True, n_permute=16, return_null=True, random_state=0
+        )
+        arrays = [out[key].data for key in ("mean", "t", "z", "p")]
+        arrays.append(out["null_dist"])
+        for i, first in enumerate(arrays):
+            assert not np.shares_memory(first, stack.data)
+            for second in arrays[i + 1 :]:
+                assert not np.shares_memory(first, second)
+        for array in arrays:
+            array[...] = -999.0
+        np.testing.assert_array_equal(stack.data, original)
+
+    def test_ttest_maps_are_unthresholded_and_threshold_applies_afterwards(self):
+        stack = _adjacency_stack()
+        out = stack.ttest()
+        p_values = np.asarray(out["p"].data)
+        assert np.any(p_values > 0.05)
+        assert np.all(np.asarray(out["t"].data) != 0)
+
+        significant = out["t"].copy()
+        significant.data = np.where(p_values < 0.05, significant.data, 0.0)
+        assert np.all(significant.data[p_values >= 0.05] == 0)
+        np.testing.assert_allclose(
+            significant.data[p_values < 0.05],
+            np.asarray(out["t"].data)[p_values < 0.05],
+        )

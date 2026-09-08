@@ -27,12 +27,12 @@ Goal | Use | Notes
 --- | --- | ---
 One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#data-brain-data-ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
 Two-sample voxelwise test | [`ttest2`](../api/data/brain_data.md#data-brain-data-ttest2)`(other, equal_var=)` | Returns `{'t', 'p'}`
-Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; also [`one_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-one-sample-permutation-test)
+Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-one-sample-permutation-test)
 Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-two-sample-permutation-test) | Group-label shuffling
 Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#tasks-inference-timeseries-correlation-permutation-test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
 Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#tasks-inference-circle-shift), [`phase_randomize`](../api/tasks/inference.md#tasks-inference-phase-randomize) | The surrogate generators used above
 Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#data-brain-data-bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) | `stat='mean'` returns a `BrainData`; model stats return a dict
-Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#tasks-similarity-matrix-permutation-test), [`Adjacency.ttest`](../api/data/adjacency.md#data-adjacency-ttest) | See [Similarity & RSA](similarity-and-rsa.md)
+Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#tasks-similarity-matrix-permutation-test), [`Adjacency.ttest`](../api/data/adjacency.md#data-adjacency-ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
 FDR / Holm-Bonferroni | [`fdr`](../api/tasks/inference.md#tasks-inference-fdr), [`holm_bonf`](../api/tasks/inference.md#tasks-inference-holm-bonf) | Both return a *p-threshold*, or `-1` if nothing survives
 Apply a threshold | [`threshold`](../api/tasks/inference.md#tasks-inference-threshold), [`BrainData.threshold`](../api/data/brain_data.md#data-brain-data-threshold) | The function thresholds by a p-map; the method by value (`upper=`/`lower=`)
 
@@ -56,6 +56,10 @@ Swap the parametric t for sign flipping with one kwarg:
 ```python
 perm = group.ttest(permutation=True, n_permute=1000, tail=2, random_state=0)
 ```
+
+`t` stays the observed parametric statistic; only `p` (and therefore `z`) comes from the
+permutation null. Add `return_null=True` to keep that null as `perm["null_dist"]`, an
+`(n_permute, n_voxels)` array of centered means for your own correction.
 
 ## Bootstrap
 

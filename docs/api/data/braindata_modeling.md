@@ -27,7 +27,7 @@ Name | Description
 [`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
 [`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
-[`ttest`](#data-braindata-modeling-ttest) | One-sample voxelwise t-test across images (axis 0).
+[`ttest`](#data-braindata-modeling-ttest) | Run a one-sample voxelwise t-test across images (axis 0).
 [`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
 
@@ -368,11 +368,12 @@ Type | Description
 ttest(bd, *, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None)
 ```
 
-One-sample voxelwise t-test across images (axis 0).
+Run a one-sample voxelwise t-test across images (axis 0).
 
 For a BrainData stack of images (e.g. subject-level contrast maps with
-shape ``(n_samples, n_voxels)``), test whether the per-voxel mean differs
-from ``popmean``.
+shape `(n_images, n_voxels)`), test whether the per-voxel mean differs from
+`popmean`. Delegates the statistics to the shared one-sample contract in
+`nltools.algorithms.inference.one_sample`.
 
 **Parameters:**
 
@@ -380,10 +381,10 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Stack of two or more images. | *required*
 `popmean` | <code>float</code> | Population mean to test against. Default 0.0. | <code>0.0</code>
-`permutation` | <code>bool</code> | If True, use a sign-flip permutation test on ``images - popmean`` via ``nltools.algorithms.inference.one_sample_permutation_test``; the p-values come from the empirical null and the parametric t-statistic is still reported alongside for reference. Default False. | <code>False</code>
-`n_permute` | <code>int</code> | Number of permutations (used only when ``permutation=True``). Default 5000. | <code>5000</code>
-`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (positive direction). | <code>2</code>
-`return_null` | <code>bool</code> | Currently has no effect. The returned dict always contains exactly ``{"mean", "t", "z", "p"}`` and the null distribution is discarded even when this is True. Default False. | <code>False</code>
+`permutation` | <code>bool</code> | If True, take p from a sign-flip permutation test on `images - popmean` via `one_sample_permutation_test`. The reported `t` stays the observed parametric statistic. Default False. | <code>False</code>
+`n_permute` | <code>int</code> | Number of permutations, used only when `permutation=True`. Default 5000. | <code>5000</code>
+`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (mean > `popmean`). | <code>2</code>
+`return_null` | <code>bool</code> | If True, also return the permutation null. Has no effect on the parametric path, which computes no null. Default False. | <code>False</code>
 `n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
 
@@ -391,13 +392,25 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict[str, [BrainData](#page-data-brain-data)]</code> | Four keys. `"mean"` is the voxelwise mean across     images minus `popmean` (i.e. `mean(images) - popmean`, an effect-size     estimate; equals the raw voxelwise mean only when `popmean=0`); `"t"`     the parametric one-sample t-statistic; `"z"` the signed z-score,     `sign(t) * norm.isf(p/2)`, matching nilearn's `output_type='z_score'`     (useful for thresholding on z at small df where t tails are heavier     than normal); `"p"` the p-value (parametric, or permutation-based     when `permutation=True`). The effect size is always returned     alongside the inferential maps so group-level code never has to     compute the mean separately.
+<code>dict</code> | `"mean"`, `"t"`, `"z"` and `"p"` as independent `BrainData` images     with observation metadata cleared. `"mean"` is the voxelwise mean     minus `popmean` — the effect relative to the tested null, equal to     the raw mean only when `popmean=0`. `"t"` is the observed one-sample     t-statistic on both paths. `"p"` is parametric, or the empirical     sign-flip p-value when `permutation=True`. `"z"` is the tail-aware     normal score of `p` (`sign(t) * norm.isf(p/2)` two-tailed), matching     nilearn's `output_type='z_score'`. With `permutation=True` and     `return_null=True` the dict also holds `"null_dist"`, an owned     `(n_permute, n_voxels)` array of centered means in the units of     `"mean"`. Maps are unthresholded. Apply a cutoff or a     multiple-comparison correction afterwards.
 
 **Raises:**
 
 Type | Description
 ---- | -----------
-<code>ValueError</code> | If ``bd`` contains fewer than 2 images.
+<code>ValueError</code> | If `bd` contains fewer than 2 images.
+
+**Examples:**
+
+```python
+result = contrast_maps.ttest()
+significant = result["z"].data * (result["p"].data < 0.001)
+
+perm = contrast_maps.ttest(
+    permutation=True, n_permute=5000, return_null=True, random_state=0
+)
+perm["null_dist"].shape  # → (5000, n_voxels)
+```
 
 (data-braindata-modeling-ttest2)=
 ### `ttest2`

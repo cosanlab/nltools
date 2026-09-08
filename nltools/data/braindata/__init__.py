@@ -1935,33 +1935,41 @@ class BrainData:
         n_jobs=-1,
         random_state=None,
     ):
-        """One-sample voxelwise t-test across images (axis 0).
+        """Run a one-sample voxelwise t-test across images (axis 0).
 
-        Tests whether the per-voxel mean across images differs from
-        ``popmean``. Operates on a stack of images (e.g. subject-level
-        contrast maps) with shape ``(n_samples, n_voxels)``.
+        Tests whether the per-voxel mean across a stack of images (e.g.
+        subject-level contrast maps, shape `(n_images, n_voxels)`) differs from
+        `popmean`.
 
         Args:
             popmean (float): Population mean to test against. Default 0.0.
-            permutation (bool): If True, use a sign-flip permutation test via
-                `one_sample_permutation_test`. Default False.
-            n_permute (int): Number of permutations (used only when
-                ``permutation=True``). Default 5000.
-            tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
-                ``'one'`` for one-tailed (positive direction).
-            return_null (bool): If True, also return the null distribution.
+            permutation (bool): If True, take p from a sign-flip permutation
+                test on `images - popmean`. The reported `t` stays the observed
+                parametric statistic. Default False.
+            n_permute (int): Number of permutations, used only when
+                `permutation=True`. Default 5000.
+            tail (int | str): `2` or `'two'` for two-tailed (default); `1` or
+                `'one'` for one-tailed (mean > `popmean`).
+            return_null (bool): If True, also return the permutation null. Has
+                no effect on the parametric path, which computes no null.
                 Default False.
             n_jobs (int): Number of parallel jobs. Default -1 (all cores).
             random_state (int | None): Random seed for reproducibility.
 
         Returns:
-            dict[str, BrainData]: Four keys. ``"mean"`` is the voxelwise mean across
-                images (effect size); ``"t"`` the parametric one-sample t-statistic;
-                ``"z"`` the signed z-score, ``sign(t) * norm.isf(p/2)``, matching
-                nilearn's ``output_type='z_score'``; ``"p"`` the parametric p-value,
-                or empirical p when ``permutation=True``. The effect size is always
-                returned alongside the inferential maps so group-level code never
-                has to recompute the mean.
+            dict: `"mean"`, `"t"`, `"z"` and `"p"` as independent `BrainData`
+                images with observation metadata cleared. `"mean"` is the
+                voxelwise mean minus `popmean` — the effect relative to the
+                tested null, equal to the raw mean only when `popmean=0`.
+                `"t"` is the observed one-sample t-statistic on both paths.
+                `"p"` is parametric, or the empirical sign-flip p-value when
+                `permutation=True`. `"z"` is the tail-aware normal score of `p`
+                (`sign(t) * norm.isf(p/2)` two-tailed), matching nilearn's
+                `output_type='z_score'`. With `permutation=True` and
+                `return_null=True` the dict also holds `"null_dist"`, an owned
+                `(n_permute, n_voxels)` array of centered means in the units of
+                `"mean"`. Maps are unthresholded. Apply a cutoff or a
+                multiple-comparison correction afterwards.
 
         Raises:
             ValueError: If this BrainData contains fewer than 2 images.
@@ -1970,12 +1978,19 @@ class BrainData:
             ```python
             # Stack of subject-level contrast maps
             result = contrast_maps.ttest()
-            sig = result["p"].data < 0.05
-            effect = result["mean"]       # for reporting magnitude
-            z_map = result["z"]           # for nilearn-style thresholding
+            effect = result["mean"]  # magnitude, for reporting
+            z_map = result["z"]  # for nilearn-style thresholding
 
-            # Permutation-based p-values; still reports t/z/mean
-            result = contrast_maps.ttest(permutation=True, n_permute=5000)
+            # Threshold after testing, never inside it
+            from nltools.algorithms import threshold
+
+            z_thresh = threshold(result["z"], result["p"], thr=0.001)
+
+            # Permutation p-values, keeping the null for a custom correction
+            perm = contrast_maps.ttest(
+                permutation=True, n_permute=5000, return_null=True, random_state=0
+            )
+            perm["null_dist"].shape  # → (5000, n_voxels)
             ```
         """
         from .modeling import ttest

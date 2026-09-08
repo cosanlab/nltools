@@ -8,6 +8,28 @@ from sklearn.model_selection import KFold
 from nltools.data import BrainData
 
 
+def _brain_data_from_array(values):
+    """Build a BrainData whose masked data holds `values`, shape (n_obs, n_voxels).
+
+    Images are passed as a list so a one-voxel stack keeps its voxel axis (the
+    constructor squeezes singleton axes out of array and 4-D inputs).
+    """
+    import nibabel as nib
+
+    values = np.asarray(values, dtype=float)
+    n_samples, n_voxels = values.shape
+    spatial_shape = (n_voxels, 1, 1)
+    affine = np.eye(4)
+    images = [
+        nib.Nifti1Image(values[t].reshape(spatial_shape), affine)
+        for t in range(n_samples)
+    ]
+    return BrainData(
+        images,
+        mask=nib.Nifti1Image(np.ones(spatial_shape, dtype=np.float32), affine),
+    )
+
+
 class TestBrainDataModeling:
     def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
         """Test error when compute_contrasts() called before fit()."""
@@ -1213,6 +1235,144 @@ class TestBrainDataTTest:
         )
         with pytest.raises(ValueError, match="n_voxels"):
             minimal_brain_data.ttest2(other)
+
+    # ── Shared one-sample contract (docs/development/specs/ttest.md) ────────
+
+    @pytest.mark.parametrize("popmean", [0.0, 0.75])
+    @pytest.mark.parametrize("tail,alternative", [(2, "two-sided"), (1, "greater")])
+    def test_ttest_parametric_matches_scipy(
+        self, minimal_brain_data, popmean, tail, alternative
+    ):
+        """Parametric mean/t/p match direct NumPy/SciPy for both tails."""
+        from scipy.stats import ttest_1samp
+
+        data = minimal_brain_data.data
+        result = minimal_brain_data.ttest(popmean=popmean, tail=tail)
+        assert set(result) == {"mean", "t", "z", "p"}
+        expected_t, expected_p = ttest_1samp(
+            data, popmean, axis=0, alternative=alternative
+        )
+        np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(result["p"].data, expected_p)
+        np.testing.assert_allclose(result["mean"].data, data.mean(axis=0) - popmean)
+
+    def test_ttest_single_voxel(self):
+        """A one-voxel stack still returns one image per key."""
+        from scipy.stats import ttest_1samp
+
+        rng = np.random.default_rng(0)
+        bd = _brain_data_from_array(rng.standard_normal((12, 1)))
+        result = bd.ttest(popmean=0.5)
+        for key in ("mean", "t", "z", "p"):
+            assert np.asarray(result[key].data).shape == (1,)
+        expected_t, expected_p = ttest_1samp(bd.data, 0.5, axis=0)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(result["p"].data, expected_p)
+        np.testing.assert_allclose(result["mean"].data, bd.data.mean(axis=0) - 0.5)
+
+    def test_ttest_permutation_matches_engine_at_fixed_seed(self, minimal_brain_data):
+        """Permutation p and the centered-mean null match a direct engine call."""
+        from nltools.algorithms.inference import one_sample_permutation_test
+
+        popmean = 0.25
+        result = minimal_brain_data.ttest(
+            popmean=popmean,
+            permutation=True,
+            n_permute=64,
+            return_null=True,
+            random_state=11,
+        )
+        engine = one_sample_permutation_test(
+            minimal_brain_data.data - popmean,
+            n_permute=64,
+            tail=2,
+            return_null=True,
+            n_jobs=-1,
+            random_state=11,
+        )
+        np.testing.assert_allclose(result["p"].data, engine["p"])
+        np.testing.assert_allclose(result["mean"].data, engine["mean"])
+        np.testing.assert_allclose(result["null_dist"], engine["null_dist"])
+        assert result["null_dist"].shape == (64, minimal_brain_data.shape[1])
+
+    def test_ttest_null_only_when_permuting_and_requested(self, minimal_brain_data):
+        """`null_dist` appears only with permutation=True and return_null=True."""
+        assert "null_dist" not in minimal_brain_data.ttest(return_null=True)
+        assert "null_dist" not in minimal_brain_data.ttest(
+            permutation=True, n_permute=16, random_state=0
+        )
+        with_null = minimal_brain_data.ttest(
+            permutation=True, n_permute=16, return_null=True, random_state=0
+        )
+        without_null = minimal_brain_data.ttest(
+            permutation=True, n_permute=16, return_null=False, random_state=0
+        )
+        assert set(with_null) == {"mean", "t", "z", "p", "null_dist"}
+        for key in ("mean", "t", "z", "p"):
+            np.testing.assert_array_equal(with_null[key].data, without_null[key].data)
+
+    def test_ttest_single_voxel_null_keeps_feature_axis(self):
+        """The null is never squeezed, even for one voxel."""
+        rng = np.random.default_rng(1)
+        bd = _brain_data_from_array(rng.standard_normal((10, 1)))
+        result = bd.ttest(
+            permutation=True, n_permute=32, return_null=True, random_state=2
+        )
+        assert result["null_dist"].shape == (32, 1)
+
+    def test_ttest_permutation_reports_the_t_statistic(self, minimal_brain_data):
+        """`t` is the observed SciPy statistic on the permutation path too."""
+        from scipy.stats import ttest_1samp
+
+        result = minimal_brain_data.ttest(
+            permutation=True, n_permute=32, random_state=0
+        )
+        expected_t, _ = ttest_1samp(minimal_brain_data.data, 0.0, axis=0)
+        np.testing.assert_allclose(result["t"].data, expected_t)
+
+    def test_ttest_z_endpoints_stay_finite(self):
+        """z is finite at both the p floor and p == 1.0."""
+        rng = np.random.default_rng(5)
+        bd = _brain_data_from_array(rng.standard_normal((30, 3)) * 1e-8 + 50.0)
+        huge = bd.ttest()
+        assert np.all(np.isfinite(huge["z"].data)) and np.all(huge["z"].data > 0)
+        saturated = bd.ttest(popmean=100.0, tail=1)
+        assert np.all(np.asarray(saturated["p"].data) == 1.0)
+        assert np.all(np.isfinite(saturated["z"].data))
+        assert np.all(np.asarray(saturated["z"].data) < 0)
+
+    def test_ttest_constant_voxels_match_scipy(self):
+        """Constant voxels keep SciPy's behavior; no new NaN policy."""
+        from scipy.stats import ttest_1samp
+
+        values = np.column_stack([np.ones(8), np.arange(8.0), np.zeros(8)])
+        bd = _brain_data_from_array(values)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            expected_t, expected_p = ttest_1samp(bd.data, 0.0, axis=0)
+            result = bd.ttest()
+        np.testing.assert_allclose(result["t"].data, expected_t)
+        np.testing.assert_allclose(result["p"].data, expected_p)
+
+    def test_ttest_results_are_owned_and_rows_cleared(self, minimal_brain_data):
+        """Maps alias neither the input nor each other, and X/Y are cleared."""
+        original = minimal_brain_data.data.copy()
+        result = minimal_brain_data.ttest(
+            permutation=True, n_permute=16, return_null=True, random_state=0
+        )
+        maps = [result[key] for key in ("mean", "t", "z", "p")]
+        arrays = [m.data for m in maps] + [result["null_dist"]]
+        for i, first in enumerate(arrays):
+            assert not np.shares_memory(first, minimal_brain_data.data)
+            for second in arrays[i + 1 :]:
+                assert not np.shares_memory(first, second)
+        for image in maps:
+            assert image.X.is_empty()
+            assert image.Y.is_empty()
+        for array in arrays:
+            array[...] = -999.0
+        np.testing.assert_array_equal(minimal_brain_data.data, original)
+        for key, image in zip(("mean", "t", "z", "p"), maps):
+            assert np.all(np.asarray(image.data) == -999.0)
 
 
 class TestBrainDataRidgeCV:

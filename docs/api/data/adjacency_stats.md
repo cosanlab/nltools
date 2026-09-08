@@ -18,7 +18,7 @@ Name | Description
 [`similarity`](#data-adjacency-stats-similarity) | Calculate similarity between two Adjacency matrices.
 [`stats_label_distance`](#data-adjacency-stats-stats-label-distance) | Calculate permutation tests on within and between label distance.
 [`threshold`](#data-adjacency-stats-threshold) | Threshold an Adjacency instance.
-[`ttest`](#data-adjacency-stats-ttest) | Calculate a one-sample t-test across stacked matrices.
+[`ttest`](#data-adjacency-stats-ttest) | Run a one-sample t-test across stacked matrices.
 [`z_to_r`](#data-adjacency-stats-z-to-r) | Convert z score back into r value for each element of data object.
 
 
@@ -209,20 +209,25 @@ Type | Description
 ### `ttest`
 
 ```python
-ttest(adj, *, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar = False)
+ttest(adj, *, popmean = 0.0, permutation = False, n_permute = 5000, tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
-Calculate a one-sample t-test across stacked matrices.
+Run a one-sample t-test across stacked matrices.
+
+Tests every stored edge against `popmean` across the matrices in the stack.
+Delegates the statistics to the shared one-sample contract in
+`nltools.algorithms.inference.one_sample`.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance (must contain multiple matrices). | *required*
-`permutation` | <code>bool</code> | Run the test as a permutation test. Note this can be very slow. | <code>False</code>
-`n_permute` | <code>int</code> | Number of permutations (used only when `permutation=True`). Default 5000. | <code>5000</code>
-`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed, positive direction). | <code>2</code>
-`return_null` | <code>bool</code> | If True, also return the null distribution. Default False. | <code>False</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Stack of two or more matrices with the same node order and storage kind. | *required*
+`popmean` | <code>float</code> | Population mean to test against. Default 0.0. | <code>0.0</code>
+`permutation` | <code>bool</code> | If True, take p from a sign-flip permutation test on `matrices - popmean`. The reported `t` stays the observed parametric statistic. Default False. | <code>False</code>
+`n_permute` | <code>int</code> | Number of permutations, used only when `permutation=True`. Default 5000. | <code>5000</code>
+`tail` | <code>int \| str</code> | `2`/`'two'` (two-tailed, default) or `1`/`'one'` (one-tailed: mean > `popmean`). | <code>2</code>
+`return_null` | <code>bool</code> | If True, also return the permutation null. Has no effect on the parametric path, which computes no null. Default False. | <code>False</code>
 `n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
@@ -231,7 +236,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | `'t'` — Adjacency of t values (or means when `permutation=True`) — and     `'p'` — Adjacency of p values.
+<code>dict</code> | `'mean'`, `'t'`, `'z'` and `'p'` as independent single-matrix     `Adjacency` results that retain the node count, storage kind     (including directed) and shared node labels, with matrix metadata     cleared. `'mean'` is the edgewise mean minus `popmean`; `'t'` is the     observed one-sample t-statistic on both paths; `'p'` is parametric,     or the empirical sign-flip p-value when `permutation=True`; `'z'` is     the tail-aware normal score of `p`. With `permutation=True` and     `return_null=True` the dict also holds `'null_dist'`, an owned     `(n_permute, n_edges)` array of centered means in flat storage     order and in the units of `'mean'`. Maps are unthresholded. Apply a     cutoff or a multiple-comparison correction afterwards.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If `adj` holds fewer than two matrices.
 
 (data-adjacency-stats-z-to-r)=
 ### `z_to_r`

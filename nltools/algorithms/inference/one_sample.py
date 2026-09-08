@@ -8,12 +8,14 @@ on every path.
 """
 
 import numpy as np
+from scipy.stats import ttest_1samp
 from sklearn.utils import check_random_state
 
 from nltools.algorithms.backends import Backend, resolve_backend
 from .utils import (
     _generate_sign_flips,
     _compute_pvalue,
+    _signed_z_from_p,
     _auto_batch_size,
     maybe_tqdm,
     make_progress_bar,
@@ -367,3 +369,109 @@ def one_sample_permutation_test(
         single_feature=single_feature,
         progress_bar=progress_bar,
     )
+
+
+def _one_sample_statistics(
+    data: np.ndarray,
+    *,
+    popmean: float = 0.0,
+    permutation: bool = False,
+    n_permute: int = 5000,
+    tail: int | str = 2,
+    return_null: bool = False,
+    n_jobs: int = -1,
+    random_state: int | None = None,
+    progress_bar: bool = False,
+) -> dict:
+    """Compute the shared one-sample t-test statistics for a 2-D feature matrix.
+
+    The single implementation behind `BrainData.ttest` and `Adjacency.ttest`
+    (see `docs/development/specs/ttest.md`). It works on plain arrays and
+    returns plain arrays; each facade wraps them in its own result type.
+
+    `t` is always the observed SciPy statistic against `popmean`, on both the
+    parametric and the permutation path. Only `p` changes. The parametric path
+    uses SciPy's p-value for the requested tail; the permutation path uses the
+    empirical sign-flip p-value from `data - popmean`, computed once for the
+    whole matrix by `one_sample_permutation_test`. The permutation null
+    therefore holds centered *means*, not t-statistics.
+
+    Args:
+        data (np.ndarray): Observations to test, shape `(n_obs, n_features)`.
+        popmean (float): Population mean to test against. Defaults to 0.0.
+        permutation (bool): If True, take p from a sign-flip permutation test
+            instead of the parametric test. Defaults to False.
+        n_permute (int): Number of permutations, used only when
+            `permutation=True`. Defaults to 5000.
+        tail (int | str): `2` or `'two'` (default) for a two-tailed test;
+            `1` or `'one'` for a one-tailed test of mean > `popmean`.
+        return_null (bool): If True, also return the permutation null. Has no
+            effect on the parametric path, which computes no null. Defaults to
+            False.
+        n_jobs (int): CPU cores for the permutation engine. Defaults to -1.
+        random_state (int | None): Random seed for reproducibility.
+        progress_bar (bool): Whether to display a progress bar. Defaults to False.
+
+    Returns:
+        dict: `'mean'` (sample mean minus `popmean`), `'t'`, `'z'`, and `'p'`,
+            each an `(n_features,)` array. With `permutation=True` and
+            `return_null=True` the dict also holds `'null_dist'`, an
+            `(n_permute, n_features)` array of centered means whose feature
+            axis is never squeezed. No returned array aliases `data` or any
+            other returned array.
+
+    Raises:
+        ValueError: If `data` is not 2-D or holds fewer than two observations.
+    """
+    values = np.asarray(data, dtype=np.float64)
+    if values.ndim != 2:
+        raise ValueError(
+            f"data must be 2-D with shape (n_obs, n_features); got {values.shape}."
+        )
+    if values.shape[0] < 2:
+        raise ValueError(
+            "A one-sample t-test requires at least two observations to estimate "
+            "the variance."
+        )
+
+    tail_internal = validate_tail_parameter(tail)
+    # 'one' is the test's positive direction: mean > popmean.
+    alternative = "two-sided" if tail_internal == "two" else "greater"
+    t_values, p_parametric = ttest_1samp(
+        values, popmean, axis=0, alternative=alternative
+    )
+    t_values = np.asarray(t_values, dtype=np.float64)
+    mean_values = values.mean(axis=0) - popmean
+    null_dist = None
+
+    if permutation:
+        # Sign flipping tests symmetry around zero, so the engine must see the
+        # popmean-referenced data — flipping raw values would silently test
+        # mean != 0 instead of mean != popmean.
+        engine = one_sample_permutation_test(
+            values - popmean,
+            n_permute=n_permute,
+            tail=tail,
+            return_null=return_null,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            progress_bar=progress_bar,
+        )
+        p_values = np.asarray(engine["p"], dtype=np.float64)
+        # The engine's mean of the centered data IS mean(data) - popmean; keep
+        # it so the reported effect and p come from the same numbers.
+        mean_values = np.asarray(engine["mean"], dtype=np.float64)
+        if return_null:
+            null_dist = np.asarray(engine["null_dist"], dtype=np.float64)
+    else:
+        p_values = np.asarray(p_parametric, dtype=np.float64)
+
+    results = {
+        "mean": mean_values,
+        "t": t_values,
+        "z": _signed_z_from_p(t_values, p_values, tail_internal),
+        "p": p_values,
+    }
+    if null_dist is not None:
+        results["null_dist"] = null_dist
+    return results
