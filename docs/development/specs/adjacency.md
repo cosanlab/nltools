@@ -174,9 +174,9 @@ Preserve RSS-based residual-scale calculations and tail semantics. Add numerical
 reference tests and shape tests together.
 
 Bootstrap aggregate maps use single-matrix shape and valid node metadata.
-The broader BootstrapResult/API transition belongs to `5mz1`. Adjacency t-test
-gaps, including permutation means under key `t`, lost null distributions and
-directed reconstruction, belong to the shared inference work.
+The broader BootstrapResult/API transition belongs to `5mz1`. The shared
+[one-sample t-test contract](ttest.md) defines dictionary results, permutation
+nulls and preservation of directed storage; implementation belongs to `hrgf`.
 
 ## Persistence and implementation boundaries
 

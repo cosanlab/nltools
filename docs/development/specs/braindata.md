@@ -456,10 +456,10 @@ the GLM specification.
 
 ## Group inference
 
-`ttest()` remains the concise intercept-only group test. Its input is a stack of
-subject-level effect maps, not first-level statistic maps, and its default
-p-value is two-sided. Its existing signature and result structure remain open
-to a separate audit; they are not implicitly replaced by `ContrastResult`.
+`ttest()` remains the concise intercept-only group test on a stack of
+subject-level effect maps, with two-sided p-values by default. The shared
+[one-sample t-test contract](ttest.md) defines its dictionary results,
+permutation nulls, shapes and ownership. It does not use `ContrastResult`.
 
 A multi-regressor second-level analysis uses `fit(model="glm", ...)` with an
 OLS `Glm` and a second-level `DesignMatrix` containing one row per effect map.

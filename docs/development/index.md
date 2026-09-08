@@ -27,13 +27,15 @@ The three facades and their submodules:
 
 - **`BrainData`** — `io` · `analysis` · `modeling` · `prediction` · `bootstrap` ·
   `neighborhoods` · `cache` · `plotting` · `viewer` · `validation`
-- **`Adjacency`** — `io` · `modeling` · `stats` · `spatial` · `plotting`
+- **`Adjacency`** — `io` · `modeling` · `stats` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
 
 The [DesignMatrix contract](specs/designmatrix.md) defines direct Polars method
 access, result ownership, metadata propagation and persistence.
 The [Adjacency contract](specs/adjacency.md) defines matrix shapes, selection,
 ownership, statistical result dimensions and explicit spatial projection.
+The [one-sample t-test contract](specs/ttest.md) defines shared dictionary
+results and inference semantics for BrainData and Adjacency.
 
 ### Design rules
 
