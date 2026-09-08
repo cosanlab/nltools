@@ -10,7 +10,7 @@ coding assistants working in the repo). It documents *how* nltools is built and 
 — the invariants that keep the codebase coherent. For *what the public API does*, see
 the reference: the [data classes](../api/data/brain_data.md), the
 [functions by task](../api/tasks/loading.md), and the
-[`nltools.algorithms` A–Z index](../api/algorithms.md); for release recovery scope, see the [recovery inventory](recovery-plan.md).
+[`nltools.algorithms` A–Z index](../api/algorithms.md); for release recovery scope, see the [recovery inventory](recovery-plan.md) and the [release verification matrix](release-verification.md).
 
 ## Functional core, imperative shell
 
