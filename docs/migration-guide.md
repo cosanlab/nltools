@@ -29,7 +29,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Sphere radius** | `radius=` (units implicit) | `radius_mm=` | **Renamed** |
 | **Permutation count** | `n_perm=` (Adjacency.generate_permutations) | `n_permute=` | **Renamed** |
 | **Similarity diagonal** | `ignore_diagonal=False` | `include_diag=False` (polarity flipped, default now excludes diagonal) | **Changed** |
-| **Duplicate columns on append** | `append(axis=1)` accepted value-identical columns | Raises `ValueError` — bitwise-duplicate columns refused | **Changed** |
+| **Duplicate columns on append** | `append(axis=1)` accepted value-identical columns | Raises `ValueError` — value-identical columns refused | **Changed** |
 | **Cluster summary kwargs** | `cluster_summary(method=…, summary=…)` | `cluster_summary(summary=…, scope='within' \| 'between')` | **Renamed** |
 | **ROI extraction kwarg** | `extract_roi(metric=…)` | `extract_roi(method=…)` | **Renamed** |
 | **BrainData.plot thresholds** | `thr_upper=`, `thr_lower=`, `kind=` | `upper=`, `lower=`, `method=` | **Renamed** |
@@ -230,22 +230,25 @@ task.append(spikes, axis=1)
 ```
 
 `find_spikes` now hands the row count to `DesignMatrix` explicitly, so the empty
-result reports `(n_tr, 0)` and appends as a no-op. `DesignMatrix.append()` also
-skips regressor-less matrices outright, so this composes even for matrices built
-without an explicit height.
+result reports `(n_tr, 0)` and contributes no columns on horizontal append.
+Explicitly sized empty inputs must match the design's row count. The default
+`DesignMatrix()` with no size or timing is an identity on either side of append.
 
 (append-duplicate-columns)=
-### `append(axis=1)` refuses bitwise-duplicate columns
+### `append(axis=1)` refuses value-identical columns
 
 **Status**: ⚠️ **BREAKING** (v0.6.0)
 
-Appending a column whose values are bitwise identical to an existing column
-(under any name) now raises a `ValueError`, just as duplicate column *names*
-already did. A design with straight duplicate columns is rank deficient by
-construction — the model over it is not computable — and silently keeping one
-copy would be a modeling decision made on your behalf. Drop or modify one of
-the columns before appending. (Only duplication introduced by the append is
-checked; a base matrix that already contains duplicates is left to its owner.)
+Appending a column whose values equal an existing column under any name raises
+`ValueError`, as duplicate names already did. Comparisons use the final columns
+after missing-value filling, so filling can create a duplicate. Numeric equality
+is exact across numeric types. Signed zeros match, and distinct large integers
+remain distinct. With `fill_na=None`, NaN matches NaN and null matches null at
+the same positions, but null differs from NaN.
+
+Duplicate columns make the design rank deficient. Drop or modify one before
+appending. Pre-existing duplicates in the base matrix do not prevent an unrelated
+append.
 
 (designmatrix-file-round-trip)=
 ### `DesignMatrix` files read back — `.csv` separator fixed, `.h5` reader added
@@ -362,11 +365,10 @@ generated = [c for c in dm.columns if is_reserved_name(c)]
 task_only = [c for c in dm.columns if not c.startswith(RESERVED_PREFIX)]
 ```
 
-**One new restriction.** `append(axis=1)` refuses a raw pandas/polars frame
-whose columns use the reserved prefix — those columns are yours by definition,
-and letting them in would make a user column indistinguishable from a generated
-one. Rename them before appending. `DesignMatrix` inputs are unaffected: their
-generated columns legitimately carry the prefix.
+`append(axis=1)` refuses a raw Polars frame whose columns use the reserved
+prefix, which identifies generated columns. Rename user columns before
+appending. `DesignMatrix` inputs may contain generated columns with the prefix.
+Convert pandas inputs with the `DesignMatrix` constructor before appending.
 
 (fit-no-implicit-design-clean)=
 ### `fit()` no longer cleans the design matrix
@@ -649,11 +651,23 @@ Follow-up plotting consistency changes ([#490](https://github.com/cosanlab/nltoo
 
 **Status**: ✅ COMPLETE (v0.6.0)
 
-DesignMatrix now uses Polars DataFrames internally instead of pandas. This provides:
-- **2-5x faster** operations (especially statistics and concatenation)
-- **Lower memory usage** (Apache Arrow format)
-- **Better type safety** and error messages
-- **Idiomatic Polars patterns** (no pandas anti-patterns)
+`DesignMatrix` stores a Polars DataFrame and exposes direct Polars methods,
+including expressions such as `dm.select(pl.col("stim").mean())`. Every eager
+DataFrame result becomes an independently owned `DesignMatrix`. Series, scalars,
+grouping objects and lazy builders retain their native Polars types. Explicit
+nltools methods such as `sum()` and `corr()` retain their documented return types.
+
+Known column selections and the row methods `head`, `tail`, `slice` and `filter` preserve
+applicable annotations, nominal sampling frequency and multi-run state. Renaming
+translates both annotation lists. Replacing a column clears its convolution
+annotation while preserving its confound role. Aggregations and operations with
+unknown semantics clear metadata whose validity cannot be established.
+
+Constructors, copies and transformations independently own retained mutable data.
+Annotation properties return detached lists. Constructor annotations must name
+existing columns, timing must be finite and positive, and `n_rows` must be a
+nonnegative integer. Zero-column designs retain their observation count through
+selection, append, NumPy conversion and HDF5; text export requires a column.
 
 **What's removed:**
 - `.loc[]` and `.iloc[]` indexers - Use column/row access instead
@@ -687,8 +701,8 @@ import numpy as np
 corr = np.corrcoef(dm['col1'].to_numpy(), dm['col2'].to_numpy())[0, 1]  # ✅
 dm['col1'].corr(dm['col2'])  # ❌ Polars Series has no .corr() method
 
-# Saving to CSV (access underlying Polars DataFrame)
-dm.data.write_csv('/path/to/file.csv')  # ✅ Polars way
+# Saving to CSV through DesignMatrix
+dm.write('/path/to/file.csv')         # Preserves the zero-column export check
 dm.to_csv('/path/to/file.csv')         # ❌ Method doesn't exist
 
 # Loading from CSV
@@ -699,7 +713,7 @@ dm = DesignMatrix(pl.read_csv('/path/to/file.csv'), sampling_freq=0.5)
 **What's the same:**
 - `.shape` and `.columns` work identically; use `.is_empty` to test emptiness
 - `.fillna()`, `.drop()`, `.zscore()` methods work identically
-- `.append()`, `.convolve()`, `.upsample()`, `.downsample()` work identically
+- `.convolve()`, `.upsample()`, `.downsample()` retain their nltools interfaces
 - `.vif()`, `.clean()` methods work identically
 
 **Migration examples:**
@@ -724,9 +738,8 @@ dm = DesignMatrix(arr, columns=dm.columns, sampling_freq=dm.sampling_freq)
 # OLD (pandas .assign())
 new_dm = dm.assign(new_col=lambda df: df['col1'] * 2)
 
-# NEW (direct assignment)
-new_dm = dm.copy()
-new_dm['new_col'] = dm['col1'] * 2
+# NEW (direct Polars expressions)
+new_dm = dm.with_columns(new_col=pl.col('col1') * 2)
 ```
 
 **New utility methods:**
@@ -749,14 +762,22 @@ dm = DesignMatrix({'stim': [1, 2, 3, 4]}, sampling_freq=0.5)
 brain_data.fit(model='glm', X=dm)  # Automatic conversion to pandas for nilearn
 ```
 
-**For pandas compatibility:**
-```python
-# Convert to pandas when needed
-pandas_design = dm.to_pandas()
+**Pandas input and nilearn adapters:**
 
-# Use with legacy code expecting pandas
-nilearn_glm.fit(fmri_img, design_matrices=[pandas_design])
+The constructor immediately converts pandas frames and discards their index.
+Convert pandas append inputs explicitly. Horizontal append accepts raw Polars
+frames directly and tags their columns as confounds.
+
+```python
+motion = DesignMatrix(pandas_motion, sampling_freq=dm.sampling_freq,
+                      confounds=list(pandas_motion.columns))
+combined = dm.append(motion, axis=1)
 ```
+
+The dedicated nltools `to_pandas()` method is removed. Generic forwarding still
+exposes Polars methods, including Polars' own `to_pandas()`. nltools-maintained
+Polars-to-pandas conversions occur only inside the GLM and events adapters where
+nilearn requires pandas. Plotting uses arrays.
 
 **Adjacency.regress() compatibility:**
 ```python
@@ -855,12 +876,13 @@ task = task.with_columns(
     vmpfc_motor=pl.col("vmpfc") * pl.col("motor_c0"),
 )
 
-# 4. Stack confounds + drift. .append() handles a mixed list of pandas
-#    DataFrames (csf, mc_cov) and DesignMatrix instances (spikes — which
-#    already knows its own columns are confounds via find_spikes).
+# 4. Convert pandas confounds before appending. find_spikes returns a
+#    DesignMatrix whose columns are already tagged as confounds.
+csf_dm = DesignMatrix(csf, sampling_freq=task.sampling_freq)
+motion_dm = DesignMatrix(mc_cov, sampling_freq=task.sampling_freq)
 spikes = bold.find_spikes(global_spike_cutoff=3, diff_spike_cutoff=3, TR=tr)
 dm = task.append(
-    [csf, mc_cov, spikes], axis=1, as_confounds=True,
+    [csf_dm, motion_dm, spikes], axis=1, as_confounds=True,
 ).add_poly(order=2, include_lower=True)
 ```
 
@@ -901,7 +923,10 @@ DesignMatrix(sampling_freq=0.5, shape=(200, 6))
 
 **Status**: ⚠️ **BREAKING** (v0.6.0) — direct assignment now raises `AttributeError`
 
-The `.convolved` and `.confounds` lists are managed by `.convolve()`, `.append()`, `.add_poly()`, and `.add_dct_basis()`. Direct mutation was a foot-gun (the v0.5.1 PPI-style flow needed `dm.convolved = list(other.columns)` after a `pd.concat` round-trip clobbered metadata) and is now disallowed.
+The `.convolved` and `.confounds` properties return detached lists. Mutating a
+returned list does not change the design; assigning either property raises.
+Set initial annotations in the constructor, or use `.convolve()`, `.append()`,
+`.add_poly()` and `.add_dct_basis()` to manage them through transformations.
 
 ```python
 # OLD (v0.5.1) — silently mutates state, easy to forget when columns later get renamed
@@ -912,13 +937,18 @@ combined = DesignMatrix(
 combined.convolved = list(dm_task.columns)   # manual re-assert after pd.concat
 combined.confounds = list(motion.columns) + ["csf"] + list(spikes.columns)
 
-# NEW (v0.6.0) — append manages both lists for you
-combined = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
+# NEW (v0.6.0): convert pandas inputs and mark appended columns as confounds
+motion_dm = DesignMatrix(motion, sampling_freq=dm_task.sampling_freq)
+csf_dm = DesignMatrix(csf, sampling_freq=dm_task.sampling_freq)
+spikes_dm = DesignMatrix(spikes, sampling_freq=dm_task.sampling_freq)
+combined = dm_task.append(
+    [motion_dm, csf_dm, spikes_dm], axis=1, as_confounds=True,
+).add_poly(order=2)
 # combined.convolved → ['stim_c0', ...]
 # combined.confounds → ['motion_tx', ..., 'csf', '.nl_global_spike1', ..., '.nl_poly_0', ...]
 ```
 
-If you really need to set initial state explicitly, pass `convolved=` / `confounds=` to the constructor — those kwargs still work (and `copy_with` uses them internally for metadata propagation):
+Pass `convolved=` and `confounds=` to the constructor to set initial annotations:
 
 ```python
 dm = DesignMatrix(arr, sampling_freq=0.5, columns=cols, confounds=["intercept"])
@@ -1996,7 +2026,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 | `stats.py` | Function removed | `pearson()` | `scipy.stats.pearsonr` | Use scipy or inference module |
 | `stats.py` | Function removed | Unsuffixed one-sample permutation wrapper | `one_sample_permutation_test()` | Import from `nltools.algorithms` |
 | `stats.py` | Function removed | Unsuffixed two-sample permutation wrapper | `two_sample_permutation_test()` | Import from `nltools.algorithms` |
-| `DesignMatrix` | Backend changed | pandas | Polars | Automatic migration (backward compatible) |
+| `DesignMatrix` | Backend and dataframe return contracts changed | pandas | Polars | Convert pandas append inputs with `DesignMatrix`; eager frame operations return `DesignMatrix` with operation-specific metadata |
 | `BrainData.fit()` | New parameter | `fit()` mutates | `fit(inplace=False)` returns Fit | Optional migration |
 | `BrainData.predict()` | API + return type changed | `algorithm=`, `cv_dict=`, dict return | `model=`, `cv=`, `Predict` dataclass return (`.weight_map`, `.scores`, `.predictions`, …) | Update keywords; `result['weight_map']` → `result.weight_map`. Fluent `.cv().predict()` removed — pass `model=Pipeline(...)` for custom transforms |
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
@@ -2201,9 +2231,9 @@ is_empty = brain_data.is_empty
 - [ ] Replace `onsets_to_dm(events_path, run_length=N, sampling_freq=sf, hrf_model='glover')` → `DesignMatrix(events_path, run_length=N, TR=1/sf)` (HRF-convolved by default; pass `hrf_model=None` for boxcar). For in-memory DataFrames use `events_to_dm(...)` from `nltools.data.designmatrix.io` (always boxcar). The `from nltools.file_reader import ...` / `from nltools.io import onsets_to_dm` paths are both removed.
 - [ ] Rename `dm.polys` → `dm.confounds` (attribute), `polys=` → `confounds=` (constructor kwarg), `exclude_polys=` → `exclude_confounds=` (on `.vif()` / `.clean()`)
 - [ ] Replace any direct `dm.convolved = …` / `dm.confounds = …` assignments with the constructor kwargs (`convolved=`, `confounds=`) or with `.append(other, axis=1)` — the attributes are now read-only properties. See [DesignMatrix .convolved / .confounds are read-only](#designmatrix-confounds-readonly).
-- [ ] Replace `pd.concat([dm.to_pandas(), confounds_frame], axis=1) → DesignMatrix(...)` with `dm.append(confounds_frame, axis=1)` (raw DataFrames are auto-marked as confounds; metadata is preserved).
+- [ ] Replace pandas concatenation with `dm.append(...)`. Pass raw Polars frames directly; convert pandas frames with `DesignMatrix(frame, sampling_freq=dm.sampling_freq, confounds=list(frame.columns))` first.
 - [ ] Update column lookups after `.convolve()`: `dm_conv["stim"]` → `dm_conv["stim_c0"]`. Includes `compute_contrasts("A - B")` strings → `compute_contrasts("A_c0 - B_c0")`. See [DesignMatrix.convolve() always suffixes](#designmatrix-convolve-suffix).
-- [ ] Stop introducing value-identical columns via `append(axis=1)` — bitwise-duplicate columns now raise `ValueError`; drop or modify one copy before appending. See [append(axis=1) refuses bitwise-duplicate columns](#append-duplicate-columns).
+- [ ] Stop introducing value-identical columns via `append(axis=1)` — value-identical columns now raise `ValueError`; drop or modify one copy before appending. See [append(axis=1) refuses value-identical columns](#append-duplicate-columns).
 - [ ] Update `from nltools.external import glover_hrf` → `from nltools.algorithms.hrf import glover_hrf`
 - [ ] Update `from nltools.simulator import ...` → `from nltools import ...` or `from nltools.data import ...`
 - [ ] Replace stateful `nltools.prefs` template configuration with `set_brainspace()` / `get_brainspace()` / `with_brainspace()`

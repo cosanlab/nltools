@@ -48,29 +48,16 @@ class TestDesignMatrixConcatenation:
         assert dm_combined.shape == (1, 3)
         assert set(dm_combined.columns) == {"a", "b", "c"}
 
-    def test_horizontal_append_pandas_dataframe_as_confounds(self):
-        """
-        Horizontal append accepts pandas DataFrames; new columns are tracked
-        as confounds (added to .confounds) so vertical multi-run appends
-        separate them per run. Typical use: adding motion confounds from a
-        BIDS confounds.tsv in one call instead of a per-column loop.
-        """
+    def test_horizontal_append_pandas_requires_constructor_conversion(self):
+        """Pandas ingress is explicit and preserves caller-supplied confound roles."""
         import pandas as pd
 
         dm = DesignMatrix({"task": [0.0, 1.0, 0.0]}, sampling_freq=0.5)
-        confounds = pd.DataFrame(
-            {"trans_x": [0.1, 0.2, -0.1], "rot_y": [0.01, -0.02, 0.03]}
-        )
-
-        combined = dm.append(confounds, axis=1)
-
-        assert combined.shape == (3, 3)
-        assert set(combined.columns) == {"task", "trans_x", "rot_y"}
-        # The confound columns should be tracked in .confounds so they get
-        # per-run separation on vertical append.
-        assert "trans_x" in combined.confounds
-        assert "rot_y" in combined.confounds
-        assert "task" not in combined.confounds
+        frame = pd.DataFrame({"motion": [0.1, 0.2, -0.1]})
+        with pytest.raises(TypeError):
+            dm.append(frame, axis=1)
+        converted = DesignMatrix(frame, sampling_freq=0.5, confounds=["motion"])
+        assert dm.append(converted, axis=1).confounds == ["motion"]
 
     def test_horizontal_append_polars_dataframe_as_confounds(self):
         """Same behavior for a polars DataFrame input."""
@@ -88,17 +75,15 @@ class TestDesignMatrixConcatenation:
     def test_horizontal_append_dataframe_rejects_unsupported_type(self):
         """A non-DesignMatrix, non-DataFrame input raises a clear error."""
         dm = DesignMatrix({"task": [0.0, 1.0]}, sampling_freq=0.5)
-        with pytest.raises(TypeError, match="pandas DataFrame, or polars DataFrame"):
+        with pytest.raises(TypeError, match="polars DataFrame"):
             dm.append([[1, 2], [3, 4]], axis=1)
 
     def test_horizontal_append_dataframe_then_vertical_separates_nuisance(self):
         """End-to-end: DataFrame confounds survive multi-run separation."""
-        import pandas as pd
-
         run1 = DesignMatrix({"task": [0.0, 1.0, 0.0]}, sampling_freq=0.5)
-        run1 = run1.append(pd.DataFrame({"mot_x": [0.1, 0.2, 0.3]}), axis=1)
+        run1 = run1.append(pl.DataFrame({"mot_x": [0.1, 0.2, 0.3]}), axis=1)
         run2 = DesignMatrix({"task": [1.0, 0.0, 1.0]}, sampling_freq=0.5)
-        run2 = run2.append(pd.DataFrame({"mot_x": [-0.1, 0.0, 0.2]}), axis=1)
+        run2 = run2.append(pl.DataFrame({"mot_x": [-0.1, 0.0, 0.2]}), axis=1)
 
         combined = run1.append(run2, axis=0)
 

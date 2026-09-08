@@ -16,10 +16,11 @@ regressors. Transformations return new instances with that metadata
 preserved; `DesignMatrix` is composed over the DataFrame rather than
 subclassing it. Unknown attributes are forwarded to the underlying
 DataFrame, so the Polars API is available directly (``dm.select(...)``,
-``dm.filter(...)``, ``dm.slice(...)`` return a `DesignMatrix`; anything
-else returns the raw Polars result).
+``dm.filter(...)``, ``dm.slice(...)`` return a `DesignMatrix`). Every eager DataFrame result becomes a new
+`DesignMatrix`; Series and builder objects remain native Polars values.
+Metadata is retained only when the operation establishes its validity.
 
-`data` accepts a Polars DataFrame (zero-copy), a pandas DataFrame
+`data` accepts a Polars DataFrame (copied), a pandas DataFrame
 (converted), a NumPy array (named via `columns`), a dict of columns,
 another `DesignMatrix` (copied), ``None`` (empty), or a file path.
 A `.tsv`/`.csv` path is read as a BIDS events file when it has `onset`
@@ -76,7 +77,6 @@ Name | Description
 [`standardize`](#data-design-matrix-standardize) | Standardize columns using the specified method.
 [`sum`](#data-design-matrix-sum) | Compute the sum along an axis.
 [`to_numpy`](#data-design-matrix-to-numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#data-design-matrix-to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`upsample`](#data-design-matrix-upsample) | Increase temporal resolution to a target frequency.
 [`vif`](#data-design-matrix-vif) | Compute the variance inflation factor for each column.
 [`with_columns`](#data-design-matrix-with-columns) | Add or replace columns via Polars expressions.
@@ -468,21 +468,6 @@ Type | Description
 ---- | -----------
 <code>ndarray</code> | 2D array with shape (n_samples, n_columns)
 
-(data-design-matrix-to-pandas)=
-### `to_pandas`
-
-```python
-to_pandas() -> pd.DataFrame
-```
-
-Convert DesignMatrix to pandas DataFrame.
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>DataFrame</code> | Pandas DataFrame with same data and column names.
-
 (data-design-matrix-upsample)=
 ### `upsample`
 
@@ -538,8 +523,9 @@ Add or replace columns via Polars expressions.
 Mirrors ``pl.DataFrame.with_columns``. Named kwargs become named
 columns; positional ``pl.Expr`` arguments are accepted as-is
 (including ``pl.Expr.alias("name")``). Returns a new `DesignMatrix`
-with metadata preserved; new columns are *not* auto-tagged as
-convolved or confounds.
+preserving annotations on untouched columns. Replacing a column clears
+its convolution annotation and retains its confound role; new columns
+are untagged.
 
 For convenience, named-kwarg values that aren't ``pl.Expr`` /
 ``pl.Series`` are coerced: an ``int``/``float`` is broadcast as a

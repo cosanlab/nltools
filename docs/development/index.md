@@ -30,6 +30,9 @@ The three facades and their submodules:
 - **`Adjacency`** — `io` · `modeling` · `stats` · `spatial` · `plotting`
 - **`DesignMatrix`** — `append` · `transforms` · `regressors` · `diagnostics` · `io` · `plotting`
 
+The [DesignMatrix contract](specs/designmatrix.md) defines direct Polars method
+access, result ownership, metadata propagation and persistence.
+
 ### Design rules
 
 - **Pure functions first.** Classes compose and delegate to them, never the reverse.

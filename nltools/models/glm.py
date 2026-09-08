@@ -251,17 +251,19 @@ class Glm(BaseModel):
         # Import here to avoid circular dependency
         from nltools.data import DesignMatrix
 
+        from nltools.data.designmatrix.io import _to_pandas
+
         # Handle single design matrix
         if not isinstance(design_matrices, list):
             if isinstance(design_matrices, DesignMatrix):
-                return design_matrices.to_pandas()
+                return _to_pandas(design_matrices)
             return design_matrices
 
         # Handle list of design matrices
         converted = []
         for dm in design_matrices:
             if isinstance(dm, DesignMatrix):
-                converted.append(dm.to_pandas())
+                converted.append(_to_pandas(dm))
             else:
                 converted.append(dm)
 

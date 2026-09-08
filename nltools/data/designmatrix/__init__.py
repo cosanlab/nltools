@@ -10,13 +10,21 @@ from __future__ import annotations
 
 __all__ = ["DesignMatrix"]
 
+from copy import deepcopy
+from numbers import Integral
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
 import polars as pl
 
-from .utils import copy_with, df_passthrough
+from .utils import (
+    copy_frame,
+    copy_with,
+    df_passthrough,
+    effective_frame,
+    replacement_names,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -42,10 +50,11 @@ class DesignMatrix:
     preserved; `DesignMatrix` is composed over the DataFrame rather than
     subclassing it. Unknown attributes are forwarded to the underlying
     DataFrame, so the Polars API is available directly (``dm.select(...)``,
-    ``dm.filter(...)``, ``dm.slice(...)`` return a `DesignMatrix`; anything
-    else returns the raw Polars result).
+    ``dm.filter(...)``, ``dm.slice(...)`` return a `DesignMatrix`). Every eager DataFrame result becomes a new
+    `DesignMatrix`; Series and builder objects remain native Polars values.
+    Metadata is retained only when the operation establishes its validity.
 
-    `data` accepts a Polars DataFrame (zero-copy), a pandas DataFrame
+    `data` accepts a Polars DataFrame (copied), a pandas DataFrame
     (converted), a NumPy array (named via `columns`), a dict of columns,
     another `DesignMatrix` (copied), ``None`` (empty), or a file path.
     A `.tsv`/`.csv` path is read as a BIDS events file when it has `onset`
@@ -154,6 +163,13 @@ class DesignMatrix:
         """
         if TR is not None and sampling_freq is not None:
             raise ValueError("Pass exactly one of `TR` or `sampling_freq`, not both.")
+        for name, value in (("TR", TR), ("sampling_freq", sampling_freq)):
+            if value is not None and (not np.isfinite(value) or value <= 0):
+                raise ValueError(f"{name} must be finite and positive.")
+        if n_rows is not None and (
+            isinstance(n_rows, bool) or not isinstance(n_rows, Integral) or n_rows < 0
+        ):
+            raise ValueError("n_rows must be a nonnegative integer.")
         if TR is not None:
             sampling_freq = 1.0 / TR
 
@@ -171,7 +187,7 @@ class DesignMatrix:
         # Create internal Polars DataFrame based on input type
         if isinstance(data, DesignMatrix):
             # Copy-constructor: inherit data + metadata; explicit kwargs override.
-            self.data = data.data.clone()
+            self.data = copy_frame(data.data, {id(data): self})
             if sampling_freq is None:
                 sampling_freq = data.sampling_freq
             if convolved is None:
@@ -181,6 +197,7 @@ class DesignMatrix:
             if n_rows is None:
                 n_rows = data._n_rows
             self.multi = data.multi
+            self._run_count = data._run_count
 
         elif data is None:
             # Empty initialization
@@ -207,6 +224,8 @@ class DesignMatrix:
                 if n_rows is None:
                     n_rows = stored.get("n_rows")
                 self.multi = stored.get("multi", False)
+                if "run_count" in stored:
+                    self._run_count = stored["run_count"]
             else:
                 if run_length is None:
                     raise ValueError(
@@ -227,24 +246,36 @@ class DesignMatrix:
                 )
 
         elif isinstance(data, pl.DataFrame):
-            # Polars DataFrame - zero copy, just ensure string column names
-            self.data = data.rename({col: str(col) for col in data.columns})
+            self.data = data
 
         elif isinstance(data, dict):
             # Dictionary - let Polars handle it, ensure string column names
-            self.data = pl.DataFrame(data)
-            self.data = self.data.rename({col: str(col) for col in self.data.columns})
+            names = [str(c) for c in data]
+            if len(set(names)) != len(names):
+                raise ValueError(
+                    "Column names must be unique after conversion to strings."
+                )
+            self.data = pl.DataFrame(dict(zip(names, data.values())))
 
         elif isinstance(data, np.ndarray):
+            if data.ndim not in (1, 2):
+                raise ValueError("NumPy input must have one or two dimensions.")
+            if data.ndim == 2 and data.shape[1] == 0:
+                if n_rows is not None and n_rows != data.shape[0]:
+                    raise ValueError("n_rows conflicts with array observations.")
+                n_rows = data.shape[0]
+            data = data.copy()
             # Numpy array - handle column names
             if columns is not None:
                 # Use provided column names
-                self.data = pl.DataFrame(data, schema=[str(c) for c in columns])
+                self.data = pl.DataFrame(
+                    data, schema=[str(c) for c in columns], orient="row"
+                )
             else:
                 # Auto-generate column names as strings: '0', '1', '2', ...
                 n_cols = data.shape[1] if data.ndim > 1 else 1
                 auto_columns = [str(i) for i in range(n_cols)]
-                self.data = pl.DataFrame(data, schema=auto_columns)
+                self.data = pl.DataFrame(data, schema=auto_columns, orient="row")
 
         elif _is_pandas_dataframe(data):
             # pandas DataFrame - convert to Polars, ensure string column names
@@ -257,6 +288,14 @@ class DesignMatrix:
                 f"Expected DesignMatrix, Polars/pandas DataFrame, numpy array, "
                 f"dict, str/Path, or None."
             )
+
+        if not isinstance(data, DesignMatrix):
+            self.data = copy_frame(self.data)
+        for annotation in (convolved, confounds):
+            if annotation is not None and any(
+                c not in self.data.columns for c in annotation
+            ):
+                raise ValueError("Annotation names must refer to existing columns.")
 
         # Initialize metadata (after data dispatch so copy-constructor can
         # populate inherited values). Stored on private attrs so the public
@@ -282,6 +321,17 @@ class DesignMatrix:
                     f"DesignMatrix a length."
                 )
         self._n_rows = n_rows if self.data.width == 0 else None
+        if "_run_count" not in self.__dict__:
+            self._run_count = 1 if self.shape[0] > 0 else 0
+            if self.multi:
+                # Files predating explicit run counts encode identities in names.
+                from nltools.utils import parse_run_separated
+
+                runs = [parse_run_separated(c) for c in self.columns]
+                self._run_count = max(
+                    (run[0] + 1 for run in runs if run is not None),
+                    default=self._run_count,
+                )
 
         # Auto-convolve when the constructor loaded events from a file. Matches
         # nilearn's `make_first_level_design_matrix(hrf_model='glover')`
@@ -309,7 +359,7 @@ class DesignMatrix:
         """
         if self.data.width == 0 and self._n_rows is not None:
             return np.empty((self._n_rows, 0), dtype=dtype or np.float64)
-        arr = self.data.to_numpy()
+        arr = deepcopy(self.data.to_numpy().copy())
         if dtype is not None:
             return arr.astype(dtype)
         return arr
@@ -332,14 +382,13 @@ class DesignMatrix:
         """
         if not isinstance(other, DesignMatrix):
             return NotImplemented
-        return self.data.equals(other.data)
+        return self.shape == other.shape and self.data.equals(other.data)
 
     def __getattr__(self, name: str):
         """Forward unknown attrs to the underlying polars DataFrame.
 
-        Allowlisted row-preserving methods (see ``WRAP_AS_DESIGNMATRIX`` in utils)
-        return a new ``DesignMatrix`` with metadata preserved; everything else
-        returns the raw polars attribute. The ``data`` guard avoids recursion
+        Eager frame results use operation-aware metadata policies; native
+        Series, scalar and builder results retain Polars return types. The ``data`` guard avoids recursion
         during construction before ``data`` is assigned.
         """
         if name.startswith("_") or "data" not in self.__dict__:
@@ -363,8 +412,8 @@ class DesignMatrix:
         """
         if isinstance(key, str):
             # Single column - return Series
-            return self.data[key]
-        if isinstance(key, list):
+            return copy_frame(self.data.select(key)).to_series()
+        if isinstance(key, list) and all(isinstance(c, str) for c in key):
             # Multiple columns - return DesignMatrix with metadata
             subset_df = self.data.select(key)
             return copy_with(self, subset_df)
@@ -405,16 +454,8 @@ class DesignMatrix:
             dm["col"] = pl.col("a") + pl.col("b")  # Polars expression
             ```
         """
-        if isinstance(value, pl.Expr):
-            self.data = self.data.with_columns(value.alias(key))
-        elif isinstance(value, pl.Series):
-            self.data = self.data.with_columns(value.alias(key))
-        elif isinstance(value, (int, float)):
-            self.data = self.data.with_columns(pl.lit(value).alias(key))
-        elif isinstance(value, (list, np.ndarray)):
-            self.data = self.data.with_columns(pl.Series(key, value))
-        else:
-            raise TypeError(f"Cannot set column from type {type(value)}")
+        result = self.with_columns(**{key: value})
+        self.__dict__.update(result.__dict__)
 
     # ── Properties (alphabetical) ───────────────────────────────────────
 
@@ -427,7 +468,10 @@ class DesignMatrix:
     def columns(self, new_names: list[str]):
         """Set column names."""
         str_names = [str(name) for name in new_names]
-        self.data = self.data.rename(dict(zip(self.data.columns, str_names)))
+        if len(str_names) != len(self.columns):
+            raise ValueError("Column names must match the number of columns.")
+        result = self.rename(dict(zip(self.data.columns, str_names)))
+        self.__dict__.update(result.__dict__)
 
     @property
     def confounds(self) -> list[str]:
@@ -437,9 +481,9 @@ class DesignMatrix:
         ``confounds=`` constructor kwarg. Direct assignment raises
         ``AttributeError`` — pass via the constructor or use
         ``.append(other, axis=1)`` (which auto-tracks confounds when `other`
-        is a raw pandas/polars DataFrame).
+        is a raw Polars DataFrame).
         """
-        return self._confounds
+        return list(self._confounds)
 
     @confounds.setter
     def confounds(self, value):
@@ -458,7 +502,7 @@ class DesignMatrix:
         Direct assignment raises ``AttributeError`` — pass via the
         ``convolved=`` constructor kwarg if you need to set initial state.
         """
-        return self._convolved
+        return list(self._convolved)
 
     @convolved.setter
     def convolved(self, value):
@@ -633,8 +677,23 @@ class DesignMatrix:
         Returns:
             DesignMatrix: Copy of the current DesignMatrix
         """
-        cloned_df = self.data.clone()
-        return copy_with(self, cloned_df)
+        return deepcopy(self)
+
+    def __copy__(self):
+        """Return an independently owned copy."""
+        return deepcopy(self)
+
+    def __deepcopy__(self, memo):
+        """Copy the retained graph while preserving aliases and cycles."""
+        if id(self) in memo:
+            return memo[id(self)]
+        result = type(self).__new__(type(self))
+        memo[id(self)] = result
+        result.data = copy_frame(self.data, memo)
+        for key, value in self.__dict__.items():
+            if key != "data":
+                setattr(result, key, deepcopy(value, memo))
+        return result
 
     def downsample(self, target: float, method: str = "mean") -> DesignMatrix:
         """Reduce temporal resolution using Polars-native operations.
@@ -779,7 +838,7 @@ class DesignMatrix:
         else:
             combined_df = new_data_df
 
-        return copy_with(self, combined_df)
+        return copy_with(self, combined_df, operation="replace", replaced=column_names)
 
     def standardize(
         self, method: str = "zscore", columns: list[str] | None = None
@@ -825,16 +884,6 @@ class DesignMatrix:
         from .io import to_numpy
 
         return to_numpy(self)
-
-    def to_pandas(self) -> pd.DataFrame:
-        """Convert DesignMatrix to pandas DataFrame.
-
-        Returns:
-            pd.DataFrame: Pandas DataFrame with same data and column names.
-        """
-        from .io import to_pandas
-
-        return to_pandas(self)
 
     def upsample(self, target: float, method: str = "linear") -> DesignMatrix:
         """Increase temporal resolution to a target frequency.
@@ -893,8 +942,9 @@ class DesignMatrix:
         Mirrors ``pl.DataFrame.with_columns``. Named kwargs become named
         columns; positional ``pl.Expr`` arguments are accepted as-is
         (including ``pl.Expr.alias("name")``). Returns a new `DesignMatrix`
-        with metadata preserved; new columns are *not* auto-tagged as
-        convolved or confounds.
+        preserving annotations on untouched columns. Replacing a column clears
+        its convolution annotation and retains its confound role; new columns
+        are untagged.
 
         For convenience, named-kwarg values that aren't ``pl.Expr`` /
         ``pl.Series`` are coerced: an ``int``/``float`` is broadcast as a
@@ -934,8 +984,12 @@ class DesignMatrix:
                     f"{type(value).__name__}. Pass a polars Expr/Series, "
                     "numpy array, list, or scalar."
                 )
-        new_data = self.data.with_columns(*exprs, **coerced)
-        return copy_with(self, new_data)
+        frame = effective_frame(self)
+        replaced = replacement_names(frame, exprs, coerced)
+        new_data = frame.with_columns(*exprs, **coerced)
+        if self.data.width == 0 and self._n_rows is not None and "" not in replaced:
+            new_data = new_data.drop("")
+        return copy_with(self, new_data, operation="replace", replaced=replaced)
 
     def write(self, file_name: str, sep: str | None = None) -> None:
         """Write DesignMatrix to file.

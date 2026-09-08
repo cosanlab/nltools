@@ -6,8 +6,8 @@ label: page-data-design-matrix-io
 Read and write DesignMatrix objects.
 
 Loads BIDS events and tabular confound files into the frame a `DesignMatrix`
-wraps, converts to pandas/NumPy, and round-trips through TSV/CSV or HDF5
-(which also preserves the metadata).
+wraps, exports NumPy arrays, and round-trips through TSV/CSV or HDF5
+(which also preserves the metadata). A private pandas adapter serves nilearn.
 
 **Functions:**
 
@@ -18,7 +18,6 @@ Name | Description
 [`read_h5`](#data-design-matrix-io-read-h5) | Read a DesignMatrix HDF5 file written by `write_h5`.
 [`separator_for_path`](#data-design-matrix-io-separator-for-path) | Return the delimiter a text DesignMatrix file uses, from its extension.
 [`to_numpy`](#data-design-matrix-io-to-numpy) | Convert a DesignMatrix to a NumPy array.
-[`to_pandas`](#data-design-matrix-io-to-pandas) | Convert DesignMatrix to pandas DataFrame.
 [`write`](#data-design-matrix-io-write) | Write DesignMatrix to file.
 [`write_h5`](#data-design-matrix-io-write-h5) | Write DesignMatrix to HDF5 file with metadata.
 
@@ -169,38 +168,6 @@ Type | Description
 dm = DesignMatrix({"a": [1, 2, 3], "b": [4, 5, 6]}, sampling_freq=1)
 arr = to_numpy(dm)
 arr.shape  # → (3, 2)
-```
-
-(data-design-matrix-io-to-pandas)=
-### `to_pandas`
-
-```python
-to_pandas(dm: DesignMatrix)
-```
-
-Convert DesignMatrix to pandas DataFrame.
-
-Uses dict-based conversion to avoid pyarrow dependency. This is slightly
-slower (~10-20%) than pyarrow-based conversion but removes the dependency.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | DesignMatrix instance. | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>DataFrame</code> | pandas DataFrame with the same data and column names.
-
-**Examples:**
-
-```python
-dm = DesignMatrix(np.random.randn(100, 3))
-pd_df = to_pandas(dm)
-type(pd_df)  # → <class 'pandas.core.frame.DataFrame'>
 ```
 
 (data-design-matrix-io-write)=

@@ -1,4 +1,8 @@
 # Canonical v0.6.0 kwarg vocabulary — SINGLE SOURCE OF TRUTH.
+# DesignMatrix contract (Kata kjtp): existing keyword names/defaults are retained.
+# Constructor-only pandas ingress and removal of its dedicated to_pandas method
+# change supported operations, not the keyword vocabulary. Direct Polars kwargs
+# continue to belong to the third-party API; see development/specs/designmatrix.md.
 #
 # This file is the machine-readable source for the canonical-kwarg vocabulary. It
 # feeds TWO consumers, both wired into `poe lint-api`:

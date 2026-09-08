@@ -14,7 +14,7 @@ Concatenate design matrices.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `dm` | <code>[DesignMatrix](#page-data-design-matrix)</code> | The base design matrix. | *required*
-`other` | <code>[DesignMatrix](#page-data-design-matrix) \| DataFrame \| DataFrame \| list</code> | Matrix or matrices to append. For ``axis=1`` (horizontal), also accepts a pandas or polars DataFrame (or list thereof); the new columns are treated as nuisance regressors (tracked in `confounds` on the result). For ``axis=0`` (vertical), all items must be `DesignMatrix`. | *required*
+`other` | <code>[DesignMatrix](#page-data-design-matrix) \| DataFrame \| list</code> | Matrix or matrices to append. For ``axis=1`` (horizontal), also accepts a polars DataFrame (or list thereof); the new columns are treated as nuisance regressors (tracked in `confounds` on the result). For ``axis=0`` (vertical), all items must be `DesignMatrix`. | *required*
 `axis` | <code>int</code> | 0 for row-wise (vertical), 1 for column-wise (horizontal). | <code>0</code>
 `keep_separate` | <code>bool</code> | Whether to separate confound columns across runs (only ``axis=0``). | <code>True</code>
 `unique_cols` | <code>list[str] \| None</code> | Additional columns to keep separated (supports ``*`` wildcards). | <code>None</code>
@@ -32,5 +32,5 @@ Type | Description
 
 Type | Description
 ---- | -----------
-<code>TypeError</code> | If items to append are not DesignMatrix (or, for ``axis=1``, a DesignMatrix / pandas DataFrame / polars DataFrame).
+<code>TypeError</code> | If items to append are not DesignMatrix (or, for ``axis=1``, a DesignMatrix / polars DataFrame).
 <code>ValueError</code> | If sampling frequencies do not match, axis is invalid, a non-multi base is combined with a multi-run DM, or shared columns have mismatched dtypes.

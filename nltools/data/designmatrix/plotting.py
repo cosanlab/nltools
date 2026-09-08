@@ -129,27 +129,23 @@ def plot_matrix(
     Returns:
         matplotlib.figure.Figure: The rendered figure.
     """
-    import pandas as pd
     import seaborn as sns
 
-    from .io import to_pandas
-
-    df = to_pandas(dm)
-    if columns is not None:
-        df = df[list(columns)]
+    labels = dm.columns if columns is None else list(columns)
+    values = dm.data.select(labels).to_numpy()
     if rescale:
-        X = df.to_numpy(dtype=float)
-        X = X / np.maximum(1.0e-12, np.sqrt(np.sum(X**2, 0)))
-        df = pd.DataFrame(X, columns=df.columns)
+        values = values.astype(float)
+        values = values / np.maximum(1.0e-12, np.sqrt(np.sum(values**2, 0)))
 
     fig, ax, owns_fig = _new_axis(ax, figsize or (4, 6))
     heatmap_kwargs = {
         "cmap": cmap or "gray",
         "cbar": False,
+        "xticklabels": labels,
         "yticklabels": False,  # Too many rows for labels typically
     }
     heatmap_kwargs.update(kwargs)
-    sns.heatmap(df, ax=ax, **heatmap_kwargs)
+    sns.heatmap(values, ax=ax, **heatmap_kwargs)
 
     ax.set_xlabel("Regressors")
     ax.set_ylabel("Time (TRs)")

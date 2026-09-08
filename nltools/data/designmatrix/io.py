@@ -1,8 +1,8 @@
 """Read and write DesignMatrix objects.
 
 Loads BIDS events and tabular confound files into the frame a `DesignMatrix`
-wraps, converts to pandas/NumPy, and round-trips through TSV/CSV or HDF5
-(which also preserves the metadata).
+wraps, exports NumPy arrays, and round-trips through TSV/CSV or HDF5
+(which also preserves the metadata). A private pandas adapter serves nilearn.
 """
 
 from __future__ import annotations
@@ -63,7 +63,7 @@ def events_to_dm(
     )
     if "constant" in dm.columns:
         dm = dm.drop(columns=["constant"])
-    # Avoid pyarrow dep on the pandas → polars hop (matches `to_pandas` below).
+    # Avoid pyarrow dep on the pandas → polars hop (matches `_to_pandas` below).
     return pl.DataFrame({str(c): dm[c].to_numpy() for c in dm.columns})
 
 
@@ -191,28 +191,11 @@ def load_from_file(
     return raw, False
 
 
-def to_pandas(dm: DesignMatrix):
-    """Convert DesignMatrix to pandas DataFrame.
-
-    Uses dict-based conversion to avoid pyarrow dependency. This is slightly
-    slower (~10-20%) than pyarrow-based conversion but removes the dependency.
-
-    Args:
-        dm (DesignMatrix): DesignMatrix instance.
-
-    Returns:
-        pd.DataFrame: pandas DataFrame with the same data and column names.
-
-    Examples:
-        ```python
-        dm = DesignMatrix(np.random.randn(100, 3))
-        pd_df = to_pandas(dm)
-        type(pd_df)  # → <class 'pandas.core.frame.DataFrame'>
-        ```
-    """
+def _to_pandas(dm: DesignMatrix):
+    """Build the pandas table required by nilearn's GLM boundary."""
     import pandas as pd
 
-    return pd.DataFrame(dm.data.to_dict(as_series=False))
+    return pd.DataFrame(dm.data.to_dict(as_series=False), index=range(dm.shape[0]))
 
 
 def to_numpy(dm: DesignMatrix) -> np.ndarray:
@@ -279,6 +262,10 @@ def write(dm: DesignMatrix, file_name: str, sep: str | None = None) -> None:
     if is_h5_path(file_name):
         write_h5(dm, file_name)
     else:
+        if dm.shape[1] == 0:
+            raise ValueError(
+                "Text export requires at least one column; use HDF5 to preserve observations."
+            )
         # Write as delimited text file. The separator follows the extension by
         # default so `write` and the file constructor cannot disagree.
         dm.data.write_csv(
@@ -308,9 +295,14 @@ def write_h5(dm: DesignMatrix, file_name: str) -> None:
         meta = f.create_group("metadata")
         if dm.sampling_freq is not None:
             meta.attrs["sampling_freq"] = dm.sampling_freq
-        meta.attrs["convolved"] = np.array(dm.convolved, dtype="S")
-        meta.attrs["confounds"] = np.array(dm.confounds, dtype="S")
+        meta.attrs["convolved"] = np.array(
+            dm.convolved, dtype=h5py.string_dtype("utf-8")
+        )
+        meta.attrs["confounds"] = np.array(
+            dm.confounds, dtype=h5py.string_dtype("utf-8")
+        )
         meta.attrs["multi"] = dm.multi
+        meta.attrs["run_count"] = dm._run_count
         # A column-less matrix still describes a specific number of
         # timepoints, and polars cannot carry that in the frame itself.
         if dm._n_rows is not None:
@@ -398,6 +390,8 @@ def read_h5(file_name: str | Path) -> tuple[pl.DataFrame, dict]:
                 metadata["confounds"] = _decode(attrs["confounds"])
             if "multi" in attrs:
                 metadata["multi"] = bool(attrs["multi"])
+            if "run_count" in attrs:
+                metadata["run_count"] = int(attrs["run_count"])
             if "n_rows" in attrs:
                 metadata["n_rows"] = int(attrs["n_rows"])
 

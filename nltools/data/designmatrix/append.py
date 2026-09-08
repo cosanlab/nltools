@@ -8,6 +8,7 @@ its own intercept and drift terms.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -15,7 +16,6 @@ import polars as pl
 from nltools.utils import (
     RESERVED_PREFIX,
     is_reserved_name,
-    parse_run_separated,
     run_separated_name,
 )
 
@@ -56,14 +56,13 @@ def _check_dtype_compatibility(dfs: list[pl.DataFrame]) -> None:
 def _coerce_horizontal_input(x, sampling_freq):
     """Coerce a horizontal-append input into a DesignMatrix.
 
-    ``append(axis=1)`` accepts DesignMatrix, pandas DataFrame, or polars
-    DataFrame. Raw-frame inputs are wrapped into a DesignMatrix whose new
+    ``append(axis=1)`` accepts DesignMatrix or Polars DataFrame. Raw-frame inputs are wrapped into a DesignMatrix whose new
     columns are tracked as nuisance (``.confounds``) — that way a subsequent
     multi-run vertical append keeps them separated per run, which matches the
     usual use of this path (motion / physio / compcor confounds).
 
     Args:
-        x (DesignMatrix | pl.DataFrame | pd.DataFrame): Input to coerce.
+        x (DesignMatrix | pl.DataFrame): Input to coerce.
         sampling_freq (float | None): Base DM's sampling frequency (inherited
             by the wrapped DM).
 
@@ -74,11 +73,11 @@ def _coerce_horizontal_input(x, sampling_freq):
         TypeError: If ``x`` is not a DesignMatrix or supported DataFrame.
         ValueError: If a raw frame's columns intrude on the reserved namespace.
     """
-    from nltools.data.designmatrix import DesignMatrix, _is_pandas_dataframe
+    from nltools.data.designmatrix import DesignMatrix
 
     if isinstance(x, DesignMatrix):
         return x
-    if isinstance(x, pl.DataFrame) or _is_pandas_dataframe(x):
+    if isinstance(x, pl.DataFrame):
         # Columns arriving as a raw frame are user-authored by definition, so
         # the reserved namespace is off limits: letting them in would make a
         # user column indistinguishable from one nltools generated.
@@ -96,8 +95,7 @@ def _coerce_horizontal_input(x, sampling_freq):
             tmp.data, sampling_freq=sampling_freq, confounds=list(tmp.columns)
         )
     raise TypeError(
-        "append(axis=1) expects DesignMatrix, pandas DataFrame, or polars "
-        f"DataFrame; got {type(x).__name__}"
+        f"append(axis=1) expects DesignMatrix, polars DataFrame; got {type(x).__name__}"
     )
 
 
@@ -116,9 +114,9 @@ def append(
 
     Args:
         dm (DesignMatrix): The base design matrix.
-        other (DesignMatrix | pl.DataFrame | pd.DataFrame | list): Matrix or
+        other (DesignMatrix | pl.DataFrame | list): Matrix or
             matrices to append. For ``axis=1`` (horizontal), also accepts a
-            pandas or polars DataFrame (or list thereof); the new columns are
+            polars DataFrame (or list thereof); the new columns are
             treated as nuisance regressors (tracked in `confounds` on the
             result). For ``axis=0`` (vertical), all items must be `DesignMatrix`.
         axis (int): 0 for row-wise (vertical), 1 for column-wise (horizontal).
@@ -141,7 +139,7 @@ def append(
 
     Raises:
         TypeError: If items to append are not DesignMatrix (or, for ``axis=1``,
-            a DesignMatrix / pandas DataFrame / polars DataFrame).
+            a DesignMatrix / polars DataFrame).
         ValueError: If sampling frequencies do not match, axis is invalid,
             a non-multi base is combined with a multi-run DM, or shared
             columns have mismatched dtypes.
@@ -161,8 +159,24 @@ def append(
     if not all(isinstance(elem, DesignMatrix) for elem in to_append):
         raise TypeError(
             "All items to append must be DesignMatrix objects "
-            "(axis=1 also accepts pandas / polars DataFrames)"
+            "(axis=1 also accepts polars DataFrames)"
         )
+    if axis not in (0, 1):
+        raise ValueError("axis must be 0 (vertical) or 1 (horizontal)")
+
+    # Only the fully default empty constructor is an untimed identity.
+    def is_identity(matrix):
+        return (
+            matrix.shape == (0, 0)
+            and matrix._n_rows is None
+            and matrix.sampling_freq is None
+        )
+
+    to_append = [elem for elem in to_append if not is_identity(elem)]
+    if is_identity(dm) and to_append:
+        dm, *to_append = to_append
+    if not to_append:
+        return dm.copy()
     if not all(elem.sampling_freq == dm.sampling_freq for elem in to_append):
         raise ValueError("All Design Matrices must have the same sampling frequency!")
 
@@ -219,14 +233,6 @@ def append_horizontal(
             is not computable — refuse at assembly time rather than decide
             on the user's behalf which copy to keep).
     """
-    # A matrix with no regressors contributes nothing, so drop it before the
-    # row check. This keeps e.g. find_spikes() on a subject with no spikes from
-    # taking down the whole design build. (Such a matrix knows its own length,
-    # but one constructed without it would report 0 rows and fail the check.)
-    to_append = [elem for elem in to_append if elem.shape[1] > 0]
-    if not to_append:
-        return dm.copy()
-
     # Check all have same number of rows
     if not all(elem.shape[0] == dm.shape[0] for elem in to_append):
         raise ValueError("All Design Matrices must have the same number of rows!")
@@ -247,7 +253,6 @@ def append_horizontal(
     # as duplicate names: the design becomes rank deficient by construction.
     # Only duplication introduced by this append is checked — the base's
     # pre-existing state is the user's business, not this operation's.
-    _check_duplicate_values(dm, to_append)
 
     # Heights were validated above, so 'horizontal_extend' (the stable name
     # polars >= 1.42.1 gives the classic horizontal concat) never pads.
@@ -256,7 +261,8 @@ def append_horizontal(
 
     # Fill NaN if requested
     if fill_na is not None:
-        new_df = new_df.fill_null(fill_na)
+        new_df = new_df.fill_null(fill_na).fill_nan(fill_na)
+    _check_duplicate_values(new_df, dm.columns)
 
     # Merge confounds + convolved metadata across all matrices, dedup in order.
     confound_lists = [dm.confounds, *(e.confounds for e in to_append)]
@@ -269,42 +275,51 @@ def append_horizontal(
     return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
 
 
-def _check_duplicate_values(dm: DesignMatrix, to_append: list[DesignMatrix]) -> None:
-    """Raise if any appended column is bitwise identical to another column.
+def _check_duplicate_values(frame: pl.DataFrame, base_columns: list[str]) -> None:
+    """Reject new equal numeric columns after filling, preserving exact values."""
+    null = object()
+    nan = object()
+    seen = {}
+    for col in frame.columns:
+        series = frame[col]
+        if not series.dtype.is_numeric() and series.dtype != pl.Null:
+            continue
+        # Python numeric equality/hash compares integer and float values exactly,
+        # including integers beyond Float64 precision; null and NaN stay distinct.
+        key = tuple(
+            null
+            if value is None
+            else nan
+            if isinstance(value, float) and math.isnan(value)
+            else value
+            for value in series
+        )
+        if key in seen and col not in base_columns:
+            raise ValueError(
+                f"Column {col!r} duplicates column {seen[key]!r}: identical values under different names."
+            )
+        seen.setdefault(key, col)
 
-    Compares every column contributed by ``to_append`` against the base's
-    columns and against each other. Numeric columns are compared on values
-    (an int one-hot and its float twin are the same regressor), so the key is
-    the Float64 byte representation. Non-numeric columns are skipped — they
-    can't enter a model matrix and polars already guarantees unique names.
-    """
 
-    def _key(series: pl.Series) -> bytes | None:
-        if not series.dtype.is_numeric():
-            return None
-        return series.cast(pl.Float64).to_numpy().tobytes()
-
-    seen: dict[bytes, str] = {}
-    for col in dm.columns:
-        key = _key(dm.data.get_column(col))
-        if key is not None and key not in seen:
-            # A base-internal duplicate keeps the first name; this append did
-            # not introduce it, so it is reported only if a NEW column collides.
-            seen[key] = col
-    for elem in to_append:
-        for col in elem.columns:
-            key = _key(elem.data.get_column(col))
-            if key is None:
-                continue
-            if key in seen:
-                raise ValueError(
-                    f"Column {col!r} duplicates column {seen[key]!r}: identical "
-                    f"values under different names. A design matrix with "
-                    f"straight duplicate columns is rank deficient by "
-                    f"construction, so refusing to append. Drop one of the two "
-                    f"columns (or change its values) before appending."
-                )
-            seen[key] = col
+def _stack_frames(frames: list[pl.DataFrame], heights: list[int]) -> pl.DataFrame:
+    """Include recorded rows from column-less inputs in a vertical stack."""
+    schema = {}
+    for frame in frames:
+        schema.update(frame.schema)
+    if not schema:
+        return pl.DataFrame()
+    populated = [
+        frame
+        if frame.width
+        else pl.DataFrame(
+            [
+                pl.Series(name, [None] * height, dtype=dtype)
+                for name, dtype in schema.items()
+            ]
+        )
+        for frame, height in zip(frames, heights)
+    ]
+    return pl.concat(populated, how="diagonal")
 
 
 def _merge_ordered(lists: list[list[str]]) -> list[str]:
@@ -349,17 +364,23 @@ def append_vertical(
     if not keep_separate:
         dfs_to_stack = [d.data for d in all_dms]
         _check_dtype_compatibility(dfs_to_stack)
-        new_df = pl.concat(dfs_to_stack, how="diagonal")
+        new_df = _stack_frames(dfs_to_stack, [d.shape[0] for d in all_dms])
 
         # Fill NaN if requested
         if fill_na is not None:
-            new_df = new_df.fill_null(fill_na)
+            new_df = new_df.fill_null(fill_na).fill_nan(fill_na)
 
         # Merge confounds + convolved across matrices
         all_confounds = _merge_ordered([d.confounds for d in all_dms])
         all_convolved = _merge_ordered([d.convolved for d in all_dms])
 
-        return copy_with(dm, new_df, confounds=all_confounds, convolved=all_convolved)
+        return copy_with(
+            dm,
+            new_df,
+            confounds=all_confounds,
+            convolved=all_convolved,
+            n_rows=sum(d.shape[0] for d in all_dms),
+        )
 
     # Complex case: keep_separate=True - separate confound columns across runs
     return append_vertical_with_separation(
@@ -387,29 +408,6 @@ def match_column_pattern(columns: list[str], pattern: str) -> list[str]:
         suffix = pattern[1:]
         return [c for c in columns if c.endswith(suffix)]
     return [c for c in columns if c == pattern]
-
-
-def get_starting_run_idx(dm: DesignMatrix) -> int:
-    """Determine the next run index for multi-run appending.
-
-    Args:
-        dm (DesignMatrix): DesignMatrix instance to inspect.
-
-    Returns:
-        int: Next run index (0 if not multi-run, otherwise one past the highest
-            existing run index).
-    """
-    if not dm.multi:
-        return 0
-
-    # Find max run index from run-separated names like ".nl_r0_poly_0"
-    max_idx = -1
-    for col in dm.columns:
-        parsed = parse_run_separated(col)
-        if parsed is not None:
-            max_idx = max(max_idx, parsed[0])
-
-    return max_idx + 1 if max_idx >= 0 else 0
 
 
 def identify_columns_to_separate(
@@ -477,81 +475,43 @@ def append_vertical_with_separation(
         DesignMatrix: Concatenated DesignMatrix with run-separated confound columns
             and multi=True.
     """
-    # Handle two cases differently:
-    # 1. Self is NOT multi: process all DMs with sequential numbering
-    # 2. Self IS multi: keep self unchanged, only process to_append DMs
+    all_dms = [dm, *to_append]
+    cols_to_sep = identify_columns_to_separate(dm, all_dms, unique_cols)
+    if progress_bar and cols_to_sep:
+        print(f"Separating columns across runs: {sorted(cols_to_sep)}")
 
-    if not dm.multi:
-        # Case 1: Standard multi-run creation
-        all_dms = [dm, *to_append]
-        cols_to_sep = identify_columns_to_separate(dm, all_dms, unique_cols)
+    processed_dfs = []
+    all_new_confounds: list[str] = []
+    all_new_convolved: list[str] = []
+    next_run = 0
+    for d in all_dms:
+        rename_map = {}
+        if d.shape[0] > 0:
+            if d.multi:
+                # Preassembled inputs already carry their accepted identities.
+                next_run = max(next_run, d._run_count)
+            else:
+                rename_map = {
+                    col: run_separated_name(next_run, col)
+                    for col in d.columns
+                    if col in cols_to_sep
+                }
+                next_run += 1
+            all_new_confounds.extend(rename_map.get(c, c) for c in d.confounds)
+            all_new_convolved.extend(rename_map.get(c, c) for c in d.convolved)
+        # Even a zero-row input contributes its schema and dtype obligations.
+        processed_dfs.append(d.data.rename(rename_map) if rename_map else d.data)
 
-        if progress_bar and cols_to_sep:
-            print(f"Separating columns across runs: {sorted(cols_to_sep)}")
-
-        processed_dfs = []
-        all_new_confounds: list[str] = []
-        all_new_convolved: list[str] = []
-
-        for i, d in enumerate(all_dms):
-            rename_map = {
-                col: run_separated_name(i, col)
-                for col in d.columns
-                if col in cols_to_sep
-            }
-            processed_df = d.data.rename(rename_map) if rename_map else d.data
-            processed_dfs.append(processed_df)
-
-            for confound in d.confounds:
-                all_new_confounds.append(rename_map.get(confound, confound))
-            for conv in d.convolved:
-                renamed = rename_map.get(conv, conv)
-                if renamed not in all_new_convolved:
-                    all_new_convolved.append(renamed)
-
-    else:
-        # Case 2: Appending to existing multi-run DM
-        start_idx = get_starting_run_idx(dm)
-        cols_to_sep = identify_columns_to_separate(dm, to_append, unique_cols)
-
-        if progress_bar and cols_to_sep:
-            print(f"Separating columns across runs: {sorted(cols_to_sep)}")
-
-        processed_dfs = [dm.data]
-        all_new_confounds = list(dm.confounds)
-        all_new_convolved = list(dm.convolved)
-
-        for i, d in enumerate(to_append):
-            run_idx = start_idx + i
-            rename_map = {
-                col: run_separated_name(run_idx, col)
-                for col in d.columns
-                if col in cols_to_sep
-            }
-            processed_df = d.data.rename(rename_map) if rename_map else d.data
-            processed_dfs.append(processed_df)
-
-            for confound in d.confounds:
-                all_new_confounds.append(rename_map.get(confound, confound))
-            for conv in d.convolved:
-                renamed = rename_map.get(conv, conv)
-                if renamed not in all_new_convolved:
-                    all_new_convolved.append(renamed)
-
-    # Validate dtype compatibility for any overlapping column names after renames
     _check_dtype_compatibility(processed_dfs)
-
-    # Concatenate with diagonal (auto-fills missing columns with null)
-    result_df = pl.concat(processed_dfs, how="diagonal")
-
-    # Fill nulls with fill_na value unless caller asked to preserve nulls
+    result_df = _stack_frames(processed_dfs, [d.shape[0] for d in all_dms])
     if fill_na is not None:
-        result_df = result_df.fill_null(fill_na)
-
+        result_df = result_df.fill_null(fill_na).fill_nan(fill_na)
     return copy_with(
         dm,
         result_df,
-        confounds=all_new_confounds,
-        convolved=all_new_convolved,
+        confounds=_merge_ordered([all_new_confounds]),
+        convolved=_merge_ordered([all_new_convolved]),
         multi=True,
+        n_rows=sum(d.shape[0] for d in all_dms),
+        run_count=next_run,
     )
