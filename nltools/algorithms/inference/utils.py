@@ -45,7 +45,7 @@ def _normalize_tail_internal(tail: int | str) -> str:
 def _signed_z_from_p(t_like_arr, p_arr, tail_internal: str = "two") -> np.ndarray:
     """Compute a signed z-score map from a p-value map.
 
-    The z-from-p conversion used by `BrainData.ttest` and `BrainData.ttest2`.
+    The z-from-p conversion used by `BrainData.ttest` and `Adjacency.ttest`.
     The clipping policy below must live in exactly one place.
 
     Two-tailed p: ``|z| = norm.isf(p/2)`` so that p=0.05 → |z|≈1.96, matching

@@ -28,7 +28,6 @@ Name | Description
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
 [`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
 [`ttest`](#data-braindata-modeling-ttest) | Run a one-sample voxelwise t-test across images (axis 0).
-[`ttest2`](#data-braindata-modeling-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 
 
 
@@ -411,33 +410,3 @@ perm = contrast_maps.ttest(
 )
 perm["null_dist"].shape  # → (5000, n_voxels)
 ```
-
-(data-braindata-modeling-ttest2)=
-### `ttest2`
-
-```python
-ttest2(bd, other, equal_var = True, tail = 2)
-```
-
-Two-sample voxelwise t-test between two BrainData stacks.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#page-data-brain-data)</code> | First stack, shape ``(n1, n_voxels)``. | *required*
-`other` | <code>[BrainData](#page-data-brain-data)</code> | Second stack, shape ``(n2, n_voxels)``. | *required*
-`equal_var` | <code>bool</code> | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
-`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (bd > other; swap the arguments for the other direction). | <code>2</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict</code> | ``{"t": BrainData, "p": BrainData}``.
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If the two BrainData objects have mismatched n_voxels.

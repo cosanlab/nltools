@@ -1085,6 +1085,10 @@ class TestBrainDataTTest:
         )
         assert result["t"].data.shape == (minimal_brain_data.data.shape[1],)
 
+    def test_ttest2_removed(self):
+        """ttest2 was a 0.6.0-dev convenience method; it must not exist."""
+        assert not hasattr(BrainData, "ttest2")
+
     def test_ttest_parametric_honors_tail(self, minimal_brain_data):
         """tail=1 must reach the parametric path (was silently ignored pre-0.6.0)."""
         from scipy.stats import ttest_1samp
@@ -1096,18 +1100,6 @@ class TestBrainDataTTest:
         np.testing.assert_allclose(result["p"].data, expected_p)
         with pytest.raises(ValueError, match="tail"):
             minimal_brain_data.ttest(tail="upper")
-
-    def test_ttest2_tail(self, minimal_brain_data):
-        """ttest2 exposes tail; 'one' means self > other."""
-        from scipy.stats import ttest_ind
-
-        other = minimal_brain_data.copy()
-        other.data = other.data - 0.5
-        res = minimal_brain_data.ttest2(other, tail=1)
-        _, expected_p = ttest_ind(
-            minimal_brain_data.data, other.data, axis=0, alternative="greater"
-        )
-        np.testing.assert_allclose(res["p"].data, expected_p)
 
     def test_ttest_z_signed_and_monotonic(self, minimal_brain_data):
         """z = sign(t) * norm.isf(p/2); sign(z) == sign(t); monotonic with t."""
@@ -1193,48 +1185,6 @@ class TestBrainDataTTest:
         np.testing.assert_allclose(res_perm["mean"].data, expected, rtol=1e-6)
         res_param = bd.ttest(popmean=5.0)
         np.testing.assert_allclose(res_param["mean"].data, expected, rtol=1e-6)
-
-    def test_ttest2_two_sample(self, minimal_brain_data):
-        """Two-sample voxelwise t-test returns dict of BrainData."""
-        from scipy.stats import ttest_ind
-
-        other = minimal_brain_data[:25]
-        subset = minimal_brain_data[25:]
-
-        result = subset.ttest2(other)
-
-        assert set(result.keys()) == {"t", "p"}
-        expected_t, expected_p = ttest_ind(subset.data, other.data, axis=0)
-        np.testing.assert_allclose(result["t"].data, expected_t)
-        np.testing.assert_allclose(result["p"].data, expected_p)
-
-    def test_ttest2_welch(self, minimal_brain_data):
-        """equal_var=False triggers Welch's t-test."""
-        from scipy.stats import ttest_ind
-
-        other = minimal_brain_data[:25]
-        subset = minimal_brain_data[25:]
-
-        result = subset.ttest2(other, equal_var=False)
-        expected_t, _ = ttest_ind(subset.data, other.data, axis=0, equal_var=False)
-        np.testing.assert_allclose(result["t"].data, expected_t)
-
-    def test_ttest2_mismatched_voxels_raises(self, minimal_brain_data):
-        """Mismatched n_voxels raises ValueError."""
-        import nibabel as nib
-
-        # Build a second BrainData with different n_voxels
-        spatial_shape = (2, 2, 1)
-        mask_data = np.zeros(spatial_shape, dtype=bool)
-        mask_data.flat[:3] = True
-        affine = np.eye(4)
-        volume_4d = np.random.randn(*spatial_shape, 10)
-        other = BrainData(
-            nib.Nifti1Image(volume_4d, affine),
-            mask=nib.Nifti1Image(mask_data.astype(np.float32), affine),
-        )
-        with pytest.raises(ValueError, match="n_voxels"):
-            minimal_brain_data.ttest2(other)
 
     # ── Shared one-sample contract (docs/development/specs/ttest.md) ────────
 

@@ -5,8 +5,7 @@ title: Statistics & inference
 Group inference in nltools is voxelwise and mostly non-parametric.
 [`BrainData.ttest`](../api/data/brain_data.md#data-brain-data-ttest) runs a one-sample test at
 every voxel of a stacked `(n_subjects, n_voxels)` object and returns `{'mean', 't', 'z', 'p'}` as
-`BrainData` maps; [`ttest2`](../api/data/brain_data.md#data-brain-data-ttest2) is the two-sample
-version. Pass `permutation=True` for a sign-flipping null instead of the parametric t, and
+`BrainData` maps. Pass `permutation=True` for a sign-flipping null instead of the parametric t, and
 `popmean=` to test against something other than zero. Everything here also exists as a plain
 function on numpy arrays; see the [inference reference](../api/tasks/inference.md).
 
@@ -26,7 +25,6 @@ Four kwargs carry most of the meaning.
 Goal | Use | Notes
 --- | --- | ---
 One-sample voxelwise test | [`ttest`](../api/data/brain_data.md#data-brain-data-ttest)`(popmean=0.0)` | Returns `{'mean', 't', 'z', 'p'}`
-Two-sample voxelwise test | [`ttest2`](../api/data/brain_data.md#data-brain-data-ttest2)`(other, equal_var=)` | Returns `{'t', 'p'}`
 Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flipping; add `return_null=True` for the `'null_dist'` array. Also [`one_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-one-sample-permutation-test)
 Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-two-sample-permutation-test) | Group-label shuffling
 Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#tasks-inference-timeseries-correlation-permutation-test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation

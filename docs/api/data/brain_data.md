@@ -86,7 +86,6 @@ Name | Description
 [`to_nifti`](#data-brain-data-to-nifti) | Convert BrainData Instance into Nifti Object.
 [`transform_pairwise`](#data-brain-data-transform-pairwise) | Transform data into pairwise comparisons.
 [`ttest`](#data-brain-data-ttest) | Run a one-sample voxelwise t-test across images (axis 0).
-[`ttest2`](#data-brain-data-ttest2) | Two-sample voxelwise t-test between two BrainData stacks.
 [`upload_neurovault`](#data-brain-data-upload-neurovault) | Upload BrainData images and metadata to NeuroVault.
 [`write`](#data-brain-data-write) | Write out BrainData object to Nifti or HDF5 File.
 [`z_to_r`](#data-brain-data-z-to-r) | Convert z score back into r value for each element of data object.
@@ -1320,35 +1319,6 @@ perm = contrast_maps.ttest(
 )
 perm["null_dist"].shape  # → (5000, n_voxels)
 ```
-
-(data-brain-data-ttest2)=
-### `ttest2`
-
-```python
-ttest2(other, equal_var = True, tail = 2)
-```
-
-Two-sample voxelwise t-test between two BrainData stacks.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`other` | <code>[BrainData](#page-data-brain-data)</code> | BrainData to compare against. Must have the same number of voxels. | *required*
-`equal_var` | <code>bool</code> | If True (default), standard two-sample t-test. If False, Welch's t-test. | <code>True</code>
-`tail` | <code>int \| str</code> | ``2`` or ``'two'`` for two-tailed (default); ``1`` or ``'one'`` for one-tailed (self > other; swap the operands for the other direction). | <code>2</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict</code> | ``{"t": BrainData, "p": BrainData}``.
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If the two BrainData objects have different ``n_voxels``.
 
 (data-brain-data-upload-neurovault)=
 ### `upload_neurovault`

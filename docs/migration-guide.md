@@ -16,7 +16,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
 | **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(..., spatial_scale='roi', roi_mask=atlas).similarity(model_rdm)` followed by explicit atlas mapping with `roi_to_brain_from_atlas` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
-| **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
+| **Two-sample t-test** | N/A | `scipy.stats.ttest_ind` on `.data`, or `nltools.algorithms.inference.two_sample_permutation_test` | New |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
 | **Properties** | Method-style shape/empty checks | `.shape`, `.is_empty` | Changed |
 | **Cross-validation** | N/A | `.fit(..., cv=5)` | New |
@@ -615,7 +615,7 @@ What changed:
 
 - **Removed forms**: the v0.5 `-1` / `'upper'` / `'lower'` arguments now raise a `ValueError` with the negate/swap/flip guidance.
 - **Bug fix**: `BrainData.ttest(tail=1)` and `Adjacency.ttest(tail=1)` previously ignored `tail` on the (default) parametric path and always returned two-sided p-values; `tail` now maps onto scipy's `alternative=` so one-tailed parametric tests actually happen. The `"z"` map is derived from the reported p, so it matches the requested tail.
-- **New `tail=` options** (default 2 ≡ old behavior): `BrainData.ttest2`, `BrainData.bootstrap` / `Adjacency.bootstrap`, `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, and `Roc.calculate`.
+- **New `tail=` options** (default 2 ≡ old behavior): `BrainData.bootstrap` / `Adjacency.bootstrap`, `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, and `Roc.calculate`.
 - **No knob where only one tail is valid**: `distance_correlation` (dcorr ≥ 0), ANOVA's F, `isps`' Rayleigh test, and SRM variance components keep their statistically forced one-tailed p-values, unchanged.
 - **The GLM exception**: `compute_contrasts(statistic='p')` / `Glm.compute_contrast(output_type='p_value')` stay **one-sided**, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
 
@@ -1174,7 +1174,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `BrainData.regress()` | `.fit(model='glm', X=design_matrix)` — the old method is removed entirely; calling it raises `AttributeError` | **Low** |
 | `.predict(algorithm='svm')` | `.predict(y=labels, spatial_scale=…, model='svm', cv=…)` returning a `Predict` dataclass (`.weight_map`, `.scores`, `.predictions`, …). Fluent `.cv().predict()` on BrainData removed; pass `model=make_pipeline(...)` for custom preprocessing chains. `spatial_scale=` selects ``'whole_brain'``, ``'roi'``, or ``'searchlight'``; `method=` is no longer overloaded. See [Pattern 4](#pattern-4-machine-learning-classification-regression). | **Low** |
 | `.decompose(algorithm='ica')` | `.decompose(method='ica', n_components=…, axis=…)` — same `algorithm → method` rename, signature is now keyword-only after `self`; `**kwargs` forwards to the sklearn decomposition estimator | **Low** |
-| `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"mean", "t", "z", "p"}`, plus `"null_dist"` with `permutation=True, return_null=True`. Threshold the maps afterwards. Also see new `.ttest2(other)` for two-sample tests. | **Low** |
+| `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"mean", "t", "z", "p"}`, plus `"null_dist"` with `permutation=True, return_null=True`. Threshold the maps afterwards. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
 | `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |

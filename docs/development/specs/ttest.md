@@ -14,7 +14,7 @@ Both methods accept keyword-only `popmean=0.0`, `permutation=False`,
 `n_permute=5000`, `tail=2`, and `return_null=False`. Add `popmean` to Adjacency;
 retain each facade's existing execution controls and defaults. Use the vocabulary
 manifest when editing signatures. This work does not redesign device selection,
-random-number generation, `ttest2`, or bootstrap inference.
+random-number generation, two-sample testing, or bootstrap inference.
 
 `tail=2`/`"two"` tests a difference from `popmean` in either direction.
 `tail=1`/`"one"` tests a mean greater than `popmean`, following the existing

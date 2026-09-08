@@ -919,45 +919,6 @@ def ttest(
     return results
 
 
-def ttest2(bd, other, equal_var=True, tail=2):
-    """Two-sample voxelwise t-test between two BrainData stacks.
-
-    Args:
-        bd (BrainData): First stack, shape ``(n1, n_voxels)``.
-        other (BrainData): Second stack, shape ``(n2, n_voxels)``.
-        equal_var (bool): If True (default), standard two-sample t-test. If
-            False, Welch's t-test.
-        tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
-            for one-tailed (bd > other; swap the arguments for the other
-            direction).
-
-    Returns:
-        dict: ``{"t": BrainData, "p": BrainData}``.
-
-    Raises:
-        ValueError: If the two BrainData objects have mismatched n_voxels.
-    """
-    from scipy.stats import ttest_ind
-
-    from nltools.algorithms.inference.validation import validate_tail_parameter
-
-    tail_internal = validate_tail_parameter(tail)
-
-    if bd.data.shape[1] != other.data.shape[1]:
-        raise ValueError(
-            f"BrainData objects must have same n_voxels. "
-            f"Got {bd.data.shape[1]} and {other.data.shape[1]}."
-        )
-
-    alternative = "two-sided" if tail_internal == "two" else "greater"
-    t_arr, p_arr = ttest_ind(
-        bd.data, other.data, axis=0, equal_var=equal_var, alternative=alternative
-    )
-    t_bd = _result_from_array(bd, np.asarray(t_arr), rows="clear")
-    p_bd = _result_from_array(bd, np.asarray(p_arr), rows="clear")
-    return {"t": t_bd, "p": p_bd}
-
-
 _CONTRAST_OUTPUT_TYPES = {
     "t": "stat",
     "z": "z_score",

@@ -55,7 +55,6 @@ TAIL_ENTRY_POINTS = [
     compute_multivariate_similarity,
     OnlineBootstrapStats.get_results,
     BrainData.ttest,
-    BrainData.ttest2,
     BrainData.bootstrap,
     BrainData.multivariate_similarity,
     Adjacency.ttest,

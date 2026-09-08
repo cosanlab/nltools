@@ -2006,29 +2006,6 @@ class BrainData:
             random_state=random_state,
         )
 
-    def ttest2(self, other, equal_var=True, tail=2):
-        """Two-sample voxelwise t-test between two BrainData stacks.
-
-        Args:
-            other (BrainData): BrainData to compare against. Must have the same
-                number of voxels.
-            equal_var (bool): If True (default), standard two-sample t-test.
-                If False, Welch's t-test.
-            tail (int | str): ``2`` or ``'two'`` for two-tailed (default); ``1`` or
-                ``'one'`` for one-tailed (self > other; swap the operands for the
-                other direction).
-
-        Returns:
-            dict: ``{"t": BrainData, "p": BrainData}``.
-
-        Raises:
-            ValueError: If the two BrainData objects have different
-                ``n_voxels``.
-        """
-        from .modeling import ttest2
-
-        return ttest2(self, other, equal_var=equal_var, tail=tail)
-
     def upload_neurovault(  # nosemgrep: kwargs-internal-forwarding  # forwards to the NeuroVault API via io.upload_neurovault
         self,
         *,
