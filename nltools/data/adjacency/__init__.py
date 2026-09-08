@@ -1,29 +1,14 @@
 """Provide data structures for working with similarity and dissimilarity matrices."""
 
 from copy import deepcopy
-from pathlib import Path
-
 import numpy as np
 import polars as pl
-from scipy.spatial.distance import squareform
 from sklearn.metrics.pairwise import pairwise_distances
 
-from nltools.data.braindata.utils import _polars_row_select
-from nltools.data.braindata.validation import validate_frame
-from nltools.io import is_h5_path
-from nltools.utils import (
-    all_same,
-    attempt_to_import,
-    concatenate,
-)
+from nltools.utils import attempt_to_import
+from .utils import apply_stat, perform_arithmetic
 
-from .spatial import SpatialScale
-from .utils import (
-    apply_stat,
-    import_single_data,
-    perform_arithmetic,
-    test_is_single_matrix,
-)
+__all__ = ["Adjacency"]
 
 # Optional dependencies
 nx = attempt_to_import("networkx", "nx")
@@ -34,20 +19,24 @@ MAX_INT = np.iinfo(np.int32).max
 class Adjacency:
     """Represent adjacency matrices in vectorized form.
 
-    Adjacency is a class to represent Adjacency matrices as a vector rather
-    than a 2-dimensional matrix. This makes it easier to perform data
-    manipulation and analyses.
+    Store distance/similarity matrices as strict upper triangles and directed
+    matrices as full row-major vectors. Symmetric reconstruction always has a
+    zero diagonal; input diagonals are discarded. Flat rectangular stacks require
+    an explicit `*_flat` matrix type. A list or 2-D flat array retains stack rank,
+    including one matrix. A zero-length symmetric vector represents one node.
+    Construction and result methods return independently owned mutable state.
 
     Args:
-        data (np.ndarray | pd.DataFrame | pl.DataFrame | str | Path | list): A square
+        data (Adjacency | np.ndarray | pd.DataFrame | pl.DataFrame | str | Path | list): A square
             matrix, a flattened vector, a `.csv`/`.h5` path, or a list of
             matrices/`Adjacency` instances/`.csv` paths to stack.
-        Y (pd.DataFrame | pl.DataFrame, optional): Training labels, one row per matrix.
+        Y (pd.DataFrame | pl.DataFrame, optional): Matrix metadata, one row per matrix.
+            None inherits metadata during copy construction.
         matrix_type (str, optional): Type of matrix. One of `'distance'`, `'similarity'`,
             `'directed'`, `'distance_flat'`, `'similarity_flat'`, `'directed_flat'`.
-        labels (list, optional): Node labels, one per row/column.
-        spatial_scale (SpatialScale, optional): Spatial-scale metadata linking rows/
-            columns to a brain parcellation, enabling projection back into brain space.
+            For copy construction, this confirms the existing kind without reinterpreting it.
+        labels (list, optional): Shared node labels, or a nested matrix-by-node
+            label grid for a stack. None inherits labels during copy construction.
 
     Attributes:
         data (np.ndarray): Vectorized matrix values. Shape `(vector_length,)` for a
@@ -55,241 +44,42 @@ class Adjacency:
             matrices store only the upper triangle without the diagonal.
         matrix_type (str): One of `'distance'`, `'similarity'`, `'directed'`, or
             `'empty'` (the `'_flat'` input variants are normalized to their base type).
-        is_single_matrix (bool): True when the instance holds exactly one matrix.
+        is_single_matrix (bool): True for single storage; a one-row stack is False.
         issymmetric (bool): True for distance/similarity matrices, False for directed.
         labels (list): Node labels (empty list when none were given).
-        spatial_scale (SpatialScale | None): Parcellation provenance for a stack
-            produced by `BrainData.distance`; None otherwise.
         Y (pl.DataFrame): Training labels as a polars DataFrame (possibly empty).
-        is_empty (bool): True if the instance holds no data.
+        is_empty (bool): True if the instance holds no matrices.
         n_nodes (int): Number of nodes `n` for an `(n, n)` matrix.
         shape (tuple): Logical shape — `(n_nodes, n_nodes)` for a single matrix,
-            `(n_matrices, n_nodes, n_nodes)` for a stack, `(0, 0)` when empty.
+            `(n_matrices, n_nodes, n_nodes)` for a stack, including typed empty stacks;
+            `(0, 0)` for an untyped empty constructor.
         vector_shape (tuple): Shape of the internal vectorized storage (`data.shape`).
     """
 
-    def __init__(
-        self,
-        data=None,
-        *,
-        Y=None,
-        matrix_type=None,
-        labels=None,
-        spatial_scale: SpatialScale | None = None,
-    ):
-        if matrix_type is not None and matrix_type.lower() not in [
-            "distance",
-            "similarity",
-            "directed",
-            "distance_flat",
-            "similarity_flat",
-            "directed_flat",
-        ]:
-            raise ValueError(
-                "matrix_type must be [None,'distance', "
-                "'similarity','directed','distance_flat', "
-                "'similarity_flat','directed_flat']"
-            )
+    def __init__(self, data=None, *, Y=None, matrix_type=None, labels=None):
+        from .state import initialize
 
-        # Setup data
-        if data is None:
-            self.data = np.array([])
-            self.matrix_type = "empty"
-            self.is_single_matrix = np.nan
-            self.issymmetric = np.nan
-
-        # List of Adjacency or filepaths to h5s or csvs
-        elif isinstance(data, list):
-            if isinstance(data[0], Adjacency):
-                tmp = concatenate(data)
-                for item in ["data", "matrix_type", "Y", "issymmetric"]:
-                    setattr(self, item, getattr(tmp, item))
-                self.is_single_matrix = False
-                # Return early (mirroring the h5/legacy branches) so the
-                # concatenated Y and labels are not clobbered by the None
-                # constructor params below.
-                self.labels = deepcopy(tmp.labels)
-                self.spatial_scale = spatial_scale
-                return
-
-            # File paths or array/dataframes
-            # NOTE: We don't support list of hdf5 filepaths! Only .csvs
-            d_all = []
-            symmetric_all = []
-            matrix_type_all = []
-            for d in data:
-                (
-                    data_tmp,
-                    issymmetric_tmp,
-                    matrix_type_tmp,
-                    _,
-                ) = import_single_data(d, matrix_type=matrix_type)
-                d_all.append(data_tmp)
-                symmetric_all.append(issymmetric_tmp)
-                matrix_type_all.append(matrix_type_tmp)
-
-            if not all_same(symmetric_all):
-                raise ValueError("Not all matrices are of the same symmetric type.")
-            if not all_same(matrix_type_all):
-                raise ValueError("Not all matrices are of the same matrix type.")
-
-            self.data = np.array(d_all)
-            self.issymmetric = symmetric_all[0]
-            self.matrix_type = matrix_type_all[0]
-            self.is_single_matrix = False
-
-        # File path
-        elif isinstance(data, (str, Path)):
-            to_load = str(data)
-
-            # HDF5
-            if is_h5_path(to_load):
-                from nltools.io.h5 import (
-                    _read_polars_frame,
-                    _require_h5,
-                    is_legacy_adjacency_h5,
-                    load_legacy_adjacency_h5,
-                )
-
-                _require_h5()
-                import h5py
-                from h5py import File as h5File
-
-                if is_legacy_adjacency_h5(to_load):
-                    legacy = load_legacy_adjacency_h5(to_load, matrix_type=matrix_type)
-                    (
-                        self.data,
-                        self.issymmetric,
-                        self.matrix_type,
-                        self.is_single_matrix,
-                    ) = import_single_data(
-                        legacy["data"], matrix_type=legacy["matrix_type"]
-                    )
-                    self.Y = legacy["Y"]
-                    self.labels = legacy["labels"]
-                    return
-
-                with h5File(to_load, "r") as f:
-                    self.data = np.array(f["data"])
-                    self.matrix_type = f["matrix_type"][()].decode()
-                    self.is_single_matrix = f["is_single_matrix"][()]
-                    self.issymmetric = f["issymmetric"][()]
-                    self.Y = _read_polars_frame(f, "Y")
-                    labels_ds = f["labels"]
-                    if len(labels_ds) == 0:
-                        self.labels = []
-                    elif h5py.check_string_dtype(labels_ds.dtype) is not None:
-                        self.labels = list(labels_ds.asstr())
-                    else:
-                        self.labels = list(labels_ds)
-
-                return
-
-            # CSV or array/dataframe
-            (
-                self.data,
-                self.issymmetric,
-                self.matrix_type,
-                self.is_single_matrix,
-            ) = import_single_data(data, matrix_type=matrix_type)
-
-        # CSV or array/dataframe
-        else:
-            (
-                self.data,
-                self.issymmetric,
-                self.matrix_type,
-                self.is_single_matrix,
-            ) = import_single_data(data, matrix_type=matrix_type)
-
-        # Setup Y dataframe — setter validates + converts to polars
-        self.Y = Y
-
-        # Ensure consistency
-        if (
-            not self.Y.is_empty()
-            and not self.is_single_matrix
-            and self.data.shape[0] != self.Y.shape[0]
-        ):
-            raise ValueError(
-                f"Y rows ({self.Y.shape[0]}) do not match data rows ({self.data.shape[0]})"
-            )
-
-        if labels is None:
-            self.labels = []
-
-        elif isinstance(labels, (list, np.ndarray)):
-            if self.is_single_matrix:
-                if len(labels) != self.n_nodes:
-                    raise ValueError(
-                        "Make sure the length of labels matches the shape of data."
-                    )
-                self.labels = deepcopy(labels)
-            else:
-                if len(labels) != len(self):
-                    if len(labels) != self.n_nodes:
-                        raise ValueError(
-                            "Make sure length of labels either "
-                            "matches the number of Adjacency "
-                            "matrices or the size of a single "
-                            "matrix."
-                        )
-                    self.labels = list(labels) * len(self)
-                else:
-                    if np.all(np.array([len(x) for x in labels]) != self.n_nodes):
-                        raise ValueError(
-                            "All lists of labels must be same length as shape of data."
-                        )
-                    self.labels = deepcopy(labels)
-        else:
-            raise TypeError("Make sure labels is a list or numpy array.")
-
-        # Optional spatial-scale provenance. Only valid on a stack where the
-        # number of matrices equals the number of roi_labels.
-        if spatial_scale is not None:
-            if self.is_empty or self.is_single_matrix:
-                raise ValueError(
-                    "spatial_scale requires a stack of Adjacency matrices "
-                    "(one per parcel/searchlight); got a single matrix."
-                )
-            if len(spatial_scale.roi_labels) != len(self):
-                raise ValueError(
-                    f"spatial_scale.roi_labels length "
-                    f"({len(spatial_scale.roi_labels)}) does not match the "
-                    f"number of matrices in the stack ({len(self)})."
-                )
-        self.spatial_scale: SpatialScale | None = spatial_scale
+        initialize(self, data, matrix_type=matrix_type, labels=labels, Y=Y)
 
     # ── Dunders (alphabetical) ──────────────────────────────────────────
 
     def __add__(self, y):
         return perform_arithmetic(self, y, np.add, "add")
 
+    def __copy__(self):
+        from nltools.data.braindata.utils import _copy_complete
+
+        return _copy_complete(self)
+
+    def __deepcopy__(self, memo):
+        from nltools.data.braindata.utils import _copy_complete
+
+        return _copy_complete(self, memo)
+
     def __getitem__(self, index):
-        new = self.copy()
-        if isinstance(index, (int, np.integer)):
-            new.data = np.array(self.data[index, :]).squeeze()
-            new.is_single_matrix = True
-        else:
-            new.data = np.array(self.data[index, :]).squeeze()
-            new.is_single_matrix = test_is_single_matrix(new.data)
-        if not self.Y.is_empty():
-            new.Y = _polars_row_select(self.Y, index)
-        # Spatial-scale provenance: preserve when the result is still a stack
-        # (subset the roi_labels to match); drop when collapsed to a single
-        # matrix — a single RDM has no per-parcel structure to back-project.
-        if self.spatial_scale is not None:
-            if new.is_single_matrix:
-                new.spatial_scale = None
-            else:
-                ss = self.spatial_scale
-                new.spatial_scale = SpatialScale(
-                    atlas=ss.atlas,
-                    roi_labels=ss.roi_labels[index],
-                    source_mask=ss.source_mask,
-                    kind=ss.kind,
-                )
-        return new
+        from .state import select
+
+        return select(self, index)
 
     def __iter__(self):
         for x in range(len(self)):
@@ -330,7 +120,9 @@ class Adjacency:
 
     @Y.setter
     def Y(self, value) -> None:
-        self._Y = validate_frame(value, frame_type="Y")
+        from .state import owned_frame
+
+        self._Y = owned_frame(value, len(self))
 
     @property
     def is_empty(self) -> bool:
@@ -339,7 +131,7 @@ class Adjacency:
         Returns:
             bool: True if the adjacency matrix is empty, False otherwise.
         """
-        return self.matrix_type == "empty"
+        return len(self) == 0
 
     @property
     def n_nodes(self):
@@ -348,7 +140,7 @@ class Adjacency:
         Returns:
             int: Number of nodes (n) for an (n, n) matrix.
         """
-        return self.shape[-1]
+        return self._n_nodes
 
     @property
     def shape(self):
@@ -356,7 +148,8 @@ class Adjacency:
 
         Returns:
             tuple: `(n_nodes, n_nodes)` for a single matrix, `(n_matrices, n_nodes,
-                n_nodes)` for stacked matrices, `(0, 0)` when empty.
+                n_nodes)` for stacked matrices, including typed empty stacks; `(0, 0)`
+                for an untyped empty constructor.
 
         Note:
             Use `.vector_shape` to get the internal vectorized representation shape.
@@ -364,22 +157,9 @@ class Adjacency:
         if self.matrix_type == "empty":
             return (0, 0)
 
-        # Compute n_nodes from vector length
         if self.is_single_matrix:
-            vector_len = self.data.shape[0]
-        else:
-            vector_len = self.data.shape[1]
-
-        if self.issymmetric:
-            # For symmetric: vector_len = n*(n-1)/2, solve for n
-            n_nodes = int((1 + np.sqrt(1 + 8 * vector_len)) / 2)
-        else:
-            # For directed: vector_len = n*n
-            n_nodes = int(np.sqrt(vector_len))
-
-        if self.is_single_matrix:
-            return (n_nodes, n_nodes)
-        return (len(self), n_nodes, n_nodes)
+            return (self.n_nodes, self.n_nodes)
+        return (len(self), self.n_nodes, self.n_nodes)
 
     @property
     def vector_shape(self):
@@ -406,22 +186,9 @@ class Adjacency:
         Returns:
             Adjacency: New appended Adjacency instance.
         """
-        if not isinstance(data, Adjacency):
-            raise ValueError("Make sure data is a Adjacency instance.")
+        from .state import append
 
-        if self.is_empty:
-            out = data.copy()
-        else:
-            out = self.copy()
-            if self.n_nodes != data.n_nodes:
-                raise ValueError("Data is not the same shape as Adjacency instance.")
-
-            out.data = np.vstack([self.data, data.data])
-            out.is_single_matrix = False
-            if not out.Y.is_empty():
-                out.Y = pl.concat([self.Y, data.Y], how="vertical_relaxed")
-
-        return out
+        return append(self, data)
 
     def bootstrap(
         self,
@@ -498,7 +265,7 @@ class Adjacency:
         return cluster_summary(self, clusters=clusters, summary=summary, scope=scope)
 
     def copy(self):
-        """Create a copy of Adjacency object."""
+        """Return an independently owned copy, preserving internal aliases and cycles."""
         return deepcopy(self)
 
     def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to sklearn.metrics.pairwise_distances
@@ -532,7 +299,7 @@ class Adjacency:
                 data_with_diag.append(sq[mask])
             data = np.array(data_with_diag)
         else:
-            data = self.data
+            data = np.atleast_2d(self.data)
 
         return Adjacency(
             pairwise_distances(data, metric=metric, **kwargs),
@@ -551,17 +318,9 @@ class Adjacency:
         Returns:
             Adjacency: The converted similarity matrix.
         """
-        if self.matrix_type == "distance":
-            if metric == "correlation":
-                return Adjacency(1 - self.squareform(), matrix_type="similarity")
-            if metric == "euclidean":
-                return Adjacency(
-                    np.exp(-beta * self.squareform() / self.squareform().std()),
-                    labels=self.labels,
-                    matrix_type="similarity",
-                )
-            raise ValueError('metric can only be ["correlation","euclidean"]')
-        raise ValueError("Matrix is not a distance matrix.")
+        from .state import distance_to_similarity
+
+        return distance_to_similarity(self, metric, beta)
 
     def generate_permutations(self, n_permute, random_state=None):
         """Generate permuted versions of an Adjacency instance lazily.
@@ -738,8 +497,12 @@ class Adjacency:
                 (one-tailed: beta > 0; negate a regressor for the other direction).
 
         Returns:
-            dict: Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,
-                `'residual'`.
+            dict: Keys `beta`, `sigma` (coefficient standard error), `t`, `p`,
+                `df`, and `residual`. With DesignMatrix predictors, coefficient
+                fields are Adjacency maps per predictor (single for one predictor).
+                With Adjacency predictors, a single response is required and
+                coefficient fields are native predictor arrays or scalars.
+                `df` is a scalar; `residual` retains response shape and metadata.
         """
         from .modeling import regress
 
@@ -760,7 +523,6 @@ class Adjacency:
         n_jobs=-1,
         random_state=None,
         progress_bar: bool = False,
-        project: bool = False,
     ):
         """Calculate similarity between two Adjacency matrices.
 
@@ -788,15 +550,11 @@ class Adjacency:
             n_jobs (int): Number of parallel jobs. Default -1 (all cores).
             random_state (int, optional): Random seed for reproducibility.
             progress_bar (bool): If True, show a progress bar. Default False.
-            project (bool): If True and this Adjacency has a `spatial_scale`, project
-                the per-matrix correlations back into brain space. Default False.
 
         Returns:
-            dict | list[dict] | BrainData: A correlation result dict with keys
-                'correlation', 'p', and 'device' for a single matrix, a list of
-                such dicts when this Adjacency holds multiple matrices, or a
-                `BrainData` when `project=True` (per-matrix correlations
-                projected via spatial_scale).
+            dict | list[dict]: A correlation result dict with keys 'correlation',
+                'p', and 'device' for a single matrix, or a list of these dicts
+                for a stack.
         """
         from .stats import similarity
 
@@ -814,7 +572,6 @@ class Adjacency:
             n_jobs=n_jobs,
             random_state=random_state,
             progress_bar=progress_bar,
-            project=project,
         )
 
     def social_relations_model(self, summarize_results=True, nan_replace=True):
@@ -856,21 +613,12 @@ class Adjacency:
         """Convert adjacency data back to square form.
 
         Returns:
-            np.ndarray | list[np.ndarray]: A square matrix, or a list of them for a
-                stack.
+            np.ndarray | list[np.ndarray]: Detached square matrix, or a list of
+                detached matrices for a stack. Symmetric diagonals are zero.
         """
-        if self.issymmetric:
-            if self.is_single_matrix:
-                return squareform(self.data)
-            return [squareform(x.data) for x in self]
-        if self.is_single_matrix:
-            return self.data.reshape(
-                int(np.sqrt(self.data.shape[0])), int(np.sqrt(self.data.shape[0]))
-            )
-        return [
-            x.data.reshape(int(np.sqrt(x.data.shape[0])), int(np.sqrt(x.data.shape[0])))
-            for x in self
-        ]
+        from .state import to_square
+
+        return to_square(self)
 
     def stats_label_distance(self, *, labels=None, n_permute=5000, n_jobs=-1):
         """Calculate permutation tests on within and between label distance.
@@ -936,60 +684,6 @@ class Adjacency:
         from .stats import threshold
 
         return threshold(self, upper=upper, lower=lower, binarize=binarize)
-
-    def to_brain(self, values, *, fill: float = np.nan):
-        """Project per-matrix scalars back to voxel-space `BrainData`.
-
-        Requires `spatial_scale` to be set (i.e. this stack came from
-        `BrainData.distance` or another spatial-scale-aware producer).
-        Each entry of `values` is painted onto the voxels assigned to its
-        corresponding parcel by `spatial_scale.atlas` /
-        `spatial_scale.roi_labels`. Voxels outside the atlas receive
-        `fill`.
-
-        Args:
-            values (np.ndarray): 1-D array of length `len(self)` — one scalar per
-                matrix in the stack.
-            fill (float): Value for voxels not covered by any provided ROI label.
-                Default `np.nan`.
-
-        Returns:
-            BrainData: Single image masked to `spatial_scale.source_mask`.
-
-        Raises:
-            ValueError: If `spatial_scale` is None, or `values` has the
-                wrong length.
-
-        Examples:
-            ```python
-            rdms = brain.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas)
-            sims = [r["correlation"] for r in rdms.similarity(model_rdm)]
-            brain_map = rdms.to_brain(sims)
-            ```
-        """
-        from nltools.mask import roi_to_brain_from_atlas
-
-        if self.spatial_scale is None:
-            raise ValueError(
-                "to_brain() requires spatial_scale to be set on the "
-                "Adjacency. Produce this stack via a spatial-scale-aware "
-                "operation (e.g. BrainData.distance(spatial_scale='roi', "
-                "roi_mask=atlas))."
-            )
-        arr = np.asarray(values)
-        if arr.shape != (len(self),):
-            raise ValueError(
-                f"values must be 1-D with length {len(self)} (one per "
-                f"stacked matrix); got shape {arr.shape}"
-            )
-        ss = self.spatial_scale
-        return roi_to_brain_from_atlas(
-            arr,
-            atlas=ss.atlas,
-            source_mask=ss.source_mask,
-            roi_labels=ss.roi_labels,
-            fill=fill,
-        )
 
     def to_graph(self):
         """Convert a single Adjacency matrix into a NetworkX graph.

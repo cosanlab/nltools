@@ -234,9 +234,9 @@ PAGES: tuple[Page, ...] = (
         "under a `metric=`; the Fisher transforms make correlations averageable. "
         "`matrix_permutation_test` (Mantel), `correlation_permutation_test`, and "
         "`distance_correlation` compare whole matrices. The plots summarize stacks "
-        "of [Adjacency](../data/adjacency.md) matrices, and `SpatialScale` records "
-        "which ROI or searchlight each matrix in a stack came from so a reduction "
-        "can be painted back onto the brain.",
+        "of [Adjacency](../data/adjacency.md) matrices. Map per-ROI values with "
+        "`roi_to_brain_from_atlas` and an explicit aligned atlas and label order; "
+        "map searchlight values with the source mask in voxel order.",
         [
             *_algorithms(
                 "compute_similarity",
@@ -256,7 +256,6 @@ PAGES: tuple[Page, ...] = (
                 "plot_between_label_distance",
                 "plot_silhouette",
             ),
-            "nltools.data.adjacency.spatial.SpatialScale",
         ],
     ),
     _task_page(
@@ -418,9 +417,6 @@ PAGES: tuple[Page, ...] = (
         "nltools.data.adjacency.plotting", "data/adjacency_plotting.md", internal=True
     ),
     _module_page("nltools.data.adjacency.io", "data/adjacency_io.md", internal=True),
-    _module_page(
-        "nltools.data.adjacency.spatial", "data/adjacency_spatial.md", internal=True
-    ),
     _module_page(
         "nltools.data.designmatrix.transforms",
         "data/design_matrix_transforms.md",

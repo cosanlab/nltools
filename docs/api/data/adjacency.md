@@ -4,24 +4,26 @@ label: page-data-adjacency
 ---
 
 ```python
-Adjacency(data = None, *, Y = None, matrix_type = None, labels = None, spatial_scale: SpatialScale | None = None)
+Adjacency(data = None, *, Y = None, matrix_type = None, labels = None)
 ```
 
 Represent adjacency matrices in vectorized form.
 
-Adjacency is a class to represent Adjacency matrices as a vector rather
-than a 2-dimensional matrix. This makes it easier to perform data
-manipulation and analyses.
+Store distance/similarity matrices as strict upper triangles and directed
+matrices as full row-major vectors. Symmetric reconstruction always has a
+zero diagonal; input diagonals are discarded. Flat rectangular stacks require
+an explicit `*_flat` matrix type. A list or 2-D flat array retains stack rank,
+including one matrix. A zero-length symmetric vector represents one node.
+Construction and result methods return independently owned mutable state.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`data` | <code>ndarray \| DataFrame \| DataFrame \| str \| Path \| list</code> | A square matrix, a flattened vector, a `.csv`/`.h5` path, or a list of matrices/`Adjacency` instances/`.csv` paths to stack. | <code>None</code>
-`Y` | <code>DataFrame \| DataFrame</code> | Training labels, one row per matrix. | <code>None</code>
-`matrix_type` | <code>str</code> | Type of matrix. One of `'distance'`, `'similarity'`, `'directed'`, `'distance_flat'`, `'similarity_flat'`, `'directed_flat'`. | <code>None</code>
-`labels` | <code>list</code> | Node labels, one per row/column. | <code>None</code>
-`spatial_scale` | <code>[SpatialScale](#tasks-similarity-spatialscale)</code> | Spatial-scale metadata linking rows/ columns to a brain parcellation, enabling projection back into brain space. | <code>None</code>
+`data` | <code>[Adjacency](#page-data-adjacency) \| ndarray \| DataFrame \| DataFrame \| str \| Path \| list</code> | A square matrix, a flattened vector, a `.csv`/`.h5` path, or a list of matrices/`Adjacency` instances/`.csv` paths to stack. | <code>None</code>
+`Y` | <code>DataFrame \| DataFrame</code> | Matrix metadata, one row per matrix. None inherits metadata during copy construction. | <code>None</code>
+`matrix_type` | <code>str</code> | Type of matrix. One of `'distance'`, `'similarity'`, `'directed'`, `'distance_flat'`, `'similarity_flat'`, `'directed_flat'`. For copy construction, this confirms the existing kind without reinterpreting it. | <code>None</code>
+`labels` | <code>list</code> | Shared node labels, or a nested matrix-by-node label grid for a stack. None inherits labels during copy construction. | <code>None</code>
 
 **Attributes:**
 
@@ -29,14 +31,13 @@ Name | Type | Description
 ---- | ---- | -----------
 `data` | <code>ndarray</code> | Vectorized matrix values. Shape `(vector_length,)` for a single matrix or `(n_matrices, vector_length)` for a stack; symmetric matrices store only the upper triangle without the diagonal.
 `matrix_type` | <code>str</code> | One of `'distance'`, `'similarity'`, `'directed'`, or `'empty'` (the `'_flat'` input variants are normalized to their base type).
-`is_single_matrix` | <code>bool</code> | True when the instance holds exactly one matrix.
+`is_single_matrix` | <code>bool</code> | True for single storage; a one-row stack is False.
 `issymmetric` | <code>bool</code> | True for distance/similarity matrices, False for directed.
 `labels` | <code>list</code> | Node labels (empty list when none were given).
-`spatial_scale` | <code>[SpatialScale](#tasks-similarity-spatialscale) \| None</code> | Parcellation provenance for a stack produced by `BrainData.distance`; None otherwise.
 `Y` | <code>DataFrame</code> | Training labels as a polars DataFrame (possibly empty).
-`is_empty` | <code>bool</code> | True if the instance holds no data.
+`is_empty` | <code>bool</code> | True if the instance holds no matrices.
 `n_nodes` | <code>int</code> | Number of nodes `n` for an `(n, n)` matrix.
-`shape` | <code>tuple</code> | Logical shape — `(n_nodes, n_nodes)` for a single matrix, `(n_matrices, n_nodes, n_nodes)` for a stack, `(0, 0)` when empty.
+`shape` | <code>tuple</code> | Logical shape — `(n_nodes, n_nodes)` for a single matrix, `(n_matrices, n_nodes, n_nodes)` for a stack, including typed empty stacks; `(0, 0)` for an untyped empty constructor.
 `vector_shape` | <code>tuple</code> | Shape of the internal vectorized storage (`data.shape`).
 
 **Methods:**
@@ -46,7 +47,7 @@ Name | Description
 [`append`](#data-adjacency-append) | Append data to an Adjacency instance.
 [`bootstrap`](#data-adjacency-bootstrap) | Bootstrap statistics using efficient online algorithms.
 [`cluster_summary`](#data-adjacency-cluster-summary) | Provide summaries of clusters within Adjacency matrices.
-[`copy`](#data-adjacency-copy) | Create a copy of Adjacency object.
+[`copy`](#data-adjacency-copy) | Return an independently owned copy, preserving internal aliases and cycles.
 [`distance`](#data-adjacency-distance) | Calculate distance between images within an Adjacency() instance.
 [`distance_to_similarity`](#data-adjacency-distance-to-similarity) | Convert distance matrix to similarity matrix.
 [`generate_permutations`](#data-adjacency-generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
@@ -65,7 +66,6 @@ Name | Description
 [`std`](#data-adjacency-std) | Calculate standard deviation of Adjacency.
 [`sum`](#data-adjacency-sum) | Calculate sum of Adjacency.
 [`threshold`](#data-adjacency-threshold) | Threshold an Adjacency instance.
-[`to_brain`](#data-adjacency-to-brain) | Project per-matrix scalars back to voxel-space `BrainData`.
 [`to_graph`](#data-adjacency-to-graph) | Convert a single Adjacency matrix into a NetworkX graph.
 [`to_square`](#data-adjacency-to-square) | Convert adjacency back to square matrix format.
 [`ttest`](#data-adjacency-ttest) | Calculate a one-sample t-test across stacked matrices.
@@ -166,7 +166,7 @@ Type | Description
 copy()
 ```
 
-Create a copy of Adjacency object.
+Return an independently owned copy, preserving internal aliases and cycles.
 
 (data-adjacency-distance)=
 ### `distance`
@@ -403,13 +403,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,     `'residual'`.
+<code>dict</code> | Keys `beta`, `sigma` (coefficient standard error), `t`, `p`,     `df`, and `residual`. With DesignMatrix predictors, coefficient     fields are Adjacency maps per predictor (single for one predictor).     With Adjacency predictors, a single response is required and     coefficient fields are native predictor arrays or scalars.     `df` is a scalar; `residual` retains response shape and metadata.
 
 (data-adjacency-similarity)=
 ### `similarity`
 
 ```python
-similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False, project: bool = False)
+similarity(data, *, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices.
@@ -432,13 +432,12 @@ Name | Type | Description | Default
 `n_jobs` | <code>int</code> | Number of parallel jobs. Default -1 (all cores). | <code>-1</code>
 `random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
-`project` | <code>bool</code> | If True and this Adjacency has a `spatial_scale`, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict \| list[dict] \| [BrainData](#page-data-brain-data)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' for a single matrix, a list of     such dicts when this Adjacency holds multiple matrices, or a     `BrainData` when `project=True` (per-matrix correlations     projected via spatial_scale).
+<code>dict \| list[dict]</code> | A correlation result dict with keys 'correlation',     'p', and 'device' for a single matrix, or a list of these dicts     for a stack.
 
 (data-adjacency-social-relations-model)=
 ### `social_relations_model`
@@ -499,7 +498,7 @@ Convert adjacency data back to square form.
 
 Type | Description
 ---- | -----------
-<code>ndarray \| list[ndarray]</code> | A square matrix, or a list of them for a     stack.
+<code>ndarray \| list[ndarray]</code> | Detached square matrix, or a list of     detached matrices for a stack. Symmetric diagonals are zero.
 
 (data-adjacency-stats-label-distance)=
 ### `stats_label_distance`
@@ -592,49 +591,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>[Adjacency](#page-data-adjacency)</code> | Thresholded Adjacency instance.
-
-(data-adjacency-to-brain)=
-### `to_brain`
-
-```python
-to_brain(values, *, fill: float = np.nan)
-```
-
-Project per-matrix scalars back to voxel-space `BrainData`.
-
-Requires `spatial_scale` to be set (i.e. this stack came from
-`BrainData.distance` or another spatial-scale-aware producer).
-Each entry of `values` is painted onto the voxels assigned to its
-corresponding parcel by `spatial_scale.atlas` /
-`spatial_scale.roi_labels`. Voxels outside the atlas receive
-`fill`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`values` | <code>ndarray</code> | 1-D array of length `len(self)` — one scalar per matrix in the stack. | *required*
-`fill` | <code>float</code> | Value for voxels not covered by any provided ROI label. Default `np.nan`. | <code>nan</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[BrainData](#page-data-brain-data)</code> | Single image masked to `spatial_scale.source_mask`.
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If `spatial_scale` is None, or `values` has the wrong length.
-
-**Examples:**
-
-```python
-rdms = brain.distance(metric="correlation", spatial_scale="roi", roi_mask=atlas)
-sims = [r["correlation"] for r in rdms.similarity(model_rdm)]
-brain_map = rdms.to_brain(sims)
-```
 
 (data-adjacency-to-graph)=
 ### `to_graph`

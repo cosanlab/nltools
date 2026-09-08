@@ -1,9 +1,4 @@
-"""Tests for BrainData spatial_scale dispatch (RSA workflow).
-
-Covers BrainData.distance(spatial_scale='roi'|'searchlight'|'whole_brain')
-producing Adjacency results carrying SpatialScale provenance suitable for
-``Adjacency.to_brain()`` / ``Adjacency.similarity(project=True)``.
-"""
+"""Spatial RSA computes ordinary stacks with explicit external mapping."""
 
 from __future__ import annotations
 
@@ -36,7 +31,7 @@ class TestDistanceWholeBrain:
         result = minimal_brain_data.distance(metric="euclidean")
         assert isinstance(result, Adjacency)
         assert result.is_single_matrix
-        assert result.spatial_scale is None
+        assert not hasattr(result, "spatial_scale")
 
     def test_explicit_whole_brain(self, minimal_brain_data):
         result = minimal_brain_data.distance(
@@ -44,11 +39,11 @@ class TestDistanceWholeBrain:
         )
         assert isinstance(result, Adjacency)
         assert result.is_single_matrix
-        assert result.spatial_scale is None
+        assert not hasattr(result, "spatial_scale")
 
 
 class TestDistanceROI:
-    def test_returns_stack_with_spatial_scale(self, minimal_brain_data):
+    def test_returns_plain_stack(self, minimal_brain_data):
         atlas = _atlas_for(minimal_brain_data, n_rois=2)
         result = minimal_brain_data.distance(
             metric="correlation", spatial_scale="roi", roi_mask=atlas
@@ -56,10 +51,7 @@ class TestDistanceROI:
         assert isinstance(result, Adjacency)
         assert not result.is_single_matrix
         assert len(result) == 2  # one RDM per parcel
-        ss = result.spatial_scale
-        assert ss is not None
-        assert ss.kind == "roi"
-        assert list(ss.roi_labels) == [1, 2]
+        assert not hasattr(result, "spatial_scale")
 
     def test_per_parcel_rdm_matches_manual(self, minimal_brain_data):
         from nilearn.masking import apply_mask
@@ -90,15 +82,17 @@ class TestDistanceROI:
         )
         # Stand in for a model-similarity reduction: take the per-RDM mean.
         per_roi = np.array([float(rdm.data.mean()) for rdm in rdms])
-        brain_map = rdms.to_brain(per_roi)
+        from nltools.mask import roi_to_brain_from_atlas
+
+        brain_map = roi_to_brain_from_atlas(
+            per_roi, atlas=atlas, source_mask=minimal_brain_data.mask, roi_labels=[1, 2]
+        )
         assert isinstance(brain_map, BrainData)
         assert brain_map.shape[-1] == minimal_brain_data.shape[-1]
 
 
 class TestDistanceSearchlight:
-    """Per-voxel-center searchlight distance — one RDM per center, with
-    SpatialScale(kind='searchlight') and a synthetic 1-voxel-per-label
-    atlas so that to_brain paints the scalar to that center voxel."""
+    """Searchlight stacks follow the source mask voxel order."""
 
     def test_returns_stack_per_voxel_center(self, minimal_brain_data):
         result = minimal_brain_data.distance(
@@ -111,10 +105,7 @@ class TestDistanceSearchlight:
         # Minimal mask has 5 voxels — expect 5 searchlight RDMs.
         n_voxels = minimal_brain_data.shape[-1]
         assert len(result) == n_voxels
-        ss = result.spatial_scale
-        assert ss is not None
-        assert ss.kind == "searchlight"
-        assert len(ss.roi_labels) == n_voxels
+        assert not hasattr(result, "spatial_scale")
 
     def test_per_center_rdm_matches_manual(self, minimal_brain_data):
         from nltools.data.braindata.neighborhoods import (
@@ -148,8 +139,21 @@ class TestDistanceSearchlight:
         )
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
-        model = Adjacency(np.abs(rng.standard_normal((n, n))), matrix_type="distance")
-        brain_map = rdms.similarity(model, project=True, method=None, metric="spearman")
+        model = Adjacency(
+            np.abs(rng.standard_normal(n * (n - 1) // 2)), matrix_type="distance_flat"
+        )
+        from nilearn.masking import unmask
+
+        values = np.array(
+            [
+                item["correlation"]
+                for item in rdms.similarity(model, method=None, metric="spearman")
+            ]
+        )
+        brain_map = BrainData(
+            unmask(values, minimal_brain_data.mask), mask=minimal_brain_data.mask
+        )
+        np.testing.assert_array_equal(brain_map.data, values)
         assert isinstance(brain_map, BrainData)
         assert brain_map.shape[-1] == minimal_brain_data.shape[-1]
 
@@ -271,50 +275,35 @@ class TestAlignROI:
         )
 
 
-class TestSimilarityProject:
-    """Adjacency.similarity(project=True) returns a voxel-space BrainData
-    by paying out per-matrix similarity scores via to_brain()."""
+def test_roi_order_and_selected_mapping(minimal_brain_data):
+    from nilearn.masking import apply_mask
+    from scipy.spatial.distance import cdist
+    from nltools.mask import roi_to_brain_from_atlas
 
-    def test_project_true_returns_braindata(self, minimal_brain_data):
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        rdms = minimal_brain_data.distance(
-            metric="correlation", spatial_scale="roi", roi_mask=atlas
+    atlas = _atlas_for(minimal_brain_data, n_rois=2)
+    values = atlas.get_fdata().astype(np.int16)
+    values[values == 1] = 9
+    values[values == 2] = 3
+    atlas = nib.Nifti1Image(values, atlas.affine)
+    label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
+    roi_labels = np.unique(label_vec[label_vec != 0])
+    rdms = minimal_brain_data.distance(
+        metric="euclidean", spatial_scale="roi", roi_mask=atlas
+    )
+    for index, label in enumerate(roi_labels):
+        reference = cdist(
+            minimal_brain_data.data[:, label_vec == label],
+            minimal_brain_data.data[:, label_vec == label],
         )
-        # Build a model RDM matching the per-parcel n_nodes (n_images here).
-        n = minimal_brain_data.shape[0]
-        rng = np.random.default_rng(0)
-        model = Adjacency(
-            np.abs(rng.standard_normal((n, n))) + np.eye(n) * 0,
-            matrix_type="distance",
-        )
-        out = rdms.similarity(model, project=True, method=None, metric="spearman")
-        assert isinstance(out, BrainData)
-        assert out.shape[-1] == minimal_brain_data.shape[-1]
-
-    def test_project_true_matches_manual_to_brain(self, minimal_brain_data):
-        atlas = _atlas_for(minimal_brain_data, n_rois=2)
-        rdms = minimal_brain_data.distance(
-            metric="correlation", spatial_scale="roi", roi_mask=atlas
-        )
-        n = minimal_brain_data.shape[0]
-        rng = np.random.default_rng(0)
-        model = Adjacency(np.abs(rng.standard_normal((n, n))), matrix_type="distance")
-        results = rdms.similarity(model, project=False, method=None, metric="spearman")
-        per_roi = np.array([r["correlation"] for r in results])
-        manual = rdms.to_brain(per_roi)
-        sugared = rdms.similarity(model, project=True, method=None, metric="spearman")
-        np.testing.assert_array_equal(np.asarray(manual.data), np.asarray(sugared.data))
-
-    def test_project_true_errors_without_spatial_scale(self):
-        # A stacked Adjacency without provenance can't project to voxel space.
-        from sklearn.metrics import pairwise_distances
-
-        rng = np.random.default_rng(0)
-        mats = [
-            pairwise_distances(rng.standard_normal((5, 4)), metric="correlation")
-            for _ in range(3)
-        ]
-        rdms = Adjacency(mats, matrix_type="distance")
-        model = Adjacency(mats[0], matrix_type="distance")
-        with pytest.raises(ValueError, match="spatial_scale"):
-            rdms.similarity(model, project=True, method=None)
+        np.testing.assert_allclose(rdms[index].squareform(), reference)
+    selection = [1]
+    selected = rdms[selection]
+    per_roi = selected.mean(axis=1)
+    painted = roi_to_brain_from_atlas(
+        per_roi,
+        atlas=atlas,
+        source_mask=minimal_brain_data.mask,
+        roi_labels=roi_labels[selection],
+    )
+    np.testing.assert_allclose(painted.data[label_vec == 9], per_roi[0])
+    assert np.isnan(painted.data[label_vec == 3]).all()

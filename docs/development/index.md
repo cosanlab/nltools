@@ -32,6 +32,8 @@ The three facades and their submodules:
 
 The [DesignMatrix contract](specs/designmatrix.md) defines direct Polars method
 access, result ownership, metadata propagation and persistence.
+The [Adjacency contract](specs/adjacency.md) defines matrix shapes, selection,
+ownership, statistical result dimensions and explicit spatial projection.
 
 ### Design rules
 

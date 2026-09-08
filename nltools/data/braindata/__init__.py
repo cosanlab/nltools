@@ -812,10 +812,9 @@ class BrainData:
                 ``'searchlight'``. ``'whole_brain'`` returns a single
                 pairwise distance ``Adjacency`` between images. ``'roi'``
                 requires ``roi_mask`` and returns a stacked ``Adjacency``
-                with one RDM per parcel and ``spatial_scale`` provenance
-                attached for back-projection via ``Adjacency.to_brain()``.
-                ``'searchlight'`` requires ``radius_mm`` (and is not yet
-                implemented).
+                with one RDM per sorted nonzero atlas label present inside the
+                source mask after nearest-neighbor resampling. `'searchlight'`
+                returns one RDM per source-mask voxel in mask order.
             roi_mask (BrainData | Nifti1Image | str | Path | None): Atlas image
                 for ``spatial_scale='roi'``.
             radius_mm (float): Searchlight radius in mm. Default 10.0.
@@ -824,8 +823,11 @@ class BrainData:
 
         Returns:
             Adjacency: Single pairwise distance matrix for ``'whole_brain'``;
-                stacked Adjacency (one matrix per parcel/searchlight) with
-                ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
+                ordinary stack for `'roi'` / `'searchlight'`. Map per-matrix values
+                externally using `roi_to_brain_from_atlas` with the aligned atlas
+                and sorted surviving ROI labels, or `nilearn.masking.unmask`
+                with the source mask for searchlights. Subset the mapping whenever
+                selecting matrices from the returned stack.
         """
         from .analysis import distance
 

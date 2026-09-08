@@ -246,7 +246,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#page-data-adjacency)</code> | Whole-brain pairwise distance matrix, or a stacked Adjacency     (one per parcel/searchlight) with ``spatial_scale`` provenance set.
+<code>[Adjacency](#page-data-adjacency)</code> | Whole-brain pairwise distance matrix, or an ordinary stack.     ROI matrices follow sorted nonzero atlas labels present in the source     mask after resampling; searchlights follow source-mask voxel order.
 
 (data-braindata-analysis-extract-roi)=
 ### `extract_roi`

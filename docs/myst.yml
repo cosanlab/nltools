@@ -118,7 +118,6 @@ project:
                 - file: api/data/adjacency_modeling.md
                 - file: api/data/adjacency_plotting.md
                 - file: api/data/adjacency_io.md
-                - file: api/data/adjacency_spatial.md
             - title: DesignMatrix internals
               children:
                 - file: api/data/design_matrix_transforms.md

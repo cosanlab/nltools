@@ -121,7 +121,7 @@ Type | Description
 ### `similarity`
 
 ```python
-similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, project: bool = False, progress_bar: bool = False)
+similarity(adj, data, plot = False, method = '2d', n_permute = 5000, metric = 'spearman', include_diag = False, nan_policy = 'omit', tail = 2, return_null = False, n_jobs = -1, random_state = None, *, progress_bar: bool = False)
 ```
 
 Calculate similarity between two Adjacency matrices.
@@ -144,14 +144,13 @@ Name | Type | Description | Default
 `return_null` | <code>bool</code> | If True, also return the null distribution. Default False. | <code>False</code>
 `n_jobs` | <code>int</code> | Number of parallel jobs. -1 means all cores. Default -1. | <code>-1</code>
 `random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
-`project` | <code>bool</code> | If True and adj has a spatial_scale, project the per-matrix correlations back into brain space. Default False. | <code>False</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict \| list[dict] \| [BrainData](#page-data-brain-data)</code> | A correlation result dict with keys     'correlation', 'p', and 'device' (or a list of such dicts when adj     contains multiple matrices); a `BrainData` when `project=True`,     holding the per-matrix correlations projected back into brain space     via the spatial_scale.
+<code>dict \| list[dict]</code> | A correlation result dict with keys 'correlation',     'p', and 'device', or a list of these dicts for a stack.
 
 (data-adjacency-stats-stats-label-distance)=
 ### `stats_label_distance`

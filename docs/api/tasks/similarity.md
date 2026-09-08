@@ -3,13 +3,7 @@ title: Similarity & RSA
 label: page-tasks-similarity
 ---
 
-Compare patterns and matrices. `compute_similarity` scores two arrays under a `metric=`; the Fisher transforms make correlations averageable. `matrix_permutation_test` (Mantel), `correlation_permutation_test`, and `distance_correlation` compare whole matrices. The plots summarize stacks of [Adjacency](../data/adjacency.md) matrices, and `SpatialScale` records which ROI or searchlight each matrix in a stack came from so a reduction can be painted back onto the brain.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`SpatialScale`](#tasks-similarity-spatialscale) | Record provenance for a per-parcel or per-searchlight Adjacency stack.
+Compare patterns and matrices. `compute_similarity` scores two arrays under a `metric=`; the Fisher transforms make correlations averageable. `matrix_permutation_test` (Mantel), `correlation_permutation_test`, and `distance_correlation` compare whole matrices. The plots summarize stacks of [Adjacency](../data/adjacency.md) matrices. Map per-ROI values with `roi_to_brain_from_atlas` and an explicit aligned atlas and label order; map searchlight values with the source mask in voxel order.
 
 **Functions:**
 
@@ -29,29 +23,6 @@ Name | Description
 [`plot_mean_label_distance`](#tasks-similarity-plot-mean-label-distance) | Violin plot of within- vs between-label distances.
 [`plot_between_label_distance`](#tasks-similarity-plot-between-label-distance) | Heatmap of average pairwise distance between every label pair.
 [`plot_silhouette`](#tasks-similarity-plot-silhouette) | Silhouette plot indicating between- vs within-label distance.
-
-## Classes
-
-(tasks-similarity-spatialscale)=
-### `SpatialScale`
-
-```python
-SpatialScale(atlas: BrainData, roi_labels: np.ndarray, source_mask: Nifti1Image, kind: Literal['roi', 'searchlight'] = 'roi')
-```
-
-Record provenance for a per-parcel or per-searchlight Adjacency stack.
-
-The stack comes from a per-parcel or per-searchlight operation on a
-`BrainData`.
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`atlas` | <code>[BrainData](#page-data-brain-data)</code> | Labeled volume indicating parcel membership (or searchlight centers). One matrix in the stack per unique label.
-`roi_labels` | <code>ndarray</code> | Integer atlas IDs in stack order. ``len(roi_labels)`` must equal the number of matrices in the stack.
-`source_mask` | <code>Nifti1Image</code> | The brain mask the atlas/values live in. Used as the target space for back-projection in ``Adjacency.to_brain()``.
-`kind` | <code>Literal['roi', 'searchlight']</code> | Which spatial scale produced this stack — ``'roi'`` or ``'searchlight'``.
 
 ## Functions
 

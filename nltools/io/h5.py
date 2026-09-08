@@ -125,8 +125,12 @@ def to_h5(obj, file_name, obj_type="brain_data", h5_compression="gzip"):
             if obj.labels:
                 f.create_dataset(
                     "labels",
-                    data=np.array(obj.labels, dtype=object),
-                    dtype=h5py.string_dtype(encoding="utf-8"),
+                    data=np.asarray(obj.labels, dtype=object)
+                    if np.asarray(obj.labels).dtype.kind in "US"
+                    else np.asarray(obj.labels),
+                    dtype=h5py.string_dtype(encoding="utf-8")
+                    if np.asarray(obj.labels).dtype.kind in "US"
+                    else None,
                 )
             else:
                 f.create_dataset("labels", data=np.array([], dtype="float64"))

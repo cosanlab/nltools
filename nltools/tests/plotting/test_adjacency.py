@@ -120,8 +120,8 @@ class TestPlotStackedAdjacency:
         from nltools.data import Adjacency
 
         rng = np.random.default_rng(0)
-        a1 = Adjacency(rng.random((6, 6)), matrix_type="similarity")
-        a2 = Adjacency(rng.random((6, 6)), matrix_type="similarity")
+        a1 = Adjacency(rng.random(15), matrix_type="similarity_flat")
+        a2 = Adjacency(rng.random(15), matrix_type="similarity_flat")
         ax = plot_stacked_adjacency(a1, a2)
         assert ax is not None
 
@@ -158,8 +158,8 @@ class TestPlotStackedAdjacency:
         from nltools.data import Adjacency
 
         rng = np.random.default_rng(3)
-        a1 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
-        a2 = Adjacency(rng.random((5, 5)), matrix_type="similarity")
+        a1 = Adjacency(rng.random(10), matrix_type="similarity_flat")
+        a2 = Adjacency(rng.random(10), matrix_type="similarity_flat")
         out = _stacked_adjacency_matrix(a1, a2, normalize=True)
         assert np.isfinite(out).all()
 

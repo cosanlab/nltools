@@ -9,12 +9,22 @@ I/O functions for Adjacency objects.
 
 Name | Description
 ---- | -----------
+[`read_h5`](#data-adjacency-io-read-h5) | Read current and legacy vector layouts into a normalized Adjacency.
 [`to_graph`](#data-adjacency-io-to-graph) | Convert Adjacency into networkx graph.
 [`write`](#data-adjacency-io-write) | Write an Adjacency to a `.csv` or `.h5` file.
 
 
 
 ## Functions
+
+(data-adjacency-io-read-h5)=
+### `read_h5`
+
+```python
+read_h5(file_name, matrix_type = None)
+```
+
+Read current and legacy vector layouts into a normalized Adjacency.
 
 (data-adjacency-io-to-graph)=
 ### `to_graph`

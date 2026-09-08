@@ -95,25 +95,17 @@ def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
     Returns:
         dict: Adjacency objects for each statistic.
     """
-    from nltools.data.adjacency import Adjacency
+    import polars as pl
+    from .state import common_labels, result as adjacency_result
 
     out = {}
     for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
         if key in result:
-            # Convert numpy array to Adjacency
-            # Result shape: (n_features,) for aggregated stats
-            adj_data = result[key]
-            if adj_data.ndim == 0:
-                # Scalar - convert to 1D array
-                adj_data = np.array([adj_data])
-            elif adj_data.ndim == 1:
-                # Already 1D - reshape to (1, n_features) for Adjacency
-                adj_data = adj_data.reshape(1, -1)
-            # adj_data is now (1, n_features)
-
-            out[key] = Adjacency(
-                data=adj_data,
-                matrix_type=adj.matrix_type + "_flat",
+            out[key] = adjacency_result(
+                adj,
+                np.asarray(result[key]).reshape(-1),
+                labels=common_labels(adj),
+                Y=pl.DataFrame(),
             )
 
     if save_boots and "samples" in result:
@@ -137,159 +129,77 @@ def regress(adj, X, method="ols", tail=2):
             one-tailed (beta > 0; negate a regressor for the other direction).
 
     Returns:
-        dict: Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,
-            `'residual'`.
+        dict: Coefficient fields `beta`, `sigma` (coefficient standard error),
+            `t`, and `p` are predictor Adjacency maps for DesignMatrix input and
+            native predictor arrays/scalars for Adjacency input. `df` is scalar;
+            `residual` is an Adjacency retaining the response shape and metadata.
     """
+    import polars as pl
+    from scipy.stats import t as t_dist
     from nltools.data.adjacency import Adjacency
     from nltools.data.designmatrix import DesignMatrix
     from nltools.algorithms.inference.validation import validate_tail_parameter
+    from .state import common_labels, result, validate_compatible
 
     tail_internal = validate_tail_parameter(tail)
-    from scipy.stats import t as t_dist
-
     if method != "ols":
         raise ValueError(
             "Only 'ols' method is currently supported for Adjacency.regress()"
         )
-
-    stats = {}
     if isinstance(X, Adjacency):
-        if X.n_nodes != adj.n_nodes:
-            raise ValueError("Adjacency instances must be the same size.")
-        # Convert to numpy arrays for regression
-        X_data = X.data.T
-        Y_data = adj.data
-
-        # Ensure Y is 2D
-        if len(Y_data.shape) == 1:
-            Y_data = Y_data[:, np.newaxis]
-
-        # OLS regression: b = (X'X)^-1 X'Y
-        # X_data shape: (n_features, n_regressors)
-        # Y_data shape: (n_features, 1)
-        # b shape: (n_regressors, 1)
-        b = np.dot(np.linalg.pinv(X_data), Y_data)
-        res = Y_data - np.dot(X_data, b)
-
-        # Unbiased estimator of residual standard error: sqrt(RSS / df)
-        # This is correct for both intercept and intercept-free models
-        # See GH #287 for details on why np.std(res, ddof=p) is biased
-        n, p = X_data.shape
-        sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
-        if sigma.ndim == 0:
-            sigma = sigma[np.newaxis]
-
-        stderr = (
-            np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[:, np.newaxis]
-            * sigma[np.newaxis, :]
-        )
-
-        # t-statistics
-        t = np.zeros_like(b)
-        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
-
-        # p-values
-        df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        if tail_internal == "upper":
-            p = 1 - t_dist.cdf(t, df)
-        else:
-            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-        # Create Adjacency objects for each stat
-        # For Adjacency X, b has shape (n_regressors, 1), so we need to reshape
-        # to match Adjacency data format which expects (n_matrices, n_features)
-        stats["beta"] = adj.copy()
-        stats["sigma"] = adj.copy()
-        stats["t"] = adj.copy()
-        stats["p"] = adj.copy()
-        stats["df"] = adj.copy()
-        stats["residual"] = adj.copy()
-
-        # Assign data - ensure 2D shape for Adjacency compatibility
-        b_flat = b.squeeze()
-        if b_flat.ndim == 0:
-            b_flat = np.array([b_flat])
-        stats["beta"].data = b_flat
-        stats["sigma"].data = (
-            stderr.squeeze().T if stderr.shape[0] > 1 else stderr.squeeze()
-        )
-        stats["t"].data = t.squeeze().T if t.shape[0] > 1 else t.squeeze()
-        stats["p"].data = p.squeeze().T if p.shape[0] > 1 else p.squeeze()
-        stats["df"].data = df.squeeze()
-        stats["residual"].data = res.squeeze().T if res.shape[1] == 1 else res.squeeze()
-
+        if not adj.is_single_matrix:
+            raise ValueError("Adjacency predictors require a single response matrix.")
+        validate_compatible(adj, X)
+        response_labels = common_labels(adj)
+        predictor_labels = common_labels(X)
+        if response_labels != predictor_labels or X.labels and not predictor_labels:
+            raise ValueError("Predictor and response node ordering must match.")
+        design = np.atleast_2d(X.data).T
+        response = adj.data[:, None]
     elif isinstance(X, DesignMatrix):
         if X.shape[0] != len(adj):
             raise ValueError(
                 "Design matrix must have same number of observations as Adjacency"
             )
-        # Convert Polars DesignMatrix to numpy
-        X_data = X.to_numpy()
-        Y_data = adj.data
-
-        # Ensure Y is 2D
-        if len(Y_data.shape) == 1:
-            Y_data = Y_data[:, np.newaxis]
-
-        # OLS regression: b = (X'X)^-1 X'Y
-        b = np.dot(np.linalg.pinv(X_data), Y_data)
-        res = Y_data - np.dot(X_data, b)
-
-        # Unbiased estimator of residual standard error: sqrt(RSS / df)
-        # This is correct for both intercept and intercept-free models
-        # See GH #287 for details on why np.std(res, ddof=p) is biased
-        n, p = X_data.shape
-        sigma = np.sqrt(np.sum(res**2, axis=0) / (n - p))
-        if sigma.ndim == 0:
-            sigma = sigma[np.newaxis]
-
-        stderr = (
-            np.sqrt(np.diag(np.linalg.pinv(np.dot(X_data.T, X_data))))[:, np.newaxis]
-            * sigma[np.newaxis, :]
-        )
-
-        # t-statistics
-        t = np.zeros_like(b)
-        t[stderr > 1.0e-6] = b[stderr > 1.0e-6] / stderr[stderr > 1.0e-6]
-
-        # p-values
-        df = np.array([X_data.shape[0] - X_data.shape[1]] * t.shape[1])
-        if tail_internal == "upper":
-            p = 1 - t_dist.cdf(t, df)
-        else:
-            p = 2 * (1 - t_dist.cdf(np.abs(t), df))
-
-        stats["beta"], stats["sigma"], stats["t"] = [adj.copy() for _ in range(3)]
-        stats["p"], stats["df"], stats["residual"] = [adj.copy() for _ in range(3)]
-
-        # Assign data - ensure proper shape for DesignMatrix case
-        # For DesignMatrix, b has shape (n_regressors, n_features)
-        # We need to reshape to (n_features, n_regressors) to match Adjacency format
-        # where each row is a matrix (feature) and columns are regressors
-        # But since we only have one regressor, we need (n_features,) shape
-        # to match the original Adjacency data format
-        if b.shape[0] == 1:
-            # Single regressor case: b is (1, n_features), transpose to (n_features,)
-            # Result is a single matrix of coefficients
-            for key in ["beta", "sigma", "t", "p", "df", "residual"]:
-                stats[key].is_single_matrix = True
-            stats["beta"].data = b.squeeze()
-            stats["sigma"].data = stderr.squeeze()
-            stats["t"].data = t.squeeze()
-            stats["p"].data = p.squeeze()
-            stats["df"].data = df.squeeze() if df.ndim > 0 else df
-            stats["residual"].data = res.squeeze()
-        else:
-            # Multiple regressors: b is (n_regressors, n_features), transpose to (n_features, n_regressors)
-            stats["beta"].data = b.T
-            stats["sigma"].data = stderr.T
-            stats["t"].data = t.T
-            stats["p"].data = p.T
-            stats["df"].data = df
-            stats["residual"].data = res.T
+        design = X.to_numpy()
+        response = np.atleast_2d(adj.data)
     else:
         raise ValueError("X must be a DesignMatrix or Adjacency Instance.")
 
+    beta = np.linalg.pinv(design) @ response
+    residual = response - design @ beta
+    df = design.shape[0] - design.shape[1]
+    # Retain the RSS-based scale, including intercept-free models (GH #287).
+    residual_scale = np.sqrt(np.sum(residual**2, axis=0) / df)
+    stderr = (
+        np.sqrt(np.diag(np.linalg.pinv(design.T @ design)))[:, None] * residual_scale
+    )
+    t = np.zeros_like(beta)
+    np.divide(beta, stderr, out=t, where=stderr > 1.0e-6)
+    p = (
+        1 - t_dist.cdf(t, df)
+        if tail_internal == "upper"
+        else 2 * (1 - t_dist.cdf(np.abs(t), df))
+    )
+    stats = {"df": df}
+    for key, values in [("beta", beta), ("sigma", stderr), ("t", t), ("p", p)]:
+        if isinstance(X, Adjacency):
+            stats[key] = values[:, 0].copy() if len(values) > 1 else values[0, 0].item()
+        else:
+            stats[key] = result(
+                adj,
+                values[0] if len(values) == 1 else values,
+                labels=common_labels(adj),
+                Y=pl.DataFrame(),
+            )
+    residual_values = (
+        residual[:, 0]
+        if isinstance(X, Adjacency)
+        else residual[0]
+        if adj.is_single_matrix
+        else residual
+    )
+    stats["residual"] = result(adj, residual_values, labels=adj.labels, Y=adj.Y)
     return stats
 
 

@@ -222,11 +222,12 @@ combined.plot()
 ## Mixing task regressors with external confounds
 
 Real GLM workflows combine HRF-convolved task regressors with confound regressors
-from preprocessing — head motion, spike regressors, CSF/WM signals, physio. The
-canonical pattern is `.append(axis=1)`: it accepts a `DesignMatrix` *or* a raw
-pandas/polars DataFrame, automatically marks the appended columns as confounds
-(so `.convolve()` skips them and they stay separate per run on a later vertical
-append), and merges the `convolved`/`confounds` metadata correctly.
+from preprocessing, such as head motion, spike regressors, CSF/WM signals and physio.
+Convert pandas inputs to `DesignMatrix` objects with the task design's sampling
+frequency, then combine them with `.append(axis=1, as_confounds=True)`. The
+appended columns are marked as confounds, so `.convolve()` skips them and a
+later vertical append keeps them separate per run. Existing `convolved` and
+`confounds` metadata are retained.
 
 ```{code-cell} python3
 # 1. Convolve task regressors — convolved columns get a `_c0` suffix; `.convolved` tracks them
@@ -251,9 +252,12 @@ spikes = pd.DataFrame(
 ```
 
 ```{code-cell} python3
-# 3. Append them all at once, then add drift. Raw DataFrames are auto-wrapped and
-#    their columns tracked as confounds — no pd.concat round-trip needed.
-dm_full = dm_task.append([motion, csf, spikes], axis=1).add_poly(order=2)
+# 3. Convert the external frames, mark their columns as confounds, then add drift.
+confound_designs = [
+    DesignMatrix(frame, sampling_freq=dm_task.sampling_freq)
+    for frame in (motion, csf, spikes)
+]
+dm_full = dm_task.append(confound_designs, axis=1, as_confounds=True).add_poly(order=2)
 print(dm_full)
 ```
 

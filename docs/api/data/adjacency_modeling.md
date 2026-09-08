@@ -143,7 +143,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Adjacency instances keyed `'beta'`, `'sigma'`, `'t'`, `'p'`, `'df'`,     `'residual'`.
+<code>dict</code> | Coefficient fields `beta`, `sigma` (coefficient standard error),     `t`, and `p` are predictor Adjacency maps for DesignMatrix input and     native predictor arrays/scalars for Adjacency input. `df` is scalar;     `residual` is an Adjacency retaining the response shape and metadata.
 
 (data-adjacency-modeling-social-relations-model)=
 ### `social_relations_model`

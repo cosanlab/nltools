@@ -105,8 +105,9 @@ def distance(  # nosemgrep: kwargs-internal-forwarding  # forwards to scipy.spat
         **kwargs (dict): Forwarded to ``scipy.spatial.distance.cdist``.
 
     Returns:
-        Adjacency: Whole-brain pairwise distance matrix, or a stacked Adjacency
-            (one per parcel/searchlight) with ``spatial_scale`` provenance set.
+        Adjacency: Whole-brain pairwise distance matrix, or an ordinary stack.
+            ROI matrices follow sorted nonzero atlas labels present in the source
+            mask after resampling; searchlights follow source-mask voxel order.
     """
     valid = {"whole_brain", "roi", "searchlight"}
     if spatial_scale not in valid:
@@ -351,7 +352,7 @@ def reduce_per_roi(bd, reducer, *, roi_mask):
 def _distance_roi(bd, *, metric, roi_mask, **kwargs):
     """Compute a pairwise distance matrix for each atlas parcel.
 
-    Returns a stacked Adjacency with ``SpatialScale`` provenance attached.
+    Return an ordinary stack in sorted nonzero atlas-label order within the source mask.
     """
     from pathlib import Path
 
@@ -361,7 +362,6 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
     from scipy.spatial.distance import cdist
 
     from nltools.data import Adjacency, BrainData
-    from nltools.data.adjacency.spatial import SpatialScale
 
     if roi_mask is None:
         raise ValueError("roi_mask is required when spatial_scale='roi'.")
@@ -400,30 +400,18 @@ def _distance_roi(bd, *, metric, roi_mask, **kwargs):
             cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs)
         )
 
-    spatial_scale = SpatialScale(
-        atlas=BrainData(roi_img, mask=bd.mask),
-        roi_labels=unique_labels,
-        source_mask=bd.mask,
-        kind="roi",
-    )
-    return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
+    return Adjacency(matrices, matrix_type="distance")
 
 
 def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
     """Compute a pairwise distance matrix for each searchlight center.
 
-    Returns a stacked Adjacency with ``SpatialScale(kind='searchlight')``.
-
-    Each masked voxel is its own ``roi_label`` (1-indexed), and the
-    synthetic atlas labels each masked voxel with its own ID — so
-    ``Adjacency.to_brain(values)`` paints ``values[i]`` onto the i-th
-    masked voxel (the searchlight center).
+    Return an ordinary stack in source-mask voxel order. Map per-center values
+    externally with `nilearn.masking.unmask(values, bd.mask)`.
     """
-    import nibabel as nib
     from scipy.spatial.distance import cdist
 
-    from nltools.data import Adjacency, BrainData
-    from nltools.data.adjacency.spatial import SpatialScale
+    from nltools.data import Adjacency
 
     from .neighborhoods import compute_searchlight_neighborhoods
 
@@ -439,22 +427,7 @@ def _distance_searchlight(bd, *, metric, radius_mm, **kwargs):
             cdist(bd.data[:, cols], bd.data[:, cols], metric=metric, **kwargs)
         )
 
-    # Synthetic atlas: each masked voxel labeled with its own integer ID
-    # (1-indexed so 0 stays "outside the atlas"). Built by writing
-    # 1..n_voxels into the mask voxels.
-    mask_arr = bd.mask.get_fdata().astype(bool)
-    atlas_arr = np.zeros(mask_arr.shape, dtype=np.int32)
-    voxel_ids = np.arange(1, n_voxels + 1, dtype=np.int32)
-    atlas_arr[mask_arr] = voxel_ids
-    atlas_img = nib.Nifti1Image(atlas_arr, bd.mask.affine, bd.mask.header)
-
-    spatial_scale = SpatialScale(
-        atlas=BrainData(atlas_img, mask=bd.mask),
-        roi_labels=voxel_ids,
-        source_mask=bd.mask,
-        kind="searchlight",
-    )
-    return Adjacency(matrices, matrix_type="distance", spatial_scale=spatial_scale)
+    return Adjacency(matrices, matrix_type="distance")
 
 
 def multivariate_similarity(bd, images, method="ols", tail=2):

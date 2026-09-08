@@ -429,7 +429,7 @@ Calculate distance between images within a BrainData() instance.
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `metric` | <code>str</code> | Distance metric — any ``scipy.spatial.distance`` metric supported by ``cdist``. Default ``'euclidean'``. | <code>'euclidean'</code>
-`spatial_scale` | <code>str</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per parcel and ``spatial_scale`` provenance attached for back-projection via ``Adjacency.to_brain()``. ``'searchlight'`` requires ``radius_mm`` (and is not yet implemented). | <code>'whole_brain'</code>
+`spatial_scale` | <code>str</code> | One of ``'whole_brain'`` (default), ``'roi'``, or ``'searchlight'``. ``'whole_brain'`` returns a single pairwise distance ``Adjacency`` between images. ``'roi'`` requires ``roi_mask`` and returns a stacked ``Adjacency`` with one RDM per sorted nonzero atlas label present inside the source mask after nearest-neighbor resampling. `'searchlight'` returns one RDM per source-mask voxel in mask order. | <code>'whole_brain'</code>
 `roi_mask` | <code>[BrainData](#page-data-brain-data) \| Nifti1Image \| str \| Path \| None</code> | Atlas image for ``spatial_scale='roi'``. | <code>None</code>
 `radius_mm` | <code>float</code> | Searchlight radius in mm. Default 10.0. | <code>10.0</code>
 `**kwargs` | <code>dict</code> | Additional metric options forwarded to ``scipy.spatial.distance.cdist`` (e.g. ``p`` for minkowski). | <code>{}</code>
@@ -438,7 +438,7 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>[Adjacency](#page-data-adjacency)</code> | Single pairwise distance matrix for ``'whole_brain'``;     stacked Adjacency (one matrix per parcel/searchlight) with     ``spatial_scale`` set for ``'roi'`` / ``'searchlight'``.
+<code>[Adjacency](#page-data-adjacency)</code> | Single pairwise distance matrix for ``'whole_brain'``;     ordinary stack for `'roi'` / `'searchlight'`. Map per-matrix values     externally using `roi_to_brain_from_atlas` with the aligned atlas     and sorted surviving ROI labels, or `nilearn.masking.unmask`     with the source mask for searchlights. Subset the mapping whenever     selecting matrices from the returned stack.
 
 (data-brain-data-extract-roi)=
 ### `extract_roi`

@@ -23,7 +23,6 @@ def similarity(
     n_jobs=-1,
     random_state=None,
     *,
-    project: bool = False,
     progress_bar: bool = False,
 ):
     """Calculate similarity between two Adjacency matrices.
@@ -50,16 +49,11 @@ def similarity(
         return_null (bool): If True, also return the null distribution. Default False.
         n_jobs (int): Number of parallel jobs. -1 means all cores. Default -1.
         random_state (int, optional): Random seed for reproducibility.
-        project (bool): If True and adj has a spatial_scale, project the per-matrix
-            correlations back into brain space. Default False.
         progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict | list[dict] | BrainData: A correlation result dict with keys
-            'correlation', 'p', and 'device' (or a list of such dicts when adj
-            contains multiple matrices); a `BrainData` when `project=True`,
-            holding the per-matrix correlations projected back into brain space
-            via the spatial_scale.
+        dict | list[dict]: A correlation result dict with keys 'correlation',
+            'p', and 'device', or a list of these dicts for a stack.
     """
     from nltools.data.adjacency import Adjacency
     from nltools.algorithms.inference import (
@@ -157,13 +151,6 @@ def similarity(
             raise ValueError("permutation_method must be ['1d','2d', or None']")
         return data
 
-    if project and adj.spatial_scale is None:
-        raise ValueError(
-            "similarity(project=True) requires the calling Adjacency to have "
-            "a spatial_scale set (i.e. produced by a spatial-scale-aware "
-            "operation like BrainData.distance(spatial_scale='roi'))."
-        )
-
     if adj.is_single_matrix:
         if plot:
             plot_stacked_adjacency(adj, data)
@@ -205,9 +192,6 @@ def similarity(
                 progress_bar=progress_bar,
             )
         )
-    if project:
-        per_matrix = np.array([r["correlation"] for r in results])
-        return adj.to_brain(per_matrix)
     return results
 
 

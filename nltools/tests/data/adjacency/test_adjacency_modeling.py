@@ -124,14 +124,12 @@ class TestAdjacencyModeling:
         X = Adjacency([m1, m2, m3], matrix_type="similarity")
 
         stats = Y.regress(X)
-        assert np.allclose(stats["beta"].data, np.array([1, 2, 3]))
+        assert np.allclose(stats["beta"], np.array([1, 2, 3]))
 
         n = 10
         d = Adjacency(
             [
-                block_diag(
-                    np.ones((4, 4)) + np.random.randn(4, 4) * 0.1, np.zeros((8, 8))
-                )
+                block_diag(np.ones((4, 4)) + np.eye(4) * 0.1, np.zeros((8, 8)))
                 for _ in range(n)
             ],
             matrix_type="similarity",
@@ -185,7 +183,9 @@ class TestAdjacencyModeling:
         m3 = block_diag(np.zeros((4, 4)), np.zeros((4, 4)), np.ones((4, 4)))
         noisy = (m1 * 1 + m2 * 2 + m3 * 3) + np.random.randn(12, 12) * 0.1
         dat = Adjacency(
-            noisy, matrix_type="similarity", labels=["C1"] * 4 + ["C2"] * 4 + ["C3"] * 4
+            (noisy + noisy.T) / 2,
+            matrix_type="similarity",
+            labels=["C1"] * 4 + ["C2"] * 4 + ["C3"] * 4,
         )
 
         clusters = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]

@@ -49,7 +49,7 @@ class TestAdjacencyFacades:
     @pytest.fixture
     def stack(self):
         rng = np.random.default_rng(1)
-        return Adjacency(rng.standard_normal((6, 10)))
+        return Adjacency(rng.standard_normal((6, 10)), matrix_type="distance_flat")
 
     def test_similarity_silent_by_default_bar_when_asked(self, pair):
         x, y = pair

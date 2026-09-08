@@ -76,3 +76,35 @@ def to_graph(adj):
             nx.relabel_nodes(G, labels, copy=False)
         return G
     raise NotImplementedError("This function currently only works on single matrices.")
+
+
+def read_h5(file_name, matrix_type=None):
+    """Read current and legacy vector layouts into a normalized Adjacency."""
+    from . import Adjacency
+    from nltools.io.h5 import (
+        _read_polars_frame,
+        _require_h5,
+        is_legacy_adjacency_h5,
+        load_legacy_adjacency_h5,
+    )
+
+    _require_h5()
+    import h5py
+
+    if is_legacy_adjacency_h5(file_name):
+        return Adjacency(**load_legacy_adjacency_h5(file_name, matrix_type=matrix_type))
+    with h5py.File(file_name, "r") as source:
+        kind = source["matrix_type"][()].decode()
+        values = np.array(source["data"])
+        labels_ds = source["labels"]
+        labels = (
+            labels_ds.asstr()[()].tolist()
+            if h5py.check_string_dtype(labels_ds.dtype) is not None
+            else labels_ds[()].tolist()
+        )
+        return Adjacency(
+            None if kind == "empty" else values,
+            matrix_type=None if kind == "empty" else kind + "_flat",
+            labels=labels,
+            Y=_read_polars_frame(source, "Y"),
+        )

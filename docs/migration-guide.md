@@ -14,7 +14,7 @@ Version 0.6.0 is a **breaking release** that refactors nltools to better leverag
 | **Ridge regression** | Manual | `.fit(model='ridge')` | New |
 | **ML prediction** | `.predict(algorithm='svm', cv_dict=…)` returning dict | `.predict(y=…, spatial_scale=…, model=…, cv=…)` returning `Predict` dataclass with `.weight_map`, `.scores`, etc. | Unified API |
 | **Spatial scale kwarg** | N/A (or `method=` overloaded for both algorithm and spatial scale) | `spatial_scale=` (`'whole_brain' \| 'roi' \| 'searchlight'`) — distinct from `method=` (algorithm); follows the spatial-scale framing of [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010) | **New canonical kwarg** |
-| **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas).similarity(model_rdm, project=True)` — chain to a voxel-space `BrainData` | **New** |
+| **RSA workflow** | Manual: per-ROI loop, build Adjacency stack, reduce, paint via `roi_to_brain` | `bd.distance(..., spatial_scale='roi', roi_mask=atlas).similarity(model_rdm)` followed by explicit atlas mapping with `roi_to_brain_from_atlas` | **New** |
 | **One-sample t-test** | `BrainData.ttest(threshold_dict=…)` | `BrainData.ttest(popmean=0.0, permutation=False, …)` | **Signature changed** |
 | **Two-sample t-test** | N/A | `BrainData.ttest2(other)` | New |
 | **Method chaining** | `.smooth()` modifies in-place | Returns copy | Changed |
@@ -2037,29 +2037,85 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 
 ## New Features
 
-### Spatial-scale-aware RSA (NEW)
+### Adjacency input, shape, and result contracts
 
-**Status**: ✅ NEW (v0.6.0)
-
-`BrainData.distance(spatial_scale=...)` plus `Adjacency.spatial_scale` / `to_brain()` / `similarity(project=True)` make per-ROI and per-searchlight representational similarity analysis a one-liner that ends in a voxel-space `BrainData`. The framing follows [Jolly & Chang, 2021, *SCAN*](https://doi.org/10.1093/scan/nsab010): searchlight → ROI → whole brain as named points on a single spatial-scale axis.
-
-**Canonical chain**:
+Adjacency now rejects invalid flat lengths, asymmetric matrices declared distance or
+similarity, and ambiguous rectangular arrays. Use an explicit flat type for stacks:
 
 ```python
-# Per-ROI RSA: compute one RDM per parcel, score against a model RDM,
-# project the per-parcel scalars back to a voxel-space BrainData.
-rdms = brain.distance(metric='correlation', spatial_scale='roi', roi_mask=atlas)
-brain_map = rdms.similarity(model_rdm, project=True, method=None)  # method=None skips the permutation test
+adj = Adjacency(vectors, matrix_type="distance_flat")  # (matrices, edges)
+single = adj[0]       # shape (nodes, nodes)
+stack = adj[[0]]      # shape (1, nodes, nodes), including singleton selections
+empty = adj[[]]       # shape (0, nodes, nodes), with the original matrix type
 ```
 
-**What's added**:
-- `BrainData.distance(spatial_scale='whole_brain' | 'roi' | 'searchlight', roi_mask=, radius_mm=)` — `'whole_brain'` (default) preserves existing behavior; `'roi'` returns a stacked `Adjacency` (one RDM per parcel); `'searchlight'` returns a stacked `Adjacency` (one RDM per voxel center) with a synthetic 1-voxel-per-label atlas so each searchlight scalar paints to its center voxel. All three carry `spatial_scale` provenance.
-- `BrainData.align(spatial_scale='roi', roi_mask=)` — per-parcel functional alignment (procrustes / SRM); transformed data stitched back to voxel space as a `BrainData`, transforms / common-models kept as `dict[atlas_label, ndarray]`, plus per-parcel `disparity`/`scale` arrays and `roi_labels`. `spatial_scale='searchlight'` raises `NotImplementedError` (overlapping spheres make the `transformed` reassembly ill-posed — a voxel belongs to many spheres with no canonical value).
-- `BrainData.{mean, std, median}(spatial_scale='roi', roi_mask=)` — parcellation smoothing: each voxel painted with its parcel's reduction per image.
-- `Adjacency.spatial_scale: SpatialScale | None` — optional frozen dataclass carrying `(atlas, roi_labels, source_mask, kind)`. Survives shape-preserving operations (`copy`, `__getitem__` slice, `r_to_z`, `threshold`); dropped when an op collapses the stack to a single matrix.
-- `Adjacency.to_brain(values, fill=np.nan) -> BrainData` — paint per-matrix scalars onto voxel space using the attached atlas. Errors when `spatial_scale` is unset.
-- `Adjacency.similarity(other, project=True)` — sugar for `to_brain(np.array([r['correlation'] for r in similarity(...)]))`.
-- `nltools.mask.roi_to_brain_from_atlas(values, atlas, source_mask, roi_labels=, fill=)` — sibling of the legacy `roi_to_brain` (which takes an *expanded* mask), but operating on a labeled atlas image. Single source of truth for "paint per-parcel scalars from a labeled atlas onto voxel space."
+Lists of matrices also remain stacks. `None`, `[]`, and a square `(0, 0)` array
+are empty; a zero-length symmetric vector represents one node. Symmetric matrices
+store only off-diagonal edges and reconstruct with a zero diagonal, including
+similarity matrices. Input diagonals are discarded.
+
+Supply shared node labels as a flat list of length `n_nodes`, or per-matrix labels
+as a nested `(n_matrices, n_nodes)` grid. `Y` must have one row per matrix.
+Append requires matching node counts and matrix types; both inputs must supply
+node labels or neither may supply them. Arithmetic requires the same shape,
+matrix type, and labeled node order, without broadcasting. Construction, copying,
+selection, transformations, and square exports return independent mutable state.
+
+Regression results now follow the axis being estimated. With `DesignMatrix`
+predictors, `beta`, `sigma`, `t`, and `p` are coefficient maps with one matrix per
+predictor; one predictor returns a single matrix. `sigma` means coefficient
+standard error. Residuals retain the observation stack and its `Y`; coefficient
+maps clear observation metadata. With `Adjacency` predictors, observations are
+edges, the response must be a single matrix, and coefficient fields are native
+predictor arrays or scalars. Only residuals are Adjacency. In both cases `df` is
+a scalar. Replace accesses such as `result["df"].data` with `result["df"]`, and
+for Adjacency predictors use `result["beta"]` directly.
+
+Bootstrap aggregate maps now use single-matrix shape and common node labels.
+The broader bootstrap-result and t-test API changes remain separate decisions.
+HDF5 preserves matrix kind, single/stack shape, labels, and `Y`; legacy files
+remain readable. CSV stores values only: supply a flat type on load, retain
+metadata separately, and do not rely on CSV to preserve singleton versus stack
+rank for single-column files. Square CSV export supports single matrices only.
+
+### Spatial RSA with explicit mapping
+
+`BrainData.distance` with `spatial_scale="roi"` or `"searchlight"` returns ordinary
+Adjacency stacks. `SpatialScale`, `Adjacency.spatial_scale`, `to_brain`, and the
+`project` option on `similarity` have been removed without aliases. Keep the atlas
+or source mask and mapping order outside Adjacency.
+
+ROI stacks follow sorted nonzero atlas labels present inside the source mask
+after nearest-neighbor resampling. Align once and use that same atlas for both
+distance and projection:
+
+```python
+from nilearn.image import resample_to_img
+from nilearn.masking import apply_mask
+from nltools.mask import roi_to_brain_from_atlas
+
+aligned_atlas = resample_to_img(
+    atlas, brain.mask, interpolation="nearest", force_resample=True, copy_header=True,
+)
+roi_labels = np.unique(apply_mask(aligned_atlas, brain.mask).astype(int))
+roi_labels = roi_labels[roi_labels != 0]
+rdms = brain.distance(metric="correlation", spatial_scale="roi", roi_mask=aligned_atlas)
+scores = rdms.similarity(model_rdm, metric="spearman", method=None)
+brain_map = roi_to_brain_from_atlas(
+    np.array([score["correlation"] for score in scores]),
+    atlas=aligned_atlas, source_mask=brain.mask, roi_labels=roi_labels,
+)
+```
+
+When selecting matrices, subset `roi_labels` by the same indices before painting.
+Searchlight stacks follow source-mask voxel order; map a complete per-center
+vector with `nilearn.masking.unmask(values, brain.mask)`. For a subset, place the
+values back at their selected positions in a full mask-length vector before
+calling `unmask`.
+
+`BrainData.align(spatial_scale="roi", roi_mask=...)` and
+`BrainData.{mean,std,median}(spatial_scale="roi", roi_mask=...)` retain their
+per-parcel alignment and reduction behavior.
 
 ### Compute Contrasts
 

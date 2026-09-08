@@ -215,10 +215,7 @@ enforcement:
       allowed_defaults: [null]
       hint: "canonical form is `max_gpu_memory_gb: float | None = None` — None measures the device via backends.device_memory_budget (batch sizing then caps the measured budget at the saturation ceiling); an explicit GB is used verbatim, uncapped"
     spatial_scale:
-      # `null` covers the SpatialScale *metadata* carrier on constructors
-      # (e.g. `Adjacency(spatial_scale=None)`), a different concept from the
-      # 'whole_brain'|'roi'|'searchlight' selector on analysis methods.
-      allowed_defaults: ["whole_brain", "roi", "searchlight", null]
+      allowed_defaults: ["whole_brain", "roi", "searchlight"]
       hint: "spatial_scale selector values are 'whole_brain' | 'roi' | 'searchlight'"
     tail:
       allowed_defaults: [2]

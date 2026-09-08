@@ -274,7 +274,7 @@ def roi_to_brain_from_atlas(
     """Paint per-parcel values onto voxel space using a labeled atlas.
 
     Sibling of `roi_to_brain`, but accepts a *labeled* atlas (one integer label
-    per voxel — the form carried by `SpatialScale`), not an expanded mask with
+    per voxel), not an expanded mask with
     one binary row per ROI. Voxels whose atlas label is not in `roi_labels` (or
     whose label is 0) receive `fill`.
 

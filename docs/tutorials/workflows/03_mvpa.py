@@ -255,20 +255,35 @@ def _(Adjacency, conditions, np, rdm):
 def _(mo):
     mo.md(
         r"""
-    Whole-brain, the animacy structure is weak — it's diluted across regions that don't represent categories. As with decoding, the signal is regional. `spatial_scale="roi"` computes one RDM per parcel, and `project=True` paints each parcel's correlation-with-the-model back into brain space:
+    To examine animacy structure by region, `spatial_scale="roi"` computes one
+    RDM per parcel. `roi_to_brain_from_atlas` then paints each parcel's correlation with
+    the model back into brain space. Align the atlas first and retain the sorted
+    nonzero labels inside the source mask. These labels give the returned RDM order:
     """
     )
     return
 
 
 @app.cell
-def _(HAXBY, category_patterns, fetch_resource, model_rdm):
+def _(HAXBY, category_patterns, fetch_resource, model_rdm, np):
     atlas_path_rsa = fetch_resource("masks/default/3mm-MNI152-2009fsl-k50.nii.gz")
-    roi_rdms = category_patterns.distance(
-        metric="correlation", spatial_scale="roi", roi_mask=atlas_path_rsa
+    from nilearn.image import resample_to_img
+    from nilearn.masking import apply_mask
+    from nltools.mask import roi_to_brain_from_atlas
+
+    rsa_atlas = resample_to_img(
+        atlas_path_rsa, category_patterns.mask, interpolation="nearest",
+        force_resample=True, copy_header=True,
     )
-    rsa_map = roi_rdms.similarity(
-        model_rdm, metric="spearman", method=None, project=True
+    rsa_labels = np.unique(apply_mask(rsa_atlas, category_patterns.mask).astype(int))
+    rsa_labels = rsa_labels[rsa_labels != 0]
+    roi_rdms = category_patterns.distance(
+        metric="correlation", spatial_scale="roi", roi_mask=rsa_atlas
+    )
+    roi_scores = roi_rdms.similarity(model_rdm, metric="spearman", method=None)
+    rsa_map = roi_to_brain_from_atlas(
+        np.array([score["correlation"] for score in roi_scores]),
+        atlas=rsa_atlas, source_mask=category_patterns.mask, roi_labels=rsa_labels,
     )
     rsa_map.plot(
         method="slices",
@@ -292,7 +307,7 @@ def _(mo):
     |---|---|---|
     | Question | Can we predict the condition? | What's the representational geometry? |
     | Whole-brain | `bd.predict(y=, spatial_scale="whole_brain")` | `bd.distance(metric="correlation")` → `.similarity(model)` |
-    | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model, project=True)` |
+    | ROI | `bd.predict(y=, spatial_scale="roi", roi_mask=)` | `bd.distance(..., spatial_scale="roi", roi_mask=)` → `.similarity(model)` → `roi_to_brain_from_atlas(...)` |
     | Searchlight | `bd.predict(y=, spatial_scale="searchlight", radius_mm=)` | `bd.distance(..., spatial_scale="searchlight", radius_mm=)` |
     | Custom model | pass any sklearn estimator to `model=` | any `metric=` (`spearman`/`pearson`) |
 
