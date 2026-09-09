@@ -1,72 +1,51 @@
-"""F182: Glm.predict(X) new-design prediction + coef_ parity with Ridge.
+"""F182: `Glm.predict` applies the fitted coefficients to a new design.
 
-Betas are recovered from nilearn's run_glm results (``labels_``/``results_``
-theta), cached as ``coef_``, and ``predict(X) == X @ coef_`` mirrors Ridge. The
-old surface — a documented ``X`` that always raised NotImplementedError — is
-gone.
+The original finding was a `predict(X)` that documented a new-design path and
+then raised. Under docs/development/specs/glm.md the method takes a
+`DesignMatrix`, matches it to the fitted column names, and returns
+`X @ coef_` in observation space.
 """
-
-import inspect
 
 import numpy as np
 import pytest
 
+from nltools.data import DesignMatrix
 from nltools.models import Glm
 
-pytestmark = pytest.mark.slow
+
+@pytest.fixture
+def new_design(glm_design):
+    """A different set of observations over the fitted regressor names."""
+    rng = np.random.RandomState(11)
+    n_samples = 8
+    return DesignMatrix(
+        {
+            "condition_a": rng.randn(n_samples),
+            "condition_b": rng.randn(n_samples),
+            "intercept": np.ones(n_samples),
+        },
+        sampling_freq=glm_design.sampling_freq,
+    )
 
 
-class TestGlmCoefAndPredict:
-    def test_coef_shape_and_theta_parity(self, fitted_glm_single_run):
-        """coef_ is (n_reg, n_vox) and each row is that regressor's beta map."""
-        model, _ = fitted_glm_single_run
-        n_reg = model.design_matrices_[0].shape[1]
-        assert model.coef_.ndim == 2
-        assert model.coef_.shape[0] == n_reg
-
-        # coef row 0 == the identity-contrast effect size for regressor 0
-        beta0_img = model.compute_contrast(np.eye(n_reg)[0], output_type="effect_size")
-        remasked = model._glm.masker_.transform(beta0_img).ravel()
-        np.testing.assert_allclose(model.coef_[0], remasked, atol=1e-4)
-
-    def test_predict_new_X_equals_X_at_coef(self, fitted_glm_single_run):
-        """predict(X) returns X @ coef_ as a 2-D ndarray (Ridge parity)."""
-        model, _ = fitted_glm_single_run
-        n_reg = model.coef_.shape[0]
-        rng = np.random.RandomState(0)
-        Xnew = rng.randn(8, n_reg)
-
-        pred = model.predict(Xnew)
-        assert isinstance(pred, np.ndarray)
-        assert pred.shape == (8, model.coef_.shape[1])
-        np.testing.assert_allclose(pred, Xnew @ model.coef_)
-
-    def test_predict_none_returns_fitted_values(self, fitted_glm_single_run):
-        """predict() with no args still returns training fitted values."""
-        model, _ = fitted_glm_single_run
-        assert isinstance(model.predict(), list)
-
-    def test_predict_wrong_width_raises(self, fitted_glm_single_run):
-        model, _ = fitted_glm_single_run
-        with pytest.raises(ValueError, match="regressors"):
-            model.predict(np.zeros((4, model.coef_.shape[0] + 1)))
-
-    def test_predict_before_fit_raises(self):
-        with pytest.raises(ValueError):
-            Glm().predict(np.zeros((3, 2)))
-
-    def test_x_still_accepted_for_base_contract(self):
-        assert "X" in inspect.signature(Glm.predict).parameters
-
-    def test_predict_docstring_no_longer_advertises_a_lie(self):
-        doc = Glm.predict.__doc__ or ""
-        assert "not supported" not in doc.lower()
-        assert "X @ coef_" in doc
+def test_new_design_prediction_equals_design_at_coef(fitted_glm, new_design):
+    predictions = fitted_glm.predict(new_design)
+    assert predictions.shape == (8, fitted_glm.n_targets_)
+    np.testing.assert_allclose(predictions, new_design.to_numpy() @ fitted_glm.coef_)
 
 
-class TestGlmReport:
-    def test_report_returns_html(self, fitted_glm_single_run):
-        """Glm.report delegates to nilearn generate_report -> HTMLReport."""
-        model, _ = fitted_glm_single_run
-        rep = model.report(contrasts={"reg0": np.eye(model.coef_.shape[0])[0]})
-        assert type(rep).__name__ == "HTMLReport"
+def test_column_order_does_not_change_the_prediction(fitted_glm, new_design):
+    shuffled = new_design[["intercept", "condition_a", "condition_b"]]
+    np.testing.assert_allclose(
+        fitted_glm.predict(shuffled), fitted_glm.predict(new_design)
+    )
+
+
+def test_predict_takes_only_a_design_matrix(fitted_glm, new_design):
+    with pytest.raises(TypeError, match="DesignMatrix"):
+        fitted_glm.predict(new_design.to_numpy())
+
+
+def test_predict_before_fit_raises(new_design):
+    with pytest.raises(ValueError, match="not fitted"):
+        Glm().predict(new_design)

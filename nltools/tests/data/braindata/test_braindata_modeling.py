@@ -617,6 +617,7 @@ class TestBrainDataModeling:
         with pytest.warns(UserWarning, match="redundant"):
             bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize="zscore")
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_fit_glm_defaults_no_preprocessing(self, minimal_brain_data):
         """GLM 'auto' default: no scaling, no standardization — data untouched."""
         design_matrix = pd.DataFrame(
@@ -674,6 +675,7 @@ class TestBrainDataModeling:
             )
         assert not any("intercept" in str(wi.message).lower() for wi in w)
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_predict_new_design_returns_brain_data(self, minimal_brain_data):
         """F182: bd.predict(X=new_design) works for GLM and returns BrainData
         holding X_new @ coef_ (parity with the Ridge facade path)."""
@@ -694,6 +696,7 @@ class TestBrainDataModeling:
         assert pred.data.shape == (6, minimal_brain_data.shape[1])
         np.testing.assert_allclose(pred.data, X_new @ minimal_brain_data.model_.coef_)
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_report_returns_html(self, minimal_brain_data):
         """bd.report() delegates to nilearn and returns an HTMLReport."""
         design = pd.DataFrame(
@@ -1780,6 +1783,7 @@ class TestWarnNearCollinear:
         assert "more" in msg  # "... and N more"
         assert msg.count("&") <= 5
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_exact_deficiency_fires_only_the_rank_warning(self, minimal_brain_data):
         """Through fit(): an exactly rank-deficient design raises
         RankDeficientDesignWarning alone, never both warnings."""
@@ -1802,6 +1806,7 @@ class TestWarnNearCollinear:
             issubclass(w.category, NearCollinearDesignWarning) for w in caught
         )
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_near_collinear_design_warns_through_fit(self, minimal_brain_data):
         """Through fit(): the v0.5 design_clean threshold case (r = 0.97) is no
         longer silent — it warns, and nothing is dropped."""

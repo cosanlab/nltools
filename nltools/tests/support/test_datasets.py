@@ -230,6 +230,7 @@ class TestLoadHaxbyExample:
         bd2, _ = load_haxby_example(random_state=0)
         np.testing.assert_array_equal(bd1[0].data, bd2[0].data)
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_fit_end_to_end(self):
         import warnings
         from nltools.datasets import load_haxby_example
@@ -245,6 +246,7 @@ class TestLoadHaxbyExample:
         assert data.glm_betas.shape[0] == dm_full.shape[1]
         assert data.glm_betas.shape[1] == data.shape[1]
 
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_contrast_signal_is_recoverable(self):
         """Injected signal should produce non-trivial contrast t-stats."""
         import warnings

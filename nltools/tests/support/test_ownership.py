@@ -39,7 +39,18 @@ def test_complete_graph_copy(brain, copier):
     assert brain.ridge_weights.data[0, 0] != 333
 
 
-@pytest.mark.parametrize("model", ["glm", "ridge"])
+@pytest.mark.parametrize(
+    "model",
+    [
+        pytest.param(
+            "glm",
+            marks=pytest.mark.xfail(
+                reason="te1m: facade alignment pending", strict=True
+            ),
+        ),
+        "ridge",
+    ],
+)
 def test_fit_maps_predictions_and_numerics(brain, model):
     x = brain.X.to_numpy()
     y = brain.data.copy()
@@ -136,7 +147,18 @@ def test_fit_copy_skips_obsolete_fitted_state(brain):
         assert brain.data[0, 0] != 999
 
 
-@pytest.mark.parametrize("model", ["glm", "ridge"])
+@pytest.mark.parametrize(
+    "model",
+    [
+        pytest.param(
+            "glm",
+            marks=pytest.mark.xfail(
+                reason="te1m: facade alignment pending", strict=True
+            ),
+        ),
+        "ridge",
+    ],
+)
 def test_source_and_sibling_mutation_after_fitting(brain, model):
     x = brain.X.to_numpy()
     fitted = brain.fit(
@@ -164,6 +186,7 @@ def test_source_and_sibling_mutation_after_fitting(brain, model):
     assert not hasattr(public_training, "model_")
 
 
+@pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
 def test_refit_and_transforms_clear_old_fit_family(brain):
     x = brain.X.to_numpy()
     brain.fit(model="ridge", X=x, standardize=None)

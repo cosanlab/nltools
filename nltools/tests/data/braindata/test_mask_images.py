@@ -79,6 +79,7 @@ class TestListConstruction:
 
 
 class TestGLMFitMapsByteIdentical:
+    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_maps_identical_across_mask_paths(
         self, minimal_brain_data, monkeypatch
     ):

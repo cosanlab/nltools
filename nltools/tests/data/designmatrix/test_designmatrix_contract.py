@@ -192,14 +192,15 @@ def test_h5_unicode_and_empty_run_identity(tmp_path):
     assert combined.confounds == [".nl_r2_poly_0"]
 
 
-def test_glm_adapter_uses_private_pandas_boundary():
-    from nltools.models.glm import Glm
+def test_private_pandas_boundary_preserves_columns_and_row_count():
+    """`_to_pandas` is the one conversion out of polars, for pandas-only callers."""
+    from nltools.data.designmatrix.io import _to_pandas
 
-    dm = DesignMatrix({"a": [1.0, 2.0]})
-    frame = Glm()._convert_design_matrices(dm)
+    dm = DesignMatrix({"a": [1.0, 2.0], "b": [3.0, 4.0]})
+    frame = _to_pandas(dm)
+    assert list(frame.columns) == ["a", "b"]
     assert frame["a"].tolist() == [1.0, 2.0]
-    frames = Glm()._convert_design_matrices([dm])
-    assert frames[0].equals(frame)
+    assert list(frame.index) == [0, 1]
 
 
 def test_plot_matrix_uses_arrays_with_labels(monkeypatch):

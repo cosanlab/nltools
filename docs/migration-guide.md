@@ -618,7 +618,7 @@ What changed:
 - **Bug fix**: `BrainData.ttest(tail=1)` and `Adjacency.ttest(tail=1)` previously ignored `tail` on the (default) parametric path and always returned two-sided p-values; `tail` now maps onto scipy's `alternative=` so one-tailed parametric tests actually happen. The `"z"` map is derived from the reported p, so it matches the requested tail.
 - **New `tail=` options** (default 2 ≡ old behavior): `BrainData.bootstrap` / `Adjacency.bootstrap`, `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, and `Roc.calculate`.
 - **No knob where only one tail is valid**: `distance_correlation` (dcorr ≥ 0), ANOVA's F, `isps`' Rayleigh test, and SRM variance components keep their statistically forced one-tailed p-values, unchanged.
-- **The GLM exception**: `compute_contrasts(statistic='p')` / `Glm.compute_contrast(output_type='p_value')` stay **one-sided**, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
+- **The GLM exception**: GLM contrast inference — `compute_contrasts(..., inference=True)` — reports nilearn's **one-sided** upper-tail p-value, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
 
 Code that already imported from `nltools.stats` gets the same signatures it had before — the wrappers' canonical `device=` names are now the engine's. Only code that called the `algorithms.inference` engines directly with `parallel=` needs the kwarg rename.
 
@@ -1815,7 +1815,7 @@ A sweep of the implemented data-class facades (`BrainData`, `Adjacency`, and `De
 | Permutation count | `n_perm` | `n_permute` | `Adjacency.generate_permutations`. |
 | Similarity diagonal | `ignore_diagonal=False` | `include_diag=False` | `Adjacency.similarity`. **Polarity is flipped AND the default changed**: directed matrices now exclude the (trivially 1.0) self-similarity diagonal by default. No-op for symmetric matrices, which never store the diagonal. |
 | Threshold arms on `BrainData.plot` | `thr_upper`, `thr_lower`, `kind` | `upper`, `lower`, `method` | The convenience scalar `threshold=` kwarg is unchanged. |
-| Contrast output statistic | `contrast_type`, then briefly `method` | `statistic` | `BrainData.compute_contrasts`. Selects which statistic map to return (`'t'`, `'z'`, `'p'`, `'beta'`/`'effect_size'`, or `'all'`), *not* an algorithm — so it is deliberately **not** `method=`, which is reserved for algorithm choice. |
+| Contrast output statistic | `contrast_type` | `inference` | `BrainData.compute_contrasts` and `Glm.compute_contrasts` return the contrast effect by default — the right input to a second-level model. There is no statistic to select: `inference=True` returns one `ContrastResult` carrying effect, variance, standard error, t-statistic, z-score, one-sided p-value, and degrees of freedom together. |
 | Central tendency + cluster scope | `method=` (the `'mean'\|'median'\|None` choice), `summary=` (the within/between choice) | `summary=`, `scope=` | `Adjacency.cluster_summary` — the central tendency moved to `summary=`, and the within/between-cluster choice it displaced is now `scope='within'\|'between'`. See [the stats-module removal](#stats-module-removed) for the full `summary=` vocabulary sweep (ISC family included). |
 | ROI extraction variant | `metric=` | `method=` | `BrainData.extract_roi` — `'mean'\|'median'\|'pca'` selects an extraction *variant* (PCA is not a central tendency), so it takes the canonical `method=` name; `metric=` stays reserved for distance/similarity metrics. |
 
@@ -2162,7 +2162,14 @@ contrasts = brain_data.compute_contrasts({
     "main_effect": "conditionA - conditionB",
     "interaction": [1, -1, -1, 1]
 })
+
+# Inference: every statistic for one contrast, in one record
+result = brain_data.compute_contrasts("conditionA - conditionB", inference=True)
+result.statistic, result.p_value
 ```
+
+The default returns the contrast *effect*, which is what a second-level model
+consumes. Ask for `inference=True` when you want the first-level statistics.
 
 ### `ContrastResult` for contrast inference
 

@@ -12,7 +12,7 @@ Provides sklearn-compatible APIs for common neuroimaging analyses.
 Name | Description
 ---- | -----------
 [`ContrastResult`](#models-contrastresult) | Frozen record of the inferential outputs of one contrast.
-[`Glm`](#models-glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
+[`Glm`](#models-glm) | General linear model over a precomputed design matrix and a response.
 [`Ridge`](#models-ridge) | Ridge regression over one or several named feature spaces.
 
 
@@ -55,54 +55,48 @@ Name | Type | Description
 ### `Glm`
 
 ```python
-Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool)
+Glm(*, noise_model: str = 'ols', bins: int = 100, n_jobs: int = 1, random_state: int | None = None)
 ```
 
-General Linear Model for fMRI data analysis with sklearn-compatible API.
+General linear model over a precomputed design matrix and a response.
 
-Wraps `nilearn.glm.first_level.FirstLevelModel` by composition, similar to
-how `BrainData` holds masker objects. Provides the sklearn-style
-fit/predict/score interface while exposing full nilearn GLM functionality
-through the `glm_` property.
-
-Unlike `Ridge`, which works with 2-D arrays (samples × features), `Glm`
-works with 4-D neuroimaging data (x × y × z × time) and design matrices, so
-it does not use the shared feature-matrix validation. `predict()` follows sklearn's
-`LinearRegression` semantics: with no argument it returns the fitted values
-on the training data; with a new design matrix it returns `X @ coef_`
-(single-run fits only).
+Fits ordinary least squares or an autoregressive noise model with Nilearn's
+`run_glm`, then exposes coefficients, predictions, residuals, R-squared, and
+contrasts. The model is `y = X @ beta + error`: `Glm` never adds or
+estimates an intercept, so include an intercept column in `X` when the model
+needs one. Predictions and residuals are always in observation space, for
+autoregressive fits as well as OLS.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`t_r` | <code>float</code> | Repetition time (TR) in seconds. If None, inferred from the data. | <code>None</code>
-`noise_model` | <code>str</code> | Noise model for temporal autocorrelation: `'ols'` (ordinary least squares, independent errors) or `'ar1'` (autoregressive AR(1), accounts for temporal correlation). Default `'ols'`. | <code>'ols'</code>
-`smoothing_fwhm` | <code>float</code> | Full width at half maximum in mm for spatial smoothing. If None, no smoothing is applied. | <code>None</code>
-`mask` | <code>Nifti1Image</code> | Mask defining the voxels to analyze. If None, uses the package brain-space mask (like `BrainData`). | <code>None</code>
-`progress_bar` | <code>bool</code> | If True, enable nilearn's per-run progress output. Default False. | <code>False</code>
-`**kwargs` | <code>dict</code> | Forwarded to `nilearn.glm.first_level.FirstLevelModel` (e.g. `drift_model`, `hrf_model`, `memory`). | <code>{}</code>
+`noise_model` | <code>str</code> | `'ols'` for ordinary least squares, or `'arN'` with `N` a positive integer for Nilearn's autoregressive model of that order (`'ar1'`, `'ar2'`, ...). Default `'ols'`. | <code>'ols'</code>
+`bins` | <code>int</code> | Nilearn's discretization of the estimated AR coefficients — the maximum number of histogram bins for AR(1), and the maximum number of K-means clusters for higher orders. Must be positive. Default 100. | <code>100</code>
+`n_jobs` | <code>int</code> | Number of CPUs Nilearn uses to fit autoregressive groups in parallel, following joblib's convention (`-1` is all cores). The default OLS fit does not use this path. Default 1. | <code>1</code>
+`random_state` | <code>int \| None</code> | Seeds the K-means step for autoregressive models of order two or greater. It does not affect OLS or AR(1) results. Default None. | <code>None</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`is_fitted_` | <code>bool</code> | Whether the model has been fitted.
-`coef_` | <code>ndarray \| list[ndarray]</code> | Beta matrix `(n_regressors, n_voxels)` after fitting a single run, or one per run for multi-run fits.
-`mask` | <code>Nifti1Image</code> | Mask image used for analysis.
-`glm_` | <code>FirstLevelModel</code> | The wrapped nilearn model, for advanced use.
-`residuals` | <code>list[Nifti1Image]</code> | Residual images, one per run.
-`design_matrices_` | <code>list[DataFrame]</code> | Design matrices used in fitting, one per run.
+`coef_` | <code>ndarray</code> | Fitted coefficients, shape `(n_features,)` for a one-dimensional `y` and `(n_features, n_targets)` otherwise.
+`predicted_` | <code>ndarray</code> | Training predictions `X @ coef_`, same shape as the fitted `y`.
+`residuals_` | <code>ndarray</code> | Training residuals `y - predicted_`, same shape as the fitted `y`.
+`r2_` | <code>float \| ndarray</code> | Nilearn's `RegressionResults.r_square`, copied rather than recomputed. It is the variance ratio `variance(whitened_design @ coef_) / variance(whitened_y)`. For OLS the whitening is the identity, so with an intercept in the design this equals conventional R-squared; for autoregressive noise models it is a pseudo-R-squared in the whitened space. A float for a one-dimensional `y`, otherwise shape `(n_targets,)`.
+`n_samples_` | <code>int</code> | Fitted sample count.
+`n_features_in_` | <code>int</code> | Fitted feature count.
+`feature_names_in_` | <code>tuple[str, ...]</code> | Fitted design column names in coefficient order.
+`n_targets_` | <code>int</code> | Fitted target count; one for a one-dimensional `y`.
+`is_fitted_` | <code>bool</code> | True after a successful fit.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`compute_contrast`](#models-compute-contrast) | Compute a contrast using nilearn's statistical inference.
-[`fit`](#models-fit) | Fit GLM to fMRI data.
-[`predict`](#models-predict) | Predict from the fitted GLM.
-[`report`](#models-report) | Generate a nilearn HTML report for the fitted GLM.
-[`score`](#models-score) | Return mean R² across voxels and runs.
+[`compute_contrasts`](#models-compute-contrasts) | Compute one contrast or a named mapping of contrasts on the fitted model.
+[`fit`](#models-fit) | Fit the model to one design matrix and response.
+[`predict`](#models-predict) | Apply the fitted coefficients to a design matrix.
 
 
 
@@ -110,200 +104,145 @@ Name | Description
 
 ```python
 import numpy as np
-import pandas as pd
-from nibabel import Nifti1Image
-from nilearn.glm.first_level import make_first_level_design_matrix
+from nltools.data import DesignMatrix
 from nltools.models import Glm
 
-# Synthetic fMRI data and a matching design matrix
-n_scans = 100
-img = Nifti1Image(np.random.randn(20, 20, 20, n_scans), np.eye(4))
-frame_times = np.arange(n_scans) * 2.0
-events = pd.DataFrame(
-    {"onset": [10, 30, 50, 70], "duration": [1, 1, 1, 1], "trial_type": ["task"] * 4}
+n_samples = 100
+rng = np.random.default_rng(0)
+design = DesignMatrix(
+    {
+        "condition_a": rng.normal(size=n_samples),
+        "condition_b": rng.normal(size=n_samples),
+        "intercept": np.ones(n_samples),
+    },
+    sampling_freq=0.5,
 )
-design_matrix = make_first_level_design_matrix(frame_times, events)
+y = rng.normal(size=(n_samples, 50))
 
-model = Glm(t_r=2.0, noise_model="ar1")
-model.fit(img, design_matrices=design_matrix)
-
-task_effect = model.compute_contrast("task", output_type="stat")
-fitted_values = model.predict()
-residuals = model.residuals
+model = Glm(noise_model="ar1").fit(design, y)
+effects = model.compute_contrasts("condition_a - condition_b")
+result = model.compute_contrasts("condition_a - condition_b", inference=True)
+result.statistic  # → t-statistic per target
 ```
 
 #### Methods
 
-(models-compute-contrast)=
-##### `compute_contrast`
+(models-compute-contrasts)=
+##### `compute_contrasts`
 
 ```python
-compute_contrast(contrast_def: str | np.ndarray | list | dict, output_type: str = 'stat') -> nib.Nifti1Image | dict
+compute_contrasts(contrasts, *, inference: bool = False) -> float | np.ndarray | ContrastResult | dict
 ```
 
-Compute a contrast using nilearn's statistical inference.
+Compute one contrast or a named mapping of contrasts on the fitted model.
 
-This is the primary method for extracting results from a fitted GLM.
-Delegates to `FirstLevelModel.compute_contrast` for inference with the
-correct degrees of freedom.
+A contrast is a string expression over the fitted design column names —
+`"condition_a - condition_b"`, `"2 * condition_a - condition_b"` — or a
+real-valued vector with one weight per fitted column. Several contrasts
+must be supplied as a mapping of names to those definitions, which
+leaves every flat numeric sequence unambiguously available as one
+contrast vector.
+
+The default returns the effect `contrast @ coef_` only, the appropriate
+input to a second-level model. With `inference=True`, the contrast is
+tested against zero and every inferential output is returned together;
+the p-value is Nilearn's one-sided upper-tail value, so negating the
+contrast tests the opposite direction.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`contrast_def` | <code>str \| ndarray \| list \| dict</code> | A regressor name (e.g. `'task'`), a contrast vector (e.g. `[1, -1, 0, 0]`), or a dict of named contrasts. | *required*
-`output_type` | <code>str</code> | `'stat'` (t-statistic map, default), `'z_score'`, `'p_value'` (one-sided, per the nilearn/SPM directional-contrast convention; flip the contrast for the other direction), `'effect_size'` (beta), `'effect_variance'`, or `'all'` (a dict of every map). | <code>'stat'</code>
+`contrasts` | <code>str \| array - like \| Mapping</code> | One contrast definition, or a mapping of string names to contrast definitions. | *required*
+`inference` | <code>bool</code> | If True, return `ContrastResult` records instead of bare effects. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>Nifti1Image \| dict</code> | The contrast map, or a dict of all maps keyed     by output type when `output_type='all'`.
+<code>float \| ndarray \| [ContrastResult](#models-contrastresult) \| dict</code> | One effect, or one     `ContrastResult` when `inference=True`; a dictionary with the     same keys for a mapping. Effects and inferential fields are     floats for a model fitted on a one-dimensional `y`, shape `(1,)`     for a `(n_samples, 1)` response, and shape `(n_targets,)`     otherwise.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>RuntimeError</code> | If the model has not been fitted.
+<code>TypeError</code> | If `inference` is not a bool, a mapping key is not a string, or a contrast is boolean, complex, or nonnumeric.
+<code>ValueError</code> | If the mapping is empty, an expression is invalid or names an unknown column, or a resolved contrast is empty, non-finite, all zero, wrongly sized, or not one-dimensional.
 
 **Examples:**
 
 ```python
-model.fit(img, design_matrices=design_matrix)
-
-t_map = model.compute_contrast("task")  # by regressor name
-contrast_map = model.compute_contrast([1, -1, 0])  # contrast vector
-
-results = model.compute_contrast("task", output_type="all")
-t_map, p_map = results["stat"], results["p_value"]
+model.compute_contrasts("condition_a - condition_b")
+model.compute_contrasts([1, -1, 0])
+model.compute_contrasts({"a_vs_b": "condition_a - condition_b"})
+model.compute_contrasts("condition_a", inference=True).p_value
 ```
 
 (models-fit)=
 ##### `fit`
 
 ```python
-fit(X: nib.Nifti1Image | list[nib.Nifti1Image], y: None = None, *, design_matrices: pd.DataFrame | DesignMatrix | list[pd.DataFrame | DesignMatrix] | None = None, events: pd.DataFrame | list[pd.DataFrame] | None = None, **kwargs: pd.DataFrame | list[pd.DataFrame] | None) -> Glm
+fit(X: DesignMatrix, y: DesignMatrix) -> Glm
 ```
 
-Fit GLM to fMRI data.
+Fit the model to one design matrix and response.
+
+A one-dimensional `y` is expanded to a single column for Nilearn and the
+target axis is squeezed back out of every fitted attribute and contrast
+result.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>Nifti1Image \| list[Nifti1Image]</code> | 4-D fMRI image(s) to fit, a single run or a list of runs. | *required*
-`y` | <code>None</code> | Not used; present for sklearn API compatibility. | <code>None</code>
-`design_matrices` | <code>DataFrame \| [DesignMatrix](#page-data-design-matrix) \| list</code> | Design matrix or one per run, each of shape `(n_scans, n_regressors)`. `DesignMatrix` objects are converted to pandas at this boundary. | <code>None</code>
-`events` | <code>DataFrame \| list[DataFrame]</code> | Event specifications for automatic design-matrix creation; an alternative to `design_matrices`. | <code>None</code>
-`**kwargs` | <code>dict</code> | Forwarded to `FirstLevelModel.fit`. | <code>{}</code>
+`X` | <code>[DesignMatrix](#page-data-design-matrix)</code> | Design of shape `(n_samples, n_features)`, including any intercept column the model needs. | *required*
+`y` | <code>array - like</code> | Response of shape `(n_samples,)` or `(n_samples, n_targets)`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Glm](#models-glm)</code> | The fitted model (for method chaining).
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-Unlike `Ridge.fit`, this method does not validate `X` as a 2-D array
-because the GLM works with 4-D neuroimaging data; validation is
-delegated to nilearn's `FirstLevelModel`.
-
-</details>
-
-(models-predict)=
-##### `predict`
-
-```python
-predict(X: np.ndarray | pd.DataFrame | None = None) -> list[nib.Nifti1Image] | np.ndarray
-```
-
-Predict from the fitted GLM.
-
-With `X=None`, returns the fitted values on the training data (one
-`Nifti1Image` per run), matching sklearn's `LinearRegression` semantics.
-With a new design matrix, returns `X @ coef_` as a 2-D array, mirroring
-`Ridge.predict`; this requires a single-run fit.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray \| DataFrame</code> | New design matrix of shape `(n_samples, n_regressors)`. Default None. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>list[Nifti1Image] \| ndarray</code> | Fitted images per run when `X`     is None; otherwise predictions of shape `(n_samples, n_voxels)`.
+<code>[Glm](#models-glm)</code> | The fitted model, for method chaining.
 
 **Raises:**
 
 Type | Description
 ---- | -----------
-<code>NotImplementedError</code> | If X is given for a multi-run fit (a single new design is ambiguous across runs — fit per run instead).
-<code>ValueError</code> | If X's column count does not match the fitted design.
+<code>TypeError</code> | If `X` is not a `DesignMatrix`.
+<code>ValueError</code> | If `y` is not one- or two-dimensional, or its sample count does not match `X`.
 
-(models-report)=
-##### `report`
+(models-predict)=
+##### `predict`
 
 ```python
-report(contrasts = None, **kwargs)
+predict(X: DesignMatrix) -> np.ndarray
 ```
 
-Generate a nilearn HTML report for the fitted GLM.
+Apply the fitted coefficients to a design matrix.
 
-Delegates to the underlying `FirstLevelModel.generate_report`, which
-renders the design matrix, requested contrast maps, and model
-parameters as a self-contained HTML report.
+`X` must carry exactly the fitted column names. They may appear in any
+order; the columns are reordered to `feature_names_in_` before
+multiplying, so the coefficient-to-regressor relationship survives.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`contrasts` | <code>str \| list \| dict</code> | Contrast(s) to render, in the same forms as `compute_contrast`. | <code>None</code>
-`**kwargs` | <code>dict</code> | Forwarded to nilearn's `generate_report` (e.g. `title`, `threshold`, `alpha`). | <code>{}</code>
+`X` | <code>[DesignMatrix](#page-data-design-matrix)</code> | Design with the fitted column names, in any order. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>HTMLReport</code> | nilearn report object; call `.save_as_html(path)` or     display it in a notebook.
+<code>ndarray</code> | `X @ coef_`, shape `(n_samples,)` for a model fitted on     a one-dimensional `y` and `(n_samples, n_targets)` otherwise.
 
-(models-score)=
-##### `score`
-
-```python
-score(X: None = None, y: None = None) -> float
-```
-
-Return mean R² across voxels and runs.
-
-Computes average coefficient of determination (R²) from the fitted GLM.
-Higher values indicate better model fit.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>None</code> | Not used; present for sklearn API compatibility. | <code>None</code>
-`y` | <code>None</code> | Not used; present for sklearn API compatibility. | <code>None</code>
-
-**Returns:**
+**Raises:**
 
 Type | Description
 ---- | -----------
-<code>float</code> | Mean R² across all non-NaN voxels and all runs, in `[0, 1]`.
-
-<details class="note" open markdown="1">
-<summary>Note</summary>
-
-Averages nilearn's per-run `r_square_` maps. For voxel-wise R² maps,
-access `glm_.r_square_` directly.
-
-</details>
-
-**Examples:**
-
-```python
-brain.fit(model="glm", X=design_matrix)
-r2 = brain.model_.score()
-```
+<code>TypeError</code> | If `X` is not a `DesignMatrix`.
+<code>ValueError</code> | If the model is not fitted, or `X` has duplicate, missing, or additional columns.
 
 (models-ridge)=
 ### `Ridge`
@@ -441,6 +380,7 @@ Type | Description
 ---- | -----------
 <code>ValueError</code> | If the model is not fitted, or `X` does not match the fitted feature structure.
 
+(models-score)=
 ##### `score`
 
 ```python
