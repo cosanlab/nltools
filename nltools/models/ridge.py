@@ -11,6 +11,8 @@ from __future__ import annotations
 import numbers
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -246,6 +248,159 @@ def _prepare_feature_space_weights(candidates, dtype) -> np.ndarray:
     return converted
 
 
+def _working_dtype(spaces, y, backend) -> np.dtype:
+    """Choose the floating dtype a solve runs in.
+
+    Himalaya solves in the dtype it is handed, so this is the one rule every
+    entry point shares. An integer design would make the shrinkage arithmetic
+    truncate to zero and return silently wrong (all-zero) coefficients, and MPS
+    is a float32-only device that would otherwise downcast float64 inputs with
+    a warning on every call.
+
+    Args:
+        spaces (Sequence[np.ndarray]): Feature matrices.
+        y (np.ndarray): Targets.
+        backend (Backend | None): Resolved backend, or None for the CPU.
+
+    Returns:
+        np.dtype: `float32` on MPS, otherwise the promoted dtype of the inputs
+            with a `float32` floor.
+    """
+    if backend is not None and getattr(backend, "device", None) == "mps":
+        return np.dtype(np.float32)
+    dtypes = [np.asarray(space).dtype for space in spaces] + [np.asarray(y).dtype]
+    return np.dtype(np.promote_types(np.result_type(*dtypes), np.float32))
+
+
+@dataclass(frozen=True)
+class _ResidentDesign:
+    """A concatenated design and its targets, already on Himalaya's backend.
+
+    Bootstrap refits solve thousands of replicates against the same training
+    data. Converting once and resampling rows in place keeps the host-to-device
+    transfer out of the replicate loop; on the CPU it also avoids re-running the
+    concatenation per replicate.
+
+    Attributes:
+        design: `(n_samples, n_features)` in `feature_space_names_` order, on
+            the backend.
+        targets: `(n_samples, n_targets)`, on the backend.
+        sizes (tuple[int, ...]): Feature count per space, in the same order.
+        dtype (np.dtype): The working dtype both arrays were converted to.
+        backend: The resolved nltools `Backend`, or None for the CPU.
+        backend_name (str): Himalaya's name for that backend.
+    """
+
+    design: Any
+    targets: Any
+    sizes: tuple[int, ...]
+    dtype: np.dtype
+    backend: Any
+    backend_name: str
+
+
+def _resident_design(feature_spaces, y, backend=None) -> _ResidentDesign:
+    """Convert a design and its targets onto the backend once.
+
+    Args:
+        feature_spaces (Sequence[np.ndarray]): One or more `(n_samples,
+            n_features_k)` matrices in coefficient order.
+        y (np.ndarray): Targets of shape `(n_samples, n_targets)`.
+        backend (Backend | None): Resolved backend; None stays on the CPU.
+
+    Returns:
+        _ResidentDesign: The converted design, ready for repeated refits.
+    """
+    spaces = [np.asarray(space) for space in feature_spaces]
+    y = np.asarray(y)
+    dtype = _working_dtype(spaces, y, backend)
+    backend_name = "numpy" if backend is None else _himalaya_backend_name(backend)
+    stacked = np.ascontiguousarray(
+        spaces[0] if len(spaces) == 1 else np.concatenate(spaces, axis=1), dtype=dtype
+    )
+    with _scoped_himalaya_backend(backend_name):
+        design, targets = _on_active_backend(
+            stacked, np.ascontiguousarray(y, dtype=dtype)
+        )
+    return _ResidentDesign(
+        design=design,
+        targets=targets,
+        sizes=tuple(space.shape[1] for space in spaces),
+        dtype=dtype,
+        backend=backend,
+        backend_name=backend_name,
+    )
+
+
+def _take_rows(array, indices):
+    """Select rows of a backend-resident array with host integer indices.
+
+    Args:
+        array: A NumPy array or a torch tensor on any device.
+        indices (np.ndarray | None): Row indices, or None to take every row.
+
+    Returns:
+        The selected rows, on the same backend and device as `array`.
+    """
+    if indices is None:
+        return array
+    indices = np.asarray(indices, dtype=np.int64)
+    if hasattr(array, "detach"):
+        import torch
+
+        return array[torch.as_tensor(indices, device=array.device)]
+    return array[indices]
+
+
+def _take_columns(array, columns):
+    """Select columns of a backend-resident array with host integer indices.
+
+    Args:
+        array: A NumPy array or a torch tensor on any device.
+        columns (np.ndarray): Column indices.
+
+    Returns:
+        The selected columns, on the same backend and device as `array`.
+    """
+    columns = np.asarray(columns, dtype=np.int64)
+    if hasattr(array, "detach"):
+        import torch
+
+        return array[:, torch.as_tensor(columns, device=array.device)]
+    return np.ascontiguousarray(array[:, columns])
+
+
+def _weight_groups(feature_space_weights, n_targets):
+    """Group targets that selected the same feature-space weight vector.
+
+    Sharing one decomposition across such targets is an implementation detail
+    that does not change the result.
+
+    Args:
+        feature_space_weights (np.ndarray | None): `(n_spaces,)` shared or
+            `(n_spaces, n_targets)` per-target weights, or None.
+        n_targets (int): Number of targets.
+
+    Returns:
+        list[tuple[np.ndarray | None, np.ndarray]]: `(gamma, columns)` pairs;
+            `gamma` is None for the unweighted system.
+    """
+    if feature_space_weights is None:
+        return [(None, np.arange(n_targets))]
+    gammas = np.asarray(feature_space_weights, dtype=np.float64)
+    if gammas.ndim == 1:
+        gammas = np.repeat(gammas[:, None], n_targets, axis=1)
+    _, inverse = np.unique(gammas.T, axis=0, return_inverse=True)
+    inverse = np.asarray(inverse).ravel()
+    return [
+        (
+            gammas[:, np.flatnonzero(inverse == label)[0]],
+            np.flatnonzero(inverse == label),
+        )
+        for label in np.unique(inverse)
+    ]
+
+
 def _refit_fixed_hyperparameters(
     feature_spaces,
     y,
@@ -254,11 +409,12 @@ def _refit_fixed_hyperparameters(
     backend=None,
     memory_budget_gb=None,
     n_targets_batch=None,
+    row_indices=None,
 ):
     """Refit Ridge coefficients with the hyperparameters held fixed.
 
     The one fixed-hyperparameter solve in the package: the final banded refit,
-    ordinary fixed-alpha fitting, and every Ridge bootstrap resample use it, so
+    ordinary fixed-alpha fitting, and every Ridge bootstrap replicate use it, so
     they cannot drift apart numerically. Feature space `k` is scaled by
     `sqrt(gamma[k])` before the solve and the resulting coefficients are scaled
     back, which is equivalent to the per-space penalty `alpha / gamma[k]`.
@@ -267,18 +423,23 @@ def _refit_fixed_hyperparameters(
     grouping is an implementation detail and does not change the result.
 
     Args:
-        feature_spaces (Sequence[np.ndarray]): One or more `(n_samples,
-            n_features_k)` matrices in coefficient order.
-        y (np.ndarray): Targets of shape `(n_samples, n_targets)`.
+        feature_spaces (Sequence[np.ndarray] | _ResidentDesign): One or more
+            `(n_samples, n_features_k)` matrices in coefficient order, or a
+            design already converted onto the backend by `_resident_design`.
+        y (np.ndarray | None): Targets of shape `(n_samples, n_targets)`. None
+            when `feature_spaces` is a `_ResidentDesign`, which carries them.
         alpha (float | np.ndarray): Scalar or `(n_targets,)` regularization.
         feature_space_weights (np.ndarray | None): `(n_spaces,)` shared or
-            `(n_spaces, n_targets)` per-target weights. None solves the
-            unweighted system.
+            `(n_spaces, n_targets)` weights. None solves the unweighted system.
         backend (Backend | None): Resolved backend; None runs on the CPU.
+            Ignored when a `_ResidentDesign` is supplied, which records its own.
         memory_budget_gb (float | None): Budget used to size the target batch
             when `n_targets_batch` is not given.
         n_targets_batch (int | None): Himalaya target batch size. None derives
             one from the memory budget.
+        row_indices (np.ndarray | None): Rows to solve on, applied to the design
+            and the targets alike. None uses every row. Bootstrap replicates
+            pass their resample here so the design is converted only once.
 
     Returns:
         np.ndarray: Coefficients of shape `(n_features, n_targets)` in the
@@ -286,49 +447,27 @@ def _refit_fixed_hyperparameters(
     """
     from himalaya.ridge import solve_ridge_svd
 
-    spaces = [np.asarray(space) for space in feature_spaces]
-    y = np.asarray(y)
-    # Himalaya solves in the dtype it is handed. An integer design would make the
-    # shrinkage arithmetic truncate to zero and return silently wrong (all-zero)
-    # coefficients, so promote to a floating working dtype first — the same rule
-    # `Ridge._working_dtype` applies.
-    dtype = np.dtype(
-        np.promote_types(
-            np.result_type(*[space.dtype for space in spaces], y.dtype), np.float32
-        )
+    if isinstance(feature_spaces, _ResidentDesign):
+        resident = feature_spaces
+    else:
+        resident = _resident_design(feature_spaces, y, backend)
+
+    dtype = resident.dtype
+    sizes = resident.sizes
+    n_features = sum(sizes)
+    n_targets = resident.targets.shape[1]
+    n_samples = (
+        len(row_indices) if row_indices is not None else resident.design.shape[0]
     )
-    n_targets = y.shape[1]
-    n_features = sum(space.shape[1] for space in spaces)
-    sizes = [space.shape[1] for space in spaces]
 
     alphas = np.broadcast_to(np.asarray(alpha, dtype=np.float64), (n_targets,))
-
-    if feature_space_weights is None:
-        gammas = None
-    else:
-        gammas = np.asarray(feature_space_weights, dtype=np.float64)
-        if gammas.ndim == 1:
-            gammas = np.repeat(gammas[:, None], n_targets, axis=1)
-
-    backend_name = "numpy" if backend is None else _himalaya_backend_name(backend)
     coef = np.zeros((n_features, n_targets), dtype=np.float64)
-    stacked = np.ascontiguousarray(np.concatenate(spaces, axis=1), dtype=dtype)
 
-    with _scoped_himalaya_backend(backend_name):
-        if gammas is None:
-            groups = [(None, np.arange(n_targets))]
-        else:
-            _, inverse = np.unique(gammas.T, axis=0, return_inverse=True)
-            inverse = np.asarray(inverse).ravel()
-            groups = [
-                (
-                    gammas[:, np.flatnonzero(inverse == label)[0]],
-                    np.flatnonzero(inverse == label),
-                )
-                for label in np.unique(inverse)
-            ]
+    with _scoped_himalaya_backend(resident.backend_name):
+        stacked = _take_rows(resident.design, row_indices)
+        all_targets = _take_rows(resident.targets, row_indices)
 
-        for gamma, columns in groups:
+        for gamma, columns in _weight_groups(feature_space_weights, n_targets):
             if gamma is None:
                 design = stacked
                 scale = None
@@ -336,7 +475,7 @@ def _refit_fixed_hyperparameters(
                 scale = np.concatenate(
                     [np.full(size, np.sqrt(g)) for size, g in zip(sizes, gamma)]
                 ).astype(dtype)
-                design = stacked * scale
+                design = stacked * _on_active_backend(scale)[0]
             # A shared alpha needs one shrinkage vector; a per-target alpha
             # makes Himalaya hold an (n_targets_batch, n_samples, n_samples)
             # block instead, so the two paths get different batch estimates.
@@ -345,16 +484,18 @@ def _refit_fixed_hyperparameters(
             batch = n_targets_batch
             if batch is None:
                 batch = _refit_targets_batch(
-                    backend,
+                    resident.backend,
                     memory_budget_gb,
-                    y.shape[0],
+                    n_samples,
                     len(columns),
                     dtype.itemsize,
                     per_target_alpha=not shared_alpha,
                     n_features=n_features,
                 )
-            design, targets = _on_active_backend(
-                design, np.ascontiguousarray(y[:, columns], dtype=dtype)
+            targets = (
+                all_targets
+                if len(columns) == n_targets
+                else _take_columns(all_targets, columns)
             )
             solved = solve_ridge_svd(
                 design,
@@ -785,10 +926,7 @@ class Ridge:
             np.dtype: `float32` on MPS, which is float32-only, otherwise the
                 promoted dtype of the inputs with a `float32` floor.
         """
-        if backend.device == "mps":
-            return np.dtype(np.float32)
-        dtypes = [space.dtype for space in spaces] + [y.dtype]
-        return np.dtype(np.promote_types(np.result_type(*dtypes), np.float32))
+        return _working_dtype(spaces, y, backend)
 
     # ----------------------------------------------------------------------- fit
 
@@ -1071,6 +1209,30 @@ class Ridge:
             ValueError: If the structure, names, or feature counts differ from
                 the fitted model.
         """
+        spaces = self._aligned_feature_spaces(X)
+        return spaces[0] if len(spaces) == 1 else np.concatenate(spaces, axis=1)
+
+    def _aligned_feature_spaces(self, X) -> list[np.ndarray]:
+        """Align `X` to the fitted feature structure, one matrix per space.
+
+        The single place that validates prediction and bootstrap features
+        against the fitted model: `_design_matrix` concatenates the result, and
+        the `BrainData` Ridge bootstrap resamples the spaces separately so a
+        banded refit can rescale each one by its own simplex weight.
+
+        Args:
+            X (np.ndarray | Mapping[str, np.ndarray]): Features in the
+                structure used for fitting. A banded mapping may be in any
+                order; it is aligned to `feature_space_names_`.
+
+        Returns:
+            list[np.ndarray]: One `(n_samples, n_features_k)` matrix per fitted
+                feature space, in coefficient order.
+
+        Raises:
+            ValueError: If the structure, names, feature counts, or sample
+                counts differ from the fitted model.
+        """
         names = self.feature_space_names_
         sizes = self.feature_space_sizes_
         if names is None or sizes is None:
@@ -1086,7 +1248,7 @@ class Ridge:
                     f"X has {matrix.shape[1]} features, but Ridge was fitted "
                     f"with {self.n_features_in_} features"
                 )
-            return matrix
+            return [matrix]
 
         if not isinstance(X, Mapping):
             raise ValueError(
@@ -1121,7 +1283,7 @@ class Ridge:
             raise ValueError(
                 f"all feature spaces must have the same number of samples, got {counts}"
             )
-        return np.concatenate(ordered, axis=1)
+        return ordered
 
     def predict(self, X) -> np.ndarray:
         """Predict targets for `X`.

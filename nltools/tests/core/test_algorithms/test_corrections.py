@@ -72,7 +72,7 @@ class TestThreshold:
 
     def test_threshold_drops_source_fit_state(self, minimal_brain_data):
         X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         p = minimal_brain_data.copy()
         p.data = np.full_like(p.data, 0.01)
 

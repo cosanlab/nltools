@@ -31,12 +31,6 @@ def _brain_data_from_array(values):
     )
 
 
-#: The Himalaya slice (q6at) retired `alphas=`, `alpha="auto"`, `fit_intercept=`,
-#: `local_alpha=`, and the second cross-validation pass behind `cv_results_`. Aligning
-#: the `BrainData` facade to the new estimator is Kata e5y6.
-e5y6_pending = pytest.mark.xfail(reason="e5y6: facade alignment pending", strict=True)
-
-
 class TestBrainDataModeling:
     # ==================== Unified fit/predict API ====================
 
@@ -45,7 +39,7 @@ class TestBrainDataModeling:
         from nltools.models import Ridge
 
         X_train = np.random.randn(len(minimal_brain_data), 10)
-        minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
 
         # Check model stored
         assert hasattr(minimal_brain_data, "model_")
@@ -55,7 +49,7 @@ class TestBrainDataModeling:
         # Check attributes set
         assert hasattr(minimal_brain_data, "ridge_weights")
         assert hasattr(minimal_brain_data, "ridge_fitted_values")
-        assert hasattr(minimal_brain_data, "ridge_scores")
+        assert hasattr(minimal_brain_data, "ridge_r2")
 
         # Predict on new data
         X_test = np.random.randn(20, 10)
@@ -95,7 +89,7 @@ class TestBrainDataModeling:
 
         X = np.random.randn(len(minimal_brain_data), 10)
 
-        minimal_brain_data.fit(model="ridge", alpha=1.0, device="cpu", X=X)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, ridge_device="cpu", X=X)
         assert minimal_brain_data.model_.device == "cpu"
 
         design_matrix = DesignMatrix(
@@ -108,19 +102,18 @@ class TestBrainDataModeling:
         assert minimal_brain_data.model_.noise_model == "ar1"
 
     def test_fit_ridge_rejects_backend_kwarg(self, minimal_brain_data):
-        """The retired `backend=`/`parallel=` device aliases are rejected at the facade."""
+        """The retired `backend=`/`parallel=` device aliases are not keywords."""
         X = np.random.randn(len(minimal_brain_data), 10)
-        with pytest.raises(TypeError, match="device="):
-            minimal_brain_data.fit(model="ridge", alpha=1.0, backend="numpy", X=X)
-        with pytest.raises(TypeError, match="device="):
-            minimal_brain_data.fit(model="ridge", alpha=1.0, parallel="cpu", X=X)
+        with pytest.raises(TypeError, match="backend"):
+            minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, backend="numpy", X=X)
+        with pytest.raises(TypeError, match="parallel"):
+            minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, parallel="cpu", X=X)
 
     def test_predict_requires_fitted_model(self, minimal_brain_data):
         """Test predict() raises error if fit() not called first."""
         bd = minimal_brain_data.copy()
-        for attr in ["model_", "X_"]:
-            if hasattr(bd, attr):
-                delattr(bd, attr)
+        if hasattr(bd, "model_"):
+            del bd.model_
 
         with pytest.raises(ValueError, match="Must call fit"):
             bd.predict()
@@ -128,7 +121,7 @@ class TestBrainDataModeling:
     def test_predict_validates_X_dimensions(self, minimal_brain_data):
         """Test predict() validates X has correct n_features."""
         X_train = np.random.randn(len(minimal_brain_data), 10)
-        minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
 
         X_wrong = np.random.randn(15, 5)
         with pytest.raises(ValueError, match="features"):
@@ -137,7 +130,7 @@ class TestBrainDataModeling:
     def test_ridge_weights_structure(self, minimal_brain_data):
         """Test Ridge weights stored correctly as BrainData."""
         X = np.random.randn(len(minimal_brain_data), 10)
-        minimal_brain_data.fit(model="ridge", alpha=1.0, X=X)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X)
 
         assert isinstance(minimal_brain_data.ridge_weights, BrainData)
         assert minimal_brain_data.ridge_weights.shape == (
@@ -153,13 +146,13 @@ class TestBrainDataModeling:
         X_train = np.random.randn(len(minimal_brain_data), 10)
 
         # Default (inplace=True)
-        result = minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train)
+        result = minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
         assert result is minimal_brain_data
         assert hasattr(minimal_brain_data, "ridge_weights")
         assert hasattr(minimal_brain_data, "ridge_fitted_values")
-        assert hasattr(minimal_brain_data, "ridge_scores")
+        assert hasattr(minimal_brain_data, "ridge_r2")
         assert hasattr(minimal_brain_data, "model_")
-        assert hasattr(minimal_brain_data, "X_")
+        assert not hasattr(minimal_brain_data, "X_")
         assert minimal_brain_data.model_.progress_bar is False
 
     def test_fit_inplace_false_returns_independent_fitted_brain_data(
@@ -170,14 +163,12 @@ class TestBrainDataModeling:
         for attr in [
             "ridge_weights",
             "ridge_fitted_values",
-            "ridge_scores",
+            "ridge_r2",
             "glm_betas",
             "glm_residual",
             "glm_predicted",
             "glm_r2",
-            "cv_results_",
             "model_",
-            "X_",
         ]:
             if hasattr(brain, attr):
                 delattr(brain, attr)
@@ -185,43 +176,45 @@ class TestBrainDataModeling:
         X_train = np.random.randn(len(brain), 10)
         original_data = brain.data.copy()
 
-        fitted = brain.fit(model="ridge", alpha=1.0, X=X_train, inplace=False)
+        fitted = brain.fit(model="ridge", ridge_alpha=1.0, X=X_train, inplace=False)
 
         assert isinstance(fitted, BrainData)
         assert fitted is not brain
         assert fitted.ridge_fitted_values.shape == brain.shape
         assert fitted.ridge_weights.shape == (10, brain.shape[1])
-        assert fitted.ridge_scores.shape == (1, brain.shape[1])
+        assert fitted.ridge_r2.shape == (1, brain.shape[1])
         assert not hasattr(brain, "ridge_weights")
         assert not hasattr(brain, "model_")
         assert not hasattr(brain, "X_")
         np.testing.assert_array_equal(brain.data, original_data)
 
         fitted.data[0, 0] = 123.0
-        fitted.X_[0, 0] = 456.0
         fitted.ridge_weights.data[0, 0] = 789.0
         assert brain.data[0, 0] != 123.0
-        assert X_train[0, 0] != 456.0
         assert fitted.model_.coef_[0, 0] != 789.0
         assert not hasattr(fitted.ridge_weights, "model_")
 
-    @e5y6_pending
     @pytest.mark.slow
     def test_fit_inplace_false_returns_brain_data_with_ridge_cv(
         self, minimal_brain_data
     ):
-        """The returned BrainData carries ridge cross-validation state."""
+        """Alpha selection lives on the returned copy's `model_`, nowhere else."""
         brain = minimal_brain_data.copy()
         X_train = np.random.randn(len(brain), 10)
 
-        fitted = brain.fit(model="ridge", alpha=1.0, X=X_train, cv=3, inplace=False)
+        fitted = brain.fit(
+            model="ridge",
+            ridge_alpha=[0.1, 1.0, 10.0],
+            X=X_train,
+            ridge_cv=3,
+            inplace=False,
+        )
 
         assert isinstance(fitted, BrainData)
-        assert fitted.cv_results_["scores"].shape == (3, brain.shape[1])
-        assert fitted.cv_results_["mean_score"].shape == (brain.shape[1],)
-        assert fitted.cv_results_["predictions"].shape == brain.shape
-        assert fitted.cv_results_["folds"].shape == (len(brain),)
-        assert not hasattr(brain, "cv_results_")
+        assert fitted.model_.alpha_.shape == (brain.shape[1],)
+        assert fitted.model_.cv_scores_.shape == (brain.shape[1],)
+        assert not hasattr(fitted, "cv_results_")
+        assert not hasattr(brain, "model_")
 
     @pytest.mark.slow
     def test_fit_inplace_false_returns_brain_data_with_glm(self, minimal_brain_data):
@@ -253,40 +246,39 @@ class TestBrainDataModeling:
         """Prediction belongs to the returned fitted copy, not the original."""
         X_train = np.random.randn(len(minimal_brain_data), 10)
         fitted = minimal_brain_data.fit(
-            model="ridge", alpha=1.0, X=X_train, inplace=False
+            model="ridge", ridge_alpha=1.0, X=X_train, inplace=False
         )
 
         X_test = np.random.randn(20, 10)
         predictions = fitted.predict(X=X_test)
         assert predictions.shape == (20, minimal_brain_data.shape[1])
 
-    @e5y6_pending
-    def test_refit_without_cv_clears_prior_cv_results(self, minimal_brain_data):
+    def test_refit_without_cv_replaces_the_selection_state(self, minimal_brain_data):
         X = np.random.randn(len(minimal_brain_data), 4)
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
-        assert hasattr(minimal_brain_data, "cv_results_")
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=[0.1, 1.0], ridge_cv=3)
+        assert minimal_brain_data.model_.cv_scores_ is not None
 
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
 
+        assert minimal_brain_data.model_.cv_scores_ is None
         assert not hasattr(minimal_brain_data, "cv_results_")
 
-    @e5y6_pending
     def test_copy_owns_nested_cv_state(self, minimal_brain_data):
         X = np.random.randn(len(minimal_brain_data), 4)
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=[0.1, 1.0], ridge_cv=3)
 
         copied = minimal_brain_data.copy()
-        copied.cv_results_["scores"][0, 0] = 91.0
-        copied.cv_results_["predictions"].data[0, 0] = 92.0
+        copied.model_.cv_scores_[0] = 91.0
+        copied.model_.alpha_[0] = 92.0
 
-        assert minimal_brain_data.cv_results_["scores"][0, 0] != 91.0
-        assert minimal_brain_data.cv_results_["predictions"].data[0, 0] != 92.0
+        assert minimal_brain_data.model_.cv_scores_[0] != 91.0
+        assert minimal_brain_data.model_.alpha_[0] != 92.0
 
     @pytest.mark.slow
     def test_refit_replaces_prior_model_state(self, minimal_brain_data):
         """Refitting across model types cannot leave mixed result state."""
         ridge_X = np.random.randn(len(minimal_brain_data), 3)
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, ridge_alpha=1.0)
 
         glm_X = DesignMatrix(
             {
@@ -299,9 +291,9 @@ class TestBrainDataModeling:
         assert hasattr(minimal_brain_data, "glm_betas")
         assert not hasattr(minimal_brain_data, "ridge_weights")
         assert not hasattr(minimal_brain_data, "ridge_fitted_values")
-        assert not hasattr(minimal_brain_data, "ridge_scores")
+        assert not hasattr(minimal_brain_data, "ridge_r2")
 
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, ridge_alpha=1.0)
 
         assert hasattr(minimal_brain_data, "ridge_weights")
         assert not hasattr(minimal_brain_data, "glm_betas")
@@ -310,7 +302,7 @@ class TestBrainDataModeling:
     @pytest.mark.slow
     def test_non_inplace_refit_preserves_fitted_source(self, minimal_brain_data):
         ridge_X = np.random.randn(len(minimal_brain_data), 3)
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, ridge_alpha=1.0)
         original_weights = minimal_brain_data.ridge_weights.data.copy()
 
         glm_X = DesignMatrix(
@@ -378,38 +370,12 @@ class TestBrainDataModeling:
         """Test fit() validates X has correct n_samples."""
         X_wrong = np.random.randn(len(minimal_brain_data) + 5, 10)
         with pytest.raises(ValueError, match="number of samples"):
-            minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_wrong)
-
-    @e5y6_pending
-    def test_ridge_intercept_with_centering_warns(self, minimal_brain_data):
-        """Ridge fit_intercept=True is redundant when the data is centered by
-        standardization/scaling — warn loudly."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        with pytest.warns(
-            UserWarning, match="intercept.*redundant|redundant.*intercept"
-        ):
-            bd.fit(model="ridge", alpha=1.0, X=X, fit_intercept=True)
-
-    @e5y6_pending
-    def test_ridge_intercept_no_centering_ok(self, minimal_brain_data):
-        """fit_intercept=True is fine (no warning) when no centering is applied —
-        that is exactly the raw-offset case intercepts exist for."""
-        import warnings
-
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            bd.fit(model="ridge", alpha=1.0, X=X, fit_intercept=True)
-        assert not any("intercept" in str(wi.message).lower() for wi in w)
+            minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_wrong)
 
     def test_predict_with_no_X_uses_training_data(self, minimal_brain_data):
         """Test predict() with no X returns predictions on training data."""
         X_train = np.random.randn(len(minimal_brain_data), 10)
-        minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_train)
+        minimal_brain_data.fit(model="ridge", ridge_alpha=1.0, X=X_train)
 
         predictions_explicit = minimal_brain_data.predict(X=X_train)
         predictions_implicit = minimal_brain_data.predict()
@@ -419,94 +385,48 @@ class TestBrainDataModeling:
 
     # ==================== Ridge CV Tests ====================
 
-    @e5y6_pending
-    def test_fit_ridge_cv_basic(self, small_brain_data_for_cv):
-        """Test fit() with cv=int and sklearn splitter returns cross-validated scores."""
+    def test_fit_ridge_cv_selects_alphas(self, small_brain_data_for_cv):
+        """A sequence `ridge_alpha` with `ridge_cv` selects per-voxel alphas."""
         brain_data, X = small_brain_data_for_cv
-
-        # Test with integer
-        brain_data.fit(model="ridge", alpha=1.0, cv=3, X=X)
-
-        assert hasattr(brain_data, "cv_results_")
-        assert isinstance(brain_data.cv_results_, dict)
-        assert "scores" in brain_data.cv_results_
-        assert "mean_score" in brain_data.cv_results_
-        assert "predictions" in brain_data.cv_results_
-        assert "folds" in brain_data.cv_results_
-
-        cv_scores = brain_data.cv_results_["scores"]
-        assert cv_scores.shape == (3, 5)  # (n_folds=3, n_voxels=5)
-        assert brain_data.cv_results_["mean_score"].shape == (5,)
-        assert set(brain_data.cv_results_["folds"]) == {0, 1, 2}
-        assert hasattr(brain_data, "ridge_weights")
-
-        # Test with sklearn splitter (reproducibility)
-        brain_data2, X2 = small_brain_data_for_cv
-        cv_splitter = KFold(n_splits=3, shuffle=True, random_state=42)
-        brain_data2.fit(model="ridge", alpha=1.0, cv=cv_splitter, X=X2)
-        assert brain_data2.cv_results_["scores"].shape == (3, 5)
-
-    @e5y6_pending
-    def test_fit_ridge_cv_predictions(self, small_brain_data_for_cv):
-        """Test CV predictions are out-of-fold and stored as BrainData."""
-        brain_data, X = small_brain_data_for_cv
-        brain_data.fit(model="ridge", alpha=1.0, cv=3, X=X)
-
-        cv_preds = brain_data.cv_results_["predictions"]
-        assert isinstance(cv_preds, BrainData)
-        assert cv_preds.shape == (24, 5)
-
-        # Out-of-fold should differ from in-sample
-        full_preds = brain_data.ridge_fitted_values
-        assert not np.allclose(cv_preds.data, full_preds.data)
-
-        assert np.isfinite(np.mean(brain_data.cv_results_["mean_score"]))
-
-    @e5y6_pending
-    def test_fit_ridge_cv_alpha_auto(self, small_brain_data_for_cv):
-        """alpha='auto' triggers per-voxel α selection by default (v0.6).
-
-        Breaking change: cv_results_['best_alpha'] is now (n_voxels,)
-        when local_alpha=True (the new default). Pass local_alpha=False
-        to get the legacy single-α-for-all-voxels behavior.
-        """
-        brain_data, X = small_brain_data_for_cv
-
         alphas = [0.1, 1.0, 10.0]
-        brain_data.fit(model="ridge", alpha="auto", cv=3, alphas=alphas, X=X)
 
-        # Should have both alpha selection and CV scoring results
-        assert "best_alpha" in brain_data.cv_results_
-        assert "alpha_scores" in brain_data.cv_results_
-        assert "scores" in brain_data.cv_results_
-        assert "mean_score" in brain_data.cv_results_
+        brain_data.fit(model="ridge", ridge_alpha=alphas, ridge_cv=3, X=X)
 
-        # Per-voxel α: array of shape (n_voxels,), each entry from the alpha grid.
-        best = brain_data.cv_results_["best_alpha"]
-        assert isinstance(best, np.ndarray)
-        assert best.shape == (5,)  # 5 voxels in the fixture
-        assert np.all(np.isin(best, alphas))
-        assert brain_data.cv_results_["alpha_scores"].shape == (3, 3, 5)
-        assert brain_data.cv_results_["scores"].shape == (3, 5)
-        # Model exposes the same per-voxel α via .alpha_ (post-fit attribute).
-        np.testing.assert_array_equal(brain_data.model_.alpha_, best)
+        model = brain_data.model_
+        assert model.alpha_.shape == (5,)
+        assert np.all(np.isin(model.alpha_, alphas))
+        assert model.cv_scores_.shape == (5,)
+        assert hasattr(brain_data, "ridge_weights")
+        assert not hasattr(brain_data, "cv_results_")
 
-        # Check all expected keys and types
-        expected_keys = {
-            "scores",
-            "mean_score",
-            "predictions",
-            "folds",
-            "best_alpha",
-            "alpha_scores",
-        }
-        assert set(brain_data.cv_results_.keys()) == expected_keys
-        assert isinstance(brain_data.cv_results_["predictions"], BrainData)
+    def test_fit_ridge_cv_accepts_a_splitter(self, small_brain_data_for_cv):
+        brain_data, X = small_brain_data_for_cv
+        splitter = KFold(n_splits=3, shuffle=True, random_state=42)
+
+        brain_data.fit(
+            model="ridge", ridge_alpha=[0.1, 1.0, 10.0], ridge_cv=splitter, X=X
+        )
+
+        assert brain_data.model_.alpha_.shape == (5,)
+
+    def test_fit_ridge_shared_alpha_is_scalar(self, small_brain_data_for_cv):
+        """`ridge_per_target_alpha=False` collapses the selection to one alpha."""
+        brain_data, X = small_brain_data_for_cv
+
+        brain_data.fit(
+            model="ridge",
+            ridge_alpha=[0.1, 1.0, 10.0],
+            ridge_cv=3,
+            ridge_per_target_alpha=False,
+            X=X,
+        )
+
+        assert np.ndim(brain_data.model_.alpha_) == 0
 
     def test_fit_ridge_no_cv_backward_compat(self, small_brain_data_for_cv):
         """Test fit() without cv parameter doesn't create cv_results_."""
         brain_data, X = small_brain_data_for_cv
-        brain_data.fit(model="ridge", alpha=1.0, X=X)
+        brain_data.fit(model="ridge", ridge_alpha=1.0, X=X)
 
         assert not hasattr(brain_data, "cv_results_")
         assert hasattr(brain_data, "ridge_weights")
@@ -516,33 +436,28 @@ class TestBrainDataModeling:
         brain_data, X = small_brain_data_for_cv
 
         with pytest.raises((TypeError, ValueError)):
-            brain_data.fit(model="ridge", alpha=1.0, cv="invalid", X=X)
+            brain_data.fit(model="ridge", ridge_alpha=1.0, ridge_cv="invalid", X=X)
 
         with pytest.raises(ValueError):
-            brain_data.fit(model="ridge", alpha=1.0, cv=-1, X=X)
+            brain_data.fit(model="ridge", ridge_alpha=1.0, ridge_cv=-1, X=X)
 
         with pytest.raises(ValueError):
-            brain_data.fit(model="ridge", alpha=1.0, cv=0, X=X)
+            brain_data.fit(model="ridge", ridge_alpha=1.0, ridge_cv=0, X=X)
 
-    @e5y6_pending
     def test_fit_ridge_cv_with_insufficient_samples(self, tiny_brain_data_for_cv):
-        """Test fit() raises error when cv folds > n_samples."""
+        """More folds than samples raises scikit-learn's own KFold error."""
         brain_data, X = tiny_brain_data_for_cv
         with pytest.raises(ValueError, match="Cannot have number of splits.*greater"):
-            brain_data.fit(model="ridge", alpha=1.0, cv=10, X=X)
+            brain_data.fit(model="ridge", ridge_alpha=[0.1, 1.0], ridge_cv=10, X=X)
 
-    @e5y6_pending
     def test_fit_ridge_cv_predict_consistency(self, small_brain_data_for_cv):
-        """Test predict() returns full model predictions, not CV predictions."""
+        """`predict` returns the full-data fit, whatever the selection did."""
         brain_data, X = small_brain_data_for_cv
-        brain_data.fit(model="ridge", alpha=1.0, cv=3, X=X)
+        brain_data.fit(model="ridge", ridge_alpha=[0.1, 1.0], ridge_cv=3, X=X)
 
         train_predictions = brain_data.predict(X=X)
         np.testing.assert_allclose(
             train_predictions.data, brain_data.ridge_fitted_values.data
-        )
-        assert not np.allclose(
-            train_predictions.data, brain_data.cv_results_["predictions"].data
         )
 
     # ============ design estimated as given + rank diagnostics (GLM) ============
@@ -637,7 +552,7 @@ class TestBrainDataModeling:
 
         def ridge_weights(X):
             bd = minimal_brain_data.copy()
-            bd.fit(model="ridge", X=X, alpha=1.0)
+            bd.fit(model="ridge", X=X, ridge_alpha=1.0)
             w = bd.ridge_weights
             return w.data if hasattr(w, "data") else np.asarray(w)
 
@@ -1025,35 +940,29 @@ class TestBrainDataRidgeCV:
     def test_size_property(self, minimal_brain_data):
         assert minimal_brain_data.size == minimal_brain_data.data.size
 
-    @e5y6_pending
     def test_splitter_object_changes_alpha_selection(self, minimal_brain_data):
-        """Different CV schemes produce different per-alpha scores."""
+        """Different CV schemes score the same alpha grid differently."""
         n = minimal_brain_data.shape[0]
         rng = np.random.default_rng(0)
         X = rng.standard_normal((n, 8))
+        alphas = np.logspace(-2, 4, 10)
 
         b1 = minimal_brain_data.copy()
         b1.fit(
             model="ridge",
             X=X,
-            alpha="auto",
-            alphas=np.logspace(-2, 4, 10),
-            cv=KFold(5, shuffle=False),
-            scale=False,
+            ridge_alpha=alphas,
+            ridge_cv=KFold(5, shuffle=False),
         )
         b2 = minimal_brain_data.copy()
         b2.fit(
             model="ridge",
             X=X,
-            alpha="auto",
-            alphas=np.logspace(-2, 4, 10),
-            cv=KFold(5, shuffle=True, random_state=0),
-            scale=False,
+            ridge_alpha=alphas,
+            ridge_cv=KFold(5, shuffle=True, random_state=0),
         )
-        # Same data, different splits → different alpha_scores.
-        assert not np.allclose(
-            b1.cv_results_["alpha_scores"], b2.cv_results_["alpha_scores"]
-        )
+
+        assert not np.allclose(b1.model_.cv_scores_, b2.model_.cv_scores_)
 
     def test_generator_cv_rejected(self, minimal_brain_data):
         n = minimal_brain_data.shape[0]
@@ -1062,276 +971,100 @@ class TestBrainDataRidgeCV:
         gen = KFold(5).split(X)
         with pytest.raises(TypeError, match="generator"):
             minimal_brain_data.fit(
-                model="ridge", X=X, alpha="auto", cv=gen, scale=False
+                model="ridge", X=X, ridge_alpha=[0.1, 1.0], ridge_cv=gen
             )
 
-    @e5y6_pending
-    def test_fit_intercept_propagates_to_cv_path(self, minimal_brain_data):
-        """fit_intercept=True is forwarded through compute_ridge_cv."""
-        n = minimal_brain_data.shape[0]
-        rng = np.random.default_rng(0)
-        X = rng.standard_normal((n, 5))
 
-        # Non-trivial BOLD offset — without fit_intercept, CV path
-        # produces strongly biased predictions (the original bug).
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=np.logspace(-2, 2, 6),
-            cv=KFold(5, shuffle=True, random_state=0),
-            scale=False,
-            standardize=None,
-            fit_intercept=True,
-        )
-        # Held-out predictions live on the original BOLD scale.
-        preds = bd.cv_results_["predictions"].data
-        assert abs(preds.mean() - 100.0) < 5.0
-
-
-@e5y6_pending
-class TestBrainDataRidgePerVoxelAlpha:
-    """v0.6 contract: bd.fit(model='ridge', alpha='auto', cv=K) selects α
-    per-voxel by default and refits the full-data weights with those α.
-
-    The previous BrainData CV path collapsed to a single global α even with
-    Ridge.local_alpha=True (the default), so the per-voxel machinery in
-    solve_ridge_cv was never reached and LORO produced wildly negative R².
-    These tests pin down the new behavior.
-    """
+class TestBrainDataRidgePerTargetAlpha:
+    """`ridge_per_target_alpha=True` (the default) selects one alpha per voxel."""
 
     @staticmethod
-    def _per_voxel_fixture(n=80, p=12, n_voxels=6, snr_high=5.0, snr_low=0.2, seed=0):
-        """Two voxels per noise regime so SNR drives α selection."""
-        from nltools.data import BrainData
+    def _fixture(n=80, p=12, n_voxels=6, snr_high=5.0, snr_low=0.2, seed=0):
+        """Half the voxels are noisy, so SNR — not chance — drives selection."""
         import nibabel as nib
 
         rng = np.random.default_rng(seed)
         X = rng.standard_normal((n, p)).astype(np.float32)
-
-        # True coefficients shared across voxels
         coef = rng.standard_normal((p, n_voxels)).astype(np.float32)
-        signal = X @ coef
-        # Half voxels: low noise (low SNR → larger α). Other half: high SNR.
         noise = rng.standard_normal((n, n_voxels)).astype(np.float32)
         scales = np.array(
             [snr_low if j < n_voxels // 2 else snr_high for j in range(n_voxels)],
             dtype=np.float32,
         )
-        # Higher scale → noise dominates → wants larger α.
-        Y = signal + noise * (1.0 / scales[None, :])
+        Y = X @ coef + noise * (1.0 / scales[None, :])
 
         spatial_shape = (n_voxels, 1, 1)
-        mask_data = np.zeros(spatial_shape, dtype=bool)
-        mask_data.flat[:n_voxels] = True
         affine = np.eye(4)
-        volume_4d = np.zeros(spatial_shape + (n,), dtype=np.float32)
+        volume = np.zeros(spatial_shape + (n,), dtype=np.float32)
         for t in range(n):
-            volume_t = np.zeros(spatial_shape, dtype=np.float32)
-            volume_t.flat[:n_voxels] = Y[t]
-            volume_4d[..., t] = volume_t
-
+            volume[..., t].flat[:n_voxels] = Y[t]
+        mask = np.zeros(spatial_shape, dtype=np.float32)
+        mask.flat[:n_voxels] = 1.0
         bd = BrainData(
-            nib.Nifti1Image(volume_4d, affine),
-            mask=nib.Nifti1Image(mask_data.astype(np.float32), affine),
+            nib.Nifti1Image(volume, affine), mask=nib.Nifti1Image(mask, affine)
         )
-        return bd, X, Y
+        return bd, X
 
-    def test_best_alpha_is_per_voxel_array(self):
-        bd, X, _ = self._per_voxel_fixture()
+    def test_selected_alpha_is_one_value_per_voxel(self):
+        bd, X = self._fixture()
         alphas = np.logspace(-2, 4, 12)
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=alphas,
-            cv=5,
-            scale=False,
-            fit_intercept=True,
-        )
-        best = bd.cv_results_["best_alpha"]
-        assert isinstance(best, np.ndarray)
-        assert best.shape == (bd.shape[1],)
-        assert best is not bd.model_.alpha_
-        assert bd.cv_results_["alpha_scores"] is not bd.model_.cv_scores_
 
-        model_alpha = bd.model_.alpha_.copy()
-        model_scores = bd.model_.cv_scores_.copy()
-        best[0] = -1.0
-        bd.cv_results_["alpha_scores"][0, 0, 0] = -1.0
-        np.testing.assert_array_equal(bd.model_.alpha_, model_alpha)
-        np.testing.assert_array_equal(bd.model_.cv_scores_, model_scores)
+        bd.fit(model="ridge", X=X, ridge_alpha=alphas, ridge_cv=5)
 
-    def test_local_alpha_false_collapses_to_scalar(self):
-        bd, X, _ = self._per_voxel_fixture()
-        alphas = np.logspace(-2, 4, 12)
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=alphas,
-            cv=5,
-            scale=False,
-            fit_intercept=True,
-            local_alpha=False,
-        )
-        best = bd.cv_results_["best_alpha"]
-        # All voxels share the same α; representation is scalar (or
-        # per-voxel array with only one unique value).
-        if isinstance(best, np.ndarray):
-            assert best.shape == (bd.shape[1],)
-            assert np.unique(best).size == 1
-        else:
-            assert isinstance(best, (int, float, np.floating, np.integer))
+        assert bd.model_.alpha_.shape == (bd.shape[1],)
+        assert np.all(np.isin(bd.model_.alpha_, alphas))
 
-    def test_voxels_with_different_snr_pick_different_alphas(self):
-        bd, X, _ = self._per_voxel_fixture(
+    def test_noisier_voxels_select_larger_alphas(self):
+        bd, X = self._fixture(
             n=120, p=10, n_voxels=8, snr_high=10.0, snr_low=0.1, seed=1
         )
         alphas = np.logspace(-2, 4, 16)
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=alphas,
-            cv=5,
-            scale=False,
-            fit_intercept=True,
+
+        bd.fit(model="ridge", X=X, ridge_alpha=alphas, ridge_cv=5)
+
+        selected = bd.model_.alpha_
+        half = bd.shape[1] // 2
+        assert selected[:half].mean() > selected[half:].mean()
+
+    def test_full_data_weights_match_a_fixed_refit_at_those_alphas(self):
+        from nltools.models.ridge import _refit_fixed_hyperparameters
+
+        bd, X = self._fixture()
+        bd.fit(model="ridge", X=X, ridge_alpha=np.logspace(-2, 4, 12), ridge_cv=5)
+
+        expected = _refit_fixed_hyperparameters([X], bd.data, bd.model_.alpha_)
+        np.testing.assert_allclose(
+            bd.ridge_weights.data, expected, rtol=1e-4, atol=1e-4
         )
-        best = bd.cv_results_["best_alpha"]
-        assert isinstance(best, np.ndarray)
-        # Low-SNR (noisy) voxels should pick larger α than high-SNR ones.
-        n_voxels = bd.shape[1]
-        low_snr = best[: n_voxels // 2]
-        high_snr = best[n_voxels // 2 :]
-        # Mean α over the noisy half is strictly larger than the clean half.
-        assert low_snr.mean() > high_snr.mean()
 
-    def test_full_data_coefs_match_per_voxel_alpha_refit(self):
-        from nltools.algorithms.ridge import ridge_svd
-
-        bd, X, Y = self._per_voxel_fixture()
-        alphas = np.logspace(-2, 4, 12)
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=alphas,
-            cv=5,
-            scale=False,
-            fit_intercept=True,
-        )
-        best = bd.cv_results_["best_alpha"]
-        assert isinstance(best, np.ndarray) and best.shape == (bd.shape[1],)
-
-        # Replicate the solver's centering: global mean across all rows of X / Y.
-        X_offset = X.mean(axis=0)
-        Y_offset = bd.data.mean(axis=0)
-        Xc = X - X_offset
-        Yc = bd.data - Y_offset
-
-        coefs = bd.ridge_weights.data  # (n_features, n_voxels)
-        for j in range(bd.shape[1]):
-            expected = ridge_svd(Xc, Yc[:, j], alpha=float(best[j]))
-            np.testing.assert_allclose(
-                coefs[:, j],
-                expected,
-                rtol=1e-3,
-                atol=1e-3,
-                err_msg=f"voxel {j} weights diverge from per-α refit",
-            )
-
-    def test_held_out_predictions_use_per_voxel_alpha(self):
-        from sklearn.model_selection import KFold
-        from nltools.algorithms.ridge import ridge_svd
-
-        bd, X, _ = self._per_voxel_fixture(
-            n=120, p=10, n_voxels=8, snr_high=10.0, snr_low=0.1, seed=2
-        )
-        alphas = np.logspace(-2, 4, 12)
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=alphas,
-            cv=KFold(5, shuffle=False),
-            scale=False,
-            fit_intercept=True,
-        )
-        per_voxel_preds = bd.cv_results_["predictions"].data
-
-        # Build a baseline: same CV splits, but force a single global α.
-        # If predictions use per-voxel α, this baseline differs.
-        global_alpha = float(np.median(bd.cv_results_["best_alpha"]))
-        baseline = np.zeros_like(per_voxel_preds)
-        cv_splitter = KFold(5, shuffle=False)
-        for train_idx, test_idx in cv_splitter.split(X):
-            X_tr, X_te = X[train_idx], X[test_idx]
-            y_tr = bd.data[train_idx]
-            X_off = X_tr.mean(axis=0)
-            y_off = y_tr.mean(axis=0)
-            coef = ridge_svd(X_tr - X_off, y_tr - y_off, alpha=global_alpha)
-            baseline[test_idx] = (X_te - X_off) @ coef + y_off
-
-        assert per_voxel_preds.shape == baseline.shape
-        assert not np.allclose(per_voxel_preds, baseline)
-
-    def test_local_alpha_named_kwarg_on_bd_fit(self):
-        bd, X, _ = self._per_voxel_fixture()
-        # Passing as named kwarg should work and should be forwarded.
-        bd.fit(
-            model="ridge",
-            X=X,
-            alpha="auto",
-            alphas=np.logspace(-2, 4, 8),
-            cv=3,
-            scale=False,
-            local_alpha=False,
-        )
-        assert bd.model_.local_alpha is False
-
-    def test_loro_via_groupkfold_returns_sensible_per_voxel_results(self):
-        """GroupKFold over per-run blocks → α selection respects splitter and
-        per-voxel R² isn't disastrously negative."""
+    def test_group_splitter_is_used_as_given(self):
         from sklearn.model_selection import GroupKFold
 
-        bd, X, _ = self._per_voxel_fixture(
-            n=80, p=10, n_voxels=8, snr_high=8.0, snr_low=0.5, seed=3
-        )
-        # Synthetic per-run groups: 8 runs of 10 samples each.
+        bd, X = self._fixture(n=80, p=10, n_voxels=8, snr_high=8.0, snr_low=0.5, seed=3)
         groups = np.repeat(np.arange(8), 10)
-        splitter = GroupKFold(n_splits=8)
-        # GroupKFold needs groups passed to .split, so we wrap it.
 
         class _GroupSplitter:
+            """GroupKFold needs `groups` at split time; bind them once."""
+
             def __init__(self, splitter, groups):
-                self._s = splitter
-                self._g = groups
+                self._splitter = splitter
+                self._groups = groups
 
             def split(self, X, y=None, groups=None):
-                return self._s.split(X, y, self._g)
+                return self._splitter.split(X, y, self._groups)
 
             def get_n_splits(self, X=None, y=None, groups=None):
-                return self._s.get_n_splits(X, y, self._g)
-
-        cv = _GroupSplitter(splitter, groups)
+                return self._splitter.get_n_splits(X, y, self._groups)
 
         bd.fit(
             model="ridge",
             X=X,
-            alpha="auto",
-            alphas=np.logspace(-2, 4, 12),
-            cv=cv,
-            scale=False,
-            fit_intercept=True,
+            ridge_alpha=np.logspace(-2, 4, 12),
+            ridge_cv=_GroupSplitter(GroupKFold(n_splits=8), groups),
         )
-        mean_score = bd.cv_results_["mean_score"]
-        assert mean_score.shape == (bd.shape[1],)
-        assert mean_score.max() > 0.0
-        assert mean_score.mean() > -1.0
+
+        assert bd.model_.alpha_.shape == (bd.shape[1],)
+        assert np.all(np.isfinite(bd.model_.cv_scores_))
 
 
 class TestWarnNearCollinear:
@@ -1541,10 +1274,10 @@ class TestGlmFacadeContract:
     @pytest.mark.parametrize(
         "option",
         [
-            {"cv": 3},
-            {"device": "gpu"},
-            {"per_target_alpha": False},
-            {"progress_bar": True},
+            {"ridge_cv": 3},
+            {"ridge_device": "gpu"},
+            {"ridge_per_target_alpha": False},
+            {"ridge_progress_bar": True},
         ],
     )
     def test_fit_glm_rejects_non_default_ridge_options(
@@ -1557,7 +1290,7 @@ class TestGlmFacadeContract:
     def test_fit_ridge_rejects_non_default_glm_options(self, minimal_brain_data):
         X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
         with pytest.raises(ValueError, match="unselected estimator|does not accept"):
-            minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, glm_bins=50)
+            minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0, glm_bins=50)
 
     def test_fit_glm_rejects_unknown_keywords(self, minimal_brain_data):
         design = self._design(minimal_brain_data)
@@ -1583,17 +1316,18 @@ class TestGlmFacadeContract:
         for removed in ("glm_t", "glm_p", "glm_se", "X_", "design_matrix"):
             assert not hasattr(minimal_brain_data, removed)
 
-    def test_refit_from_ridge_drops_the_ridge_training_design(self, minimal_brain_data):
-        """`X_` belongs to the ridge fit; a GLM refit must not inherit it."""
+    def test_refit_from_ridge_drops_the_ridge_results(self, minimal_brain_data):
+        """The ridge result family belongs to the ridge fit; a GLM refit drops it."""
         X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
-        assert hasattr(minimal_brain_data, "X_")
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        assert hasattr(minimal_brain_data, "ridge_weights")
 
         design = self._design(minimal_brain_data)
         for inplace in (True, False):
             fitted = minimal_brain_data.fit(model="glm", X=design, inplace=inplace)
             assert not hasattr(fitted, "X_")
             assert not hasattr(fitted, "ridge_weights")
+            assert not hasattr(fitted, "ridge_r2")
 
     def test_a_failed_fit_attaches_no_model(self, minimal_brain_data, monkeypatch):
         """`model_` is attached only once the estimator's own fit returns."""
@@ -1683,7 +1417,7 @@ class TestGlmFacadeContract:
         self, minimal_brain_data
     ):
         X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         with pytest.raises(ValueError, match="Ridge"):
             minimal_brain_data.compute_contrasts([1, -1, 0])
 
@@ -1896,3 +1630,210 @@ class TestGlmFacadeContract:
 
         assert isinstance(result.statistic, BrainData)
         assert result.statistic.shape[-1] == minimal_brain_data.shape[1]
+
+
+class TestRidgeFacadeContract:
+    """`BrainData.fit(model='ridge', ...)` — the prefixed keyword contract."""
+
+    @staticmethod
+    def _features(bd, n_features=4, seed=0):
+        rng = np.random.default_rng(seed)
+        return rng.standard_normal((len(bd), n_features))
+
+    def test_signature_names_and_defaults(self):
+        import inspect
+
+        signature = inspect.signature(BrainData.fit)
+        parameters = signature.parameters
+        assert parameters["model"].default == "glm"
+        expected = {
+            "X": None,
+            "ridge_alpha": 1.0,
+            "ridge_cv": None,
+            "ridge_search_iterations": 100,
+            "ridge_dirichlet_concentration": (0.1, 1.0),
+            "ridge_device": "cpu",
+            "ridge_memory_budget_gb": None,
+            "ridge_per_target_alpha": True,
+            "ridge_prefer_conservative_alpha": False,
+            "ridge_progress_bar": False,
+            "glm_noise_model": "ols",
+            "glm_bins": 100,
+            "glm_n_jobs": 1,
+            "inplace": True,
+            "random_state": None,
+        }
+        assert [name for name in parameters if name != "self"] == [
+            "model",
+            *expected,
+        ]
+        for name, default in expected.items():
+            assert parameters[name].default == default, name
+            assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY, name
+        assert not any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+
+    @pytest.mark.parametrize(
+        "name,value",
+        [
+            ("alpha", 1.0),
+            ("cv", 3),
+            ("device", "cpu"),
+            ("per_target_alpha", False),
+            ("progress_bar", True),
+            ("local_alpha", False),
+            ("fit_intercept", True),
+            ("scale", False),
+            ("standardize", False),
+            ("alphas", [1.0, 10.0]),
+            ("memory_budget_gb", 1.0),
+        ],
+    )
+    def test_removed_keyword_raises_type_error(self, minimal_brain_data, name, value):
+        X = self._features(minimal_brain_data)
+        with pytest.raises(TypeError):
+            minimal_brain_data.fit(model="ridge", X=X, **{name: value})
+
+    def test_ridge_option_under_glm_raises(self, minimal_brain_data):
+        design = DesignMatrix({"Intercept": np.ones(len(minimal_brain_data))})
+        with pytest.raises(ValueError, match="ridge_device"):
+            minimal_brain_data.fit(model="glm", X=design, ridge_device="gpu")
+
+    def test_glm_option_under_ridge_raises(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        with pytest.raises(ValueError, match="glm_noise_model"):
+            minimal_brain_data.fit(model="ridge", X=X, glm_noise_model="ar1")
+
+    def test_prefixed_keywords_reach_the_estimator(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        fitted = minimal_brain_data.fit(
+            model="ridge",
+            X=X,
+            ridge_alpha=[0.5, 5.0],
+            ridge_cv=3,
+            ridge_per_target_alpha=False,
+            ridge_memory_budget_gb=2.0,
+            ridge_progress_bar=False,
+            random_state=7,
+        )
+        model = fitted.model_
+        assert list(model.alpha) == [0.5, 5.0]
+        assert model.cv == 3
+        assert model.per_target_alpha is False
+        assert model.memory_budget_gb == 2.0
+        assert model.random_state == 7
+        assert model.device == "cpu"
+
+    def test_banded_keywords_reach_the_estimator(self, minimal_brain_data):
+        rng = np.random.default_rng(1)
+        spaces = {
+            "a": rng.standard_normal((len(minimal_brain_data), 3)),
+            "b": rng.standard_normal((len(minimal_brain_data), 2)),
+        }
+        fitted = minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            ridge_dirichlet_concentration=1.0,
+            random_state=0,
+        )
+        assert fitted.model_.search_iterations == 4
+        assert fitted.model_.dirichlet_concentration == 1.0
+        assert fitted.model_.feature_space_names_ == ("a", "b")
+
+    def test_device_auto_is_rejected(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        with pytest.raises(ValueError, match="device"):
+            minimal_brain_data.fit(model="ridge", X=X, ridge_device="auto")
+
+    def test_fit_attaches_only_the_specified_state(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        for name in ("model_", "ridge_weights", "ridge_fitted_values", "ridge_r2"):
+            assert hasattr(minimal_brain_data, name), name
+        for name in ("X_", "cv_results_", "ridge_scores"):
+            assert not hasattr(minimal_brain_data, name), name
+
+    def test_a_failed_ridge_fit_attaches_no_model(
+        self, minimal_brain_data, monkeypatch
+    ):
+        """`model_` is attached only once the estimator's own fit returns."""
+        from nltools.models import Ridge
+
+        def boom(self, X, y):
+            raise RuntimeError("estimator blew up")
+
+        monkeypatch.setattr(Ridge, "fit", boom)
+        with pytest.raises(RuntimeError, match="estimator blew up"):
+            minimal_brain_data.fit(
+                model="ridge", X=self._features(minimal_brain_data), ridge_alpha=1.0
+            )
+
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "ridge_weights")
+
+    def test_fit_state_enumeration_is_exhaustive(self, minimal_brain_data):
+        from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
+
+        before = set(vars(minimal_brain_data))
+        X = self._features(minimal_brain_data)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+        attached = set(vars(minimal_brain_data)) - before
+
+        assert attached == {
+            "model_",
+            "ridge_weights",
+            "ridge_fitted_values",
+            "ridge_r2",
+        }
+        assert attached <= set(_FIT_STATE_ATTRIBUTES)
+        for removed in ("X_", "cv_results_", "ridge_scores"):
+            assert removed not in _FIT_STATE_ATTRIBUTES
+
+    def test_ridge_r2_matches_model_score(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        expected = minimal_brain_data.model_.score(X, minimal_brain_data.data)
+        np.testing.assert_allclose(minimal_brain_data.ridge_r2.data.ravel(), expected)
+        assert minimal_brain_data.ridge_r2.shape == (1, minimal_brain_data.shape[1])
+
+    def test_no_argument_predict_owns_its_data(self, minimal_brain_data):
+        X = self._features(minimal_brain_data)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
+
+        predicted = minimal_brain_data.predict()
+        np.testing.assert_allclose(
+            predicted.data, minimal_brain_data.ridge_fitted_values.data
+        )
+        predicted.data[0, 0] = 12345.0
+        assert minimal_brain_data.ridge_fitted_values.data[0, 0] != 12345.0
+
+    def test_predict_accepts_a_named_mapping(self, minimal_brain_data):
+        rng = np.random.default_rng(2)
+        spaces = {
+            "a": rng.standard_normal((len(minimal_brain_data), 3)),
+            "b": rng.standard_normal((len(minimal_brain_data), 2)),
+        }
+        minimal_brain_data.fit(
+            model="ridge",
+            X=spaces,
+            ridge_alpha=[1.0, 10.0],
+            ridge_cv=3,
+            ridge_search_iterations=4,
+            random_state=0,
+        )
+        reordered = {"b": spaces["b"], "a": spaces["a"]}
+        predicted = minimal_brain_data.predict(X=reordered)
+        np.testing.assert_allclose(
+            predicted.data, minimal_brain_data.ridge_fitted_values.data, atol=1e-8
+        )
+
+    def test_predict_before_fit_raises_value_error(self, minimal_brain_data):
+        with pytest.raises(ValueError):
+            minimal_brain_data.predict(X=self._features(minimal_brain_data))

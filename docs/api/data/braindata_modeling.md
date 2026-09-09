@@ -24,7 +24,7 @@ Name | Description
 [`compute_contrasts`](#data-braindata-modeling-compute-contrasts) | Compute contrasts on a fitted GLM.
 [`fit`](#data-braindata-modeling-fit) | Fit a model to brain imaging data.
 [`fit_glm`](#data-braindata-modeling-fit-glm) | Fit `model` on `X` and attach it and the GLM results the facade owns.
-[`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit `bd.model_` and attach the ridge results to `bd`.
+[`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit `model` on `X` and attach it and the ridge results the facade owns.
 [`ttest`](#data-braindata-modeling-ttest) | Run a one-sample voxelwise t-test across images (axis 0).
 
 
@@ -141,7 +141,7 @@ default.
 ### `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', per_target_alpha = True, glm_noise_model = 'ols', glm_bins = 100, glm_n_jobs = 1, inplace = True, random_state = None, progress_bar = False, **kwargs)
+fit(bd, model = 'glm', *, X = None, ridge_alpha = 1.0, ridge_cv = None, ridge_search_iterations = 100, ridge_dirichlet_concentration = (0.1, 1.0), ridge_device = 'cpu', ridge_memory_budget_gb = None, ridge_per_target_alpha = True, ridge_prefer_conservative_alpha = False, ridge_progress_bar = False, glm_noise_model = 'ols', glm_bins = 100, glm_n_jobs = 1, inplace = True, random_state = None)
 ```
 
 Fit a model to brain imaging data.
@@ -163,17 +163,16 @@ The facade does not preprocess the response. Compose `scale()` and
 data, predictions, residuals, and coefficients stay in the response space
 you supplied.
 
-GLM options carry a `glm_` prefix. The ridge options (`cv`, `device`,
-`per_target_alpha`, `progress_bar`, and additional `Ridge` constructor
-arguments) keep their bare names for now, and `random_state` keeps its
-bare name because both estimators use it. A non-default option belonging
-to the estimator `model` did not select raises `ValueError`.
+Every model-specific option carries a `glm_` or `ridge_` prefix that names
+the estimator it configures; `random_state` keeps its bare name because
+both estimators accept it. A non-default option belonging to the estimator
+`model` did not select raises `ValueError`.
 
 **Results stored on the returned `BrainData`:**
 
 - `model_` — the fitted `Ridge` or `Glm`.
 - GLM: `glm_betas`, `glm_residual`, `glm_predicted`, `glm_r2`.
-- Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_scores`.
+- Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_r2`.
 
 **Parameters:**
 
@@ -182,16 +181,20 @@ Name | Type | Description | Default
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Data whose `.data` is the regression target. | *required*
 `model` | <code>str</code> | `'glm'` (default) or `'ridge'`. | <code>'glm'</code>
 `X` | <code>[DesignMatrix](#page-data-design-matrix) \| array - like \| Mapping</code> | Design matrix for a GLM — a precomputed `DesignMatrix` with `n_samples` matching `bd` — or a feature matrix for ridge. For banded ridge, a mapping of feature-space names to matrices. | <code>None</code>
-`cv` | <code>int \| CV splitter \| None</code> | Ridge only. Cross-validation specification. An int is the number of unshuffled k-fold splits; an sklearn splitter is used as given; None (default) fits a fixed alpha. | <code>None</code>
-`device` | <code>str</code> | Ridge only. Compute device for the ridge solve: `'cpu'` (default, NumPy) or `'gpu'` (PyTorch on CUDA/MPS, or an error when neither is available). | <code>'cpu'</code>
-`per_target_alpha` | <code>bool</code> | Ridge only. If True (default), select a separate best alpha per voxel; if False, one shared alpha. | <code>True</code>
+`ridge_alpha` | <code>float \| Sequence[float]</code> | Ridge only. A positive scalar fits a fixed alpha and requires `ridge_cv=None`; a sequence selects an alpha by cross-validation and requires `ridge_cv`. Default 1.0. | <code>1.0</code>
+`ridge_cv` | <code>int \| CV splitter \| None</code> | Ridge only. An int is the number of unshuffled k-fold splits; an sklearn splitter is used as given. Default None. | <code>None</code>
+`ridge_search_iterations` | <code>int</code> | Ridge only, banded. Number of sampled feature-space weight vectors. Default 100. | <code>100</code>
+`ridge_dirichlet_concentration` | <code>float \| Sequence[float]</code> | Ridge only, banded. Concentration of the Dirichlet distribution the candidate weights are drawn from. Default `(0.1, 1.0)`. | <code>(0.1, 1.0)</code>
+`ridge_device` | <code>str</code> | Ridge only. `'cpu'` (default) or `'gpu'` (PyTorch on CUDA/MPS, or an error when neither is available). | <code>'cpu'</code>
+`ridge_memory_budget_gb` | <code>float \| None</code> | Ridge only. Working-memory budget in GB for the solver's internal batching. None (default) measures the selected device. | <code>None</code>
+`ridge_per_target_alpha` | <code>bool</code> | Ridge only. If True (default), select a separate best alpha per voxel; if False, one shared alpha. | <code>True</code>
+`ridge_prefer_conservative_alpha` | <code>bool</code> | Ridge only. If True, select the largest alpha within one standard deviation of the best score. Default False. | <code>False</code>
+`ridge_progress_bar` | <code>bool</code> | Ridge only. Display a progress bar over the banded search. Default False. | <code>False</code>
 `glm_noise_model` | <code>str</code> | GLM only. `'ols'` (default) or `'arN'` for Nilearn's autoregressive model of order N (`'ar1'`, `'ar2'`, ...). | <code>'ols'</code>
 `glm_bins` | <code>int</code> | GLM only. Nilearn's discretization of the estimated AR coefficients. Default 100. | <code>100</code>
 `glm_n_jobs` | <code>int</code> | GLM only. CPUs Nilearn uses to fit autoregressive groups in parallel. The default OLS fit does not use this path. Default 1. | <code>1</code>
 `inplace` | <code>bool</code> | If True (default), mutate `bd` and return it. If False, fit and return an independent `BrainData` copy while leaving every part of `bd` untouched. | <code>True</code>
 `random_state` | <code>int \| None</code> | Seed shared by both estimators. Default None. | <code>None</code>
-`progress_bar` | <code>bool</code> | Ridge only. Display a progress bar during fitting. Default False. | <code>False</code>
-`**kwargs` | <code>dict</code> | Ridge only. Additional `Ridge` constructor arguments (`alpha`, `search_iterations`, ...). | <code>{}</code>
 
 **Returns:**
 
@@ -203,14 +206,14 @@ Type | Description
 
 Type | Description
 ---- | -----------
-<code>TypeError</code> | If `model` is unknown, `X` is missing, `model='glm'` gets a design that is not a `DesignMatrix`, or `model='glm'` gets an unknown keyword.
+<code>TypeError</code> | If `model` is unknown, `X` is missing, or `model='glm'` gets a design that is not a `DesignMatrix`.
 <code>ValueError</code> | If `X` and `bd` disagree on sample count, or a non-default option belongs to the unselected estimator.
 
 **Examples:**
 
 ```python
 # inplace=True (default): results are stored on brain_data
-brain_data.fit(model='ridge', alpha=1.0, X=features)
+brain_data.fit(model='ridge', ridge_alpha=1.0, X=features)
 weights = brain_data.ridge_weights
 
 # inplace=False: fit a copy; brain_data remains completely unchanged
@@ -256,25 +259,28 @@ for an autoregressive one.
 ### `fit_ridge`
 
 ```python
-fit_ridge(bd, X)
+fit_ridge(bd, X, model)
 ```
 
-Fit `bd.model_` and attach the ridge results to `bd`.
+Fit `model` on `X` and attach it and the ridge results the facade owns.
 
 Alpha selection and the banded search belong to `Ridge`; this layer only
-stores the results the facade owns.
+stores the results the facade owns. `model_` is attached only once the fit
+succeeds, so a failed fit never leaves an unfitted estimator on `bd`.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data with `bd.model_` already set to a `Ridge` instance. | *required*
+`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data whose `.data` is the response. | *required*
 `X` | <code>ndarray \| Mapping[str, ndarray]</code> | Training features. | *required*
+`model` | <code>[Ridge](#tasks-prediction-ridge)</code> | An unfitted estimator. | *required*
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Sets `ridge_weights`, `ridge_fitted_values`, and `ridge_scores` on `bd`.
+Sets `model_`, `ridge_weights`, `ridge_fitted_values`, and `ridge_r2`
+on `bd`.
 
 </details>
 

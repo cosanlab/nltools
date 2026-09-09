@@ -87,7 +87,7 @@ class TestAlign:
         brains = list(simulated_brains)
         for brain in brains:
             X = np.arange(len(brain), dtype=float).reshape(-1, 1)
-            brain.fit(model="ridge", X=X, alpha=1.0)
+            brain.fit(model="ridge", X=X, ridge_alpha=1.0)
 
         out = align(brains, method="procrustes")
 

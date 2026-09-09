@@ -440,70 +440,105 @@ def _bootstrap_simple_cpu_parallel(
     return result
 
 
-def _refit_resample(
-    X: np.ndarray,
-    y: np.ndarray,
-    indices: np.ndarray,
-    alpha: float | np.ndarray,
-) -> np.ndarray:
-    """Refit ridge weights on one bootstrap resample with `alpha` held fixed.
+def _as_feature_spaces(X) -> list[np.ndarray]:
+    """Normalize training features to a list of 2-D arrays in coefficient order.
 
-    Both CPU ridge-bootstrap workers route through the package's single
-    fixed-hyperparameter refit, so a resample cannot drift from the full-data
-    fit numerically.
+    Ordinary ridge supplies one matrix; banded ridge supplies one matrix per
+    fitted feature space, already ordered by `Ridge.feature_space_names_`.
 
     Args:
-        X (np.ndarray): Training features, shape (n_samples, n_features).
-        y (np.ndarray): Training targets, shape (n_samples,) or
-            (n_samples, n_voxels).
-        indices (np.ndarray): Row indices of the resample.
-        alpha (float | np.ndarray): Scalar or per-target regularization.
+        X (np.ndarray | Sequence[np.ndarray]): One matrix, or one per space.
 
     Returns:
-        np.ndarray: Weights, shape (n_features, n_voxels), or (n_features,)
-            when `y` is one-dimensional.
+        list[np.ndarray]: The feature spaces as float64 arrays.
+    """
+    spaces = list(X) if isinstance(X, (list, tuple)) else [X]
+    return [np.asarray(space, dtype=np.float64) for space in spaces]
+
+
+def _stack_feature_spaces(X) -> np.ndarray:
+    """Concatenate prediction features into one matrix in coefficient order.
+
+    Args:
+        X (np.ndarray | Sequence[np.ndarray]): One matrix, or one per space.
+
+    Returns:
+        np.ndarray: A `(n_rows, n_features)` float64 matrix.
+    """
+    spaces = _as_feature_spaces(X)
+    return spaces[0] if len(spaces) == 1 else np.concatenate(spaces, axis=1)
+
+
+def _bootstrap_design(feature_spaces, y, backend=None):
+    """Convert the training design onto the backend once for every replicate.
+
+    Bootstrap replicates differ only in which rows they draw, so the design and
+    the response are converted a single time and each replicate resamples rows
+    in place. On a GPU that keeps the host-to-device transfer out of the loop;
+    on the CPU it keeps the concatenation out of it.
+
+    Args:
+        feature_spaces (Sequence[np.ndarray]): Training features, one matrix per
+            fitted space in coefficient order.
+        y (np.ndarray): Training targets, shape (n_samples, n_voxels).
+        backend (Backend | None): Resolved GPU backend, or None for the CPU.
+
+    Returns:
+        _ResidentDesign: The converted design, ready for repeated refits.
+    """
+    from nltools.models.ridge import _resident_design
+
+    return _resident_design(feature_spaces, y, backend)
+
+
+def _refit_resample(
+    design,
+    indices: np.ndarray,
+    alpha: float | np.ndarray,
+    feature_space_weights: np.ndarray | None = None,
+    memory_budget_gb: float | None = None,
+) -> np.ndarray:
+    """Refit ridge weights on one bootstrap replicate, hyperparameters fixed.
+
+    Every ridge-bootstrap replicate — CPU or GPU, ordinary or banded — routes
+    through the package's single fixed-hyperparameter refit, so a replicate
+    cannot drift from the full-data fit numerically and never reruns model
+    selection. `indices` is applied to the design and the response together, so
+    every feature space and the response resample with the same rows.
+
+    Args:
+        design (_ResidentDesign): The training design from `_bootstrap_design`.
+        indices (np.ndarray): Row indices of the replicate.
+        alpha (float | np.ndarray): Scalar or per-target regularization, taken
+            from the fitted model and held fixed.
+        feature_space_weights (np.ndarray | None): The fitted banded simplex
+            weights, shared `(n_spaces,)` or per-target `(n_spaces, n_targets)`.
+            None solves the unweighted ordinary system.
+        memory_budget_gb (float | None): Budget used to size the refit's
+            internal target batch.
+
+    Returns:
+        np.ndarray: Weights, shape (n_features, n_voxels).
     """
     from nltools.models.ridge import _refit_fixed_hyperparameters
 
-    X_boot = np.asarray(X)[indices]
-    y_boot = np.asarray(y)[indices]
-    was_1d = y_boot.ndim == 1
-    if was_1d:
-        y_boot = y_boot[:, None]
-    weights = _refit_fixed_hyperparameters([X_boot], y_boot, alpha)
-    return weights[:, 0] if was_1d else weights
-
-
-def _bootstrap_ridge_weights_worker(
-    X: np.ndarray,
-    y: np.ndarray,
-    indices: np.ndarray,
-    alpha: float | np.ndarray,
-) -> np.ndarray:
-    """Worker function for bootstrapping ridge weights.
-
-    Calls the shared fixed-hyperparameter refit directly on numpy arrays, which
-    is 10-100x faster than going through `BrainData`. The refit holds the
-    selected `alpha` fixed: a bootstrap never reruns model selection.
-
-    Args:
-        X (np.ndarray): Feature matrix, shape (n_samples, n_features).
-        y (np.ndarray): Target matrix, shape (n_samples, n_voxels).
-        indices (np.ndarray): Bootstrap indices, shape (n_samples,).
-        alpha (float | np.ndarray): Scalar or per-target regularization.
-
-    Returns:
-        np.ndarray: Ridge weights, shape (n_features, n_voxels).
-    """
-    return _refit_resample(X, y, indices, alpha)
+    return _refit_fixed_hyperparameters(
+        design,
+        None,
+        alpha,
+        feature_space_weights,
+        memory_budget_gb=memory_budget_gb,
+        row_indices=indices,
+    )
 
 
 def _bootstrap_ridge_weights_cpu_parallel(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
     save_boots: bool = False,
+    feature_space_weights: np.ndarray | None = None,
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
@@ -517,9 +552,12 @@ def _bootstrap_ridge_weights_cpu_parallel(
     implementation.
 
     Args:
-        X (np.ndarray): Feature matrix, shape (n_samples, n_features).
+        X (np.ndarray | list[np.ndarray]): Feature matrix, shape (n_samples,
+            n_features), or one matrix per banded feature space in fitted order.
         y (np.ndarray): Target matrix, shape (n_samples, n_voxels) or (n_samples,).
         alpha (float): Ridge regularization parameter.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
         n_samples (int): Number of bootstrap iterations. Defaults to 5000.
         save_boots (bool): If True, store all bootstrap samples (memory
             intensive). Defaults to False.
@@ -550,12 +588,13 @@ def _bootstrap_ridge_weights_cpu_parallel(
     from .validation import validate_array_shape, validate_array_shape_range
 
     # Input validation
-    X = np.asarray(X, dtype=np.float64)
+    spaces = _as_feature_spaces(X)
     y = np.asarray(y, dtype=np.float64)
 
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
     validate_tail_parameter(tail)
 
     # Handle 1D y
@@ -563,7 +602,8 @@ def _bootstrap_ridge_weights_cpu_parallel(
     if single_voxel:
         y = y[:, np.newaxis]
 
-    n_obs, n_features = X.shape
+    n_obs = spaces[0].shape[0]
+    n_features = sum(space.shape[1] for space in spaces)
     n_voxels = y.shape[1]
     output_shape = (n_features, n_voxels)
 
@@ -579,9 +619,11 @@ def _bootstrap_ridge_weights_cpu_parallel(
         percentiles=percentiles,
     )
 
+    design = _bootstrap_design(spaces, y)
+
     # Define worker function
     def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_weights_worker(X, y, all_indices[idx], alpha)
+        return _refit_resample(design, all_indices[idx], alpha, feature_space_weights)
 
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
@@ -614,39 +656,14 @@ def _bootstrap_ridge_weights_cpu_parallel(
     return result
 
 
-def _bootstrap_ridge_predict_worker(
-    X: np.ndarray,
-    y: np.ndarray,
-    X_pred: np.ndarray,
-    indices: np.ndarray,
-    alpha: float | np.ndarray,
-) -> np.ndarray:
-    """Worker function for bootstrapping ridge predictions.
-
-    Resamples the training data, fits a ridge model, and predicts the test data.
-
-    Args:
-        X (np.ndarray): Training feature matrix, shape (n_samples, n_features).
-        y (np.ndarray): Training target matrix, shape (n_samples, n_voxels).
-        X_pred (np.ndarray): Test feature matrix, shape (n_test_samples, n_features).
-        indices (np.ndarray): Bootstrap indices into the training data, shape
-            (n_samples,).
-        alpha (float | np.ndarray): Scalar or per-target regularization.
-
-    Returns:
-        np.ndarray: Predictions, shape (n_test_samples, n_voxels).
-    """
-    weights = _refit_resample(X, y, indices, alpha)
-    return X_pred @ weights
-
-
 def _bootstrap_ridge_predict_cpu_parallel(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     X_pred: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
     save_boots: bool = False,
+    feature_space_weights: np.ndarray | None = None,
     n_jobs: int = -1,
     random_state: int | None = None,
     percentiles: tuple[float, float] = (2.5, 97.5),
@@ -659,14 +676,20 @@ def _bootstrap_ridge_predict_cpu_parallel(
     predicts `X_pred`; the predictions are aggregated with `OnlineBootstrapStats`.
 
     Args:
-        X (np.ndarray): Training feature matrix, shape (n_samples, n_features).
+        X (np.ndarray | list[np.ndarray]): Training feature matrix, shape
+            (n_samples, n_features), or one matrix per banded feature space in
+            fitted order.
         y (np.ndarray): Training target matrix, shape (n_samples, n_voxels) or
             (n_samples,).
-        X_pred (np.ndarray): Test feature matrix, shape (n_test_samples, n_features).
+        X_pred (np.ndarray | list[np.ndarray]): Test feature matrix, shape
+            (n_test_samples, n_features), or one matrix per banded feature space
+            in fitted order.
         alpha (float): Ridge regularization parameter.
         n_samples (int): Number of bootstrap iterations. Defaults to 5000.
         save_boots (bool): If True, store all bootstrap predictions (memory
             intensive). Defaults to False.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
         n_jobs (int): Number of CPU workers (-1 = all cores). Defaults to -1.
         random_state (int | None): Random seed for reproducibility.
         percentiles (tuple[float, float]): Percentiles for confidence intervals.
@@ -695,17 +718,19 @@ def _bootstrap_ridge_predict_cpu_parallel(
     from .validation import validate_shape_compatibility, validate_array_shape
 
     # Input validation
-    X = np.asarray(X, dtype=np.float64)
+    spaces = _as_feature_spaces(X)
     y = np.asarray(y, dtype=np.float64)
-    X_pred = np.asarray(X_pred, dtype=np.float64)
+    X_pred = _stack_feature_spaces(X_pred)
 
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
     validate_array_shape(X_pred, 2, name="X_pred")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
-    if X.shape[1] != X_pred.shape[1]:
+    n_features = sum(space.shape[1] for space in spaces)
+    if n_features != X_pred.shape[1]:
         raise ValueError(
-            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+            f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
         )
     validate_tail_parameter(tail)
 
@@ -714,7 +739,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
     if single_voxel:
         y = y[:, np.newaxis]
 
-    n_obs = X.shape[0]
+    n_obs = spaces[0].shape[0]
     n_test_samples = X_pred.shape[0]
     n_voxels = y.shape[1]
     output_shape = (n_test_samples, n_voxels)
@@ -731,9 +756,14 @@ def _bootstrap_ridge_predict_cpu_parallel(
         percentiles=percentiles,
     )
 
+    design = _bootstrap_design(spaces, y)
+
     # Define worker function
     def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_predict_worker(X, y, X_pred, all_indices[idx], alpha)
+        weights = _refit_resample(
+            design, all_indices[idx], alpha, feature_space_weights
+        )
+        return X_pred @ weights
 
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
@@ -771,37 +801,42 @@ def _auto_batch_size_ridge(
     n_samples: int,
     n_features: int,
     n_voxels: int,
+    output_shape: tuple[int, ...],
     max_memory_gb: float | None = None,
     backend=None,
 ) -> tuple[int, int]:
     """Determine the Ridge-bootstrap GPU batch size for a memory budget.
 
-    Thin adapter over the core layer in `nltools.algorithms.backends`: supplies
-    the bootstrap working-set estimate — `X_boot` `(batch, n_samples, n_features)`
-    plus `y_boot` `(batch, n_samples, n_voxels)` in float32, with a conservative
-    3× overhead for SVD buffers.
+    Forwards to `backends.ridge_bootstrap_batch_size`, which owns the budget
+    measurement, the working-set model, and the batch arithmetic. This wrapper
+    only supplies the solver's working dtype size: MPS solves in float32,
+    every other backend in float64.
 
     Args:
         n_bootstrap (int): Total number of bootstrap iterations.
         n_samples (int): Number of observations in the dataset.
-        n_features (int): Number of features.
+        n_features (int): Total feature count across all feature spaces.
         n_voxels (int): Number of voxels/targets.
+        output_shape (tuple[int, ...]): Shape of one retained replicate result.
         max_memory_gb (float | None): Explicit memory budget in GB. None
             (default) measures the device via `device_memory_budget`.
-        backend (Backend | None): Resolved backend the work runs on (used only
-            to measure the budget when `max_memory_gb` is None).
+        backend (Backend | None): Resolved backend the work runs on.
 
     Returns:
         tuple[int, int]: `(batch_size, n_batches)`.
     """
-    from nltools.algorithms.backends import auto_batch_size, device_memory_budget
+    from nltools.algorithms.backends import ridge_bootstrap_batch_size
 
-    budget_gb = device_memory_budget(
-        backend, max_gpu_memory_gb=max_memory_gb, cap_for_batching=True
-    )
-    bytes_per_boot = (n_samples * n_features + n_samples * n_voxels) * 4  # float32
-    return auto_batch_size(
-        n_bootstrap, bytes_per_boot, budget_gb=budget_gb, overhead=3.0
+    device = getattr(backend, "device", None)
+    return ridge_bootstrap_batch_size(
+        n_bootstrap,
+        n_samples=n_samples,
+        n_features=n_features,
+        n_targets=n_voxels,
+        output_shape=output_shape,
+        device_itemsize=4 if device == "mps" else 8,
+        max_gpu_memory_gb=max_memory_gb,
+        backend=backend,
     )
 
 
@@ -824,13 +859,14 @@ def _validate_gpu_backend(backend) -> None:
 
 
 def _bootstrap_ridge_gpu_batched(
-    X: np.ndarray,
+    feature_spaces: list[np.ndarray],
     y: np.ndarray,
     alpha: float,
     *,
     compute_sample,
     output_shape: tuple[int, ...],
     desc: str,
+    feature_space_weights: np.ndarray | None = None,
     n_samples: int = 5000,
     save_boots: bool = False,
     backend=None,
@@ -843,21 +879,30 @@ def _bootstrap_ridge_gpu_batched(
     """Shared GPU bootstrap driver for ridge statistics, with automatic batching.
 
     Owns everything the weights and predict bootstraps have in common — pre-drawn
-    resample indices, batch sizing via `_auto_batch_size_ridge`, a one-time device
-    transfer of X and y, the per-sample ridge-SVD solve inside an OOM-safe batch
-    loop, `OnlineBootstrapStats` aggregation, the progress bar, and result
-    formatting. The per-sample statistic is injected via `compute_sample`.
+    resample indices, batch sizing via `_auto_batch_size_ridge`, the per-sample
+    refit inside an OOM-safe batch loop, `OnlineBootstrapStats` aggregation, the
+    progress bar, and result formatting. The per-sample statistic is injected via
+    `compute_sample`.
+
+    Each replicate goes through the package's shared fixed-hyperparameter refit
+    (`nltools.models.ridge._refit_fixed_hyperparameters`) under the scoped
+    Himalaya GPU backend, so the GPU path solves the same equation as the CPU
+    path and supports banded models. The batch loop exists for memory control:
+    it bounds how many resamples are in flight before aggregation.
 
     Args:
-        X (np.ndarray): Feature matrix, shape (n_samples, n_features), float32, 2-D.
-        y (np.ndarray): Target matrix, shape (n_samples, n_voxels), float32, 2-D.
-        alpha (float): Ridge regularization parameter.
-        compute_sample (Callable): `(backend, coef_device) -> np.ndarray`, mapping
-            one bootstrap sample's on-device ridge coefficients, shape
-            (n_features, n_voxels), to the statistic aggregated on the CPU (the
-            weights themselves, or predictions from them).
+        feature_spaces (list[np.ndarray]): Training features, one matrix per
+            fitted space in coefficient order.
+        y (np.ndarray): Target matrix, shape (n_samples, n_voxels), 2-D.
+        alpha (float): Ridge regularization held fixed across replicates.
+        compute_sample (Callable): `(coef) -> np.ndarray`, mapping one
+            replicate's coefficients, shape (n_features, n_voxels), to the
+            statistic aggregated on the CPU (the weights themselves, or
+            predictions from them).
         output_shape (tuple[int, ...]): Shape of each `compute_sample` result.
         desc (str): Progress-bar description.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
         n_samples (int): Number of bootstrap iterations. Defaults to 5000.
         save_boots (bool): If True, store all bootstrap samples (memory
             intensive). Defaults to False.
@@ -878,13 +923,14 @@ def _bootstrap_ridge_gpu_batched(
     """
     from nltools.algorithms.backends import auto_select_backend, compute_oom_safe
 
+    n_obs = feature_spaces[0].shape[0]
+    n_features = sum(space.shape[1] for space in feature_spaces)
+    n_voxels = y.shape[1]
+
     # Handle backend
     if backend is None:
-        backend = auto_select_backend(X.shape[0], X.shape[1])
+        backend = auto_select_backend(n_obs, n_features)
     _validate_gpu_backend(backend)
-
-    n_obs, n_features = X.shape
-    n_voxels = y.shape[1]
 
     # Validate inputs
     _validate_n_samples(n_samples)
@@ -902,42 +948,27 @@ def _bootstrap_ridge_gpu_batched(
         n_obs,
         n_features,
         n_voxels,
+        output_shape,
         max_memory_gb=max_gpu_memory_gb,
         backend=backend,
     )
 
-    # Transfer X, y to GPU once (reused across batches)
-    X_device = backend.to_device(X)
-    y_device = backend.to_device(y)
+    # One host-to-device transfer for the whole run; replicates resample rows
+    # on the device.
+    design = _bootstrap_design(feature_spaces, y, backend)
 
     def _compute_batch(batch_indices: np.ndarray) -> np.ndarray:
         """GPU ridge statistics for one (sub-)batch of pre-drawn resample indices."""
-        # Process each bootstrap sample in batch sequentially, with the ridge
-        # computation inlined on the GPU to avoid CPU round-trips.
         batch_results = []
-        for i in range(len(batch_indices)):
-            # Resample data using advanced indexing
-            indices_np = batch_indices[i].astype(np.int64)
-            indices_device = backend.to_device(indices_np)
-            # Ensure indices are int64 on GPU (MPS requires this)
-            if hasattr(indices_device, "long"):
-                indices_device = indices_device.long()
-            elif hasattr(indices_device, "to"):
-                import torch
-
-                indices_device = indices_device.to(torch.int64)
-            X_boot_device = X_device[indices_device]
-            y_boot_device = y_device[indices_device]
-
-            # Ridge solution: beta = V @ diag(s / (s² + alpha)) @ U.T @ y
-            U, s, Vt = backend.svd(X_boot_device, full_matrices=False)
-            shrinkage = s / (s**2 + alpha)
-            Uty = backend.matmul(U.T, y_boot_device)
-            coef_device = backend.matmul(Vt.T, shrinkage[:, None] * Uty)
-
-            # Per-sample statistic, back on CPU for aggregation.
-            batch_results.append(compute_sample(backend, coef_device))
-
+        for indices in batch_indices:
+            coef = _refit_resample(
+                design,
+                indices,
+                alpha,
+                feature_space_weights,
+                memory_budget_gb=max_gpu_memory_gb,
+            )
+            batch_results.append(compute_sample(coef))
         # Shape: (current_batch_size, *output_shape)
         return np.array(batch_results)
 
@@ -958,7 +989,6 @@ def _bootstrap_ridge_gpu_batched(
     )
 
     for batch_idx in range(n_batches):
-        # Determine current batch size
         start_idx = batch_idx * batch_size
         end_idx = min(start_idx + batch_size, n_samples)
         current_batch_size = end_idx - start_idx
@@ -971,18 +1001,13 @@ def _bootstrap_ridge_gpu_batched(
         for sample in batch_results:
             stats.update(sample)
 
-        # Update progress bar
         pbar.update(current_batch_size)
 
     pbar.close()
 
-    # Get final results
     result = stats.get_results(tail)
-
-    # Add backend info
     result["backend"] = f"gpu-{backend.device}"
 
-    # Remove samples if not requested
     if not save_boots:
         result.pop("samples", None)
 
@@ -990,11 +1015,12 @@ def _bootstrap_ridge_gpu_batched(
 
 
 def _bootstrap_ridge_weights_gpu_batched(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
     save_boots: bool = False,
+    feature_space_weights: np.ndarray | None = None,
     backend=None,
     max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
@@ -1008,12 +1034,15 @@ def _bootstrap_ridge_weights_gpu_batched(
     is the ridge coefficients themselves.
 
     Args:
-        X (np.ndarray): Feature matrix, shape (n_samples, n_features).
+        X (np.ndarray | list[np.ndarray]): Feature matrix, shape (n_samples,
+            n_features), or one matrix per banded feature space in fitted order.
         y (np.ndarray): Target matrix, shape (n_samples, n_voxels) or (n_samples,).
         alpha (float): Ridge regularization parameter.
         n_samples (int): Number of bootstrap iterations. Defaults to 5000.
         save_boots (bool): If True, store all bootstrap samples (memory
             intensive). Defaults to False.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
         backend (Backend | None): Backend instance (must be a GPU torch backend).
             None auto-selects.
         max_gpu_memory_gb (float | None): Explicit GPU memory budget in GB. None
@@ -1029,28 +1058,26 @@ def _bootstrap_ridge_weights_gpu_batched(
         dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
             engine.
     """
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
+    spaces = _as_feature_spaces(X)
+    y = np.asarray(y, dtype=np.float64)
 
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
 
-    # Handle 1D y
     if y.ndim == 1:
         y = y[:, np.newaxis]
-
-    def _compute_sample(backend, coef_device):
-        return backend.to_numpy(coef_device)
+    n_features = sum(space.shape[1] for space in spaces)
 
     return _bootstrap_ridge_gpu_batched(
-        X,
+        spaces,
         y,
         alpha,
-        compute_sample=_compute_sample,
-        output_shape=(X.shape[1], y.shape[1]),
+        compute_sample=lambda coef: coef,
+        output_shape=(n_features, y.shape[1]),
         desc="GPU bootstrap Ridge weights",
+        feature_space_weights=feature_space_weights,
         n_samples=n_samples,
         save_boots=save_boots,
         backend=backend,
@@ -1063,12 +1090,13 @@ def _bootstrap_ridge_weights_gpu_batched(
 
 
 def _bootstrap_ridge_predict_gpu_batched(
-    X: np.ndarray,
+    X,
     y: np.ndarray,
     X_pred: np.ndarray,
     alpha: float,
     n_samples: int = 5000,
     save_boots: bool = False,
+    feature_space_weights: np.ndarray | None = None,
     backend=None,
     max_gpu_memory_gb: float | None = None,
     random_state: int | None = None,
@@ -1079,18 +1107,23 @@ def _bootstrap_ridge_predict_gpu_batched(
     """Bootstrap ridge predictions on the GPU with automatic batching.
 
     Thin wrapper over `_bootstrap_ridge_gpu_batched` whose per-sample statistic
-    is `X_pred @ coef`, computed on the GPU (`X_pred` is transferred to the
-    device once and reused across samples).
+    is `X_pred @ coef`.
 
     Args:
-        X (np.ndarray): Training feature matrix, shape (n_samples, n_features).
+        X (np.ndarray | list[np.ndarray]): Training feature matrix, shape
+            (n_samples, n_features), or one matrix per banded feature space in
+            fitted order.
         y (np.ndarray): Training target matrix, shape (n_samples, n_voxels) or
             (n_samples,).
-        X_pred (np.ndarray): Test feature matrix, shape (n_test_samples, n_features).
+        X_pred (np.ndarray | list[np.ndarray]): Test feature matrix, shape
+            (n_test_samples, n_features), or one matrix per banded feature space
+            in fitted order.
         alpha (float): Ridge regularization parameter.
         n_samples (int): Number of bootstrap iterations. Defaults to 5000.
         save_boots (bool): If True, store all bootstrap predictions (memory
             intensive). Defaults to False.
+        feature_space_weights (np.ndarray | None): Fitted banded simplex
+            weights held fixed across replicates. None for ordinary ridge.
         backend (Backend | None): Backend instance (must be a GPU torch backend).
             None auto-selects.
         max_gpu_memory_gb (float | None): Explicit GPU memory budget in GB. None
@@ -1106,40 +1139,32 @@ def _bootstrap_ridge_predict_gpu_batched(
         dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
             engine.
     """
-    # Input validation
-    X = np.asarray(X, dtype=np.float32)
-    y = np.asarray(y, dtype=np.float32)
-    X_pred = np.asarray(X_pred, dtype=np.float32)
+    spaces = _as_feature_spaces(X)
+    y = np.asarray(y, dtype=np.float64)
+    X_pred = _stack_feature_spaces(X_pred)
 
-    validate_array_shape(X, 2, name="X")
     validate_array_shape_range(y, 1, 2, name="y")
+    for space in spaces:
+        validate_array_shape(space, 2, name="X")
+        validate_shape_compatibility(space, y, X_name="X", y_name="y")
     validate_array_shape(X_pred, 2, name="X_pred")
-    validate_shape_compatibility(X, y, X_name="X", y_name="y")
-    if X.shape[1] != X_pred.shape[1]:
+    n_features = sum(space.shape[1] for space in spaces)
+    if n_features != X_pred.shape[1]:
         raise ValueError(
-            f"X and X_pred must have same n_features: {X.shape[1]} != {X_pred.shape[1]}"
+            f"X and X_pred must have same n_features: {n_features} != {X_pred.shape[1]}"
         )
 
-    # Handle 1D y
     if y.ndim == 1:
         y = y[:, np.newaxis]
 
-    # X_pred moves to the device once, lazily (the driver resolves the backend).
-    device_cache: dict[str, object] = {}
-
-    def _compute_sample(backend, coef_device):
-        if "X_pred" not in device_cache:
-            device_cache["X_pred"] = backend.to_device(X_pred)
-        predictions_device = backend.matmul(device_cache["X_pred"], coef_device)
-        return backend.to_numpy(predictions_device)
-
     return _bootstrap_ridge_gpu_batched(
-        X,
+        spaces,
         y,
         alpha,
-        compute_sample=_compute_sample,
+        compute_sample=lambda coef: X_pred @ coef,
         output_shape=(X_pred.shape[0], y.shape[1]),
         desc="GPU bootstrap Ridge predictions",
+        feature_space_weights=feature_space_weights,
         n_samples=n_samples,
         save_boots=save_boots,
         backend=backend,

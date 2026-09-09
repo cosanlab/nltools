@@ -208,9 +208,10 @@ This block is generated from `benchmarks/results/*.parquet` by `uv run python -m
 
 ### When to Use Each Backend
 
-Set the compute device on the public API with `device=` (`'cpu'` / `'gpu'` /
-`'auto'`) — e.g. `Ridge(device='gpu')`, `brain.fit(model='ridge', device='auto')`,
-`brain.bootstrap(stat='weights', device='gpu')`.
+Set the compute device on the public API with `device=` (`'cpu'` / `'gpu'`, plus
+`'auto'` where the entry point offers it) — e.g. `Ridge(device='gpu')`,
+`brain.fit(model='ridge', ridge_device='gpu')`,
+`brain.bootstrap(stat='weights', X=features, device='gpu')`.
 
 **Use CPU (`device='cpu'`, NumPy) when:**
 - Problem size < 10 million elements (e.g., 100 samples × 100k features)

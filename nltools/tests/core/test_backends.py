@@ -1006,6 +1006,94 @@ class TestBatchingSaturationCeiling:
         assert working_set <= gb_to_bytes(BATCH_WORKING_SET_CEILING_GB)
 
 
+class TestRidgeBootstrapBatchSize:
+    """The bootstrap batch planner must model what a batch actually holds."""
+
+    #: The review's measured case: 5000 replicates, 200 training rows, 500
+    #: features, 50 000 voxels, against an explicit 8 GB budget.
+    CASE = {
+        "n_samples": 200,
+        "n_features": 500,
+        "n_targets": 50_000,
+    }
+
+    @staticmethod
+    def _held_bytes(batch_size, output_shape, **case):
+        """What a batch actually holds.
+
+        One replicate solves at a time, so device residency is one resampled
+        design and response plus the solver's buffers; what accumulates across
+        the batch is the host list of float64 results.
+        """
+        import numpy as np
+
+        from nltools.algorithms.backends import _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
+
+        resident = (
+            (
+                case["n_samples"] * case["n_features"]
+                + case["n_samples"] * case["n_targets"]
+            )
+            * 8
+            * _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
+        )
+        retained = int(np.prod(output_shape)) * 8
+        return resident + batch_size * retained
+
+    @pytest.mark.parametrize(
+        "output_shape",
+        [(500, 50_000), (2000, 50_000)],
+        ids=["weights", "predict-2000-test-rows"],
+    )
+    def test_explicit_budget_bounds_the_modelled_batch(self, output_shape):
+        from nltools.algorithms.backends import gb_to_bytes, ridge_bootstrap_batch_size
+
+        budget_gb = 8.0
+        batch_size, n_batches = ridge_bootstrap_batch_size(
+            5000,
+            output_shape=output_shape,
+            device_itemsize=8,
+            max_gpu_memory_gb=budget_gb,
+            **self.CASE,
+        )
+
+        assert batch_size >= 1
+        assert batch_size * n_batches >= 5000
+        held = self._held_bytes(batch_size, output_shape, **self.CASE)
+        assert held <= gb_to_bytes(budget_gb)
+
+    def test_a_wider_output_shrinks_the_batch(self):
+        """The retained result is charged, so a bigger `X_test` costs batch size."""
+        from nltools.algorithms.backends import ridge_bootstrap_batch_size
+
+        narrow, _ = ridge_bootstrap_batch_size(
+            5000, output_shape=(10, 50_000), max_gpu_memory_gb=8.0, **self.CASE
+        )
+        wide, _ = ridge_bootstrap_batch_size(
+            5000, output_shape=(4000, 50_000), max_gpu_memory_gb=8.0, **self.CASE
+        )
+        assert wide < narrow
+
+    def test_float32_device_holds_more_per_batch(self):
+        from nltools.algorithms.backends import ridge_bootstrap_batch_size
+
+        wide_dtype, _ = ridge_bootstrap_batch_size(
+            5000,
+            output_shape=(4, 4),
+            device_itemsize=8,
+            max_gpu_memory_gb=1.0,
+            **self.CASE,
+        )
+        narrow_dtype, _ = ridge_bootstrap_batch_size(
+            5000,
+            output_shape=(4, 4),
+            device_itemsize=4,
+            max_gpu_memory_gb=1.0,
+            **self.CASE,
+        )
+        assert narrow_dtype > wide_dtype
+
+
 class TestAutoBatchSizeCore:
     def test_all_fit_in_one_batch(self):
         from nltools.algorithms.backends import auto_batch_size

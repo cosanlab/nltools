@@ -860,18 +860,19 @@ class TestFixedHyperparameterRefit:
         assert np.any(from_int != 0)
         np.testing.assert_allclose(from_int, from_float, rtol=1e-10, atol=1e-12)
 
-    def test_integer_features_reach_the_bootstrap_worker_correctly(self):
+    def test_integer_features_reach_the_bootstrap_refit_correctly(self):
         from nltools.algorithms.inference.bootstrap import (
-            _bootstrap_ridge_weights_worker,
+            _bootstrap_design,
+            _refit_resample,
         )
 
         rng = np.random.default_rng(4)
         X_int = rng.integers(0, 2, size=(40, 5))
         Y = rng.standard_normal((40, 3))
         indices = np.arange(40)
-        weights = _bootstrap_ridge_weights_worker(X_int, Y, indices, 1.0)
-        expected = _bootstrap_ridge_weights_worker(
-            X_int.astype(np.float64), Y, indices, 1.0
+        weights = _refit_resample(_bootstrap_design([X_int], Y), indices, 1.0)
+        expected = _refit_resample(
+            _bootstrap_design([X_int.astype(np.float64)], Y), indices, 1.0
         )
         assert np.any(weights != 0)
         np.testing.assert_allclose(weights, expected, rtol=1e-10, atol=1e-12)
@@ -899,6 +900,109 @@ class TestFixedHyperparameterRefit:
 
 
 # -------------------------------------------------------------- device and memory
+
+
+class TestSerialization:
+    """A fitted model survives pickling, deepcopy, and process-based workers."""
+
+    def test_fitted_model_round_trips_through_pickle(self):
+        import pickle
+
+        X, Y = make_data()
+        model = Ridge(alpha=1.0).fit(X, Y)
+
+        restored = pickle.loads(pickle.dumps(model))
+
+        assert restored.is_fitted_
+        assert restored.backend_.name == model.backend_.name
+        assert restored.backend_.device == model.backend_.device
+        np.testing.assert_array_equal(restored.coef_, model.coef_)
+        np.testing.assert_allclose(restored.predict(X), model.predict(X))
+
+    def test_fitted_model_deepcopies(self):
+        import copy
+
+        X, Y = make_data()
+        model = Ridge(alpha=1.0).fit(X, Y)
+
+        clone = copy.deepcopy(model)
+        clone.coef_[0, 0] = 1234.0
+
+        assert model.coef_[0, 0] != 1234.0
+        assert clone.backend_.name == model.backend_.name
+
+    def test_fitted_model_survives_a_process_based_worker(self):
+        from joblib import Parallel, delayed
+
+        X, Y = make_data()
+        model = Ridge(alpha=1.0).fit(X, Y)
+
+        (predicted,) = Parallel(n_jobs=2, backend="loky")(
+            [delayed(_predict_in_worker)(model, X)]
+        )
+
+        np.testing.assert_allclose(predicted, model.predict(X))
+
+    @requires_gpu
+    def test_gpu_fitted_model_round_trips_through_pickle(self):
+        """The pickled backend keeps the device it was fitted on."""
+        import pickle
+
+        X, Y = make_data()
+        model = Ridge(alpha=1.0, device="gpu").fit(X, Y)
+
+        restored = pickle.loads(pickle.dumps(model))
+
+        assert restored.backend_.name == model.backend_.name
+        assert restored.backend_.device == model.backend_.device
+        assert restored.backend_.xp is model.backend_.xp
+        np.testing.assert_allclose(restored.predict(X), model.predict(X))
+
+    def test_unpickling_never_switches_device(self, monkeypatch):
+        """A model fitted on an absent device keeps its descriptor and raises on use."""
+        import pickle
+
+        from nltools.algorithms.backends import Backend
+
+        cuda_backend = Backend.__new__(Backend)
+        cuda_backend.__dict__.update(
+            {"name": "torch-cuda", "device": "cuda", "_torch_device": None}
+        )
+        payload = pickle.dumps(cuda_backend)
+
+        import nltools.algorithms.backends as backends_module
+
+        monkeypatch.setattr(backends_module, "_array_module_for", lambda name: None)
+        restored = pickle.loads(payload)
+
+        assert restored.name == "torch-cuda"
+        assert restored.device == "cuda"
+        with pytest.raises(RuntimeError, match="not available in this process"):
+            restored.xp
+
+    def test_unpickling_restores_the_torch_module_when_available(self):
+        """The torch branch of `__setstate__` is exercised, not just numpy."""
+        import pickle
+
+        from nltools.algorithms.backends import Backend
+
+        pytest.importorskip("torch")
+        import torch
+
+        cpu_backend = Backend.__new__(Backend)
+        cpu_backend.__dict__.update(
+            {"name": "torch-cpu", "device": "cpu", "_torch_device": None}
+        )
+
+        restored = pickle.loads(pickle.dumps(cpu_backend))
+
+        assert restored.name == "torch-cpu"
+        assert restored.xp is torch
+
+
+def _predict_in_worker(model, X):
+    """Module-level so `loky` can pickle it alongside the fitted model."""
+    return model.predict(X)
 
 
 class TestBackendScoping:

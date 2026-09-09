@@ -109,7 +109,7 @@ class TestStoredYFallback:
         """A no-argument call predicts from the fitted model, not the labels."""
         n = minimal_brain_data.shape[0]
         X = np.random.default_rng(0).standard_normal((n, 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         minimal_brain_data.Y = {"label": np.arange(n) % 2}
 
         predicted = minimal_brain_data.predict()
@@ -368,7 +368,7 @@ class TestInplace:
         n = len(minimal_brain_data)
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         X = np.random.default_rng(0).standard_normal((n, 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         fitted_model = minimal_brain_data.model_
 
         minimal_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)

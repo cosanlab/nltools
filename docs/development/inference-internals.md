@@ -132,9 +132,18 @@ p   = 2 * (1 - norm.cdf(abs(z)))     # two-tailed normal approx
 
 Beyond `mean`, the simple path supports `median`/`std`/`sum`/`min`/`max`. For Ridge
 models, bootstrap farms out to the shared fixed-hyperparameter refit in
-`nltools/models/ridge.py` directly (bypassing `BrainData` overhead) and has a
-**GPU-batched** implementation for the weights and predict paths. The refit holds the
-fitted model's selected hyperparameters fixed; a resample never reruns model selection.
+`nltools/models/ridge.py` directly (bypassing `BrainData` overhead), on the CPU and
+on the GPU alike: the design is converted onto the backend once and
+`_refit_resample` — the one replicate implementation — resamples rows in place,
+so the GPU driver differs only in which backend it converts to and in how many
+replicate results it retains before aggregation. `backends.ridge_bootstrap_batch_size`
+sizes that retention: it charges both the resident replicate and the host-side
+float64 results, so a prediction bootstrap with a wide `X_test` shrinks the batch
+instead of overrunning the budget. The refit holds `alpha_` — and, for a banded model,
+`feature_space_weights_` — fixed; a resample never reruns cross-validation or the
+banded random search. Training features are supplied explicitly by the caller
+(`BrainData.bootstrap(..., X=...)`); every feature space and the response resample
+with the same row indices.
 
 ## P-value calculation
 

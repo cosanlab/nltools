@@ -50,25 +50,23 @@ class TestBrainDataCore:
     def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
         """Copying a fitted BrainData produces an independent snapshot."""
         X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
 
         copied = minimal_brain_data.copy()
 
         copied.data[0, 0] = 11.0
-        copied.X_[0, 0] = 12.0
         copied.model_.coef_[0, 0] = 13.0
         copied.ridge_weights.data[0, 0] = 14.0
         copied.mask.get_fdata(caching="fill")[0, 0, 0] = 0.0
 
         assert minimal_brain_data.data[0, 0] != 11.0
-        assert minimal_brain_data.X_[0, 0] != 12.0
         assert minimal_brain_data.model_.coef_[0, 0] != 13.0
         assert minimal_brain_data.ridge_weights.data[0, 0] != 14.0
         assert minimal_brain_data.mask.get_fdata()[0, 0, 0] != 0.0
 
     def test_create_empty_drops_fitted_state(self, minimal_brain_data):
         X = np.random.default_rng(1).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
 
         empty = minimal_brain_data.create_empty()
 
@@ -79,7 +77,7 @@ class TestBrainDataCore:
 
     def test_inplace_arithmetic_drops_fitted_state(self, minimal_brain_data):
         X = np.random.default_rng(2).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
 
         minimal_brain_data += 1.0
 
@@ -90,7 +88,7 @@ class TestBrainDataCore:
     def test_setitem_drops_fitted_state(self, minimal_brain_data):
         replacement = minimal_brain_data[0]
         X = np.random.default_rng(3).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
 
         minimal_brain_data[0] = replacement
 
@@ -102,7 +100,7 @@ class TestBrainDataCore:
         replacement = minimal_brain_data[0]
         replacement.X = pl.DataFrame({"unexpected": [1.0]})
         X = np.random.default_rng(4).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        minimal_brain_data.fit(model="ridge", X=X, ridge_alpha=1.0)
         original_data = minimal_brain_data.data.copy()
         original_model = minimal_brain_data.model_
         original_weights = minimal_brain_data.ridge_weights

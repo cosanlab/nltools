@@ -163,7 +163,7 @@ Ordinary Ridge requires one numerical matrix. Banded Ridge requires a non-empty
 mapping from feature-space names to matrices.
 
 Every model-specific argument uses a `glm_` or `ridge_` prefix. `random_state`
-retains its unprefixed name because both estimators use it.
+retains its unprefixed name because both estimators accept it.
 `ridge_progress_bar` maps to `Ridge.progress_bar`; there is no GLM progress
 argument. Supplying a non-default option for the unselected estimator raises
 `ValueError`; an irrelevant option must never be silently accepted.

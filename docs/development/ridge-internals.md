@@ -145,8 +145,43 @@ produced it. There is no `intercept_` and no `deltas_`.
 
 `_refit_fixed_hyperparameters` is the package's only fixed-hyperparameter ridge
 solve. Ordinary fixed-alpha fitting, the equivalence checks for the banded
-refit, and every Ridge bootstrap resample route through it, so a resample
-cannot drift numerically from the full-data fit.
+refit, and every Ridge bootstrap resample — CPU or GPU, ordinary or banded —
+route through it, so a resample cannot drift numerically from the full-data
+fit.
+
+Bootstrap replicates differ only in which rows they draw, so the engines in
+`algorithms/inference/bootstrap.py` convert the design once into a
+`_ResidentDesign` — the concatenated feature spaces and the response, already
+on the backend in the working dtype — and each replicate passes its resample as
+`row_indices`. On a GPU that keeps the host-to-device copy out of the replicate
+loop; on the CPU it keeps the concatenation out of it. `_refit_resample` is the
+one replicate implementation: it applies the same indices to the design and the
+response and forwards the fitted `alpha_` and `feature_space_weights_`
+untouched. The GPU driver's batch loop exists only to bound how many replicates
+are retained before aggregation, and it uses the same
+`backends.ridge_bootstrap_batch_size` / `compute_oom_safe` machinery.
+
+`_working_dtype` is the single dtype rule both `Ridge.fit` and the shared refit
+use: `float32` on MPS, which is float32-only, otherwise the promoted input
+dtype with a `float32` floor. Applying it inside the refit is what keeps a
+bootstrap from handing float64 to the MPS backend and triggering its downcast
+warning on every replicate.
+
+Measured on an Apple M3 (`torch-mps`, 100 replicates, shared alpha):
+
+| Workload | Per-replicate transfer, float64 | Resident design, float32 |
+|---|---|---|
+| 120 obs x 40 feat → 4 000 voxels | 0.53 s | 0.50 s |
+| 200 obs x 60 feat → 20 000 voxels | 3.69 s | 3.36 s |
+
+The transfer is not the bottleneck at these shapes: profiling puts essentially
+all of the remaining time inside Himalaya's `solve_ridge_svd` (33 ms per
+replicate at 20 000 voxels, against 0.1 ms for the surrounding nltools code).
+The pre-0.6.0 hand-written GPU SVD did the same algebra in 3.6 ms, so Himalaya
+costs roughly 9x more per call here, and `torch-mps` is currently no faster than
+the `numpy` backend for this workload (3.36 s vs 3.04 s). Recovering that would
+mean re-implementing a solver, which this package does not do; the GPU path
+remains correct and is retained for CUDA hosts and larger designs.
 
 It accepts a scalar or per-target `alpha` and optional shared or per-target
 feature-space weights, promotes the inputs to a floating working dtype, scales
@@ -220,12 +255,17 @@ working set but must never compute a budget.
 The nltools `Backend` in `nltools/algorithms/backends.py` remains the device
 abstraction for alignment and the bootstrap engines, and `Ridge.backend_` is
 the resolved instance (its `.name` reports `numpy`, `torch-cuda`, or
-`torch-mps`). Ridge no longer calls `Backend.svd` — Himalaya owns the
-decomposition — but alignment (`algorithms/alignment/local.py`) and the GPU
-bootstrap driver still do, including its MPS float64 workaround.
+`torch-mps`). Neither Ridge nor the ridge bootstrap calls `Backend.svd` any more — Himalaya
+owns every decomposition — but alignment (`algorithms/alignment/local.py`)
+still does, including its MPS float64 workaround.
+
+`Backend` instances are picklable: `backend_` is public fitted state, so a
+fitted `Ridge` has to survive `copy.deepcopy`, `BrainData.copy()`, and
+process-based `n_jobs` workers. `__getstate__` drops the live array module and
+`__setstate__` recovers it from the pickled backend name.
 
 `parallel=` stays an internal name in those subsystems. The public surface —
-`Ridge(device=...)`, `BrainData.fit(model='ridge', device=...)`,
+`Ridge(device=...)`, `BrainData.fit(model='ridge', ridge_device=...)`,
 `BrainData.bootstrap(device=...)` — uses the canonical `device` keyword, and
 `scripts/check_api_vocabulary.py` enforces that against
 `docs/_data/api-vocabulary.yml`.

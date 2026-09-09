@@ -23,7 +23,7 @@ def brain():
 
 @pytest.mark.parametrize("copier", [copy, deepcopy, lambda b: b.copy()])
 def test_complete_graph_copy(brain, copier):
-    brain.fit(model="ridge", X=brain.X.to_numpy(), alpha=2)
+    brain.fit(model="ridge", X=brain.X.to_numpy(), ridge_alpha=2)
     brain.alias = brain.data
     brain.cycle = brain
     other = copier(brain)
@@ -48,7 +48,7 @@ def test_fit_maps_predictions_and_numerics(brain, model):
         model=model,
         X=design,
         inplace=False,
-        **({"glm_noise_model": "ols"} if model == "glm" else {"alpha": 2}),
+        **({"glm_noise_model": "ols"} if model == "glm" else {"ridge_alpha": 2}),
     )
     expected = (
         np.linalg.lstsq(x, y, rcond=None)[0]

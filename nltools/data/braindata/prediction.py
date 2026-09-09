@@ -181,10 +181,13 @@ def predict_timeseries(bd, *, X=None):
     ``BrainData``, so it composes directly with downstream methods (`.plot()`,
     `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
 
-    With no ``X``, a fitted GLM returns an independent copy of the stored
-    training predictions and keeps their row metadata. With an explicit ``X``,
-    named-column validation and alignment belong to `Glm.predict`, and the
-    result clears the source row metadata.
+    With no ``X``, the fitted model returns an independent copy of the stored
+    training predictions and keeps their row metadata: ``glm_predicted`` for a
+    GLM, ``ridge_fitted_values`` for a Ridge. Neither retains the training
+    features, so a no-argument call never refits or re-multiplies. With an
+    explicit ``X``, structural validation and alignment belong to the
+    estimator's own ``predict`` — named design columns for `Glm`, named feature
+    spaces for a banded `Ridge` — and the result clears the source row metadata.
     """
     from nltools.models import Glm
 
@@ -198,32 +201,11 @@ def predict_timeseries(bd, *, X=None):
     if not bd.model_.is_fitted_:
         raise ValueError("Model is not fitted")
 
-    if isinstance(bd.model_, Glm):
-        if X is None:
-            return _result_from_array(
-                bd, np.array(bd.glm_predicted.data, copy=True), rows="preserve"
-            )
+    if X is not None:
         return _result_from_array(bd, bd.model_.predict(X), rows="clear")
 
-    using_training_data = X is None
-    if using_training_data:
-        if not hasattr(bd, "X_"):
-            raise ValueError("No training data stored on BrainData")
-        X = bd.X_
-
-    X = np.asarray(X)
-    if X.ndim != 2:
-        raise ValueError(f"X must be 2D, got {X.ndim}D")
-
-    if X.shape[1] != bd.model_.n_features_in_:
-        raise ValueError(
-            f"X has {X.shape[1]} features, but model was fitted with "
-            f"{bd.model_.n_features_in_} features"
-        )
-
-    return _result_from_array(
-        bd, bd.model_.predict(X), rows="preserve" if using_training_data else "clear"
-    )
+    stored = bd.glm_predicted if isinstance(bd.model_, Glm) else bd.ridge_fitted_values
+    return _result_from_array(bd, np.array(stored.data, copy=True), rows="preserve")
 
 
 # ---------------------------------------------------------------------------

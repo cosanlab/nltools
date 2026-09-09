@@ -24,6 +24,33 @@ _already_warned_mps_init = [False]
 _already_warned_float64 = [False]
 
 
+def _array_module_for(name):
+    """Return the array module a pickled backend name needs, if it is usable here.
+
+    Args:
+        name (str | None): A backend name — `'numpy'`, `'torch-cpu'`,
+            `'torch-cuda'`, or `'torch-mps'`.
+
+    Returns:
+        module | None: `numpy` or `torch`, or None when the named device is not
+            available in this process.
+    """
+    if name == "numpy":
+        return np
+    try:
+        import torch
+    except ImportError:
+        return None
+    if name == "torch-cuda":
+        return torch if torch.cuda.is_available() else None
+    if name == "torch-mps":
+        available = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        return torch if available else None
+    if name == "torch-cpu":
+        return torch
+    return None
+
+
 class Backend:
     """Backend abstraction for numerical operations.
 
@@ -63,6 +90,56 @@ class Backend:
         for name, value in self.__dict__.items():
             setattr(copied, name, value if name == "xp" else deepcopy(value, memo))
         return copied
+
+    def __getstate__(self):
+        """Drop the array module, which is a live module object and unpicklable.
+
+        `backend_` is public fitted state on `Ridge`, so a fitted model has to
+        survive `pickle` — `BrainData.copy()` and any process-based `n_jobs`
+        worker carry one across. Everything else on a backend is a plain string
+        or a `torch.device`, both of which pickle fine; `xp` is recovered by
+        name in `__setstate__`.
+        """
+        state = dict(self.__dict__)
+        state.pop("xp", None)
+        return state
+
+    def __setstate__(self, state):
+        """Restore the descriptor as pickled, and the array module if usable.
+
+        `name` and `device` record the device the model was *fitted* on and are
+        restored verbatim: unpickling never re-resolves them, because silently
+        turning a CUDA-fitted model into an MPS one would break the
+        run-or-raise rule. When that device is not available in this process
+        `xp` stays unset, so any attempt to compute through this backend raises
+        from `__getattr__` instead of running somewhere else.
+        """
+        self.__dict__.update(state)
+        module = _array_module_for(state.get("name"))
+        if module is not None:
+            self.xp = module
+
+    def __getattr__(self, name):
+        """Explain a missing array module rather than raising a bare AttributeError.
+
+        Only reached when normal lookup fails, which for `xp` means this backend
+        was unpickled on a host without the device it was fitted on.
+
+        Args:
+            name (str): The attribute being looked up.
+
+        Raises:
+            RuntimeError: If `xp` is missing because the device is unavailable.
+            AttributeError: For any other missing attribute.
+        """
+        if name == "xp" and "name" in self.__dict__:
+            raise RuntimeError(
+                f"This backend was fitted on device "
+                f"{self.__dict__.get('device')!r} ({self.__dict__['name']}), "
+                "which is not available in this process. Refit on an available "
+                "device, or construct a new backend with device='cpu'."
+            )
+        raise AttributeError(name)
 
     def _init_numpy(self):
         """Initialize NumPy backend."""
@@ -914,6 +991,11 @@ def gb_to_bytes(gb: float) -> int:
     return int(gb * 1e9)
 
 
+#: Allowance for the transient buffers Himalaya's fixed-hyperparameter solve
+#: holds beyond the resampled design and response themselves.
+_RIDGE_BOOTSTRAP_SOLVER_OVERHEAD = 3.0
+
+
 def auto_batch_size(
     n_items: int,
     bytes_per_item: float,
@@ -958,6 +1040,58 @@ def auto_batch_size(
         batch_size = min(capacity, n_items)
     n_batches = int(np.ceil(n_items / batch_size))
     return batch_size, n_batches
+
+
+def ridge_bootstrap_batch_size(
+    n_bootstrap: int,
+    *,
+    n_samples: int,
+    n_features: int,
+    n_targets: int,
+    output_shape: tuple[int, ...],
+    device_itemsize: int = 4,
+    max_gpu_memory_gb: float | None = None,
+    backend=None,
+) -> tuple[int, int]:
+    """Size a Ridge-bootstrap batch against a memory budget.
+
+    Models what a batch of replicates actually holds. Each replicate solves on
+    its own, so device residency is one replicate's resampled design
+    `(n_samples, n_features)` and response `(n_samples, n_targets)` with an
+    allowance for the solver's own buffers. What accumulates across a batch is
+    the host-side result list: `batch_size` float64 arrays of `output_shape`,
+    which for a prediction bootstrap is sized by an arbitrary `X_test` row count
+    and can dominate everything else. Both terms are charged per replicate so
+    the batch cannot outgrow the budget it was given.
+
+    Args:
+        n_bootstrap (int): Total number of bootstrap replicates.
+        n_samples (int): Observations in the training data.
+        n_features (int): Total feature count across all feature spaces.
+        n_targets (int): Number of targets (voxels).
+        output_shape (tuple[int, ...]): Shape of one retained replicate result.
+        device_itemsize (int): Bytes per element of the solver's working dtype
+            (4 on MPS, 8 elsewhere). Defaults to 4.
+        max_gpu_memory_gb (float | None): Explicit budget in GB, or None to
+            measure the device.
+        backend (Backend | None): Resolved backend, used only to measure the
+            budget when `max_gpu_memory_gb` is None.
+
+    Returns:
+        tuple[int, int]: `(batch_size, n_batches)`.
+    """
+    budget_gb = device_memory_budget(
+        backend, max_gpu_memory_gb=max_gpu_memory_gb, cap_for_batching=True
+    )
+    resident = (
+        (n_samples * n_features + n_samples * n_targets)
+        * device_itemsize
+        * _RIDGE_BOOTSTRAP_SOLVER_OVERHEAD
+    )
+    retained = int(np.prod(output_shape)) * 8  # host float64 accumulation
+    return auto_batch_size(
+        n_bootstrap, resident + retained, budget_gb=budget_gb, overhead=1.0
+    )
 
 
 def is_oom_error(exc: BaseException) -> bool:

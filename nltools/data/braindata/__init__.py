@@ -1,7 +1,7 @@
 """Represent brain image data with the BrainData class."""
 
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -565,12 +565,13 @@ class BrainData:
         self,
         stat,
         *,
+        X=None,
+        X_test=None,
         n_samples=5000,
         save_boots=False,
         percentiles=(2.5, 97.5),
-        X_test=None,
         device="cpu",
-        max_gpu_memory_gb=None,
+        memory_budget_gb=None,
         tail=2,
         n_jobs=-1,
         random_state=None,
@@ -578,25 +579,40 @@ class BrainData:
     ):
         """Bootstrap statistics using efficient online algorithms.
 
-        Uses memory-efficient bootstrap infrastructure with CPU parallelization or GPU acceleration.
-        Supports simple aggregation statistics and fitted model statistics (Ridge).
+        Resamples rows with replacement and summarizes the resulting
+        distribution with a memory-efficient online aggregator, on CPU workers
+        or with GPU acceleration. Supports simple aggregation statistics and
+        fitted `Ridge` statistics.
+
+        A Ridge bootstrap resamples the training features you pass as ``X``
+        together with ``self.data``, using the same row indices for every
+        feature space, and refits with the fitted model's selected ``alpha_``
+        — and, for a banded model, its ``feature_space_weights_`` — held fixed.
+        It never reruns cross-validation or the banded random search. Fitting
+        keeps no hidden copy of the training features, so ``X`` is required
+        even when the same features were passed to `fit`.
 
         Args:
             stat (str): Statistic to bootstrap. Simple stats: ``'mean'``,
                 ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
-                stats: ``'weights'`` (requires a fitted Ridge model) or
-                ``'predict'`` (requires a fitted Ridge model plus ``X_test``).
+                stats (require a fitted `Ridge`): ``'weights'`` or
+                ``'predict'``.
+            X (np.ndarray | Mapping[str, np.ndarray] | None): Training features
+                in their original row order — a matrix for ordinary Ridge, a
+                mapping with exactly the fitted feature-space names for banded
+                Ridge. Required by both model stats; rejected by simple stats.
+            X_test (np.ndarray | Mapping[str, np.ndarray] | None): Evaluation
+                features for ``stat='predict'``, in the same structure as
+                ``X``. Any row count is allowed.
             n_samples (int): Number of bootstrap iterations. Default 5000.
             save_boots (bool): If True, store all bootstrap samples. Default False.
             percentiles (tuple[float, float]): Percentiles for confidence
                 intervals. Default ``(2.5, 97.5)``.
-            X_test (np.ndarray | None): Test features for the ``'predict'`` bootstrap.
-            device (str): Compute device for the Ridge bootstrap: ``'cpu'``
-                (default), ``'gpu'`` (PyTorch on CUDA/MPS if available), or
-                ``'auto'`` (GPU if present, else CPU). Ignored for simple stats.
-            max_gpu_memory_gb (float | None): Explicit GPU memory budget in GB
-                when device is ``'gpu'`` or ``'auto'``. ``None`` (default) measures
-                the device.
+            device (str): Compute device for the Ridge refits: ``'cpu'``
+                (default) or ``'gpu'`` (PyTorch on CUDA/MPS, or an error when
+                neither is available).
+            memory_budget_gb (float | None): Working-memory budget in GB used
+                to size GPU batches. ``None`` (default) measures the device.
             tail (int | str): ``2``/``'two'`` for two-tailed p-values (default),
                 ``1``/``'one'`` for one-tailed.
             n_jobs (int): Number of CPU cores for parallelization. -1 (default)
@@ -614,8 +630,9 @@ class BrainData:
         Examples:
             ```python
             boot = brain.bootstrap(stat='mean', n_samples=1000)
-            brain.fit(X=dm, model='ridge', alpha=1.0)
-            boot = brain.bootstrap(stat='weights', n_samples=1000)
+
+            brain.fit(model='ridge', X=features, ridge_alpha=1.0)
+            boot = brain.bootstrap(stat='weights', X=features, n_samples=1000)
             ```
         """
         from .bootstrap import bootstrap
@@ -623,12 +640,13 @@ class BrainData:
         return bootstrap(
             self,
             stat,
+            X=X,
+            X_test=X_test,
             n_samples=n_samples,
             save_boots=save_boots,
             percentiles=percentiles,
-            X_test=X_test,
             device=device,
-            max_gpu_memory_gb=max_gpu_memory_gb,
+            memory_budget_gb=memory_budget_gb,
             tail=tail,
             n_jobs=n_jobs,
             random_state=random_state,
@@ -904,16 +922,20 @@ class BrainData:
         model="glm",
         *,
         X=None,
-        cv=None,
-        device="cpu",
-        per_target_alpha=True,
+        ridge_alpha=1.0,
+        ridge_cv=None,
+        ridge_search_iterations=100,
+        ridge_dirichlet_concentration=(0.1, 1.0),
+        ridge_device="cpu",
+        ridge_memory_budget_gb=None,
+        ridge_per_target_alpha=True,
+        ridge_prefer_conservative_alpha=False,
+        ridge_progress_bar=False,
         glm_noise_model="ols",
         glm_bins=100,
         glm_n_jobs=1,
         inplace=True,
         random_state=None,
-        progress_bar=False,
-        **kwargs,
     ):
         """Fit a model to brain imaging data.
 
@@ -921,12 +943,11 @@ class BrainData:
         results are stored for later use with `predict` and, for a GLM,
         `compute_contrasts`.
 
-        GLM options carry a ``glm_`` prefix. The ridge options (``cv``,
-        ``device``, ``per_target_alpha``, ``progress_bar``, and additional
-        `Ridge` constructor arguments such as ``alpha``) keep their bare names
-        for now, and ``random_state`` keeps its bare name because both
-        estimators use it. Supplying a non-default option belonging to the
-        estimator ``model`` did not select raises `ValueError`.
+        Every model-specific option carries a ``glm_`` or ``ridge_`` prefix
+        naming the estimator it configures; ``random_state`` keeps its bare
+        name because both estimators accept it. Supplying a non-default option
+        belonging to the estimator ``model`` did not select raises
+        `ValueError`.
 
         `fit` does not preprocess the response. Compose `scale` and
         `standardize` before calling it when you want them, so the fitted
@@ -938,12 +959,29 @@ class BrainData:
                 `DesignMatrix` for a GLM; a feature matrix for ridge, or a
                 mapping of feature-space names to matrices for banded ridge.
                 Required.
-            cv (int | sklearn splitter | None): Ridge only. Cross-validation
-                specification; ``int`` → unshuffled ``KFold(cv)``. Generators
-                are rejected. Default None.
-            device (str): Ridge only. ``'cpu'`` (default) or ``'gpu'``.
-            per_target_alpha (bool): Ridge only. Select α per voxel (default
-                True) or one shared α.
+            ridge_alpha (float | Sequence[float]): Ridge only. A positive
+                scalar fits a fixed α and requires ``ridge_cv=None``; a
+                sequence selects α by cross-validation and requires
+                ``ridge_cv``. Default 1.0.
+            ridge_cv (int | sklearn splitter | None): Ridge only.
+                Cross-validation specification; ``int`` → unshuffled
+                ``KFold(cv)``. Generators are rejected. Default None.
+            ridge_search_iterations (int): Ridge only, banded. Sampled
+                feature-space weight vectors. Default 100.
+            ridge_dirichlet_concentration (float | Sequence[float]): Ridge
+                only, banded. Dirichlet concentration for those candidate
+                weights. Default ``(0.1, 1.0)``.
+            ridge_device (str): Ridge only. ``'cpu'`` (default) or ``'gpu'``.
+            ridge_memory_budget_gb (float | None): Ridge only. Working-memory
+                budget in GB for the solver's internal batching. Default None
+                (measure the device).
+            ridge_per_target_alpha (bool): Ridge only. Select α per voxel
+                (default True) or one shared α.
+            ridge_prefer_conservative_alpha (bool): Ridge only. Select the
+                largest α within one standard deviation of the best score.
+                Default False.
+            ridge_progress_bar (bool): Ridge only. Show a progress bar over the
+                banded search. Default False.
             glm_noise_model (str): GLM only. ``'ols'`` (default) or ``'arN'``
                 for Nilearn's autoregressive model of order N.
             glm_bins (int): GLM only. Nilearn's discretization of the estimated
@@ -954,9 +992,6 @@ class BrainData:
                 False, fit and return an independent `BrainData` copy while
                 leaving every part of self untouched.
             random_state (int | None): Seed shared by both estimators.
-            progress_bar (bool): Ridge only. Default False.
-            **kwargs (dict): Ridge only. Additional `Ridge` constructor
-                arguments such as ``alpha``.
 
         Returns:
             BrainData: Self when ``inplace=True``; otherwise an independently
@@ -979,7 +1014,9 @@ class BrainData:
             brain_data.fit(model='glm', X=design)
             effect = brain_data.compute_contrasts('conditionA - conditionB')
 
-            fitted = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
+            fitted = brain_data.fit(
+                model='ridge', ridge_alpha=1.0, X=features, inplace=False
+            )
             ```
         """
         from .modeling import fit
@@ -988,16 +1025,20 @@ class BrainData:
             self,
             model=model,
             X=X,
-            cv=cv,
-            device=device,
-            per_target_alpha=per_target_alpha,
+            ridge_alpha=ridge_alpha,
+            ridge_cv=ridge_cv,
+            ridge_search_iterations=ridge_search_iterations,
+            ridge_dirichlet_concentration=ridge_dirichlet_concentration,
+            ridge_device=ridge_device,
+            ridge_memory_budget_gb=ridge_memory_budget_gb,
+            ridge_per_target_alpha=ridge_per_target_alpha,
+            ridge_prefer_conservative_alpha=ridge_prefer_conservative_alpha,
+            ridge_progress_bar=ridge_progress_bar,
             glm_noise_model=glm_noise_model,
             glm_bins=glm_bins,
             glm_n_jobs=glm_n_jobs,
             inplace=inplace,
             random_state=random_state,
-            progress_bar=progress_bar,
-            **kwargs,
         )
 
     def mean(self, axis=0, *, spatial_scale: str = "whole_brain", roi_mask=None):
@@ -1416,7 +1457,7 @@ class BrainData:
         self,
         *,
         y: "np.ndarray | str | None" = None,
-        X: "np.ndarray | None" = None,
+        X: "np.ndarray | Mapping[str, np.ndarray] | None" = None,
         spatial_scale: str = "whole_brain",
         model="svm",
         cv: int | str = 5,
@@ -1453,10 +1494,13 @@ class BrainData:
         (``y='name'`` picks a column of a multi-column ``.Y``; ``groups``
         accepts a ``.Y`` column name the same way). A fitted model wins over an
         attached ``.Y`` on the no-argument call — pass ``y=`` explicitly to
-        decode instead. For a fitted GLM the no-argument call returns an
-        independent copy of ``glm_predicted``, and ``X=`` takes a
-        `DesignMatrix` whose column names `Glm.predict` aligns to the fitted
-        order.
+        decode instead. The no-argument call returns an independent copy of the
+        stored training predictions — ``glm_predicted`` for a GLM,
+        ``ridge_fitted_values`` for a Ridge — with their row metadata. With an
+        explicit ``X=``, the estimator validates and aligns it: a
+        `DesignMatrix` whose column names `Glm.predict` matches to the fitted
+        order, or, for a banded `Ridge`, a mapping with exactly the fitted
+        feature-space names in any order.
 
         Field shapes by ``spatial_scale=``:
 
@@ -1502,8 +1546,10 @@ class BrainData:
                 continuous targets (regression), shape ``(n_samples,)``, or
                 the name of a ``.Y`` column. Triggers MVPA mode; omitted, it
                 falls back to a single-column ``.Y``.
-            X (array-like, optional): Features for timeseries prediction,
-                shape ``(n_samples, n_features)``. Triggers encoding mode.
+            X (array-like | Mapping, optional): Features for timeseries
+                prediction, shape ``(n_samples, n_features)``, or a mapping of
+                feature-space names to matrices for a banded `Ridge`. Triggers
+                encoding mode.
             spatial_scale (str): MVPA dispatch — ``'whole_brain'``,
                 ``'searchlight'``, or ``'roi'``.
             model (str | sklearn estimator): Algorithm — a string shortcut

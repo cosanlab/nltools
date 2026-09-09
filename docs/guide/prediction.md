@@ -26,7 +26,7 @@ Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#ta
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
 Voxel-by-voxel | `spatial_scale='searchlight', radius_mm=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
 Classifier performance | [`Roc`](../api/tasks/prediction.md#tasks-prediction-roc) | `calculate()` then `summary()` or `plot()`
-Encoding (features → voxels) | [`Ridge`](../api/models.md#models-ridge) | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
+Encoding (features → voxels) | [`Ridge`](../api/models.md#models-ridge), or `fit(model='ridge', ridge_*=...)` | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
 
 ## Decoding
 
@@ -72,6 +72,24 @@ named feature spaces and `Ridge` becomes banded ridge, sampling each space's wei
 Dirichlet controlled by `dirichlet_concentration=` and exposing the result as
 `feature_space_weights_`. Both forms accept `device='gpu'`; see
 [Performance & GPU](../performance.md).
+
+The same fit through the facade carries a `ridge_` prefix on every estimator option, and attaches
+`ridge_weights`, `ridge_fitted_values`, and `ridge_r2`:
+
+```python
+brain.fit(model="ridge", X=X, ridge_alpha=np.logspace(0, 6, 20), ridge_cv=5)
+brain.ridge_r2                     # full-data R² per voxel
+brain.predict()                    # an owned copy of ridge_fitted_values
+brain.model_.alpha_                # the selection lives on the estimator
+```
+
+Fitting keeps no copy of `X`, so a coefficient or prediction bootstrap takes the training features
+explicitly and holds the selected hyperparameters fixed across replicates:
+
+```python
+boot = brain.bootstrap(stat="weights", X=X, n_samples=1000)
+boot["mean"], boot["ci_lower"], boot["ci_upper"]
+```
 
 ## Gotchas
 

@@ -7,7 +7,7 @@ two-sample t-tests, and the design-matrix diagnostics `fit` runs before a GLM.
 
 import dataclasses
 import warnings
-from copy import deepcopy
+from collections.abc import Mapping
 
 import numpy as np
 
@@ -20,10 +20,15 @@ from .utils import _clear_fit_state, _copy_for_fit, _result_from_array
 #: option supplied for the estimator `model=` did not select is rejected
 #: rather than silently ignored.
 _ESTIMATOR_OPTION_OWNERS = {
-    "cv": "ridge",
-    "device": "ridge",
-    "per_target_alpha": "ridge",
-    "progress_bar": "ridge",
+    "ridge_alpha": "ridge",
+    "ridge_cv": "ridge",
+    "ridge_search_iterations": "ridge",
+    "ridge_dirichlet_concentration": "ridge",
+    "ridge_device": "ridge",
+    "ridge_memory_budget_gb": "ridge",
+    "ridge_per_target_alpha": "ridge",
+    "ridge_prefer_conservative_alpha": "ridge",
+    "ridge_progress_bar": "ridge",
     "glm_noise_model": "glm",
     "glm_bins": "glm",
     "glm_n_jobs": "glm",
@@ -285,21 +290,25 @@ def _warn_if_near_collinear(X_array, X_model):
     )
 
 
-def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pending the ridge_* signature (Kata e5y6)
+def fit(
     bd,
     model="glm",
     *,
     X=None,
-    cv=None,
-    device="cpu",
-    per_target_alpha=True,
+    ridge_alpha=1.0,
+    ridge_cv=None,
+    ridge_search_iterations=100,
+    ridge_dirichlet_concentration=(0.1, 1.0),
+    ridge_device="cpu",
+    ridge_memory_budget_gb=None,
+    ridge_per_target_alpha=True,
+    ridge_prefer_conservative_alpha=False,
+    ridge_progress_bar=False,
     glm_noise_model="ols",
     glm_bins=100,
     glm_n_jobs=1,
     inplace=True,
     random_state=None,
-    progress_bar=False,
-    **kwargs,
 ):
     """Fit a model to brain imaging data.
 
@@ -320,17 +329,16 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
     data, predictions, residuals, and coefficients stay in the response space
     you supplied.
 
-    GLM options carry a `glm_` prefix. The ridge options (`cv`, `device`,
-    `per_target_alpha`, `progress_bar`, and additional `Ridge` constructor
-    arguments) keep their bare names for now, and `random_state` keeps its
-    bare name because both estimators use it. A non-default option belonging
-    to the estimator `model` did not select raises `ValueError`.
+    Every model-specific option carries a `glm_` or `ridge_` prefix that names
+    the estimator it configures; `random_state` keeps its bare name because
+    both estimators accept it. A non-default option belonging to the estimator
+    `model` did not select raises `ValueError`.
 
     **Results stored on the returned `BrainData`:**
 
     - `model_` — the fitted `Ridge` or `Glm`.
     - GLM: `glm_betas`, `glm_residual`, `glm_predicted`, `glm_r2`.
-    - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_scores`.
+    - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_r2`.
 
     Args:
         bd (BrainData): Data whose `.data` is the regression target.
@@ -339,15 +347,29 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
             precomputed `DesignMatrix` with `n_samples` matching `bd` — or a
             feature matrix for ridge. For banded ridge, a mapping of
             feature-space names to matrices.
-        cv (int | CV splitter | None): Ridge only. Cross-validation
-            specification. An int is the number of unshuffled k-fold splits; an
-            sklearn splitter is used as given; None (default) fits a fixed
-            alpha.
-        device (str): Ridge only. Compute device for the ridge solve: `'cpu'`
-            (default, NumPy) or `'gpu'` (PyTorch on CUDA/MPS, or an error when
-            neither is available).
-        per_target_alpha (bool): Ridge only. If True (default), select a
+        ridge_alpha (float | Sequence[float]): Ridge only. A positive scalar
+            fits a fixed alpha and requires `ridge_cv=None`; a sequence selects
+            an alpha by cross-validation and requires `ridge_cv`. Default 1.0.
+        ridge_cv (int | CV splitter | None): Ridge only. An int is the number
+            of unshuffled k-fold splits; an sklearn splitter is used as given.
+            Default None.
+        ridge_search_iterations (int): Ridge only, banded. Number of sampled
+            feature-space weight vectors. Default 100.
+        ridge_dirichlet_concentration (float | Sequence[float]): Ridge only,
+            banded. Concentration of the Dirichlet distribution the candidate
+            weights are drawn from. Default `(0.1, 1.0)`.
+        ridge_device (str): Ridge only. `'cpu'` (default) or `'gpu'` (PyTorch
+            on CUDA/MPS, or an error when neither is available).
+        ridge_memory_budget_gb (float | None): Ridge only. Working-memory
+            budget in GB for the solver's internal batching. None (default)
+            measures the selected device.
+        ridge_per_target_alpha (bool): Ridge only. If True (default), select a
             separate best alpha per voxel; if False, one shared alpha.
+        ridge_prefer_conservative_alpha (bool): Ridge only. If True, select the
+            largest alpha within one standard deviation of the best score.
+            Default False.
+        ridge_progress_bar (bool): Ridge only. Display a progress bar over the
+            banded search. Default False.
         glm_noise_model (str): GLM only. `'ols'` (default) or `'arN'` for
             Nilearn's autoregressive model of order N (`'ar1'`, `'ar2'`, ...).
         glm_bins (int): GLM only. Nilearn's discretization of the estimated AR
@@ -359,26 +381,21 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
             fit and return an independent `BrainData` copy while leaving every
             part of `bd` untouched.
         random_state (int | None): Seed shared by both estimators. Default None.
-        progress_bar (bool): Ridge only. Display a progress bar during fitting.
-            Default False.
-        **kwargs (dict): Ridge only. Additional `Ridge` constructor arguments
-            (`alpha`, `search_iterations`, ...).
 
     Returns:
         BrainData: `bd` itself when `inplace=True`; otherwise an independently
             owned fitted copy.
 
     Raises:
-        TypeError: If `model` is unknown, `X` is missing, `model='glm'` gets a
-            design that is not a `DesignMatrix`, or `model='glm'` gets an
-            unknown keyword.
+        TypeError: If `model` is unknown, `X` is missing, or `model='glm'` gets
+            a design that is not a `DesignMatrix`.
         ValueError: If `X` and `bd` disagree on sample count, or a non-default
             option belongs to the unselected estimator.
 
     Examples:
         ```python
         # inplace=True (default): results are stored on brain_data
-        brain_data.fit(model='ridge', alpha=1.0, X=features)
+        brain_data.fit(model='ridge', ridge_alpha=1.0, X=features)
         weights = brain_data.ridge_weights
 
         # inplace=False: fit a copy; brain_data remains completely unchanged
@@ -399,25 +416,32 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
         [
             name
             for name, value, default in (
-                ("cv", cv, None),
-                ("device", device, "cpu"),
-                ("per_target_alpha", per_target_alpha, True),
-                ("progress_bar", progress_bar, False),
+                ("ridge_alpha", ridge_alpha, 1.0),
+                ("ridge_cv", ridge_cv, None),
+                ("ridge_search_iterations", ridge_search_iterations, 100),
+                (
+                    "ridge_dirichlet_concentration",
+                    ridge_dirichlet_concentration,
+                    (0.1, 1.0),
+                ),
+                ("ridge_device", ridge_device, "cpu"),
+                ("ridge_memory_budget_gb", ridge_memory_budget_gb, None),
+                ("ridge_per_target_alpha", ridge_per_target_alpha, True),
+                (
+                    "ridge_prefer_conservative_alpha",
+                    ridge_prefer_conservative_alpha,
+                    False,
+                ),
+                ("ridge_progress_bar", ridge_progress_bar, False),
                 ("glm_noise_model", glm_noise_model, "ols"),
                 ("glm_bins", glm_bins, 100),
                 ("glm_n_jobs", glm_n_jobs, 1),
             )
-            if value != default
+            if not _is_default(value, default)
         ],
     )
 
     if model == "glm":
-        if kwargs:
-            raise TypeError(
-                f"fit(model='glm') got unexpected keyword argument(s) "
-                f"{sorted(kwargs)}. The GLM takes X, glm_noise_model, glm_bins, "
-                f"glm_n_jobs, inplace, and random_state."
-            )
         if not isinstance(X, DesignMatrix):
             raise TypeError(
                 f"fit(model='glm') requires a precomputed DesignMatrix for X, "
@@ -433,21 +457,20 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
             )
         if not _warn_if_rank_deficient(X_array, X_model):
             _warn_if_near_collinear(X_array, X_model)
-    elif isinstance(X, list):
-        # Banded ridge: keep as list, validate each element
-        X_model = X
-        for i, Xi in enumerate(X):
-            Xi_array = np.asarray(Xi)
-            if Xi_array.shape[0] != bd.shape[0]:
+    elif isinstance(X, Mapping):
+        # Banded ridge: one named feature space per entry.
+        X_model = {name: np.asarray(space) for name, space in X.items()}
+        for name, space in X_model.items():
+            if space.ndim != 2 or space.shape[0] != bd.shape[0]:
                 raise ValueError(
-                    f"X[{i}] has {Xi_array.shape[0]} samples, but brain data "
-                    f"has {bd.shape[0]} samples. number of samples must match."
+                    f"feature space {name!r} has shape {space.shape}, but brain "
+                    f"data has {bd.shape[0]} samples. number of samples must match."
                 )
     else:
         X_model = np.asarray(X)
-        if X_model.shape[0] != bd.shape[0]:
+        if X_model.ndim != 2 or X_model.shape[0] != bd.shape[0]:
             raise ValueError(
-                f"X has {X_model.shape[0]} samples, but brain data has "
+                f"X has shape {X_model.shape}, but brain data has "
                 f"{bd.shape[0]} samples. number of samples must match."
             )
 
@@ -468,92 +491,74 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # ridge-only passthrough pend
         )
         return target
 
-    # Device selection is a first-class facade kwarg (`device=`), not a
-    # passthrough. Reject the retired algorithm-layer aliases loudly rather
-    # than letting them silently reach Ridge (which no longer accepts them).
-    for banned in ("backend", "parallel"):
-        if banned in kwargs:
-            raise TypeError(
-                f"`{banned}=` is not a valid ridge kwarg; use "
-                f"`device='cpu'|'gpu'|'auto'` to select the compute device."
-            )
-    if isinstance(X_model, list):
-        target.X_ = [np.array(part, copy=True) for part in X_model]
-    elif hasattr(X_model, "copy"):
-        target.X_ = X_model.copy()
-    else:
-        target.X_ = deepcopy(X_model)
-
-    ridge_kwargs = kwargs.copy()
-    # Explicit-signature kwargs win over **kwargs forwarding so calls
-    # like bd.fit(model='ridge', per_target_alpha=False, ...) reach Ridge.
-    ridge_kwargs.setdefault("progress_bar", progress_bar)
-    ridge_kwargs.setdefault("device", device)
-    ridge_kwargs.setdefault("per_target_alpha", per_target_alpha)
-    ridge_kwargs.setdefault("random_state", random_state)
-    if cv is not None:
-        ridge_kwargs["cv"] = _normalize_cv(cv)
-    target.model_ = Ridge(**ridge_kwargs)
-    fit_ridge(target, target.X_)
+    # Prefix translation is the whole job here: every `ridge_*` facade keyword
+    # maps onto the identically-named `Ridge` constructor argument.
+    estimator = Ridge(
+        alpha=ridge_alpha,
+        cv=ridge_cv,
+        search_iterations=ridge_search_iterations,
+        dirichlet_concentration=ridge_dirichlet_concentration,
+        device=ridge_device,
+        memory_budget_gb=ridge_memory_budget_gb,
+        per_target_alpha=ridge_per_target_alpha,
+        prefer_conservative_alpha=ridge_prefer_conservative_alpha,
+        random_state=random_state,
+        progress_bar=ridge_progress_bar,
+    )
+    fit_ridge(target, X_model, estimator)
     return target
 
 
-def fit_ridge(bd, X):
-    """Fit `bd.model_` and attach the ridge results to `bd`.
+def _is_default(value, default):
+    """Report whether a `fit` option still holds its signature default.
 
-    Alpha selection and the banded search belong to `Ridge`; this layer only
-    stores the results the facade owns.
+    The check rejects non-default *values*, not the act of passing a keyword:
+    an option explicitly given its own default is indistinguishable from an
+    untouched one and is treated as untouched. Array-like options
+    (`ridge_alpha`, `ridge_dirichlet_concentration`) make a bare `!=` return an
+    array, so equality is compared elementwise, and a sequence given as a list
+    matches a tuple default.
 
     Args:
-        bd (BrainData): Data with `bd.model_` already set to a `Ridge` instance.
+        value: The supplied option value.
+        default: The signature default.
+
+    Returns:
+        bool: True when the option still holds its default value.
+    """
+    if value is default:
+        return True
+    if isinstance(value, bool) != isinstance(default, bool):
+        # `0` is not `False`: a flag given an integer was supplied deliberately.
+        return False
+    if np.ndim(value) != np.ndim(default):
+        return False
+    return bool(np.array_equal(value, default))
+
+
+def fit_ridge(bd, X, model):
+    """Fit `model` on `X` and attach it and the ridge results the facade owns.
+
+    Alpha selection and the banded search belong to `Ridge`; this layer only
+    stores the results the facade owns. `model_` is attached only once the fit
+    succeeds, so a failed fit never leaves an unfitted estimator on `bd`.
+
+    Args:
+        bd (BrainData): Data whose `.data` is the response.
         X (np.ndarray | Mapping[str, np.ndarray]): Training features.
+        model (Ridge): An unfitted estimator.
 
     Note:
-        Sets `ridge_weights`, `ridge_fitted_values`, and `ridge_scores` on `bd`.
+        Sets `model_`, `ridge_weights`, `ridge_fitted_values`, and `ridge_r2`
+        on `bd`.
     """
-    bd.model_.fit(X, bd.data)
+    model.fit(X, bd.data)
+    bd.model_ = model
     _populate_ridge_attributes(bd, X)
 
 
-def _normalize_cv(cv):
-    """Validate and normalize a cross-validation specification.
-
-    Reject single-use generators and bad cv values; pass through ints and
-    splitter objects. `Ridge` traverses the splits more than once, so the
-    specification has to be re-iterable.
-
-    Args:
-        cv (int | BaseCrossValidator): Fold count or scikit-learn splitter.
-
-    Returns:
-        int | BaseCrossValidator: The validated specification.
-
-    Raises:
-        TypeError: If `cv` is a single-use split generator.
-        ValueError: If `cv` is neither an int fold count nor a splitter.
-    """
-    is_splitter = hasattr(cv, "split") and hasattr(cv, "get_n_splits")
-    if hasattr(cv, "__next__") and not is_splitter:
-        raise TypeError(
-            "Got a generator for `cv` (e.g. `splitter.split(X, ...)`). "
-            "Pass an sklearn CV splitter object instead — "
-            "KFold(5, shuffle=True), GroupKFold(8), etc. — so the "
-            "BrainData layer can iterate it more than once."
-        )
-    if not isinstance(cv, int) and not is_splitter:
-        raise ValueError(f"cv must be an int or sklearn CV splitter object; got {cv!r}")
-    if isinstance(cv, int) and cv < 2:
-        # Defer KFold's own message verbatim ("k-fold cross-validation
-        # requires at least one train/test split") — we just trip it
-        # eagerly so the caller doesn't get an opaque error mid-CV.
-        from sklearn.model_selection import KFold
-
-        KFold(n_splits=cv)  # raises ValueError
-    return cv
-
-
 def _populate_ridge_attributes(bd, X):
-    """Set ridge_weights / ridge_fitted_values / ridge_scores from bd.model_."""
+    """Set ridge_weights / ridge_fitted_values / ridge_r2 from bd.model_."""
     # Ridge.coef_ is (n_features, n_voxels); no transpose.
     bd.ridge_weights = _result_from_array(
         bd, np.array(bd.model_.coef_, copy=True), rows="clear"
@@ -564,9 +569,9 @@ def _populate_ridge_attributes(bd, X):
         bd, np.array(fitted, copy=True), rows="preserve"
     )
 
-    scores = bd.model_.score(X, bd.data)  # (n_voxels,)
-    bd.ridge_scores = _result_from_array(
-        bd, np.array(scores, copy=True).reshape(1, -1), rows="clear"
+    r2 = bd.model_.score(X, bd.data)  # (n_voxels,)
+    bd.ridge_r2 = _result_from_array(
+        bd, np.array(r2, copy=True).reshape(1, -1), rows="clear"
     )
 
 

@@ -106,7 +106,7 @@ print(f"X_fir: {X_fir.shape}  (3 lags × 100 patches = 300 features)")
 
 ### Fit ridge: in-sample vs. held-out
 
-Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
+Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. A fixed-α fit with no CV gives `ridge_r2` — an *in-sample* R², which is optimistically biased.
 
 ```{code-cell} python3
 # `fit` never preprocesses the response, so standardize explicitly: ridge
@@ -114,12 +114,12 @@ Standard encoding preprocessing: z-score each voxel explicitly, since `fit` neve
 # The standardized data gets its own name so every later cell that needs it
 # depends on it by name rather than on `bold` having been mutated.
 bold_z = bold.standardize(method="zscore")
-bold_z.fit(model="ridge", X=X_fir, alpha=1.0)
-in_sample = bold_z.ridge_scores.data.ravel()
+bold_z.fit(model="ridge", X=X_fir, ridge_alpha=1.0)
+in_sample = bold_z.ridge_r2.data.ravel()
 print(f"in-sample R²  — mean {in_sample.mean():.3f}  max {in_sample.max():.3f}")
 ```
 
-The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `cv` sweeps the grid and picks the best α **per voxel** (`per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics — explicitly, since `fit` does no preprocessing — because ridge fits no intercept and a new run carries its own offset.
+The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `ridge_cv` sweeps the grid and picks the best α **per voxel** (`ridge_per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics — explicitly, since `fit` does no preprocessing — because ridge fits no intercept and a new run carries its own offset.
 
 ```{code-cell} python3
 from sklearn.model_selection import KFold
@@ -134,8 +134,8 @@ trained = (
     .fit(
         model="ridge",
         X=X_fir[train],
-        alpha=ALPHAS,
-        cv=KFold(n_splits=5, shuffle=True, random_state=0),
+        ridge_alpha=ALPHAS,
+        ridge_cv=KFold(n_splits=5, shuffle=True, random_state=0),
         inplace=False,
     )
 )
@@ -152,7 +152,7 @@ print(
 ```
 
 ```{code-cell} python3
-held_out_map = bold_z.ridge_scores.copy()
+held_out_map = bold_z.ridge_r2.copy()
 # Most voxels do not track the stimulus at all, so their held-out R² is
 # negative. Floor the map at zero and let the threshold hide the rest —
 # a diverging map here would be a wall of colour with no signal in it.
@@ -189,8 +189,8 @@ _ = alpha_ax.set_title("Per-voxel ridge α — voxels disagree on regularization
 |---|---|---|
 | Load runs | Concatenate BOLD + stimulus across runs | `concatenate([...])` |
 | Features | FIR lag bank (learn the HRF, don't assume it) | `lag_features(stim, [1, 2, 3])` |
-| In-sample fit | Fixed-α ridge → optimistic R² | `bold_z.fit(model="ridge", X=, alpha=1.0)` |
-| Honest fit | Per-voxel α via CV, scored on a held-out run | `bold_z[train].fit(model="ridge", X=, alpha=ALPHAS, cv=KFold(5), inplace=False)` |
+| In-sample fit | Fixed-α ridge → optimistic R² | `bold_z.fit(model="ridge", X=, ridge_alpha=1.0)` |
+| Honest fit | Per-voxel α via CV, scored on a held-out run | `bold_z[train].fit(model="ridge", X=, ridge_alpha=ALPHAS, ridge_cv=KFold(5), inplace=False)` |
 | Inspect | Held-out R² map + selected α per voxel | `trained.model_.score(X_test, Y_test)`, `trained.model_.alpha_` |
 
 **Next steps**

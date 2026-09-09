@@ -44,6 +44,7 @@ Name | Description
 [`gb_to_bytes`](#backends-gb-to-bytes) | Convert a GB budget to bytes — the package's one GB↔bytes conversion.
 [`is_oom_error`](#backends-is-oom-error) | True if `exc` is a device out-of-memory error (CUDA or MPS).
 [`resolve_backend`](#backends-resolve-backend) | Coerce a backend specifier into a `Backend` instance.
+[`ridge_bootstrap_batch_size`](#backends-ridge-bootstrap-batch-size) | Size a Ridge-bootstrap batch against a memory budget.
 
 ## Classes
 
@@ -823,3 +824,40 @@ Type | Description
 ---- | -----------
 <code>ValueError</code> | If `parallel` is a string outside the accepted set.
 <code>RuntimeError</code> | If `parallel="gpu"` and no accelerator is available.
+
+(backends-ridge-bootstrap-batch-size)=
+### `ridge_bootstrap_batch_size`
+
+```python
+ridge_bootstrap_batch_size(n_bootstrap: int, *, n_samples: int, n_features: int, n_targets: int, output_shape: tuple[int, ...], device_itemsize: int = 4, max_gpu_memory_gb: float | None = None, backend: float | None = None) -> tuple[int, int]
+```
+
+Size a Ridge-bootstrap batch against a memory budget.
+
+Models what a batch of replicates actually holds. Each replicate solves on
+its own, so device residency is one replicate's resampled design
+`(n_samples, n_features)` and response `(n_samples, n_targets)` with an
+allowance for the solver's own buffers. What accumulates across a batch is
+the host-side result list: `batch_size` float64 arrays of `output_shape`,
+which for a prediction bootstrap is sized by an arbitrary `X_test` row count
+and can dominate everything else. Both terms are charged per replicate so
+the batch cannot outgrow the budget it was given.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_bootstrap` | <code>int</code> | Total number of bootstrap replicates. | *required*
+`n_samples` | <code>int</code> | Observations in the training data. | *required*
+`n_features` | <code>int</code> | Total feature count across all feature spaces. | *required*
+`n_targets` | <code>int</code> | Number of targets (voxels). | *required*
+`output_shape` | <code>tuple[int, ...]</code> | Shape of one retained replicate result. | *required*
+`device_itemsize` | <code>int</code> | Bytes per element of the solver's working dtype (4 on MPS, 8 elsewhere). Defaults to 4. | <code>4</code>
+`max_gpu_memory_gb` | <code>float \| None</code> | Explicit budget in GB, or None to measure the device. | <code>None</code>
+`backend` | <code>[Backend](#backends-backend) \| None</code> | Resolved backend, used only to measure the budget when `max_gpu_memory_gb` is None. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>tuple[int, int]</code> | `(batch_size, n_batches)`.

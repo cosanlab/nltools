@@ -1,57 +1,12 @@
-"""Regression tests for ridge CV alpha ordering and non-mutating fits.
+"""Regression test for non-mutating ridge fits.
 
-- F051: ``_assemble_ridge_cv_results`` used ``np.searchsorted`` to map the
-  per-voxel selected alpha back to a column of the ``(n_splits, n_alphas,
-  n_voxels)`` score cube. searchsorted assumes an ascending grid; with
-  user-supplied unsorted ``alphas`` it returns the wrong index, so the
-  reported per-fold CV scores correspond to the wrong alpha.
+F051 (``_assemble_ridge_cv_results`` mapping the selected alpha back onto an
+unsorted alpha grid with ``np.searchsorted``) no longer has a subject: the
+facade runs no second cross-validation pass, and ``Ridge`` reports the
+selection itself as ``alpha_`` and ``cv_scores_``.
 """
 
 import numpy as np
-import pytest
-
-
-e5y6_pending = pytest.mark.xfail(reason="e5y6: facade alignment pending", strict=True)
-
-
-class TestRidgeCvUnsortedAlphas:
-    @e5y6_pending
-    def test_scores_match_selected_alpha_with_unsorted_alphas(
-        self, small_brain_data_for_cv
-    ):
-        """Per-fold scores must correspond to each voxel's SELECTED alpha,
-        even when the alpha grid is not sorted ascending."""
-        brain, X = small_brain_data_for_cv
-
-        brain.fit(
-            model="ridge",
-            alpha="auto",
-            alphas=[10.0, 0.1, 1.0],  # deliberately unsorted
-            local_alpha=True,
-            cv=3,
-            X=X,
-        )
-
-        cv = brain.cv_results_
-        alpha_scores = cv["alpha_scores"]  # (n_splits, n_alphas, n_voxels)
-        best_alpha = np.atleast_1d(np.asarray(cv["best_alpha"], dtype=float))
-        alpha_grid = np.asarray(brain.model_.alphas, dtype=float)
-
-        n_splits, n_alphas, n_voxels = alpha_scores.shape
-        if best_alpha.shape[0] == 1 and n_voxels > 1:
-            best_alpha = np.full(n_voxels, best_alpha[0])
-
-        # Independently recover the per-voxel column by VALUE (nearest alpha),
-        # which is order-independent and correct.
-        expected_idx = np.argmin(
-            np.abs(alpha_grid[:, None] - best_alpha[None, :]), axis=0
-        )
-        expected_scores = np.stack(
-            [alpha_scores[:, expected_idx[v], v] for v in range(n_voxels)],
-            axis=1,
-        )
-
-        np.testing.assert_allclose(cv["scores"], expected_scores)
 
 
 class TestFitInplaceFalseContract:
@@ -64,9 +19,8 @@ class TestFitInplaceFalseContract:
         for attr in [
             "ridge_weights",
             "ridge_fitted_values",
-            "ridge_scores",
+            "ridge_r2",
             "model_",
-            "X_",
         ]:
             if hasattr(brain, attr):
                 delattr(brain, attr)
@@ -74,7 +28,7 @@ class TestFitInplaceFalseContract:
         X = np.random.randn(len(brain), 10)
         original = brain.data.copy()
 
-        fitted = brain.fit(model="ridge", alpha=1.0, X=X, inplace=False)
+        fitted = brain.fit(model="ridge", ridge_alpha=1.0, X=X, inplace=False)
 
         np.testing.assert_array_equal(brain.data, original)
         assert not hasattr(brain, "ridge_weights")

@@ -71,7 +71,11 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     results.append(
         benchmark(
             lambda: bd.fit(
-                model="ridge", X=design, alpha=[0.1, 1.0, 10.0], cv=5, inplace=False
+                model="ridge",
+                X=design,
+                ridge_alpha=[0.1, 1.0, 10.0],
+                ridge_cv=5,
+                inplace=False,
             ),
             domain="ridge",
             name=f"BrainData.fit[ridge,{n_images}x{n_vox_facade}]",

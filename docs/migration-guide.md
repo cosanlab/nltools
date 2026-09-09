@@ -457,8 +457,8 @@ DesignMatrix({"a": a, "b": b, "c": c}).clean(thresh=0.95).columns   # ['a', 'c']
 DesignMatrix({"b": b, "a": a, "c": c}).clean(thresh=0.95).columns   # ['b', 'c']
 
 # Shrinkage: swap the collinear columns and you get the same model back
-bd.fit(model="ridge", X=np.column_stack([a, b, c]), alpha=1.0)      # w = [w_a, w_b, w_c]
-bd.fit(model="ridge", X=np.column_stack([b, a, c]), alpha=1.0)      # w = [w_b, w_a, w_c]
+bd.fit(model="ridge", X=np.column_stack([a, b, c]), ridge_alpha=1.0)  # w = [w_a, w_b, w_c]
+bd.fit(model="ridge", X=np.column_stack([b, a, c]), ridge_alpha=1.0)  # w = [w_b, w_a, w_c]
 ```
 
 Dropping a regressor does not make its variance disappear — it reassigns it to
@@ -1343,9 +1343,9 @@ model.fit(X, brain_data.data.T)
 
 **After (v0.6.0):**
 ```python
-brain_data.fit(model='ridge', alpha=1.0, X=features)
+brain_data.fit(model='ridge', ridge_alpha=1.0, X=features)
 weights = brain_data.ridge_weights   # (n_features, n_voxels)
-scores = brain_data.ridge_scores     # R² per voxel
+r2 = brain_data.ridge_r2             # R² per voxel
 predictions = brain_data.predict(X=new_features)
 ```
 
@@ -1356,9 +1356,9 @@ facade. It never adds an intercept — center or standardize before fitting.
 | Feature | Before | After | Benefit |
 |---------|--------|-------|---------|
 | API | Manual sklearn | Integrated `.fit()` | Convenient |
-| GPU support | Manual setup | `device='gpu'` (CUDA/MPS) | Runs or raises, never silent CPU |
-| CV support | Manual | `cv=5` or a splitter | Built-in |
-| Alpha selection | Manual grid search | a sequence of `alpha` plus `cv` | Per-voxel by default |
+| GPU support | Manual setup | `ridge_device='gpu'` (CUDA/MPS) | Runs or raises, never silent CPU |
+| CV support | Manual | `ridge_cv=5` or a splitter | Built-in |
+| Alpha selection | Manual grid search | a sequence of `ridge_alpha` plus `ridge_cv` | Per-voxel by default |
 | Banded ridge | Not available | a named mapping of feature spaces | Dirichlet search over space weights |
 
 ---
@@ -1375,16 +1375,16 @@ from sklearn.model_selection import cross_val_score
 **After (v0.6.0):**
 ```python
 # A sequence of candidate alphas plus a cv selects one per voxel
-brain_data.fit(model='ridge', alpha=[0.1, 1, 10], cv=5, X=features)
+brain_data.fit(model='ridge', ridge_alpha=[0.1, 1, 10], ridge_cv=5, X=features)
 best_alpha = brain_data.model_.alpha_        # (n_voxels,)
 selection_scores = brain_data.model_.cv_scores_   # negative MSE at that alpha
 ```
 
 | Feature | Before | After |
 |---------|--------|-------|
-| CV splits | Manual sklearn | `cv=5` (unshuffled K-fold) or a splitter |
-| Alpha selection | Manual grid search | a sequence of `alpha` plus `cv` |
-| Per-voxel alpha | Manual loop | `per_target_alpha=True` (the default) |
+| CV splits | Manual sklearn | `ridge_cv=5` (unshuffled K-fold) or a splitter |
+| Alpha selection | Manual grid search | a sequence of `ridge_alpha` plus `ridge_cv` |
+| Per-voxel alpha | Manual loop | `ridge_per_target_alpha=True` (the default) |
 | Selection criterion | Whatever you wrote | Himalaya's negative MSE |
 
 ---
@@ -1544,9 +1544,11 @@ p_brain = result['p']
 boot = brain.bootstrap(stat='mean', n_samples=1000)
 # Returns BrainData with bootstrap mean
 
-# For model statistics (weights, predictions), returns dict with all stats
-brain.fit(X=dm, model='ridge', alpha=1.0)
-boot = brain.bootstrap(stat='weights', n_samples=1000)
+# For model statistics (weights, predictions), returns dict with all stats.
+# Fitting keeps no copy of the features, so a Ridge bootstrap takes them back
+# explicitly and holds the selected hyperparameters fixed across replicates.
+brain.fit(X=features, model='ridge', ridge_alpha=1.0)
+boot = brain.bootstrap(stat='weights', X=features, n_samples=1000)
 # Returns: {'mean': BrainData, 'std': BrainData, 'Z': BrainData, 'p': BrainData,
 #           'ci_lower': BrainData, 'ci_upper': BrainData}
 ```
@@ -1668,7 +1670,7 @@ result = isc_group_permutation_test(group1, group2, n_permute=1000)
 
 **Old API** (still works, default behavior):
 ```python
-brain.fit(X=dm, model='ridge', alpha=1.0)  # Mutates brain, adds attributes
+brain.fit(X=dm, model='ridge', ridge_alpha=1.0)  # Mutates brain, adds attributes
 assert hasattr(brain, 'ridge_weights')
 ```
 
@@ -1676,12 +1678,12 @@ assert hasattr(brain, 'ridge_weights')
 ```python
 from nltools.data import Fit
 
-fit = brain.fit(X=dm, model='ridge', alpha=1.0, inplace=False)  # Returns Fit object
+fit = brain.fit(X=dm, model='ridge', ridge_alpha=1.0, inplace=False)  # Returns Fit object
 assert isinstance(fit, Fit)
 assert 'weights' in fit.available()
 assert not hasattr(brain, 'ridge_weights')  # Data attributes NOT set on brain
 
-# Note: brain.model_ and brain.X_ are still set even with inplace=False.
+# Note: brain.model_ is still set even with inplace=False.
 # Only the result attributes (ridge_weights, glm_betas, etc.) are kept off self.
 
 # Serialization
@@ -1887,7 +1889,7 @@ Internal `**kwargs` catch-alls have been removed from user-facing methods that d
 
 **Newly-explicit kwargs you can now pass directly** (previously hidden behind `**kwargs`):
 
-- `BrainData.bootstrap`: `device`, `max_gpu_memory_gb`
+- `BrainData.bootstrap`: `X`, `X_test`, `device`, `memory_budget_gb`
 - `BrainData.ttest`, `Adjacency.ttest`: `n_permute`, `tail`, `return_null`, `n_jobs`, `random_state`
 - `Adjacency.similarity`: `tail`, `return_null`, `n_jobs`, `random_state`
 
@@ -2195,8 +2197,8 @@ p-values are one-sided: negate the contrast to test the other direction.
 # Ridge regression with automatic per-voxel alpha selection
 brain_data.fit(
     model='ridge',
-    alpha=[0.1, 1.0, 10.0, 100.0],
-    cv=5,
+    ridge_alpha=[0.1, 1.0, 10.0, 100.0],
+    ridge_cv=5,
     X=features
 )
 

@@ -60,10 +60,9 @@ _PREDICTION_STATE_ATTRIBUTES = (
 #: predicates and no special cases.
 _FIT_STATE_ATTRIBUTES = (
     "model_",
-    "X_",
     "ridge_weights",
     "ridge_fitted_values",
-    "ridge_scores",
+    "ridge_r2",
     "glm_betas",
     "glm_residual",
     "glm_predicted",
