@@ -8,8 +8,8 @@ per-image label or value `y` from voxel patterns, cross-validated. One call retu
 `scores`, `mean_score`, `cv_folds`, the `weight_map` (the model refit on all the data, the map you
 publish), and `fold_weight_maps`. Encoding runs the other way, predicting voxel timeseries from
 stimulus features, and is a ridge problem. Use
-[`BrainData.fit`](../api/data/brain_data.md#data-brain-data-fit)`(model='ridge')` or the standalone
-[`ridge_cv`](../api/tasks/prediction.md#tasks-prediction-ridge-cv).
+[`BrainData.fit`](../api/data/brain_data.md#data-brain-data-fit)`(model='ridge')` or the
+[`Ridge`](../api/models.md#models-ridge) estimator directly.
 
 `spatial_scale=` sets what a "pattern" means. `'whole_brain'` fits one model on every in-mask
 voxel. `'roi'` needs `roi_mask=` (a labeled parcellation) and fits one model per parcel, returning
@@ -26,7 +26,7 @@ Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#ta
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
 Voxel-by-voxel | `spatial_scale='searchlight', radius_mm=8.0` | Thousands of models; `n_jobs` defaults to `1` here on purpose
 Classifier performance | [`Roc`](../api/tasks/prediction.md#tasks-prediction-roc) | `calculate()` then `summary()` or `plot()`
-Encoding (features → voxels) | [`ridge_cv`](../api/tasks/prediction.md#tasks-prediction-ridge-cv), [`ridge_svd`](../api/tasks/prediction.md#tasks-prediction-ridge-svd), [`Ridge`](../api/models.md#models-ridge) | `Ridge(local_alpha=True)` picks a per-voxel alpha; a list of feature spaces makes it banded
+Encoding (features → voxels) | [`Ridge`](../api/models.md#models-ridge) | `per_target_alpha=True` (the default) picks a per-voxel alpha; a named mapping of feature spaces makes it banded
 
 ## Decoding
 
@@ -60,16 +60,18 @@ roi_result.accuracy_map    # those scores painted back into voxel space
 ## Encoding
 
 ```python
-from nltools.algorithms import ridge_cv
+from nltools.models import Ridge
 
-fit = ridge_cv(X, brain.data, alphas=np.logspace(0, 6, 20), cv=5)
-fit["coef"], fit["alpha"], fit["cv_scores"]
+model = Ridge(alpha=np.logspace(0, 6, 20), cv=5).fit(X, brain.data)
+model.coef_, model.alpha_, model.cv_scores_
 ```
 
-`ridge_cv` picks one global alpha by cross-validation; `Ridge(local_alpha=True)` fits a separate
-alpha per voxel. Pass `X` as a *list* of feature spaces and `Ridge` becomes banded ridge, sampling
-each space's weight from a Dirichlet controlled by `concentration=`. Both accept `parallel='gpu'`;
-see [Performance & GPU](../performance.md).
+A scalar `alpha` with `cv=None` fits it as given; a sequence of alphas with a `cv` selects one,
+per voxel by default (`per_target_alpha=False` shares a single alpha). Pass `X` as a *mapping* of
+named feature spaces and `Ridge` becomes banded ridge, sampling each space's weight from a
+Dirichlet controlled by `dirichlet_concentration=` and exposing the result as
+`feature_space_weights_`. Both forms accept `device='gpu'`; see
+[Performance & GPU](../performance.md).
 
 ## Gotchas
 

@@ -59,7 +59,6 @@ _FIT_STATE_ATTRIBUTES = (
     "model_",
     "X_",
     "design_matrix",
-    "cv_results_",
     "ridge_weights",
     "ridge_fitted_values",
     "ridge_scores",

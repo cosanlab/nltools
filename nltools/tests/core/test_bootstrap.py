@@ -529,7 +529,7 @@ class TestBootstrapRidgePredict:
 
     def test_bootstrap_ridge_predict_correctness(self):
         """Test bootstrap mean matches single fit-predict."""
-        from nltools.algorithms.ridge import ridge_svd
+        from nltools.models.ridge import _refit_fixed_hyperparameters
 
         np.random.seed(42)
         X = np.random.randn(100, 10)
@@ -538,7 +538,7 @@ class TestBootstrapRidgePredict:
         alpha = 1.0
 
         # Single fit-predict
-        weights_single = ridge_svd(X, y, alpha=alpha)
+        weights_single = _refit_fixed_hyperparameters([X], y, alpha)
         pred_single = X_test @ weights_single
 
         # Bootstrap predictions
@@ -1285,7 +1285,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.algorithms.ridge import ridge_svd
+        from nltools.models.ridge import _refit_fixed_hyperparameters
         from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
@@ -1302,7 +1302,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         y = X @ true_weights + noise
 
         # Compute true Ridge weights (what bootstrap should converge to)
-        true_ridge_weights = ridge_svd(X, y, alpha=alpha)
+        true_ridge_weights = _refit_fixed_hyperparameters([X], y, alpha)
 
         # Bootstrap with many samples (should converge to true weights)
         backend = Backend("torch")
@@ -1382,7 +1382,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_weights_gpu_batched,
         )
-        from nltools.algorithms.ridge import ridge_svd
+        from nltools.models.ridge import _refit_fixed_hyperparameters
         from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
@@ -1399,7 +1399,7 @@ class TestBootstrapRidgeWeightsStatisticalCorrectness:
         y = X @ true_weights + noise
 
         # True Ridge weights
-        true_ridge_weights = ridge_svd(X, y, alpha=alpha)
+        true_ridge_weights = _refit_fixed_hyperparameters([X], y, alpha)
 
         # Bootstrap
         backend = Backend("torch")
@@ -1473,7 +1473,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.algorithms.ridge import ridge_svd
+        from nltools.models.ridge import _refit_fixed_hyperparameters
         from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
@@ -1493,7 +1493,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         X_test = np.random.randn(n_test, n_features).astype(np.float32)
 
         # True predictions (what bootstrap should converge to)
-        true_ridge_weights = ridge_svd(X_train, y_train, alpha=alpha)
+        true_ridge_weights = _refit_fixed_hyperparameters([X_train], y_train, alpha)
         true_predictions = X_test @ true_ridge_weights
 
         # Bootstrap with many samples
@@ -1525,7 +1525,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         from nltools.algorithms.inference.bootstrap import (
             _bootstrap_ridge_predict_gpu_batched,
         )
-        from nltools.algorithms.ridge import ridge_svd
+        from nltools.models.ridge import _refit_fixed_hyperparameters
         from nltools.algorithms.backends import Backend
 
         np.random.seed(42)
@@ -1544,7 +1544,7 @@ class TestBootstrapRidgePredictStatisticalCorrectness:
         X_test = np.random.randn(n_test, n_features).astype(np.float32)
 
         # True predictions
-        true_ridge_weights = ridge_svd(X_train, y_train, alpha=alpha)
+        true_ridge_weights = _refit_fixed_hyperparameters([X_train], y_train, alpha)
         true_predictions = X_test @ true_ridge_weights
 
         # Bootstrap

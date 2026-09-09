@@ -3,7 +3,7 @@
 A small harness for measuring **speed and memory** of nltools at realistic
 neuroimaging scales, across the CPU (NumPy) and GPU (PyTorch MPS/CUDA) backends.
 It benchmarks the user-facing API (`BrainData.fit`/`.predict`)
-alongside the algorithm-layer primitives (`ridge_cv`, permutation tests).
+alongside the algorithm-layer primitives (permutation tests) and `Ridge`.
 
 ## Layout
 
@@ -11,7 +11,7 @@ alongside the algorithm-layer primitives (`ridge_cv`, permutation tests).
 benchmarks/
   harness.py         # timing + peak-memory measurement, BenchResult, artifact writer
   workloads.py       # synthetic data: arrays, in-memory BrainData, on-disk subjects
-  bench_ridge.py     # ridge_cv + BrainData.fit(model='ridge'), CPU vs GPU
+  bench_ridge.py     # Ridge.fit + BrainData.fit(model='ridge'), CPU vs GPU
   bench_predict.py   # BrainData.predict across whole_brain / roi / searchlight
   bench_inference.py # permutation tests (one/two-sample, correlation), CPU vs GPU
   run.py             # CLI: run domains, write results/<host>.parquet + env.json

@@ -278,8 +278,7 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     X=None,
     cv=None,
     device="cpu",
-    local_alpha=True,
-    fit_intercept=False,
+    per_target_alpha=True,
     inplace=True,
     progress_bar=False,
     scale="auto",
@@ -306,8 +305,6 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     - `model_` — the fitted `Ridge` or `Glm` instance (always set, so `predict()`
       works).
     - `X_` — the training design/features, used as the `predict()` default.
-    - `cv_results_` — dict with keys `'scores'`, `'mean_score'`, `'predictions'`,
-      `'folds'`, `'best_alpha'`, `'alpha_scores'` (ridge with `cv` only).
     - GLM: `glm_betas`, `glm_t`, `glm_p`, `glm_se`, `glm_residual`,
       `glm_predicted`, `glm_r2` (each a `BrainData`).
     - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_scores` (each a
@@ -318,22 +315,20 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         model (str): `'glm'` (default) or `'ridge'`.
         X (array-like | DataFrame | DesignMatrix): Design matrix (GLM) or feature
             matrix (ridge) of shape `(n_samples, n_features)`; `n_samples` must
-            match `bd.data`. For banded ridge, a list of such matrices.
-        cv (int | str | CV splitter | None): Cross-validation specification, ridge
-            only. An int is the number of k-fold splits (returns CV scores);
-            `'auto'` selects alpha via CV (implies `alpha='auto'`); an sklearn
+            match `bd.data`. For banded ridge, a mapping of feature-space names
+            to such matrices.
+        cv (int | CV splitter | None): Cross-validation specification, ridge
+            only. An int is the number of unshuffled k-fold splits; an sklearn
             splitter (e.g. `KFold(3, shuffle=True)`) is used as given; None
-            (default) runs no CV.
-        device (str): Ridge only. Compute device for the ridge solve/CV: `'cpu'`
-            (NumPy), `'gpu'` (PyTorch on CUDA/MPS when available), or `'auto'`
-            (GPU if present, else CPU). Forwarded to `Ridge` and the CV
-            evaluation. Ignored for `model='glm'`. Default: `'cpu'`.
-        local_alpha (bool): Ridge only. If True, select a separate best alpha per
-            voxel; if False, select a single shared alpha across all voxels.
-            Forwarded to `Ridge`. Default: True.
-        fit_intercept (bool): Ridge only. If True, fit an intercept term.
-            Redundant (and warned against) when the data is already centered via
-            `scale` or `standardize`. Forwarded to `Ridge`. Default: False.
+            (default) fits a fixed alpha. Alpha selection needs both a sequence
+            of candidate alphas and a `cv`.
+        device (str): Ridge only. Compute device for the ridge solve: `'cpu'`
+            (NumPy) or `'gpu'` (PyTorch on CUDA/MPS, or an error when neither is
+            available). Forwarded to `Ridge`. Ignored for `model='glm'`.
+            Default: `'cpu'`.
+        per_target_alpha (bool): Ridge only. If True, select a separate best
+            alpha per voxel; if False, select a single shared alpha across all
+            voxels. Forwarded to `Ridge`. Default: True.
         inplace (bool): If True, mutate `bd` and return it. If False, fit and
             return an independent `BrainData` copy while leaving every part of
             `bd` untouched. Default: True.
@@ -352,8 +347,8 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             `'zscore'` for `model='ridge'` (so a shared alpha regularizes voxels
             fairly) and None for `model='glm'`.
         **kwargs (dict): Additional arguments passed to the model constructor —
-            for `Ridge`: `alpha`, `alphas`, `random_state`; for `Glm`:
-            `noise_model`, `minimize_memory`, etc.
+            for `Ridge`: `alpha`, `search_iterations`, `random_state`; for
+            `Glm`: `noise_model`, `minimize_memory`, etc.
 
     Returns:
         BrainData: `bd` itself when `inplace=True`; otherwise an independently
@@ -362,17 +357,16 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     Examples:
         ```python
         # inplace=True (default): results are stored as attributes on brain_data
-        brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
-        print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
+        brain_data.fit(model='ridge', alpha=[0.1, 1.0, 10.0], cv=5, X=features)
+        print(f"selected alpha: {brain_data.model_.alpha_}")
         weights = brain_data.ridge_weights
 
         # inplace=False: fit a copy; brain_data remains completely unchanged
         fitted = brain_data.fit(
-            model='ridge', alpha=1.0, cv=5, X=features, inplace=False
+            model='ridge', alpha=1.0, X=features, inplace=False
         )
         weights = fitted.ridge_weights
         assert not hasattr(brain_data, 'ridge_weights')
-        print(f"CV R2: {fitted.cv_results_['mean_score'].mean():.3f}")
 
         # The returned GLM copy can compute contrasts
         fitted_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
@@ -448,21 +442,6 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
             stacklevel=find_stack_level(),
         )
 
-    # A ridge intercept is redundant once the targets are centered (any scaling
-    # or standardization de-means them), so fitting one adds nothing and usually
-    # signals a misunderstanding of the preprocessing. Warn loudly. Intercepts
-    # are for the raw-offset case (scale=False, standardize=None) — see
-    # test_ridge_intercept_no_centering_ok.
-    if model == "ridge" and fit_intercept and (scale or standardize is not None):
-        warnings.warn(
-            "fit_intercept=True is redundant for ridge when the data is centered "
-            "by scale/standardize (the default standardize='zscore' already "
-            "de-means each voxel), so the intercept is ~0 and adds nothing. Use "
-            "fit_intercept=True only with scale=False, standardize=None.",
-            UserWarning,
-            stacklevel=find_stack_level(),
-        )
-
     # Preprocess before fitting: scale (percent signal change) THEN standardize.
     # scale uses nilearn's per-voxel mean_scaling — the same transform
     # FirstLevelModel applies internally — called explicitly here so it is
@@ -492,12 +471,13 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
         if "progress_bar" not in ridge_kwargs:
             ridge_kwargs["progress_bar"] = progress_bar
         # Explicit-signature kwargs win over **kwargs forwarding so calls
-        # like bd.fit(model='ridge', local_alpha=False, ...) reach Ridge.
+        # like bd.fit(model='ridge', per_target_alpha=False, ...) reach Ridge.
         ridge_kwargs.setdefault("device", device)
-        ridge_kwargs.setdefault("local_alpha", local_alpha)
-        ridge_kwargs.setdefault("fit_intercept", fit_intercept)
+        ridge_kwargs.setdefault("per_target_alpha", per_target_alpha)
+        if cv is not None:
+            ridge_kwargs["cv"] = _normalize_cv(cv)
         target.model_ = Ridge(**ridge_kwargs)
-        fit_ridge(target, target.X_, cv=cv, device=device, **kwargs)
+        fit_ridge(target, target.X_)
     elif model == "glm":
         if cv is not None:
             raise NotImplementedError(
@@ -517,43 +497,20 @@ def fit(  # nosemgrep: kwargs-internal-forwarding  # forwards model params to th
     return target
 
 
-def fit_ridge(  # nosemgrep: kwargs-internal-forwarding  # forwards ridge params (alpha) to compute_ridge_cv
-    bd, X, cv=None, device="cpu", **kwargs
-):
-    """Fit Ridge model and extract results.
+def fit_ridge(bd, X):
+    """Fit `bd.model_` and attach the ridge results to `bd`.
+
+    Alpha selection and the banded search belong to `Ridge`; this layer only
+    stores the results the facade owns.
 
     Args:
         bd (BrainData): Data with `bd.model_` already set to a `Ridge` instance.
-        X (np.ndarray | list[np.ndarray]): Training features (a list for banded
-            ridge).
-        cv (int | str | CV splitter | None): Cross-validation specification; see
-            `fit`.
-        device (str): Compute device (`'cpu'`/`'gpu'`/`'auto'`) for the held-out
-            CV evaluation, forwarded to `compute_ridge_cv`. Default: `'cpu'`.
-        **kwargs (dict): Additional ridge arguments for CV (`alpha`, etc.).
+        X (np.ndarray | Mapping[str, np.ndarray]): Training features.
 
     Note:
-        Sets `ridge_weights`, `ridge_fitted_values`, `ridge_scores`, and
-        `cv_results_` (if `cv` is given) on `bd`.
+        Sets `ridge_weights`, `ridge_fitted_values`, and `ridge_scores` on `bd`.
     """
-    alpha = bd.model_.alpha if hasattr(bd.model_, "alpha") else None
-
-    if cv is not None and alpha == "auto":
-        # Delegate per-voxel α selection + full-data refit entirely to the
-        # model layer (which calls solve_ridge_cv). The BrainData layer
-        # only assembles cv_results_ from the model's attributes plus a
-        # held-out-prediction pass.
-        bd.model_.cv = _normalize_cv(cv)
-        bd.model_.fit(X, bd.data)
-        bd.cv_results_ = _assemble_ridge_cv_results(bd, X, cv)
-    elif cv is not None:
-        # Fixed-α + CV evaluation: alpha is set, we just want held-out
-        # scores under it. compute_ridge_cv handles this branch.
-        bd.cv_results_ = compute_ridge_cv(bd, X, cv, device=device, **kwargs)
-        bd.model_.fit(X, bd.data)
-    else:
-        bd.model_.fit(X, bd.data)
-
+    bd.model_.fit(X, bd.data)
     _populate_ridge_attributes(bd, X)
 
 
@@ -561,11 +518,18 @@ def _normalize_cv(cv):
     """Validate and normalize a cross-validation specification.
 
     Reject single-use generators and bad cv values; pass through ints and
-    splitter objects.
+    splitter objects. `Ridge` traverses the splits more than once, so the
+    specification has to be re-iterable.
 
-    BrainData's CV path needs a re-iterable splitter — alpha selection
-    iterates folds once for scoring, then ``cross_val_predict_ridge``
-    iterates them again for held-out predictions.
+    Args:
+        cv (int | BaseCrossValidator): Fold count or scikit-learn splitter.
+
+    Returns:
+        int | BaseCrossValidator: The validated specification.
+
+    Raises:
+        TypeError: If `cv` is a single-use split generator.
+        ValueError: If `cv` is neither an int fold count nor a splitter.
     """
     is_splitter = hasattr(cv, "split") and hasattr(cv, "get_n_splits")
     if hasattr(cv, "__next__") and not is_splitter:
@@ -603,157 +567,6 @@ def _populate_ridge_attributes(bd, X):
     bd.ridge_scores = _result_from_array(
         bd, np.array(scores, copy=True).reshape(1, -1), rows="clear"
     )
-
-
-def _assemble_ridge_cv_results(bd, X, cv):
-    """Build cv_results_ dict from the fitted Ridge model + held-out preds.
-
-    Pure assembly — no math beyond picking per-voxel best-α scores out of
-    the model's (n_splits, n_alphas, n_voxels) cube and calling
-    ``cross_val_predict_ridge`` to get held-out predictions under the
-    selected per-voxel α. This is the contract that ``BrainData.fit(
-    model='ridge', alpha='auto', cv=K)`` produces:
-
-        - 'best_alpha':   (n_voxels,) per-voxel selected α (or scalar
-                          when ``local_alpha=False``).
-        - 'alpha_scores': (n_splits, n_alphas, n_voxels) raw α-grid CV
-                          scores from the solver.
-        - 'scores':       (n_splits, n_voxels) per-fold R² *at the
-                          selected α* — extracted by indexing into
-                          ``alpha_scores`` per voxel.
-        - 'mean_score':   (n_voxels,) mean of ``scores`` across folds.
-        - 'predictions':  BrainData of held-out predictions on the
-                          original BOLD scale (uses per-voxel α).
-        - 'folds':        (n_samples,) fold index per sample.
-    """
-    from nltools.algorithms.ridge import cross_val_predict_ridge
-
-    cv_splitter = _normalize_cv(cv) if not isinstance(cv, int) else cv
-
-    alpha_scores = np.array(
-        bd.model_.cv_scores_, copy=True
-    )  # (n_splits, n_alphas, n_voxels)
-    n_splits, n_alphas, n_voxels = alpha_scores.shape
-
-    # Per-voxel selected α (already on the model). May be scalar when the
-    # model squeezed a single-target case, but for multi-voxel BrainData
-    # we'll always have a (n_voxels,) array — broadcast just in case.
-    best_alpha = bd.model_.alpha_
-    if not isinstance(best_alpha, np.ndarray):
-        best_alpha_arr = np.full(n_voxels, float(best_alpha))
-    else:
-        best_alpha_arr = np.array(best_alpha, copy=True)
-
-    # Per-voxel best-α index → per-fold scores at that α.
-    # alpha_scores has the candidate alphas in the order solve_ridge_cv saw
-    # them (i.e., the model's `alphas` attr). Recover that order to do the
-    # lookup.
-    # Match by nearest VALUE, not searchsorted: the alpha grid is whatever
-    # the user passed and may be unsorted, so searchsorted would return the
-    # wrong column (and thus per-fold scores for the wrong alpha).
-    alpha_grid = np.asarray(bd.model_.alphas)
-    best_idx = np.argmin(np.abs(alpha_grid[:, None] - best_alpha_arr[None, :]), axis=0)
-    best_idx = np.clip(best_idx, 0, n_alphas - 1)
-
-    # scores[s, v] = alpha_scores[s, best_idx[v], v]
-    fold_arange = np.arange(n_splits)[:, None]
-    voxel_arange = np.arange(n_voxels)[None, :]
-    scores = alpha_scores[fold_arange, best_idx[None, :], voxel_arange]
-    mean_score = scores.mean(axis=0)
-
-    # Held-out predictions under per-voxel α (delegates to the same
-    # backend-aware refit pipeline solve_ridge_cv uses).
-    fit_intercept = bool(getattr(bd.model_, "fit_intercept", False))
-    parallel = (
-        "gpu"
-        if getattr(bd.model_.backend_, "device", None) in ("cuda", "mps")
-        else "cpu"
-    )
-    pred_result = cross_val_predict_ridge(
-        X,
-        bd.data,
-        alphas=best_alpha_arr,
-        cv=cv_splitter,
-        fit_intercept=fit_intercept,
-        parallel=parallel,
-    )
-
-    cv_predictions_brain = _result_from_array(
-        bd, np.array(pred_result["predictions"], copy=True), rows="preserve"
-    )
-
-    return {
-        "best_alpha": best_alpha_arr
-        if isinstance(best_alpha, np.ndarray)
-        else best_alpha,
-        "alpha_scores": alpha_scores,
-        "scores": scores,
-        "mean_score": mean_score,
-        "predictions": cv_predictions_brain,
-        "folds": pred_result["folds"],
-    }
-
-
-def compute_ridge_cv(bd, X, cv, alpha=None, device="cpu"):
-    """Held-out CV scores under a fixed Ridge α.
-
-    Used only for the *fixed-α* + CV branch. When `alpha='auto'`, alpha selection
-    is handled by `Ridge.fit` (which delegates to `solve_ridge_cv`) and `fit`
-    assembles `cv_results_` from the fitted model instead.
-
-    Args:
-        bd (BrainData): Data with `bd.model_` set to a `Ridge` instance.
-        X (np.ndarray): Training features, shape `(n_samples, n_features)`.
-        cv (int | CV splitter): Cross-validation specification.
-        alpha (float | None): Fixed regularization strength. If None, taken from
-            `bd.model_.alpha`.
-        device (str): Compute device (`'cpu'`/`'gpu'`/`'auto'`). Default: `'cpu'`.
-
-    Returns:
-        dict: Keys `'scores'`, `'mean_score'`, `'predictions'`, `'folds'`.
-    """
-    from nltools.algorithms.ridge import cross_val_predict_ridge
-    from nltools.algorithms.backends import resolve_backend
-
-    cv_splitter = _normalize_cv(cv)
-
-    if isinstance(X, list):
-        raise ValueError(
-            "Cross-validation for banded ridge should be handled by the model. "
-            "Use alpha='auto' with cv parameter in fit()."
-        )
-
-    if alpha is None:
-        alpha = bd.model_.alpha if hasattr(bd.model_, "alpha") else 1.0
-
-    fit_intercept = bool(getattr(bd.model_, "fit_intercept", False))
-
-    # Translate the facade 'device' selector to the ridge layer's 'parallel'
-    # vocabulary by resolving to a concrete backend: 'gpu' requires an
-    # accelerator, while 'auto' may fall back to CPU.
-    backend_obj = resolve_backend(device)
-    parallel = "gpu" if backend_obj.device in ("cuda", "mps") else "cpu"
-
-    n_voxels = bd.data.shape[1]
-    pred_result = cross_val_predict_ridge(
-        X,
-        bd.data,
-        alphas=np.full(n_voxels, float(alpha)),
-        cv=cv_splitter,
-        fit_intercept=fit_intercept,
-        parallel=parallel,
-    )
-
-    cv_predictions_brain = _result_from_array(
-        bd, np.array(pred_result["predictions"], copy=True), rows="preserve"
-    )
-
-    return {
-        "scores": pred_result["scores"],
-        "mean_score": pred_result["scores"].mean(axis=0),
-        "predictions": cv_predictions_brain,
-        "folds": pred_result["folds"],
-    }
 
 
 def fit_glm(bd, X):

@@ -161,8 +161,13 @@ restoration of the reusable feature buffer. The floor applies only at this
 numerical boundary; it must not make zero or negative explicit weights valid.
 
 `random_state` seeds only the banded random search. The cross-validator controls
-split randomness. For ordinary Ridge, non-default values of banded-only
-arguments must raise an error.
+split randomness. Ordinary Ridge accepts `random_state` and ignores it, because
+`BrainData.fit` forwards one unprefixed `random_state` to whichever estimator it
+builds (see `braindata.md`); rejecting it would break a documented facade
+keyword that both estimators share.
+
+The banded-only arguments are `search_iterations` and `dirichlet_concentration`.
+For ordinary Ridge, non-default values of those two must raise an error.
 
 ## Numerical behavior
 

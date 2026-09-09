@@ -13,8 +13,10 @@ focused submodules underneath:
   `align`/`procrustes` entry points
 - **inference**: permutation tests, bootstrap resampling, and intersubject
   statistics (ISC/ISFC/ISPS) with CPU-parallel and GPU backends
-- **ridge**: regularized regression (also exported as a module for advanced usage)
 - **hrf**: hemodynamic response functions
+
+Ridge regression lives in `nltools.models.Ridge`, which delegates its numerics
+to the Himalaya library.
 """
 
 __all__ = [
@@ -54,9 +56,6 @@ __all__ = [
     "procrustes",
     "procrustes_distance",
     "regress",
-    "ridge",  # Export ridge module for advanced usage
-    "ridge_cv",
-    "ridge_svd",
     "spm_dispersion_derivative",
     "spm_hrf",
     "spm_time_derivative",
@@ -110,7 +109,6 @@ from .inference import (
 from .inference.intersubject import isc, isc_group, isfc, isps
 from .outliers import find_spikes, trim, winsorize, zscore
 from .regression import regress
-from .ridge import ridge_cv, ridge_svd
 from .signal import calc_bpm, downsample, make_cosine_basis, upsample
 from .similarity import (
     compute_multivariate_similarity,
@@ -119,4 +117,3 @@ from .similarity import (
     fisher_z_to_r,
     transform_pairwise,
 )
-from . import ridge  # Make ridge module accessible

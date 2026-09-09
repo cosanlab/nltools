@@ -533,7 +533,7 @@ Type | Description
 ### `fit`
 
 ```python
-fit(model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = False, **kwargs)
+fit(model = 'glm', *, X = None, cv = None, device = 'cpu', per_target_alpha = True, inplace = True, scale = 'auto', standardize = 'auto', progress_bar = False, **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -548,10 +548,9 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `model` | <code>str</code> | Model type: 'ridge', 'glm', or future model names | <code>'glm'</code>
 `X` | <code>array - like or DataFrame</code> | Design matrix or feature matrix | <code>None</code>
-`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
-`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on CUDA/MPS when available), or ``'auto'`` (GPU if present, else CPU). Ignored when ``model='glm'``. | <code>'cpu'</code>
-`local_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel via ``solve_ridge_cv``. If False, pick a single α shared across all voxels. | <code>True</code>
-`fit_intercept` | <code>bool, default=False</code> | Ridge only. Forwarded to the Ridge model — center X and y on the training fold mean per fold and recover the intercept after. | <code>False</code>
+`cv` | <code>int or sklearn CV splitter</code> | Cross-validation specification (Ridge only). int → unshuffled ``KFold(cv)``; pass a splitter object (e.g. ``KFold(5, shuffle=True)``, ``GroupKFold(8)``) for non-contiguous folds. Generators (``splitter.split(X)``) are rejected. | <code>None</code>
+`device` | <code>str, default='cpu'</code> | Ridge only. Compute device for the ridge solve: ``'cpu'`` (NumPy) or ``'gpu'`` (PyTorch on CUDA/MPS, or an error when neither is available). Ignored when ``model='glm'``. | <code>'cpu'</code>
+`per_target_alpha` | <code>bool, default=True</code> | Ridge only. If True, select α independently per voxel. If False, pick a single α shared across all voxels. | <code>True</code>
 `inplace` | <code>bool, default=True</code> | If True, mutate self and return self. If False, fit and return an independent `BrainData` copy while leaving every part of self untouched. | <code>True</code>
 `scale` | <code>bool or 'auto', default='auto'</code> | Apply percent-signal-change scaling before fitting via nilearn's per-voxel ``mean_scaling``. ``'auto'`` → False for both models (PSC is opt-in). Redundant with ``standardize='zscore'`` (warns). Applied before ``standardize``. | <code>'auto'</code>
 `standardize` | <code>str or None or 'auto', default='auto'</code> | Standardize each voxel across observations after scaling. ``'center'``, ``'zscore'``, or ``None``. ``'auto'`` → ``'zscore'`` for ridge, ``None`` for glm. | <code>'auto'</code>
@@ -587,7 +586,7 @@ one contrast in a single call.
 **Examples:**
 
 ```python
-brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+brain_data.fit(model='ridge', alpha=[0.1, 1.0, 10.0], cv=5, X=features)
 fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
 ```
 

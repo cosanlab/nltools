@@ -985,6 +985,20 @@ wheels = [
 ]
 
 [[package]]
+name = "himalaya"
+version = "0.4.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scikit-learn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e3/77/ff59cde6355f384535924804ab204f8ce8d35e91b230178b105b912a11b9/himalaya-0.4.11.tar.gz", hash = "sha256:4d7cc4b6cfbdcd7688bf181fbb3f617afa59bba5b903d9b43556da07ee450e45", size = 75950, upload-time = "2026-03-03T21:32:51.633Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/87/8f3652d24e407e5de9ca52e25af04bf560a89e7fdac925224bf84927fd6f/himalaya-0.4.11-py3-none-any.whl", hash = "sha256:92229e6be0e5de6837a2d1c58bf4e82f05eb154674f39bfee96a56470571aa8d", size = 89990, upload-time = "2026-03-03T21:32:50.551Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -2066,6 +2080,7 @@ source = { editable = "." }
 dependencies = [
     { name = "anywidget" },
     { name = "h5py" },
+    { name = "himalaya" },
     { name = "huggingface-hub" },
     { name = "joblib" },
     { name = "nilearn" },
@@ -2125,6 +2140,7 @@ requires-dist = [
     { name = "h5py", specifier = ">=3.15" },
     { name = "h5py", marker = "extra == 'h5'", specifier = ">=3.15" },
     { name = "hdf5plugin", marker = "extra == 'h5'", specifier = ">=6.0.0" },
+    { name = "himalaya", specifier = ">=0.4.11,<0.5" },
     { name = "huggingface-hub", specifier = ">=0.30" },
     { name = "ipywidgets", marker = "extra == 'interactive-plots'", specifier = ">=8.1.7" },
     { name = "joblib", specifier = ">=1.5.3" },

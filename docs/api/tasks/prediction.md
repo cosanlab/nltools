@@ -3,13 +3,14 @@ title: Prediction & cross-validation
 label: page-tasks-prediction
 ---
 
-Decode or predict from brain data. `BrainData.predict` runs the workflow. Listed here are the pieces it accepts or returns: the cross-validation schemes (`resolve_cv` turns an int, a name, or an sklearn splitter into one), the ridge solvers behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and the plots of weights, margins, and predictions.
+Decode or predict from brain data. `BrainData.predict` runs the workflow. Listed here are the pieces it accepts or returns: the cross-validation schemes (`resolve_cv` turns an int, a name, or an sklearn splitter into one), the `Ridge` estimator behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and the plots of weights, margins, and predictions.
 
 **Classes:**
 
 Name | Description
 ---- | -----------
 [`KFoldStratified`](#tasks-prediction-kfoldstratified) | Stratify continuous targets across K-fold cross-validation.
+[`Ridge`](#tasks-prediction-ridge) | Ridge regression over one or several named feature spaces.
 [`Roc`](#tasks-prediction-roc) | Compute receiver operating characteristic curves for single-interval or forced-choice classification.
 
 **Functions:**
@@ -17,8 +18,6 @@ Name | Description
 Name | Description
 ---- | -----------
 [`resolve_cv`](#tasks-prediction-resolve-cv) | Resolve a cv spec (int, sklearn-style name, or splitter) into an sklearn splitter.
-[`ridge_cv`](#tasks-prediction-ridge-cv) | Ridge regression with cross-validated selection of a single global alpha.
-[`ridge_svd`](#tasks-prediction-ridge-svd) | Solve ridge regression for one alpha using the singular value decomposition.
 [`plot_roc`](#tasks-prediction-plot-roc) | Plot 1-Specificity by Sensitivity.
 [`plot_dist_from_hyperplane`](#tasks-prediction-plot-dist-from-hyperplane) | Plot SVM Classification Distance from Hyperplane.
 [`plot_probability`](#tasks-prediction-plot-probability) | Plot Classification Probability.
@@ -82,6 +81,172 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>tuple[ndarray, ndarray]</code> | `(train, test)` — the training set indices     and the testing set indices for that split.
+
+(tasks-prediction-ridge)=
+### `Ridge`
+
+```python
+Ridge(*, alpha: float | Sequence[float] | np.ndarray = 1.0, cv: float | Sequence[float] | np.ndarray = None, search_iterations: int = 100, dirichlet_concentration: float | Sequence[float] = (0.1, 1.0), device: str = 'cpu', memory_budget_gb: float | None = None, per_target_alpha: bool = True, prefer_conservative_alpha: bool = False, random_state: int | None = None, progress_bar: bool = False)
+```
+
+Ridge regression over one or several named feature spaces.
+
+Fits `argmin_b ||X @ b - y||^2 + alpha * ||b||^2` without an intercept.
+Callers own preprocessing: `Ridge` never centers, scales, standardizes, or
+adds an intercept column.
+
+A two-dimensional `X` fits ordinary Ridge. A mapping from names to
+two-dimensional arrays fits banded Ridge, which searches feature-space
+weights on the simplex jointly with the alphas.
+
+Himalaya defines the numerical behavior: the cross-validation loss is
+negative mean squared error, and alpha selection, the Dirichlet search, and
+coefficient refitting all come from its solvers.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`alpha` | <code>float \| Sequence[float] \| ndarray</code> | A positive finite scalar fits a fixed alpha and requires `cv=None`. A non-empty one-dimensional collection of positive finite values selects an alpha by cross-validation and requires `cv`. Default: `1.0`. | <code>1.0</code>
+`cv` | <code>int \| BaseCrossValidator \| None</code> | An integer builds unshuffled K-fold splits; a reusable scikit-learn cross-validator is used as given. A single-use split generator is invalid because fitting traverses the splits more than once. Default: `None`. | <code>None</code>
+`search_iterations` | <code>int</code> | Number of sampled feature-space weight vectors for banded Ridge. Default: `100`. | <code>100</code>
+`dirichlet_concentration` | <code>float \| Sequence[float]</code> | Concentration parameter(s) of the Dirichlet distribution the candidate weights are drawn from. A list is cycled through across candidates. Default: `(0.1, 1.0)`. | <code>(0.1, 1.0)</code>
+`device` | <code>str</code> | `'cpu'` or `'gpu'`. An explicit `'gpu'` resolves to CUDA or MPS or raises; it never falls back to a CPU backend. Default: `'cpu'`. | <code>'cpu'</code>
+`memory_budget_gb` | <code>float \| None</code> | Working-memory budget in GB used to size Himalaya's internal batches. None measures the device with conservative headroom. It is a budget, not a hard process limit. Default: `None`. | <code>None</code>
+`per_target_alpha` | <code>bool</code> | True selects the best alpha separately per target; False averages each candidate's fold scores across targets and selects one shared alpha. Default: `True`. | <code>True</code>
+`prefer_conservative_alpha` | <code>bool</code> | True selects the largest alpha whose mean score beats the best alpha's mean score minus that alpha's standard deviation across folds. Invalid with `per_target_alpha=False`. Default: `False`. | <code>False</code>
+`random_state` | <code>int \| None</code> | Seed for the banded random search only; the cross-validator controls split randomness. Ordinary Ridge accepts it and ignores it — it has no randomness of its own — so that `BrainData.fit` can keep forwarding one shared `random_state` to whichever estimator it builds. Default: `None`. | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over the banded search. Default: `False`. | <code>False</code>
+
+**Attributes:**
+
+Name | Type | Description
+---- | ---- | -----------
+`coef_` | <code>ndarray</code> | `(n_features,)` for one-dimensional `y`, otherwise `(n_features, n_targets)`, in concatenated feature-space order.
+`alpha_` | <code>float \| ndarray</code> | Scalar for a fixed or shared alpha, otherwise `(n_targets,)`.
+`cv_scores_` | <code>float \| ndarray \| None</code> | None for a fixed-alpha fit. For ordinary Ridge, the fold-averaged negative-MSE score at the selected alpha. For banded Ridge, `(search_iterations,)` or `(search_iterations, n_targets)` fold-averaged scores.
+`feature_space_weights_` | <code>ndarray \| None</code> | None for ordinary Ridge. Strictly positive weights whose columns sum to one, shaped `(n_spaces,)` or `(n_spaces, n_targets)`.
+`feature_space_names_` | <code>tuple[str, ...] \| None</code> | Fitted mapping keys in coefficient order; None for ordinary Ridge.
+`feature_space_sizes_` | <code>tuple[int, ...] \| None</code> | Feature counts aligned with `feature_space_names_`; None for ordinary Ridge.
+`backend_` | <code>[Backend](#backends-backend)</code> | The resolved execution backend.
+`n_samples_` | <code>int</code> | Fitted sample count.
+`n_features_in_` | <code>int</code> | Total fitted feature count across spaces.
+`is_fitted_` | <code>bool</code> | True after a successful fit.
+
+**Methods:**
+
+Name | Description
+---- | -----------
+[`fit`](#tasks-prediction-fit) | Fit the model.
+[`predict`](#tasks-prediction-predict) | Predict targets for `X`.
+[`score`](#tasks-prediction-score) | Return the coefficient of determination for each target.
+
+
+
+**Examples:**
+
+```python
+import numpy as np
+from nltools.models import Ridge
+
+X = np.random.randn(100, 50)
+y = np.random.randn(100)
+
+model = Ridge(alpha=1.0).fit(X, y)
+predictions = model.predict(X)
+
+# Banded ridge over two named feature spaces
+spaces = {"motion": np.random.randn(100, 6), "task": np.random.randn(100, 12)}
+banded = Ridge(alpha=[1.0, 10.0, 100.0], cv=5, search_iterations=20)
+banded.fit(spaces, y)
+print(banded.feature_space_weights_)
+```
+
+#### Methods
+
+(tasks-prediction-fit)=
+##### `fit`
+
+```python
+fit(X, y) -> Ridge
+```
+
+Fit the model.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | A `(n_samples, n_features)` matrix for ordinary Ridge, or a non-empty mapping of unique names to equally sampled 2-D matrices for banded Ridge. | *required*
+`y` | <code>ndarray</code> | Targets of shape `(n_samples,)` or `(n_samples, n_targets)`. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>[Ridge](#tasks-prediction-ridge)</code> | `self`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If any input or argument combination is invalid.
+<code>RuntimeError</code> | If `device='gpu'` and no accelerator is available.
+
+(tasks-prediction-predict)=
+##### `predict`
+
+```python
+predict(X) -> np.ndarray
+```
+
+Predict targets for `X`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | Features in the structure used for fitting. Banded mappings may be in any order; they are aligned to `feature_space_names_`. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>ndarray</code> | `(n_samples,)` when fitted on one-dimensional `y`,     otherwise `(n_samples, n_targets)`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the model is not fitted, or `X` does not match the fitted feature structure.
+
+(tasks-prediction-score)=
+##### `score`
+
+```python
+score(X, y) -> float | np.ndarray
+```
+
+Return the coefficient of determination for each target.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | Features in the fitted structure. | *required*
+`y` | <code>ndarray</code> | True targets, `(n_samples,)` or `(n_samples, n_targets)`. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>float \| ndarray</code> | A `float` for one-dimensional `y`, otherwise an     array of shape `(n_targets,)`. A constant target scores zero.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the model is not fitted, or the shapes disagree.
 
 (tasks-prediction-roc)=
 ### `Roc`
@@ -230,106 +395,6 @@ Type | Description
 Type | Description
 ---- | -----------
 <code>ValueError</code> | On an unknown string spec, including the pre-v0.6.0 names `'loso'` / `'loro'` (use `'logo'` with `groups=`).
-
-(tasks-prediction-ridge-cv)=
-### `ridge_cv`
-
-```python
-ridge_cv(X: np.ndarray, y: np.ndarray, *, alphas: np.ndarray | None = None, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> dict
-```
-
-Ridge regression with cross-validated selection of a single global alpha.
-
-Scores every alpha by out-of-fold R² on each fold, picks the alpha with the
-highest mean R² across folds and targets, then refits on all the data with
-it. For per-target alphas, memory-bounded batching, and GPU-batched folds
-use `solve_ridge_cv`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
-`y` | <code>ndarray</code> | Targets, shape (n_samples,) or (n_samples, n_targets). | *required*
-`alphas` | <code>ndarray \| None</code> | Alpha values to try. None uses `np.logspace(-2, 4, 20)` (0.01 to 10000). Defaults to None. | <code>None</code>
-`cv` | <code>int \| BaseCrossValidator</code> | Number of folds, or an sklearn cross-validator (anything with `.split(X)` and `.get_n_splits()`, e.g. `KFold(5, shuffle=True)` or `GroupKFold(8)`). The splitter drives the actual fold iteration, so leave-one-run-out and shuffled K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
-`fit_intercept` | <code>bool</code> | If True, center `X` and `y` on their means before fitting and recover the intercept afterwards. The returned `coef` is on the centered scale; the intercept is returned under the `'intercept'` key. Defaults to False. | <code>False</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
-`random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict</code> | Keys `'alpha'` (float, the selected alpha), `'coef'` (np.ndarray,     coefficients refit on all data with that alpha), `'cv_scores'`     (np.ndarray, out-of-fold R² with shape (n_folds, n_alphas,     n_targets)), `'backend'` (str, backend name), and — only when     `fit_intercept=True` — `'intercept'` (float or np.ndarray).
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>TypeError</code> | If `cv` is a generator rather than a re-iterable splitter.
-
-**Examples:**
-
-```python
-X = np.random.randn(100, 50)
-y = np.random.randn(100)
-result = ridge_cv(X, y, cv=3)
-result["alpha"]  # → the selected alpha
-result["coef"].shape  # → (50,)
-```
-
-(tasks-prediction-ridge-svd)=
-### `ridge_svd`
-
-```python
-ridge_svd(X: np.ndarray, y: np.ndarray, *, alpha: float = 1.0, parallel: str | None = None, max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> np.ndarray
-```
-
-Solve ridge regression for one alpha using the singular value decomposition.
-
-With `X = U @ diag(s) @ V.T` the solution is
-`beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y`; the shrinkage factor
-`s / (s**2 + alpha)` damps small singular values without an explicit matrix
-inverse. Time is `O(n_samples × n_features × min(n_samples, n_features))`
-and memory `O(n_samples × n_features)`. As `alpha → 0` this approaches
-ordinary least squares; use `alpha=1e-6` rather than 0 for a stable OLS fit.
-For cross-validated alpha selection use `solve_ridge_cv`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
-`y` | <code>ndarray</code> | Targets, shape (n_samples,) for a single target or (n_samples, n_targets) for several. | *required*
-`alpha` | <code>float</code> | Regularization strength; must be non-negative. Larger values shrink the coefficients harder toward zero. Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to None. | <code>None</code>
-`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
-`random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>ndarray</code> | Coefficients, shape (n_features,) for a single target or     (n_features, n_targets) for several.
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If `alpha` is negative, `X` is not 2D, `y` is not 1D or 2D, or the sample counts differ.
-
-**Examples:**
-
-```python
-X = np.random.randn(100, 50)
-y = np.random.randn(100)
-ridge_svd(X, y, alpha=1.0).shape  # → (50,)
-
-Y = np.random.randn(100, 5)  # multi-target
-ridge_svd(X, Y, alpha=1.0).shape  # → (50, 5)
-```
 
 (tasks-prediction-plot-roc)=
 ### `plot_roc`

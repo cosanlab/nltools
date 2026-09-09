@@ -67,10 +67,14 @@ vocabulary:
     kwarg: "device"
     tour_note: "orthogonal to `n_jobs` — explicit `'gpu'` runs or raises"
     index_md: "`device: str = \"cpu\"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path"
-  - concept: "Backend (ridge/alignment internals)"
+  - concept: "Backend (alignment internals)"
     kwarg: "parallel"
-    tour_note: "`None` · `'cpu'` · `'gpu'` — inference uses `device`"
-    index_md: "`parallel: None | 'cpu' | 'gpu'` (the inference engine uses `device` as of v0.6.0)"
+    tour_note: "`None` · `'cpu'` · `'gpu'` — inference and ridge use `device`"
+    index_md: "`parallel: None | 'cpu' | 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0)"
+  - concept: "Working-memory budget"
+    kwarg: "memory_budget_gb"
+    tour_note: "device-neutral · `None` measures the device"
+    index_md: "`memory_budget_gb: float | None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom"
   - concept: "Progress indicator"
     kwarg: "progress_bar"
     tour_note: "`verbose` reserved for log-level"
@@ -120,11 +124,6 @@ exceptions:
     kwarg: "model"
     finding: F175
     text: "`fit(model='glm'|'ridge')` selects an estimator *class*, not a variant."
-  - path: "nltools/models/ridge.py"
-    function: "Ridge.__init__"
-    kwarg: "n_iter"
-    finding: F105
-    text: "`Ridge(n_iter=)` matches sklearn's random-search name."
   - path: "nltools/models/glm.py"
     function: "Glm.compute_contrasts"
     kwarg: "statistic"
@@ -139,7 +138,7 @@ exceptions:
 # ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
 #
 # Scope model mirrors .semgrep/rules.yml: rules bind PUBLIC (non-underscore)
-# defs; the ridge/alignment/pipelines subsystems keep legacy names because the
+# defs; the alignment/pipelines subsystems keep legacy names because the
 # facades translate at their boundary (CLAUDE.md "Facade translation" rule).
 #
 #   banned_kwargs   — alias → {canonical, exclude_paths?}: the alias may not
@@ -158,7 +157,6 @@ exceptions:
 enforcement:
   exclude_paths:
     - "nltools/tests/"
-    - "nltools/algorithms/ridge/"
     - "nltools/algorithms/alignment/"
     - "nltools/pipelines/"
   banned_kwargs:
@@ -173,15 +171,19 @@ enforcement:
     mode: {canonical: "method"}
     parallel:
       canonical: "n_jobs (CPU workers) or device (cpu/gpu selection)"
-      # resolve_backend() is the boundary translator from the ridge/alignment
-      # layers' `parallel=` vocabulary to a Backend — its param IS the concept.
+      # resolve_backend() is the boundary translator from the alignment
+      # layer's `parallel=` vocabulary to a Backend — its param IS the concept.
       exclude_paths: ["nltools/algorithms/backends.py"]
     backend:
       canonical: "device"
       # Home of the Backend abstraction itself — its `backend=` params ARE the concept.
       exclude_paths: ["nltools/algorithms/backends.py"]
     n_perm: {canonical: "n_permute"}
-    n_iter: {canonical: "n_permute (permutations) or n_samples (bootstrap)"}
+    n_iter: {canonical: "n_permute (permutations), n_samples (bootstrap), or search_iterations (banded ridge)"}
+    alphas: {canonical: "alpha (a scalar fits it; a sequence selects among the candidates)"}
+    concentration: {canonical: "dirichlet_concentration"}
+    local_alpha: {canonical: "per_target_alpha"}
+    conservative: {canonical: "prefer_conservative_alpha"}
     show_progress: {canonical: "progress_bar"}
     ignore_diagonal: {canonical: "include_diag (note the inverted sense)"}
   kwarg_contracts:
@@ -211,6 +213,10 @@ enforcement:
       hint: "canonical form is `device: str = 'cpu'` ('auto' where supported); run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback ('auto' is the one graceful path)"
       # Backend's own methods use `device=None` to mean "the backend's device".
       exclude_paths: ["nltools/algorithms/backends.py"]
+    memory_budget_gb:
+      allowed_defaults: [null]
+      keyword_only: true
+      hint: "canonical form is `*, memory_budget_gb: float | None = None` — the device-neutral working-memory budget; None measures the selected device via backends.device_memory_budget, an explicit positive GB value is used verbatim"
     max_gpu_memory_gb:
       allowed_defaults: [null]
       hint: "canonical form is `max_gpu_memory_gb: float | None = None` — None measures the device via backends.device_memory_budget (batch sizing then caps the measured budget at the saturation ceiling); an explicit GB is used verbatim, uncapped"

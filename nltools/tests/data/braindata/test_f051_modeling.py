@@ -8,9 +8,14 @@
 """
 
 import numpy as np
+import pytest
+
+
+e5y6_pending = pytest.mark.xfail(reason="e5y6: facade alignment pending", strict=True)
 
 
 class TestRidgeCvUnsortedAlphas:
+    @e5y6_pending
     def test_scores_match_selected_alpha_with_unsorted_alphas(
         self, small_brain_data_for_cv
     ):

@@ -30,6 +30,12 @@ def _brain_data_from_array(values):
     )
 
 
+#: The Himalaya slice (q6at) retired `alphas=`, `alpha="auto"`, `fit_intercept=`,
+#: `local_alpha=`, and the second cross-validation pass behind `cv_results_`. Aligning
+#: the `BrainData` facade to the new estimator is Kata e5y6.
+e5y6_pending = pytest.mark.xfail(reason="e5y6: facade alignment pending", strict=True)
+
+
 class TestBrainDataModeling:
     def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
         """Test error when compute_contrasts() called before fit()."""
@@ -338,6 +344,7 @@ class TestBrainDataModeling:
         assert not hasattr(fitted.ridge_weights, "model_")
         assert fitted.ridge_weights.design_matrix is None
 
+    @e5y6_pending
     @pytest.mark.slow
     def test_fit_inplace_false_returns_brain_data_with_ridge_cv(
         self, minimal_brain_data
@@ -396,6 +403,7 @@ class TestBrainDataModeling:
         predictions = fitted.predict(X=X_test)
         assert predictions.shape == (20, minimal_brain_data.shape[1])
 
+    @e5y6_pending
     def test_refit_without_cv_clears_prior_cv_results(self, minimal_brain_data):
         X = np.random.randn(len(minimal_brain_data), 4)
         minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
@@ -405,6 +413,7 @@ class TestBrainDataModeling:
 
         assert not hasattr(minimal_brain_data, "cv_results_")
 
+    @e5y6_pending
     def test_copy_owns_nested_cv_state(self, minimal_brain_data):
         X = np.random.randn(len(minimal_brain_data), 4)
         minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, cv=3)
@@ -630,6 +639,7 @@ class TestBrainDataModeling:
         bd.fit(model="ridge", alpha=1.0, X=X, scale=False, standardize=None)
         np.testing.assert_allclose(bd.data, orig)
 
+    @e5y6_pending
     def test_ridge_intercept_with_centering_warns(self, minimal_brain_data):
         """Ridge fit_intercept=True is redundant when the data is centered by
         standardization/scaling — warn loudly."""
@@ -643,6 +653,7 @@ class TestBrainDataModeling:
                 model="ridge", alpha=1.0, X=X, standardize="zscore", fit_intercept=True
             )
 
+    @e5y6_pending
     def test_ridge_intercept_no_centering_ok(self, minimal_brain_data):
         """fit_intercept=True is fine (no warning) when no centering is applied —
         that is exactly the raw-offset case intercepts exist for."""
@@ -730,6 +741,7 @@ class TestBrainDataModeling:
 
     # ==================== Ridge CV Tests ====================
 
+    @e5y6_pending
     def test_fit_ridge_cv_basic(self, small_brain_data_for_cv):
         """Test fit() with cv=int and sklearn splitter returns cross-validated scores."""
         brain_data, X = small_brain_data_for_cv
@@ -756,6 +768,7 @@ class TestBrainDataModeling:
         brain_data2.fit(model="ridge", alpha=1.0, cv=cv_splitter, X=X2)
         assert brain_data2.cv_results_["scores"].shape == (3, 5)
 
+    @e5y6_pending
     def test_fit_ridge_cv_predictions(self, small_brain_data_for_cv):
         """Test CV predictions are out-of-fold and stored as BrainData."""
         brain_data, X = small_brain_data_for_cv
@@ -771,6 +784,7 @@ class TestBrainDataModeling:
 
         assert np.isfinite(np.mean(brain_data.cv_results_["mean_score"]))
 
+    @e5y6_pending
     def test_fit_ridge_cv_alpha_auto(self, small_brain_data_for_cv):
         """alpha='auto' triggers per-voxel α selection by default (v0.6).
 
@@ -832,12 +846,14 @@ class TestBrainDataModeling:
         with pytest.raises(ValueError):
             brain_data.fit(model="ridge", alpha=1.0, cv=0, X=X)
 
+    @e5y6_pending
     def test_fit_ridge_cv_with_insufficient_samples(self, tiny_brain_data_for_cv):
         """Test fit() raises error when cv folds > n_samples."""
         brain_data, X = tiny_brain_data_for_cv
         with pytest.raises(ValueError, match="Cannot have number of splits.*greater"):
             brain_data.fit(model="ridge", alpha=1.0, cv=10, X=X)
 
+    @e5y6_pending
     def test_fit_ridge_cv_predict_consistency(self, small_brain_data_for_cv):
         """Test predict() returns full model predictions, not CV predictions."""
         brain_data, X = small_brain_data_for_cv
@@ -1331,6 +1347,7 @@ class TestBrainDataRidgeCV:
     def test_size_property(self, minimal_brain_data):
         assert minimal_brain_data.size == minimal_brain_data.data.size
 
+    @e5y6_pending
     def test_splitter_object_changes_alpha_selection(self, minimal_brain_data):
         """Different CV schemes produce different per-alpha scores."""
         n = minimal_brain_data.shape[0]
@@ -1370,6 +1387,7 @@ class TestBrainDataRidgeCV:
                 model="ridge", X=X, alpha="auto", cv=gen, scale=False
             )
 
+    @e5y6_pending
     def test_fit_intercept_propagates_to_cv_path(self, minimal_brain_data):
         """fit_intercept=True is forwarded through compute_ridge_cv."""
         n = minimal_brain_data.shape[0]
@@ -1396,6 +1414,7 @@ class TestBrainDataRidgeCV:
         assert abs(preds.mean() - 100.0) < 5.0
 
 
+@e5y6_pending
 class TestBrainDataRidgePerVoxelAlpha:
     """v0.6 contract: bd.fit(model='ridge', alpha='auto', cv=K) selects α
     per-voxel by default and refits the full-data weights with those α.

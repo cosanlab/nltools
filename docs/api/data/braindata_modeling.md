@@ -21,10 +21,9 @@ Name | Description
 Name | Description
 ---- | -----------
 [`compute_contrasts`](#data-braindata-modeling-compute-contrasts) | Compute contrasts from a fitted GLM.
-[`compute_ridge_cv`](#data-braindata-modeling-compute-ridge-cv) | Held-out CV scores under a fixed Ridge α.
 [`fit`](#data-braindata-modeling-fit) | Fit a model to brain imaging data.
 [`fit_glm`](#data-braindata-modeling-fit-glm) | Fit GLM model and extract results.
-[`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit Ridge model and extract results.
+[`fit_ridge`](#data-braindata-modeling-fit-ridge) | Fit `bd.model_` and attach the ridge results to `bd`.
 [`parse_contrast_string`](#data-braindata-modeling-parse-contrast-string) | Parse a contrast string into a numeric contrast vector.
 [`resolve_preprocessing_defaults`](#data-braindata-modeling-resolve-preprocessing-defaults) | Resolve the ``'auto'`` scale/standardize sentinels to concrete values.
 [`ttest`](#data-braindata-modeling-ttest) | Run a one-sample voxelwise t-test across images (axis 0).
@@ -145,40 +144,11 @@ precision.
 
 </details>
 
-(data-braindata-modeling-compute-ridge-cv)=
-### `compute_ridge_cv`
-
-```python
-compute_ridge_cv(bd, X, cv, alpha = None, device = 'cpu')
-```
-
-Held-out CV scores under a fixed Ridge α.
-
-Used only for the *fixed-α* + CV branch. When `alpha='auto'`, alpha selection
-is handled by `Ridge.fit` (which delegates to `solve_ridge_cv`) and `fit`
-assembles `cv_results_` from the fitted model instead.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`bd` | <code>[BrainData](#page-data-brain-data)</code> | Data with `bd.model_` set to a `Ridge` instance. | *required*
-`X` | <code>ndarray</code> | Training features, shape `(n_samples, n_features)`. | *required*
-`cv` | <code>int \| CV splitter</code> | Cross-validation specification. | *required*
-`alpha` | <code>float \| None</code> | Fixed regularization strength. If None, taken from `bd.model_.alpha`. | <code>None</code>
-`device` | <code>str</code> | Compute device (`'cpu'`/`'gpu'`/`'auto'`). Default: `'cpu'`. | <code>'cpu'</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict</code> | Keys `'scores'`, `'mean_score'`, `'predictions'`, `'folds'`.
-
 (data-braindata-modeling-fit)=
 ### `fit`
 
 ```python
-fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', local_alpha = True, fit_intercept = False, inplace = True, progress_bar = False, scale = 'auto', standardize = 'auto', **kwargs)
+fit(bd, model = 'glm', *, X = None, cv = None, device = 'cpu', per_target_alpha = True, inplace = True, progress_bar = False, scale = 'auto', standardize = 'auto', **kwargs)
 ```
 
 Fit a model to brain imaging data.
@@ -201,8 +171,6 @@ category so it can be silenced surgically with
 - `model_` — the fitted `Ridge` or `Glm` instance (always set, so `predict()`
   works).
 - `X_` — the training design/features, used as the `predict()` default.
-- `cv_results_` — dict with keys `'scores'`, `'mean_score'`, `'predictions'`,
-  `'folds'`, `'best_alpha'`, `'alpha_scores'` (ridge with `cv` only).
 - GLM: `glm_betas`, `glm_t`, `glm_p`, `glm_se`, `glm_residual`,
   `glm_predicted`, `glm_r2` (each a `BrainData`).
 - Ridge: `ridge_weights`, `ridge_fitted_values`, `ridge_scores` (each a
@@ -214,16 +182,15 @@ Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Data whose `.data` is the regression target. | *required*
 `model` | <code>str</code> | `'glm'` (default) or `'ridge'`. | <code>'glm'</code>
-`X` | <code>array - like \| DataFrame \| [DesignMatrix](#page-data-design-matrix)</code> | Design matrix (GLM) or feature matrix (ridge) of shape `(n_samples, n_features)`; `n_samples` must match `bd.data`. For banded ridge, a list of such matrices. | <code>None</code>
-`cv` | <code>int \| str \| CV splitter \| None</code> | Cross-validation specification, ridge only. An int is the number of k-fold splits (returns CV scores); `'auto'` selects alpha via CV (implies `alpha='auto'`); an sklearn splitter (e.g. `KFold(3, shuffle=True)`) is used as given; None (default) runs no CV. | <code>None</code>
-`device` | <code>str</code> | Ridge only. Compute device for the ridge solve/CV: `'cpu'` (NumPy), `'gpu'` (PyTorch on CUDA/MPS when available), or `'auto'` (GPU if present, else CPU). Forwarded to `Ridge` and the CV evaluation. Ignored for `model='glm'`. Default: `'cpu'`. | <code>'cpu'</code>
-`local_alpha` | <code>bool</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to `Ridge`. Default: True. | <code>True</code>
-`fit_intercept` | <code>bool</code> | Ridge only. If True, fit an intercept term. Redundant (and warned against) when the data is already centered via `scale` or `standardize`. Forwarded to `Ridge`. Default: False. | <code>False</code>
+`X` | <code>array - like \| DataFrame \| [DesignMatrix](#page-data-design-matrix)</code> | Design matrix (GLM) or feature matrix (ridge) of shape `(n_samples, n_features)`; `n_samples` must match `bd.data`. For banded ridge, a mapping of feature-space names to such matrices. | <code>None</code>
+`cv` | <code>int \| CV splitter \| None</code> | Cross-validation specification, ridge only. An int is the number of unshuffled k-fold splits; an sklearn splitter (e.g. `KFold(3, shuffle=True)`) is used as given; None (default) fits a fixed alpha. Alpha selection needs both a sequence of candidate alphas and a `cv`. | <code>None</code>
+`device` | <code>str</code> | Ridge only. Compute device for the ridge solve: `'cpu'` (NumPy) or `'gpu'` (PyTorch on CUDA/MPS, or an error when neither is available). Forwarded to `Ridge`. Ignored for `model='glm'`. Default: `'cpu'`. | <code>'cpu'</code>
+`per_target_alpha` | <code>bool</code> | Ridge only. If True, select a separate best alpha per voxel; if False, select a single shared alpha across all voxels. Forwarded to `Ridge`. Default: True. | <code>True</code>
 `inplace` | <code>bool</code> | If True, mutate `bd` and return it. If False, fit and return an independent `BrainData` copy while leaving every part of `bd` untouched. Default: True. | <code>True</code>
 `progress_bar` | <code>bool</code> | Display a progress bar for long-running operations. Default: False. | <code>False</code>
 `scale` | <code>bool \| str</code> | Apply percent-signal-change scaling to the data before fitting, via nilearn's per-voxel `mean_scaling` (each voxel's time-series is divided by its own temporal mean, de-meaned, and multiplied by 100). `'auto'` (default) resolves to False for both models — PSC is opt-in. Useful for GLM (interpretable % betas); for ridge it is redundant with `standardize='zscore'` (a warning is raised for that combination). Applied before `standardize`. | <code>'auto'</code>
 `standardize` | <code>str \| None</code> | Standardize each voxel across observations after scaling: `'center'` (subtract the mean), `'zscore'` (subtract mean, divide by std), or None (off). `'auto'` (default) resolves to `'zscore'` for `model='ridge'` (so a shared alpha regularizes voxels fairly) and None for `model='glm'`. | <code>'auto'</code>
-`**kwargs` | <code>dict</code> | Additional arguments passed to the model constructor — for `Ridge`: `alpha`, `alphas`, `random_state`; for `Glm`: `noise_model`, `minimize_memory`, etc. | <code>{}</code>
+`**kwargs` | <code>dict</code> | Additional arguments passed to the model constructor — for `Ridge`: `alpha`, `search_iterations`, `random_state`; for `Glm`: `noise_model`, `minimize_memory`, etc. | <code>{}</code>
 
 **Returns:**
 
@@ -235,17 +202,16 @@ Type | Description
 
 ```python
 # inplace=True (default): results are stored as attributes on brain_data
-brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
-print(f"CV R2: {brain_data.cv_results_['mean_score'].mean():.3f}")
+brain_data.fit(model='ridge', alpha=[0.1, 1.0, 10.0], cv=5, X=features)
+print(f"selected alpha: {brain_data.model_.alpha_}")
 weights = brain_data.ridge_weights
 
 # inplace=False: fit a copy; brain_data remains completely unchanged
 fitted = brain_data.fit(
-    model='ridge', alpha=1.0, cv=5, X=features, inplace=False
+    model='ridge', alpha=1.0, X=features, inplace=False
 )
 weights = fitted.ridge_weights
 assert not hasattr(brain_data, 'ridge_weights')
-print(f"CV R2: {fitted.cv_results_['mean_score'].mean():.3f}")
 
 # The returned GLM copy can compute contrasts
 fitted_glm = brain_data.fit(model='glm', X=design_matrix, inplace=False)
@@ -280,26 +246,25 @@ Sets `glm_betas`, `glm_t`, `glm_p`, `glm_se`, `glm_residual`,
 ### `fit_ridge`
 
 ```python
-fit_ridge(bd, X, cv = None, device = 'cpu', **kwargs)
+fit_ridge(bd, X)
 ```
 
-Fit Ridge model and extract results.
+Fit `bd.model_` and attach the ridge results to `bd`.
+
+Alpha selection and the banded search belong to `Ridge`; this layer only
+stores the results the facade owns.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `bd` | <code>[BrainData](#page-data-brain-data)</code> | Data with `bd.model_` already set to a `Ridge` instance. | *required*
-`X` | <code>ndarray \| list[ndarray]</code> | Training features (a list for banded ridge). | *required*
-`cv` | <code>int \| str \| CV splitter \| None</code> | Cross-validation specification; see `fit`. | <code>None</code>
-`device` | <code>str</code> | Compute device (`'cpu'`/`'gpu'`/`'auto'`) for the held-out CV evaluation, forwarded to `compute_ridge_cv`. Default: `'cpu'`. | <code>'cpu'</code>
-`**kwargs` | <code>dict</code> | Additional ridge arguments for CV (`alpha`, etc.). | <code>{}</code>
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | Training features. | *required*
 
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Sets `ridge_weights`, `ridge_fitted_values`, `ridge_scores`, and
-`cv_results_` (if `cv` is given) on `bd`.
+Sets `ridge_weights`, `ridge_fitted_values`, and `ridge_scores` on `bd`.
 
 </details>
 

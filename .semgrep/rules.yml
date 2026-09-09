@@ -11,11 +11,10 @@
 #
 # Scope model: the conventions bind the PUBLIC API surface — the four data-class
 # facades (BrainData, Adjacency, DesignMatrix, BrainCollection) plus the
-# consolidated `nltools.algorithms` functions. Only the ridge and alignment
-# subsystems may keep legacy names (see docs/development/ridge-internals.md)
-# because the facades translate at their boundary (CLAUDE.md "Facade
-# translation" rule). Rules therefore (a) match only public defs via the
-# `^[^_]` name filter and (b) exclude ridge/alignment/pipeline internals by path.
+# consolidated `nltools.algorithms` functions. Only the alignment subsystem may
+# keep legacy names because the facades translate at their boundary (CLAUDE.md
+# "Facade translation" rule). Rules therefore (a) match only public defs via the
+# `^[^_]` name filter and (b) exclude alignment/pipeline internals by path.
 #
 # IMPORTANT (semgrep structure): the `metavariable-regex` name filter must be
 # ANDed with `pattern-either` under a single `patterns:` block. A top-level
@@ -39,7 +38,7 @@ rules:
   # Distance correlation is the documented exception: it uses `'dcorr'`.
   # The device field is `'device'` (renamed from `'parallel'` in v0.6.0);
   # `'backend'` is intentionally NOT
-  # banned because the ridge/backends layer legitimately reports a backend *name*
+  # banned because the backends layer legitimately reports a backend *name*
   # (e.g. 'torch-cuda') under that key — a distinct concept from the selector.
   - id: banned-result-key-correlation
     languages: [python]
@@ -93,7 +92,6 @@ rules:
     paths:
       exclude:
         - "**/tests/**"
-        - "nltools/algorithms/ridge/"
         - "nltools/algorithms/alignment/"
         - "nltools/pipelines/"
         - "scripts/"

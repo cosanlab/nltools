@@ -102,7 +102,6 @@ project:
             - file: api/neighborhoods.md
             - file: api/utils.md
             - file: api/templates.md
-            - file: api/algorithms/ridge.md
             - file: api/algorithms/inference.md
             - title: BrainData internals
               children:

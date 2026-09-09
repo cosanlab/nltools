@@ -440,38 +440,62 @@ def _bootstrap_simple_cpu_parallel(
     return result
 
 
+def _refit_resample(
+    X: np.ndarray,
+    y: np.ndarray,
+    indices: np.ndarray,
+    alpha: float | np.ndarray,
+) -> np.ndarray:
+    """Refit ridge weights on one bootstrap resample with `alpha` held fixed.
+
+    Both CPU ridge-bootstrap workers route through the package's single
+    fixed-hyperparameter refit, so a resample cannot drift from the full-data
+    fit numerically.
+
+    Args:
+        X (np.ndarray): Training features, shape (n_samples, n_features).
+        y (np.ndarray): Training targets, shape (n_samples,) or
+            (n_samples, n_voxels).
+        indices (np.ndarray): Row indices of the resample.
+        alpha (float | np.ndarray): Scalar or per-target regularization.
+
+    Returns:
+        np.ndarray: Weights, shape (n_features, n_voxels), or (n_features,)
+            when `y` is one-dimensional.
+    """
+    from nltools.models.ridge import _refit_fixed_hyperparameters
+
+    X_boot = np.asarray(X)[indices]
+    y_boot = np.asarray(y)[indices]
+    was_1d = y_boot.ndim == 1
+    if was_1d:
+        y_boot = y_boot[:, None]
+    weights = _refit_fixed_hyperparameters([X_boot], y_boot, alpha)
+    return weights[:, 0] if was_1d else weights
+
+
 def _bootstrap_ridge_weights_worker(
     X: np.ndarray,
     y: np.ndarray,
     indices: np.ndarray,
-    alpha: float,
-    **ridge_kwargs,
+    alpha: float | np.ndarray,
 ) -> np.ndarray:
     """Worker function for bootstrapping ridge weights.
 
-    Calls `ridge_svd` directly on numpy arrays, which is 10-100× faster than
-    going through `BrainData`.
+    Calls the shared fixed-hyperparameter refit directly on numpy arrays, which
+    is 10-100x faster than going through `BrainData`. The refit holds the
+    selected `alpha` fixed: a bootstrap never reruns model selection.
 
     Args:
         X (np.ndarray): Feature matrix, shape (n_samples, n_features).
         y (np.ndarray): Target matrix, shape (n_samples, n_voxels).
         indices (np.ndarray): Bootstrap indices, shape (n_samples,).
-        alpha (float): Ridge regularization parameter.
-        **ridge_kwargs: Additional keyword arguments passed to `ridge_svd`.
+        alpha (float | np.ndarray): Scalar or per-target regularization.
 
     Returns:
         np.ndarray: Ridge weights, shape (n_features, n_voxels).
     """
-    from nltools.algorithms.ridge import ridge_svd
-
-    # Resample data
-    X_boot = X[indices]
-    y_boot = y[indices]
-
-    # Call optimized ridge_svd directly (pure numpy, very fast)
-    weights = ridge_svd(X_boot, y_boot, alpha=alpha, **ridge_kwargs)
-
-    return weights
+    return _refit_resample(X, y, indices, alpha)
 
 
 def _bootstrap_ridge_weights_cpu_parallel(
@@ -485,12 +509,12 @@ def _bootstrap_ridge_weights_cpu_parallel(
     percentiles: tuple[float, float] = (2.5, 97.5),
     tail: int | str = 2,
     progress_bar: bool = False,
-    **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap ridge weights across CPU workers.
 
-    Each resample calls `ridge_svd` directly on numpy arrays (no `BrainData`
-    serialization), which is 10-100× faster than a naive implementation.
+    Each resample calls the shared fixed-hyperparameter refit directly on numpy
+    arrays (no `BrainData` serialization), which is 10-100x faster than a naive
+    implementation.
 
     Args:
         X (np.ndarray): Feature matrix, shape (n_samples, n_features).
@@ -506,7 +530,6 @@ def _bootstrap_ridge_weights_cpu_parallel(
         tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
             for one-tailed (statistic > 0).
         progress_bar (bool): Show a progress bar over iterations. Defaults to False.
-        **ridge_kwargs: Additional keyword arguments passed to `ridge_svd`.
 
     Returns:
         dict[str, np.ndarray]: Results keyed by `'mean'` (bootstrap mean weights), `'std'`
@@ -558,9 +581,7 @@ def _bootstrap_ridge_weights_cpu_parallel(
 
     # Define worker function
     def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_weights_worker(
-            X, y, all_indices[idx], alpha, **ridge_kwargs
-        )
+        return _bootstrap_ridge_weights_worker(X, y, all_indices[idx], alpha)
 
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
@@ -598,8 +619,7 @@ def _bootstrap_ridge_predict_worker(
     y: np.ndarray,
     X_pred: np.ndarray,
     indices: np.ndarray,
-    alpha: float,
-    **ridge_kwargs,
+    alpha: float | np.ndarray,
 ) -> np.ndarray:
     """Worker function for bootstrapping ridge predictions.
 
@@ -611,26 +631,13 @@ def _bootstrap_ridge_predict_worker(
         X_pred (np.ndarray): Test feature matrix, shape (n_test_samples, n_features).
         indices (np.ndarray): Bootstrap indices into the training data, shape
             (n_samples,).
-        alpha (float): Ridge regularization parameter.
-        **ridge_kwargs: Additional keyword arguments passed to `ridge_svd`.
+        alpha (float | np.ndarray): Scalar or per-target regularization.
 
     Returns:
         np.ndarray: Predictions, shape (n_test_samples, n_voxels).
     """
-    from nltools.algorithms.ridge import ridge_svd
-
-    # Resample training data
-    X_boot = X[indices]
-    y_boot = y[indices]
-
-    # Fit Ridge model to bootstrap sample
-    weights = ridge_svd(X_boot, y_boot, alpha=alpha, **ridge_kwargs)
-
-    # Make predictions on test data
-    # Matrix multiplication: (n_test, n_features) @ (n_features, n_voxels)
-    predictions = X_pred @ weights
-
-    return predictions
+    weights = _refit_resample(X, y, indices, alpha)
+    return X_pred @ weights
 
 
 def _bootstrap_ridge_predict_cpu_parallel(
@@ -645,7 +652,6 @@ def _bootstrap_ridge_predict_cpu_parallel(
     percentiles: tuple[float, float] = (2.5, 97.5),
     tail: int | str = 2,
     progress_bar: bool = False,
-    **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap ridge predictions across CPU workers.
 
@@ -668,7 +674,6 @@ def _bootstrap_ridge_predict_cpu_parallel(
         tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
             for one-tailed (statistic > 0).
         progress_bar (bool): Show a progress bar over iterations. Defaults to False.
-        **ridge_kwargs: Additional keyword arguments passed to `ridge_svd`.
 
     Returns:
         dict[str, np.ndarray]: Results keyed by `'mean'` (bootstrap mean predictions), `'std'`
@@ -728,9 +733,7 @@ def _bootstrap_ridge_predict_cpu_parallel(
 
     # Define worker function
     def _compute_one_bootstrap(idx):
-        return _bootstrap_ridge_predict_worker(
-            X, y, X_pred, all_indices[idx], alpha, **ridge_kwargs
-        )
+        return _bootstrap_ridge_predict_worker(X, y, X_pred, all_indices[idx], alpha)
 
     # Execute in parallel with progress bar
     bootstrap_samples = Parallel(n_jobs=n_jobs)(
@@ -998,7 +1001,6 @@ def _bootstrap_ridge_weights_gpu_batched(
     percentiles: tuple[float, float] = (2.5, 97.5),
     tail: int | str = 2,
     progress_bar: bool = False,
-    **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap ridge weights on the GPU with automatic batching.
 
@@ -1022,8 +1024,6 @@ def _bootstrap_ridge_weights_gpu_batched(
         tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
             for one-tailed (statistic > 0).
         progress_bar (bool): Show a progress bar over iterations. Defaults to False.
-        **ridge_kwargs: Accepted for signature parity with the CPU engine; the
-            GPU solve is inlined, so they are not used.
 
     Returns:
         dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU
@@ -1075,7 +1075,6 @@ def _bootstrap_ridge_predict_gpu_batched(
     percentiles: tuple[float, float] = (2.5, 97.5),
     tail: int | str = 2,
     progress_bar: bool = False,
-    **ridge_kwargs,
 ) -> dict[str, np.ndarray]:
     """Bootstrap ridge predictions on the GPU with automatic batching.
 
@@ -1102,8 +1101,6 @@ def _bootstrap_ridge_predict_gpu_batched(
         tail (int | str): `2` or `'two'` for two-tailed (default); `1` or `'one'`
             for one-tailed (statistic > 0).
         progress_bar (bool): Show a progress bar over iterations. Defaults to False.
-        **ridge_kwargs: Accepted for signature parity with the CPU engine; the
-            GPU solve is inlined, so they are not used.
 
     Returns:
         dict[str, np.ndarray]: Bootstrap statistics in the same format as the CPU

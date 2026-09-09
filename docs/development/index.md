@@ -21,7 +21,7 @@ logic lives in pure functions.**
 |---|---|---|
 | **Imperative shell** | Three data classes that hold state and delegate. Each is a *facade over a submodule package* (io, modeling, plotting, …). | `nltools/data/{braindata,adjacency,designmatrix}/` |
 | **Functional core** | Pure functions — the actual computation. Containers in, containers out. Every user-facing function is importable flat from `nltools.algorithms`. | `nltools/algorithms/` (`corrections`, `outliers`, `signal`, `similarity`, `regression`, …), `utils`, `cross_validation`, `mask` |
-| **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference,ridge}/` |
+| **Algorithm substrate** | Heavy numerical machinery with its own backend/parallel story. | `nltools/algorithms/{alignment,inference}/` |
 
 The three facades and their submodules:
 
@@ -88,7 +88,8 @@ public signature against in CI. The table below is rendered from it:
 | Cross-validation spec | `cv` (`int \| 'loo' \| 'logo' \|` splitter; sklearn-style names — the grouping lives in `groups=`) |
 | Subject-level parallelism | `n_jobs: int = -1` |
 | GPU / CPU selection | `device: str = "cpu"` — run-or-raise: explicit `'gpu'` never silently degrades to CPU; `'auto'` is the one graceful-fallback path |
-| Backend (ridge/alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine uses `device` as of v0.6.0) |
+| Backend (alignment internals) | `parallel: None \| 'cpu' \| 'gpu'` (the inference engine and `Ridge` use `device` as of v0.6.0) |
+| Working-memory budget | `memory_budget_gb: float \| None = None` — device-neutral working-memory budget for internal batching; `None` measures the selected device with headroom |
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
@@ -102,8 +103,8 @@ public signature against in CI. The table below is rendered from it:
 
 ## The internals pages
 
-- **[Ridge internals](ridge-internals.md)** — the six mathematical tricks behind the
-  GPU-accelerated ridge solver, and the backend abstraction.
+- **[Ridge internals](ridge-internals.md)** — how `nltools.models.Ridge` adapts the
+  Himalaya solvers: name translation, device and memory policy, and fitted state.
 - **[Inference internals](inference-internals.md)** — permutation and bootstrap testing:
   the algorithms, deterministic cross-backend RNG, p-value calculation, and numerical
   stability.

@@ -945,8 +945,7 @@ class BrainData:
         X=None,
         cv=None,
         device="cpu",
-        local_alpha=True,
-        fit_intercept=False,
+        per_target_alpha=True,
         inplace=True,
         scale="auto",
         standardize="auto",
@@ -963,20 +962,17 @@ class BrainData:
             model (str): Model type: 'ridge', 'glm', or future model names
             X (array-like or DataFrame): Design matrix or feature matrix
             cv (int or sklearn CV splitter, optional): Cross-validation
-                specification (Ridge only). int → ``KFold(cv)``; pass a
-                splitter object (e.g. ``KFold(5, shuffle=True)``,
+                specification (Ridge only). int → unshuffled ``KFold(cv)``;
+                pass a splitter object (e.g. ``KFold(5, shuffle=True)``,
                 ``GroupKFold(8)``) for non-contiguous folds. Generators
                 (``splitter.split(X)``) are rejected.
             device (str, default='cpu'): Ridge only. Compute device for the
-                ridge solve/CV: ``'cpu'`` (NumPy), ``'gpu'`` (PyTorch on
-                CUDA/MPS when available), or ``'auto'`` (GPU if present, else
-                CPU). Ignored when ``model='glm'``.
-            local_alpha (bool, default=True): Ridge only. If True, select
-                α independently per voxel via ``solve_ridge_cv``. If False,
-                pick a single α shared across all voxels.
-            fit_intercept (bool, default=False): Ridge only. Forwarded to
-                the Ridge model — center X and y on the training fold mean
-                per fold and recover the intercept after.
+                ridge solve: ``'cpu'`` (NumPy) or ``'gpu'`` (PyTorch on
+                CUDA/MPS, or an error when neither is available). Ignored when
+                ``model='glm'``.
+            per_target_alpha (bool, default=True): Ridge only. If True, select
+                α independently per voxel. If False, pick a single α shared
+                across all voxels.
             inplace (bool, default=True): If True, mutate self and return self.
                 If False, fit and return an independent `BrainData` copy while
                 leaving every part of self untouched.
@@ -1015,7 +1011,7 @@ class BrainData:
 
         Examples:
             ```python
-            brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
+            brain_data.fit(model='ridge', alpha=[0.1, 1.0, 10.0], cv=5, X=features)
             fit = brain_data.fit(model='ridge', alpha=1.0, X=features, inplace=False)
             ```
         """
@@ -1027,8 +1023,7 @@ class BrainData:
             X=X,
             cv=cv,
             device=device,
-            local_alpha=local_alpha,
-            fit_intercept=fit_intercept,
+            per_target_alpha=per_target_alpha,
             inplace=inplace,
             scale=scale,
             standardize=standardize,

@@ -40,9 +40,9 @@ def _(mo):
     **How it works.** Compared with the [GLM](01_glm.md), an encoding model flips the question and the machinery:
 
     - **GLM** assumes a canonical HRF, uses a few categorical regressors, and asks *which voxels respond* (β / t / p).
-    - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (cross-validated R²).
+    - **Encoding** uses many features (often hundreds), lets the data estimate the response shape, and asks *how well features predict each voxel* (R² on data the model never saw).
 
-    Two ideas make it work: a **FIR (finite impulse response)** feature bank — lagged copies of the stimulus, so ridge learns the per-voxel HRF instead of assuming one — and **ridge regularization with per-voxel α**, since hundreds of features would make ordinary least squares overfit. We compare an optimistic in-sample fit against an honest cross-validated one.
+    Two ideas make it work: a **FIR (finite impulse response)** feature bank — lagged copies of the stimulus, so ridge learns the per-voxel HRF instead of assuming one — and **ridge regularization with per-voxel α**, since hundreds of features would make ordinary least squares overfit. We compare an optimistic in-sample fit against an honest held-out one.
     """
     )
     return
@@ -156,16 +156,16 @@ def _(np, stim):
 def _(mo):
     mo.md(
         r"""
-    ### Fit ridge: in-sample vs. cross-validated
+    ### Fit ridge: in-sample vs. held-out
 
-    Standard encoding preprocessing: demean each voxel (ridge here has no intercept) and skip the GLM's percent-signal scaling (`scale=False`). A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
+    Standard encoding preprocessing: demean each voxel (ridge has no intercept) and skip the GLM's percent-signal scaling (`scale=False`). A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
     """
     )
     return
 
 
 @app.cell
-def _(X_fir, bold, np):
+def _(X_fir, bold):
     bold.data = bold.data - bold.data.mean(axis=0, keepdims=True)  # voxelwise demean
     bold.fit(model="ridge", X=X_fir, alpha=1.0, scale=False)
     in_sample = bold.ridge_scores.data.ravel()
@@ -177,7 +177,7 @@ def _(X_fir, bold, np):
 def _(mo):
     mo.md(
         r"""
-    The honest version: `alpha="auto"` + `cv=K` sweeps an α grid and picks the best α **per voxel** (`local_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. `cv_results_` then carries the cross-validated `mean_score`, per-fold `scores`, and selected `best_alpha`.
+    The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `cv` sweeps the grid and picks the best α **per voxel** (`per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics, because ridge fits no intercept and a new run carries its own offset.
     """
     )
     return
@@ -188,31 +188,45 @@ def _(X_fir, bold, np):
     from sklearn.model_selection import KFold
 
     ALPHAS = np.logspace(-1, 4, 20)
-    bold.fit(
+    n_test = bold.shape[0] // 8  # last of the 8 concatenated runs
+    train, test = slice(0, -n_test), slice(-n_test, None)
+
+    trained = bold[train].fit(
         model="ridge",
-        X=X_fir,
-        alpha="auto",
-        alphas=ALPHAS,
+        X=X_fir[train],
+        alpha=ALPHAS,
         cv=KFold(n_splits=5, shuffle=True, random_state=0),
         scale=False,
+        inplace=False,
     )
-    cv_r2 = bold.cv_results_["mean_score"]
-    print(f"CV R²        — mean {cv_r2.mean():.3f}  max {cv_r2.max():.3f}")
-    print(f"voxels with CV R² > 0.10: {(cv_r2 > 0.10).sum()} / {cv_r2.size}")
-    return (ALPHAS,)
+    held_out = bold[test].standardize(method="zscore")
+    held_out_r2 = trained.model_.score(X_fir[test], held_out.data)
+    print(
+        f"held-out R²  — median {np.median(held_out_r2):.3f}  "
+        f"max {held_out_r2.max():.3f}"
+    )
+    print(
+        f"voxels with held-out R² > 0.10: "
+        f"{(held_out_r2 > 0.10).sum()} / {held_out_r2.size}"
+    )
+    return ALPHAS, held_out_r2, trained
 
 
 @app.cell
-def _(DATASET, bold):
-    cv_map = bold.ridge_scores.copy()
-    cv_map.data = bold.cv_results_["mean_score"].reshape(1, -1)
-    cv_map.plot(
+def _(DATASET, bold, held_out_r2, np):
+    held_out_map = bold.ridge_scores.copy()
+    # Most voxels do not track the stimulus at all, so their held-out R² is
+    # negative. Floor the map at zero and let the threshold hide the rest —
+    # a diverging map here would be a wall of colour with no signal in it.
+    held_out_map.data = np.clip(held_out_r2, 0, None).reshape(1, -1)
+    held_out_map.plot(
         method="slices",
         view="z",
         cut_coords=[[-12, -6, 0, 6, 12]],
         bg_img=DATASET.background,
-        title="Ridge cross-validated R² (per-voxel α, FIR lags 1–3)",
-        cmap="hot",
+        title="Ridge held-out R² (per-voxel α, FIR lags 1–3; R² > 0.05)",
+        cmap="viridis",
+        threshold=0.05,
     )
     return
 
@@ -221,15 +235,15 @@ def _(DATASET, bold):
 def _(mo):
     mo.md(
         r"""
-    CV R² is smaller than in-sample (held-out is harder) and concentrates in the visual cortex that actually tracks the stimulus. Finally, the spread of selected α confirms why per-voxel regularization matters — voxels disagree:
+    Held-out R² is smaller than in-sample (a new run is harder) and concentrates in the visual cortex that actually tracks the stimulus. Finally, the spread of selected α confirms why per-voxel regularization matters — voxels disagree:
     """
     )
     return
 
 
 @app.cell
-def _(ALPHAS, bold, np, plt):
-    best_alpha = np.asarray(bold.cv_results_["best_alpha"]).ravel()
+def _(ALPHAS, np, plt, trained):
+    best_alpha = np.asarray(trained.model_.alpha_).ravel()
     # One bin per grid value, edges at the midpoints between neighbouring alphas.
     log_grid = np.log10(ALPHAS)
     step = log_grid[1] - log_grid[0]
@@ -253,8 +267,8 @@ def _(mo):
     | Load runs | Concatenate BOLD + stimulus across runs | `concatenate([...])` |
     | Features | FIR lag bank (learn the HRF, don't assume it) | `lag_features(stim, [1, 2, 3])` |
     | In-sample fit | Fixed-α ridge → optimistic R² | `bold.fit(model="ridge", X=, alpha=1.0, scale=False)` |
-    | Honest fit | Per-voxel α via CV → out-of-sample R² | `bold.fit(model="ridge", X=, alpha="auto", alphas=, cv=)` |
-    | Inspect | CV R² map + selected α per voxel | `bold.cv_results_["mean_score"]`, `["best_alpha"]` |
+    | Honest fit | Per-voxel α via CV, scored on a held-out run | `bold[train].fit(model="ridge", X=, alpha=ALPHAS, cv=KFold(5), inplace=False)` |
+    | Inspect | Held-out R² map + selected α per voxel | `trained.model_.score(X_test, Y_test)`, `trained.model_.alpha_` |
 
     **Next steps**
 

@@ -337,45 +337,42 @@ and will fall back to run on the CPU.
 ```python
 import time
 import numpy as np
-from nltools.algorithms.ridge import ridge_svd
-from nltools.algorithms.backends import Backend
+from nltools.models import Ridge
 
-X = np.random.randn(300, 100000)
-y = np.random.randn(300)
+X = np.random.randn(300, 100)
+Y = np.random.randn(300, 100000)
 
-# Time NumPy (algorithm-layer solvers use the internal `parallel=` name)
+# Time the CPU (NumPy) backend
 start = time.time()
-coef_np = ridge_svd(X, y, parallel='cpu')
-time_np = time.time() - start
+cpu_fit = Ridge(alpha=1.0, device='cpu').fit(X, Y)
+time_cpu = time.time() - start
 
-# Time PyTorch
+# Time the GPU (PyTorch CUDA/MPS) backend
 start = time.time()
-coef_torch = ridge_svd(X, y, parallel='gpu')
-time_torch = time.time() - start
+gpu_fit = Ridge(alpha=1.0, device='gpu').fit(X, Y)
+time_gpu = time.time() - start
 
-print(f"NumPy: {time_np:.3f}s")
-print(f"PyTorch: {time_torch:.3f}s")
-print(f"Speedup: {time_np/time_torch:.1f}x")
+print(f"CPU: {time_cpu:.3f}s")
+print(f"GPU: {time_gpu:.3f}s")
+print(f"Speedup: {time_cpu/time_gpu:.1f}x")
 ```
 
-### 2. Use Auto-Selection for Portability
+### 2. Ask for the Device You Actually Have
 ```python
-# Good: Works optimally everywhere
-result = ridge_cv(X, y, parallel='auto')
+# Portable: runs on any machine
+model = Ridge(alpha=1.0, device='cpu')
 
-# Less portable: Assumes GPU available
-result = ridge_cv(X, y, parallel='gpu')
+# Explicit GPU: runs on CUDA/MPS or raises — it never degrades silently
+model = Ridge(alpha=1.0, device='gpu')
 ```
 
-### 3. Batch GPU Operations
+### 3. Bound the Working Set Instead of the Batch
 ```python
-# Good: Minimize host-device transfers
-backend = Backend('torch')
-X_device = backend.to_device(X)
-results = [ridge_svd(X_device, y, parallel=backend) for y in y_list]
+# Good: one budget sizes every internal batch
+Ridge(alpha=alphas, cv=5, device='gpu', memory_budget_gb=8.0).fit(X, Y)
 
-# Less efficient: Transfer on every call
-results = [ridge_svd(X, y, parallel='gpu') for y in y_list]
+# Default: measure the device with conservative headroom
+Ridge(alpha=alphas, cv=5, device='gpu').fit(X, Y)
 ```
 
 ### 4. Monitor Resource Usage
@@ -399,7 +396,7 @@ Apple-Silicon MPS box and a GB10/aarch64 CUDA box (`pikachu`).
 
 ### Benchmark domains
 The harness (`benchmarks/`) sweeps three domains at realistic neuroimaging scale:
-1. **ridge** — `ridge_cv` + `BrainData.fit(model='ridge')`, CPU vs GPU.
+1. **ridge** — `Ridge.fit` + `BrainData.fit(model='ridge')`, CPU vs GPU.
 2. **predict** — `BrainData.predict` across `whole_brain` / `roi` / `searchlight`.
 3. **inference** — one-/two-sample and correlation permutation tests, CPU vs GPU.
 
@@ -424,8 +421,8 @@ y = np.random.randn(n_samples).astype(np.float32)
 ## See Also
 
 - [Backends](api/backends.md) - CPU/GPU backend documentation
-- [Ridge Regression](api/algorithms/ridge.md) - Algorithm details
-- [Prediction & cross-validation](api/tasks/prediction.md) - `ridge_cv`/`ridge_svd` and the CV schemes
+- [Ridge internals](development/ridge-internals.md) - The Himalaya adapter
+- [Prediction & cross-validation](api/tasks/prediction.md) - `Ridge` and the CV schemes
 - [Statistics & inference](api/tasks/inference.md) - GPU-capable permutation tests
 - [nltools.algorithms (A–Z index)](api/algorithms.md) - Complete algorithm reference
 

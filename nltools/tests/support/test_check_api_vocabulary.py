@@ -61,7 +61,8 @@ class TestBannedKwargs:
     def test_excluded_paths_are_skipped(self, checker, enforcement):
         src = 'def f(x, parallel="cpu"):\n    pass\n'
         assert (
-            _check(checker, enforcement, src, "nltools/algorithms/ridge/core.py") == []
+            _check(checker, enforcement, src, "nltools/algorithms/alignment/srm.py")
+            == []
         )
         assert len(_check(checker, enforcement, src, "nltools/data/foo.py")) == 1
 

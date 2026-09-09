@@ -211,13 +211,13 @@ PAGES: tuple[Page, ...] = (
         "Prediction & cross-validation",
         "Decode or predict from brain data. `BrainData.predict` runs the workflow. Listed here are the "
         "pieces it accepts or returns: the cross-validation schemes (`resolve_cv` "
-        "turns an int, a name, or an sklearn splitter into one), the ridge solvers "
-        "behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's output, and "
-        "the plots of weights, margins, and predictions.",
+        "turns an int, a name, or an sklearn splitter into one), the `Ridge` "
+        "estimator behind `model='ridge'` (CPU or GPU), `Roc` for a classifier's "
+        "output, and the plots of weights, margins, and predictions.",
         [
             "nltools.cross_validation.KFoldStratified",
             "nltools.cross_validation.resolve_cv",
-            *_algorithms("ridge_cv", "ridge_svd"),
+            "nltools.models.Ridge",
             "nltools.data.roc.Roc",
             *_plotting(
                 "plot_roc",
@@ -383,7 +383,6 @@ PAGES: tuple[Page, ...] = (
     ),
     _module_page("nltools.utils", "utils.md", internal=True),
     _module_page("nltools.templates", "templates.md", internal=True),
-    _module_page("nltools.algorithms.ridge", "algorithms/ridge.md", internal=True),
     _module_page(
         "nltools.algorithms.inference", "algorithms/inference.md", internal=True
     ),

@@ -3,7 +3,7 @@
 Factories for two kinds of benchmark input:
 
 - **arrays** (`make_regression_arrays`, `make_group_maps`) — raw numpy for the
-  algorithm-layer calls (`ridge_cv`, inference primitives).
+  algorithm-layer calls (inference primitives) and the `Ridge` estimator.
 - **in-memory BrainData** (`make_braindata`, `make_mask`, `make_labels`) — for
   the `BrainData.fit`/`.predict` facades.
 

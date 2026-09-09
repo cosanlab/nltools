@@ -131,8 +131,10 @@ p   = 2 * (1 - norm.cdf(abs(z)))     # two-tailed normal approx
 ```
 
 Beyond `mean`, the simple path supports `median`/`std`/`sum`/`min`/`max`. For Ridge
-models, bootstrap farms out to `ridge_svd()` directly (bypassing `BrainData` overhead)
-and has a **GPU-batched** implementation for the weights and predict paths.
+models, bootstrap farms out to the shared fixed-hyperparameter refit in
+`nltools/models/ridge.py` directly (bypassing `BrainData` overhead) and has a
+**GPU-batched** implementation for the weights and predict paths. The refit holds the
+fitted model's selected hyperparameters fixed; a resample never reruns model selection.
 
 ## P-value calculation
 
@@ -248,9 +250,9 @@ Guidance, not hard limits:
 - **Phipson-Smyth correction** — prevents `p = 0`; standard in neuroimaging software.
 - **Welford for bootstrap** — numerically stable and single-pass, `O(output_shape)`
   memory instead of storing every sample.
-- **Farm Ridge bootstrap to `ridge_svd()`** — avoids `BrainData` overhead (object
-  creation, attribute access, serialization) for a large speedup while keeping Ridge
-  correctness.
+- **Farm Ridge bootstrap to the shared fixed refit** — avoids `BrainData` overhead
+  (object creation, attribute access, serialization) for a large speedup, and keeps
+  resamples on the same numerical path as the full-data fit.
 - **Dual bootstrap modes** — efficient (normal-approx CIs) for most uses, full (exact
   percentile CIs) opt-in for custom statistics or distribution visualization.
 

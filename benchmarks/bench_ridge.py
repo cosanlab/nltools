@@ -1,4 +1,4 @@
-"""Ridge-regression benchmarks: algorithm layer + BrainData facade, CPU vs GPU.
+"""Ridge-regression benchmarks: the estimator + BrainData facade, CPU vs GPU.
 
 Neuroimaging convention: ``X`` is the design matrix ``(n_samples, n_features)``
 and ``y`` is brain data ``(n_samples, n_voxels)`` — ridge predicts every voxel
@@ -21,13 +21,11 @@ SIZES_FULL = [
 SIZES_QUICK = [(200, 2_000, 20)]
 
 
-# CPU leg uses joblib ('cpu'), not single-threaded 'numpy': multi-core is the
-# realistic baseline and keeps whole-brain conditions tractable. 2mm (~230k
-# voxels) is GPU-territory — single-threaded CPU there runs minutes/condition.
-# The GPU leg passes ridge's device-agnostic parallel="gpu" alias; the harness
-# device string ("cuda"/"mps"/None) is resolved per host by gpu_device().
+# 2mm (~230k voxels) is GPU territory — CPU there runs minutes per condition.
+# The GPU leg passes Ridge's device="gpu"; the harness device string
+# ("cuda"/"mps"/None) is resolved per host by gpu_device().
 def _backends() -> list[tuple[str, str]]:
-    """(ridge parallel=, harness device=) pairs — GPU leg included iff present."""
+    """(Ridge device=, harness device=) pairs — GPU leg included iff present."""
     backends = [("cpu", "cpu")]
     gpu = gpu_device()
     if gpu is not None:
@@ -36,26 +34,28 @@ def _backends() -> list[tuple[str, str]]:
 
 
 def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
-    from nltools.algorithms.ridge import ridge_cv
+    from nltools.models import Ridge
 
     sizes = SIZES_QUICK if quick else SIZES_FULL
     results: list[BenchResult] = []
 
     for n_samples, n_voxels, n_features in sizes:
         x, y = make_regression_arrays(n_samples, n_voxels, n_features)
-        for parallel, device in _backends():
+        for ridge_device, device in _backends():
             params = {
                 "n_samples": n_samples,
                 "n_voxels": n_voxels,
                 "n_features": n_features,
                 "cv": 5,
-                "backend": parallel,
+                "backend": ridge_device,
             }
             results.append(
                 benchmark(
-                    lambda p=parallel: ridge_cv(x, y, cv=5, parallel=p, random_state=0),
+                    lambda d=ridge_device: Ridge(
+                        alpha=[0.1, 1.0, 10.0], cv=5, device=d
+                    ).fit(x, y),
                     domain="ridge",
-                    name=f"ridge_cv[{n_samples}x{n_voxels}f{n_features}]",
+                    name=f"Ridge.fit[{n_samples}x{n_voxels}f{n_features}]",
                     device=device,
                     reps=reps,
                     params=params,
@@ -70,7 +70,9 @@ def run(reps: int = 3, quick: bool = False) -> list[BenchResult]:
     )
     results.append(
         benchmark(
-            lambda: bd.fit(model="ridge", X=design, cv=5, inplace=False),
+            lambda: bd.fit(
+                model="ridge", X=design, alpha=[0.1, 1.0, 10.0], cv=5, inplace=False
+            ),
             domain="ridge",
             name=f"BrainData.fit[ridge,{n_images}x{n_vox_facade}]",
             device="cpu",

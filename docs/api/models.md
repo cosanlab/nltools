@@ -13,7 +13,7 @@ Name | Description
 ---- | -----------
 [`ContrastResult`](#models-contrastresult) | Frozen record of the inferential outputs of one contrast.
 [`Glm`](#models-glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
-[`Ridge`](#models-ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
+[`Ridge`](#models-ridge) | Ridge regression over one or several named feature spaces.
 
 
 
@@ -309,54 +309,60 @@ r2 = brain.model_.score()
 ### `Ridge`
 
 ```python
-Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False)
+Ridge(*, alpha: float | Sequence[float] | np.ndarray = 1.0, cv: float | Sequence[float] | np.ndarray = None, search_iterations: int = 100, dirichlet_concentration: float | Sequence[float] = (0.1, 1.0), device: str = 'cpu', memory_budget_gb: float | None = None, per_target_alpha: bool = True, prefer_conservative_alpha: bool = False, random_state: int | None = None, progress_bar: bool = False)
 ```
 
-Ridge regression with optional GPU acceleration and banded ridge support.
+Ridge regression over one or several named feature spaces.
 
-Wraps nltools SVD-based ridge regression algorithms with
-scikit-learn compatible API. Supports single and multi-target
-regression with optional GPU acceleration via PyTorch.
+Fits `argmin_b ||X @ b - y||^2 + alpha * ||b||^2` without an intercept.
+Callers own preprocessing: `Ridge` never centers, scales, standardizes, or
+adds an intercept column.
 
-Supports both regular ridge (single feature space) and banded ridge
-(multiple feature spaces). The model detects the input type: an array `X`
-is a single feature space; a list `X` is multiple feature spaces and runs
-banded (group) ridge with a random search over feature-space weights.
+A two-dimensional `X` fits ordinary Ridge. A mapping from names to
+two-dimensional arrays fits banded Ridge, which searches feature-space
+weights on the simplex jointly with the alphas.
+
+Himalaya defines the numerical behavior: the cross-validation loss is
+negative mean squared error, and alpha selection, the Dirichlet search, and
+coefficient refitting all come from its solvers.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`alpha` | <code>float or 'auto', default=1.0</code> | Regularization strength. If 'auto', uses cross-validation to select optimal alpha from alphas parameter. | <code>1.0</code>
-`cv` | <code>int or None, default=None</code> | Number of cross-validation folds (only used if alpha='auto') | <code>None</code>
-`alphas` | <code>array-like or None, default=None</code> | Alpha values to try during cross-validation. Defaults to [0.1, 1.0, 10.0] if None. | <code>None</code>
-`n_iter` | <code>int, default=100</code> | Number of random search iterations. Only used when X is a list (multiple feature spaces). Ignored for single feature space. | <code>100</code>
-`concentration` | <code>float or list, default=[0.1, 1.0]</code> | Concentration parameter(s) for Dirichlet sampling of feature-space weights. Only used when X is a list. A value of 1 samples uniformly over the simplex, infinity gives equal weights, and a list is cycled through across iterations. | <code>None</code>
-`device` | <code>str, default='cpu'</code> | Compute device. One of `'cpu'` (NumPy), `'gpu'` (PyTorch on CUDA/MPS when available, else torch-CPU), or `'auto'` (use a GPU if one is present, otherwise NumPy). Selects *where* the SVD/CV math runs; distinct from any CPU-core parallelism. | <code>'cpu'</code>
-`local_alpha` | <code>bool, default=True</code> | If True, select best alpha independently for each target. If False, select single best alpha for all targets. | <code>True</code>
-`fit_intercept` | <code>bool, default=False</code> | Whether to fit an intercept. | <code>False</code>
-`conservative` | <code>bool, default=False</code> | If True, select largest alpha within 1 std of best score (more regularization). | <code>False</code>
-`random_state` | <code>int or None, default=None</code> | Random seed for reproducibility (used for CV splits and random search) | <code>None</code>
-`progress_bar` | <code>bool, default=False</code> | Whether to display progress bar during banded ridge fitting (when X is a list). Requires tqdm. Not used for single feature space ridge regression. | <code>False</code>
+`alpha` | <code>float \| Sequence[float] \| ndarray</code> | A positive finite scalar fits a fixed alpha and requires `cv=None`. A non-empty one-dimensional collection of positive finite values selects an alpha by cross-validation and requires `cv`. Default: `1.0`. | <code>1.0</code>
+`cv` | <code>int \| BaseCrossValidator \| None</code> | An integer builds unshuffled K-fold splits; a reusable scikit-learn cross-validator is used as given. A single-use split generator is invalid because fitting traverses the splits more than once. Default: `None`. | <code>None</code>
+`search_iterations` | <code>int</code> | Number of sampled feature-space weight vectors for banded Ridge. Default: `100`. | <code>100</code>
+`dirichlet_concentration` | <code>float \| Sequence[float]</code> | Concentration parameter(s) of the Dirichlet distribution the candidate weights are drawn from. A list is cycled through across candidates. Default: `(0.1, 1.0)`. | <code>(0.1, 1.0)</code>
+`device` | <code>str</code> | `'cpu'` or `'gpu'`. An explicit `'gpu'` resolves to CUDA or MPS or raises; it never falls back to a CPU backend. Default: `'cpu'`. | <code>'cpu'</code>
+`memory_budget_gb` | <code>float \| None</code> | Working-memory budget in GB used to size Himalaya's internal batches. None measures the device with conservative headroom. It is a budget, not a hard process limit. Default: `None`. | <code>None</code>
+`per_target_alpha` | <code>bool</code> | True selects the best alpha separately per target; False averages each candidate's fold scores across targets and selects one shared alpha. Default: `True`. | <code>True</code>
+`prefer_conservative_alpha` | <code>bool</code> | True selects the largest alpha whose mean score beats the best alpha's mean score minus that alpha's standard deviation across folds. Invalid with `per_target_alpha=False`. Default: `False`. | <code>False</code>
+`random_state` | <code>int \| None</code> | Seed for the banded random search only; the cross-validator controls split randomness. Ordinary Ridge accepts it and ignores it — it has no randomness of its own — so that `BrainData.fit` can keep forwarding one shared `random_state` to whichever estimator it builds. Default: `None`. | <code>None</code>
+`progress_bar` | <code>bool</code> | Show a progress bar over the banded search. Default: `False`. | <code>False</code>
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`coef_` | <code>ndarray of shape (n_features,) or (n_features, n_targets</code> | Ridge coefficients
-`alpha_` | <code>float or ndarray</code> | Alpha value(s) used (selected via CV if alpha='auto')
-`cv_scores_` | <code>ndarray</code> | Cross-validation scores (only if alpha='auto')
-`deltas_` | <code>ndarray or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
-`backend_` | <code>[Backend](#backends-backend)</code> | Resolved backend instance used for computation (its `.name` reports the concrete device, e.g. `'torch-cuda'`).
-`is_fitted_` | <code>bool</code> | Whether the model has been fitted
+`coef_` | <code>ndarray</code> | `(n_features,)` for one-dimensional `y`, otherwise `(n_features, n_targets)`, in concatenated feature-space order.
+`alpha_` | <code>float \| ndarray</code> | Scalar for a fixed or shared alpha, otherwise `(n_targets,)`.
+`cv_scores_` | <code>float \| ndarray \| None</code> | None for a fixed-alpha fit. For ordinary Ridge, the fold-averaged negative-MSE score at the selected alpha. For banded Ridge, `(search_iterations,)` or `(search_iterations, n_targets)` fold-averaged scores.
+`feature_space_weights_` | <code>ndarray \| None</code> | None for ordinary Ridge. Strictly positive weights whose columns sum to one, shaped `(n_spaces,)` or `(n_spaces, n_targets)`.
+`feature_space_names_` | <code>tuple[str, ...] \| None</code> | Fitted mapping keys in coefficient order; None for ordinary Ridge.
+`feature_space_sizes_` | <code>tuple[int, ...] \| None</code> | Feature counts aligned with `feature_space_names_`; None for ordinary Ridge.
+`backend_` | <code>[Backend](#backends-backend)</code> | The resolved execution backend.
+`n_samples_` | <code>int</code> | Fitted sample count.
+`n_features_in_` | <code>int</code> | Total fitted feature count across spaces.
+`is_fitted_` | <code>bool</code> | True after a successful fit.
 
 **Methods:**
 
 Name | Description
 ---- | -----------
-[`fit`](#models-fit) | Fit ridge regression model.
-[`predict`](#models-predict) | Predict using the ridge model.
-[`score`](#models-score) | Return the coefficient of determination R^2 of the prediction.
+[`fit`](#models-fit) | Fit the model.
+[`predict`](#models-predict) | Predict targets for `X`.
+[`score`](#models-score) | Return the coefficient of determination for each target.
 
 
 
@@ -368,16 +374,15 @@ from nltools.models import Ridge
 
 X = np.random.randn(100, 50)
 y = np.random.randn(100)
-model = Ridge(alpha=1.0)
-model.fit(X, y)
-y_pred = model.predict(X)
 
-# Banded ridge with multiple feature spaces (automatic detection)
-X1 = np.random.randn(100, 30)
-X2 = np.random.randn(100, 20)
-model = Ridge(alpha='auto', cv=5, n_iter=50)
-model.fit([X1, X2], y)
-print(f"Feature space weights: {model.deltas_}")
+model = Ridge(alpha=1.0).fit(X, y)
+predictions = model.predict(X)
+
+# Banded ridge over two named feature spaces
+spaces = {"motion": np.random.randn(100, 6), "task": np.random.randn(100, 12)}
+banded = Ridge(alpha=[1.0, 10.0, 100.0], cv=5, search_iterations=20)
+banded.fit(spaces, y)
+print(banded.feature_space_weights_)
 ```
 
 #### Methods
@@ -385,67 +390,80 @@ print(f"Feature space weights: {model.deltas_}")
 ##### `fit`
 
 ```python
-fit(X: np.ndarray | list[np.ndarray], y: np.ndarray) -> Ridge
+fit(X, y) -> Ridge
 ```
 
-Fit ridge regression model.
-
-Supports both regular ridge (single feature space) and banded ridge
-(multiple feature spaces). If X is a list, banded ridge is used.
+Fit the model.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features) or list of arrays</code> | Training data. If list, each element is a feature space for banded ridge. | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | A `(n_samples, n_features)` matrix for ordinary Ridge, or a non-empty mapping of unique names to equally sampled 2-D matrices for banded Ridge. | *required*
+`y` | <code>ndarray</code> | Targets of shape `(n_samples,)` or `(n_samples, n_targets)`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>[Ridge](#models-ridge)</code> | Fitted model instance
+<code>[Ridge](#tasks-prediction-ridge)</code> | `self`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If any input or argument combination is invalid.
+<code>RuntimeError</code> | If `device='gpu'` and no accelerator is available.
 
 ##### `predict`
 
 ```python
-predict(X: np.ndarray) -> np.ndarray
+predict(X) -> np.ndarray
 ```
 
-Predict using the ridge model.
+Predict targets for `X`.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Samples to predict | *required*
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | Features in the structure used for fitting. Banded mappings may be in any order; they are aligned to `feature_space_names_`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>ndarray</code> | Predicted values, shape ``(n_samples,)`` or     ``(n_samples, n_targets)``.
+<code>ndarray</code> | `(n_samples,)` when fitted on one-dimensional `y`,     otherwise `(n_samples, n_targets)`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the model is not fitted, or `X` does not match the fitted feature structure.
 
 ##### `score`
 
 ```python
-score(X: np.ndarray, y: np.ndarray) -> float | np.ndarray
+score(X, y) -> float | np.ndarray
 ```
 
-Return the coefficient of determination R^2 of the prediction.
-
-For multi-target regression (y is 2D), returns per-target R² scores.
-For single-target regression (y is 1D), returns a scalar R².
+Return the coefficient of determination for each target.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test samples | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values for X | *required*
+`X` | <code>ndarray \| Mapping[str, ndarray]</code> | Features in the fitted structure. | *required*
+`y` | <code>ndarray</code> | True targets, `(n_samples,)` or `(n_samples, n_targets)`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>float \| ndarray</code> | A scalar R² when `y` is 1-D; an array of shape     `(n_targets,)` with per-target R² scores when `y` is 2-D.
+<code>float \| ndarray</code> | A `float` for one-dimensional `y`, otherwise an     array of shape `(n_targets,)`. A constant target scores zero.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the model is not fitted, or the shapes disagree.

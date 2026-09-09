@@ -20,8 +20,10 @@ focused submodules underneath:
   `align`/`procrustes` entry points
 - **inference**: permutation tests, bootstrap resampling, and intersubject
   statistics (ISC/ISFC/ISPS) with CPU-parallel and GPU backends
-- **ridge**: regularized regression (also exported as a module for advanced usage)
 - **hrf**: hemodynamic response functions
+
+Ridge regression lives in `nltools.models.Ridge`, which delegates its numerics
+to the Himalaya library.
 
 **Classes:**
 
@@ -68,8 +70,6 @@ Name | Description
 [`procrustes`](#algorithms-procrustes) | Perform a Procrustes similarity analysis on two data sets.
 [`procrustes_distance`](#algorithms-procrustes-distance) | Test matrix similarity using Procrustes superposition.
 [`regress`](#algorithms-regress) | Fit an OLS regression of `Y` on `X`.
-[`ridge_cv`](#algorithms-ridge-cv) | Ridge regression with cross-validated selection of a single global alpha.
-[`ridge_svd`](#algorithms-ridge-svd) | Solve ridge regression for one alpha using the singular value decomposition.
 [`spm_dispersion_derivative`](#algorithms-spm-dispersion-derivative) | Sample the dispersion derivative of the SPM canonical hemodynamic response function.
 [`spm_hrf`](#algorithms-spm-hrf) | Sample the SPM canonical hemodynamic response function.
 [`spm_time_derivative`](#algorithms-spm-time-derivative) | Sample the time derivative of the SPM canonical hemodynamic response function.
@@ -1973,106 +1973,6 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>tuple</code> | `(b, se, t, p, df, res)` when `stats='full'`: coefficients,     standard errors, t-statistics, p-values (per `tail`), residual     degrees of freedom, and residuals. `stats='betas'` returns just `b`;     `stats='tstats'` returns `(b, t)`.
-
-(algorithms-ridge-cv)=
-### `ridge_cv`
-
-```python
-ridge_cv(X: np.ndarray, y: np.ndarray, *, alphas: np.ndarray | None = None, cv: int | BaseCrossValidator = 5, fit_intercept: bool = False, parallel: str | None = 'cpu', max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> dict
-```
-
-Ridge regression with cross-validated selection of a single global alpha.
-
-Scores every alpha by out-of-fold R² on each fold, picks the alpha with the
-highest mean R² across folds and targets, then refits on all the data with
-it. For per-target alphas, memory-bounded batching, and GPU-batched folds
-use `solve_ridge_cv`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
-`y` | <code>ndarray</code> | Targets, shape (n_samples,) or (n_samples, n_targets). | *required*
-`alphas` | <code>ndarray \| None</code> | Alpha values to try. None uses `np.logspace(-2, 4, 20)` (0.01 to 10000). Defaults to None. | <code>None</code>
-`cv` | <code>int \| BaseCrossValidator</code> | Number of folds, or an sklearn cross-validator (anything with `.split(X)` and `.get_n_splits()`, e.g. `KFold(5, shuffle=True)` or `GroupKFold(8)`). The splitter drives the actual fold iteration, so leave-one-run-out and shuffled K-fold give different results from contiguous K-fold. Defaults to 5. | <code>5</code>
-`fit_intercept` | <code>bool</code> | If True, center `X` and `y` on their means before fitting and recover the intercept afterwards. The returned `coef` is on the centered scale; the intercept is returned under the `'intercept'` key. Defaults to False. | <code>False</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to `"cpu"`. | <code>'cpu'</code>
-`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
-`random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict</code> | Keys `'alpha'` (float, the selected alpha), `'coef'` (np.ndarray,     coefficients refit on all data with that alpha), `'cv_scores'`     (np.ndarray, out-of-fold R² with shape (n_folds, n_alphas,     n_targets)), `'backend'` (str, backend name), and — only when     `fit_intercept=True` — `'intercept'` (float or np.ndarray).
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>TypeError</code> | If `cv` is a generator rather than a re-iterable splitter.
-
-**Examples:**
-
-```python
-X = np.random.randn(100, 50)
-y = np.random.randn(100)
-result = ridge_cv(X, y, cv=3)
-result["alpha"]  # → the selected alpha
-result["coef"].shape  # → (50,)
-```
-
-(algorithms-ridge-svd)=
-### `ridge_svd`
-
-```python
-ridge_svd(X: np.ndarray, y: np.ndarray, *, alpha: float = 1.0, parallel: str | None = None, max_gpu_memory_gb: float | None = None, random_state: int | None = None) -> np.ndarray
-```
-
-Solve ridge regression for one alpha using the singular value decomposition.
-
-With `X = U @ diag(s) @ V.T` the solution is
-`beta = V @ diag(s / (s**2 + alpha)) @ U.T @ y`; the shrinkage factor
-`s / (s**2 + alpha)` damps small singular values without an explicit matrix
-inverse. Time is `O(n_samples × n_features × min(n_samples, n_features))`
-and memory `O(n_samples × n_features)`. As `alpha → 0` this approaches
-ordinary least squares; use `alpha=1e-6` rather than 0 for a stable OLS fit.
-For cross-validated alpha selection use `solve_ridge_cv`.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray</code> | Training features, shape (n_samples, n_features). | *required*
-`y` | <code>ndarray</code> | Targets, shape (n_samples,) for a single target or (n_samples, n_targets) for several. | *required*
-`alpha` | <code>float</code> | Regularization strength; must be non-negative. Larger values shrink the coefficients harder toward zero. Defaults to 1.0. | <code>1.0</code>
-`parallel` | <code>str \| None</code> | Execution backend. `None` or `"cpu"` runs on NumPy; `"gpu"` requires a CUDA or MPS accelerator; `"auto"` may use a Torch CPU backend when no accelerator is available. Defaults to None. | <code>None</code>
-`max_gpu_memory_gb` | <code>float \| None</code> | GPU memory budget in GB for batching over targets (torch backends only). None measures the device. Defaults to None. | <code>None</code>
-`random_state` | <code>int \| None</code> | Unused; accepted for signature consistency. Defaults to None. | <code>None</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>ndarray</code> | Coefficients, shape (n_features,) for a single target or     (n_features, n_targets) for several.
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If `alpha` is negative, `X` is not 2D, `y` is not 1D or 2D, or the sample counts differ.
-
-**Examples:**
-
-```python
-X = np.random.randn(100, 50)
-y = np.random.randn(100)
-ridge_svd(X, y, alpha=1.0).shape  # → (50,)
-
-Y = np.random.randn(100, 5)  # multi-target
-ridge_svd(X, Y, alpha=1.0).shape  # → (50, 5)
-```
 
 (algorithms-spm-dispersion-derivative)=
 ### `spm_dispersion_derivative`

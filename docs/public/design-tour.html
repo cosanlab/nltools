@@ -495,7 +495,8 @@
     <tr><td>Cross-validation spec</td><td><code>cv</code></td><td><code>int</code> folds · <code>'loo'</code> · <code>'logo'</code> (+ <code>groups=</code>) · sklearn splitter — never <code>'loso'</code>/<code>'loro'</code></td></tr>
     <tr><td>Subject-level parallelism</td><td><code>n_jobs</code></td><td>default <code>-1</code></td></tr>
     <tr><td>GPU / CPU selection</td><td><code>device</code></td><td>orthogonal to <code>n_jobs</code> — explicit <code>'gpu'</code> runs or raises</td></tr>
-    <tr><td>Backend (ridge/alignment internals)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code> — inference uses <code>device</code></td></tr>
+    <tr><td>Backend (alignment internals)</td><td><code>parallel</code></td><td><code>None</code> · <code>'cpu'</code> · <code>'gpu'</code> — inference and ridge use <code>device</code></td></tr>
+    <tr><td>Working-memory budget</td><td><code>memory_budget_gb</code></td><td>device-neutral · <code>None</code> measures the device</td></tr>
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
     <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
@@ -511,7 +512,7 @@
 
 <div class="callout">
   <!-- AUTOGEN:api-vocabulary:tour-exceptions — generated from docs/_data/api-vocabulary.yml; run `uv run poe docs-generate` to update -->
-  <strong>Four deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. <code>Ridge(n_iter=)</code> matches sklearn's random-search name. <code>compute_contrasts(statistic=)</code> selects an output map (t/z/p/β), not an algorithm. GLM contrast p-maps are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. Each is documented, not an oversight.
+  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. <code>compute_contrasts(statistic=)</code> selects an output map (t/z/p/β), not an algorithm. GLM contrast p-maps are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. Each is documented, not an oversight.
   <!-- /AUTOGEN:api-vocabulary:tour-exceptions -->
 </div>
 </section>

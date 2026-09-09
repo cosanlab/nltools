@@ -1,64 +1,7 @@
 """Shared fixtures for model tests."""
 
-import importlib.util
-
 import numpy as np
 import pytest
-
-from nltools.models import Ridge
-
-
-def gpu_available():
-    """Check whether PyTorch can use CUDA or MPS."""
-    if importlib.util.find_spec("torch") is None:
-        return False
-    import torch
-
-    return torch.cuda.is_available() or (
-        hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-    )
-
-
-@pytest.fixture(scope="module")
-def ridge_single_target_data():
-    """Standard single-target Ridge test data.
-
-    Module-scoped: deterministic data shared across tests.
-    """
-    np.random.seed(42)
-    X = np.random.randn(100, 50).astype(np.float32)
-    y = np.random.randn(100).astype(np.float32)
-    X_test = np.random.randn(20, 50).astype(np.float32)
-    return {"X": X, "y": y, "X_test": X_test}
-
-
-@pytest.fixture(scope="module")
-def ridge_multi_target_data():
-    """Standard multi-target Ridge test data."""
-    np.random.seed(42)
-    X = np.random.randn(100, 50).astype(np.float32)
-    Y = np.random.randn(100, 5).astype(np.float32)
-    X_test = np.random.randn(20, 50).astype(np.float32)
-    return {"X": X, "Y": Y, "X_test": X_test}
-
-
-@pytest.fixture(scope="module")
-def fitted_ridge_single(ridge_single_target_data):
-    """Pre-fitted Ridge model for property tests.
-
-    Module-scoped: expensive fit() runs once.
-    """
-    model = Ridge(alpha=1.0)
-    model.fit(ridge_single_target_data["X"], ridge_single_target_data["y"])
-    return model, ridge_single_target_data
-
-
-@pytest.fixture(scope="module")
-def fitted_ridge_cv(ridge_single_target_data):
-    """Pre-fitted Ridge with CV for property tests."""
-    model = Ridge(alpha="auto", cv=3)
-    model.fit(ridge_single_target_data["X"], ridge_single_target_data["y"])
-    return model, ridge_single_target_data
 
 
 @pytest.fixture(scope="module")

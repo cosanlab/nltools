@@ -464,8 +464,9 @@ bd.fit(model="ridge", X=np.column_stack([b, a, c]), alpha=1.0)      # w = [w_b, 
 Dropping a regressor does not make its variance disappear — it reassigns it to
 whichever correlated column happened to survive, which silently changes what the
 remaining coefficients mean. Shrinkage instead distributes the shared variance
-across the collinear set in a determined way. Use `cv='auto'` with `alphas=[...]`
-to choose the penalty by cross-validation rather than by hand.
+across the collinear set in a determined way. Pass a sequence of candidate
+`alpha` values with a `cv` to choose the penalty by cross-validation rather than
+by hand.
 
 The caveat worth stating plainly: regularization fixes the *estimation* problem,
 not the *identifiability* one. If two regressors are exactly collinear, no method
@@ -1339,12 +1340,17 @@ scores = brain_data.ridge_scores     # R² per voxel
 predictions = brain_data.predict(X=new_features)
 ```
 
+Ridge numerics come from [Himalaya](https://github.com/gallantlab/himalaya),
+which nltools now depends on; `nltools.models.Ridge` is the estimator behind the
+facade. It never adds an intercept — center or standardize before fitting.
+
 | Feature | Before | After | Benefit |
 |---------|--------|-------|---------|
 | API | Manual sklearn | Integrated `.fit()` | Convenient |
-| GPU support | Manual setup | GPU-enabled solver | Automatic |
-| CV support | Manual | `cv=5` parameter | Built-in |
-| Alpha selection | Manual grid search | `alpha='auto'` | Automatic |
+| GPU support | Manual setup | `device='gpu'` (CUDA/MPS) | Runs or raises, never silent CPU |
+| CV support | Manual | `cv=5` or a splitter | Built-in |
+| Alpha selection | Manual grid search | a sequence of `alpha` plus `cv` | Per-voxel by default |
+| Banded ridge | Not available | a named mapping of feature spaces | Dirichlet search over space weights |
 
 ---
 
@@ -1359,22 +1365,18 @@ from sklearn.model_selection import cross_val_score
 
 **After (v0.6.0):**
 ```python
-# Basic CV
-brain_data.fit(model='ridge', alpha=1.0, cv=5, X=features)
-mean_r2 = brain_data.cv_results_['mean_score']
-cv_preds = brain_data.cv_results_['predictions']
-
-# Auto alpha selection
-brain_data.fit(model='ridge', cv='auto', alphas=[0.1, 1, 10], X=features)
-best_alpha = brain_data.cv_results_['best_alpha']
+# A sequence of candidate alphas plus a cv selects one per voxel
+brain_data.fit(model='ridge', alpha=[0.1, 1, 10], cv=5, X=features)
+best_alpha = brain_data.model_.alpha_        # (n_voxels,)
+selection_scores = brain_data.model_.cv_scores_   # negative MSE at that alpha
 ```
 
 | Feature | Before | After |
 |---------|--------|-------|
-| CV splits | Manual sklearn | `cv=5` or custom splitter |
-| Alpha selection | Manual grid search | `cv='auto'` |
-| Out-of-fold predictions | Manual tracking | In `cv_results_` dict |
-| Performance metrics | Manual computation | Automatic R² per voxel |
+| CV splits | Manual sklearn | `cv=5` (unshuffled K-fold) or a splitter |
+| Alpha selection | Manual grid search | a sequence of `alpha` plus `cv` |
+| Per-voxel alpha | Manual loop | `per_target_alpha=True` (the default) |
+| Selection criterion | Whatever you wrote | Himalaya's negative MSE |
 
 ---
 
@@ -1687,7 +1689,6 @@ loaded = Fit(**{k: np.load('fit_results.npz')[k] for k in np.load('fit_results.n
 
 **Fit Dataclass Attributes**:
 - **Ridge**: `weights`, `scores`, `fitted_values`
-- **Ridge + CV**: Also includes `cv_scores`, `cv_mean_score`, `cv_predictions`, `cv_folds`, `cv_best_alpha`, `cv_alpha_scores`
 - **GLM**: `betas`, `t_stats`, `p_values`, `se`, `residuals`, `fitted_values`, `r2`
 
 ---
@@ -1908,7 +1909,7 @@ Affected:
 - `Adjacency.bootstrap` — keyword-only after `stat`
 - `BrainData.predict` — keyword-only after the required positionals
 - The seven public inference entry points — `one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test`, `timeseries_correlation_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test` — keyword-only after the leading data arguments: `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`
-- The remaining public functions the convention sweep caught — `SRM.__init__` / `DetSRM.__init__`, `ridge_svd` / `ridge_cv`, `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape), `plot_mean_label_distance`, `plot_between_label_distance`, and `plot_interactive_brain`: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
+- The remaining public functions the convention sweep caught — `SRM.__init__` / `DetSRM.__init__`, `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape), `plot_mean_label_distance`, `plot_between_label_distance`, and `plot_interactive_brain`: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
 - `SphereNeighborhoods.iter_neighborhoods` — `progress_bar` is keyword-only
 
 The `*` marker prevents classes of bug that the old implicit-positional API allowed — e.g. `Adjacency(data, "directed")` used to silently bind `"directed"` to the `Y` parameter, and a parameter inserted mid-signature in the inference layer once silently shifted `single_feature` into `progress_bar` with no error of any kind.
@@ -2175,17 +2176,17 @@ p-values are one-sided: negate the contrast to test the other direction.
 ### Automatic Alpha Selection
 
 ```python
-# Ridge regression with automatic alpha selection
+# Ridge regression with automatic per-voxel alpha selection
 brain_data.fit(
     model='ridge',
-    cv='auto',
-    alphas=[0.1, 1.0, 10.0, 100.0],
+    alpha=[0.1, 1.0, 10.0, 100.0],
+    cv=5,
     X=features
 )
 
-# Access best alpha
-best_alpha = brain_data.cv_results_['best_alpha']
-alpha_scores = brain_data.cv_results_['alpha_scores']
+# Access the selected alpha and its cross-validated selection score
+best_alpha = brain_data.model_.alpha_
+selection_scores = brain_data.model_.cv_scores_
 ```
 
 (braincollection)=
