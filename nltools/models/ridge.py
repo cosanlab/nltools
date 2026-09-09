@@ -8,7 +8,7 @@ Supports both regular ridge (single feature space) and banded ridge
 from __future__ import annotations
 
 import numpy as np
-from .base import BaseModel
+from .validation import _check_is_fitted, _validate_X, _validate_X_y
 from ..algorithms.ridge import ridge_svd
 from ..algorithms.ridge.solvers import (
     solve_ridge_cv,
@@ -17,7 +17,7 @@ from ..algorithms.ridge.solvers import (
 from ..algorithms.backends import resolve_backend
 
 
-class Ridge(BaseModel):
+class Ridge:
     """Ridge regression with optional GPU acceleration and banded ridge support.
 
     Wraps nltools SVD-based ridge regression algorithms with
@@ -67,6 +67,7 @@ class Ridge(BaseModel):
             Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
         backend_ (Backend): Resolved backend instance used for computation
             (its `.name` reports the concrete device, e.g. `'torch-cuda'`).
+        is_fitted_ (bool): Whether the model has been fitted
 
     Examples:
         ```python
@@ -103,7 +104,7 @@ class Ridge(BaseModel):
         random_state: int | None = None,
         progress_bar: bool = False,
     ) -> None:
-        super().__init__()
+        self.is_fitted_ = False
         self.alpha = alpha
         self.cv = cv
         self.alphas = alphas if alphas is not None else [0.1, 1.0, 10.0]
@@ -151,7 +152,7 @@ class Ridge(BaseModel):
             Xs = [np.asarray(Xi) for Xi in X]
         else:
             # Regular ridge: convert to list format for unified handling
-            X = self._validate_X(X)
+            X = _validate_X(self, X)
             Xs = [X]
 
         # Validate y
@@ -206,8 +207,7 @@ class Ridge(BaseModel):
                 self.coef_ = self.coef_.squeeze(axis=1)
                 self.intercept_ = float(np.asarray(self.intercept_).squeeze())
 
-            # Call parent fit to set fitted state
-            super().fit(Xs[0], y)
+            self._record_fitted_state(Xs[0])
             return self
 
         # Cross-validation case
@@ -283,12 +283,21 @@ class Ridge(BaseModel):
             self.coef_ = self.coef_.squeeze(axis=1)
             self.intercept_ = float(np.asarray(self.intercept_).squeeze())
 
-        # Call parent fit to set fitted state
-        # Use concatenated X for single feature space check
+        # Banded fits report the total feature count across spaces
         X_combined = np.concatenate(Xs, axis=1) if is_banded else Xs[0]
-        super().fit(X_combined, y)
+        self._record_fitted_state(X_combined)
 
         return self
+
+    def _record_fitted_state(self, X: np.ndarray) -> None:
+        """Store the training dimensions and mark the model as fitted.
+
+        Args:
+            X (ndarray of shape (n_samples, n_features)): The fitted feature
+                matrix, concatenated across feature spaces for banded ridge.
+        """
+        self.n_samples_, self.n_features_in_ = X.shape
+        self.is_fitted_ = True
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Predict using the ridge model.
@@ -300,8 +309,8 @@ class Ridge(BaseModel):
             np.ndarray: Predicted values, shape ``(n_samples,)`` or
                 ``(n_samples, n_targets)``.
         """
-        self._check_is_fitted()
-        X = self._validate_X(X, reset=False)
+        _check_is_fitted(self)
+        X = _validate_X(self, X, reset=False)
 
         # Compute predictions
         y_pred = X @ self.coef_
@@ -331,8 +340,8 @@ class Ridge(BaseModel):
             float | np.ndarray: A scalar R² when `y` is 1-D; an array of shape
                 `(n_targets,)` with per-target R² scores when `y` is 2-D.
         """
-        self._check_is_fitted()
-        X, y = self._validate_X_y(X, y)
+        _check_is_fitted(self)
+        X, y = _validate_X_y(self, X, y)
 
         y_pred = self.predict(X)
 

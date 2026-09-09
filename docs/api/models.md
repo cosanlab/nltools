@@ -11,7 +11,7 @@ Provides sklearn-compatible APIs for common neuroimaging analyses.
 
 Name | Description
 ---- | -----------
-[`BaseModel`](#models-basemodel) | Abstract base class for all nltools models.
+[`ContrastResult`](#models-contrastresult) | Frozen record of the inferential outputs of one contrast.
 [`Glm`](#models-glm) | General Linear Model for fMRI data analysis with sklearn-compatible API.
 [`Ridge`](#models-ridge) | Ridge regression with optional GPU acceleration and banded ridge support.
 
@@ -19,105 +19,37 @@ Name | Description
 
 ## Classes
 
-(models-basemodel)=
-### `BaseModel`
+(models-contrastresult)=
+### `ContrastResult`
 
 ```python
-BaseModel()
+ContrastResult(effect: Payload, variance: Payload, standard_error: Payload, statistic: Payload, z_score: Payload, p_value: Payload, degrees_of_freedom: float | np.ndarray)
 ```
 
-Bases: `abc.ABC`
+Frozen record of the inferential outputs of one contrast.
 
-Abstract base class for all nltools models.
+The one result type inferential contrast methods return. Its payload is
+whatever the producer works in: `float` or `np.ndarray` for a `Glm`,
+`BrainData` for the `BrainData` facade.
 
-Follows scikit-learn API conventions: `fit(X, y)` trains the model and
-returns `self`, `predict(X)` generates predictions, and `score(X, y)`
-evaluates model performance.
+Fields cannot be rebound. Array payloads stay mutable, but each result owns
+its arrays: they never alias the input contrast, a model's retained state,
+or another result.
+
+Every statistic describes the directional hypothesis that `effect` is zero,
+so `p_value` is one-sided; negating the contrast tests the other direction.
 
 **Attributes:**
 
 Name | Type | Description
 ---- | ---- | -----------
-`n_features_in_` | <code>int</code> | Number of features seen during fit
-`n_samples_` | <code>int</code> | Number of samples seen during fit
-`is_fitted_` | <code>bool</code> | Whether the model has been fitted
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`fit`](#models-fit) | Fit the model to training data.
-[`predict`](#models-predict) | Generate predictions for new data.
-[`score`](#models-score) | Evaluate model performance.
-
-
-
-#### Methods
-
-(models-fit)=
-##### `fit`
-
-```python
-fit(X, y) -> BaseModel
-```
-
-Fit the model to training data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Training data | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | Target values | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>[BaseModel](#models-basemodel)</code> | Fitted model instance
-
-(models-predict)=
-##### `predict`
-
-```python
-predict(X) -> np.ndarray | list
-```
-
-Generate predictions for new data.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Data to predict on | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>ndarray</code> | Predicted values
-
-(models-score)=
-##### `score`
-
-```python
-score(X, y) -> float | np.ndarray
-```
-
-Evaluate model performance.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`X` | <code>ndarray of shape (n_samples, n_features)</code> | Test data | *required*
-`y` | <code>ndarray of shape (n_samples,) or (n_samples, n_targets)</code> | True values | *required*
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>float</code> | Model performance metric
+`effect` | <code>Payload</code> | The estimated linear combination of coefficients.
+`variance` | <code>Payload</code> | The estimated variance of `effect`.
+`standard_error` | <code>Payload</code> | `np.sqrt` of `variance`, with no absolute value or clipping, so it may be non-finite.
+`statistic` | <code>Payload</code> | The signed t-statistic for the null hypothesis that `effect` is zero.
+`z_score` | <code>Payload</code> | The signed normal-score equivalent of the directional p-value.
+`p_value` | <code>Payload</code> | The one-sided upper-tail p-value.
+`degrees_of_freedom` | <code>float \| ndarray</code> | The residual degrees of freedom used for inference.
 
 (models-glm)=
 ### `Glm`
@@ -125,8 +57,6 @@ Type | Description
 ```python
 Glm(*, t_r: float | None = None, noise_model: str = 'ols', smoothing_fwhm: float | None = None, mask: nib.Nifti1Image | None = None, progress_bar: bool = False, **kwargs: bool)
 ```
-
-Bases: [`BaseModel`](#models-basemodel)
 
 General Linear Model for fMRI data analysis with sklearn-compatible API.
 
@@ -137,7 +67,7 @@ through the `glm_` property.
 
 Unlike `Ridge`, which works with 2-D arrays (samples × features), `Glm`
 works with 4-D neuroimaging data (x × y × z × time) and design matrices, so
-it does not use `BaseModel`'s input validation. `predict()` follows sklearn's
+it does not use the shared feature-matrix validation. `predict()` follows sklearn's
 `LinearRegression` semantics: with no argument it returns the fitted values
 on the training data; with a new design matrix it returns `X @ coef_`
 (single-run fits only).
@@ -242,6 +172,7 @@ results = model.compute_contrast("task", output_type="all")
 t_map, p_map = results["stat"], results["p_value"]
 ```
 
+(models-fit)=
 ##### `fit`
 
 ```python
@@ -269,12 +200,13 @@ Type | Description
 <details class="note" open markdown="1">
 <summary>Note</summary>
 
-Unlike `BaseModel.fit`, this method does not validate `X` as a 2-D array
+Unlike `Ridge.fit`, this method does not validate `X` as a 2-D array
 because the GLM works with 4-D neuroimaging data; validation is
 delegated to nilearn's `FirstLevelModel`.
 
 </details>
 
+(models-predict)=
 ##### `predict`
 
 ```python
@@ -333,6 +265,7 @@ Type | Description
 ---- | -----------
 <code>HTMLReport</code> | nilearn report object; call `.save_as_html(path)` or     display it in a notebook.
 
+(models-score)=
 ##### `score`
 
 ```python
@@ -379,8 +312,6 @@ r2 = brain.model_.score()
 Ridge(*, alpha: float | str = 1.0, cv: int | None = None, alphas: list[float] | np.ndarray | None = None, n_iter: int = 100, concentration: float | list[float] | None = None, device: str = 'cpu', local_alpha: bool = True, fit_intercept: bool = False, conservative: bool = False, random_state: int | None = None, progress_bar: bool = False)
 ```
 
-Bases: [`BaseModel`](#models-basemodel)
-
 Ridge regression with optional GPU acceleration and banded ridge support.
 
 Wraps nltools SVD-based ridge regression algorithms with
@@ -417,6 +348,7 @@ Name | Type | Description
 `cv_scores_` | <code>ndarray</code> | Cross-validation scores (only if alpha='auto')
 `deltas_` | <code>ndarray or None</code> | Feature space weights (only if X was a list) Shape: (n_spaces, n_targets). deltas = log(gamma / alpha)
 `backend_` | <code>[Backend](#backends-backend)</code> | Resolved backend instance used for computation (its `.name` reports the concrete device, e.g. `'torch-cuda'`).
+`is_fitted_` | <code>bool</code> | Whether the model has been fitted
 
 **Methods:**
 

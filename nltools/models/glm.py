@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import nibabel as nib
 import warnings
-from .base import BaseModel
+from .validation import _check_is_fitted
 from nilearn.glm.first_level import FirstLevelModel
 from nltools.templates import get_brainspace
 
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from nltools.data import DesignMatrix
 
 
-class Glm(BaseModel):
+class Glm:
     """General Linear Model for fMRI data analysis with sklearn-compatible API.
 
     Wraps `nilearn.glm.first_level.FirstLevelModel` by composition, similar to
@@ -30,7 +30,7 @@ class Glm(BaseModel):
 
     Unlike `Ridge`, which works with 2-D arrays (samples × features), `Glm`
     works with 4-D neuroimaging data (x × y × z × time) and design matrices, so
-    it does not use `BaseModel`'s input validation. `predict()` follows sklearn's
+    it does not use the shared feature-matrix validation. `predict()` follows sklearn's
     `LinearRegression` semantics: with no argument it returns the fitted values
     on the training data; with a new design matrix it returns `X @ coef_`
     (single-run fits only).
@@ -96,8 +96,7 @@ class Glm(BaseModel):
         progress_bar: bool = False,
         **kwargs,
     ) -> None:
-        # Initialize BaseModel
-        super().__init__()
+        self.is_fitted_ = False
 
         # Store parameters
         self.t_r = t_r
@@ -187,7 +186,7 @@ class Glm(BaseModel):
             Glm: The fitted model (for method chaining).
 
         Note:
-            Unlike `BaseModel.fit`, this method does not validate `X` as a 2-D array
+            Unlike `Ridge.fit`, this method does not validate `X` as a 2-D array
             because the GLM works with 4-D neuroimaging data; validation is
             delegated to nilearn's `FirstLevelModel`.
         """
@@ -210,7 +209,6 @@ class Glm(BaseModel):
                 X, design_matrices=design_matrices_pd, events=events, **kwargs
             )
 
-        # Set BaseModel fitted state
         self.is_fitted_ = True
 
         # Cache the beta matrix so predict(X) mirrors Ridge (X @ coef_).
@@ -292,7 +290,7 @@ class Glm(BaseModel):
                 design is ambiguous across runs — fit per run instead).
             ValueError: If X's column count does not match the fitted design.
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
 
         if X is None:
             return self._glm.predicted_
@@ -334,7 +332,7 @@ class Glm(BaseModel):
             HTMLReport: nilearn report object; call `.save_as_html(path)` or
                 display it in a notebook.
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
         return self._glm.generate_report(contrasts=contrasts, **kwargs)
 
     def score(self, X: None = None, y: None = None) -> float:
@@ -360,7 +358,7 @@ class Glm(BaseModel):
             r2 = brain.model_.score()
             ```
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
 
         # Get R² maps from nilearn (list of Nifti1Image objects, one per run)
         r_square_maps = self._glm.r_square_
@@ -427,7 +425,7 @@ class Glm(BaseModel):
             t_map, p_map = results["stat"], results["p_value"]
             ```
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
         return self._glm.compute_contrast(contrast_def, output_type=output_type)
 
     # Properties for accessing FirstLevelModel attributes (advanced use)
@@ -443,7 +441,7 @@ class Glm(BaseModel):
         Raises:
             ValueError: If the model has not been fitted yet.
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
         return self._glm.residuals_
 
     @property
@@ -456,7 +454,7 @@ class Glm(BaseModel):
         Raises:
             ValueError: If the model has not been fitted yet.
         """
-        self._check_is_fitted()
+        _check_is_fitted(self)
         return self._glm.design_matrices_
 
     @property

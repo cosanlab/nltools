@@ -378,7 +378,7 @@ class TestResolveTypeLinks:
         "nltools.data.results.Predict": "data-results-predict",
         "nltools.algorithms.SRM": "algorithms-srm",
         "nltools.algorithms.alignment.SRM": "algorithms-alignment-srm",
-        "nltools.models.BaseModel": "models-basemodel",
+        "nltools.models.ContrastResult": "models-contrastresult",
     }
 
     def test_builtin_and_third_party_types_delinked(self, postprocess_mod):
@@ -444,7 +444,7 @@ class TestCleanBases:
     whole line when nothing public remains.
     """
 
-    XREF = {"nltools.models.BaseModel": "models-basemodel"}
+    XREF = {"nltools.models.Ridge": "models-ridge"}
 
     def test_private_base_dropped_with_line(self, postprocess_mod):
         page = (
@@ -470,9 +470,9 @@ class TestCleanBases:
         )
 
     def test_nltools_base_links_to_page(self, postprocess_mod):
-        page = "Bases: <code>[BaseModel](#nltools.models.base.BaseModel)</code>\n"
+        page = "Bases: <code>[Ridge](#nltools.models.ridge.Ridge)</code>\n"
         out = postprocess_mod._clean_bases(page, self.XREF)
-        assert out == "Bases: [`BaseModel`](#models-basemodel)\n"
+        assert out == "Bases: [`Ridge`](#models-ridge)\n"
 
     def test_mixed_keeps_public_only(self, postprocess_mod):
         page = (

@@ -2163,6 +2163,15 @@ contrasts = brain_data.compute_contrasts({
 })
 ```
 
+### `ContrastResult` for contrast inference
+
+`nltools.models.ContrastResult` is the frozen record for inferential contrast
+results: `effect`, `variance`, `standard_error`, `statistic`, `z_score`,
+`p_value`, and `degrees_of_freedom` in one object instead of separate maps. It
+is generic over its payload — floats or arrays for a `Glm`, `BrainData` maps for
+the facade — its fields cannot be rebound, and each result owns its arrays. Its
+p-values are one-sided: negate the contrast to test the other direction.
+
 ### Automatic Alpha Selection
 
 ```python
