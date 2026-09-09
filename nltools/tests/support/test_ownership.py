@@ -39,18 +39,7 @@ def test_complete_graph_copy(brain, copier):
     assert brain.ridge_weights.data[0, 0] != 333
 
 
-@pytest.mark.parametrize(
-    "model",
-    [
-        pytest.param(
-            "glm",
-            marks=pytest.mark.xfail(
-                reason="te1m: facade alignment pending", strict=True
-            ),
-        ),
-        "ridge",
-    ],
-)
+@pytest.mark.parametrize("model", ["glm", "ridge"])
 def test_fit_maps_predictions_and_numerics(brain, model):
     x = brain.X.to_numpy()
     y = brain.data.copy()
@@ -59,9 +48,7 @@ def test_fit_maps_predictions_and_numerics(brain, model):
         model=model,
         X=design,
         inplace=False,
-        scale=False,
-        standardize=None,
-        **({"noise_model": "ols"} if model == "glm" else {"alpha": 2}),
+        **({"glm_noise_model": "ols"} if model == "glm" else {"alpha": 2}),
     )
     expected = (
         np.linalg.lstsq(x, y, rcond=None)[0]
@@ -73,7 +60,9 @@ def test_fit_maps_predictions_and_numerics(brain, model):
     from nltools.data.braindata.prediction import predict_timeseries
 
     predicted = predict_timeseries(fitted)
-    new = fitted.predict(X=x[:3])
+    new = fitted.predict(
+        X=DesignMatrix(x[:3], columns=design.columns) if model == "glm" else x[:3]
+    )
     np.testing.assert_allclose(predicted.data, x @ expected, atol=2e-6, rtol=2e-6)
     np.testing.assert_allclose(new.data, x[:3] @ expected, atol=2e-6, rtol=2e-6)
     assert weights.X.is_empty() and weights.Y.is_empty()
@@ -89,6 +78,40 @@ def test_fit_maps_predictions_and_numerics(brain, model):
     assert fitted.mask.get_fdata()[0, 0, 0] == 1
     assert brain.mask.get_fdata()[0, 0, 0] == 1
     assert predicted.masker.mask_img_.get_fdata()[0, 0, 0] == 1
+
+
+def test_contrast_results_clear_rows_and_own_their_maps(brain):
+    """Contrast maps leave the source's row metadata alone and carry none."""
+    from nltools.models import ContrastResult
+
+    design = DesignMatrix(brain.X.to_numpy(), columns=["intercept", "slope"])
+    fitted = brain.fit(model="glm", X=design, inplace=False)
+
+    effect = fitted.compute_contrasts("intercept - slope")
+    result = fitted.compute_contrasts("intercept - slope", inference=True)
+
+    assert isinstance(result, ContrastResult)
+    payloads = [effect] + [
+        getattr(result, name)
+        for name in (
+            "effect",
+            "variance",
+            "standard_error",
+            "statistic",
+            "z_score",
+            "p_value",
+        )
+    ]
+    for payload in payloads:
+        assert payload.X.is_empty() and payload.Y.is_empty()
+        assert not np.shares_memory(payload.data, fitted.glm_betas.data)
+    assert not fitted.X.is_empty() and not fitted.Y.is_empty()
+    assert fitted.X.equals(brain.X) and fitted.Y.equals(brain.Y)
+
+    effect.data[0] = 4242.0
+    result.effect.data[0] = 4243.0
+    assert fitted.glm_betas.data[0, 0] not in (4242.0, 4243.0)
+    assert brain.X["column_0"].to_list() == [1.0] * 12
 
 
 def test_transforms_selection_and_metadata(brain):
@@ -147,25 +170,12 @@ def test_fit_copy_skips_obsolete_fitted_state(brain):
         assert brain.data[0, 0] != 999
 
 
-@pytest.mark.parametrize(
-    "model",
-    [
-        pytest.param(
-            "glm",
-            marks=pytest.mark.xfail(
-                reason="te1m: facade alignment pending", strict=True
-            ),
-        ),
-        "ridge",
-    ],
-)
+@pytest.mark.parametrize("model", ["glm", "ridge"])
 def test_source_and_sibling_mutation_after_fitting(brain, model):
     x = brain.X.to_numpy()
     fitted = brain.fit(
         model=model,
         X=DesignMatrix(x) if model == "glm" else x,
-        scale=False,
-        standardize=None,
         inplace=False,
     )
     training = fitted.glm_predicted if model == "glm" else fitted.ridge_fitted_values
@@ -186,15 +196,14 @@ def test_source_and_sibling_mutation_after_fitting(brain, model):
     assert not hasattr(public_training, "model_")
 
 
-@pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
 def test_refit_and_transforms_clear_old_fit_family(brain):
     x = brain.X.to_numpy()
-    brain.fit(model="ridge", X=x, standardize=None)
+    brain.fit(model="ridge", X=x)
     old = brain.copy()
     for transformed in [brain.scale(), brain + 2, brain[:2]]:
         assert not hasattr(transformed, "model_")
         assert not hasattr(transformed, "ridge_weights")
-    brain.fit(model="glm", X=DesignMatrix(x), standardize=None)
+    brain.fit(model="glm", X=DesignMatrix(x))
     assert not hasattr(brain, "ridge_weights")
     assert hasattr(brain, "glm_betas")
     assert hasattr(old, "ridge_weights")

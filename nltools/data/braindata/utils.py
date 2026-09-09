@@ -55,17 +55,16 @@ _PREDICTION_STATE_ATTRIBUTES = (
     "predict_estimator",
 )
 
+#: Every attribute a fit may attach to a BrainData. The enumeration is
+#: exhaustive: clearing fitted state deletes exactly these names, with no
+#: predicates and no special cases.
 _FIT_STATE_ATTRIBUTES = (
     "model_",
     "X_",
-    "design_matrix",
     "ridge_weights",
     "ridge_fitted_values",
     "ridge_scores",
     "glm_betas",
-    "glm_t",
-    "glm_p",
-    "glm_se",
     "glm_residual",
     "glm_predicted",
     "glm_r2",
@@ -83,9 +82,7 @@ def _clear_prediction_state(bd):
 def _clear_fit_state(bd):
     """Remove state invalidated by changing a BrainData object's data."""
     for name in _FIT_STATE_ATTRIBUTES:
-        if name == "design_matrix":
-            bd.design_matrix = None
-        elif hasattr(bd, name):
+        if hasattr(bd, name):
             delattr(bd, name)
 
 
@@ -158,9 +155,7 @@ def _copy_complete(source, memo=None):
 
 def _copy_for_fit(source):
     """Copy retained state without traversing obsolete fitted attributes."""
-    return _copy_graph(
-        source, exclude=_FIT_STATE_ATTRIBUTES, replacements={"design_matrix": None}
-    )
+    return _copy_graph(source, exclude=_FIT_STATE_ATTRIBUTES)
 
 
 def _row_values(data, X, Y):
@@ -175,7 +170,7 @@ def _row_values(data, X, Y):
             raise ValueError(
                 f"{name} has {frame.height} rows but result data has {count} rows"
             )
-    return {"data": data, "_X": X, "_Y": Y, "design_matrix": None}
+    return {"data": data, "_X": X, "_Y": Y}
 
 
 def _result_from_rows(source, data, *, X, Y):

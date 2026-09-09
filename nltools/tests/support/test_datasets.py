@@ -230,7 +230,6 @@ class TestLoadHaxbyExample:
         bd2, _ = load_haxby_example(random_state=0)
         np.testing.assert_array_equal(bd1[0].data, bd2[0].data)
 
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_fit_end_to_end(self):
         import warnings
         from nltools.datasets import load_haxby_example
@@ -246,7 +245,6 @@ class TestLoadHaxbyExample:
         assert data.glm_betas.shape[0] == dm_full.shape[1]
         assert data.glm_betas.shape[1] == data.shape[1]
 
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_contrast_signal_is_recoverable(self):
         """Injected signal should produce non-trivial contrast t-stats."""
         import warnings
@@ -261,7 +259,7 @@ class TestLoadHaxbyExample:
                 order=2, include_lower=True
             )
             data.fit(model="glm", X=dm_full)
-            face_vs_house = data.compute_contrasts("face_c0 - house_c0")
+            face_vs_house = data.compute_contrasts("face_c0 - house_c0", inference=True)
         # signal clusters were disjoint, so the face-house map should have
         # clearly significant voxels in both directions.
-        assert np.abs(face_vs_house.data).max() > 3.0
+        assert np.abs(face_vs_house.statistic.data).max() > 3.0

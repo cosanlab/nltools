@@ -1281,12 +1281,23 @@ residuals = results['residual']
 
 **After (v0.6.0):**
 ```python
-brain_data.fit(model='glm', X=design_matrix)  # Stores results as attributes
-betas = brain_data.glm_betas      # BrainData object
-t_stats = brain_data.glm_t        # BrainData object
-p_vals = brain_data.glm_p         # BrainData object
+from nltools.data import DesignMatrix
+
+# X must be a DesignMatrix; fit does not preprocess the response
+brain_data.fit(model='glm', X=DesignMatrix(design))
+betas = brain_data.glm_betas         # BrainData object, one map per column
 residuals = brain_data.glm_residual  # BrainData object
+
+# t and p are per-contrast, not per-regressor attributes
+result = brain_data.compute_contrasts('conditionA - conditionB', inference=True)
+result.statistic, result.p_value     # BrainData maps
 ```
+
+`regress()` returned marginal `t` and `p` for every regressor at once. v0.6.0
+computes them one contrast at a time instead, because a t-statistic for a
+contrast spanning several regressors needs the off-diagonal parameter
+covariance that per-regressor maps cannot supply. For the trivial one-regressor
+case, ask for that regressor by name.
 
 **With noise model:**
 ```python
@@ -1294,8 +1305,8 @@ residuals = brain_data.glm_residual  # BrainData object
 brain_data.X = design_matrix
 results = brain_data.regress(noise_model='ar1')
 
-# NEW (v0.6.0)
-brain_data.fit(model='glm', noise_model='ar1', X=design_matrix)
+# NEW (v0.6.0) — model-specific options carry a `glm_` prefix
+brain_data.fit(model='glm', glm_noise_model='ar1', X=design_matrix)
 ```
 
 **All available GLM attributes:**
@@ -1304,9 +1315,6 @@ brain_data.fit(model='glm', X=design_matrix)
 
 # Attributes set by fit():
 brain_data.glm_betas      # Beta coefficients (BrainData)
-brain_data.glm_t          # T-statistics (BrainData)
-brain_data.glm_p          # P-values (BrainData)
-brain_data.glm_se         # Standard errors (BrainData)
 brain_data.glm_residual   # Residuals (BrainData)
 brain_data.glm_predicted  # Predicted values (BrainData)
 brain_data.glm_r2         # R-squared (BrainData)
@@ -1316,8 +1324,9 @@ brain_data.model_         # Fitted Glm model instance
 | Aspect | Old | New | Benefit |
 |--------|-----|-----|---------|
 | API style | Dict return | Sklearn-style attributes | Composable, familiar |
-| Design matrix | Stored as `.X` | Passed as argument | Explicit, clearer |
+| Design matrix | Stored as `.X` | Passed as a `DesignMatrix` argument | Explicit, clearer |
 | Results | Dict with keys | BrainData attributes | Type-safe, chainable |
+| Inference | `t` / `p` for every regressor | `compute_contrasts(..., inference=True)` per contrast | Correct for multi-regressor contrasts |
 | Status | Primary API | Removed; use `.fit(model='glm', X=...)` | Clear migration path |
 
 ---

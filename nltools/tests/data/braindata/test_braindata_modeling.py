@@ -1,3 +1,4 @@
+import itertools
 import warnings
 
 import numpy as np
@@ -5,7 +6,7 @@ import pandas as pd
 import pytest
 from sklearn.model_selection import KFold
 
-from nltools.data import BrainData
+from nltools.data import BrainData, DesignMatrix
 
 
 def _brain_data_from_array(values):
@@ -37,149 +38,6 @@ e5y6_pending = pytest.mark.xfail(reason="e5y6: facade alignment pending", strict
 
 
 class TestBrainDataModeling:
-    def test_compute_contrasts_error_not_fitted(self, minimal_brain_data):
-        """Test error when compute_contrasts() called before fit()."""
-        with pytest.raises(RuntimeError, match="Must run .fit"):
-            minimal_brain_data.compute_contrasts([1, -1, 0])
-
-    @pytest.mark.slow
-    def test_compute_contrasts(self, minimal_brain_data):
-        """Test all contrast input types: numeric vector, string, dict."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "condA": np.random.randn(len(minimal_brain_data)),
-                "condB": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
-
-        # Numeric vector — single-image BrainData has 1D shape (n_voxels,)
-        contrast = minimal_brain_data.compute_contrasts([0, 1, -1])
-        assert isinstance(contrast, BrainData)
-        assert contrast.shape[-1] == minimal_brain_data.shape[1]
-
-        # String parsing
-        contrast = minimal_brain_data.compute_contrasts("condA - condB")
-        assert isinstance(contrast, BrainData)
-        assert contrast.shape[-1] == minimal_brain_data.shape[1]
-
-        # Dict of contrasts
-        contrasts = {"A_vs_B": "condA - condB", "avg_effect": [0, 0.5, 0.5]}
-        results = minimal_brain_data.compute_contrasts(contrasts)
-        assert isinstance(results, dict)
-        assert "A_vs_B" in results and "avg_effect" in results
-        assert isinstance(results["A_vs_B"], BrainData)
-
-    @pytest.mark.slow
-    def test_compute_contrasts_invalid_length(self, minimal_brain_data):
-        """Test error for invalid contrast vector length."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "condA": np.random.randn(len(minimal_brain_data)),
-                "condB": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
-
-        with pytest.raises(ValueError, match="Contrast vector length.*must match"):
-            minimal_brain_data.compute_contrasts([1, -1])
-
-    @pytest.mark.slow
-    def test_compute_contrasts_type_distinguishes_t_and_beta(self, minimal_brain_data):
-        """statistic='t' returns t-stats; statistic='beta' returns effect sizes.
-
-        Regression guard: the earlier implementation always returned raw
-        linear-combinations-of-betas (effect sizes) while advertising 't',
-        which broke first-level thresholding.
-        """
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "condA": np.random.randn(len(minimal_brain_data)),
-                "condB": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
-
-        t_map = minimal_brain_data.compute_contrasts("condA - condB", statistic="t")
-        beta_map = minimal_brain_data.compute_contrasts(
-            "condA - condB", statistic="beta"
-        )
-        z_map = minimal_brain_data.compute_contrasts("condA - condB", statistic="z")
-
-        for m in (t_map, beta_map, z_map):
-            assert isinstance(m, BrainData)
-            assert m.shape[-1] == minimal_brain_data.shape[1]
-
-        t_arr = np.asarray(t_map.data).squeeze()
-        b_arr = np.asarray(beta_map.data).squeeze()
-        z_arr = np.asarray(z_map.data).squeeze()
-
-        # Beta is the effect size (linear combo of betas). t is effect / SE.
-        # They must not be the same array (they were, before the fix).
-        assert not np.allclose(t_arr, b_arr), (
-            "t-map and beta-map should differ; compute_contrasts is returning "
-            "raw effect sizes regardless of statistic"
-        )
-        # z and t are monotonically related (sign preserved, magnitude close)
-        assert np.all(np.sign(t_arr) == np.sign(z_arr))
-        assert np.corrcoef(t_arr, z_arr)[0, 1] > 0.999
-
-    def test_compute_contrasts_invalid_type(self, minimal_brain_data):
-        """Unknown statistic raises ValueError with supported values listed."""
-        with pytest.raises(ValueError, match="statistic must be"):
-            # not fitted yet but validation happens before that path; set dummy attr
-            minimal_brain_data.glm_betas = minimal_brain_data[0]
-            minimal_brain_data.model_ = object()
-            minimal_brain_data.compute_contrasts([1, -1, 0], statistic="F")
-
-    @pytest.mark.slow
-    def test_compute_contrasts_all_single_returns_bundle(self, minimal_brain_data):
-        """statistic='all' returns a flat dict with beta/t/z/p/se for one contrast."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "condA": np.random.randn(len(minimal_brain_data)),
-                "condB": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
-
-        res = minimal_brain_data.compute_contrasts("condA - condB", statistic="all")
-        assert isinstance(res, dict)
-        assert set(res.keys()) == {"beta", "t", "z", "p", "se"}
-        for key in ("beta", "t", "z", "p", "se"):
-            assert isinstance(res[key], BrainData)
-            assert res[key].shape[-1] == minimal_brain_data.shape[1]
-
-        # Consistency: individual calls agree with the bundle.
-        t_only = minimal_brain_data.compute_contrasts("condA - condB", statistic="t")
-        np.testing.assert_allclose(np.asarray(t_only.data), np.asarray(res["t"].data))
-
-    @pytest.mark.slow
-    def test_compute_contrasts_all_dict_returns_nested(self, minimal_brain_data):
-        """statistic='all' + dict input returns nested {name: {beta,t,z,p,se}}."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "condA": np.random.randn(len(minimal_brain_data)),
-                "condB": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", X=design_matrix)
-
-        res = minimal_brain_data.compute_contrasts(
-            {"A_vs_B": "condA - condB", "just_A": [0, 1, 0]},
-            statistic="all",
-        )
-        assert set(res.keys()) == {"A_vs_B", "just_A"}
-        for bundle in res.values():
-            assert set(bundle.keys()) == {"beta", "t", "z", "p", "se"}
-            for m in bundle.values():
-                assert isinstance(m, BrainData)
-
     # ==================== Unified fit/predict API ====================
 
     def test_fit_predict_ridge_workflow(self, minimal_brain_data):
@@ -212,34 +70,41 @@ class TestBrainDataModeling:
     @pytest.mark.slow
     def test_fit_predict_glm_workflow(self, minimal_brain_data):
         """Test complete GLM fit/predict workflow."""
+        from nltools.data import DesignMatrix
         from nltools.models import Glm
 
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "X1": np.random.randn(len(minimal_brain_data)),
             }
         )
-        minimal_brain_data.fit(model="glm", noise_model="ols", X=design_matrix)
+        minimal_brain_data.fit(model="glm", glm_noise_model="ols", X=design_matrix)
 
         assert hasattr(minimal_brain_data, "model_")
         assert isinstance(minimal_brain_data.model_, Glm)
         assert hasattr(minimal_brain_data, "glm_betas")
-        assert hasattr(minimal_brain_data, "glm_t")
 
         predictions = minimal_brain_data.predict()
         assert predictions.shape == minimal_brain_data.shape
 
     @pytest.mark.slow
-    def test_fit_passes_kwargs_to_model(self, minimal_brain_data):
-        """Test fit() passes additional kwargs to model constructor."""
+    def test_fit_forwards_model_options_to_the_estimator(self, minimal_brain_data):
+        """Prefixed and ridge options reach their estimator's constructor."""
+        from nltools.data import DesignMatrix
+
         X = np.random.randn(len(minimal_brain_data), 10)
 
         minimal_brain_data.fit(model="ridge", alpha=1.0, device="cpu", X=X)
         assert minimal_brain_data.model_.device == "cpu"
 
-        design_matrix = pd.DataFrame({"Intercept": np.ones(len(minimal_brain_data))})
-        minimal_brain_data.fit(model="glm", noise_model="ar1", X=design_matrix)
+        design_matrix = DesignMatrix(
+            {
+                "Intercept": np.ones(len(minimal_brain_data)),
+                "X1": np.random.randn(len(minimal_brain_data)),
+            }
+        )
+        minimal_brain_data.fit(model="glm", glm_noise_model="ar1", X=design_matrix)
         assert minimal_brain_data.model_.noise_model == "ar1"
 
     def test_fit_ridge_rejects_backend_kwarg(self, minimal_brain_data):
@@ -307,9 +172,6 @@ class TestBrainDataModeling:
             "ridge_fitted_values",
             "ridge_scores",
             "glm_betas",
-            "glm_t",
-            "glm_p",
-            "glm_se",
             "glm_residual",
             "glm_predicted",
             "glm_r2",
@@ -342,7 +204,6 @@ class TestBrainDataModeling:
         assert X_train[0, 0] != 456.0
         assert fitted.model_.coef_[0, 0] != 789.0
         assert not hasattr(fitted.ridge_weights, "model_")
-        assert fitted.ridge_weights.design_matrix is None
 
     @e5y6_pending
     @pytest.mark.slow
@@ -366,7 +227,7 @@ class TestBrainDataModeling:
     def test_fit_inplace_false_returns_brain_data_with_glm(self, minimal_brain_data):
         """The returned BrainData carries a complete independent GLM fit."""
         brain = minimal_brain_data.copy()
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {
                 "Intercept": np.ones(len(brain)),
                 "X1": np.random.randn(len(brain)),
@@ -375,21 +236,17 @@ class TestBrainDataModeling:
         original_data = brain.data.copy()
 
         fitted = brain.fit(
-            model="glm", noise_model="ols", X=design_matrix, inplace=False
+            model="glm", glm_noise_model="ols", X=design_matrix, inplace=False
         )
 
         assert isinstance(fitted, BrainData)
         assert fitted.glm_predicted.shape == brain.shape
         assert fitted.glm_betas.shape == (2, brain.shape[1])
-        assert hasattr(fitted, "glm_t")
-        assert hasattr(fitted, "glm_p")
-        assert hasattr(fitted, "glm_se")
         assert hasattr(fitted, "glm_residual")
         assert hasattr(fitted, "glm_r2")
         assert not hasattr(fitted.glm_predicted, "model_")
         assert not hasattr(brain, "glm_betas")
         assert not hasattr(brain, "model_")
-        assert brain.design_matrix is None
         np.testing.assert_array_equal(brain.data, original_data)
 
     def test_fit_inplace_false_result_allows_predict(self, minimal_brain_data):
@@ -429,42 +286,41 @@ class TestBrainDataModeling:
     def test_refit_replaces_prior_model_state(self, minimal_brain_data):
         """Refitting across model types cannot leave mixed result state."""
         ridge_X = np.random.randn(len(minimal_brain_data), 3)
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
 
-        glm_X = pd.DataFrame(
+        glm_X = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "condition": np.random.randn(len(minimal_brain_data)),
             }
         )
-        minimal_brain_data.fit(model="glm", X=glm_X, noise_model="ols")
+        minimal_brain_data.fit(model="glm", X=glm_X, glm_noise_model="ols")
 
         assert hasattr(minimal_brain_data, "glm_betas")
         assert not hasattr(minimal_brain_data, "ridge_weights")
         assert not hasattr(minimal_brain_data, "ridge_fitted_values")
         assert not hasattr(minimal_brain_data, "ridge_scores")
 
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
 
         assert hasattr(minimal_brain_data, "ridge_weights")
         assert not hasattr(minimal_brain_data, "glm_betas")
         assert not hasattr(minimal_brain_data, "glm_predicted")
-        assert minimal_brain_data.design_matrix is None
 
     @pytest.mark.slow
     def test_non_inplace_refit_preserves_fitted_source(self, minimal_brain_data):
         ridge_X = np.random.randn(len(minimal_brain_data), 3)
-        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=ridge_X, alpha=1.0)
         original_weights = minimal_brain_data.ridge_weights.data.copy()
 
-        glm_X = pd.DataFrame(
+        glm_X = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "condition": np.random.randn(len(minimal_brain_data)),
             }
         )
         fitted_glm = minimal_brain_data.fit(
-            model="glm", X=glm_X, noise_model="ols", inplace=False
+            model="glm", X=glm_X, glm_noise_model="ols", inplace=False
         )
 
         assert hasattr(fitted_glm, "glm_betas")
@@ -476,13 +332,13 @@ class TestBrainDataModeling:
 
     @pytest.mark.slow
     def test_fitted_glm_copy_is_usable_and_independent(self, minimal_brain_data):
-        design = pd.DataFrame(
+        design = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "condition": np.random.randn(len(minimal_brain_data)),
             }
         )
-        minimal_brain_data.fit(model="glm", X=design, noise_model="ols")
+        minimal_brain_data.fit(model="glm", X=design, glm_noise_model="ols")
         original_coefficient = minimal_brain_data.model_.coef_[0, 0]
         minimal_brain_data.glm_betas.data[0, 0] = 95.0
         assert minimal_brain_data.model_.coef_[0, 0] == original_coefficient
@@ -499,54 +355,18 @@ class TestBrainDataModeling:
     @pytest.mark.slow
     def test_glm_fit_numerical_correctness(self, minimal_brain_data):
         """Test fit(model='glm') produces numerically correct results."""
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "X1": np.random.randn(len(minimal_brain_data)),
             }
         )
 
-        minimal_brain_data.fit(model="glm", noise_model="ols", X=design_matrix)
+        minimal_brain_data.fit(model="glm", glm_noise_model="ols", X=design_matrix)
 
         assert not np.isnan(minimal_brain_data.glm_betas.data).any()
         assert not np.allclose(minimal_brain_data.glm_betas.data, 0)
-        assert not np.isnan(minimal_brain_data.glm_t.data).any()
-        assert minimal_brain_data.model_.progress_bar is False
-
-    @pytest.mark.slow
-    def test_glm_fit_suppresses_drift_model_warning(self, minimal_brain_data):
-        """Test fit(model='glm') suppresses drift_model warning."""
-        import warnings
-
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            minimal_brain_data.fit(
-                model="glm", noise_model="ols", X=design_matrix, drift_model="cosine"
-            )
-
-            drift_warnings = [
-                warn
-                for warn in w
-                if "drift_model" in str(warn.message).lower()
-                and "will be ignored" in str(warn.message).lower()
-            ]
-            assert len(drift_warnings) == 0
-
-        assert minimal_brain_data.model_.is_fitted_
-        assert minimal_brain_data.model_.progress_bar is False
-
-        # Verify progress_bar=True is respected
-        minimal_brain_data.fit(
-            model="glm", noise_model="ols", X=design_matrix, progress_bar=True
-        )
-        assert minimal_brain_data.model_.progress_bar is True
+        assert not np.isnan(minimal_brain_data.glm_r2.data).any()
 
     def test_fit_validates_model_name(self, minimal_brain_data):
         """Test fit() raises error for unknown model names."""
@@ -560,86 +380,6 @@ class TestBrainDataModeling:
         with pytest.raises(ValueError, match="number of samples"):
             minimal_brain_data.fit(model="ridge", alpha=1.0, X=X_wrong)
 
-    def test_fit_scale_applies_mean_scaling(self, minimal_brain_data):
-        """scale=True applies nilearn per-voxel mean_scaling (percent signal change)."""
-        from nilearn.glm.first_level import mean_scaling
-
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0  # positive baseline -> clean PSC
-        orig = bd.data.copy()
-        bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize=None)
-        np.testing.assert_allclose(bd.data, mean_scaling(orig, axis=0)[0])
-
-    def test_fit_standardize_zscore(self, minimal_brain_data):
-        """standardize='zscore' z-scores each voxel across time; scale off = raw units."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        oracle = bd.standardize(method="zscore").data
-        bd.fit(model="ridge", alpha=1.0, X=X, scale=False, standardize="zscore")
-        np.testing.assert_allclose(bd.data, oracle)
-
-    def test_fit_scale_then_standardize_order(self, minimal_brain_data):
-        """Preprocessing order is scale THEN standardize (a reversed order would
-        corrupt via mean_scaling on centered data)."""
-        from nilearn.glm.first_level import mean_scaling
-
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        orig = bd.data.copy()
-        scaled = bd.copy()
-        scaled.data = mean_scaling(orig, axis=0)[0]
-        oracle = scaled.standardize(method="center").data
-        bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize="center")
-        np.testing.assert_allclose(bd.data, oracle)
-
-    def test_fit_ridge_defaults_zscore_only(self, minimal_brain_data):
-        """Ridge 'auto' default: standardize='zscore', scale OFF (no warning)."""
-        import warnings
-
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        oracle = bd.standardize(method="zscore").data
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            bd.fit(model="ridge", alpha=1.0, X=X)  # no scale/standardize -> auto
-        assert not any("redundant" in str(wi.message) for wi in w)
-        np.testing.assert_allclose(bd.data, oracle)
-
-    def test_scale_zscore_redundant_warns(self, minimal_brain_data):
-        """scale=True + standardize='zscore' warns (scale is a no-op there)."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        with pytest.warns(UserWarning, match="redundant"):
-            bd.fit(model="ridge", alpha=1.0, X=X, scale=True, standardize="zscore")
-
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
-    def test_fit_glm_defaults_no_preprocessing(self, minimal_brain_data):
-        """GLM 'auto' default: no scaling, no standardization — data untouched."""
-        design_matrix = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        bd = minimal_brain_data.copy()
-        bd.data = bd.data + 100.0
-        orig = bd.data.copy()
-        bd.fit(model="glm", noise_model="ols", X=design_matrix)
-        np.testing.assert_allclose(bd.data, orig)
-
-    def test_fit_scale_disabled_leaves_data_unchanged(self, minimal_brain_data):
-        """scale=False, standardize=None leaves data unchanged."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        bd = minimal_brain_data.copy()
-        orig = bd.data.copy()
-        bd.fit(model="ridge", alpha=1.0, X=X, scale=False, standardize=None)
-        np.testing.assert_allclose(bd.data, orig)
-
     @e5y6_pending
     def test_ridge_intercept_with_centering_warns(self, minimal_brain_data):
         """Ridge fit_intercept=True is redundant when the data is centered by
@@ -650,9 +390,7 @@ class TestBrainDataModeling:
         with pytest.warns(
             UserWarning, match="intercept.*redundant|redundant.*intercept"
         ):
-            bd.fit(
-                model="ridge", alpha=1.0, X=X, standardize="zscore", fit_intercept=True
-            )
+            bd.fit(model="ridge", alpha=1.0, X=X, fit_intercept=True)
 
     @e5y6_pending
     def test_ridge_intercept_no_centering_ok(self, minimal_brain_data):
@@ -665,71 +403,8 @@ class TestBrainDataModeling:
         bd.data = bd.data + 100.0
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            bd.fit(
-                model="ridge",
-                alpha=1.0,
-                X=X,
-                scale=False,
-                standardize=None,
-                fit_intercept=True,
-            )
+            bd.fit(model="ridge", alpha=1.0, X=X, fit_intercept=True)
         assert not any("intercept" in str(wi.message).lower() for wi in w)
-
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
-    def test_glm_predict_new_design_returns_brain_data(self, minimal_brain_data):
-        """F182: bd.predict(X=new_design) works for GLM and returns BrainData
-        holding X_new @ coef_ (parity with the Ridge facade path)."""
-        design = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", noise_model="ols", X=design)
-
-        X_new = np.column_stack(
-            [np.ones(6), np.random.randn(6)]
-        )  # 6 new timepoints, same 2 regressors
-        pred = minimal_brain_data.predict(X=X_new)
-
-        assert isinstance(pred, BrainData)
-        assert pred.data.shape == (6, minimal_brain_data.shape[1])
-        np.testing.assert_allclose(pred.data, X_new @ minimal_brain_data.model_.coef_)
-
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
-    def test_glm_report_returns_html(self, minimal_brain_data):
-        """bd.report() delegates to nilearn and returns an HTMLReport."""
-        design = pd.DataFrame(
-            {
-                "Intercept": np.ones(len(minimal_brain_data)),
-                "X1": np.random.randn(len(minimal_brain_data)),
-            }
-        )
-        minimal_brain_data.fit(model="glm", noise_model="ols", X=design)
-        rep = minimal_brain_data.report(contrasts={"X1": np.array([0.0, 1.0])})
-        assert type(rep).__name__ == "HTMLReport"
-
-    def test_report_requires_fitted_glm(self, minimal_brain_data):
-        with pytest.raises(RuntimeError, match="requires a fitted GLM"):
-            minimal_brain_data.report(contrasts={"X1": np.array([0.0, 1.0])})
-
-    def test_fit_scale_value_removed(self, minimal_brain_data):
-        """scale_value is gone (nilearn PSC is fixed at x100)."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        with pytest.raises(TypeError):
-            minimal_brain_data.fit(model="ridge", alpha=1.0, X=X, scale_value=1000.0)
-
-    def test_fit_scale_inplace_false(self, minimal_brain_data):
-        """fit() with preprocessing and inplace=False doesn't modify original."""
-        X = np.random.randn(len(minimal_brain_data), 10)
-        original_data = minimal_brain_data.data.copy()
-
-        result = minimal_brain_data.fit(
-            model="ridge", alpha=1.0, X=X, inplace=False, scale=True, standardize=None
-        )
-
-        assert isinstance(result, BrainData)
-        np.testing.assert_allclose(minimal_brain_data.data, original_data)
 
     def test_predict_with_no_X_uses_training_data(self, minimal_brain_data):
         """Test predict() with no X returns predictions on training data."""
@@ -885,7 +560,7 @@ class TestBrainDataModeling:
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
         b = a + 0.1 * rng.standard_normal(n)
-        design_matrix = pd.DataFrame({"Intercept": np.ones(n), "condA": a, "condB": b})
+        design_matrix = DesignMatrix({"Intercept": np.ones(n), "condA": a, "condB": b})
         r = abs(np.corrcoef(a, b)[0, 1])
         assert r > 0.95, f"setup invariant violated: |r|={r}"
         assert np.linalg.matrix_rank(design_matrix.to_numpy()) == 3
@@ -896,7 +571,7 @@ class TestBrainDataModeling:
     def test_design_clean_kwargs_are_rejected(self, minimal_brain_data):
         """The implicit-cleaning kwargs were removed; passing them is an error."""
         n = len(minimal_brain_data)
-        design_matrix = pd.DataFrame({"Intercept": np.ones(n)})
+        design_matrix = DesignMatrix({"Intercept": np.ones(n)})
         for kwarg in (
             "design_clean",
             "design_clean_thresh",
@@ -912,7 +587,7 @@ class TestBrainDataModeling:
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
         )
         assert np.linalg.matrix_rank(design_matrix.to_numpy()) == 2
@@ -929,7 +604,7 @@ class TestBrainDataModeling:
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
         a = rng.standard_normal(n)
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
         )
         with pytest.warns(UserWarning) as record:
@@ -984,7 +659,7 @@ class TestBrainDataModeling:
         """No spurious rank warning on a well-formed design."""
         n = len(minimal_brain_data)
         rng = np.random.default_rng(42)
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {
                 "Intercept": np.ones(n),
                 "condA": rng.standard_normal(n),
@@ -1783,7 +1458,6 @@ class TestWarnNearCollinear:
         assert "more" in msg  # "... and N more"
         assert msg.count("&") <= 5
 
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_exact_deficiency_fires_only_the_rank_warning(self, minimal_brain_data):
         """Through fit(): an exactly rank-deficient design raises
         RankDeficientDesignWarning alone, never both warnings."""
@@ -1795,7 +1469,7 @@ class TestWarnNearCollinear:
         n = len(minimal_brain_data)
         rng = np.random.default_rng(11)
         a = rng.standard_normal(n)
-        design_matrix = pd.DataFrame(
+        design_matrix = DesignMatrix(
             {"Intercept": np.ones(n), "condA": a, "condA_dup": a}
         )
         with warnings.catch_warnings(record=True) as caught:
@@ -1806,7 +1480,6 @@ class TestWarnNearCollinear:
             issubclass(w.category, NearCollinearDesignWarning) for w in caught
         )
 
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_near_collinear_design_warns_through_fit(self, minimal_brain_data):
         """Through fit(): the v0.5 design_clean threshold case (r = 0.97) is no
         longer silent — it warns, and nothing is dropped."""
@@ -1814,8 +1487,412 @@ class TestWarnNearCollinear:
 
         n = len(minimal_brain_data)
         a, b = self._correlated_pair(n=n, r=0.97, seed=21)
-        design_matrix = pd.DataFrame({"Intercept": np.ones(n), "condA": a, "condB": b})
+        design_matrix = DesignMatrix({"Intercept": np.ones(n), "condA": a, "condB": b})
         with pytest.warns(NearCollinearDesignWarning):
             minimal_brain_data.fit(model="glm", X=design_matrix)
         # Warning only: every regressor is still estimated.
         assert minimal_brain_data.glm_betas.shape[0] == 3
+
+
+class TestGlmFacadeContract:
+    """The `BrainData` GLM boundary defined in specs/glm.md and specs/braindata.md."""
+
+    @staticmethod
+    def _design(brain, seed=0):
+        from nltools.data import DesignMatrix
+
+        rng = np.random.default_rng(seed)
+        return DesignMatrix(
+            {
+                "intercept": np.ones(len(brain)),
+                "cond_a": rng.normal(size=len(brain)),
+                "cond_b": rng.normal(size=len(brain)),
+            }
+        )
+
+    # ---------------------------------------------------------------- fit
+
+    def test_fit_exposes_the_glm_options_keyword_only(self):
+        import inspect
+
+        parameters = inspect.signature(BrainData.fit).parameters
+        assert parameters["model"].default == "glm"
+        for name, default in (
+            ("X", None),
+            ("glm_noise_model", "ols"),
+            ("glm_bins", 100),
+            ("glm_n_jobs", 1),
+            ("inplace", True),
+            ("random_state", None),
+        ):
+            assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
+            assert parameters[name].default == default
+        assert "scale" not in parameters
+        assert "standardize" not in parameters
+
+    @pytest.mark.parametrize("removed", ["scale", "standardize"])
+    def test_fit_rejects_removed_preprocessing_keywords(
+        self, minimal_brain_data, removed
+    ):
+        design = self._design(minimal_brain_data)
+        with pytest.raises(TypeError):
+            minimal_brain_data.fit(model="glm", X=design, **{removed: None})
+
+    @pytest.mark.parametrize(
+        "option",
+        [
+            {"cv": 3},
+            {"device": "gpu"},
+            {"per_target_alpha": False},
+            {"progress_bar": True},
+        ],
+    )
+    def test_fit_glm_rejects_non_default_ridge_options(
+        self, minimal_brain_data, option
+    ):
+        design = self._design(minimal_brain_data)
+        with pytest.raises(ValueError, match="unselected estimator|does not accept"):
+            minimal_brain_data.fit(model="glm", X=design, **option)
+
+    def test_fit_ridge_rejects_non_default_glm_options(self, minimal_brain_data):
+        X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
+        with pytest.raises(ValueError, match="unselected estimator|does not accept"):
+            minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, glm_bins=50)
+
+    def test_fit_glm_rejects_unknown_keywords(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        with pytest.raises(TypeError):
+            minimal_brain_data.fit(model="glm", X=design, t_r=2.0)
+
+    def test_fit_glm_requires_a_design_matrix(self, minimal_brain_data):
+        frame = pd.DataFrame({"intercept": np.ones(len(minimal_brain_data))})
+        with pytest.raises(TypeError, match="DesignMatrix"):
+            minimal_brain_data.fit(model="glm", X=frame)
+
+    def test_fit_attaches_only_the_documented_state(self, minimal_brain_data):
+        from nltools.models import Glm
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        assert isinstance(minimal_brain_data.model_, Glm)
+        assert minimal_brain_data.glm_betas.shape == (3, minimal_brain_data.shape[1])
+        assert minimal_brain_data.glm_residual.shape == minimal_brain_data.shape
+        assert minimal_brain_data.glm_predicted.shape == minimal_brain_data.shape
+        assert minimal_brain_data.glm_r2.shape[-1] == minimal_brain_data.shape[1]
+        for removed in ("glm_t", "glm_p", "glm_se", "X_", "design_matrix"):
+            assert not hasattr(minimal_brain_data, removed)
+
+    def test_refit_from_ridge_drops_the_ridge_training_design(self, minimal_brain_data):
+        """`X_` belongs to the ridge fit; a GLM refit must not inherit it."""
+        X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        assert hasattr(minimal_brain_data, "X_")
+
+        design = self._design(minimal_brain_data)
+        for inplace in (True, False):
+            fitted = minimal_brain_data.fit(model="glm", X=design, inplace=inplace)
+            assert not hasattr(fitted, "X_")
+            assert not hasattr(fitted, "ridge_weights")
+
+    def test_a_failed_fit_attaches_no_model(self, minimal_brain_data, monkeypatch):
+        """`model_` is attached only once the estimator's own fit returns."""
+        from nltools.models import Glm
+
+        def boom(self, X, y):
+            raise RuntimeError("estimator blew up")
+
+        monkeypatch.setattr(Glm, "fit", boom)
+        design = self._design(minimal_brain_data)
+        with pytest.raises(RuntimeError, match="estimator blew up"):
+            minimal_brain_data.fit(model="glm", X=design)
+
+        assert not hasattr(minimal_brain_data, "model_")
+        assert not hasattr(minimal_brain_data, "glm_betas")
+
+    def test_fit_state_enumeration_is_exhaustive(self, minimal_brain_data):
+        from nltools.data.braindata.utils import _FIT_STATE_ATTRIBUTES
+
+        before = set(vars(minimal_brain_data))
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+        attached = set(vars(minimal_brain_data)) - before
+
+        assert attached
+        assert attached <= set(_FIT_STATE_ATTRIBUTES)
+        assert "design_matrix" not in _FIT_STATE_ATTRIBUTES
+
+    def test_in_place_mutation_clears_every_fitted_attribute(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        minimal_brain_data += 1.0
+
+        for name in ("model_", "glm_betas", "glm_residual", "glm_predicted", "glm_r2"):
+            assert not hasattr(minimal_brain_data, name)
+
+    def test_fit_inplace_false_leaves_the_source_untouched(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        original = minimal_brain_data.data.copy()
+
+        fitted = minimal_brain_data.fit(model="glm", X=design, inplace=False)
+
+        assert fitted is not minimal_brain_data
+        np.testing.assert_array_equal(minimal_brain_data.data, original)
+        for name in ("model_", "glm_betas", "glm_residual", "glm_predicted", "glm_r2"):
+            assert hasattr(fitted, name)
+            assert not hasattr(minimal_brain_data, name)
+
+    def test_fit_does_not_preprocess_the_response(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.data = minimal_brain_data.data + 100.0
+        original = minimal_brain_data.data.copy()
+
+        minimal_brain_data.fit(model="glm", X=design)
+
+        np.testing.assert_allclose(minimal_brain_data.data, original)
+
+    def test_fit_betas_match_least_squares(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        expected = np.linalg.lstsq(
+            design.to_numpy(), minimal_brain_data.data, rcond=None
+        )[0]
+        np.testing.assert_allclose(
+            minimal_brain_data.glm_betas.data, expected, atol=1e-8
+        )
+
+    # ---------------------------------------------------- compute_contrasts
+
+    def test_compute_contrasts_has_no_statistic_argument(self):
+        import inspect
+
+        parameters = inspect.signature(BrainData.compute_contrasts).parameters
+        assert "statistic" not in parameters
+        assert parameters["inference"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert parameters["inference"].default is False
+
+    def test_compute_contrasts_before_fit_raises_runtime_error(
+        self, minimal_brain_data
+    ):
+        with pytest.raises(RuntimeError):
+            minimal_brain_data.compute_contrasts("cond_a - cond_b")
+
+    def test_compute_contrasts_on_a_fitted_ridge_raises_value_error(
+        self, minimal_brain_data
+    ):
+        X = np.random.default_rng(0).normal(size=(len(minimal_brain_data), 3))
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
+        with pytest.raises(ValueError, match="Ridge"):
+            minimal_brain_data.compute_contrasts([1, -1, 0])
+
+    @pytest.mark.parametrize(
+        "contrast", ["cond_a - cond_b", [0.0, 1.0, -1.0]], ids=["string", "vector"]
+    )
+    def test_effect_contrast_equals_beta_arithmetic(self, minimal_brain_data, contrast):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        effect = minimal_brain_data.compute_contrasts(contrast)
+
+        assert isinstance(effect, BrainData)
+        assert effect.X.is_empty() and effect.Y.is_empty()
+        np.testing.assert_allclose(
+            effect.data,
+            np.array([0.0, 1.0, -1.0]) @ minimal_brain_data.glm_betas.data,
+            atol=1e-10,
+        )
+
+    def test_effect_mapping_returns_the_same_keys(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        results = minimal_brain_data.compute_contrasts(
+            {"a_vs_b": "cond_a - cond_b", "just_a": [0.0, 1.0, 0.0]}
+        )
+
+        assert set(results) == {"a_vs_b", "just_a"}
+        assert all(isinstance(value, BrainData) for value in results.values())
+
+    def test_inference_returns_owned_brain_data_payloads(self, minimal_brain_data):
+        from nltools.models import ContrastResult
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        result = minimal_brain_data.compute_contrasts("cond_a - cond_b", inference=True)
+
+        assert isinstance(result, ContrastResult)
+        maps = [
+            result.effect,
+            result.variance,
+            result.standard_error,
+            result.statistic,
+            result.z_score,
+            result.p_value,
+        ]
+        assert all(isinstance(payload, BrainData) for payload in maps)
+        assert all(payload.X.is_empty() and payload.Y.is_empty() for payload in maps)
+        for left, right in itertools.combinations(maps, 2):
+            assert not np.shares_memory(left.data, right.data)
+        assert isinstance(result.degrees_of_freedom, float)
+
+        statistic_before = result.statistic.data.copy()
+        result.effect.data[0] = 1234.0
+        assert minimal_brain_data.glm_betas.data[0, 0] != 1234.0
+        np.testing.assert_array_equal(result.statistic.data, statistic_before)
+
+    def test_inference_effect_equals_the_effect_only_call(self, minimal_brain_data):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        effect = minimal_brain_data.compute_contrasts("cond_a")
+        result = minimal_brain_data.compute_contrasts("cond_a", inference=True)
+
+        np.testing.assert_allclose(result.effect.data, effect.data)
+
+    def test_inference_mapping_returns_keyed_results(self, minimal_brain_data):
+        from nltools.models import ContrastResult
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        results = minimal_brain_data.compute_contrasts(
+            {"a_vs_b": "cond_a - cond_b"}, inference=True
+        )
+
+        assert set(results) == {"a_vs_b"}
+        assert isinstance(results["a_vs_b"], ContrastResult)
+        assert isinstance(results["a_vs_b"].statistic, BrainData)
+
+    def test_facade_does_not_parse_contrasts(self):
+        from nltools.data.braindata import modeling
+
+        assert not hasattr(modeling, "parse_contrast_string")
+        assert not hasattr(modeling, "_functional_contrast")
+
+    # ------------------------------------------------------------ predict
+
+    def test_predict_returns_an_independent_copy_of_glm_predicted(
+        self, minimal_brain_data
+    ):
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        predicted = minimal_brain_data.predict()
+
+        assert isinstance(predicted, BrainData)
+        np.testing.assert_array_equal(
+            predicted.data, minimal_brain_data.glm_predicted.data
+        )
+        assert predicted.data is not minimal_brain_data.glm_predicted.data
+        predicted.data[0, 0] = 4321.0
+        assert minimal_brain_data.glm_predicted.data[0, 0] != 4321.0
+        assert predicted.X.equals(minimal_brain_data.X)
+
+    def test_fitted_model_wins_over_attached_Y(self, minimal_brain_data):
+        import polars as pl
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+        minimal_brain_data.Y = pl.DataFrame(
+            {"label": np.arange(len(minimal_brain_data)) % 2}
+        )
+
+        predicted = minimal_brain_data.predict()
+
+        assert isinstance(predicted, BrainData)
+        np.testing.assert_array_equal(
+            predicted.data, minimal_brain_data.glm_predicted.data
+        )
+
+    def test_only_a_fitted_model_wins_over_stored_labels(self, minimal_brain_data):
+        """An unfitted `model_` is not a model to predict from."""
+        import polars as pl
+
+        from nltools.data.braindata.prediction import _resolve_stored_y
+        from nltools.models import Glm
+
+        labels = np.arange(len(minimal_brain_data)) % 2
+        minimal_brain_data.Y = pl.DataFrame({"label": labels})
+        minimal_brain_data.model_ = Glm()
+
+        np.testing.assert_array_equal(
+            _resolve_stored_y(minimal_brain_data, None), labels
+        )
+
+        minimal_brain_data.fit(model="glm", X=self._design(minimal_brain_data))
+        assert _resolve_stored_y(minimal_brain_data, None) is None
+
+    def test_predict_with_a_new_design_delegates_to_glm(self, minimal_brain_data):
+        from nltools.data import DesignMatrix
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        rng = np.random.default_rng(3)
+        new = DesignMatrix(
+            {
+                "cond_b": rng.normal(size=6),
+                "intercept": np.ones(6),
+                "cond_a": rng.normal(size=6),
+            }
+        )
+        predicted = minimal_brain_data.predict(X=new)
+
+        assert isinstance(predicted, BrainData)
+        assert predicted.shape == (6, minimal_brain_data.shape[1])
+        np.testing.assert_allclose(
+            predicted.data,
+            new[["intercept", "cond_a", "cond_b"]].to_numpy()
+            @ minimal_brain_data.model_.coef_,
+        )
+        assert predicted.X.is_empty() and predicted.Y.is_empty()
+
+    @pytest.mark.parametrize("columns", [["intercept", "cond_a"], None])
+    def test_predict_with_a_mismatched_design_raises(self, minimal_brain_data, columns):
+        from nltools.data import DesignMatrix
+
+        design = self._design(minimal_brain_data)
+        minimal_brain_data.fit(model="glm", X=design)
+
+        rng = np.random.default_rng(4)
+        names = columns or ["intercept", "cond_a", "cond_b", "extra"]
+        new = DesignMatrix({name: rng.normal(size=6) for name in names})
+        with pytest.raises(ValueError, match="fitted design columns"):
+            minimal_brain_data.predict(X=new)
+
+    # ------------------------------------------------------------- report
+
+    def test_report_is_removed(self, minimal_brain_data):
+        assert not hasattr(BrainData, "report")
+        assert not hasattr(minimal_brain_data, "report")
+
+    # ------------------------------------------------- second-level design
+
+    def test_second_level_glm_workflow(self, minimal_brain_data):
+        from nltools.data import DesignMatrix
+        from nltools.utils import concatenate
+
+        first_level_design = self._design(minimal_brain_data)
+        effects = []
+        for seed in range(6):
+            subject = minimal_brain_data.copy()
+            subject.data = subject.data + np.random.default_rng(seed).normal(
+                size=subject.shape
+            )
+            fitted = subject.fit(model="glm", X=first_level_design, inplace=False)
+            effects.append(fitted.compute_contrasts("cond_a - cond_b"))
+
+        group = concatenate(effects)
+        assert group.shape == (6, minimal_brain_data.shape[1])
+
+        second_level = DesignMatrix(
+            {"intercept": np.ones(6), "age": np.linspace(-1, 1, 6)}
+        )
+        group.fit(model="glm", X=second_level, glm_noise_model="ols")
+        result = group.compute_contrasts("age", inference=True)
+
+        assert isinstance(result.statistic, BrainData)
+        assert result.statistic.shape[-1] == minimal_brain_data.shape[1]

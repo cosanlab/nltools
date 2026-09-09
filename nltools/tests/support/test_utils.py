@@ -3,9 +3,8 @@
 import gc
 
 import numpy as np
-import pytest
-import pandas as pd
 
+from nltools.data import DesignMatrix
 from nltools.utils import all_same, coalesced_gc
 
 
@@ -82,10 +81,9 @@ class TestCoalescedGC:
             assert gc.collect is not real  # swapped to the no-op inside
         assert gc.collect is real
 
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_wrapped_fit_numerically_identical(self, minimal_brain_data, monkeypatch):
         """A coalesced BrainData.fit matches the un-coalesced (passthrough) fit."""
-        design = pd.DataFrame(
+        design = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "X1": np.random.RandomState(0).randn(len(minimal_brain_data)),
@@ -101,7 +99,7 @@ class TestCoalescedGC:
         passthrough = minimal_brain_data.copy()
         passthrough.fit(model="glm", X=design)
 
-        for attr in ("glm_betas", "glm_t", "glm_p", "glm_se", "glm_residual"):
+        for attr in ("glm_betas", "glm_residual", "glm_predicted", "glm_r2"):
             a = getattr(coalesced, attr).data
             b = getattr(passthrough, attr).data
             assert np.array_equal(a, b), f"{attr} differs between coalesced/passthrough"

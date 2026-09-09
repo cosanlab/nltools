@@ -71,6 +71,11 @@ Encoding model prediction yields a brain image — the natural container is
 ``BrainData``, so it composes directly with downstream methods (`.plot()`,
 `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
 
+With no ``X``, a fitted GLM returns an independent copy of the stored
+training predictions and keeps their row metadata. With an explicit ``X``,
+named-column validation and alignment belong to `Glm.predict`, and the
+result clears the source row metadata.
+
 (data-braindata-prediction-resolve-model)=
 ### `resolve_model`
 

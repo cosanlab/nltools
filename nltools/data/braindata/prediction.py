@@ -108,9 +108,9 @@ def _resolve_stored_y(bd, y):
       - ``None`` falls back to a single-column ``bd.Y`` (the idiomatic
         labels-travel-with-the-data path). A multi-column ``Y`` is ambiguous
         and asks for ``y='name'``; an empty ``Y`` returns ``None`` so the
-        dispatcher can fall through to timeseries prediction — unless the
-        object also carries a fitted encoding model, in which case both
-        readings are possible and we refuse to guess.
+        dispatcher can fall through to timeseries prediction. A *fitted*
+        encoding model wins over stored labels, so an object carrying both
+        predicts its training timeseries.
     """
     stored = bd.Y
 
@@ -132,12 +132,12 @@ def _resolve_stored_y(bd, y):
     if stored is None or stored.is_empty():
         return None
 
-    if hasattr(bd, "model_"):
-        raise ValueError(
-            "predict() is ambiguous: this BrainData has both a fitted "
-            "encoding model and a stored .Y frame. Pass y=... (or y='column') "
-            "to decode, or X=... to predict a timeseries."
-        )
+    if getattr(getattr(bd, "model_", None), "is_fitted_", False):
+        # Fitted-model prediction wins over attached labels on a no-argument
+        # call; returning None lets the dispatcher fall through to it. An
+        # unfitted `model_` is not a model to predict from, so decoding the
+        # stored labels stays available.
+        return None
     if stored.shape[1] != 1:
         raise ValueError(
             f".Y has {stored.shape[1]} columns ({stored.columns}); pass "
@@ -180,8 +180,12 @@ def predict_timeseries(bd, *, X=None):
     Encoding model prediction yields a brain image — the natural container is
     ``BrainData``, so it composes directly with downstream methods (`.plot()`,
     `.standardize()`, etc.). MVPA decoding (``y=`` mode) returns ``Predict``.
+
+    With no ``X``, a fitted GLM returns an independent copy of the stored
+    training predictions and keeps their row metadata. With an explicit ``X``,
+    named-column validation and alignment belong to `Glm.predict`, and the
+    result clears the source row metadata.
     """
-    from nltools.data import BrainData
     from nltools.models import Glm
 
     from .utils import _result_from_array
@@ -194,6 +198,13 @@ def predict_timeseries(bd, *, X=None):
     if not bd.model_.is_fitted_:
         raise ValueError("Model is not fitted")
 
+    if isinstance(bd.model_, Glm):
+        if X is None:
+            return _result_from_array(
+                bd, np.array(bd.glm_predicted.data, copy=True), rows="preserve"
+            )
+        return _result_from_array(bd, bd.model_.predict(X), rows="clear")
+
     using_training_data = X is None
     if using_training_data:
         if not hasattr(bd, "X_"):
@@ -204,33 +215,15 @@ def predict_timeseries(bd, *, X=None):
     if X.ndim != 2:
         raise ValueError(f"X must be 2D, got {X.ndim}D")
 
-    if hasattr(bd.model_, "n_features_in_"):
-        if X.shape[1] != bd.model_.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but model was fitted with "
-                f"{bd.model_.n_features_in_} features"
-            )
-    elif hasattr(bd.model_, "design_matrices_") and bd.model_.design_matrices_:
-        expected = bd.model_.design_matrices_[0].shape[1]
-        if X.shape[1] != expected:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but model was fitted with "
-                f"{expected} features"
-            )
+    if X.shape[1] != bd.model_.n_features_in_:
+        raise ValueError(
+            f"X has {X.shape[1]} features, but model was fitted with "
+            f"{bd.model_.n_features_in_} features"
+        )
 
-    if isinstance(bd.model_, Glm) and using_training_data:
-        # Training-data fitted values come back as nilearn Nifti images; remask
-        # to the BrainData array space. New-design prediction (X given) goes
-        # through model.predict(X) = X @ coef_, identical to the Ridge path.
-        y_pred_list = bd.model_.predict()
-        y_pred = BrainData(y_pred_list, mask=bd.mask).data
-    else:
-        y_pred = bd.model_.predict(X)
-
-    predictions = _result_from_array(
-        bd, y_pred, rows="preserve" if using_training_data else "clear"
+    return _result_from_array(
+        bd, bd.model_.predict(X), rows="preserve" if using_training_data else "clear"
     )
-    return predictions
 
 
 # ---------------------------------------------------------------------------

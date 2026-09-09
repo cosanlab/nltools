@@ -111,6 +111,14 @@ vocabulary:
     kwarg: "radius_mm"
     tour_note: "units in the name"
     index_md: "`radius_mm: float`"
+  - concept: "GLM-specific fit option"
+    kwarg: "glm_*"
+    tour_note: "`glm_noise_model` · `glm_bins` · `glm_n_jobs` — `random_state` stays bare"
+    index_md: "`glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it"
+  - concept: "Contrast inference toggle"
+    kwarg: "inference"
+    tour_note: "`False` returns the effect · `True` returns a `ContrastResult`"
+    index_md: "`inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult`"
 
 # Deliberate deviations from the table (design-tour "exceptions" callout).
 # Each entry names the module `path` (prefix-matched, like exclude_paths),

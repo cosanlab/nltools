@@ -137,7 +137,7 @@ def _(mo):
 def _(BrainData, DesignMatrix, MNI_MASK, detrend, get_sub_files, memory):
     @memory.cache
     def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
-        """Fit one subject's GLM; return its design and the contrast bundle.
+        """Fit one subject's GLM; return its design and the contrast result.
 
         We return only the lightweight design and contrast maps (not the
         fitted model, which carries residuals and a copy of the data) so the
@@ -152,7 +152,7 @@ def _(BrainData, DesignMatrix, MNI_MASK, detrend, get_sub_files, memory):
         )
         design = events.append(motion, axis=1, as_confounds=True).add_poly(2)
         brain.fit(X=design)
-        return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
+        return design, brain.compute_contrasts(contrast, inference=True)
 
     return (first_level,)
 
@@ -168,7 +168,7 @@ def _(first_level):
 def _(mo):
     mo.md(
         r"""
-    The helper returns the `language > string` contrast as a bundle — `beta`, `t`, `z`, `p`, `se` — computed in one call with `statistic="all"`, so we can threshold the t-map here *and* reuse the β map for the group analysis below.
+    The helper returns the `language > string` contrast as a `ContrastResult` — `effect`, `variance`, `standard_error`, `statistic`, `z_score`, `p_value`, and `degrees_of_freedom` — from one `inference=True` call, so we can threshold the t-map here *and* reuse the effect map for the group analysis below. Without `inference=True`, `compute_contrasts` returns the effect map alone, which is all a second-level model needs.
     """
     )
     return
@@ -176,7 +176,7 @@ def _(mo):
 
 @app.cell
 def _(MNI_T1, contrasts):
-    contrasts["t"].plot(
+    contrasts.statistic.plot(
         method="slices",
         threshold=3.09,
         bg_img=MNI_T1,
@@ -205,7 +205,7 @@ def _(first_level):
     beta_maps = []
     for sub in SUBJECTS:
         _, sub_contrasts = first_level(sub)
-        beta_maps.append(sub_contrasts["beta"])
+        beta_maps.append(sub_contrasts.effect)
     return (beta_maps,)
 
 
@@ -272,7 +272,7 @@ def _(mo):
     |---|---|---|
     | Build design | BIDS events → HRF-convolved regressors + confounds + drift | `DesignMatrix(events, run_length=, TR=)`, `.append(confounds, axis=1, as_confounds=True)`, `.add_poly()` |
     | First level | OLS at every voxel | `brain.fit(X=design)` |
-    | Contrast | Linear combination of βs (effect size + inference) | `brain.compute_contrasts("A - B", statistic="all")` |
+    | Contrast | Linear combination of βs (effect by default, `inference=True` for statistics) | `brain.compute_contrasts("A - B", inference=True)` |
     | Stack subjects | Concatenate first-level β maps | `concatenate([...])` |
     | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
     | Correction | FDR threshold | `nltools.algorithms.fdr`, `nltools.algorithms.threshold` |

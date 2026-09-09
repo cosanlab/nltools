@@ -100,7 +100,7 @@ The recipe for one subject: load the BOLD with the shared mask, build the design
 ```{code-cell} python3
 @memory.cache
 def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
-    """Fit one subject's GLM; return its design and the contrast bundle.
+    """Fit one subject's GLM; return its design and the contrast result.
 
     We return only the lightweight design and contrast maps (not the
     fitted model, which carries residuals and a copy of the data) so the
@@ -115,7 +115,7 @@ def first_level(sub: str, contrast: str = "language_c0 - string_c0"):
     )
     design = events.append(motion, axis=1, as_confounds=True).add_poly(2)
     brain.fit(X=design)
-    return brain.design_matrix, brain.compute_contrasts(contrast, statistic="all")
+    return design, brain.compute_contrasts(contrast, inference=True)
 ```
 
 ```{code-cell} python3
@@ -123,10 +123,10 @@ design, contrasts = first_level("01")
 design.plot()  # the design we just fit
 ```
 
-The helper returns the `language > string` contrast as a bundle — `beta`, `t`, `z`, `p`, `se` — computed in one call with `statistic="all"`, so we can threshold the t-map here *and* reuse the β map for the group analysis below.
+The helper returns the `language > string` contrast as a `ContrastResult` — `effect`, `variance`, `standard_error`, `statistic`, `z_score`, `p_value`, and `degrees_of_freedom` — from one `inference=True` call, so we can threshold the t-map here *and* reuse the effect map for the group analysis below. Without `inference=True`, `compute_contrasts` returns the effect map alone, which is all a second-level model needs.
 
 ```{code-cell} python3
-contrasts["t"].plot(
+contrasts.statistic.plot(
     method="slices",
     threshold=3.09,
     bg_img=MNI_T1,
@@ -145,7 +145,7 @@ SUBJECTS = ["01", "02", "03", "04", "05", "06", "07", "08"]
 beta_maps = []
 for sub in SUBJECTS:
     _, sub_contrasts = first_level(sub)
-    beta_maps.append(sub_contrasts["beta"])
+    beta_maps.append(sub_contrasts.effect)
 ```
 
 `concatenate` stacks the per-subject maps into one `(n_subjects, n_voxels)` `BrainData`. `BrainData.ttest` runs a voxelwise one-sample test, returning the effect-size `mean`, the parametric `t`, a signed `z`, and `p`. `nltools.algorithms.threshold` keeps the `z` values whose `p` clears a cutoff — here voxelwise `p < 0.001`.
@@ -187,7 +187,7 @@ print(f"  Bonferroni (p < 0.05/N):  {n_bonferroni:5d}")
 |---|---|---|
 | Build design | BIDS events → HRF-convolved regressors + confounds + drift | `DesignMatrix(events, run_length=, TR=)`, `.append(confounds, axis=1, as_confounds=True)`, `.add_poly()` |
 | First level | OLS at every voxel | `brain.fit(X=design)` |
-| Contrast | Linear combination of βs (effect size + inference) | `brain.compute_contrasts("A - B", statistic="all")` |
+| Contrast | Linear combination of βs (effect by default, `inference=True` for statistics) | `brain.compute_contrasts("A - B", inference=True)` |
 | Stack subjects | Concatenate first-level β maps | `concatenate([...])` |
 | Group test | Voxelwise one-sample t-test → `{mean, t, z, p}` | `group.ttest()` |
 | Correction | FDR threshold | `nltools.algorithms.fdr`, `nltools.algorithms.threshold` |

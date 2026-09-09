@@ -12,10 +12,9 @@ from unittest import mock
 import numpy as np
 import nibabel as nib
 import nilearn.masking as nm
-import pandas as pd
 import pytest
 
-from nltools.data import BrainData
+from nltools.data import BrainData, DesignMatrix
 from nltools.data.braindata import io as bd_io
 
 
@@ -79,12 +78,11 @@ class TestListConstruction:
 
 
 class TestGLMFitMapsByteIdentical:
-    @pytest.mark.xfail(reason="te1m: facade alignment pending", strict=True)
     def test_glm_maps_identical_across_mask_paths(
         self, minimal_brain_data, monkeypatch
     ):
-        """glm_betas/t/p/se/residual are byte-identical fast-path vs functional-path."""
-        design = pd.DataFrame(
+        """The attached GLM maps are byte-identical fast-path vs functional-path."""
+        design = DesignMatrix(
             {
                 "Intercept": np.ones(len(minimal_brain_data)),
                 "X1": np.random.RandomState(1).randn(len(minimal_brain_data)),
@@ -103,7 +101,7 @@ class TestGLMFitMapsByteIdentical:
         ref = minimal_brain_data.copy()
         ref.fit(model="glm", X=design)
 
-        for attr in ("glm_betas", "glm_t", "glm_p", "glm_se", "glm_residual"):
+        for attr in ("glm_betas", "glm_residual", "glm_predicted", "glm_r2"):
             assert np.array_equal(getattr(fast, attr).data, getattr(ref, attr).data), (
                 f"{attr} differs between fast and functional mask paths"
             )

@@ -99,6 +99,8 @@ public signature against in CI. The table below is rendered from it:
 | Display symmetry | `symmetric: bool \| 'auto' = 'auto'` (viewer positive/negative limbs) |
 | Diagonal flag | `include_diag: bool` |
 | Radius (mm) | `radius_mm: float` |
+| GLM-specific fit option | `glm_*` on `BrainData.fit` (`glm_noise_model`, `glm_bins`, `glm_n_jobs`) — a non-default one under `model='ridge'` raises `ValueError`; `random_state` keeps its bare name because both estimators use it |
+| Contrast inference toggle | `inference: bool = False` on `compute_contrasts` — the effect alone by default (what a second-level model consumes); `True` returns the full `ContrastResult` |
 <!-- /AUTOGEN:api-vocabulary:index-table -->
 
 ## The internals pages

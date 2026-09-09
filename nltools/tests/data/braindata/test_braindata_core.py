@@ -50,7 +50,7 @@ class TestBrainDataCore:
     def test_copy_owns_complete_fitted_state(self, minimal_brain_data):
         """Copying a fitted BrainData produces an independent snapshot."""
         X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
 
         copied = minimal_brain_data.copy()
 
@@ -68,23 +68,21 @@ class TestBrainDataCore:
 
     def test_create_empty_drops_fitted_state(self, minimal_brain_data):
         X = np.random.default_rng(1).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
 
         empty = minimal_brain_data.create_empty()
 
         assert empty.data.size == 0
-        assert empty.design_matrix is None
         assert not hasattr(empty, "model_")
         assert not hasattr(empty, "X_")
         assert not hasattr(empty, "ridge_weights")
 
     def test_inplace_arithmetic_drops_fitted_state(self, minimal_brain_data):
         X = np.random.default_rng(2).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
 
         minimal_brain_data += 1.0
 
-        assert minimal_brain_data.design_matrix is None
         assert not hasattr(minimal_brain_data, "model_")
         assert not hasattr(minimal_brain_data, "X_")
         assert not hasattr(minimal_brain_data, "ridge_weights")
@@ -92,11 +90,10 @@ class TestBrainDataCore:
     def test_setitem_drops_fitted_state(self, minimal_brain_data):
         replacement = minimal_brain_data[0]
         X = np.random.default_rng(3).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
 
         minimal_brain_data[0] = replacement
 
-        assert minimal_brain_data.design_matrix is None
         assert not hasattr(minimal_brain_data, "model_")
         assert not hasattr(minimal_brain_data, "X_")
         assert not hasattr(minimal_brain_data, "ridge_weights")
@@ -105,7 +102,7 @@ class TestBrainDataCore:
         replacement = minimal_brain_data[0]
         replacement.X = pl.DataFrame({"unexpected": [1.0]})
         X = np.random.default_rng(4).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
         original_data = minimal_brain_data.data.copy()
         original_model = minimal_brain_data.model_
         original_weights = minimal_brain_data.ridge_weights

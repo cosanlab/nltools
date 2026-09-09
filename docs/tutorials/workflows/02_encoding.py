@@ -158,7 +158,7 @@ def _(mo):
         r"""
     ### Fit ridge: in-sample vs. held-out
 
-    Standard encoding preprocessing: demean each voxel (ridge has no intercept) and skip the GLM's percent-signal scaling (`scale=False`). A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
+    Standard encoding preprocessing: z-score each voxel explicitly, since `fit` never preprocesses the response and ridge fits no intercept. A fixed-α fit with no CV gives `ridge_scores` — an *in-sample* R², which is optimistically biased.
     """
     )
     return
@@ -166,40 +166,47 @@ def _(mo):
 
 @app.cell
 def _(X_fir, bold):
-    bold.data = bold.data - bold.data.mean(axis=0, keepdims=True)  # voxelwise demean
-    bold.fit(model="ridge", X=X_fir, alpha=1.0, scale=False)
-    in_sample = bold.ridge_scores.data.ravel()
+    # `fit` never preprocesses the response, so standardize explicitly: ridge
+    # fits no intercept, and a shared alpha should regularize voxels comparably.
+    # The standardized data gets its own name so every later cell that needs it
+    # depends on it by name rather than on `bold` having been mutated.
+    bold_z = bold.standardize(method="zscore")
+    bold_z.fit(model="ridge", X=X_fir, alpha=1.0)
+    in_sample = bold_z.ridge_scores.data.ravel()
     print(f"in-sample R²  — mean {in_sample.mean():.3f}  max {in_sample.max():.3f}")
-    return
+    return (bold_z,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `cv` sweeps the grid and picks the best α **per voxel** (`per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics, because ridge fits no intercept and a new run carries its own offset.
+    The honest version holds out the last run entirely and fits on the other seven. A *sequence* of candidate alphas plus a `cv` sweeps the grid and picks the best α **per voxel** (`per_target_alpha=True`, the default) — high-SNR visual voxels want little regularization, noisier voxels want more. Scoring the fitted model on the untouched run gives a genuinely out-of-sample R². Both blocks are standardized on their own statistics — explicitly, since `fit` does no preprocessing — because ridge fits no intercept and a new run carries its own offset.
     """
     )
     return
 
 
 @app.cell
-def _(X_fir, bold, np):
+def _(X_fir, bold_z, np):
     from sklearn.model_selection import KFold
 
     ALPHAS = np.logspace(-1, 4, 20)
-    n_test = bold.shape[0] // 8  # last of the 8 concatenated runs
+    n_test = bold_z.shape[0] // 8  # last of the 8 concatenated runs
     train, test = slice(0, -n_test), slice(-n_test, None)
 
-    trained = bold[train].fit(
-        model="ridge",
-        X=X_fir[train],
-        alpha=ALPHAS,
-        cv=KFold(n_splits=5, shuffle=True, random_state=0),
-        scale=False,
-        inplace=False,
+    trained = (
+        bold_z[train]
+        .standardize(method="zscore")
+        .fit(
+            model="ridge",
+            X=X_fir[train],
+            alpha=ALPHAS,
+            cv=KFold(n_splits=5, shuffle=True, random_state=0),
+            inplace=False,
+        )
     )
-    held_out = bold[test].standardize(method="zscore")
+    held_out = bold_z[test].standardize(method="zscore")
     held_out_r2 = trained.model_.score(X_fir[test], held_out.data)
     print(
         f"held-out R²  — median {np.median(held_out_r2):.3f}  "
@@ -213,8 +220,8 @@ def _(X_fir, bold, np):
 
 
 @app.cell
-def _(DATASET, bold, held_out_r2, np):
-    held_out_map = bold.ridge_scores.copy()
+def _(DATASET, bold_z, held_out_r2, np):
+    held_out_map = bold_z.ridge_scores.copy()
     # Most voxels do not track the stimulus at all, so their held-out R² is
     # negative. Floor the map at zero and let the threshold hide the rest —
     # a diverging map here would be a wall of colour with no signal in it.
@@ -266,8 +273,8 @@ def _(mo):
     |---|---|---|
     | Load runs | Concatenate BOLD + stimulus across runs | `concatenate([...])` |
     | Features | FIR lag bank (learn the HRF, don't assume it) | `lag_features(stim, [1, 2, 3])` |
-    | In-sample fit | Fixed-α ridge → optimistic R² | `bold.fit(model="ridge", X=, alpha=1.0, scale=False)` |
-    | Honest fit | Per-voxel α via CV, scored on a held-out run | `bold[train].fit(model="ridge", X=, alpha=ALPHAS, cv=KFold(5), inplace=False)` |
+    | In-sample fit | Fixed-α ridge → optimistic R² | `bold_z.fit(model="ridge", X=, alpha=1.0)` |
+    | Honest fit | Per-voxel α via CV, scored on a held-out run | `bold_z[train].fit(model="ridge", X=, alpha=ALPHAS, cv=KFold(5), inplace=False)` |
     | Inspect | Held-out R² map + selected α per voxel | `trained.model_.score(X_test, Y_test)`, `trained.model_.alpha_` |
 
     **Next steps**

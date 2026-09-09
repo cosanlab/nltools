@@ -72,13 +72,12 @@ class TestThreshold:
 
     def test_threshold_drops_source_fit_state(self, minimal_brain_data):
         X = np.random.default_rng(0).standard_normal((len(minimal_brain_data), 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
         p = minimal_brain_data.copy()
         p.data = np.full_like(p.data, 0.01)
 
         result = threshold(minimal_brain_data, p)
 
-        assert result.design_matrix is None
         assert not hasattr(result, "model_")
         assert not hasattr(result, "X_")
         assert not hasattr(result, "ridge_weights")

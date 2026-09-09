@@ -97,11 +97,10 @@ def test_roi_to_brain_drops_fitted_mask_state():
     s3 = create_sphere([0, -15, -8], radius=10)
     masks = BrainData([s1, s2, s3])
     X = np.arange(3, dtype=float).reshape(-1, 1)
-    masks.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+    masks.fit(model="ridge", X=X, alpha=1.0)
 
     result = roi_to_brain(np.ones((3, 2)), masks)
 
-    assert result.design_matrix is None
     assert not hasattr(result, "model_")
     assert not hasattr(result, "X_")
     assert not hasattr(result, "ridge_weights")

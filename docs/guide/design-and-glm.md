@@ -25,7 +25,7 @@ Drift | [`add_poly`](../api/data/design_matrix.md#data-design-matrix-add-poly) /
 Check the design | [`vif`](../api/data/design_matrix.md#data-design-matrix-vif), [`corr`](../api/data/design_matrix.md#data-design-matrix-corr), [`plot`](../api/data/design_matrix.md#data-design-matrix-plot) | `vif` excludes confounds by default
 Drop redundant columns | [`clean`](../api/data/design_matrix.md#data-design-matrix-clean) | Removes columns correlated above `thresh` (default `0.95`)
 Fit a first-level model | [`BrainData.fit`](../api/data/brain_data.md#data-brain-data-fit)`(model='glm', X=design)` | `model='ridge'` for the penalized fit; see [Prediction](prediction.md)
-Contrasts | [`compute_contrasts`](../api/data/brain_data.md#data-brain-data-compute-contrasts)`("A - B", statistic=)` | `statistic='t'` (default), `'z'`, `'p'`, `'beta'`, or `'all'`
+Contrasts | [`compute_contrasts`](../api/data/brain_data.md#data-brain-data-compute-contrasts)`("A - B", inference=)` | Effect map by default; `inference=True` returns a `ContrastResult`
 Group test | [`concatenate`](../api/tasks/loading.md#tasks-loading-concatenate) → [`ttest`](../api/data/brain_data.md#data-brain-data-ttest) | Returns `{'mean', 't', 'z', 'p'}` of `BrainData`
 Correct and threshold | [`fdr`](../api/tasks/inference.md#tasks-inference-fdr), [`holm_bonf`](../api/tasks/inference.md#tasks-inference-holm-bonf), [`threshold`](../api/tasks/inference.md#tasks-inference-threshold) | See [Statistics & inference](statistics-and-inference.md)
 
@@ -42,16 +42,32 @@ design = events.append(confounds, axis=1, as_confounds=True).add_poly(2)
 design.vif()                 # one VIF per non-confound regressor
 
 bold.fit(X=design)
-con = bold.compute_contrasts("face_c0 - house_c0", statistic="all")
+effect = bold.compute_contrasts("face_c0 - house_c0")
+con = bold.compute_contrasts("face_c0 - house_c0", inference=True)
 ```
 
-`fit` attaches the design to the object, so `compute_contrasts` can name columns directly. A
-contrast is a string of column names with optional coefficients (`"2*A - B - C"`), a numeric weight
-vector, or a `{name: contrast}` dict to evaluate several at once. `statistic='all'` returns
-`beta`, `t`, `z`, `p`, and `se` from one fit, so you can threshold the `t` map now and reuse the
-`beta` map at the group level. Contrast p-values are one-sided, following the nilearn/SPM
-convention that a contrast tests "A > B"; flip the contrast for the other direction. This is the
-one place in nltools where the default is not two-tailed.
+`fit` keeps the fitted model on the object, and the model remembers its column names, so
+`compute_contrasts` can name columns directly. A contrast is a string of column names with
+optional coefficients (`"2*A - B - C"`), a numeric weight vector, or a `{name: contrast}` dict to
+evaluate several at once. The default returns the effect map — the input a group analysis
+consumes. `inference=True` returns a `ContrastResult` carrying `effect`, `variance`,
+`standard_error`, `statistic`, `z_score`, `p_value`, and `degrees_of_freedom` together, so you can
+threshold `con.statistic` now and reuse `con.effect` at the group level. Contrast p-values are
+one-sided, following the nilearn/SPM convention that a contrast tests "A > B"; flip the contrast
+for the other direction. This is the one place in nltools where the default is not two-tailed.
+
+For a multi-regressor group model, stack the per-subject effect maps and fit a second-level
+`DesignMatrix` with one row per subject, then contrast its coefficients:
+
+```python
+group = concatenate(effects)                                   # (n_subjects, n_voxels)
+second_level = DesignMatrix({"intercept": np.ones(len(group)), "age": ages})
+group.fit(model="glm", X=second_level)
+result = group.compute_contrasts("age", inference=True)
+```
+
+This estimates variance *across* effect maps; it does not propagate first-level effect variance.
+`ttest()` remains the concise intercept-only version of the same test.
 
 ## Group level
 

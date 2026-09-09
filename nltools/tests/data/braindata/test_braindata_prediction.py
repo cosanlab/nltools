@@ -105,13 +105,18 @@ class TestStoredYFallback:
         # LeaveOneGroupOut over 3 runs → 3 folds.
         assert result.scores.shape == (3,)
 
-    def test_fitted_model_plus_stored_Y_is_ambiguous(self, minimal_brain_data):
+    def test_fitted_model_wins_over_stored_Y(self, minimal_brain_data):
+        """A no-argument call predicts from the fitted model, not the labels."""
         n = minimal_brain_data.shape[0]
         X = np.random.default_rng(0).standard_normal((n, 3))
         minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
         minimal_brain_data.Y = {"label": np.arange(n) % 2}
-        with pytest.raises(ValueError, match="ambiguous"):
-            minimal_brain_data.predict()
+
+        predicted = minimal_brain_data.predict()
+
+        np.testing.assert_allclose(
+            predicted.data, minimal_brain_data.ridge_fitted_values.data
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +368,7 @@ class TestInplace:
         n = len(minimal_brain_data)
         y = np.array([0] * (n // 2) + [1] * (n - n // 2))
         X = np.random.default_rng(0).standard_normal((n, 3))
-        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0, standardize=None)
+        minimal_brain_data.fit(model="ridge", X=X, alpha=1.0)
         fitted_model = minimal_brain_data.model_
 
         minimal_brain_data.predict(y=y, spatial_scale="whole_brain", cv=3, inplace=True)
