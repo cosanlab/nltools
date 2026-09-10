@@ -277,7 +277,7 @@ Name | Type | Description
 ---- | ---- | -----------
 `input_values` | <code>ndarray</code> | Decision values.
 `binary_outcome` | <code>ndarray</code> | Boolean labels.
-`method` | <code>str</code> | Threshold-selection variant.
+`method` | <code>str</code> | Configured threshold-selection variant. Set at construction; `calculate`'s `method=` argument reads this as its default and never writes back to it, so an explicit override passed to `calculate` only affects that call.
 `forced_choice` | <code>ndarray \| None</code> | Subject ids for forced-choice classification.
 `criterion_values` | <code>ndarray</code> | Thresholds at which `tpr`/`fpr` were evaluated; set by `calculate`.
 `tpr` | <code>ndarray</code> | True positive rate per criterion value; set by `calculate`.
@@ -290,6 +290,13 @@ Name | Type | Description
 `accuracy` | <code>float</code> | Classification accuracy; set by `calculate`.
 `accuracy_se` | <code>float</code> | Standard error of the accuracy; set by `calculate`.
 `accuracy_p` | <code>BinomTestResult</code> | `scipy.stats.binomtest` result comparing accuracy against chance (read `.pvalue`); set by `calculate`.
+`tpr_smooth` | <code>ndarray</code> | Gaussian-model true positive rate curve; set by `plot(method='gaussian')`. Never read by `calculate`.
+`fpr_smooth` | <code>ndarray</code> | Gaussian-model false positive rate curve; set by `plot(method='gaussian')`. Never read by `calculate`.
+`aucn` | <code>float</code> | Area under the Gaussian-model curve (`tpr_smooth`/`fpr_smooth`); set by `plot(method='gaussian')`. Never read by `calculate`.
+`gaussian_sensitivity` | <code>float</code> | Gaussian-model sensitivity estimate for forced-choice data; set by `plot(method='gaussian')`. Never read by `calculate`.
+`gaussian_specificity` | <code>float</code> | Gaussian-model specificity estimate for forced-choice data; set by `plot(method='gaussian')`. Never read by `calculate`.
+`gaussian_ppv` | <code>float</code> | Gaussian-model positive predictive value for forced-choice data; set by `plot(method='gaussian')`. Never read by `calculate`.
+`gaussian_auc` | <code>float</code> | Gaussian-model area under the curve for forced-choice data; set by `plot(method='gaussian')`. Never read by `calculate`.
 
 **Methods:**
 
@@ -307,7 +314,7 @@ Name | Description
 ##### `calculate`
 
 ```python
-calculate(*, input_values = None, binary_outcome = None, criterion_values = None, method = 'optimal_overall', forced_choice = None, balanced_acc = False, tail = 2)
+calculate(*, input_values = None, binary_outcome = None, criterion_values = None, method = None, forced_choice = None, balanced_acc = False, tail = 2)
 ```
 
 Calculate ROC metrics and store them on the instance.
@@ -319,7 +326,7 @@ Name | Type | Description | Default
 `input_values` | <code>array - like</code> | 1-D continuous decision values, one per observation. Defaults to the values given at construction. | <code>None</code>
 `binary_outcome` | <code>array - like</code> | Boolean class label per observation. Defaults to the labels given at construction. | <code>None</code>
 `criterion_values` | <code>array - like</code> | Thresholds at which to evaluate `fpr` and `tpr`. Defaults to a dense grid over the range of `input_values`. | <code>None</code>
-`method` | <code>str</code> | Threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'`. | <code>'optimal_overall'</code>
+`method` | <code>str</code> | Threshold-selection variant, one of `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'`. Defaults to `None`, which uses the instance's configured `method` (set at construction, or by assigning `self.method` directly). An explicit value overrides the configured `method` for this call only and does not change `self.method`. | <code>None</code>
 `forced_choice` | <code>array - like</code> | Subject id per observation for forced-choice classification. | <code>None</code>
 `balanced_acc` | <code>bool</code> | Report balanced accuracy (mean of sensitivity and specificity) instead of overall accuracy. Only affects the accuracy estimate, not the p-value or the threshold used for sensitivity/specificity. | <code>False</code>
 `tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (accuracy > chance) in the binomial test for `accuracy_p`. | <code>2</code>
@@ -334,7 +341,11 @@ plot(*, method = 'gaussian', balanced_acc = False)
 Create a ROC plot.
 
 Runs `calculate` first, then plots either a Gaussian-smoothed ROC curve fit
-to the decision values or the observed empirical curve.
+to the decision values or the observed empirical curve. The underlying
+`calculate` call re-runs with the instance's configured `method` (it never
+overrides the threshold rule), and the Gaussian-model curve estimates are
+stored on their own attributes rather than overwriting `calculate`'s
+`sensitivity`, `specificity`, `ppv`, and `auc`.
 
 **Parameters:**
 
@@ -348,6 +359,18 @@ Name | Type | Description | Default
 Type | Description
 ---- | -----------
 <code>Figure</code> | The ROC figure.
+
+<details class="note" open markdown="1">
+<summary>Note</summary>
+
+For `method='gaussian'` on forced-choice data, this also sets
+`gaussian_sensitivity`, `gaussian_specificity`, `gaussian_ppv`, and
+`gaussian_auc` from the fitted Gaussian model. For `method='gaussian'`
+on either kind of data, it also sets `tpr_smooth`, `fpr_smooth`, and
+`aucn` (the smoothed curve and its AUC). None of these attributes are
+read by `calculate`.
+
+</details>
 
 (tasks-prediction-summary)=
 ##### `summary`

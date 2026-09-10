@@ -33,7 +33,10 @@ class Roc:
     Attributes:
         input_values (np.ndarray): Decision values.
         binary_outcome (np.ndarray): Boolean labels.
-        method (str): Threshold-selection variant.
+        method (str): Configured threshold-selection variant. Set at construction;
+            `calculate`'s `method=` argument reads this as its default and never
+            writes back to it, so an explicit override passed to `calculate` only
+            affects that call.
         forced_choice (np.ndarray | None): Subject ids for forced-choice classification.
         criterion_values (np.ndarray): Thresholds at which `tpr`/`fpr` were evaluated;
             set by `calculate`.
@@ -48,6 +51,23 @@ class Roc:
         accuracy_se (float): Standard error of the accuracy; set by `calculate`.
         accuracy_p (BinomTestResult): `scipy.stats.binomtest` result comparing accuracy
             against chance (read `.pvalue`); set by `calculate`.
+        tpr_smooth (np.ndarray): Gaussian-model true positive rate curve; set by
+            `plot(method='gaussian')`. Never read by `calculate`.
+        fpr_smooth (np.ndarray): Gaussian-model false positive rate curve; set by
+            `plot(method='gaussian')`. Never read by `calculate`.
+        aucn (float): Area under the Gaussian-model curve (`tpr_smooth`/`fpr_smooth`);
+            set by `plot(method='gaussian')`. Never read by `calculate`.
+        gaussian_sensitivity (float): Gaussian-model sensitivity estimate for
+            forced-choice data; set by `plot(method='gaussian')`. Never read by
+            `calculate`.
+        gaussian_specificity (float): Gaussian-model specificity estimate for
+            forced-choice data; set by `plot(method='gaussian')`. Never read by
+            `calculate`.
+        gaussian_ppv (float): Gaussian-model positive predictive value for
+            forced-choice data; set by `plot(method='gaussian')`. Never read by
+            `calculate`.
+        gaussian_auc (float): Gaussian-model area under the curve for forced-choice
+            data; set by `plot(method='gaussian')`. Never read by `calculate`.
     """
 
     def __init__(
@@ -88,7 +108,7 @@ class Roc:
         input_values=None,
         binary_outcome=None,
         criterion_values=None,
-        method="optimal_overall",
+        method=None,
         forced_choice=None,
         balanced_acc=False,
         tail=2,
@@ -103,8 +123,12 @@ class Roc:
             criterion_values (array-like, optional): Thresholds at which to evaluate
                 `fpr` and `tpr`. Defaults to a dense grid over the range of
                 `input_values`.
-            method (str): Threshold-selection variant, one of `'optimal_overall'`,
-                `'optimal_balanced'`, `'minimum_sdt_bias'`.
+            method (str, optional): Threshold-selection variant, one of
+                `'optimal_overall'`, `'optimal_balanced'`, `'minimum_sdt_bias'`.
+                Defaults to `None`, which uses the instance's configured `method`
+                (set at construction, or by assigning `self.method` directly). An
+                explicit value overrides the configured `method` for this call only
+                and does not change `self.method`.
             forced_choice (array-like, optional): Subject id per observation for
                 forced-choice classification.
             balanced_acc (bool): Report balanced accuracy (mean of sensitivity and
@@ -197,18 +221,20 @@ class Roc:
         self.n_false = np.sum(~self.binary_outcome)
         self.auc = auc(self.fpr, self.tpr)
 
-        # Get criterion threshold
+        # Get criterion threshold. An explicit method= overrides the instance's
+        # configured self.method for this call only; self.method itself is left
+        # untouched so a later bare calculate() reverts to it (q31x fvgk #12).
         if self.forced_choice is None:
-            self.method = method
-            if method == "optimal_balanced":
+            resolved_method = self.method if method is None else method
+            if resolved_method == "optimal_balanced":
                 mn = (self.tpr + self.fpr) / 2
                 self.class_thr = self.criterion_values[np.argmax(mn)]
-            elif method == "optimal_overall":
+            elif resolved_method == "optimal_overall":
                 n_corr_t = self.tpr * self.n_true
                 n_corr_f = (1 - self.fpr) * self.n_false
                 sm = n_corr_t + n_corr_f
                 self.class_thr = self.criterion_values[np.argmax(sm)]
-            elif method == "minimum_sdt_bias":
+            elif resolved_method == "minimum_sdt_bias":
                 # Calculate  MacMillan and Creelman 2005 Response Bias (c_bias)
                 c_bias = (
                     norm.ppf(np.maximum(0.0001, np.minimum(0.9999, self.tpr)))
@@ -265,7 +291,11 @@ class Roc:
         """Create a ROC plot.
 
         Runs `calculate` first, then plots either a Gaussian-smoothed ROC curve fit
-        to the decision values or the observed empirical curve.
+        to the decision values or the observed empirical curve. The underlying
+        `calculate` call re-runs with the instance's configured `method` (it never
+        overrides the threshold rule), and the Gaussian-model curve estimates are
+        stored on their own attributes rather than overwriting `calculate`'s
+        `sensitivity`, `specificity`, `ppv`, and `auc`.
 
         Args:
             method (str): Type of plot, `'gaussian'` or `'observed'`.
@@ -273,6 +303,14 @@ class Roc:
 
         Returns:
             matplotlib.figure.Figure: The ROC figure.
+
+        Note:
+            For `method='gaussian'` on forced-choice data, this also sets
+            `gaussian_sensitivity`, `gaussian_specificity`, `gaussian_ppv`, and
+            `gaussian_auc` from the fitted Gaussian model. For `method='gaussian'`
+            on either kind of data, it also sets `tpr_smooth`, `fpr_smooth`, and
+            `aucn` (the smoothed curve and its AUC). None of these attributes are
+            read by `calculate`.
         """
 
         self.calculate(balanced_acc=balanced_acc)  # Calculate ROC parameters
@@ -297,10 +335,12 @@ class Roc:
                 d_a_model = mn_diff / pooled_sd
 
                 expected_acc = 1 - norm.cdf(0, d, 1)
-                self.sensitivity = expected_acc
-                self.specificity = expected_acc
-                self.ppv = self.sensitivity / (self.sensitivity + 1 - self.specificity)
-                self.auc = norm.cdf(d_a_model / np.sqrt(2))
+                self.gaussian_sensitivity = expected_acc
+                self.gaussian_specificity = expected_acc
+                self.gaussian_ppv = self.gaussian_sensitivity / (
+                    self.gaussian_sensitivity + 1 - self.gaussian_specificity
+                )
+                self.gaussian_auc = norm.cdf(d_a_model / np.sqrt(2))
 
                 x = np.arange(-3, 3, 0.1)
                 self.tpr_smooth = 1 - norm.cdf(x, d, 1)

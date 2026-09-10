@@ -2117,6 +2117,7 @@ The reader uses `h5py` + `hdf5plugin` (no PyTables dependency) and handles:
 | `BrainData.decompose()` | Kwarg renamed | `algorithm='ica'` | `method='ica'` | Update keyword (see Algorithm/variant choice row above) |
 | Import paths | Module moved | `stats.isc()` | `nltools.algorithms.isc()` (or the `isc_permutation_test()` engine) | Update the import — `nltools.stats` is gone; the permutation `*_test` exports **are** the engine functions, with no wrapper layer |
 | Return keys | Unified | `null_distribution` result key | `null_dist` everywhere (engines, `isc`/`isc_group`) | Update key lookups to `null_dist` |
+| `Roc.plot()` | Bug fix | `plot(method='gaussian')` on forced-choice data overwrote `sensitivity`, `specificity`, `ppv`, and `auc` with its Gaussian-model estimates | Those attributes stay as `calculate()` set them; the model estimates land on `gaussian_sensitivity`, `gaussian_specificity`, `gaussian_ppv`, `gaussian_auc` instead | Read the Gaussian estimates off the new `gaussian_*` attributes if you relied on the old overwrite |
 
 ---
 
