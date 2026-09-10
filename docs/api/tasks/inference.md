@@ -3,13 +3,7 @@ title: Statistics & inference
 label: page-tasks-inference
 ---
 
-Non-parametric group statistics. The one-sample, two-sample, and timeseries permutation tests run on CPU or GPU (`device=`); `phase_randomize` and `circle_shift` are the timeseries null models. `OnlineBootstrapStats` keeps running mean and variance over bootstrap draws instead of storing them. `fdr`, `holm_bonf`, `threshold`, and `multi_threshold` correct or threshold the resulting p-maps. `BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call these.
-
-**Classes:**
-
-Name | Description
----- | -----------
-[`OnlineBootstrapStats`](#tasks-inference-onlinebootstrapstats) | Memory-efficient online statistics aggregator for bootstrap samples.
+Non-parametric group statistics. The one-sample, two-sample, and timeseries permutation tests run on CPU or GPU (`device=`); `phase_randomize` and `circle_shift` are the timeseries null models. `fdr`, `holm_bonf`, `threshold`, and `multi_threshold` correct or threshold the resulting p-maps. `BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call these.
 
 **Functions:**
 
@@ -24,117 +18,6 @@ Name | Description
 [`holm_bonf`](#tasks-inference-holm-bonf) | Determine a Holm-Bonferroni (step-down) threshold for an array of p-values.
 [`threshold`](#tasks-inference-threshold) | Threshold a statistic image by the p-values in a separate image.
 [`multi_threshold`](#tasks-inference-multi-threshold) | Threshold a statistic image at several p-values and count the passes per voxel.
-
-## Classes
-
-(tasks-inference-onlinebootstrapstats)=
-### `OnlineBootstrapStats`
-
-```python
-OnlineBootstrapStats(shape: tuple[int, ...], save_samples: bool = False, percentiles: tuple[float, float] = (2.5, 97.5))
-```
-
-Memory-efficient online statistics aggregator for bootstrap samples.
-
-Accumulates the running mean and variance with Welford's algorithm, so the
-summary is numerically stable without holding every sample in memory.
-Optionally stores all samples for exact percentile confidence intervals.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`shape` | <code>tuple[int, ...]</code> | Shape of each bootstrap sample. | *required*
-`save_samples` | <code>bool</code> | If True, store all samples for exact percentile confidence intervals; if False, use the normal approximation (much more memory efficient). Defaults to False. | <code>False</code>
-`percentiles` | <code>tuple[float, float]</code> | Percentiles for confidence intervals, e.g. (2.5, 97.5) for a 95% CI. Defaults to (2.5, 97.5). | <code>(2.5, 97.5)</code>
-
-**Attributes:**
-
-Name | Type | Description
----- | ---- | -----------
-`n` | <code>int</code> | Number of samples seen so far.
-`mean` | <code>ndarray</code> | Running mean, shape `shape`.
-`M2` | <code>ndarray</code> | Running sum of squared deviations from the mean.
-`samples` | <code>list[ndarray] \| None</code> | Stored samples when `save_samples=True`, else None.
-
-**Methods:**
-
-Name | Description
----- | -----------
-[`get_results`](#tasks-inference-get-results) | Compute final bootstrap statistics.
-[`update`](#tasks-inference-update) | Fold one bootstrap sample into the running statistics.
-
-
-
-**Examples:**
-
-```python
-stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
-for _ in range(1000):
-    stats.update(np.random.randn(100))
-results = stats.get_results()
-results.keys()  # → dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-#### Methods
-
-(tasks-inference-get-results)=
-##### `get_results`
-
-```python
-get_results(tail: int | str = 2) -> dict[str, np.ndarray]
-```
-
-Compute final bootstrap statistics.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`tail` | <code>int \| str</code> | `2` or `'two'` for two-tailed (default); `1` or `'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
-
-**Returns:**
-
-Type | Description
----- | -----------
-<code>dict[str, ndarray]</code> | Keys 'mean' (bootstrap mean), 'std' (bootstrap     standard deviation), 'Z' (z-scores, mean/std), 'p' (p-values per     `tail`), 'ci_lower' and 'ci_upper' (confidence bounds; exact     percentiles when samples were saved, else a normal approximation),     and 'samples' (all samples, only when `save_samples=True`).
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If fewer than 2 samples have been seen.
-
-**Examples:**
-
-```python
-stats = OnlineBootstrapStats(shape=(100,), save_samples=False)
-for _ in range(1000):
-    stats.update(np.random.randn(100))
-results = stats.get_results()
-results.keys()  # → dict_keys(['mean', 'std', 'Z', 'p', 'ci_lower', 'ci_upper'])
-```
-
-(tasks-inference-update)=
-##### `update`
-
-```python
-update(sample: np.ndarray) -> None
-```
-
-Fold one bootstrap sample into the running statistics.
-
-**Parameters:**
-
-Name | Type | Description | Default
----- | ---- | ----------- | -------
-`sample` | <code>ndarray</code> | New bootstrap sample with shape matching `self.shape`. | *required*
-
-**Raises:**
-
-Type | Description
----- | -----------
-<code>ValueError</code> | If the sample's shape does not match `self.shape`.
 
 ## Functions
 

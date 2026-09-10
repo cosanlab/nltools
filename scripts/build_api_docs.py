@@ -283,11 +283,9 @@ PAGES: tuple[Page, ...] = (
         "Non-parametric group statistics. The one-sample, two-sample, and "
         "timeseries permutation tests run on CPU or GPU (`device=`); "
         "`phase_randomize` and `circle_shift` are the timeseries null models. "
-        "`OnlineBootstrapStats` keeps running mean and variance over bootstrap "
-        "draws instead of storing them. `fdr`, `holm_bonf`, `threshold`, and "
-        "`multi_threshold` correct or threshold the resulting p-maps. "
-        "`BrainData.ttest`, `Adjacency.ttest`, and `BrainData.bootstrap` call "
-        "these.",
+        "`fdr`, `holm_bonf`, `threshold`, and `multi_threshold` correct or "
+        "threshold the resulting p-maps. `BrainData.ttest`, `Adjacency.ttest`, "
+        "and `BrainData.bootstrap` call these.",
         [
             *_algorithms(
                 "one_sample_permutation_test",
@@ -296,7 +294,6 @@ PAGES: tuple[Page, ...] = (
                 "phase_randomize",
                 "circle_shift",
             ),
-            "nltools.algorithms.inference.OnlineBootstrapStats",
             *_algorithms("fdr", "holm_bonf", "threshold", "multi_threshold"),
         ],
     ),

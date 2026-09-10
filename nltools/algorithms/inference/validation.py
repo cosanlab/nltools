@@ -208,33 +208,6 @@ def validate_square_matrix(matrix: np.ndarray, name: str = "matrix") -> None:
         raise ValueError(f"{name} must be square, got shape {matrix.shape}")
 
 
-def validate_percentiles(percentiles: tuple[float, float]) -> None:
-    """Validate percentile bounds for confidence intervals.
-
-    Args:
-        percentiles (tuple[float, float]): `(lower, upper)` with
-            `0 < lower < 50 < upper < 100`.
-
-    Raises:
-        ValueError: If the percentiles are not a valid pair.
-    """
-    if not isinstance(percentiles, (tuple, list)) or len(percentiles) != 2:
-        raise ValueError(f"percentiles must be a tuple of 2 values, got {percentiles}")
-
-    lower, upper = percentiles
-
-    if not (0 < lower < 50):
-        raise ValueError(f"Lower percentile must be between 0 and 50, got {lower}")
-
-    if not (50 < upper < 100):
-        raise ValueError(f"Upper percentile must be between 50 and 100, got {upper}")
-
-    if lower >= upper:
-        raise ValueError(
-            f"Lower percentile ({lower}) must be less than upper ({upper})"
-        )
-
-
 def validate_shape_compatibility(
     X: np.ndarray,
     y: np.ndarray,

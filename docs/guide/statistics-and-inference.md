@@ -29,7 +29,7 @@ Non-parametric one-sample | `ttest(permutation=True, n_permute=)` | Sign flippin
 Non-parametric two-sample | [`two_sample_permutation_test`](../api/tasks/inference.md#tasks-inference-two-sample-permutation-test) | Group-label shuffling
 Correlated time series | [`timeseries_correlation_permutation_test`](../api/tasks/inference.md#tasks-inference-timeseries-correlation-permutation-test) | `method='circle_shift'` or `'phase_randomize'` preserves autocorrelation
 Build a timeseries null | [`circle_shift`](../api/tasks/inference.md#tasks-inference-circle-shift), [`phase_randomize`](../api/tasks/inference.md#tasks-inference-phase-randomize) | The surrogate generators used above
-Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#data-brain-data-bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) | `stat='mean'` returns a `BrainData`; model stats return a dict
+Confidence intervals | [`BrainData.bootstrap`](../api/data/brain_data.md#data-brain-data-bootstrap), [`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) | Returns a `BootstrapResult`: `.estimate`, `.standard_error`, `.ci_lower`, `.ci_upper`
 Matrix comparison | [`matrix_permutation_test`](../api/tasks/similarity.md#tasks-similarity-matrix-permutation-test), [`Adjacency.ttest`](../api/data/adjacency.md#data-adjacency-ttest) | `Adjacency.ttest` takes the same kwargs and returns the same keys, one edgewise `Adjacency` each. See [Similarity & RSA](similarity-and-rsa.md)
 FDR / Holm-Bonferroni | [`fdr`](../api/tasks/inference.md#tasks-inference-fdr), [`holm_bonf`](../api/tasks/inference.md#tasks-inference-holm-bonf) | Both return a *p-threshold*, or `-1` if nothing survives
 Apply a threshold | [`threshold`](../api/tasks/inference.md#tasks-inference-threshold), [`BrainData.threshold`](../api/data/brain_data.md#data-brain-data-threshold) | The function thresholds by a p-map; the method by value (`upper=`/`lower=`)
@@ -64,13 +64,36 @@ permutation null. Add `return_null=True` to keep that null as `perm["null_dist"]
 ```python
 roi = group.apply_mask(create_sphere([0, -20, 20], radius=10))
 boot = roi.bootstrap("mean", n_samples=1000, random_state=0)
+
+boot.estimate.plot()                       # the mean map itself
+boot.ci_lower, boot.ci_upper               # the 95% percentile interval
 ```
 
-`stat='mean'` (or `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`) returns a single `BrainData` of the
-bootstrap estimate. `'weights'` and `'predict'` bootstrap a fitted `Ridge` model and return a dict
-of `mean`, `std`, `Z`, `p`, `ci_lower`, `ci_upper`. The CPU path holds every draw in memory, so
-restrict to an ROI before bootstrapping a whole brain at `n_samples=5000`.
-[`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) always returns that dict.
+Every statistic returns the same `BootstrapResult`: `estimate` (the statistic on the *unresampled*
+data — not the average of the draws), `standard_error` (the `ddof=1` deviation across draws), and
+`ci_lower`/`ci_upper`. All four are `BrainData` maps of identical shape.
+[`Adjacency.bootstrap`](../api/data/adjacency.md#data-adjacency-bootstrap) returns the same record
+with `Adjacency` payloads.
+
+The six basic statistics — `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'` — reduce the
+data itself. `'weights'` and `'predict'` bootstrap a fitted `Ridge`, taking the training features
+back explicitly. `confidence_level=` sets one level (default `0.95`), not a percentile pair, and
+the bounds are elementwise marginal: the nominal level applies per voxel, with no
+multiple-comparison control across the map.
+
+Draws are aggregated as they complete rather than collected, so what the run holds is the retained
+tail — about `(1 - confidence_level)` of the draws per output element — plus one dispatch window,
+not all `n_samples` maps. That is a large saving, not a free lunch: the tail still grows with
+`n_samples`, so a whole-brain 95% bootstrap at `n_samples=5000` needs roughly
+`230000 x 258 x 8 bytes ~= 0.5 GB` and an ROI is still the cheaper way to explore.
+`return_samples=True` keeps every draw as `boot.samples` and costs the full
+`n_samples x output_size`. Whatever the run will hold is checked *before* it resamples: if it does
+not fit, `bootstrap` says so and names the `memory_budget_gb=` override, and it never quietly
+shrinks the run.
+
+There is no `p` or `z` in the result. A bootstrap hypothesis test is a separate API; if you want a
+normal-approximation z, compute `boot.estimate.data / boot.standard_error.data` yourself and be
+explicit about the assumption.
 
 ## Plain arrays
 

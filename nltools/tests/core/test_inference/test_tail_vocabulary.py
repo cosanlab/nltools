@@ -11,13 +11,17 @@ contrast. The old `-1 / 'upper' / 'lower'` public forms are gone (the internal
 Sites with a statistically forced tail (distance correlation, ANOVA's F, isps'
 Rayleigh, SRM variance components) and the GLM contrast p-maps (deliberately
 nilearn one-sided, documented exception) take no `tail=` knob.
+
+`BrainData.bootstrap` and `Adjacency.bootstrap` are a deliberate carve-out
+rather than an omission: they report a percentile confidence interval and no
+p-value at all, so there is no tail to choose. A bootstrap hypothesis test is a
+separate, not-yet-defined API.
 """
 
 import inspect
 
 import numpy as np
 import pytest
-from scipy.stats import norm
 from scipy.stats import t as t_dist
 
 from nltools.algorithms import (
@@ -36,7 +40,6 @@ from nltools.algorithms.inference import (
     timeseries_correlation_permutation_test,
     two_sample_permutation_test,
 )
-from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
 from nltools.data import Adjacency, BrainData
 from nltools.data.roc import Roc
 
@@ -53,14 +56,11 @@ TAIL_ENTRY_POINTS = [
     procrustes_distance,
     regress,
     compute_multivariate_similarity,
-    OnlineBootstrapStats.get_results,
     BrainData.ttest,
-    BrainData.bootstrap,
     BrainData.multivariate_similarity,
     Adjacency.ttest,
     Adjacency.regress,
     Adjacency.similarity,
-    Adjacency.bootstrap,
     Roc.calculate,
 ]
 
@@ -143,23 +143,36 @@ class TestParametricTails:
         pos = t > 0
         np.testing.assert_allclose(p_one[pos], p_two[pos] / 2)
 
-    def test_bootstrap_stats_tail(self):
-        stats = OnlineBootstrapStats(shape=(5,))
-        rng = np.random.default_rng(3)
-        for _ in range(200):
-            stats.update(1.0 + 0.5 * rng.standard_normal(5))
-        two = stats.get_results(tail=2)
-        one = stats.get_results(tail=1)
-        z = two["Z"]
-        np.testing.assert_allclose(one["p"], 1 - norm.cdf(z))
-        np.testing.assert_allclose(one["p"][z > 0], two["p"][z > 0] / 2)
 
-    def test_bootstrap_stats_rejects_old_vocab(self):
-        stats = OnlineBootstrapStats(shape=(2,))
-        for _ in range(3):
-            stats.update(np.ones(2))
-        with pytest.raises(ValueError, match="tail"):
-            stats.get_results(tail="upper")
+class TestBootstrapTakesNoTail:
+    """The bootstrap facades report an interval, so they expose no `tail=`."""
+
+    @pytest.mark.parametrize("facade", [BrainData.bootstrap, Adjacency.bootstrap])
+    def test_no_tail_kwarg(self, facade):
+        assert "tail" not in inspect.signature(facade).parameters
+
+    @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
+    @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
+    def test_the_result_reports_an_interval_and_nothing_tail_dependent(self):
+        """The record's whole field set is interval-shaped, so no tail applies."""
+        rng = np.random.default_rng(3)
+        adj = Adjacency(rng.standard_normal((10, 6)), matrix_type="distance_flat")
+
+        result = adj.bootstrap("mean", n_samples=20, n_jobs=1, random_state=0)
+
+        assert set(type(result).__dataclass_fields__) == {
+            "estimate",
+            "standard_error",
+            "ci_lower",
+            "ci_upper",
+            "samples",
+        }
+        # A wider level moves the bounds; nothing here is a directional test.
+        wider = adj.bootstrap(
+            "mean", n_samples=20, confidence_level=0.99, n_jobs=1, random_state=0
+        )
+        assert np.all(wider.ci_lower.data <= result.ci_lower.data)
+        assert np.all(wider.ci_upper.data >= result.ci_upper.data)
 
 
 class TestIscFamilyVocabulary:

@@ -11,8 +11,8 @@ Each function takes an Adjacency instance as its first argument (`adj`).
 
 Name | Description
 ---- | -----------
-[`bootstrap`](#data-adjacency-modeling-bootstrap) | Bootstrap statistics using efficient online algorithms.
-[`convert_bootstrap_results_to_adjacency`](#data-adjacency-modeling-convert-bootstrap-results-to-adjacency) | Convert bootstrap results dictionary to Adjacency format.
+[`bootstrap`](#data-adjacency-modeling-bootstrap) | Bootstrap an aggregate statistic across a stack of matrices.
+[`convert_bootstrap_results_to_adjacency`](#data-adjacency-modeling-convert-bootstrap-results-to-adjacency) | Wrap an engine's arrays as a `BootstrapResult` of single-matrix `Adjacency`.
 [`generate_permutations`](#data-adjacency-modeling-generate-permutations) | Generate permuted versions of an Adjacency instance lazily.
 [`regress`](#data-adjacency-modeling-regress) | Run a regression on an adjacency instance.
 [`social_relations_model`](#data-adjacency-modeling-social-relations-model) | Estimate the social relations model from a matrix for a round-robin design.
@@ -25,66 +25,70 @@ Name | Description
 ### `bootstrap`
 
 ```python
-bootstrap(adj, stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar = False)
+bootstrap(adj, statistic, *, n_samples = 5000, confidence_level = 0.95, memory_budget_gb = None, return_samples = False, n_jobs = -1, random_state = None, progress_bar = False)
 ```
 
-Bootstrap statistics using efficient online algorithms.
+Bootstrap an aggregate statistic across a stack of matrices.
 
-Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-Supports simple aggregation statistics (mean, std, median, sum, min, max).
+Resamples matrices with replacement and aggregates the replicates as they
+complete, so what the run holds is the retained tail — about
+`(1 - confidence_level)` of the replicates per edge — plus one dispatch
+window, rather than all `n_samples` matrices.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
 `adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance containing multiple matrices. | *required*
-`stat` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'`. | *required*
-`n_samples` | <code>int</code> | Number of bootstrap iterations. Default 5000. | <code>5000</code>
-`save_boots` | <code>bool</code> | If True, store all bootstrap samples (memory intensive). Default False. | <code>False</code>
-`percentiles` | <code>tuple</code> | Percentiles for confidence intervals. Default (2.5, 97.5). | <code>(2.5, 97.5)</code>
-`tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
-`n_jobs` | <code>int</code> | Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
+`statistic` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'` — each the corresponding NumPy reduction over matrices, with `'std'` at `ddof=0`. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap replicates, at least two. Default 5000. | <code>5000</code>
+`confidence_level` | <code>float</code> | Confidence level of the reported interval, strictly between zero and one. Default 0.95. | <code>0.95</code>
+`memory_budget_gb` | <code>float \| None</code> | Working-memory budget in GB governing the output preflight and worker planning. None (default) measures the host. | <code>None</code>
+`return_samples` | <code>bool</code> | Retain and return every replicate. Default False. | <code>False</code>
+`n_jobs` | <code>int</code> | CPU worker ceiling. -1 (default) means all cores. | <code>-1</code>
+`random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,     `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also includes     `'samples'`.
+<code>[BootstrapResult](#data-results-bootstrapresult)</code> | `estimate`, `standard_error`, `ci_lower` and     `ci_upper` as single-matrix `Adjacency` objects, plus `samples` as     a NumPy array with the bootstrap axis first when     `return_samples=True`.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If `statistic` is unknown, an argument is out of range, or the retained output cannot fit the memory budget.
 
 **Examples:**
 
 ```python
-boot = bootstrap(adj, stat="mean", n_samples=1000)
-boot["mean"]  # → Adjacency
+boot = bootstrap(adj, "mean", n_samples=1000)
+boot.estimate  # → Adjacency
 ```
 
 (data-adjacency-modeling-convert-bootstrap-results-to-adjacency)=
 ### `convert_bootstrap_results_to_adjacency`
 
 ```python
-convert_bootstrap_results_to_adjacency(adj, result, save_boots = False)
+convert_bootstrap_results_to_adjacency(adj, result)
 ```
 
-Convert bootstrap results dictionary to Adjacency format.
-
-Helper function to convert numpy arrays from bootstrap functions into
-Adjacency objects.
+Wrap an engine's arrays as a `BootstrapResult` of single-matrix `Adjacency`.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Adjacency instance (used for `matrix_type` metadata). | *required*
-`result` | <code>dict</code> | Result dictionary from a bootstrap function with keys `'mean'`, `'std'`, `'Z'`, `'p'`, `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`. | *required*
-`save_boots` | <code>bool</code> | If True, include the `'samples'` key in the output. | <code>False</code>
+`adj` | <code>[Adjacency](#page-data-adjacency)</code> | Instance supplying matrix kind and node labels. | *required*
+`result` | <code>dict</code> | Engine output with `'estimate'`, `'standard_error'`, `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`. | *required*
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Adjacency objects for each statistic.
+<code>[BootstrapResult](#data-results-bootstrapresult)</code> | The four summaries as `Adjacency`, and the retained     replicates as a NumPy array when present.
 
 (data-adjacency-modeling-generate-permutations)=
 ### `generate_permutations`

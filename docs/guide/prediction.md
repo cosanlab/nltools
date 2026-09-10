@@ -161,9 +161,12 @@ Fitting keeps no copy of `X`, so a coefficient or prediction bootstrap takes the
 explicitly and holds the selected hyperparameters fixed across replicates:
 
 ```python
-boot = brain.bootstrap(stat="weights", X=X, n_samples=1000)
-boot["mean"], boot["ci_lower"], boot["ci_upper"]
+boot = brain.bootstrap("weights", X=X, n_samples=1000)
+boot.estimate, boot.ci_lower, boot.ci_upper
 ```
+
+`boot.estimate` is the fitted full-data coefficient map, not the average of the replicates; the
+interval around it is the percentile interval across refits.
 
 ## Gotchas
 

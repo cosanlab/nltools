@@ -4,6 +4,9 @@ The engine-layer permutation/bootstrap functions expose ``progress_bar``
 (default False). Before that, the facades below showed bars unconditionally —
 so unless each facade exposes and forwards the kwarg, the capability is lost
 entirely (always-off with no knob). These tests pin the threading.
+
+The bootstrap facades take their statistic positionally and everything else by
+keyword, and they return a `BootstrapResult`; only the bar is under test here.
 """
 
 import contextlib
@@ -62,6 +65,8 @@ class TestAdjacencyFacades:
         assert _stderr_of(lambda: stack.ttest(**kwargs)) == ""
         assert _stderr_of(lambda: stack.ttest(progress_bar=True, **kwargs)) != ""
 
+    @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
+    @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
     def test_bootstrap_silent_by_default_bar_when_asked(self, stack):
         kwargs = {"n_samples": 20, "n_jobs": 1, "random_state": 0}
         assert _stderr_of(lambda: stack.bootstrap("mean", **kwargs)) == ""
@@ -72,6 +77,8 @@ class TestAdjacencyFacades:
 
 
 class TestBrainDataBootstrapFacade:
+    @pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
+    @pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
     def test_silent_by_default_bar_when_asked(self, minimal_brain_data):
         kwargs = {"n_samples": 20, "n_jobs": 1, "random_state": 0}
         assert _stderr_of(lambda: minimal_brain_data.bootstrap("mean", **kwargs)) == ""

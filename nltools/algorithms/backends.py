@@ -1094,6 +1094,241 @@ def ridge_bootstrap_batch_size(
     )
 
 
+#: Bytes per retained bootstrap output value. Every completed replicate and
+#: every summary payload is converted to CPU float64 before it is retained.
+_BOOTSTRAP_OUTPUT_ITEMSIZE = 8
+
+#: Output-sized arrays a bootstrap run always holds beyond its retained
+#: replicates: the two Welford accumulators (running mean and running sum of
+#: squared deviations) and the four `BootstrapResult` summary payloads.
+_BOOTSTRAP_FIXED_OUTPUT_ARRAYS = 6
+
+#: Replicates the streaming accumulator buffers before folding them into its
+#: bounded tails. Batching the partition keeps the per-replicate cost near a
+#: plain comparison, but the buffer and the two temporaries a flush creates are
+#: real output-sized allocations — so the constant lives here, with the budget
+#: that has to charge for it, and the accumulator imports it. It doubles as the
+#: per-worker dispatch window (`bootstrap_replicate_window`).
+BOOTSTRAP_TAIL_FLUSH_BLOCK = 64
+
+
+def bootstrap_replicate_window(n_samples: int, *, n_workers: int = 1) -> int:
+    """Replicates a CPU bootstrap may hold in flight before it must aggregate.
+
+    `joblib.Parallel` dispatches eagerly and queues finished results, so neither
+    `pre_dispatch` nor `return_as="generator"` bounds how many replicate arrays
+    are alive at once. The engines therefore dispatch in windows of this size
+    and fold each window into the accumulator before opening the next. The
+    window scales with the worker count — enough to keep every worker busy —
+    and never with `n_samples`, which is what makes peak memory independent of
+    the replicate count.
+
+    Args:
+        n_samples (int): Total number of bootstrap replicates.
+        n_workers (int): Planned CPU worker count.
+
+    Returns:
+        int: Replicates per dispatch window, at least one.
+
+    Examples:
+        ```python
+        bootstrap_replicate_window(5000, n_workers=4)  # → 256
+        bootstrap_replicate_window(50, n_workers=4)  # → 50
+        ```
+    """
+    per_worker = BOOTSTRAP_TAIL_FLUSH_BLOCK * max(1, int(n_workers))
+    return max(1, min(int(n_samples), per_worker))
+
+
+def bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> int:
+    """Per-element retained tail size for a streaming percentile interval.
+
+    The streaming accumulator reproduces the complete-distribution percentile
+    interval by keeping this many of the smallest and largest values seen for
+    each output element:
+
+    ```text
+    k = ceil((B - 1) * (1 - c) / 2) + 1
+    ```
+
+    That is exactly the number of order statistics NumPy's linear interpolation
+    can reach at either end, so nothing the interval needs is discarded.
+
+    Args:
+        n_samples (int): Number of bootstrap replicates, `B`.
+        confidence_level (float): Interval confidence level, `c`, in `(0, 1)`.
+
+    Returns:
+        int: Values retained per element at each end, never more than
+            `n_samples`.
+
+    Examples:
+        ```python
+        bootstrap_retained_tail_size(1000, confidence_level=0.95)  # → 26
+        ```
+    """
+    half_alpha = (1 - confidence_level) / 2
+    k = int(np.ceil((n_samples - 1) * half_alpha)) + 1
+    return min(k, int(n_samples))
+
+
+def bootstrap_output_bytes(
+    output_shape: tuple[int, ...],
+    n_samples: int,
+    *,
+    confidence_level: float,
+    return_samples: bool,
+    n_workers: int = 1,
+) -> int:
+    """Bytes a bootstrap run must hold for its retained output.
+
+    Charges eight bytes for every output-sized array a run holds at once: the
+    two bounded tails, the replicates buffered before the next flush and the
+    two temporaries that flush builds, one dispatch window of in-flight
+    replicates, every replicate when `return_samples=True`, and the two Welford
+    accumulators plus the four summary payloads.
+
+    Args:
+        output_shape (tuple[int, ...]): Shape of one replicate's output.
+        n_samples (int): Number of bootstrap replicates.
+        confidence_level (float): Interval confidence level, which sets the
+            retained tail size.
+        return_samples (bool): Whether the complete distribution is retained.
+        n_workers (int): Planned CPU worker count, which sets the dispatch
+            window. Defaults to 1 (the GPU driver budgets its own batch through
+            `ridge_bootstrap_batch_size` instead).
+
+    Returns:
+        int: Required bytes.
+    """
+    output_size = int(np.prod(output_shape)) if output_shape else 1
+    tail_size = bootstrap_retained_tail_size(
+        n_samples, confidence_level=confidence_level
+    )
+    buffered = min(BOOTSTRAP_TAIL_FLUSH_BLOCK, int(n_samples))
+    arrays = (
+        2 * tail_size  # the two bounded tails
+        + buffered  # replicates buffered before the next flush
+        + 2 * (tail_size + buffered)  # a flush's concatenation and partition
+        + bootstrap_replicate_window(n_samples, n_workers=n_workers)
+        + (int(n_samples) if return_samples else 0)
+        + _BOOTSTRAP_FIXED_OUTPUT_ARRAYS
+    )
+    return output_size * arrays * _BOOTSTRAP_OUTPUT_ITEMSIZE
+
+
+def bootstrap_memory_preflight(
+    output_shape: tuple[int, ...],
+    n_samples: int,
+    *,
+    confidence_level: float,
+    return_samples: bool,
+    n_workers: int = 1,
+    memory_budget_gb: float | None = None,
+    backend: "Backend | None" = None,
+) -> float:
+    """Raise before any resampling if the retained output cannot fit the budget.
+
+    The package's one bootstrap memory gate. It runs against the measured
+    budget when `memory_budget_gb` is None, so a run that would otherwise die
+    part-way through fails immediately and says what it needed. It never
+    weakens the interval, reduces `n_samples`, or disables `return_samples`.
+
+    Args:
+        output_shape (tuple[int, ...]): Shape of one replicate's output.
+        n_samples (int): Number of bootstrap replicates.
+        confidence_level (float): Interval confidence level.
+        return_samples (bool): Whether the complete distribution is retained.
+        n_workers (int): Planned CPU worker count, which sets the dispatch
+            window. Defaults to 1.
+        memory_budget_gb (float | None): Explicit budget in GB, or None to
+            measure the device.
+        backend (Backend | None): Resolved backend whose device is measured
+            when `memory_budget_gb` is None. None means the CPU.
+
+    Returns:
+        float: The required storage in GB.
+
+    Raises:
+        ValueError: If the required storage exceeds the budget.
+    """
+    required_bytes = bootstrap_output_bytes(
+        output_shape,
+        n_samples,
+        confidence_level=confidence_level,
+        return_samples=return_samples,
+        n_workers=n_workers,
+    )
+    required_gb = required_bytes / 1e9
+    budget_gb = device_memory_budget(backend, max_gpu_memory_gb=memory_budget_gb)
+    if required_gb > budget_gb:
+        tail_size = bootstrap_retained_tail_size(
+            n_samples, confidence_level=confidence_level
+        )
+        retained = f"{tail_size} values per element at each tail"
+        if return_samples:
+            retained = (
+                f"all {n_samples} replicates (return_samples=True) plus {retained}"
+            )
+        source = (
+            "the explicit memory_budget_gb"
+            if memory_budget_gb is not None
+            else "the measured device budget"
+        )
+        raise ValueError(
+            f"bootstrap needs {required_gb:.6g} GB to retain output of shape "
+            f"{tuple(output_shape)} over {n_samples} replicates — it keeps "
+            f"{retained} — which exceeds the {budget_gb:.6g} GB budget "
+            f"({source}). Lower n_samples, mask to fewer voxels, turn off "
+            f"return_samples, or raise the budget with "
+            f"memory_budget_gb=<GB>."
+        )
+    return required_gb
+
+
+def bootstrap_n_jobs_cpu(
+    data_size_mb: float,
+    n_samples: int,
+    *,
+    memory_budget_gb: float | None = None,
+    n_jobs: int = -1,
+) -> int:
+    """CPU worker count for a bootstrap run, capped by `n_jobs` and by memory.
+
+    `n_jobs` is the ceiling the caller asked for; this planner may return
+    fewer when the per-worker copy of the data would not fit the budget. It
+    never returns zero, because the preflight — not the worker planner — is
+    where a run that cannot fit is refused.
+
+    Args:
+        data_size_mb (float): Size of the array each worker pickles, in MB.
+        n_samples (int): Number of bootstrap replicates.
+        memory_budget_gb (float | None): Explicit budget in GB, or None to
+            measure available system memory.
+        n_jobs (int): Worker ceiling, with joblib's negative convention
+            (`-1` = all cores).
+
+    Returns:
+        int: Worker count for `joblib.Parallel(n_jobs=...)`.
+    """
+    import multiprocessing
+
+    cores = multiprocessing.cpu_count()
+    ceiling = cores if n_jobs == -1 else n_jobs
+    if ceiling < 0:
+        ceiling = cores + 1 + ceiling
+    ceiling = max(1, int(ceiling))
+    try:
+        return _auto_n_jobs_cpu(
+            data_size_mb,
+            n_samples,
+            max_memory_gb=memory_budget_gb,
+            max_jobs=ceiling,
+        )
+    except ValueError:
+        return 1
+
+
 def is_oom_error(exc: BaseException) -> bool:
     """True if `exc` is a device out-of-memory error (CUDA or MPS)."""
     try:

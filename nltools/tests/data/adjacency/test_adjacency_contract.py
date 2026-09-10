@@ -267,6 +267,8 @@ def test_edge_regression_returns_native_predictor_values(predictors):
         adj[[0]].regress(X)
 
 
+@pytest.mark.filterwarnings("ignore:n_samples=:UserWarning")
+@pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning")
 def test_bootstrap_maps_use_single_matrix_metadata():
     adj = Adjacency(
         np.arange(24.0).reshape(8, 3),
@@ -275,7 +277,8 @@ def test_bootstrap_maps_use_single_matrix_metadata():
         Y=pl.DataFrame({"id": range(8)}),
     )
     output = adj.bootstrap("mean", n_samples=20, n_jobs=1, random_state=4)
-    for result in output.values():
+    for field in ("estimate", "standard_error", "ci_lower", "ci_upper"):
+        result = getattr(output, field)
         assert result.shape == (3, 3) and result.data.shape == (3,)
         assert result.labels == adj.labels and result.Y.shape == (0, 0)
 

@@ -94,6 +94,9 @@ public signature against in CI. The table below is rendered from it:
 | Progress indicator | `progress_bar: bool = False` |
 | Permutation count | `n_permute` |
 | Bootstrap sample count | `n_samples` |
+| Bootstrap statistic | `statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods |
+| Interval confidence level | `confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal |
+| Retain resampled draws | `return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval |
 | Tail of test | `tail` (`2 \| 'two' \| 1 \| 'one'`; direction fixed by the test, never the data) |
 | Threshold pair | `lower`, `upper`, `binarize` (+ `threshold` where bidirectional) |
 | Display autoscaling | `autoscale: bool = True` (viewer display window; `False` = raw magnitude range) |

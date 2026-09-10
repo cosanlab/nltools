@@ -1,13 +1,15 @@
-"""Structural result records returned by decoding operations."""
+"""Structural result records returned by decoding and resampling operations."""
 
 from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict as dataclass_asdict
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic
 
 import numpy as np
+
+from nltools.models.results import Payload
 
 from .braindata import BrainData
 
@@ -316,3 +318,49 @@ class Predict:
         if not include_none:
             filtered = {k: v for k, v in filtered.items() if self._is_reported(k)}
         return filtered
+
+
+@dataclass(frozen=True)
+class BootstrapResult(Generic[Payload]):
+    """Frozen record of one bootstrap statistic's estimate and uncertainty.
+
+    The single result structure every supported `bootstrap` statistic returns.
+    Its payload is whatever the producer works in: `BrainData` for the
+    `BrainData` facade, `Adjacency` for the `Adjacency` facade. The four
+    summary payloads share one data shape.
+
+    Field bindings cannot be rebound. The payloads stay usable, but the record
+    takes independent ownership of each one, so mutating a returned payload
+    never reaches the source object or a sibling payload.
+
+    The record deliberately exposes no replicate mean and no `z`, `p`, or
+    `tail` output: those need a separately defined bootstrap hypothesis test.
+    For a normal-approximation stand-in, users compute it themselves from
+    `estimate` and `standard_error`.
+
+    Attributes:
+        estimate (Payload): The statistic evaluated once on the original full
+            sample — not the mean of the replicates.
+        standard_error (Payload): Elementwise standard deviation of the
+            bootstrap replicates, with `ddof=1`.
+        ci_lower (Payload): Lower bound of the central percentile interval at
+            the requested `confidence_level`.
+        ci_upper (Payload): Upper bound of that interval. The bounds are
+            elementwise marginal: the nominal level applies separately to each
+            voxel, feature, or test row, with no simultaneous-coverage claim.
+        samples (np.ndarray | None): Every replicate, bootstrap axis first,
+            when `return_samples=True`; `None` otherwise.
+    """
+
+    estimate: Payload
+    standard_error: Payload
+    ci_lower: Payload
+    ci_upper: Payload
+    samples: np.ndarray | None = None
+
+    def __post_init__(self):
+        """Take independent ownership of every payload the record stores."""
+        for name in self.__dataclass_fields__:
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, deepcopy(value))

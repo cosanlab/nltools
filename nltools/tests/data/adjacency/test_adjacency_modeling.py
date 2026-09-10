@@ -8,80 +8,88 @@ from scipy.linalg import block_diag
 
 from nltools.data import Adjacency, DesignMatrix
 
+# Only `bootstrap` emits these two quality advisories, and the bootstrap tests
+# below run deliberately small resamples that trip them by design. Filtering
+# them here keeps the suite's warning count from tracking the number of
+# bootstrap call sites; `pytest.warns` still sees them where one is asserted.
+pytestmark = [
+    pytest.mark.filterwarnings("ignore:n_samples=:UserWarning"),
+    pytest.mark.filterwarnings("ignore:Only .* samples available:UserWarning"),
+]
+
 
 class TestAdjacencyModeling:
     @pytest.mark.slow
     def test_bootstrap(self, sim_adjacency_multiple):
         """Test bootstrap resampling."""
+        from nltools.data.results import BootstrapResult
+
         n_samples = 50
         boot = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=n_samples, random_state=42
+            "mean", n_samples=n_samples, random_state=42
         )
-        assert isinstance(boot["Z"], Adjacency)
-        assert isinstance(boot["mean"], Adjacency)
-        assert "p" in boot
-        boot = sim_adjacency_multiple.bootstrap(
-            stat="std", n_samples=n_samples, random_state=42
-        )
-        assert isinstance(boot["Z"], Adjacency)
-        assert isinstance(boot["std"], Adjacency)
+        assert isinstance(boot, BootstrapResult)
+        for field in ("estimate", "standard_error", "ci_lower", "ci_upper"):
+            assert isinstance(getattr(boot, field), Adjacency)
+        assert boot.samples is None
 
     @pytest.mark.slow
-    def test_bootstrap_save_boots(self, sim_adjacency_multiple):
-        """Test bootstrap with save_boots parameter."""
+    def test_bootstrap_estimate_is_the_unresampled_statistic(
+        self, sim_adjacency_multiple
+    ):
+        boot = sim_adjacency_multiple.bootstrap("mean", n_samples=50, random_state=42)
+
+        np.testing.assert_allclose(
+            boot.estimate.data,
+            np.mean(sim_adjacency_multiple.data.astype(np.float64), axis=0),
+            rtol=1e-12,
+        )
+
+    @pytest.mark.slow
+    def test_bootstrap_return_samples(self, sim_adjacency_multiple):
+        """Retained replicates place the bootstrap axis first."""
         n_samples = 50
         result = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=n_samples, save_boots=True, random_state=42
+            "mean", n_samples=n_samples, return_samples=True, random_state=42
         )
-        assert isinstance(result, dict)
-        assert "samples" in result
-        assert result["samples"].shape[0] == n_samples
+
+        assert result.samples.shape[0] == n_samples
+        np.testing.assert_allclose(
+            result.ci_lower.data,
+            np.percentile(result.samples, 2.5, axis=0),
+            rtol=1e-10,
+        )
 
     @pytest.mark.slow
-    def test_bootstrap_all_simple_stats(self, sim_adjacency_multiple):
-        """Test all simple stats work."""
-        n_samples = 50
-        stats = ["mean", "median", "std", "sum", "min", "max"]
-        for stat in stats:
+    def test_bootstrap_all_simple_statistics(self, sim_adjacency_multiple):
+        """Test all basic statistics work."""
+        for statistic in ["mean", "median", "std", "sum", "min", "max"]:
             boot = sim_adjacency_multiple.bootstrap(
-                stat=stat, n_samples=n_samples, random_state=42
+                statistic, n_samples=50, random_state=42
             )
-            assert isinstance(boot, dict)
-            assert "Z" in boot
-            assert isinstance(boot["Z"], Adjacency)
+            assert isinstance(boot.estimate, Adjacency)
 
     @pytest.mark.slow
     def test_bootstrap_reproducibility(self, sim_adjacency_multiple):
         """Test same random_state produces identical results."""
-        n_samples = 50
-        boot1 = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=n_samples, random_state=42
-        )
-        boot2 = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=n_samples, random_state=42
-        )
-        np.testing.assert_allclose(boot1["mean"].data, boot2["mean"].data, rtol=1e-10)
+        kwargs = {"n_samples": 50, "random_state": 42}
 
-    def test_bootstrap_invalid_stat_error(self, sim_adjacency_multiple):
-        """Test error for unsupported stat."""
-        with pytest.raises(ValueError, match="Unsupported stat"):
-            sim_adjacency_multiple.bootstrap(stat="invalid_stat", n_samples=10)
+        first = sim_adjacency_multiple.bootstrap("mean", **kwargs)
+        second = sim_adjacency_multiple.bootstrap("mean", **kwargs)
 
-    def test_bootstrap_tail_pins(self, sim_adjacency_multiple):
-        """Pin tail=1/tail=2 p-values to the shared bootstrap formula (C-8)."""
-        from scipy.stats import norm
-
-        two = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=50, random_state=42, tail=2
-        )
-        one = sim_adjacency_multiple.bootstrap(
-            stat="mean", n_samples=50, random_state=42, tail=1
+        np.testing.assert_allclose(
+            first.standard_error.data, second.standard_error.data, rtol=1e-10
         )
 
-        z = two["Z"].data
-        np.testing.assert_array_equal(z, one["Z"].data)
-        np.testing.assert_allclose(two["p"].data, 2 * (1 - norm.cdf(np.abs(z))))
-        np.testing.assert_allclose(one["p"].data, 1 - norm.cdf(z))
+    def test_bootstrap_invalid_statistic_error(self, sim_adjacency_multiple):
+        """Test error for unsupported statistic."""
+        with pytest.raises(ValueError, match="Unsupported statistic"):
+            sim_adjacency_multiple.bootstrap("invalid_statistic", n_samples=10)
+
+    @pytest.mark.parametrize("removed", ["stat", "save_boots", "percentiles", "tail"])
+    def test_bootstrap_removed_keywords_raise(self, sim_adjacency_multiple, removed):
+        with pytest.raises(TypeError):
+            sim_adjacency_multiple.bootstrap("mean", n_samples=10, **{removed: 1})
 
     def test_generate_permutations(self, sim_adjacency_single):
         """Test lazy generation of permuted adjacency matrices."""

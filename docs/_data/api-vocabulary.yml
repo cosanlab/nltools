@@ -91,6 +91,18 @@ vocabulary:
     kwarg: "n_samples"
     tour_note: "…the bootstrap count"
     index_md: "`n_samples`"
+  - concept: "Bootstrap statistic"
+    kwarg: "statistic"
+    tour_note: "a closed set of eight names — not `stat`, never a callable"
+    index_md: "`statistic` on `bootstrap` — a closed set of eight names (`'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`); no callables and no dynamic dispatch to other methods"
+  - concept: "Interval confidence level"
+    kwarg: "confidence_level"
+    tour_note: "one level, not a percentile pair"
+    index_md: "`confidence_level: float = 0.95` — one level in `(0, 1)`, not a `percentiles` pair; the reported bounds are the central percentile interval, elementwise marginal"
+  - concept: "Retain resampled draws"
+    kwarg: "return_samples"
+    tour_note: "retention only — it never changes interval semantics"
+    index_md: "`return_samples: bool = False` on `bootstrap` — keeps every replicate (bootstrap axis first); it changes retention only, never the interval"
   - concept: "Tail of test"
     kwarg: "tail"
     tour_note: "`2`/`'two'` default · `1`/`'one'` = the test's positive direction"
@@ -145,6 +157,11 @@ exceptions:
     kwarg: "tail"
     finding: tails-sweep
     text: "GLM contrast p-values are *one-sided* (the nilearn/SPM directional-contrast convention) and take no `tail=` knob — the one deliberate exception to the two-tailed default."
+  - path: "nltools/data/braindata/__init__.py"
+    function: "BrainData.bootstrap"
+    kwarg: "tail"
+    finding: tails-sweep
+    text: "`BrainData.bootstrap` and `Adjacency.bootstrap` report a percentile confidence interval and no p-value, so they take no `tail=` knob — a deliberate carve-out from the tails sweep, not an omission."
 
 # ── Machine-checkable enforcement rules (scripts/check_api_vocabulary.py) ─────
 #
@@ -197,6 +214,10 @@ enforcement:
     local_alpha: {canonical: "per_target_alpha"}
     conservative: {canonical: "prefer_conservative_alpha"}
     show_progress: {canonical: "progress_bar"}
+    stat: {canonical: "statistic (the bootstrap statistic name)"}
+    save_boots: {canonical: "return_samples"}
+    save_weights: {canonical: "return_samples"}
+    percentiles: {canonical: "confidence_level (one level, not a percentile pair)"}
     ignore_diagonal: {canonical: "include_diag (note the inverted sense)"}
   kwarg_contracts:
     metric:
@@ -220,6 +241,14 @@ enforcement:
     n_jobs:
       allowed_defaults: [-1]
       hint: "canonical form is `n_jobs: int = -1` (all cores)"
+    confidence_level:
+      allowed_defaults: [0.95]
+      keyword_only: true
+      hint: "canonical form is `*, confidence_level: float = 0.95` — one level strictly inside (0, 1); a percentile pair is the banned `percentiles=` spelling"
+    return_samples:
+      allowed_defaults: [false]
+      keyword_only: true
+      hint: "canonical form is `*, return_samples: bool = False` — retention only; it must never change interval or estimate semantics"
     device:
       allowed_defaults: ["cpu", "auto"]
       hint: "canonical form is `device: str = 'cpu'` ('auto' where supported); run-or-raise — explicit 'gpu' either runs on the GPU or raises, never a silent CPU fallback ('auto' is the one graceful path)"
@@ -239,6 +268,11 @@ enforcement:
       allowed_defaults: [2]
       hint: "canonical form is `tail: int | str = 2` — 2|'two' (two-tailed, the library default) or 1|'one' (one-tailed in the test's positive direction); sites where only one tail is statistically valid (dcorr, F, Rayleigh) take no tail kwarg at all"
   exemptions:
+    # `stat=` is banned as a bootstrap-statistic alias. These three predate that
+    # concept and name something else entirely.
+    - {path: "nltools/algorithms/corrections.py", function: "threshold", kwarg: "stat", reason: "names the statistic map being thresholded, not a bootstrap statistic"}
+    - {path: "nltools/data/braindata/__init__.py", function: "BrainData.plot", kwarg: "stat", reason: "names the timeseries plot's central tendency, not a bootstrap statistic"}
+    - {path: "nltools/data/braindata/plotting.py", function: "plot_brain", kwarg: "stat", reason: "delegation target of BrainData.plot"}
     # BrainData.predict defaults n_jobs=1 to limit searchlight worker memory.
     - {path: "nltools/data/braindata/__init__.py", function: "BrainData.predict", kwarg: "n_jobs", reason: "searchlight worker memory; documented in the docstring"}
     - {path: "nltools/data/braindata/prediction.py", function: "predict", kwarg: "n_jobs", reason: "delegation target of BrainData.predict"}

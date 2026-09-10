@@ -45,7 +45,7 @@ Name | Type | Description
 Name | Description
 ---- | -----------
 [`append`](#data-adjacency-append) | Append data to an Adjacency instance.
-[`bootstrap`](#data-adjacency-bootstrap) | Bootstrap statistics using efficient online algorithms.
+[`bootstrap`](#data-adjacency-bootstrap) | Bootstrap an aggregate statistic across a stack of matrices.
 [`cluster_summary`](#data-adjacency-cluster-summary) | Provide summaries of clusters within Adjacency matrices.
 [`copy`](#data-adjacency-copy) | Return an independently owned copy, preserving internal aliases and cycles.
 [`distance`](#data-adjacency-distance) | Calculate distance between images within an Adjacency() instance.
@@ -99,38 +99,40 @@ Type | Description
 ### `bootstrap`
 
 ```python
-bootstrap(stat, *, n_samples = 5000, save_boots = False, percentiles = (2.5, 97.5), tail = 2, n_jobs = -1, random_state = None, progress_bar: bool = False)
+bootstrap(statistic, *, n_samples = 5000, confidence_level = 0.95, memory_budget_gb = None, return_samples = False, n_jobs = -1, random_state = None, progress_bar: bool = False)
 ```
 
-Bootstrap statistics using efficient online algorithms.
+Bootstrap an aggregate statistic across a stack of matrices.
 
-Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-Supports simple aggregation statistics (mean, std, median, sum, min, max).
+Resamples matrices with replacement and aggregates the replicates as
+they complete, so what the run holds is the retained tail — about
+``(1 - confidence_level)`` of the replicates per edge — plus one
+dispatch window, rather than all ``n_samples`` matrices.
 
 **Parameters:**
 
 Name | Type | Description | Default
 ---- | ---- | ----------- | -------
-`stat` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'`. | *required*
-`n_samples` | <code>int</code> | Number of bootstrap iterations. Default 5000. | <code>5000</code>
-`save_boots` | <code>bool</code> | If True, store all bootstrap samples (memory intensive). Default False. | <code>False</code>
-`percentiles` | <code>tuple</code> | Percentiles for confidence intervals. Default (2.5, 97.5). | <code>(2.5, 97.5)</code>
-`tail` | <code>int \| str</code> | `2`/`'two'` for two-tailed (default); `1`/`'one'` for one-tailed (statistic > 0; negate the data for the other direction). | <code>2</code>
-`n_jobs` | <code>int</code> | Number of CPU cores for parallelization. -1 means all CPUs. | <code>-1</code>
-`random_state` | <code>int</code> | Random seed for reproducibility. | <code>None</code>
+`statistic` | <code>str</code> | Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, or `'max'` — each the corresponding NumPy reduction over matrices, with `'std'` at ``ddof=0``. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap replicates, at least two. Default 5000. | <code>5000</code>
+`confidence_level` | <code>float</code> | Confidence level of the reported interval, strictly between zero and one. Default 0.95. The bounds are the central percentile interval, elementwise marginal per edge. | <code>0.95</code>
+`memory_budget_gb` | <code>float \| None</code> | Working-memory budget in GB governing the output preflight and worker planning. None (default) measures the host. | <code>None</code>
+`return_samples` | <code>bool</code> | Retain and return every replicate. Default False. | <code>False</code>
+`n_jobs` | <code>int</code> | CPU worker ceiling. -1 (default) means all cores. | <code>-1</code>
+`random_state` | <code>int \| None</code> | Random seed for reproducibility. | <code>None</code>
 `progress_bar` | <code>bool</code> | If True, show a progress bar. Default False. | <code>False</code>
 
 **Returns:**
 
 Type | Description
 ---- | -----------
-<code>dict</code> | Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,     `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also     includes `'samples'`.
+<code>[BootstrapResult](#data-results-bootstrapresult)</code> | ``estimate`` (the statistic on the unresampled     stack), ``standard_error``, ``ci_lower`` and ``ci_upper`` as     single-matrix `Adjacency` objects, plus ``samples`` as a NumPy     array with the bootstrap axis first when     ``return_samples=True``.
 
 **Examples:**
 
 ```python
-boot = adj.bootstrap(stat="mean", n_samples=1000)
-boot["mean"]  # → Adjacency
+boot = adj.bootstrap("mean", n_samples=1000)
+boot.estimate  # → Adjacency
 ```
 
 (data-adjacency-cluster-summary)=

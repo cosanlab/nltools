@@ -571,26 +571,30 @@ class BrainData:
 
     def bootstrap(
         self,
-        stat,
+        statistic,
         *,
         X=None,
         X_test=None,
         n_samples=5000,
-        save_boots=False,
-        percentiles=(2.5, 97.5),
+        confidence_level=0.95,
         device="cpu",
         memory_budget_gb=None,
-        tail=2,
+        return_samples=False,
         n_jobs=-1,
         random_state=None,
         progress_bar: bool = False,
     ):
-        """Bootstrap statistics using efficient online algorithms.
+        """Bootstrap a statistic and its uncertainty, on CPU workers or a GPU.
 
-        Resamples rows with replacement and summarizes the resulting
-        distribution with a memory-efficient online aggregator, on CPU workers
-        or with GPU acceleration. Supports simple aggregation statistics and
-        fitted `Ridge` statistics.
+        Resamples rows with replacement and aggregates the replicates as they
+        complete, into a running Welford variance plus just enough retained
+        order statistics per output element to reproduce the exact percentile
+        interval. What the run holds is that retained tail — about
+        ``(1 - confidence_level)`` of the replicates per element — plus one
+        dispatch window, rather than all ``n_samples`` maps. This is
+        memory-efficient, not constant-memory: the tail still grows with
+        ``n_samples``, and ``return_samples=True`` keeps the whole
+        distribution.
 
         A Ridge bootstrap resamples the training features you pass as ``X``
         together with ``self.data``, using the same row indices for every
@@ -601,61 +605,85 @@ class BrainData:
         even when the same features were passed to `fit`.
 
         Args:
-            stat (str): Statistic to bootstrap. Simple stats: ``'mean'``,
-                ``'median'``, ``'std'``, ``'sum'``, ``'min'``, ``'max'``. Model
-                stats (require a fitted `Ridge`): ``'weights'`` or
-                ``'predict'``.
+            statistic (str): Statistic to bootstrap. Basic aggregates:
+                ``'mean'``, ``'median'``, ``'std'``, ``'sum'``, ``'min'``,
+                ``'max'`` — each the corresponding NumPy reduction over rows,
+                with ``'std'`` at ``ddof=0``. Model statistics (require a
+                fitted `Ridge`): ``'weights'`` or ``'predict'``.
             X (np.ndarray | Mapping[str, np.ndarray] | None): Training features
                 in their original row order — a matrix for ordinary Ridge, a
                 mapping with exactly the fitted feature-space names for banded
-                Ridge. Required by both model stats; rejected by simple stats.
+                Ridge. Required by both model statistics; rejected by the basic
+                ones.
             X_test (np.ndarray | Mapping[str, np.ndarray] | None): Evaluation
-                features for ``stat='predict'``, in the same structure as
+                features for ``statistic='predict'``, in the same structure as
                 ``X``. Any row count is allowed.
-            n_samples (int): Number of bootstrap iterations. Default 5000.
-            save_boots (bool): If True, store all bootstrap samples. Default False.
-            percentiles (tuple[float, float]): Percentiles for confidence
-                intervals. Default ``(2.5, 97.5)``.
+            n_samples (int): Number of bootstrap replicates, at least two.
+                Default 5000.
+            confidence_level (float): Confidence level of the reported
+                interval, strictly between zero and one. Default 0.95. The
+                bounds are the central percentile interval by linear
+                interpolation, and they are elementwise marginal: the nominal
+                level applies separately to each voxel, feature, or test row,
+                with no simultaneous-coverage claim. A different level needs a
+                new run unless ``return_samples=True`` kept the distribution.
             device (str): Compute device for the Ridge refits: ``'cpu'``
                 (default) or ``'gpu'`` (PyTorch on CUDA/MPS, or an error when
-                neither is available).
-            memory_budget_gb (float | None): Working-memory budget in GB used
-                to size GPU batches. ``None`` (default) measures the device.
-            tail (int | str): ``2``/``'two'`` for two-tailed p-values (default),
-                ``1``/``'one'`` for one-tailed.
-            n_jobs (int): Number of CPU cores for parallelization. -1 (default)
-                means all CPUs.
+                neither is available). Basic statistics reject ``'gpu'``.
+            memory_budget_gb (float | None): Working-memory budget in GB. It
+                governs the output preflight and CPU-worker planning for every
+                statistic, and GPU batch sizing for the Ridge ones. ``None``
+                (default) measures the device.
+            return_samples (bool): Retain and return every replicate. Default
+                False. It changes retention only, never interval semantics.
+            n_jobs (int): CPU worker ceiling. -1 (default) means all cores; the
+                planner may use fewer.
             random_state (int | None): Random seed for reproducibility.
             progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            BrainData | dict: For simple stats, a BrainData holding the bootstrap
-                mean. For model stats, a dict of BrainData objects keyed ``'mean'``,
-                ``'std'``, ``'Z'``, ``'p'``, ``'ci_lower'``, ``'ci_upper'``. With
-                ``save_boots=True`` the dict also carries a ``'samples'`` key
-                holding every bootstrap sample.
+            BootstrapResult: ``estimate`` (the statistic on the unresampled
+                full sample — for ``'weights'`` the fitted coefficients, for
+                ``'predict'`` the full-data model at ``X_test``),
+                ``standard_error`` (the ``ddof=1`` deviation across
+                replicates), ``ci_lower`` and ``ci_upper``, all `BrainData` of
+                identical shape, plus ``samples`` as a NumPy array with the
+                bootstrap axis first when ``return_samples=True``.
+
+        Raises:
+            ValueError: If `statistic` is unknown, a basic statistic is given
+                ``X``, ``X_test`` or ``device='gpu'``, a Ridge statistic is
+                missing its features, the fitted model is not a `Ridge`, an
+                argument is out of range, or the retained output cannot fit the
+                memory budget.
 
         Examples:
             ```python
-            boot = brain.bootstrap(stat='mean', n_samples=1000)
+            boot = brain.bootstrap('mean', n_samples=1000)
+            boot.estimate.plot()
 
             brain.fit(model='ridge', X=features, ridge_alpha=1.0)
-            boot = brain.bootstrap(stat='weights', X=features, n_samples=1000)
+            boot = brain.bootstrap('weights', X=features, n_samples=1000)
             ```
+
+        Note:
+            This is an IID row bootstrap. Rows must be exchangeable for the
+            interval to be meaningful; it implements no grouped, clustered,
+            stratified, or block resampling, so an autocorrelated fMRI time
+            series must not be treated as IID rows.
         """
         from .bootstrap import bootstrap
 
         return bootstrap(
             self,
-            stat,
+            statistic,
             X=X,
             X_test=X_test,
             n_samples=n_samples,
-            save_boots=save_boots,
-            percentiles=percentiles,
+            confidence_level=confidence_level,
             device=device,
             memory_budget_gb=memory_budget_gb,
-            tail=tail,
+            return_samples=return_samples,
             n_jobs=n_jobs,
             random_state=random_state,
             progress_bar=progress_bar,

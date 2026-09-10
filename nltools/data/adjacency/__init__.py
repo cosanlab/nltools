@@ -192,54 +192,64 @@ class Adjacency:
 
     def bootstrap(
         self,
-        stat,
+        statistic,
         *,
         n_samples=5000,
-        save_boots=False,
-        percentiles=(2.5, 97.5),
-        tail=2,
+        confidence_level=0.95,
+        memory_budget_gb=None,
+        return_samples=False,
         n_jobs=-1,
         random_state=None,
         progress_bar: bool = False,
     ):
-        """Bootstrap statistics using efficient online algorithms.
+        """Bootstrap an aggregate statistic across a stack of matrices.
 
-        Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-        Supports simple aggregation statistics (mean, std, median, sum, min, max).
+        Resamples matrices with replacement and aggregates the replicates as
+        they complete, so what the run holds is the retained tail — about
+        ``(1 - confidence_level)`` of the replicates per edge — plus one
+        dispatch window, rather than all ``n_samples`` matrices.
 
         Args:
-            stat (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`,
-                `'min'`, or `'max'`.
-            n_samples (int): Number of bootstrap iterations. Default 5000.
-            save_boots (bool): If True, store all bootstrap samples (memory intensive).
-                Default False.
-            percentiles (tuple): Percentiles for confidence intervals. Default (2.5, 97.5).
-            tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
-                one-tailed (statistic > 0; negate the data for the other direction).
-            n_jobs (int): Number of CPU cores for parallelization. -1 means all CPUs.
-            random_state (int, optional): Random seed for reproducibility.
+            statistic (str): Statistic to bootstrap: `'mean'`, `'median'`,
+                `'std'`, `'sum'`, `'min'`, or `'max'` — each the corresponding
+                NumPy reduction over matrices, with `'std'` at ``ddof=0``.
+            n_samples (int): Number of bootstrap replicates, at least two.
+                Default 5000.
+            confidence_level (float): Confidence level of the reported
+                interval, strictly between zero and one. Default 0.95. The
+                bounds are the central percentile interval, elementwise
+                marginal per edge.
+            memory_budget_gb (float | None): Working-memory budget in GB
+                governing the output preflight and worker planning. None
+                (default) measures the host.
+            return_samples (bool): Retain and return every replicate. Default
+                False.
+            n_jobs (int): CPU worker ceiling. -1 (default) means all cores.
+            random_state (int | None): Random seed for reproducibility.
             progress_bar (bool): If True, show a progress bar. Default False.
 
         Returns:
-            dict: Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,
-                `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also
-                includes `'samples'`.
+            BootstrapResult: ``estimate`` (the statistic on the unresampled
+                stack), ``standard_error``, ``ci_lower`` and ``ci_upper`` as
+                single-matrix `Adjacency` objects, plus ``samples`` as a NumPy
+                array with the bootstrap axis first when
+                ``return_samples=True``.
 
         Examples:
             ```python
-            boot = adj.bootstrap(stat="mean", n_samples=1000)
-            boot["mean"]  # → Adjacency
+            boot = adj.bootstrap("mean", n_samples=1000)
+            boot.estimate  # → Adjacency
             ```
         """
         from .modeling import bootstrap
 
         return bootstrap(
             self,
-            stat,
+            statistic,
             n_samples=n_samples,
-            save_boots=save_boots,
-            percentiles=percentiles,
-            tail=tail,
+            confidence_level=confidence_level,
+            memory_budget_gb=memory_budget_gb,
+            return_samples=return_samples,
             n_jobs=n_jobs,
             random_state=random_state,
             progress_bar=progress_bar,

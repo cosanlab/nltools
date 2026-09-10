@@ -111,39 +111,98 @@ re-centers the bootstrap null at zero before computing p (fixing a pre-0.6.0 reg
 
 ### Bootstrap inference
 
-Estimate a sampling distribution and confidence intervals via resampling with
-replacement. Two modes:
+Estimate a sampling distribution and a confidence interval by resampling rows
+with replacement. There is one mode, not two: replicates stream through
+`BootstrapAccumulator`, which keeps a running Welford variance plus a bounded
+per-element tail — exactly the order statistics NumPy's linear-interpolation
+percentile can reach at either end. For `B` replicates at confidence level `c`
+it retains, per output element, this many of the smallest and largest values:
 
-1. **Efficient (default)** — online statistics (Welford), `O(output_shape)` memory,
-   normal-approximation CIs.
-2. **Full (`save_samples=True`)** — store all samples, `O(n_samples × output_shape)`
-   memory, exact percentile CIs, any statistic computable post-hoc.
-
-```python
-# Welford's online algorithm (efficient mode)
-delta  = sample - mean
-mean  += delta / (i + 1)
-M2    += delta * (sample - mean)
-# finalize
-std = sqrt(M2 / (n_samples - 1))
-z   = mean / std
-p   = 2 * (1 - norm.cdf(abs(z)))     # two-tailed normal approx
+```text
+k = ceil((B - 1) * (1 - c) / 2) + 1
 ```
 
-Beyond `mean`, the simple path supports `median`/`std`/`sum`/`min`/`max`. For Ridge
-models, bootstrap farms out to the shared fixed-hyperparameter refit in
-`nltools/models/ridge.py` directly (bypassing `BrainData` overhead), on the CPU and
-on the GPU alike: the design is converted onto the backend once and
-`_refit_resample` — the one replicate implementation — resamples rows in place,
-so the GPU driver differs only in which backend it converts to and in how many
-replicate results it retains before aggregation. `backends.ridge_bootstrap_batch_size`
-sizes that retention: it charges both the resident replicate and the host-side
-float64 results, so a prediction bootstrap with a wide `X_test` shrinks the batch
-instead of overrunning the budget. The refit holds `alpha_` — and, for a banded model,
+That reproduces the interval the complete distribution would give while storage
+scales with `(1 - c) * B` instead of `B` — roughly 5% of the replicates at 95%
+confidence. It is memory-efficient, not constant-memory: `k` still grows with
+`B`. `return_samples=True` additionally keeps every replicate, for plotting or a
+post-hoc statistic; it never changes how the interval is computed.
+
+Streaming only pays off if the engine never materializes the distribution it is
+avoiding. `joblib.Parallel` dispatches eagerly and queues finished results, so
+neither `pre_dispatch` nor `return_as="generator"` bounds how many replicate
+arrays are alive — collecting the run into a list, the obvious spelling, would
+make peak memory `O(B)` and reduce the preflight to a number the run ignores.
+`_run_replicates` therefore dispatches in windows of
+`backends.bootstrap_replicate_window(n_samples, n_workers=...)` and folds each
+window into the accumulator before opening the next. The window scales with the
+worker count and never with `B`, and windows are consecutive and folded in
+order, so Welford's accumulation order — and therefore every reported number —
+is bitwise identical to a sequential run.
+
+```python
+# Welford's online update, per replicate
+delta  = sample - mean
+mean  += delta / n
+M2    += delta * (sample - mean)
+# finalize
+standard_error = sqrt(M2 / (n - 1))          # ddof=1 across replicates
+ci_lower, ci_upper = interpolate(retained_tails, (1 - c) / 2)
+```
+
+`estimate` is the statistic on the *unresampled* full sample, not the replicate
+mean: the basic reduction on `bd.data`, the fitted `coef_` for `'weights'`, and
+`X_test @ coef_` for `'predict'`. The result exposes no replicate mean and no
+`z`, `p`, or `tail` output — a bootstrap hypothesis test is a separate,
+not-yet-defined API. Non-finite replicate values propagate: `np.partition`
+drops NaN, so the accumulator tracks a per-element NaN flag and reproduces
+`np.percentile`'s propagation instead of quietly skipping it.
+
+Aggregation runs on the CPU and is mergeable: `BootstrapAccumulator.merge`
+combines two blocks with the Chan-Golub-LeVeque parallel variance update and a
+tail merge, so a run split across workers or memory-driven batches summarizes to
+the same numbers as one sequential pass. Both blocks must be sized with the
+run's *total* replicate count, or the merge refuses — a block sized for its own
+length would retain too short a tail.
+
+Memory is planned in `nltools/algorithms/backends.py` and nowhere else.
+`bootstrap_memory_preflight` charges eight bytes for every output-sized array a
+run holds at once — the two bounded tails, the replicates buffered before the
+next flush and the two temporaries that flush builds, one dispatch window, every
+replicate when `return_samples=True`, and the two Welford accumulators plus the
+four summary payloads — and raises *before* resampling if that exceeds the
+budget, naming the requirement, the measured budget, and the `memory_budget_gb`
+override. It never weakens the interval, reduces `n_samples`, or disables
+`return_samples`. `bootstrap_n_jobs_cpu` treats `n_jobs` as a ceiling and lowers
+it when a worker's copy of the data would not fit;
+`bootstrap_replicate_window` turns that worker count into the dispatch window.
+`BOOTSTRAP_TAIL_FLUSH_BLOCK` lives there too rather than in the engine, so the
+one budget owner sees every constant it has to charge for.
+
+`nltools/tests/core/test_bootstrap.py::TestBootstrapPeakMemory` measures peak
+allocation with `tracemalloc` against that figure. It runs at `n_jobs=1`
+deliberately — `tracemalloc` sees only this process, and the parent is where the
+unbounded allocation used to live.
+
+Beyond `mean`, the simple path supports `median`/`std`/`sum`/`min`/`max`, each
+the exact NumPy reduction over rows; `'std'` is the *population* deviation
+(`ddof=0`), matching `BrainData.std()` and distinct from the `ddof=1`
+`standard_error` across replicates. For Ridge models, bootstrap farms out to the
+shared fixed-hyperparameter refit in `nltools/models/ridge.py` directly
+(bypassing `BrainData` overhead), on the CPU and on the GPU alike: the design is
+converted onto the backend once and `_refit_resample` — the one replicate
+implementation — resamples rows in place, so the GPU driver differs only in
+which backend it converts to and in how many replicate results it holds before
+aggregation. `backends.ridge_bootstrap_batch_size` sizes that batch: it charges
+both the resident replicate and the host-side float64 results, so a prediction
+bootstrap with a wide `X_test` shrinks the batch instead of overrunning the
+budget. The refit holds `alpha_` — and, for a banded model,
 `feature_space_weights_` — fixed; a resample never reruns cross-validation or the
 banded random search. Training features are supplied explicitly by the caller
 (`BrainData.bootstrap(..., X=...)`); every feature space and the response resample
-with the same row indices.
+with the same row indices. A terminal replicate failure raises the whole call and
+names the replicate index; failed replicates are never dropped and replacements
+are never drawn.
 
 ## P-value calculation
 
@@ -238,7 +297,8 @@ correlation = numerator / (denominator + EPSILON)
 
 `EPSILON = 1e-10` sits well above float64 machine epsilon (2.2e-16), is small enough for
 negligible error, and is safe for float32 GPU math (machine epsilon 1.2e-7). Kendall
-guards NaN → 0.0; the bootstrap Z-score is computed under `np.errstate` protection.
+guards NaN → 0.0; the bootstrap accumulator propagates non-finite replicate values
+rather than substituting `nan*` reductions.
 
 ## Choosing `n_permute` / `n_samples`
 
@@ -246,9 +306,9 @@ Guidance, not hard limits:
 
 - **Permutation:** ≥ 5,000 for publication (Nichols & Holmes 2002); minimum resolvable
   p-value is `1 / (n_permute + 1)`.
-- **Bootstrap:** ≥ 1,000 for reliable CIs, ≥ 5,000 for publication CIs. Use efficient
-  (online) mode by default; use full mode only when you need exact percentile CIs or a
-  custom post-hoc statistic.
+- **Bootstrap:** ≥ 1,000 for reliable CIs, ≥ 5,000 for publication CIs. The interval is
+  always the exact percentile interval; `return_samples=True` costs memory and buys only
+  the replicates themselves, for plotting or a custom post-hoc statistic.
 
 ## Key design decisions
 
@@ -257,13 +317,18 @@ Guidance, not hard limits:
 - **Independent `RandomState` per permutation** — eliminates joblib worker-order effects
   and gives perfect cross-backend consistency.
 - **Phipson-Smyth correction** — prevents `p = 0`; standard in neuroimaging software.
-- **Welford for bootstrap** — numerically stable and single-pass, `O(output_shape)`
-  memory instead of storing every sample.
+- **Welford plus a bounded tail for bootstrap** — numerically stable and single-pass,
+  and the exact percentile interval at `O((1 - c) * B * output_shape)` retained memory
+  instead of storing every replicate. Memory-efficient, not constant-memory.
+- **Windowed dispatch** — the retained bound is only real if the engine aggregates as it
+  goes; joblib will happily queue every result otherwise.
 - **Farm Ridge bootstrap to the shared fixed refit** — avoids `BrainData` overhead
   (object creation, attribute access, serialization) for a large speedup, and keeps
   resamples on the same numerical path as the full-data fit.
-- **Dual bootstrap modes** — efficient (normal-approx CIs) for most uses, full (exact
-  percentile CIs) opt-in for custom statistics or distribution visualization.
+- **One bootstrap interval** — the exact percentile interval in every mode, so a result
+  never depends on whether the caller happened to ask for the replicates.
+- **Loud, early memory refusal** — a preflight against the measured budget beats an OOM
+  half-way through a five-thousand-replicate run.
 
 ## Performance
 

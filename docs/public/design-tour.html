@@ -501,6 +501,9 @@
     <tr><td>Progress indicator</td><td><code>progress_bar</code></td><td><code>verbose</code> reserved for log-level</td></tr>
     <tr><td>Permutation count</td><td><code>n_permute</code></td><td>distinct from…</td></tr>
     <tr><td>Bootstrap sample count</td><td><code>n_samples</code></td><td>…the bootstrap count</td></tr>
+    <tr><td>Bootstrap statistic</td><td><code>statistic</code></td><td>a closed set of eight names — not <code>stat</code>, never a callable</td></tr>
+    <tr><td>Interval confidence level</td><td><code>confidence_level</code></td><td>one level, not a percentile pair</td></tr>
+    <tr><td>Retain resampled draws</td><td><code>return_samples</code></td><td>retention only — it never changes interval semantics</td></tr>
     <tr><td>Tail of test</td><td><code>tail</code></td><td><code>2</code>/<code>'two'</code> default · <code>1</code>/<code>'one'</code> = the test's positive direction</td></tr>
     <tr><td>Threshold pair</td><td><code>lower, upper, binarize</code></td><td>convenience <code>threshold</code> where bidirectional</td></tr>
     <tr><td>Display autoscaling</td><td><code>autoscale</code></td><td><code>True</code> = robust percentile window · <code>False</code> = raw magnitude range</td></tr>
@@ -516,7 +519,7 @@
 
 <div class="callout">
   <!-- AUTOGEN:api-vocabulary:tour-exceptions — generated from docs/_data/api-vocabulary.yml; run `uv run poe docs-generate` to update -->
-  <strong>Two deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. GLM contrast p-values are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. Each is documented, not an oversight.
+  <strong>Three deliberate exceptions.</strong> <code>fit(model='glm'|'ridge')</code> selects an estimator <em>class</em>, not a variant. GLM contrast p-values are <em>one-sided</em> (the nilearn/SPM directional-contrast convention) and take no <code>tail=</code> knob — the one deliberate exception to the two-tailed default. <code>BrainData.bootstrap</code> and <code>Adjacency.bootstrap</code> report a percentile confidence interval and no p-value, so they take no <code>tail=</code> knob — a deliberate carve-out from the tails sweep, not an omission. Each is documented, not an oversight.
   <!-- /AUTOGEN:api-vocabulary:tour-exceptions -->
 </div>
 </section>

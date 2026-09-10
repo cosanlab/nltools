@@ -616,7 +616,8 @@ What changed:
 
 - **Removed forms**: the v0.5 `-1` / `'upper'` / `'lower'` arguments now raise a `ValueError` with the negate/swap/flip guidance.
 - **Bug fix**: `BrainData.ttest(tail=1)` and `Adjacency.ttest(tail=1)` previously ignored `tail` on the (default) parametric path and always returned two-sided p-values; `tail` now maps onto scipy's `alternative=` so one-tailed parametric tests actually happen. The `"z"` map is derived from the reported p, so it matches the requested tail.
-- **New `tail=` options** (default 2 ≡ old behavior): `BrainData.bootstrap` / `Adjacency.bootstrap`, `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, and `Roc.calculate`.
+- **New `tail=` options** (default 2 ≡ old behavior): `BrainData.multivariate_similarity`, `regress` / `Adjacency.regress`, and `Roc.calculate`.
+- **No knob on the bootstrap facades**: `BrainData.bootstrap` and `Adjacency.bootstrap` report a percentile confidence interval and no p-value at all, so there is no tail to choose.
 - **No knob where only one tail is valid**: `distance_correlation` (dcorr ≥ 0), ANOVA's F, `isps`' Rayleigh test, and SRM variance components keep their statistically forced one-tailed p-values, unchanged.
 - **The GLM exception**: GLM contrast inference — `compute_contrasts(..., inference=True)` — reports nilearn's **one-sided** upper-tail p-value, matching the nilearn/SPM directional-contrast convention ("A > B" is the hypothesis; flip the contrast for the other direction). This is the one documented deviation from the two-tailed default.
 
@@ -1184,7 +1185,7 @@ adj.threshold(upper='90%')     # Keep top 10% (percentile threshold)
 | `BrainData.ttest(threshold_dict=…)` (v0.5.1) | `BrainData.ttest(popmean=0.0, permutation=False, …)` — restored with a new signature. Returns `{"mean", "t", "z", "p"}`, plus `"null_dist"` with `permutation=True, return_null=True`. Threshold the maps afterwards. | **Low** |
 | `.randomise()` | Use nilearn permutation testing | Medium |
 | `.predict_multi()` | Will return in future Model class | N/A |
-| `summarize_bootstrap()` | `BrainData.bootstrap()` or `OnlineBootstrapStats` | **Low** |
+| `summarize_bootstrap()` | `BrainData.bootstrap()`, which returns a `BootstrapResult` (`estimate`, `standard_error`, `ci_lower`, `ci_upper`). The `Z` and `p` keys are gone — see [Pattern 8](#pattern-8-bootstrap-summary-statistics). | **Medium** |
 | `BrainData.icc()` | Removed — voxelwise intraclass correlation is out of scope for v0.6.0. Compute ICC externally (e.g. `pingouin.intraclass_corr`) on extracted values. The `nltools.stats.compute_icc` helper is also removed. | **Low** |
 | `BrainData.iplot(surface=…, anatomical=…)` | `BrainData.iplot(view='ortho'\|'render', threshold=…, autoscale=…, atlas=…, bg_img=…)` — *rebuilt* on [niivue](https://niivue.com) (self-owned `anywidget` driving `@niivue/niivue`, WebGL). Live windowing (right-drag), native 4D frame scrubbing, true 3D render, and atlas overlays. `mode`/`units`/`cut_coords`/`symmetric_cmap` removed; `view='surface'` → `view='render'`. Live kernel (Jupyter, marimo). See [Pattern: interactive viewing (`iplot`)](#interactive-viewing). | **Medium** |
 
@@ -1527,92 +1528,61 @@ new_aligned, R, disp, scale = hyper.transform_subject(new_data)
 
 ### Pattern 8: Bootstrap Summary Statistics
 
-**Status**: ⚠️ **BREAKING CHANGE** - `summarize_bootstrap()` has been removed in v0.6.0
+**Status**: ⚠️ **BREAKING CHANGE** — `summarize_bootstrap()` is gone, and
+`bootstrap` returns a `BootstrapResult` record instead of a dictionary.
 
-The `summarize_bootstrap()` function has been removed and replaced with `BrainData.bootstrap()` and `OnlineBootstrapStats` for more efficient and flexible bootstrap analysis.
+v0.5.1 had two halves: `Brain_Data.bootstrap(function, ...)`, which ran an
+arbitrary method name over resampled rows, and `summarize_bootstrap()`, which
+turned a stack of already-computed draws into `{'mean', 'Z', 'p'}`. v0.6.0
+replaces both with one method returning one record.
 
 **Before (v0.5.1):**
 ```python
 from nltools.stats import summarize_bootstrap
 
-# Create BrainData with multiple bootstrap samples
-bootstrap_samples = BrainData(list_of_samples)  # Multiple samples
-
-# Summarize bootstrap samples
-result = summarize_bootstrap(bootstrap_samples, save_weights=False)
-# Returns: {'mean': BrainData, 'Z': BrainData, 'p': BrainData}
-
-mean_brain = result['mean']
-z_brain = result['Z']
-p_brain = result['p']
+boot = brain.bootstrap(function="mean", n_samples=5000, save_weights=False)
+result = summarize_bootstrap(boot, save_weights=False)
+# Returns: {'mean': Brain_Data, 'Z': Brain_Data, 'p': Brain_Data}
 ```
 
-**After (v0.6.0) - Option 1: Use BrainData.bootstrap()**
+**After (v0.6.0):**
 ```python
-# For generating bootstrap samples and getting statistics
-boot = brain.bootstrap(stat='mean', n_samples=1000)
-# Returns BrainData with bootstrap mean
+boot = brain.bootstrap("mean", n_samples=5000)
 
-# For model statistics (weights, predictions), returns dict with all stats.
-# Fitting keeps no copy of the features, so a Ridge bootstrap takes them back
-# explicitly and holds the selected hyperparameters fixed across replicates.
-brain.fit(X=features, model='ridge', ridge_alpha=1.0)
-boot = brain.bootstrap(stat='weights', X=features, n_samples=1000)
-# Returns: {'mean': BrainData, 'std': BrainData, 'Z': BrainData, 'p': BrainData,
-#           'ci_lower': BrainData, 'ci_upper': BrainData}
+boot.estimate        # the statistic on the ORIGINAL sample, as BrainData
+boot.standard_error  # ddof=1 deviation across replicates
+boot.ci_lower        # 95% percentile interval, elementwise marginal
+boot.ci_upper
+
+# Ridge coefficients or predictions, features supplied explicitly
+brain.fit(X=features, model="ridge", ridge_alpha=1.0)
+boot = brain.bootstrap("weights", X=features, n_samples=5000)
 ```
 
-**After (v0.6.0) - Option 2: Use OnlineBootstrapStats for existing samples**
-```python
-from nltools.algorithms.inference.bootstrap import OnlineBootstrapStats
-from nltools.data import BrainData
+| v0.5.1 | v0.6.0 | Severity |
+|---|---|---|
+| `bootstrap(function=...)` — any `Brain_Data` method name | `bootstrap(statistic=...)` — a closed set of eight: `'mean'`, `'median'`, `'std'`, `'sum'`, `'min'`, `'max'`, `'weights'`, `'predict'`. Callables and dynamic dispatch are gone. | **High** |
+| `bootstrap(save_weights=True)` | `bootstrap(return_samples=True)`; the draws come back as `result.samples` | **Low** |
+| result `dict["mean"]` — the *replicate mean* | `result.estimate` — the statistic on the *unresampled* sample. **A semantic change, not a rename**: for a skewed statistic the two differ, and `estimate` is the unbiased thing to report. | **High** |
+| result `dict["Z"]`, `dict["p"]` | Removed. A bootstrap hypothesis test is a separate, not-yet-defined API. To reproduce v0.5.1's two-tailed normal approximation exactly, compute it yourself — `z = result.estimate.data / result.standard_error.data` then `p = 2 * (1 - scipy.stats.norm.cdf(abs(z)))` — and be explicit that it is an approximation. Note that `estimate` is the full-sample statistic, where v0.5.1 divided the *replicate mean*. | **High** |
+| result `dict["samples"]` — a `Brain_Data` | `result.samples` — a NumPy array with the bootstrap axis first, only when `return_samples=True` | **Medium** |
 
-# If you already have bootstrap samples (BrainData with multiple images)
-bootstrap_samples = BrainData(list_of_samples)
+`Adjacency.bootstrap` changed identically, with `Adjacency` payloads.
 
-# Initialize OnlineBootstrapStats with shape matching your data
-stats = OnlineBootstrapStats(
-    shape=(bootstrap_samples.shape[1],),  # Number of voxels/features
-    save_samples=False,  # Set True if you need 'samples' key
-    percentiles=(2.5, 97.5)  # For confidence intervals
-)
+**What else is new.** The interval is now always the exact percentile interval
+at one `confidence_level=` (default `0.95`) — never a normal approximation, and
+never a `percentiles=(lo, hi)` pair. Replicates stream through a bounded
+accumulator, so memory scales with `(1 - confidence_level)` rather than with
+`n_samples`. Before resampling, `bootstrap` checks that the retained output fits
+the working-memory budget and raises with the requirement, the budget, and the
+`memory_budget_gb=` override if it does not; it never silently reduces
+`n_samples` or drops `return_samples`.
 
-# Update with each bootstrap sample
-for sample in bootstrap_samples:  # Iterate over samples
-    stats.update(sample.data)  # Pass 1D array of voxel values
-
-# Get results (equivalent to summarize_bootstrap output)
-result = stats.get_results()
-# Returns: {'mean': array, 'std': array, 'Z': array, 'p': array,
-#           'ci_lower': array, 'ci_upper': array}
-
-# Convert to BrainData format (reproduce old API format)
-mean_brain = bootstrap_samples[0].copy()
-mean_brain.data = result['mean']
-
-z_brain = bootstrap_samples[0].copy()
-z_brain.data = result['Z']
-
-p_brain = bootstrap_samples[0].copy()
-p_brain.data = result['p']
-
-# Result equivalent to old summarize_bootstrap():
-equivalent_result = {
-    'mean': mean_brain,
-    'Z': z_brain,
-    'p': p_brain
-}
-# Optionally include samples if save_samples=True:
-if 'samples' in result:
-    equivalent_result['samples'] = result['samples']
-```
-
-| Aspect | Old | New | Benefit |
-|--------|-----|-----|---------|
-| API | Single function | Multiple options | More flexible |
-| Memory | Stores all samples | Optional online stats | More efficient |
-| Additional outputs | mean, Z, p | Plus std, ci_lower, ci_upper | More complete |
-| Integration | Standalone | Integrated with BrainData.bootstrap() | Better workflow |
+:::{note}
+`'std'` now uses `ddof=0`, matching `BrainData.std()` and NumPy's population
+standard deviation. That is distinct from `BootstrapResult.standard_error`,
+which is the `ddof=1` deviation *across replicates*.
+:::
 
 ---
 
@@ -1713,31 +1683,28 @@ loaded = Fit(**{k: np.load('fit_results.npz')[k] for k in np.load('fit_results.n
 
 ---
 
-### Pattern 11: Bootstrap Infrastructure (`OnlineBootstrapStats`)
+### Pattern 11: Streaming Bootstrap Aggregation
 
-**Status**: ✅ NEW FEATURE (v0.6.0)
+**Status**: ✅ NEW BEHAVIOR (v0.6.0)
 
-**New Feature**: Memory-efficient online bootstrap statistics.
+`BrainData.bootstrap` and `Adjacency.bootstrap` no longer hold every replicate
+in memory. They stream draws through a running Welford variance plus a bounded
+per-element tail — exactly the order statistics the percentile interval needs —
+so a whole-brain bootstrap at `n_samples=5000` fits where it previously did not.
 
-**Old API** (still works):
 ```python
-boot = brain.bootstrap(stat='mean', n_samples=5000)
+boot = brain.bootstrap("mean", n_samples=5000)          # bounded memory
+boot = brain.bootstrap("mean", n_samples=5000, return_samples=True)  # keeps every draw
 ```
 
-**New Implementation**:
-- Uses `OnlineBootstrapStats` for memory efficiency
-- Supports CPU parallelization (`n_jobs=-1`)
-- Works with fitted models (ridge, GLM)
+The aggregator itself is internal: there is no public aggregator class to
+import, and none is needed. If you have a stack of draws you computed yourself,
+summarize them with NumPy directly:
 
-**Advanced Usage**:
 ```python
-from nltools.algorithms.inference import OnlineBootstrapStats
-
-# Direct usage (numpy arrays)
-stats = OnlineBootstrapStats(shape=samples[0].shape)
-for sample in samples:
-    stats.update(sample)
-result = stats.get_results()
+estimate = np.mean(draws, axis=0)
+standard_error = np.std(draws, axis=0, ddof=1)
+ci_lower, ci_upper = np.percentile(draws, [2.5, 97.5], axis=0)
 ```
 
 ---
@@ -1898,7 +1865,7 @@ Internal `**kwargs` catch-alls have been removed from user-facing methods that d
 
 **Newly-explicit kwargs you can now pass directly** (previously hidden behind `**kwargs`):
 
-- `BrainData.bootstrap`: `X`, `X_test`, `device`, `memory_budget_gb`
+- `BrainData.bootstrap`: `X`, `X_test`, `device`, `memory_budget_gb`, `confidence_level`, `return_samples`
 - `BrainData.ttest`, `Adjacency.ttest`: `n_permute`, `tail`, `return_null`, `n_jobs`, `random_state`
 - `Adjacency.similarity`: `tail`, `return_null`, `n_jobs`, `random_state`
 
@@ -1926,7 +1893,7 @@ Affected:
 - `Adjacency.__init__` — keyword-only after `data` (`Y`, `matrix_type`, `labels`); unused `**kwargs` also dropped
 - `DesignMatrix.__init__` — already had the `*` marker
 - `DesignMatrix.append` — keyword-only after `dm`
-- `Adjacency.bootstrap` — keyword-only after `stat`
+- `Adjacency.bootstrap` — keyword-only after `statistic`
 - `BrainData.predict` — keyword-only after the required positionals
 - The seven public inference entry points — `one_sample_permutation_test`, `two_sample_permutation_test`, `correlation_permutation_test`, `matrix_permutation_test`, `timeseries_correlation_permutation_test`, `isc_permutation_test`, `isc_group_permutation_test` — keyword-only after the leading data arguments: `one_sample_permutation_test(data, 5000)` becomes `one_sample_permutation_test(data, n_permute=5000)`
 - The remaining public functions the convention sweep caught — `SRM.__init__` / `DetSRM.__init__`, `KFoldStratified.__init__` (matching sklearn's own `KFold(n_splits, *, ...)` shape), `plot_mean_label_distance`, `plot_between_label_distance`, and `plot_interactive_brain`: `KFoldStratified(5, True)` becomes `KFoldStratified(5, shuffle=True)`
@@ -1944,9 +1911,9 @@ The trailing kwargs on facade methods are now consistently ordered:
 
 This is a **position-only** break — callers passing these as keywords are unaffected. If you were passing them positionally, update to keyword arguments (recommended regardless). Affected signatures:
 
-- `BrainData.bootstrap` — `percentiles`, `X_test` now precede `n_jobs`/`random_state`
+- `BrainData.bootstrap` — keyword-only after `statistic`; `X`, `X_test`, `confidence_level`, `device`, `memory_budget_gb` and `return_samples` all precede `n_jobs`/`random_state`
 - `BrainData.fit` — `progress_bar` now trails `scale`/`scale_value`
-- `Adjacency.bootstrap` — `percentiles` now precedes `n_jobs`/`random_state`
+- `Adjacency.bootstrap` — `confidence_level`, `memory_budget_gb` and `return_samples` precede `n_jobs`/`random_state`
 - `Adjacency.plot_mds` — `n_jobs` moved to the end (after `ax`)
 
 ---
@@ -2377,7 +2344,7 @@ is_empty = brain_data.is_empty
 - [ ] Update `.decompose(algorithm=...)` to `.decompose(method=...)` (same `algorithm → method` rename; signature is now keyword-only after `self`)
 - [ ] Update `.shape()` → `.shape`, old empty-state access → `.is_empty`, and `.dtype()` → `.dtype`
 - [ ] Update `.smooth()` to assign return value (returns copy now)
-- [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()` or `OnlineBootstrapStats`
+- [ ] Replace `summarize_bootstrap()` with `BrainData.bootstrap()`, and read `.estimate` / `.standard_error` / `.ci_lower` / `.ci_upper` off the returned `BootstrapResult`
 - [ ] Remove any `DesignMatrix.reset_index()` calls (pandas-compat no-op; removed)
 - [ ] `DesignMatrix.add_dct_basis()` now adds a `.nl_cosine_0` constant column by default (parity with `add_poly(0)` → `.nl_poly_0`). If you were chaining `.add_poly(0)` after `.add_dct_basis()` and relied on no intercept from the DCT call, drop the now-redundant `add_poly(0)` or pass `include_constant=False` to restore the old SPM-style (no-constant) behaviour.
 

@@ -60,12 +60,9 @@ from .isc import isc_permutation_test, isc_group_permutation_test
 # Import utility functions (for testing and internal use)
 from .utils import _generate_sign_flips, _compute_pvalue, _auto_batch_size
 
-# Import bootstrap utilities
-from .bootstrap import OnlineBootstrapStats
 
 # Define public exports
 __all__ = [
-    "OnlineBootstrapStats",
     "_auto_batch_size",
     "_compute_pvalue",
     # Private functions (exported for testing)

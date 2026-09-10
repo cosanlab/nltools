@@ -37,6 +37,11 @@ Name | Description
 [`auto_batch_size`](#backends-auto-batch-size) | Split `n_items` into batches that fit a memory budget.
 [`auto_n_jobs_for_arrays`](#backends-auto-n-jobs-for-arrays) | Memory-aware joblib worker count for a per-item map over arrays.
 [`auto_select_backend`](#backends-auto-select-backend) | Select a backend from the problem size.
+[`bootstrap_memory_preflight`](#backends-bootstrap-memory-preflight) | Raise before any resampling if the retained output cannot fit the budget.
+[`bootstrap_n_jobs_cpu`](#backends-bootstrap-n-jobs-cpu) | CPU worker count for a bootstrap run, capped by `n_jobs` and by memory.
+[`bootstrap_output_bytes`](#backends-bootstrap-output-bytes) | Bytes a bootstrap run must hold for its retained output.
+[`bootstrap_replicate_window`](#backends-bootstrap-replicate-window) | Replicates a CPU bootstrap may hold in flight before it must aggregate.
+[`bootstrap_retained_tail_size`](#backends-bootstrap-retained-tail-size) | Per-element retained tail size for a streaming percentile interval.
 [`check_gpu_available`](#backends-check-gpu-available) | Check whether GPU acceleration is available.
 [`compute_oom_safe`](#backends-compute-oom-safe) | Run `fn(*arrays)` with reactive out-of-memory recovery.
 [`device_memory_budget`](#backends-device-memory-budget) | Usable memory budget in GB for a backend's device.
@@ -669,6 +674,180 @@ cross-validated problem (`cv > 1`) with a GPU. Everything else falls to
 `Backend('auto')`.
 
 </details>
+
+(backends-bootstrap-memory-preflight)=
+### `bootstrap_memory_preflight`
+
+```python
+bootstrap_memory_preflight(output_shape: tuple[int, ...], n_samples: int, *, confidence_level: float, return_samples: bool, n_workers: int = 1, memory_budget_gb: float | None = None, backend: Backend | None = None) -> float
+```
+
+Raise before any resampling if the retained output cannot fit the budget.
+
+The package's one bootstrap memory gate. It runs against the measured
+budget when `memory_budget_gb` is None, so a run that would otherwise die
+part-way through fails immediately and says what it needed. It never
+weakens the interval, reduces `n_samples`, or disables `return_samples`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`output_shape` | <code>tuple[int, ...]</code> | Shape of one replicate's output. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap replicates. | *required*
+`confidence_level` | <code>float</code> | Interval confidence level. | *required*
+`return_samples` | <code>bool</code> | Whether the complete distribution is retained. | *required*
+`n_workers` | <code>int</code> | Planned CPU worker count, which sets the dispatch window. Defaults to 1. | <code>1</code>
+`memory_budget_gb` | <code>float \| None</code> | Explicit budget in GB, or None to measure the device. | <code>None</code>
+`backend` | <code>[Backend](#backends-backend) \| None</code> | Resolved backend whose device is measured when `memory_budget_gb` is None. None means the CPU. | <code>None</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>float</code> | The required storage in GB.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If the required storage exceeds the budget.
+
+(backends-bootstrap-n-jobs-cpu)=
+### `bootstrap_n_jobs_cpu`
+
+```python
+bootstrap_n_jobs_cpu(data_size_mb: float, n_samples: int, *, memory_budget_gb: float | None = None, n_jobs: int = -1) -> int
+```
+
+CPU worker count for a bootstrap run, capped by `n_jobs` and by memory.
+
+`n_jobs` is the ceiling the caller asked for; this planner may return
+fewer when the per-worker copy of the data would not fit the budget. It
+never returns zero, because the preflight — not the worker planner — is
+where a run that cannot fit is refused.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`data_size_mb` | <code>float</code> | Size of the array each worker pickles, in MB. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap replicates. | *required*
+`memory_budget_gb` | <code>float \| None</code> | Explicit budget in GB, or None to measure available system memory. | <code>None</code>
+`n_jobs` | <code>int</code> | Worker ceiling, with joblib's negative convention (`-1` = all cores). | <code>-1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Worker count for `joblib.Parallel(n_jobs=...)`.
+
+(backends-bootstrap-output-bytes)=
+### `bootstrap_output_bytes`
+
+```python
+bootstrap_output_bytes(output_shape: tuple[int, ...], n_samples: int, *, confidence_level: float, return_samples: bool, n_workers: int = 1) -> int
+```
+
+Bytes a bootstrap run must hold for its retained output.
+
+Charges eight bytes for every output-sized array a run holds at once: the
+two bounded tails, the replicates buffered before the next flush and the
+two temporaries that flush builds, one dispatch window of in-flight
+replicates, every replicate when `return_samples=True`, and the two Welford
+accumulators plus the four summary payloads.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`output_shape` | <code>tuple[int, ...]</code> | Shape of one replicate's output. | *required*
+`n_samples` | <code>int</code> | Number of bootstrap replicates. | *required*
+`confidence_level` | <code>float</code> | Interval confidence level, which sets the retained tail size. | *required*
+`return_samples` | <code>bool</code> | Whether the complete distribution is retained. | *required*
+`n_workers` | <code>int</code> | Planned CPU worker count, which sets the dispatch window. Defaults to 1 (the GPU driver budgets its own batch through `ridge_bootstrap_batch_size` instead). | <code>1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Required bytes.
+
+(backends-bootstrap-replicate-window)=
+### `bootstrap_replicate_window`
+
+```python
+bootstrap_replicate_window(n_samples: int, *, n_workers: int = 1) -> int
+```
+
+Replicates a CPU bootstrap may hold in flight before it must aggregate.
+
+`joblib.Parallel` dispatches eagerly and queues finished results, so neither
+`pre_dispatch` nor `return_as="generator"` bounds how many replicate arrays
+are alive at once. The engines therefore dispatch in windows of this size
+and fold each window into the accumulator before opening the next. The
+window scales with the worker count — enough to keep every worker busy —
+and never with `n_samples`, which is what makes peak memory independent of
+the replicate count.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_samples` | <code>int</code> | Total number of bootstrap replicates. | *required*
+`n_workers` | <code>int</code> | Planned CPU worker count. | <code>1</code>
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Replicates per dispatch window, at least one.
+
+**Examples:**
+
+```python
+bootstrap_replicate_window(5000, n_workers=4)  # → 256
+bootstrap_replicate_window(50, n_workers=4)  # → 50
+```
+
+(backends-bootstrap-retained-tail-size)=
+### `bootstrap_retained_tail_size`
+
+```python
+bootstrap_retained_tail_size(n_samples: int, *, confidence_level: float) -> int
+```
+
+Per-element retained tail size for a streaming percentile interval.
+
+The streaming accumulator reproduces the complete-distribution percentile
+interval by keeping this many of the smallest and largest values seen for
+each output element:
+
+```text
+k = ceil((B - 1) * (1 - c) / 2) + 1
+```
+
+That is exactly the number of order statistics NumPy's linear interpolation
+can reach at either end, so nothing the interval needs is discarded.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`n_samples` | <code>int</code> | Number of bootstrap replicates, `B`. | *required*
+`confidence_level` | <code>float</code> | Interval confidence level, `c`, in `(0, 1)`. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>int</code> | Values retained per element at each end, never more than     `n_samples`.
+
+**Examples:**
+
+```python
+bootstrap_retained_tail_size(1000, confidence_level=0.95)  # → 26
+```
 
 (backends-check-gpu-available)=
 ### `check_gpu_available`

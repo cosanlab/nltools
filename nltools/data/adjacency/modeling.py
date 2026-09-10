@@ -8,111 +8,119 @@ import numpy as np
 
 def bootstrap(
     adj,
-    stat,
+    statistic,
     *,
     n_samples=5000,
-    save_boots=False,
-    percentiles=(2.5, 97.5),
-    tail=2,
+    confidence_level=0.95,
+    memory_budget_gb=None,
+    return_samples=False,
     n_jobs=-1,
     random_state=None,
     progress_bar=False,
 ):
-    """Bootstrap statistics using efficient online algorithms.
+    """Bootstrap an aggregate statistic across a stack of matrices.
 
-    Uses memory-efficient bootstrap infrastructure with CPU parallelization.
-    Supports simple aggregation statistics (mean, std, median, sum, min, max).
+    Resamples matrices with replacement and aggregates the replicates as they
+    complete, so what the run holds is the retained tail — about
+    `(1 - confidence_level)` of the replicates per edge — plus one dispatch
+    window, rather than all `n_samples` matrices.
 
     Args:
         adj (Adjacency): Adjacency instance containing multiple matrices.
-        stat (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`, `'sum'`,
-            `'min'`, or `'max'`.
-        n_samples (int): Number of bootstrap iterations. Default 5000.
-        save_boots (bool): If True, store all bootstrap samples (memory intensive).
-            Default False.
-        percentiles (tuple): Percentiles for confidence intervals. Default (2.5, 97.5).
-        tail (int | str): `2`/`'two'` for two-tailed (default); `1`/`'one'` for
-            one-tailed (statistic > 0; negate the data for the other direction).
-        n_jobs (int): Number of CPU cores for parallelization. -1 means all CPUs.
-        random_state (int, optional): Random seed for reproducibility.
+        statistic (str): Statistic to bootstrap: `'mean'`, `'median'`, `'std'`,
+            `'sum'`, `'min'`, or `'max'` — each the corresponding NumPy
+            reduction over matrices, with `'std'` at `ddof=0`.
+        n_samples (int): Number of bootstrap replicates, at least two. Default
+            5000.
+        confidence_level (float): Confidence level of the reported interval,
+            strictly between zero and one. Default 0.95.
+        memory_budget_gb (float | None): Working-memory budget in GB governing
+            the output preflight and worker planning. None (default) measures
+            the host.
+        return_samples (bool): Retain and return every replicate. Default
+            False.
+        n_jobs (int): CPU worker ceiling. -1 (default) means all cores.
+        random_state (int | None): Random seed for reproducibility.
         progress_bar (bool): If True, show a progress bar. Default False.
 
     Returns:
-        dict: Dictionary with keys `'Z'`, `'p'`, `'mean'`, `'std'`, `'ci_lower'`,
-            `'ci_upper'` (all Adjacency objects). If `save_boots=True`, also includes
-            `'samples'`.
+        BootstrapResult: `estimate`, `standard_error`, `ci_lower` and
+            `ci_upper` as single-matrix `Adjacency` objects, plus `samples` as
+            a NumPy array with the bootstrap axis first when
+            `return_samples=True`.
+
+    Raises:
+        ValueError: If `statistic` is unknown, an argument is out of range, or
+            the retained output cannot fit the memory budget.
 
     Examples:
         ```python
-        boot = bootstrap(adj, stat="mean", n_samples=1000)
-        boot["mean"]  # → Adjacency
+        boot = bootstrap(adj, "mean", n_samples=1000)
+        boot.estimate  # → Adjacency
         ```
     """
     from nltools.algorithms.inference.bootstrap import (
         _bootstrap_simple_cpu_parallel,
     )
 
-    # Validate stat parameter
     SIMPLE_STATS = ["mean", "median", "std", "sum", "min", "max"]
-    if stat not in SIMPLE_STATS:
+    if statistic not in SIMPLE_STATS:
         raise ValueError(
-            f"Unsupported stat '{stat}'. Supported simple stats: {SIMPLE_STATS}."
+            f"Unsupported statistic '{statistic}'. "
+            f"Supported basic statistics: {SIMPLE_STATS}."
         )
 
-    # Get data as numpy array
-    # Adjacency.data shape: (n_matrices, n_features)
-    data = adj.data  # Shape: (n_samples, n_features)
-
-    # Route to bootstrap function
+    # Adjacency.data shape: (n_matrices, n_edges)
     result = _bootstrap_simple_cpu_parallel(
-        data,
-        method=stat,
+        adj.data,
+        method=statistic,
         n_samples=n_samples,
-        save_boots=save_boots,
+        confidence_level=confidence_level,
+        memory_budget_gb=memory_budget_gb,
+        return_samples=return_samples,
         n_jobs=n_jobs,
         random_state=random_state,
-        percentiles=percentiles,
-        tail=tail,
         progress_bar=progress_bar,
     )
 
-    # Convert result to Adjacency format
-    return convert_bootstrap_results_to_adjacency(adj, result, save_boots=save_boots)
+    return convert_bootstrap_results_to_adjacency(adj, result)
 
 
-def convert_bootstrap_results_to_adjacency(adj, result, save_boots=False):
-    """Convert bootstrap results dictionary to Adjacency format.
-
-    Helper function to convert numpy arrays from bootstrap functions into
-    Adjacency objects.
+def convert_bootstrap_results_to_adjacency(adj, result):
+    """Wrap an engine's arrays as a `BootstrapResult` of single-matrix `Adjacency`.
 
     Args:
-        adj (Adjacency): Adjacency instance (used for `matrix_type` metadata).
-        result (dict): Result dictionary from a bootstrap function with keys `'mean'`,
-            `'std'`, `'Z'`, `'p'`, `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`.
-        save_boots (bool): If True, include the `'samples'` key in the output.
+        adj (Adjacency): Instance supplying matrix kind and node labels.
+        result (dict): Engine output with `'estimate'`, `'standard_error'`,
+            `'ci_lower'`, `'ci_upper'`, and optionally `'samples'`.
 
     Returns:
-        dict: Adjacency objects for each statistic.
+        BootstrapResult: The four summaries as `Adjacency`, and the retained
+            replicates as a NumPy array when present.
     """
     import polars as pl
+
+    from nltools.data.results import BootstrapResult
+
     from .state import common_labels, result as adjacency_result
 
-    out = {}
-    for key in ["mean", "std", "Z", "p", "ci_lower", "ci_upper"]:
-        if key in result:
-            out[key] = adjacency_result(
-                adj,
-                np.asarray(result[key]).reshape(-1),
-                labels=common_labels(adj),
-                Y=pl.DataFrame(),
-            )
+    labels = common_labels(adj)
 
-    if save_boots and "samples" in result:
-        # Samples shape: (n_samples, n_features)
-        out["samples"] = result["samples"]
+    def _map(values):
+        return adjacency_result(
+            adj,
+            np.asarray(values).reshape(-1),
+            labels=labels,
+            Y=pl.DataFrame(),
+        )
 
-    return out
+    return BootstrapResult(
+        estimate=_map(result["estimate"]),
+        standard_error=_map(result["standard_error"]),
+        ci_lower=_map(result["ci_lower"]),
+        ci_upper=_map(result["ci_upper"]),
+        samples=result.get("samples"),
+    )
 
 
 def regress(adj, X, method="ols", tail=2):
