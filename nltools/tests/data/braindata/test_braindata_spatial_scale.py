@@ -258,8 +258,10 @@ class TestAlignROI:
         # Manually align parcel 1 and check it matches the stitched result.
         label_vec = apply_mask(atlas, minimal_brain_data.mask).astype(int)
         cols = label_vec == 1
-        sub = minimal_brain_data.copy()
-        sub.data = minimal_brain_data.data[:, cols]
+        parcel_mask = nib.Nifti1Image(
+            (atlas.get_fdata() == 1).astype(np.float32), atlas.affine
+        )
+        sub = minimal_brain_data.apply_mask(parcel_mask)
         manual = sub.align(sub, method="procrustes")
 
         out = minimal_brain_data.align(

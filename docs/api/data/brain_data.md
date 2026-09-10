@@ -114,7 +114,14 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | A dictionary containing the transformed object, transformation     matrix, and the shared response matrix.
+<code>dict</code> | ``'transformed'``, ``'transformation_matrix'`` and     ``'common_model'``, plus ``'disparity'`` and ``'scale'`` for     ``method='procrustes'``. A value is a `BrainData` when its     columns are a voxel axis matching the mask it carries, and a     raw `np.ndarray` otherwise. ``'procrustes'`` therefore returns     all three as independently owned `BrainData`, with float     ``'disparity'`` and ``'scale'``. The SRM methods return     ``'transformed'`` ``(n_images, n_features)`` and     ``'common_model'`` ``(n_model_rows, n_features)`` as raw     `np.ndarray`, since both span the common model's feature axis     rather than voxels, and ``'transformation_matrix'`` as a     `BrainData` of ``n_features`` voxel maps. With ``axis=1`` the     transformation matrix spans images on its column axis for     either method, so it is a raw `np.ndarray` too. With     ``spatial_scale='roi'`` the result also carries     ``'roi_labels'``, ``'transformed'`` is one stitched     `BrainData`, ``'transformation_matrix'`` and ``'common_model'``     are dicts keyed by atlas label whose values follow the same     rule on that parcel's mask, and ``'disparity'`` and     ``'scale'`` are one-per-parcel arrays.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If a value that must be returned as a `BrainData` has a column count other than the mask support — for example a ``'procrustes'`` target with more voxels than the source, which zero-pads the source data to the target's width.
+<code>NotImplementedError</code> | If ``spatial_scale='searchlight'``.
 
 **Examples:**
 

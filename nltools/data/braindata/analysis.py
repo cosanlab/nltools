@@ -21,6 +21,47 @@ def _subset_mask(bd, columns):
     return unmask(np.asarray(columns, dtype=np.uint8), bd.mask)
 
 
+def _mask_support(bd):
+    """Count the voxels a BrainData object's mask keeps."""
+    return int(np.count_nonzero(bd.mask.get_fdata() > 0))
+
+
+def _brain_result(source, values, name, *, rows):
+    """Wrap an alignment value as a `BrainData` once its voxel axis checks out.
+
+    An alignment value may only become a `BrainData` when its columns are a
+    voxel axis that matches the mask it will carry. Checking here keeps a
+    mismatch from becoming an object whose `to_nifti` fails much later.
+
+    Args:
+        source (BrainData): Object supplying the mask and metadata.
+        values (np.ndarray): Result data whose last axis must be voxels.
+        name (str): Result key, used in the error message.
+        rows (str): Row-metadata policy, ``'preserve'`` or ``'clear'``.
+
+    Returns:
+        BrainData: Independently owned result carrying ``source``'s mask.
+
+    Raises:
+        ValueError: If the column count differs from the mask support.
+    """
+    values = np.asarray(values)
+    support = _mask_support(source)
+    if values.shape[-1] != support:
+        raise ValueError(
+            f"align() cannot return {name!r} as a BrainData: its shape is "
+            f"{values.shape}, so it has {values.shape[-1]} columns, but the "
+            f"mask supports {support} voxels. Align data that shares the "
+            f"source voxel axis."
+        )
+    return _result_from_array(source, values, rows=rows)
+
+
+def _aligned_array(value):
+    """Return the array behind an alignment value that may be a `BrainData`."""
+    return value if isinstance(value, np.ndarray) else value.data
+
+
 def check_masks(bd, image):
     """Ensure two datasets use compatible masks, creating a union mask if needed.
 
@@ -184,9 +225,9 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
     The ``transformed`` field is reassembled into a single
     `BrainData` of the same shape as the input (each voxel filled
     with its parcel's transformed value per image; voxels outside any
-    parcel = NaN). Per-parcel transform matrices and common-model
-    objects are kept as dicts keyed by atlas label, since matrices over
-    different voxel subsets can't be painted into one image.
+    parcel = NaN). Per-parcel transform matrices and common models stay
+    keyed by atlas label, since matrices over different voxel subsets
+    cannot be painted into one image.
 
     Args:
         bd (BrainData): Source data to align.
@@ -199,9 +240,18 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
             the parcels.
 
     Returns:
-        dict: ``'transformed'`` (`BrainData`), ``'transformation_matrix'`` and
-            ``'common_model'`` (dicts keyed by atlas label), ``'disparity'`` and
-            ``'scale'`` (arrays, one entry per parcel), and ``'roi_labels'``.
+        dict: ``'transformed'`` (one stitched `BrainData` on the source voxel
+            axis), ``'transformation_matrix'`` and ``'common_model'`` (dicts
+            keyed by atlas label), and ``'roi_labels'``, plus the per-parcel
+            arrays ``'disparity'`` and ``'scale'`` for ``'procrustes'``. Each
+            parcel value follows `align`'s rule: a `BrainData` carrying that
+            parcel's mask where its columns are that parcel's voxels, and a raw
+            `np.ndarray` where they are the model's features or images.
+
+    Raises:
+        ValueError: If a parcel's aligned data cannot be painted back onto that
+            parcel's voxels, which happens when an SRM common model has a
+            different feature count from the parcel's voxel count.
     """
     roi_img, label_vec, unique_labels = _resolve_atlas_label_vec(bd, roi_mask)
 
@@ -222,8 +272,8 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
             "method must be ['procrustes','probabilistic_srm','deterministic_srm']"
         )
 
-    transforms: dict[int, np.ndarray] = {}
-    common_models: dict[int, np.ndarray | object] = {}
+    transforms = {}
+    common_models = {}
     disparities = []
     scales = []
     transformed_per_parcel: list[np.ndarray] = []
@@ -246,33 +296,44 @@ def align_per_roi(bd, target, *, method, axis, roi_mask):
 
         sub_out = align(sub, sub_target, method=method, axis=axis)
 
-        # Accumulate
-        tf = sub_out["transformation_matrix"]
-        transforms[int(label)] = tf.data if hasattr(tf, "data") else np.asarray(tf)
-        common_models[int(label)] = sub_out.get("common_model")
-        disparities.append(float(sub_out.get("disparity", np.nan)))
-        scales.append(float(sub_out.get("scale", np.nan)))
+        # Accumulate: every spatial value is already an owned BrainData.
+        transforms[int(label)] = sub_out["transformation_matrix"]
+        common_models[int(label)] = sub_out["common_model"]
+        if method == "procrustes":
+            disparities.append(float(sub_out["disparity"]))
+            scales.append(float(sub_out["scale"]))
 
-        transformed = sub_out["transformed"]
-        arr = transformed.data if hasattr(transformed, "data") else transformed
-        transformed_per_parcel.append(np.asarray(arr))
+        transformed_per_parcel.append(
+            np.asarray(_aligned_array(sub_out["transformed"]))
+        )
 
     # Stitch transformed → (n_images, n_voxels) BrainData.
     n_images = transformed_per_parcel[0].shape[0]
     out_arr = np.full((n_images, label_vec.shape[0]), np.nan, dtype=float)
     for label, parcel_arr in zip(unique_labels, transformed_per_parcel):
         cols = label_vec == label
+        n_parcel_voxels = int(cols.sum())
+        if parcel_arr.shape[-1] != n_parcel_voxels:
+            raise ValueError(
+                f"Aligned data for parcel {int(label)} has "
+                f"{parcel_arr.shape[-1]} columns but the parcel covers "
+                f"{n_parcel_voxels} voxels, so it cannot be painted back onto "
+                f"the voxel axis. Use a common model with one feature per "
+                f"parcel voxel."
+            )
         out_arr[:, cols] = parcel_arr
 
     transformed_bd = _result_from_array(bd, out_arr, rows="preserve")
-    return {
+    out = {
         "transformed": transformed_bd,
         "transformation_matrix": transforms,
         "common_model": common_models,
-        "disparity": np.asarray(disparities, dtype=float),
-        "scale": np.asarray(scales, dtype=float),
         "roi_labels": unique_labels,
     }
+    if method == "procrustes":
+        out["disparity"] = np.asarray(disparities, dtype=float)
+        out["scale"] = np.asarray(scales, dtype=float)
+    return out
 
 
 def reduce_per_roi(bd, reducer, *, roi_mask):
@@ -1150,9 +1211,30 @@ def align(bd, target, method="procrustes", axis=0):
         axis (int): Axis to align on. Default ``0``.
 
     Returns:
-        dict: ``'transformed'``, ``'transformation_matrix'``, and
-            ``'common_model'`` (plus ``'disparity'`` and ``'scale'`` for
-            ``'procrustes'``).
+        dict: ``'transformed'``, ``'transformation_matrix'`` and
+            ``'common_model'``, plus the floats ``'disparity'`` and
+            ``'scale'`` for ``'procrustes'``. A value is a `BrainData` when its
+            columns are a voxel axis matching the mask it carries, and a raw
+            `np.ndarray` otherwise. ``'procrustes'`` therefore returns all
+            three as independently owned `BrainData`: ``'transformed'`` on the
+            source voxel axis, ``'common_model'`` on the target's, and
+            ``'transformation_matrix'`` as ``(n_voxels, n_voxels)``. The SRM
+            methods return ``'transformed'`` ``(n_images, n_features)`` and
+            ``'common_model'`` ``(n_model_rows, n_features)`` as raw
+            `np.ndarray`, because both span the common model's feature axis
+            rather than voxels, and ``'transformation_matrix'`` as a
+            `BrainData` of ``n_features`` voxel maps, shape
+            ``(n_features, n_voxels)``. With ``axis=1`` the transformation
+            matrix spans images on its column axis for either method, so it is
+            a raw `np.ndarray` of shape ``(n_images, n_images)`` for
+            ``'procrustes'`` and ``(n_model_rows, n_images)`` for the SRM
+            methods.
+
+    Raises:
+        ValueError: If a value that must be returned as a `BrainData` has a
+            column count other than the mask support. This is what a
+            ``'procrustes'`` target with more voxels than the source produces,
+            since the source data is zero-padded to the target's width.
 
     Examples:
         ```python
@@ -1162,8 +1244,10 @@ def align(bd, target, method="procrustes", axis=0):
         # Align using shared response model
         out = data.align(target, method='probabilistic_srm')
 
-        # Project aligned data back into original data space
-        original_data = np.dot(out['transformed'].data, out['transformation_matrix'].T)
+        # Project SRM-aligned data back into original voxel space
+        original_data = np.dot(
+            out['transformed'], out['transformation_matrix'].data
+        )
         ```
     """
     from nltools.algorithms.alignment import procrustes
@@ -1209,27 +1293,45 @@ def align(bd, target, method="procrustes", axis=0):
         # # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
 
-        transformation = _result_from_array(bd, U.dot(V).T, rows="clear")
-        out["transformation_matrix"] = transformation
+        transformation = U.dot(V).T
+        transformed = data1.dot(transformation.T)
+        if axis == 1:
+            # Return the aligned data on the source (images, voxels) layout.
+            transformed = transformed.T
 
-        out["transformed"] = data1.dot(out["transformation_matrix"].data.T)
+        # On axis=1 the transformation spans images, not voxels, so it stays
+        # an array. The transformed data and the common model always live on
+        # the model's feature axis, so they stay arrays as in v0.5.1.
+        out["transformation_matrix"] = (
+            transformation
+            if axis == 1
+            else _brain_result(
+                bd, transformation, "transformation_matrix", rows="clear"
+            )
+        )
+        out["transformed"] = transformed
         out["common_model"] = np.array(target, copy=True)
     elif method == "procrustes":
         _, transformed, out["disparity"], tf_mtx, out["scale"] = procrustes(
             data2, data1
         )
-        transformed_brain = _result_from_array(
-            bd, transformed.T if axis == 1 else transformed, rows="preserve"
+        transformed_brain = _brain_result(
+            bd,
+            transformed.T if axis == 1 else transformed,
+            "transformed",
+            rows="preserve",
         )
         out["transformed"] = transformed_brain
-        out["common_model"] = _result_from_array(target, target.data, rows="clear")
-        out["transformation_matrix"] = _result_from_array(
-            transformed_brain, tf_mtx, rows="clear"
+        out["common_model"] = _brain_result(
+            target, target.data, "common_model", rows="clear"
         )
-    if axis == 1:
-        if method != "procrustes":
-            out["transformed"] = out["transformed"].T
-
+        out["transformation_matrix"] = (
+            tf_mtx
+            if axis == 1
+            else _brain_result(
+                transformed_brain, tf_mtx, "transformation_matrix", rows="clear"
+            )
+        )
     return out
 
 

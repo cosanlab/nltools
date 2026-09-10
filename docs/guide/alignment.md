@@ -21,7 +21,7 @@ Goal | Use | Notes
 --- | --- | ---
 Align one subject to another | [`BrainData.align`](../api/data/brain_data.md#data-brain-data-align)`(target, method='procrustes')` | Returns `transformed`, `transformation_matrix`, `common_model`, `disparity`, `scale`
 Build a group common model | [`align`](../api/tasks/alignment.md#tasks-alignment-align)`(list_of_arrays, method=)` | `'procrustes'`, `'probabilistic_srm'`, `'deterministic_srm'`
-Project a new subject in | `BrainData.align(common_model, method='deterministic_srm')` | The target is the fitted model array, not a subject
+Project a new subject in | `BrainData.align(common_model, method='deterministic_srm')` | The target is the fitted model array, not a subject; `transformed` comes back as an array on the model's feature axis
 Local (ROI/searchlight) | `BrainData.align(..., spatial_scale='roi'\|'searchlight')`, or [`LocalAlignment`](../api/tasks/alignment.md#tasks-alignment-localalignment) | Needs `roi_mask=` or `radius_mm=`
 Raw matrix superposition | [`procrustes`](../api/tasks/alignment.md#tasks-alignment-procrustes) | Returns `(mtx1, mtx2, disparity, R, scale)`
 Test two matrices' similarity | [`procrustes_distance`](../api/tasks/alignment.md#tasks-alignment-procrustes-distance) | Permutation test on the Procrustes disparity
@@ -50,7 +50,15 @@ than to another subject:
 
 ```python
 projected = new_subject.align(model["common_model"], method="deterministic_srm")
+projected["transformed"]                  # array, (n_samples, n_features)
+projected["transformation_matrix"]        # BrainData, n_features voxel maps
 ```
+
+The SRM `transformed` and `common_model` are plain arrays because they live on the model's
+feature axis, not on voxels. Only `transformation_matrix` is a `BrainData` — it is the stack of
+`n_features` voxel maps, so `projected["transformed"] @ projected["transformation_matrix"].data`
+puts the aligned data back in the subject's voxel space. Procrustes has no feature axis, so
+there every value is a `BrainData`.
 
 Cross-validation depends on that order: fit the common model on training subjects only, then project
 test subjects into it. Fitting the model on everyone and then decoding across subjects leaks.

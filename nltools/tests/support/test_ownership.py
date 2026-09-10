@@ -246,9 +246,13 @@ def test_alignment_preserves_values_and_owns_transform(brain, axis):
     np.testing.assert_allclose(
         result["transformed"].data, expected.T if axis else expected
     )
+    assert result["transformed"].Y.equals(brain.Y)
+    if axis == 1:
+        # An axis=1 transform spans images on both axes, so it is not spatial.
+        np.testing.assert_allclose(result["transformation_matrix"], transform)
+        return
     np.testing.assert_allclose(result["transformation_matrix"].data, transform)
     assert result["transformation_matrix"].X.is_empty()
-    assert result["transformed"].Y.equals(brain.Y)
     result["transformation_matrix"].mask.get_fdata()[0, 0, 0] = 9
     assert brain.mask.get_fdata()[0, 0, 0] == 1
 

@@ -71,7 +71,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | ``'transformed'``, ``'transformation_matrix'``, and     ``'common_model'`` (plus ``'disparity'`` and ``'scale'`` for     ``'procrustes'``).
+<code>dict</code> | ``'transformed'``, ``'transformation_matrix'`` and     ``'common_model'``, plus the floats ``'disparity'`` and     ``'scale'`` for ``'procrustes'``. A value is a `BrainData` when its     columns are a voxel axis matching the mask it carries, and a raw     `np.ndarray` otherwise. ``'procrustes'`` therefore returns all     three as independently owned `BrainData`: ``'transformed'`` on the     source voxel axis, ``'common_model'`` on the target's, and     ``'transformation_matrix'`` as ``(n_voxels, n_voxels)``. The SRM     methods return ``'transformed'`` ``(n_images, n_features)`` and     ``'common_model'`` ``(n_model_rows, n_features)`` as raw     `np.ndarray`, because both span the common model's feature axis     rather than voxels, and ``'transformation_matrix'`` as a     `BrainData` of ``n_features`` voxel maps, shape     ``(n_features, n_voxels)``. With ``axis=1`` the transformation     matrix spans images on its column axis for either method, so it is     a raw `np.ndarray` of shape ``(n_images, n_images)`` for     ``'procrustes'`` and ``(n_model_rows, n_images)`` for the SRM     methods.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If a value that must be returned as a `BrainData` has a column count other than the mask support. This is what a ``'procrustes'`` target with more voxels than the source produces, since the source data is zero-padded to the target's width.
 
 **Examples:**
 
@@ -82,8 +88,10 @@ out = data.align(target, method='procrustes')
 # Align using shared response model
 out = data.align(target, method='probabilistic_srm')
 
-# Project aligned data back into original data space
-original_data = np.dot(out['transformed'].data, out['transformation_matrix'].T)
+# Project SRM-aligned data back into original voxel space
+original_data = np.dot(
+    out['transformed'], out['transformation_matrix'].data
+)
 ```
 
 (data-braindata-analysis-align-per-roi)=
@@ -100,9 +108,9 @@ For each atlas parcel, runs ``align()`` on the slice of ``bd`` and
 The ``transformed`` field is reassembled into a single
 `BrainData` of the same shape as the input (each voxel filled
 with its parcel's transformed value per image; voxels outside any
-parcel = NaN). Per-parcel transform matrices and common-model
-objects are kept as dicts keyed by atlas label, since matrices over
-different voxel subsets can't be painted into one image.
+parcel = NaN). Per-parcel transform matrices and common models stay
+keyed by atlas label, since matrices over different voxel subsets
+cannot be painted into one image.
 
 **Parameters:**
 
@@ -118,7 +126,13 @@ Name | Type | Description | Default
 
 Type | Description
 ---- | -----------
-<code>dict</code> | ``'transformed'`` (`BrainData`), ``'transformation_matrix'`` and     ``'common_model'`` (dicts keyed by atlas label), ``'disparity'`` and     ``'scale'`` (arrays, one entry per parcel), and ``'roi_labels'``.
+<code>dict</code> | ``'transformed'`` (one stitched `BrainData` on the source voxel     axis), ``'transformation_matrix'`` and ``'common_model'`` (dicts     keyed by atlas label), and ``'roi_labels'``, plus the per-parcel     arrays ``'disparity'`` and ``'scale'`` for ``'procrustes'``. Each     parcel value follows `align`'s rule: a `BrainData` carrying that     parcel's mask where its columns are that parcel's voxels, and a raw     `np.ndarray` where they are the model's features or images.
+
+**Raises:**
+
+Type | Description
+---- | -----------
+<code>ValueError</code> | If a parcel's aligned data cannot be painted back onto that parcel's voxels, which happens when an SRM common model has a different feature count from the parcel's voxel count.
 
 (data-braindata-analysis-apply-mask)=
 ### `apply_mask`
