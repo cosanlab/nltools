@@ -9,13 +9,16 @@ source object.
 from __future__ import annotations
 
 import inspect
-import warnings
 from typing import Any
 
 import numpy as np
 
+from nltools.algorithms.decoding import (
+    back_project_weight_maps,
+    validate_decoding_pipeline,
+)
 from nltools.data.results import Predict
-from nltools.utils import find_stack_level, maybe_tqdm
+from nltools.utils import maybe_tqdm
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +299,8 @@ def predict_mvpa(
     groups = _validate_groups(groups, n_rows=bd.shape[0])
     validate_scoring(scoring)
 
-    pipe = build_pipeline(estimator)
+    pipe = build_pipeline(estimator, y=y)
+    validate_decoding_pipeline(pipe)
     classifier = is_classifier(pipe)
     splits = resolve_splits(cv, X=bd.data, y=y, groups=groups, classifier=classifier)
     classes = np.unique(y) if classifier else None
@@ -304,13 +308,40 @@ def predict_mvpa(
     X_data = bd.data  # (n_samples, n_voxels)
 
     if spatial_scale == "whole_brain":
-        return _run_whole_brain(bd, X_data, y, pipe, splits, scoring, classes)
+        return _run_whole_brain(
+            bd,
+            X_data,
+            y,
+            pipe,
+            splits=splits,
+            scoring=scoring,
+            classes=classes,
+            n_jobs=n_jobs,
+        )
     if spatial_scale == "searchlight":
         return _run_searchlight(
-            bd, X_data, y, pipe, splits, scoring, classes, radius, n_jobs, progress_bar
+            bd,
+            X_data,
+            y,
+            pipe,
+            splits=splits,
+            scoring=scoring,
+            classes=classes,
+            radius=radius,
+            n_jobs=n_jobs,
+            progress_bar=progress_bar,
         )
     return _run_roi(
-        bd, X_data, y, pipe, splits, scoring, classes, roi_mask, n_jobs, progress_bar
+        bd,
+        X_data,
+        y,
+        pipe,
+        splits=splits,
+        scoring=scoring,
+        classes=classes,
+        roi_mask=roi_mask,
+        n_jobs=n_jobs,
+        progress_bar=progress_bar,
     )
 
 
@@ -452,21 +483,38 @@ def resolve_estimator(estimator: Any):
     return estimator
 
 
-def build_pipeline(estimator: Any):
+def build_pipeline(estimator: Any, *, y: np.ndarray) -> Any:
     """Build the per-fold pipeline for `estimator`.
 
-    A built-in shortcut selects a predefined pipeline that standardizes
-    features inside each fold before fitting. A caller-supplied estimator or
-    `Pipeline` is used exactly as given — MVPA adds, removes, and
-    reconfigures nothing.
+    A built-in shortcut selects a predefined pipeline: `StandardScaler` inside
+    each fold, then the linear estimator the shortcut names. A classification
+    shortcut on a multiclass target is wrapped in `OneVsRestClassifier`, which
+    gives one signed coefficient row per class instead of whatever multiclass
+    strategy the estimator happens to default to.
+
+    A caller-supplied estimator or `Pipeline` is used exactly as given — MVPA
+    adds, removes, and reconfigures nothing, and never overrides its multiclass
+    strategy. Callers who want one-vs-rest supply a `OneVsRestClassifier`.
+
+    Args:
+        estimator: A shortcut name or an sklearn estimator/`Pipeline`.
+        y: The validated target vector, used only to decide whether a
+            classification shortcut faces a multiclass problem.
+
+    Returns:
+        The estimator to clone and fit in every fold.
     """
+    from sklearn.base import is_classifier
+    from sklearn.multiclass import OneVsRestClassifier
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
     resolved = resolve_estimator(estimator)
-    if isinstance(estimator, str):
-        return make_pipeline(StandardScaler(), resolved)
-    return resolved
+    if not isinstance(estimator, str):
+        return resolved
+    if is_classifier(resolved) and len(np.unique(y)) > 2:
+        resolved = OneVsRestClassifier(resolved)
+    return make_pipeline(StandardScaler(), resolved)
 
 
 # ---------------------------------------------------------------------------
@@ -562,30 +610,63 @@ def _validate_partition(splits: list, *, n_rows: int) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _run_whole_brain(bd, X, y, pipe, splits, scoring, classes) -> Predict:
-    """Cross-validated scoring and out-of-fold predictions, then a fit on all data.
+def _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx):
+    """Fit one cross-validation fold and return its score and test predictions.
 
-    The cross-validation loop produces honest scores and row-aligned
-    out-of-fold predictions. The canonical ``weight_map`` comes from a single
-    fit on the full ``(X, y)`` — one real estimator rather than an aggregation
-    of K fold models, none of which the caller ever sees.
+    A module-level function so `joblib` can ship it to a worker process
+    directly. The scorer is rebuilt inside the worker because a scorer bound to
+    an unfitted estimator does not survive the trip any more cheaply than the
+    two arguments it is built from.
     """
     from sklearn.base import clone
     from sklearn.metrics import check_scoring
 
+    fitted = clone(pipe).fit(X[train_idx], y[train_idx])
+    scorer = check_scoring(fitted, scoring=scoring)
+    score = float(scorer(fitted, X[test_idx], y[test_idx]))
+    return score, np.asarray(fitted.predict(X[test_idx]))
+
+
+def _run_whole_brain(bd, X, y, pipe, *, splits, scoring, classes, n_jobs) -> Predict:
+    """A fit on all data for the map, then cross-validation for the scores.
+
+    The canonical ``weight_map`` comes from a single fit on the full
+    ``(X, y)``: one real estimator rather than an aggregation of K fold models,
+    none of which the caller ever sees. That fit runs *first* so a pipeline
+    whose coefficients cannot be projected back raises after one fit instead of
+    after K + 1. Nothing observable is reordered — the folds are already
+    materialized and the all-data fit does not depend on them.
+
+    The cross-validation loop then produces honest scores and row-aligned
+    out-of-fold predictions. ``n_jobs`` parallelizes that loop — folds are the
+    outer independent work at this spatial scale — at the cost of one copy of
+    the brain per worker.
+    """
+    from joblib import Parallel, delayed
+    from sklearn.base import clone
+
     n_samples, n_voxels = X.shape
-    fold_scores: list[float] = []
+
+    estimator = clone(pipe).fit(X, y)
+    weight_map_arr = _as_predict_map(back_project_weight_maps(estimator, n_voxels))
+
+    if n_jobs == 1:
+        fold_results = [
+            _fit_and_score_fold(X, y, pipe, scoring, train_idx, test_idx)
+            for train_idx, test_idx in splits
+        ]
+    else:
+        fold_results = Parallel(n_jobs=n_jobs)(
+            delayed(_fit_and_score_fold)(X, y, pipe, scoring, train_idx, test_idx)
+            for train_idx, test_idx in splits
+        )
+
+    fold_scores = [score for score, _ in fold_results]
+    fold_preds = [preds for _, preds in fold_results]
+    fold_test_idx = [test_idx for _, test_idx in splits]
+
     fold_idx_array = np.empty(n_samples, dtype=int)
-    fold_preds: list[np.ndarray] = []
-    fold_test_idx: list[np.ndarray] = []
-
-    scorer = check_scoring(pipe, scoring=scoring)
-
-    for fold_idx, (train_idx, test_idx) in enumerate(splits):
-        fitted = clone(pipe).fit(X[train_idx], y[train_idx])
-        fold_scores.append(float(scorer(fitted, X[test_idx], y[test_idx])))
-        fold_preds.append(np.asarray(fitted.predict(X[test_idx])))
-        fold_test_idx.append(test_idx)
+    for fold_idx, test_idx in enumerate(fold_test_idx):
         fold_idx_array[test_idx] = fold_idx
 
     # Assemble out-of-fold predictions with a dtype wide enough for every
@@ -600,11 +681,6 @@ def _run_whole_brain(bd, X, y, pipe, splits, scoring, classes) -> Predict:
     fold_predictions = np.zeros(n_samples, dtype=pred_dtype)
     for test_idx, preds in zip(fold_test_idx, fold_preds):
         fold_predictions[test_idx] = preds
-
-    # Always refit on all data — one legitimate estimator, and the canonical
-    # weight_map for publication and interpretation. Cost: one extra fit.
-    estimator = clone(pipe).fit(X, y)
-    weight_map_arr = _extract_weight_map(estimator, n_voxels)
 
     return Predict(
         spatial_scale="whole_brain",
@@ -655,84 +731,26 @@ def _iter_split(cv, X, y, groups):
 
 
 # ---------------------------------------------------------------------------
-# Weight-map extraction (with optional PCA back-projection)
+# Weight-map extraction
 # ---------------------------------------------------------------------------
 
 
-def _extract_weight_map(
-    fitted_pipe, n_features: int, *, quiet: bool = False
-) -> np.ndarray | None:
-    """Extract a one-dimensional coefficient vector from a fitted pipeline.
+def _as_predict_map(maps: np.ndarray) -> np.ndarray:
+    """Shape back-projected coefficients the way `Predict.weight_map` requires.
 
-    The vector uses the local feature width (n_voxels for whole_brain, sphere size for searchlight,
-    parcel size for ROI).
+    `nltools.algorithms.decoding` always returns ``(n_maps, n_features)``. The
+    record wants one *unstacked* map for regression and binary classification
+    and the stack for multiclass, and it validates that rule
+    (`Predict._validate_maps`), so every runner drops the leading axis here and
+    nowhere else.
 
-    Back-projects through PCA when present. Returns None for non-linear models
-    (no ``.coef_``), for multiclass coefficients (one map per class needs the
-    back-projection work; averaging across classes is not a valid map), or when
-    feature selection breaks back-projection (e.g., ``SelectKBest`` reduces
-    feature count un-invertibly).
+    Args:
+        maps: Back-projected coefficients, ``(n_maps, n_features)``.
 
-    ``quiet=True`` silences the no-``.coef_`` warning — used by ROI/searchlight
-    runners that aggregate a single warning at the runner level so a
-    non-linear-model call doesn't emit one warning per parcel/sphere.
+    Returns:
+        ndarray: ``(n_features,)`` when there is one map, else ``maps``.
     """
-    from sklearn.decomposition import PCA
-    from sklearn.pipeline import Pipeline
-
-    # Unwrap Pipeline / make_pipeline to find the final estimator and any
-    # preceding PCA.
-    if isinstance(fitted_pipe, Pipeline):
-        named = list(fitted_pipe.named_steps.values())
-    else:
-        named = [fitted_pipe]
-    final_est = named[-1]
-    pca_step = next((step for step in named[:-1] if isinstance(step, PCA)), None)
-
-    coef = getattr(final_est, "coef_", None)
-    if coef is None:
-        if not quiet:
-            warnings.warn(
-                f"{type(final_est).__name__} has no .coef_ attribute; "
-                "weight_map is unavailable for non-linear models. Pass a "
-                "linear estimator= — 'linear_svc', 'logistic_regression', "
-                "'linear_discriminant_analysis', 'ridge_classifier', 'ridge', "
-                "'lasso', 'linear_svr' — or compute permutation importances "
-                "directly.",
-                UserWarning,
-                stacklevel=find_stack_level(),
-            )
-        return None
-
-    coef = np.asarray(coef)
-    # A binary classifier or a regressor exposes one coefficient row.
-    if coef.ndim == 2 and coef.shape[0] == 1:
-        coef = coef.ravel()
-    elif coef.ndim == 2:
-        if not quiet:
-            warnings.warn(
-                f"{type(final_est).__name__} fitted {coef.shape[0]} classes, and "
-                "one coefficient map per class is not available yet, so "
-                "weight_map is None for this call. Averaging coefficients across "
-                "classes would not describe any fitted decision boundary. The "
-                "cross-validated scores and out-of-fold predictions are "
-                "unaffected.",
-                UserWarning,
-                stacklevel=find_stack_level(),
-            )
-        return None
-    elif coef.ndim != 1:
-        return None
-
-    # Back-project through PCA if present: pca.components_.T @ coef
-    if pca_step is not None:
-        coef = pca_step.components_.T @ coef
-
-    if coef.shape[0] != n_features:
-        # Some estimators (e.g., SelectKBest pipelines) reduce feature count
-        # in ways we can't trivially reverse — bail out.
-        return None
-    return coef
+    return maps[0] if maps.shape[0] == 1 else maps
 
 
 # ---------------------------------------------------------------------------
@@ -756,7 +774,7 @@ def _score_sphere(X, y, pipe, splits, scoring, neighbor_indices) -> float:
 
 
 def _run_searchlight(
-    bd, X, y, pipe, splits, scoring, classes, radius, n_jobs, progress_bar
+    bd, X, y, pipe, *, splits, scoring, classes, radius, n_jobs, progress_bar
 ) -> Predict:
     """Per-voxel-neighborhood CV decoding. Returns a Predict with one score_map.
 
@@ -838,8 +856,39 @@ def _resolve_roi_labels(brain_mask, roi_mask) -> tuple[np.ndarray, np.ndarray]:
     return label_vec, unique_labels
 
 
+def _assemble_roi_weights(label_vec, unique_labels, per_roi) -> np.ndarray:
+    """Write each parcel's coefficients into its voxels, NaN everywhere else.
+
+    Args:
+        label_vec: ``(n_voxels,)`` atlas label per in-mask voxel.
+        unique_labels: The scored parcel labels, in score order.
+        per_roi: One summary dict per parcel; ``coef`` is ``None`` for a parcel
+            whose fit failed.
+
+    Returns:
+        ndarray: ``(n_voxels,)`` for one map, ``(n_classes, n_voxels)`` for
+            multiclass. A parcel whose fit failed keeps NaN in its voxels.
+
+    Raises:
+        ValueError: If no parcel produced coefficients at all.
+    """
+    fitted = [r["coef"] for r in per_roi if r["coef"] is not None]
+    if not fitted:
+        raise ValueError(
+            "No atlas parcel could be fitted, so no weight_map exists. Check "
+            "that the atlas overlaps the mask and that every parcel has enough "
+            "voxels and observations for the estimator."
+        )
+    n_maps = fitted[0].shape[0]
+    weights = np.full((n_maps, label_vec.shape[0]), np.nan, dtype=float)
+    for roi_label, summary in zip(unique_labels, per_roi):
+        if summary["coef"] is not None:
+            weights[:, label_vec == roi_label] = summary["coef"]
+    return _as_predict_map(weights)
+
+
 def _run_roi(
-    bd, X, y, pipe, splits, scoring, classes, roi_mask, n_jobs, progress_bar
+    bd, X, y, pipe, *, splits, scoring, classes, roi_mask, n_jobs, progress_bar
 ) -> Predict:
     """Per-parcel cross-validated decoding with an assembled voxel-space map.
 
@@ -859,9 +908,14 @@ def _run_roi(
     within-parcel ranking is meaningful. The per-parcel estimators are internal:
     they are fitted to produce the map and are not exposed on the result.
 
-    If any parcel's estimator cannot expose ``coef_`` (a non-linear model,
-    feature selection in the pipeline, or a per-parcel fit error),
-    ``weight_map`` is None for the whole call, matching whole-brain's behavior.
+    A pipeline whose coefficients cannot be projected back onto the parcel
+    voxel axis raises `ValueError`, exactly as it does for whole-brain
+    decoding. A parcel that simply *fails to fit* — too few voxels, one class
+    in a training fold — is different: that parcel's ``scores`` column and its
+    voxels in both maps come back NaN, and the rest of the atlas is still
+    reported. Nothing warns and no field names the failed parcels; the matching
+    NaN column in ``scores`` is how a caller identifies them. If *every* parcel
+    fails, there is no map to assemble and the call raises.
     """
     from joblib import Parallel, delayed
     from sklearn.base import clone
@@ -872,30 +926,35 @@ def _run_roi(
     label_vec, unique_labels = _resolve_roi_labels(bd.mask, roi_mask)
 
     n_folds = len(splits)
-    scorer = check_scoring(pipe, scoring=scoring)
 
     def decode_roi(roi_label):
-        """Cross-validate and refit one atlas parcel, returning its summary."""
-        failed = {"fold_scores": np.full(n_folds, np.nan), "all_data_coef": None}
+        """Cross-validate and refit one atlas parcel, returning its summary.
+
+        The scorer is built here rather than closed over, so nothing scorer-
+        shaped has to survive the worker boundary — the same rule
+        `_fit_and_score_fold` follows for whole-brain folds.
+        """
+        failed = {"fold_scores": np.full(n_folds, np.nan), "coef": None}
         cols = label_vec == roi_label
         if not cols.any():
             return failed
         X_roi = X[:, cols]
-        n_roi_voxels = int(cols.sum())
 
         fold_scores = []
         try:
             for train_idx, test_idx in splits:
                 fitted = clone(pipe).fit(X_roi[train_idx], y[train_idx])
+                scorer = check_scoring(fitted, scoring=scoring)
                 fold_scores.append(float(scorer(fitted, X_roi[test_idx], y[test_idx])))
             estimator = clone(pipe).fit(X_roi, y)
-            all_data_coef = _extract_weight_map(estimator, n_roi_voxels, quiet=True)
         except Exception:
             return failed
 
+        # Outside the `try`: an unprojectable pipeline is a contract error for
+        # the whole call, not a parcel that happened to fail.
         return {
             "fold_scores": np.asarray(fold_scores, dtype=float),
-            "all_data_coef": all_data_coef,
+            "coef": back_project_weight_maps(estimator, int(cols.sum())),
         }
 
     iterator = maybe_tqdm(unique_labels, progress_bar=progress_bar, desc="ROI decoding")
@@ -918,22 +977,10 @@ def _run_roi(
     for roi_label, parcel_score in zip(unique_labels, mean_per_roi):
         score_arr[label_vec == roi_label] = parcel_score
 
-    # weight_map: assemble per-parcel coefficients back into voxel space. If
-    # any parcel could not expose them, drop the map for the whole call and
-    # warn once — matching whole_brain's all-or-nothing behavior.
-    weight_arr = None
-    if any(r["all_data_coef"] is None for r in per_roi):
-        warnings.warn(
-            "Could not extract per-parcel coefficients for at least one ROI "
-            "(non-linear model, feature selection in the pipeline, or a "
-            "per-parcel fit error), so weight_map is None for this call.",
-            UserWarning,
-            stacklevel=find_stack_level(),
-        )
-    else:
-        weight_arr = np.full(label_vec.shape, np.nan, dtype=float)
-        for roi_label, r in zip(unique_labels, per_roi):
-            weight_arr[label_vec == roi_label] = r["all_data_coef"]
+    # weight_map: assemble per-parcel coefficients back into voxel space. Each
+    # voxel belongs to exactly one parcel, so every coefficient has one
+    # destination. A parcel that failed to fit leaves NaN behind.
+    weight_arr = _assemble_roi_weights(label_vec, unique_labels, per_roi)
 
     return Predict(
         spatial_scale="roi",

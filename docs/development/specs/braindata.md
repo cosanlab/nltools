@@ -280,13 +280,15 @@ scikit-learn estimator or `Pipeline`, MVPA does not add, remove, or reconfigure
 preprocessing steps. Callers include any custom scaling, dimensionality
 reduction, or feature selection in that estimator or pipeline.
 
-Every MVPA pipeline must end in an estimator that exposes `coef_`. For
-whole-brain and ROI decoding, every preprocessing step must also allow those
-coefficients to be projected back to the original whole-brain or parcel voxel
-axis. An incompatible estimator or pipeline raises `ValueError`. Every
-successful whole-brain or ROI result includes `Predict.weight_map`. Searchlight
-uses the same transformer whitelist but does not combine coefficients from
-overlapping local models into one map.
+Every MVPA pipeline's preprocessing steps must come from the supported
+transformer whitelist below, in every spatial scale. Whole-brain and ROI
+pipelines must additionally end in an estimator that exposes `coef_`, because
+those two scales extract a weight map: their coefficients must project back to
+the original whole-brain or parcel voxel axis. An incompatible estimator or
+pipeline raises `ValueError`. Every successful whole-brain or ROI result
+includes `Predict.weight_map`. Searchlight builds no coefficient map — it would
+have to combine coefficients from overlapping local models — so it requires the
+whitelist but not `coef_`.
 
 Supported preprocessing steps are `StandardScaler`, `PCA`, `VarianceThreshold`,
 `GenericUnivariateSelect`, `SelectPercentile`, `SelectKBest`, `SelectFpr`,

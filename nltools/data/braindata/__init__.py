@@ -1548,7 +1548,22 @@ class BrainData:
                 ``'linear_discriminant_analysis'``, ``'ridge_classifier'``,
                 ``'ridge'``, ``'lasso'``, ``'linear_svr'`` — or any sklearn
                 estimator or `Pipeline`, which is used exactly as supplied.
-                Default ``'linear_svc'``.
+                Default ``'linear_svc'``. Every shortcut standardizes voxels
+                inside each fold and then fits a linear estimator; a
+                classification shortcut on a multiclass target is wrapped in
+                `OneVsRestClassifier`, so every class gets its own signed map.
+                A caller-supplied estimator is never wrapped and never has its
+                multiclass strategy overridden — pass a `OneVsRestClassifier`
+                to get one. Every preprocessing step, in every spatial
+                scale, must be one of `StandardScaler`, `PCA`,
+                `VarianceThreshold`,
+                `GenericUnivariateSelect`, `SelectPercentile`, `SelectKBest`,
+                `SelectFpr`, `SelectFdr`, `SelectFwe`, `SelectFromModel`,
+                `RFE`, `RFECV`, `SequentialFeatureSelector`, ``None``, or
+                ``'passthrough'``. Whole-brain and ROI pipelines must also end
+                in an estimator exposing ``coef_``, since those two scales
+                extract a weight map; searchlight builds none and does not
+                require it.
             cv (int | sklearn splitter, optional): ``None`` (the default) is a
                 deterministic five-fold ``KFold`` (regression) or
                 ``StratifiedKFold`` (classification); an int selects that many
@@ -1570,9 +1585,11 @@ class BrainData:
                 by, and only valid for, ``spatial_scale='roi'``.
             radius (float): Searchlight sphere radius in millimeters; only
                 valid for ``spatial_scale='searchlight'``. Default ``10.0``.
-            n_jobs (int): Parallel workers for the outer MVPA loop. Default
-                ``1``; searchlight on a real brain at higher ``n_jobs`` can be
-                memory-heavy.
+            n_jobs (int): Parallel workers for the outer independent work of
+                the selected spatial scale — cross-validation folds for
+                whole-brain, parcels for ROI, spheres for searchlight. Default
+                ``1``; every worker holds a copy of the data, so a real brain
+                at higher ``n_jobs`` can be memory-heavy.
             progress_bar (bool): Show a progress bar for searchlight and ROI.
 
         Returns:
@@ -1586,13 +1603,23 @@ class BrainData:
                 any classifier and ``scoring`` records the scoring
                 specification in every mode. ``mean_score`` and ``std_score``
                 are computed from ``scores`` on demand and do not exist for a
-                searchlight result.
+                searchlight result. ``weight_map`` holds one coefficient map
+                for regression and binary classification (the signed map for
+                ``classes[1]`` versus ``classes[0]``) and one map per class, in
+                ``classes`` order, for multiclass — never an average across
+                classes. It is projected back to voxel units through the
+                pipeline's fitted preprocessing, but centering is not undone,
+                so ``raw_data @ weight_map`` does not reproduce the decision
+                function; use ``result.estimator`` to predict.
 
         Raises:
             ValueError: On both ``X`` and ``y``, a decoding argument on a
                 fitted-model call, an unknown estimator shortcut or spatial
                 scale, a target or group vector that is not one value per row,
-                or cross-validation folds that do not partition the rows.
+                cross-validation folds that do not partition the rows, a
+                preprocessing step outside the supported set, or — for
+                whole-brain and ROI decoding — a pipeline whose coefficients
+                cannot be projected back onto the voxel axis.
             TypeError: On a removed keyword, an `estimator` that is neither a
                 shortcut name nor an object with `fit`/`predict`, or a `cv`
                 that is neither `None`, an int, nor a splitter.

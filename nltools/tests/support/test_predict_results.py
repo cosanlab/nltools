@@ -144,7 +144,7 @@ class TestWholeBrainConstruction:
             Predict(**{**whole_brain_fields, field: value})
 
     @pytest.mark.parametrize(
-        "field", ["predictions", "cv_folds", "scores", "estimator"]
+        "field", ["predictions", "cv_folds", "scores", "estimator", "weight_map"]
     )
     def test_required_fields_cannot_be_missing(self, field, whole_brain_fields):
         with pytest.raises(ValueError, match=f"{field}.*whole_brain"):
@@ -195,7 +195,9 @@ class TestRoiConstruction:
         with pytest.raises(ValueError, match=f"{field}.*roi"):
             Predict(**{**roi_fields, field: value})
 
-    @pytest.mark.parametrize("field", ["scores", "roi_labels", "score_map"])
+    @pytest.mark.parametrize(
+        "field", ["scores", "roi_labels", "score_map", "weight_map"]
+    )
     def test_required_fields_cannot_be_missing(self, field, roi_fields):
         with pytest.raises(ValueError, match=f"{field}.*roi"):
             Predict(**{**roi_fields, field: None})
@@ -208,8 +210,10 @@ class TestRoiConstruction:
         with pytest.raises(ValueError, match="roi_labels"):
             Predict(**{**roi_fields, "roi_labels": np.arange(N_ROIS + 1)})
 
-    def test_weight_map_may_be_absent(self, roi_fields):
-        assert Predict(**{**roi_fields, "weight_map": None}).weight_map is None
+    def test_weight_map_cannot_be_absent(self, roi_fields):
+        """Every successful ROI result carries a map — there is no degraded path."""
+        with pytest.raises(ValueError, match="weight_map.*roi"):
+            Predict(**{**roi_fields, "weight_map": None})
 
 
 class TestSearchlightConstruction:

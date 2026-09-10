@@ -41,17 +41,19 @@ value per parcel for ROI. A searchlight result has no cross-fold summary to comp
 
 `scoring=None` (the default) records that the estimator's own `score` method was used; it does not
 name that method's metric. `weight_map` is the estimator refit on all observations after
-cross-validation — the map you publish. It is one signed map for regression and binary
-classification. It is `None` today when the estimator exposes no `coef_` (a non-linear model, or a
-pipeline whose preprocessing cannot be reversed) and for a multiclass classifier, whose one map per
-class is not built yet; averaging coefficients across classes describes no fitted decision
-boundary, so nothing is returned in its place. Fold-specific coefficient maps are deliberately
-absent: fits on overlapping training folds are not independent uncertainty samples.
+cross-validation — the map you publish. It holds one signed map for regression and binary
+classification (`classes[1]` versus `classes[0]`), and one map per class in `classes` order for
+multiclass. Coefficients are never averaged across classes: a mean describes no fitted decision
+boundary. Fold-specific coefficient maps are likewise absent — fits on overlapping training folds
+are not independent uncertainty samples.
+
+Every successful whole-brain or ROI result carries a `weight_map`; there is no "it came back
+`None`" path. A pipeline that cannot produce one raises instead (see below).
 
 Goal | Use | Notes
 --- | --- | ---
 Decode a label or value | `predict(y=, estimator=, cv=)` | `y` is an array, or a string naming a column of `.Y`
-Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Only linear models expose a `weight_map`
+Pick an estimator | `estimator='linear_svc'`, `'logistic_regression'`, `'linear_discriminant_analysis'`, `'ridge_classifier'`, `'ridge'`, `'lasso'`, `'linear_svr'`, or any sklearn estimator | Every shortcut is linear; a non-linear estimator raises
 Cross-validation | `cv=None` (a deterministic five folds), `cv=5`, or an sklearn splitter such as `LeaveOneGroupOut()` + `groups=` | Test folds must partition the rows, so shuffle-split and repeated splitters raise
 Stratify a continuous target | [`KFoldStratified`](../api/tasks/prediction.md#tasks-prediction-kfoldstratified) | Deals `y`-ordered samples round-robin into folds
 Region-by-region | `spatial_scale='roi', roi_mask=atlas` | Answers "is this region informative on its own?"
@@ -89,6 +91,45 @@ roi_result = pain.predict(
 roi_result.mean_score      # one score per parcel
 roi_result.score_map       # those scores painted back into voxel space
 ```
+
+## Pipelines and the weight map
+
+A shortcut name selects a fixed pipeline: `StandardScaler` inside each fold, then the linear
+estimator the name says. A classification shortcut facing three or more classes is wrapped in
+`OneVsRestClassifier`, so each class gets its own signed map. A caller-supplied estimator or
+`Pipeline` is used exactly as given — nothing is added, removed, or reconfigured, and its
+multiclass strategy is never overridden. Pass a `OneVsRestClassifier` yourself if you want one.
+
+Because `weight_map` must land on the voxel axis, the pipeline has to be reversible in the
+coefficient sense. Supported preprocessing steps are `StandardScaler`, `PCA`, `VarianceThreshold`,
+`GenericUnivariateSelect`, `SelectPercentile`, `SelectKBest`, `SelectFpr`, `SelectFdr`,
+`SelectFwe`, `SelectFromModel`, `RFE`, `RFECV`, `SequentialFeatureSelector`, and `None` /
+`'passthrough'`, composed in any order whose fitted widths line up ([the back-projection
+core](../api/algorithms/decoding.md) documents each rule). Anything else raises
+`ValueError`, even when it implements `inverse_transform` — inverting a *data* transformation is
+not the same operation as back-projecting a *coefficient*. A whole-brain or ROI pipeline whose
+final estimator has no `coef_` raises the same way. Searchlight shares the whitelist but builds no
+coefficient map, so it accepts a non-linear final estimator.
+
+```python
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import LinearSVC
+
+pipe = make_pipeline(StandardScaler(), SelectKBest(f_classif, k=500), LinearSVC(dual="auto"))
+result = pain.predict(y=high_pain, estimator=pipe, cv=5)
+result.weight_map.shape    # full voxel width; exact zeros where SelectKBest dropped a voxel
+```
+
+The walk runs backwards through the fitted steps: a selector expands the feature axis and inserts
+exact zeros where it dropped a voxel; unwhitened `PCA` applies `weights @ components_`; whitened
+`PCA` divides component weights by `sqrt(explained_variance_)` first; `StandardScaler(with_std=True)`
+divides by `scale_`, which is what puts the map back in raw voxel units.
+
+Centering is deliberately *not* undone. It shifts the intercept of the raw-space decision function
+without changing its slope map, so `raw_data @ weight_map` does not reproduce the decision function.
+Use `result.estimator` to predict on new data.
 
 ## Encoding
 
@@ -132,8 +173,9 @@ boot["mean"], boot["ci_lower"], boot["ci_upper"]
 - `cv=None` and an integer `cv` do not shuffle, so the folds are reproducible across calls. Rows
   ordered by condition make contiguous folds degenerate — pass
   `cv=KFold(n_splits=5, shuffle=True, random_state=0)` when that is a risk.
-- `n_jobs` defaults to `1` on `BrainData.predict` because searchlight copies the brain into every
-  worker.
+- `n_jobs` parallelizes the outer work of the scale you asked for: folds for whole-brain, parcels
+  for ROI, spheres for searchlight. It defaults to `1` because every worker holds a copy of the
+  brain.
 - A ROC on a regression model's `predictions` needs a binary `binary_outcome`. Pass the labels,
   not the continuous target.
 

@@ -16,12 +16,12 @@ from .braindata import BrainData
 #: `None`, so an invalid field combination cannot be constructed.
 _MODE_FIELDS = {
     "whole_brain": {
-        "required": ("predictions", "cv_folds", "scores", "estimator"),
-        "optional": ("classes", "weight_map"),
+        "required": ("predictions", "cv_folds", "scores", "estimator", "weight_map"),
+        "optional": ("classes",),
     },
     "roi": {
-        "required": ("scores", "roi_labels", "score_map"),
-        "optional": ("classes", "weight_map"),
+        "required": ("scores", "roi_labels", "score_map", "weight_map"),
+        "optional": ("classes",),
     },
     "searchlight": {
         "required": ("score_map",),

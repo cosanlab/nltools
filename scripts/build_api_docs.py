@@ -377,6 +377,9 @@ PAGES: tuple[Page, ...] = (
     ),
     # --- internal modules ---------------------------------------------------
     _module_page("nltools.algorithms.backends", "backends.md", internal=True),
+    _module_page(
+        "nltools.algorithms.decoding", "algorithms/decoding.md", internal=True
+    ),
     _module_page("nltools.data.braindata.cache", "cache.md", internal=True),
     _module_page(
         "nltools.data.braindata.neighborhoods", "neighborhoods.md", internal=True

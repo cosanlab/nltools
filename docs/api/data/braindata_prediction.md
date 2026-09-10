@@ -28,15 +28,33 @@ Name | Description
 ### `build_pipeline`
 
 ```python
-build_pipeline(estimator: Any)
+build_pipeline(estimator: Any, *, y: np.ndarray) -> Any
 ```
 
 Build the per-fold pipeline for `estimator`.
 
-A built-in shortcut selects a predefined pipeline that standardizes
-features inside each fold before fitting. A caller-supplied estimator or
-`Pipeline` is used exactly as given — MVPA adds, removes, and
-reconfigures nothing.
+A built-in shortcut selects a predefined pipeline: `StandardScaler` inside
+each fold, then the linear estimator the shortcut names. A classification
+shortcut on a multiclass target is wrapped in `OneVsRestClassifier`, which
+gives one signed coefficient row per class instead of whatever multiclass
+strategy the estimator happens to default to.
+
+A caller-supplied estimator or `Pipeline` is used exactly as given — MVPA
+adds, removes, and reconfigures nothing, and never overrides its multiclass
+strategy. Callers who want one-vs-rest supply a `OneVsRestClassifier`.
+
+**Parameters:**
+
+Name | Type | Description | Default
+---- | ---- | ----------- | -------
+`estimator` | <code>Any</code> | A shortcut name or an sklearn estimator/`Pipeline`. | *required*
+`y` | <code>ndarray</code> | The validated target vector, used only to decide whether a classification shortcut faces a multiclass problem. | *required*
+
+**Returns:**
+
+Type | Description
+---- | -----------
+<code>Any</code> | The estimator to clone and fit in every fold.
 
 (data-braindata-prediction-predict)=
 ### `predict`
